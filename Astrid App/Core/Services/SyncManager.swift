@@ -50,12 +50,26 @@ class SyncManager: ObservableObject {
     /// Perform a full sync (initial sync or after long time)
     /// - Parameter includeUserTasks: If true, also fetches user tasks (heavy operation, use sparingly)
     func performFullSync(includeUserTasks: Bool = false) async throws {
+        guard !isSyncing else {
+            print("⏳ [SyncManager] Full sync already in progress, skipping")
+            return
+        }
         isSyncing = true
         defer { isSyncing = false }
 
         print("🔄 [SyncManager] Starting full sync with OAuth + API v1...")
 
         do {
+            // CRITICAL: Push pending local operations FIRST, before fetching server data.
+            // This ensures edits/creates are on the server so the fetch returns correct data.
+            // Without this, server data overwrites pending local edits → edits lost or duplicates.
+            print("🔄 [SyncManager] Pushing pending operations before fetch...")
+            do {
+                try await taskService.syncPendingOperations()
+            } catch {
+                print("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
+            }
+
             // Fetch all lists using new API (network call - doesn't block main thread)
             print("📋 [SyncManager] Fetching lists via API v1...")
             let lists = try await apiClient.getLists()
@@ -108,7 +122,7 @@ class SyncManager: ObservableObject {
             print("✅ [SyncManager] Total unique tasks: \(uniqueTasks.count)")
 
             // Update TaskService with the fetched tasks
-            taskService.updateTasksFromSync(uniqueTasks)
+            await taskService.updateTasksFromSync(uniqueTasks)
             print("✅ [SyncManager] Tasks synced: \(taskService.tasks.count)")
 
             // Cache user images in background (doesn't block UI)
@@ -261,6 +275,10 @@ class SyncManager: ObservableObject {
             }
         }
 
+        guard !isSyncing else {
+            print("⏳ [SyncManager] Sync already in progress, skipping")
+            return
+        }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -270,6 +288,15 @@ class SyncManager: ObservableObject {
         var stats = IncrementalSyncStats()
 
         do {
+            // CRITICAL: Push pending local operations FIRST, before fetching server data.
+            do {
+                try await taskService.syncPendingOperations()
+            } catch {
+                print("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
+            }
+            try await commentService.syncPendingComments()
+            try await listMemberService.syncPendingOperations()
+
             // Fetch all lists and apply only newer changes
             let serverLists = try await apiClient.getLists()
             stats.listsChecked = serverLists.count
@@ -292,32 +319,11 @@ class SyncManager: ObservableObject {
                 }
             }
 
-            // Fetch all tasks and apply only newer changes
+            // Fetch all tasks and apply through unified sync path
+            // This handles dedup, pending deletes, and orphan cleanup
             let serverTasks = try await apiClient.getAllTasks()
             stats.tasksChecked = serverTasks.count
-
-            for serverTask in serverTasks {
-                if let existingIndex = taskService.tasks.firstIndex(where: { $0.id == serverTask.id }) {
-                    // Compare timestamps - only update if server is newer
-                    let existingTask = taskService.tasks[existingIndex]
-                    let serverUpdated = serverTask.updatedAt ?? serverTask.createdAt ?? .distantPast
-                    let localUpdated = existingTask.updatedAt ?? existingTask.createdAt ?? .distantPast
-
-                    if serverUpdated > localUpdated {
-                        taskService.tasks[existingIndex] = serverTask
-                        stats.tasksUpdated += 1
-                    }
-                } else {
-                    // New task
-                    taskService.tasks.append(serverTask)
-                    stats.tasksCreated += 1
-                }
-            }
-
-            // Sync pending local operations
-            try await taskService.syncPendingOperations()
-            try await commentService.syncPendingComments()
-            try await listMemberService.syncPendingOperations()
+            await taskService.updateTasksFromSync(serverTasks)
 
             // Update timestamps
             let syncTime = Date()
@@ -330,7 +336,7 @@ class SyncManager: ObservableObject {
 
             print("✅ [SyncManager] Incremental sync completed:")
             print("   Lists: \(stats.listsCreated) new, \(stats.listsUpdated) updated (checked \(stats.listsChecked))")
-            print("   Tasks: \(stats.tasksCreated) new, \(stats.tasksUpdated) updated (checked \(stats.tasksChecked))")
+            print("   Tasks: \(stats.tasksChecked) checked")
 
         } catch {
             print("⚠️ [SyncManager] Incremental sync failed (offline mode): \(error)")
@@ -351,54 +357,6 @@ class SyncManager: ObservableObject {
         } catch {
             print("⚠️ [SyncManager] Quick sync failed: \(error)")
             throw error
-        }
-    }
-
-    // MARK: - Apply Changes
-
-    private func applyChanges(_ syncResponse: SyncResponse) async throws {
-        // Apply list changes
-        for list in syncResponse.lists.created {
-            if !listService.lists.contains(where: { $0.id == list.id }) {
-                listService.lists.append(list)
-            }
-        }
-
-        for list in syncResponse.lists.updated {
-            if let index = listService.lists.firstIndex(where: { $0.id == list.id }) {
-                listService.lists[index] = list
-            }
-        }
-
-        // TODO: Handle deleted lists when backend supports it
-
-        // Apply task changes
-        for task in syncResponse.tasks.created {
-            if !taskService.tasks.contains(where: { $0.id == task.id }) {
-                taskService.tasks.append(task)
-            }
-        }
-
-        for task in syncResponse.tasks.updated {
-            if let index = taskService.tasks.firstIndex(where: { $0.id == task.id }) {
-                taskService.tasks[index] = task
-            }
-        }
-
-        // TODO: Handle deleted tasks when backend supports it
-
-        // Re-sort tasks
-        taskService.tasks.sort { task1, task2 in
-            if let date1 = task1.dueDateTime, let date2 = task2.dueDateTime {
-                return date1 < date2
-            }
-            if task1.dueDateTime != nil {
-                return true
-            }
-            if task2.dueDateTime != nil {
-                return false
-            }
-            return (task1.createdAt ?? Date()) > (task2.createdAt ?? Date())
         }
     }
 
@@ -436,36 +394,12 @@ class SyncManager: ObservableObject {
     }
 }
 
-// MARK: - Sync Response Models
-
-struct SyncResponse: Codable {
-    let lists: SyncChanges<TaskList>
-    let tasks: SyncChanges<Task>
-    let syncTimestamp: String
-    let stats: SyncStats
-}
-
-struct SyncChanges<T: Codable>: Codable {
-    let created: [T]
-    let updated: [T]
-    let deleted: [String] // IDs of deleted items
-}
-
-struct SyncStats: Codable {
-    let listsCreated: Int
-    let listsUpdated: Int
-    let tasksCreated: Int
-    let tasksUpdated: Int
-}
-
 /// Statistics for incremental sync operations
 struct IncrementalSyncStats {
     var listsChecked: Int = 0
     var listsCreated: Int = 0
     var listsUpdated: Int = 0
     var tasksChecked: Int = 0
-    var tasksCreated: Int = 0
-    var tasksUpdated: Int = 0
 }
 
 // MARK: - Sync Errors

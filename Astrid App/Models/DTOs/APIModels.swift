@@ -49,6 +49,7 @@ struct CreateTaskRequest: Codable {
     var listIds: [String]?
     var assigneeId: String?
     var assigneeEmail: String?
+    var clientRequestId: String?  // Idempotency key for dedup (server unique constraint)
     var timerDuration: Int?
 }
 

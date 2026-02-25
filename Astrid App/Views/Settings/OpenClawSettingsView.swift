@@ -1,59 +1,39 @@
 import SwiftUI
 
-/// Authentication modes for OpenClaw gateways
-/// Note: Tailscale auth is not supported because astrid.cc servers connect to gateways,
-/// and they cannot be on users' private Tailscale networks.
-enum OpenClawAuthMode: String, CaseIterable, Identifiable {
-    case astridSigned = "astrid-signed"
-    case token = "token"
-    case none = "none"
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .astridSigned: return NSLocalizedString("settings.openclaw.auth_mode.astrid_signed", comment: "")
-        case .token: return NSLocalizedString("settings.openclaw.auth_mode.token", comment: "")
-        case .none: return NSLocalizedString("settings.openclaw.auth_mode.none", comment: "")
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .astridSigned: return NSLocalizedString("settings.openclaw.auth_mode.astrid_signed_desc", comment: "")
-        case .token: return NSLocalizedString("settings.openclaw.auth_mode.token_desc", comment: "")
-        case .none: return NSLocalizedString("settings.openclaw.auth_mode.none_desc", comment: "")
-        }
-    }
-
-    var requiresToken: Bool {
-        self == .token
-    }
-}
-
-/// View for managing OpenClaw workers (self-hosted AI gateways)
+/// View for managing OpenClaw agents (AI agent registration and credentials)
 struct OpenClawSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
 
-    @State private var workers: [OpenClawWorker] = []
+    @State private var agents: [OpenClawAgent] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var successMessage: String?
 
-    // Add worker sheet state
-    @State private var showAddWorkerSheet = false
-    @State private var newWorkerName = ""
-    @State private var newWorkerUrl = ""
-    @State private var newWorkerAuthMode: OpenClawAuthMode = .astridSigned
-    @State private var newWorkerToken = ""
-    @State private var isAddingWorker = false
-    @State private var addWorkerError: String?
+    // Registration sheet state
+    @State private var showRegisterSheet = false
+    @State private var newAgentName = ""
+    @State private var isRegistering = false
+    @State private var registerError: String?
 
-    // Health check and delete state
-    @State private var checkingHealthId: String?
+    // Credentials sheet (shown once after registration)
+    @State private var registrationResult: OpenClawRegistrationResult?
+
+    // Delete state
     @State private var deletingId: String?
+    @State private var agentToDelete: OpenClawAgent?
+
+    // Copy feedback
+    @State private var copiedField: String?
 
     private let apiClient = AstridAPIClient.shared
+
+    private static let reservedNames: Set<String> = [
+        "admin", "system", "test", "api", "support", "root", "openclaw"
+    ]
+
+    private static let namePattern = try! NSRegularExpression(
+        pattern: "^[a-z0-9][a-z0-9._-]{0,30}[a-z0-9]$"
+    )
 
     var body: some View {
         Form {
@@ -69,33 +49,54 @@ struct OpenClawSettingsView: View {
                 errorMessageSection(errorMessage)
             }
 
-            // Workers list
+            // Agent list
             if isLoading {
                 loadingSection
-            } else if workers.isEmpty {
+            } else if agents.isEmpty {
                 emptyStateSection
             } else {
-                workersSection
+                agentsSection
             }
 
-            // Add worker button
-            addWorkerSection
+            // Connect agent button
+            connectAgentSection
 
             // Info section
             infoSection
 
-            // Security warning
-            securitySection
+            // Tip section
+            tipSection
         }
         .scrollContentBackground(.hidden)
         .themedBackgroundPrimary()
         .navigationTitle(NSLocalizedString("settings.openclaw.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showAddWorkerSheet) {
-            addWorkerSheet
+        .sheet(isPresented: $showRegisterSheet) {
+            registerAgentSheet
+        }
+        .sheet(item: $registrationResult) { result in
+            credentialsSheet(result)
+        }
+        .confirmationDialog(
+            NSLocalizedString("settings.openclaw.delete_agent", comment: ""),
+            isPresented: .init(
+                get: { agentToDelete != nil },
+                set: { if !$0 { agentToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let agent = agentToDelete {
+                Button(NSLocalizedString("settings.openclaw.delete_agent", comment: ""), role: .destructive) {
+                    _Concurrency.Task { await deleteAgent(agentId: agent.id) }
+                }
+            }
+        } message: {
+            if let agent = agentToDelete {
+                Text(String(format: NSLocalizedString("settings.openclaw.delete_confirm", comment: ""), agent.email))
+            }
         }
         .task {
-            await loadWorkers()
+            await loadAgents()
         }
     }
 
@@ -167,11 +168,11 @@ struct OpenClawSettingsView: View {
                     .font(.system(size: 40))
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
-                Text(NSLocalizedString("settings.openclaw.no_workers", comment: ""))
+                Text(NSLocalizedString("settings.openclaw.no_agents", comment: ""))
                     .font(Theme.Typography.body())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                Text(NSLocalizedString("settings.openclaw.no_workers_hint", comment: ""))
+                Text(NSLocalizedString("settings.openclaw.no_agents_hint", comment: ""))
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -181,46 +182,39 @@ struct OpenClawSettingsView: View {
         }
     }
 
-    // MARK: - Workers List
+    // MARK: - Agents List
 
-    private var workersSection: some View {
-        Section(header: Text(NSLocalizedString("settings.openclaw.workers_section", comment: ""))) {
-            ForEach(workers) { worker in
-                workerRow(worker)
+    private var agentsSection: some View {
+        Section {
+            ForEach(agents) { agent in
+                agentRow(agent)
             }
         }
     }
 
-    private func workerRow(_ worker: OpenClawWorker) -> some View {
+    private func agentRow(_ agent: OpenClawAgent) -> some View {
         VStack(alignment: .leading, spacing: Theme.spacing8) {
-            // Name and status
+            // Email and status
             HStack {
-                Text(worker.name)
-                    .font(Theme.Typography.body())
+                Text(agent.email)
+                    .font(.system(.body, design: .monospaced))
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
                 Spacer()
 
-                statusBadge(for: worker.status)
+                statusBadge(for: agent.status)
             }
 
-            // Gateway URL
-            Text(worker.gatewayUrl)
-                .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            // Auth mode and last seen
+            // Dates
             HStack {
-                Text(authModeDisplayName(worker.authMode))
+                Text(String(format: NSLocalizedString("settings.openclaw.registered", comment: ""), formatDateString(agent.registeredAt)))
                     .font(Theme.Typography.caption2())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
-                if let lastSeen = worker.lastSeen {
-                    Text("•")
+                if let lastActive = agent.lastActiveAt {
+                    Text("·")
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                    Text(formatDate(lastSeen))
+                    Text(String(format: NSLocalizedString("settings.openclaw.last_active", comment: ""), formatDateString(lastActive)))
                         .font(Theme.Typography.caption2())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
@@ -228,47 +222,23 @@ struct OpenClawSettingsView: View {
                 Spacer()
             }
 
-            // Error message if any
-            if let error = worker.lastError, !error.isEmpty {
-                Text(error)
-                    .font(Theme.Typography.caption2())
-                    .foregroundColor(.red)
-                    .lineLimit(2)
-            }
-
-            // Actions
-            HStack(spacing: Theme.spacing16) {
-                // Check health button
-                Button(action: { _Concurrency.Task { await checkHealth(workerId: worker.id) } }) {
-                    HStack(spacing: 4) {
-                        if checkingHealthId == worker.id {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                        } else {
-                            Image(systemName: "heart.text.square")
-                        }
-                        Text(NSLocalizedString("settings.openclaw.check_health", comment: ""))
-                    }
-                    .font(Theme.Typography.caption1())
-                }
-                .disabled(checkingHealthId != nil || deletingId != nil)
-
+            // Delete button
+            HStack {
                 Spacer()
 
-                // Delete button
-                Button(role: .destructive, action: { _Concurrency.Task { await deleteWorker(workerId: worker.id) } }) {
+                Button(role: .destructive, action: { agentToDelete = agent }) {
                     HStack(spacing: 4) {
-                        if deletingId == worker.id {
+                        if deletingId == agent.id {
                             ProgressView()
                                 .scaleEffect(0.7)
                         } else {
                             Image(systemName: "trash")
                         }
-                        Text(NSLocalizedString("settings.openclaw.delete_worker", comment: ""))
+                        Text(NSLocalizedString("settings.openclaw.delete_agent", comment: ""))
                     }
                     .font(Theme.Typography.caption1())
                 }
-                .disabled(checkingHealthId != nil || deletingId != nil)
+                .disabled(deletingId != nil)
             }
             .padding(.top, Theme.spacing4)
         }
@@ -293,106 +263,97 @@ struct OpenClawSettingsView: View {
 
     private func statusInfo(for status: String) -> (Color, String) {
         switch status {
-        case "online":
-            return (.green, NSLocalizedString("settings.openclaw.status.online", comment: ""))
-        case "offline":
-            return (.gray, NSLocalizedString("settings.openclaw.status.offline", comment: ""))
-        case "error":
-            return (.red, NSLocalizedString("settings.openclaw.status.error", comment: ""))
-        case "busy":
-            return (.orange, NSLocalizedString("settings.openclaw.status.busy", comment: ""))
+        case "active":
+            return (.green, NSLocalizedString("settings.openclaw.status.active", comment: ""))
         default:
-            return (.gray, NSLocalizedString("settings.openclaw.status.unknown", comment: ""))
+            return (.gray, NSLocalizedString("settings.openclaw.status.idle", comment: ""))
         }
     }
 
-    private func authModeDisplayName(_ mode: String) -> String {
-        OpenClawAuthMode(rawValue: mode)?.displayName ?? mode
+    private func formatDateString(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: dateString) {
+            let relativeFormatter = RelativeDateTimeFormatter()
+            relativeFormatter.unitsStyle = .abbreviated
+            return relativeFormatter.localizedString(for: date, relativeTo: Date())
+        }
+        // Fallback: try without fractional seconds
+        let fallbackFormatter = ISO8601DateFormatter()
+        fallbackFormatter.formatOptions = [.withInternetDateTime]
+        if let date = fallbackFormatter.date(from: dateString) {
+            let relativeFormatter = RelativeDateTimeFormatter()
+            relativeFormatter.unitsStyle = .abbreviated
+            return relativeFormatter.localizedString(for: date, relativeTo: Date())
+        }
+        return dateString
     }
 
-    private func formatDate(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
+    // MARK: - Connect Agent Section
 
-    // MARK: - Add Worker Section
-
-    private var addWorkerSection: some View {
+    private var connectAgentSection: some View {
         Section {
             Button(action: {
-                resetAddWorkerForm()
-                showAddWorkerSheet = true
+                newAgentName = ""
+                registerError = nil
+                showRegisterSheet = true
             }) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(Theme.accent)
-                    Text(NSLocalizedString("settings.openclaw.add_worker", comment: ""))
+                    Text(NSLocalizedString("settings.openclaw.connect_agent", comment: ""))
                         .foregroundColor(Theme.accent)
                 }
             }
         }
     }
 
-    // MARK: - Add Worker Sheet
+    // MARK: - Register Agent Sheet
 
-    private var addWorkerSheet: some View {
+    private var registerAgentSheet: some View {
         NavigationStack {
             Form {
-                // Worker name
-                Section(header: Text(NSLocalizedString("settings.openclaw.worker_name", comment: ""))) {
-                    TextField(
-                        NSLocalizedString("settings.openclaw.worker_name_placeholder", comment: ""),
-                        text: $newWorkerName
-                    )
-                    .autocorrectionDisabled()
-                }
-
-                // Gateway URL
+                // Agent name
                 Section(
-                    header: Text(NSLocalizedString("settings.openclaw.gateway_url", comment: "")),
-                    footer: Text(NSLocalizedString("settings.openclaw.gateway_url_hint", comment: ""))
+                    header: Text(NSLocalizedString("settings.openclaw.agent_name", comment: "")),
+                    footer: Text(NSLocalizedString("settings.openclaw.agent_name_hint", comment: ""))
                 ) {
                     TextField(
-                        NSLocalizedString("settings.openclaw.gateway_url_placeholder", comment: ""),
-                        text: $newWorkerUrl
+                        NSLocalizedString("settings.openclaw.agent_name_placeholder", comment: ""),
+                        text: $newAgentName
                     )
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                }
-
-                // Auth mode
-                Section(header: Text(NSLocalizedString("settings.openclaw.auth_mode", comment: ""))) {
-                    Picker(NSLocalizedString("settings.openclaw.auth_mode", comment: ""), selection: $newWorkerAuthMode) {
-                        ForEach(OpenClawAuthMode.allCases) { mode in
-                            VStack(alignment: .leading) {
-                                Text(mode.displayName)
-                            }
-                            .tag(mode)
+                    .onChange(of: newAgentName) { _, newValue in
+                        // Enforce lowercase
+                        let lowered = newValue.lowercased()
+                        if lowered != newValue {
+                            newAgentName = lowered
                         }
                     }
-                    .pickerStyle(.menu)
-
-                    Text(newWorkerAuthMode.description)
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                 }
 
-                // Auth token (only for token mode)
-                if newWorkerAuthMode.requiresToken {
-                    Section(header: Text(NSLocalizedString("settings.openclaw.auth_token", comment: ""))) {
-                        SecureField(
-                            NSLocalizedString("settings.openclaw.auth_token_placeholder", comment: ""),
-                            text: $newWorkerToken
-                        )
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                // Live preview
+                Section {
+                    if !newAgentName.isEmpty {
+                        if isValidAgentName(newAgentName) {
+                            Text(String(format: NSLocalizedString("settings.openclaw.agent_name_preview", comment: ""), newAgentName))
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.green)
+                        } else if Self.reservedNames.contains(newAgentName) {
+                            Text(NSLocalizedString("settings.openclaw.agent_name_reserved", comment: ""))
+                                .font(Theme.Typography.caption1())
+                                .foregroundColor(.red)
+                        } else {
+                            Text(NSLocalizedString("settings.openclaw.agent_name_invalid", comment: ""))
+                                .font(Theme.Typography.caption1())
+                                .foregroundColor(.red)
+                        }
                     }
                 }
 
                 // Error message
-                if let error = addWorkerError {
+                if let error = registerError {
                     Section {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -404,46 +365,137 @@ struct OpenClawSettingsView: View {
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("settings.openclaw.add_worker", comment: ""))
+            .navigationTitle(NSLocalizedString("settings.openclaw.register_title", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("cancel", comment: "")) {
-                        showAddWorkerSheet = false
+                    Button(NSLocalizedString("actions.cancel", comment: "")) {
+                        showRegisterSheet = false
                     }
-                    .disabled(isAddingWorker)
+                    .disabled(isRegistering)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if isAddingWorker {
+                    if isRegistering {
                         ProgressView()
                     } else {
-                        Button(NSLocalizedString("settings.openclaw.add_worker_action", comment: "")) {
-                            _Concurrency.Task { await addWorker() }
+                        Button(NSLocalizedString("settings.openclaw.create_agent", comment: "")) {
+                            _Concurrency.Task { await registerAgent() }
                         }
-                        .disabled(!isValidWorkerInput)
+                        .disabled(!isValidAgentName(newAgentName))
                     }
                 }
             }
         }
     }
 
-    private var isValidWorkerInput: Bool {
-        !newWorkerName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        isValidGatewayUrl(newWorkerUrl) &&
-        (!newWorkerAuthMode.requiresToken || !newWorkerToken.isEmpty)
+    private func isValidAgentName(_ name: String) -> Bool {
+        guard name.count >= 2, name.count <= 32 else { return false }
+        guard !Self.reservedNames.contains(name) else { return false }
+        let range = NSRange(name.startIndex..<name.endIndex, in: name)
+        return Self.namePattern.firstMatch(in: name, range: range) != nil
     }
 
-    private func isValidGatewayUrl(_ url: String) -> Bool {
-        let trimmed = url.trimmingCharacters(in: .whitespaces).lowercased()
-        return trimmed.hasPrefix("ws://") || trimmed.hasPrefix("wss://")
+    // MARK: - Credentials Sheet
+
+    private func credentialsSheet(_ result: OpenClawRegistrationResult) -> some View {
+        NavigationStack {
+            List {
+                // Warning banner
+                Section {
+                    HStack(alignment: .top, spacing: Theme.spacing8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(NSLocalizedString("settings.openclaw.credentials_warning", comment: ""))
+                            .font(Theme.Typography.body())
+                            .foregroundColor(.orange)
+                    }
+                }
+
+                // Credential rows
+                Section {
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.email", comment: ""),
+                        value: result.agent.email,
+                        fieldId: "email"
+                    )
+
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.client_id", comment: ""),
+                        value: result.oauth.clientId,
+                        fieldId: "clientId"
+                    )
+
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.client_secret", comment: ""),
+                        value: result.oauth.clientSecret,
+                        fieldId: "clientSecret",
+                        isSecret: true
+                    )
+
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.token_endpoint", comment: ""),
+                        value: result.config.tokenEndpoint,
+                        fieldId: "tokenEndpoint"
+                    )
+
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.api_base", comment: ""),
+                        value: result.config.apiBase,
+                        fieldId: "apiBase"
+                    )
+
+                    credentialRow(
+                        label: NSLocalizedString("settings.openclaw.credential.sse_endpoint", comment: ""),
+                        value: result.config.sseEndpoint,
+                        fieldId: "sseEndpoint"
+                    )
+                }
+            }
+            .navigationTitle(NSLocalizedString("settings.openclaw.credentials_title", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(NSLocalizedString("actions.done", comment: "")) {
+                        registrationResult = nil
+                    }
+                }
+            }
+        }
     }
 
-    private func resetAddWorkerForm() {
-        newWorkerName = ""
-        newWorkerUrl = ""
-        newWorkerAuthMode = .astridSigned
-        newWorkerToken = ""
-        addWorkerError = nil
+    private func credentialRow(label: String, value: String, fieldId: String, isSecret: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(Theme.Typography.caption2())
+                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+
+            HStack {
+                Text(value)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(isSecret ? .orange : (colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
+
+                Button(action: {
+                    UIPasteboard.general.string = value
+                    copiedField = fieldId
+                    _Concurrency.Task {
+                        try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
+                        await MainActor.run {
+                            if copiedField == fieldId {
+                                copiedField = nil
+                            }
+                        }
+                    }
+                }) {
+                    Image(systemName: copiedField == fieldId ? "checkmark" : "doc.on.doc")
+                        .foregroundColor(copiedField == fieldId ? .green : Theme.accent)
+                }
+                .buttonStyle(.borderless)
+            }
+        }
     }
 
     // MARK: - Info Section
@@ -458,28 +510,24 @@ struct OpenClawSettingsView: View {
                 Text(NSLocalizedString("settings.openclaw.about_description", comment: ""))
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-
-                Text("openclaw@astrid.cc")
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(Theme.accent)
             }
         }
     }
 
-    // MARK: - Security Section
+    // MARK: - Tip Section
 
-    private var securitySection: some View {
+    private var tipSection: some View {
         Section {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 HStack {
-                    Image(systemName: "exclamationmark.shield.fill")
-                        .foregroundColor(.orange)
-                    Text(NSLocalizedString("settings.openclaw.security_title", comment: ""))
+                    Image(systemName: "lightbulb.fill")
+                        .foregroundColor(.yellow)
+                    Text(NSLocalizedString("settings.openclaw.tip_title", comment: ""))
                         .font(Theme.Typography.subheadline())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                 }
 
-                Text(NSLocalizedString("settings.openclaw.security_warning", comment: ""))
+                Text(NSLocalizedString("settings.openclaw.tip_description", comment: ""))
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
             }
@@ -488,12 +536,12 @@ struct OpenClawSettingsView: View {
 
     // MARK: - API Actions
 
-    private func loadWorkers() async {
+    private func loadAgents() async {
         isLoading = true
         errorMessage = nil
 
         do {
-            workers = try await apiClient.getOpenClawWorkers()
+            agents = try await apiClient.getOpenClawAgents()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -501,30 +549,20 @@ struct OpenClawSettingsView: View {
         isLoading = false
     }
 
-    private func addWorker() async {
-        isAddingWorker = true
-        addWorkerError = nil
+    private func registerAgent() async {
+        isRegistering = true
+        registerError = nil
 
         do {
-            let response = try await apiClient.createOpenClawWorker(
-                name: newWorkerName.trimmingCharacters(in: .whitespaces),
-                gatewayUrl: newWorkerUrl.trimmingCharacters(in: .whitespaces),
-                authToken: newWorkerAuthMode.requiresToken ? newWorkerToken : nil,
-                authMode: newWorkerAuthMode.rawValue
-            )
+            let result = try await apiClient.registerOpenClawAgent(name: newAgentName.trimmingCharacters(in: .whitespaces))
 
-            workers.insert(response.worker, at: 0)
-            showAddWorkerSheet = false
+            showRegisterSheet = false
+            registrationResult = result
 
-            if let test = response.connectionTest {
-                if test.success {
-                    successMessage = NSLocalizedString("settings.openclaw.worker_added_success", comment: "")
-                } else {
-                    successMessage = NSLocalizedString("settings.openclaw.worker_added_warning", comment: "")
-                }
-            } else {
-                successMessage = NSLocalizedString("settings.openclaw.worker_added", comment: "")
-            }
+            // Reload agents list
+            await loadAgents()
+
+            successMessage = NSLocalizedString("settings.openclaw.agent_created", comment: "")
 
             // Clear success message after delay
             _Concurrency.Task {
@@ -532,69 +570,20 @@ struct OpenClawSettingsView: View {
                 await MainActor.run { successMessage = nil }
             }
         } catch {
-            addWorkerError = error.localizedDescription
+            registerError = error.localizedDescription
         }
 
-        isAddingWorker = false
+        isRegistering = false
     }
 
-    private func checkHealth(workerId: String) async {
-        checkingHealthId = workerId
+    private func deleteAgent(agentId: String) async {
+        deletingId = agentId
         errorMessage = nil
 
         do {
-            let health = try await apiClient.checkOpenClawWorkerHealth(id: workerId)
-
-            // Update worker in list
-            if let index = workers.firstIndex(where: { $0.id == workerId }) {
-                // Create updated worker with new status
-                let oldWorker = workers[index]
-                let updatedWorker = OpenClawWorker(
-                    id: oldWorker.id,
-                    name: oldWorker.name,
-                    gatewayUrl: oldWorker.gatewayUrl,
-                    authMode: oldWorker.authMode,
-                    status: health.status,
-                    lastSeen: ISO8601DateFormatter().date(from: health.lastSeen ?? ""),
-                    lastError: health.health.error,
-                    isActive: oldWorker.isActive,
-                    createdAt: oldWorker.createdAt,
-                    updatedAt: Date()
-                )
-                workers[index] = updatedWorker
-            }
-
-            if health.health.success {
-                successMessage = NSLocalizedString("settings.openclaw.health_ok", comment: "")
-            } else {
-                errorMessage = health.health.error ?? NSLocalizedString("settings.openclaw.health_failed", comment: "")
-            }
-
-            // Clear messages after delay
-            _Concurrency.Task {
-                try? await _Concurrency.Task.sleep(nanoseconds: 3_000_000_000)
-                await MainActor.run {
-                    successMessage = nil
-                    if health.health.success {
-                        errorMessage = nil
-                    }
-                }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        checkingHealthId = nil
-    }
-
-    private func deleteWorker(workerId: String) async {
-        deletingId = workerId
-        errorMessage = nil
-
-        do {
-            try await apiClient.deleteOpenClawWorker(id: workerId)
-            workers.removeAll { $0.id == workerId }
-            successMessage = NSLocalizedString("settings.openclaw.worker_deleted", comment: "")
+            try await apiClient.deleteOpenClawAgent(id: agentId)
+            agents.removeAll { $0.id == agentId }
+            successMessage = NSLocalizedString("settings.openclaw.agent_deleted", comment: "")
 
             // Clear success message after delay
             _Concurrency.Task {
@@ -607,6 +596,12 @@ struct OpenClawSettingsView: View {
 
         deletingId = nil
     }
+}
+
+// MARK: - Identifiable conformance for registration result
+
+extension OpenClawRegistrationResult: Identifiable {
+    var id: String { agent.id }
 }
 
 #Preview {

@@ -31,7 +31,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
     var updatedAt: Date?
     var originalTaskId: String?
     var sourceListId: String?
-    
+    var clientRequestId: String?
+
     enum Priority: Int, Codable, CaseIterable {
         case none = 0
         case low = 1
@@ -96,7 +97,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
         case priority, lists, listIds
         case isPrivate, completed, attachments, secureFiles, comments
-        case createdAt, updatedAt, originalTaskId, sourceListId
+        case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId
     }
 
     // Custom initializer with default values to avoid breaking existing code
@@ -130,7 +131,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         createdAt: Date? = nil,
         updatedAt: Date? = nil,
         originalTaskId: String? = nil,
-        sourceListId: String? = nil
+        sourceListId: String? = nil,
+        clientRequestId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -162,6 +164,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         self.updatedAt = updatedAt
         self.originalTaskId = originalTaskId
         self.sourceListId = sourceListId
+        self.clientRequestId = clientRequestId
     }
 }
 

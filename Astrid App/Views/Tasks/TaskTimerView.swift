@@ -401,17 +401,12 @@ struct TaskTimerView: View {
 
         _Concurrency.Task {
             do {
-                // Use completeTask() to properly handle repeating task logic
+                // Use completeTask() with timer metadata in a single request
                 // This ensures daily/weekly repeating tasks roll forward correctly
-                let completedTask = try await TaskService.shared.completeTask(
+                let savedTask = try await TaskService.shared.completeTask(
                     id: task.id,
                     completed: true,
-                    task: task
-                )
-
-                // Update timer metadata separately (timerDuration, lastTimerValue)
-                let savedTask = try await TaskService.shared.updateTask(
-                    taskId: completedTask.id,
+                    task: task,
                     timerDuration: duration,
                     lastTimerValue: "Completed \(duration)m timer"
                 )

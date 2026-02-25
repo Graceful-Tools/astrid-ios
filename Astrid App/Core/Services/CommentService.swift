@@ -24,6 +24,7 @@ class CommentService: ObservableObject {
     private let networkMonitor = NetworkMonitor.shared
     @Published public var cachedComments: [String: [Comment]] = [:] // taskId -> comments
     private var lastFetchTime: [String: Date] = [:] // taskId -> last fetch time
+    private var inFlightFetches: [String: _Concurrency.Task<[Comment], Error>] = [:] // taskId -> active network fetch
     private var networkObserver: NSObjectProtocol?
 
     init() {
@@ -220,50 +221,68 @@ class CommentService: ObservableObject {
         }
 
         // STEP 3: Fetch from network (slow, requires connection)
+        // Dedup: if a fetch for this task is already in-flight, await the existing one
+        if let existingTask = inFlightFetches[taskId] {
+            logger.notice("→ NETWORK: Awaiting in-flight fetch for \(taskId.prefix(8), privacy: .public)")
+            return try await existingTask.value
+        }
+
         logger.notice("→ NETWORK: Fetching...")
         isLoading = true
         errorMessage = nil
 
-        defer {
-            isLoading = false
+        let fetchTask = _Concurrency.Task<[Comment], Error> { [weak self] in
+            guard let self = self else { return [] }
+            do {
+                let response: CommentsListResponse = try await self.apiClient.getTaskComments(taskId: taskId)
+                logger.notice("✓ NETWORK: \(response.comments.count, privacy: .public) comments")
+
+                // Update last fetch time
+                await MainActor.run { self.lastFetchTime[taskId] = Date() }
+
+                // Save to CoreData for offline access
+                try await self.saveCommentsToCoreData(response.comments, taskId: taskId)
+                logger.notice("✓ SAVED to CoreData")
+
+                // Update memory cache, preserving pending comments (temp_ IDs not on server yet)
+                await MainActor.run {
+                    let pendingComments = self.cachedComments[taskId]?.filter { $0.id.hasPrefix("temp_") } ?? []
+                    var mergedComments = response.comments
+                    mergedComments.append(contentsOf: pendingComments)
+                    mergedComments.sort { ($0.createdAt ?? Date.distantPast) < ($1.createdAt ?? Date.distantPast) }
+                    self.cachedComments[taskId] = mergedComments
+                    if !pendingComments.isEmpty {
+                        logger.notice("📎 Preserved \(pendingComments.count, privacy: .public) pending comments in cache")
+                    }
+
+                    // Notify views to reload comments (for pull-to-refresh updates)
+                    NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": taskId])
+                }
+
+                return response.comments
+            } catch {
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                    logger.notice("✗ NETWORK: Cancelled")
+                    return []
+                }
+
+                logger.error("✗ NETWORK: \(error.localizedDescription, privacy: .public)")
+                await MainActor.run { self.errorMessage = error.localizedDescription }
+                throw error
+            }
         }
 
+        inFlightFetches[taskId] = fetchTask
+
         do {
-            let response: CommentsListResponse = try await apiClient.getTaskComments(taskId: taskId)
-            logger.notice("✓ NETWORK: \(response.comments.count, privacy: .public) comments")
-
-            // Update last fetch time
-            lastFetchTime[taskId] = Date()
-
-            // Save to CoreData for offline access
-            try await saveCommentsToCoreData(response.comments, taskId: taskId)
-            logger.notice("✓ SAVED to CoreData")
-
-            // Update memory cache, preserving pending comments (temp_ IDs not on server yet)
-            let pendingComments = cachedComments[taskId]?.filter { $0.id.hasPrefix("temp_") } ?? []
-            var mergedComments = response.comments
-            mergedComments.append(contentsOf: pendingComments)
-            mergedComments.sort { ($0.createdAt ?? Date.distantPast) < ($1.createdAt ?? Date.distantPast) }
-            cachedComments[taskId] = mergedComments
-            if !pendingComments.isEmpty {
-                logger.notice("📎 Preserved \(pendingComments.count, privacy: .public) pending comments in cache")
-            }
-
-            // Notify views to reload comments (for pull-to-refresh updates)
-            await MainActor.run {
-                NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": taskId])
-            }
-
-            return response.comments
+            let result = try await fetchTask.value
+            inFlightFetches.removeValue(forKey: taskId)
+            isLoading = false
+            return result
         } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                logger.notice("✗ NETWORK: Cancelled")
-                return []
-            }
-
-            logger.error("✗ NETWORK: \(error.localizedDescription, privacy: .public)")
-            errorMessage = error.localizedDescription
+            inFlightFetches.removeValue(forKey: taskId)
+            isLoading = false
             throw error
         }
     }
@@ -579,7 +598,23 @@ class CommentService: ObservableObject {
                 // Attachment still uploading - will retry automatically
             } catch {
                 logger.error("Failed to sync \(data.operation, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                try await markAsFailed(id: data.id, error: error.localizedDescription)
+
+                // Detect permanent HTTP errors (403/404/410) — no point retrying these
+                let isPermanent: Bool
+                if case APIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
+                    isPermanent = true
+                } else if case AstridAPIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
+                    isPermanent = true
+                } else {
+                    isPermanent = false
+                }
+
+                if isPermanent {
+                    logger.notice("🚫 Permanently failed comment \(data.id.prefix(8), privacy: .public) — will not retry")
+                    try await markAsFailed(id: data.id, error: error.localizedDescription)
+                } else {
+                    try await markAsRetryable(id: data.id, error: error.localizedDescription)
+                }
             }
         }
 
@@ -675,8 +710,16 @@ class CommentService: ObservableObject {
         try await coreDataManager.saveInBackground { context in
             guard let comment = try CDComment.fetchById(id, context: context) else { return }
             comment.syncStatus = "failed"
-            comment.syncAttempts += 1
+            comment.syncAttempts = CDComment.maxSyncAttempts
             comment.syncError = error
+        }
+    }
+
+    /// Record a transient sync failure with exponential backoff
+    private func markAsRetryable(id: String, error: String) async throws {
+        try await coreDataManager.saveInBackground { context in
+            guard let comment = try CDComment.fetchById(id, context: context) else { return }
+            comment.recordSyncFailure(error: error)
         }
     }
 }
@@ -694,9 +737,9 @@ struct CommentResponse: Codable {
 }
 
 struct DeleteResponse: Codable {
-    let success: Bool
-    let message: String
-    let meta: MetaInfo
+    let success: Bool?
+    let message: String?
+    let meta: MetaInfo?
 }
 
 struct MetaInfo: Codable {
@@ -734,30 +777,37 @@ extension CommentService {
             let newCommentsCount = comments.count - existingComments.count
             logger.notice("💾 Will update \(existingComments.count, privacy: .public) existing, create \(newCommentsCount, privacy: .public) new")
 
-            // Update or create comments
+            // Update or create comments, skipping unchanged ones
             var updatedCount = 0
             var createdCount = 0
+            var skippedCount = 0
 
             for comment in comments {
-                let isExisting = existingCommentsDict[comment.id] != nil
-                let cdComment = existingCommentsDict[comment.id] ?? CDComment(context: context)
-
-                cdComment.id = comment.id
-                cdComment.update(from: comment)
-                // CRITICAL: Explicitly set taskId from parameter (don't rely on comment.taskId)
-                cdComment.taskId = taskId
-
-                cdComment.syncStatus = "synced"
-                cdComment.lastSyncedAt = Date()
-
-                if isExisting {
+                if let existing = existingCommentsDict[comment.id] {
+                    // Skip if updatedAt hasn't changed (comment is identical)
+                    if let existingUpdatedAt = existing.updatedAt,
+                       let commentUpdatedAt = comment.updatedAt,
+                       existingUpdatedAt == commentUpdatedAt {
+                        skippedCount += 1
+                        continue
+                    }
+                    existing.update(from: comment)
+                    existing.taskId = taskId
+                    existing.syncStatus = "synced"
+                    existing.lastSyncedAt = Date()
                     updatedCount += 1
                 } else {
+                    let cdComment = CDComment(context: context)
+                    cdComment.id = comment.id
+                    cdComment.update(from: comment)
+                    cdComment.taskId = taskId
+                    cdComment.syncStatus = "synced"
+                    cdComment.lastSyncedAt = Date()
                     createdCount += 1
                 }
             }
 
-            logger.notice("💾 CoreData: updated \(updatedCount, privacy: .public), created \(createdCount, privacy: .public) comments")
+            logger.notice("💾 CoreData: updated \(updatedCount, privacy: .public), created \(createdCount, privacy: .public), skipped \(skippedCount, privacy: .public) unchanged comments")
         }
 
         let duration = Date().timeIntervalSince(startTime)

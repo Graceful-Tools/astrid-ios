@@ -44,6 +44,9 @@ public class CDTask: NSManagedObject {
     @NSManaged public var originalTaskId: String? // ID of task this was copied from
     @NSManaged public var sourceListId: String? // Which public list this was copied from
 
+    // Idempotency key for dedup on server retry
+    @NSManaged public var clientRequestId: String?
+
     // MARK: - Conversion to Domain Model
     
     func toDomainModel() -> Task {
@@ -76,7 +79,8 @@ public class CDTask: NSManagedObject {
             createdAt: createdAt,
             updatedAt: updatedAt,
             originalTaskId: originalTaskId,
-            sourceListId: sourceListId
+            sourceListId: sourceListId,
+            clientRequestId: clientRequestId
         )
     }
     
@@ -97,6 +101,8 @@ public class CDTask: NSManagedObject {
         self.assigneeId = task.assigneeId
         self.creatorId = task.creatorId ?? task.creator?.id ?? ""  // Use creator.id if creatorId not available
         self.listIds = task.listIds ?? task.lists?.map { $0.id }
+        // Preserve createdAt: use task value if present, otherwise keep existing (or set to now for new entries)
+        self.createdAt = task.createdAt ?? self.createdAt ?? Date()
         self.updatedAt = task.updatedAt ?? Date()
 
         // Update repeating task fields
@@ -116,6 +122,15 @@ public class CDTask: NSManagedObject {
         // Task copy tracking
         self.originalTaskId = task.originalTaskId
         self.sourceListId = task.sourceListId
+
+        // Persist clientRequestId (idempotency key for dedup).
+        // Use the Task model's value if present; otherwise keep the existing CoreData value.
+        // This ensures:
+        //  1. New CDTask entries get clientRequestId from the Task model (e.g. createTask)
+        //  2. Edits via updateTask (where clientRequestId is typically nil) don't wipe
+        //     a previously stored value
+        //  3. Batch syncs from server (where clientRequestId is nil) preserve the local key
+        self.clientRequestId = task.clientRequestId ?? self.clientRequestId
 
         // Update search index
         updateSearchableText()

@@ -24,6 +24,14 @@ class MockAPIClient {
     var updateMemberCalls: [(listId: String, userId: String, role: String)] = []
     var removeMemberCalls: [(listId: String, userId: String)] = []
 
+    // Task operation tracking
+    var createTaskCalls: [(title: String, listIds: [String]?)] = []
+    var updateTaskCalls: [(id: String, title: String?)] = []
+    var deleteTaskCalls: [String] = []
+
+    // Task response configuration
+    var nextTaskId: String? // If set, use this ID for next task creation
+
     /// Factory method for tests - creates a fresh instance
     static func createForTesting() -> MockAPIClient {
         let instance = MockAPIClient()
@@ -142,6 +150,80 @@ class MockAPIClient {
         )
     }
 
+    // MARK: - Task Operations
+
+    /// Simulate creating a task
+    func createTask(
+        title: String,
+        listIds: [String]? = nil,
+        description: String? = nil,
+        priority: Int? = nil,
+        assigneeId: String? = nil,
+        dueDateTime: Date? = nil,
+        isAllDay: Bool? = nil,
+        isPrivate: Bool? = nil,
+        repeating: String? = nil
+    ) async throws -> Task {
+        createTaskCalls.append((title, listIds))
+
+        try await _Concurrency.Task.sleep(nanoseconds: UInt64(simulatedNetworkDelay * 1_000_000_000))
+
+        if shouldFailRequests {
+            throw simulatedError ?? MockAPIError.networkUnavailable
+        }
+
+        let taskId = nextTaskId ?? "server-\(UUID().uuidString)"
+        return TestHelpers.createTestTask(
+            id: taskId,
+            title: title,
+            priority: Task.Priority(rawValue: priority ?? 0) ?? .none,
+            dueDateTime: dueDateTime,
+            isAllDay: isAllDay ?? true,
+            assigneeId: assigneeId,
+            listIds: listIds,
+            isPrivate: isPrivate ?? true,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    /// Simulate updating a task
+    func updateTask(
+        id: String,
+        title: String? = nil,
+        description: String? = nil,
+        priority: Int? = nil,
+        completed: Bool? = nil
+    ) async throws -> Task {
+        updateTaskCalls.append((id, title))
+
+        try await _Concurrency.Task.sleep(nanoseconds: UInt64(simulatedNetworkDelay * 1_000_000_000))
+
+        if shouldFailRequests {
+            throw simulatedError ?? MockAPIError.networkUnavailable
+        }
+
+        return TestHelpers.createTestTask(
+            id: id,
+            title: title ?? "Updated Task",
+            priority: Task.Priority(rawValue: priority ?? 0) ?? .none,
+            completed: completed ?? false,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    /// Simulate deleting a task
+    func deleteTask(id: String) async throws {
+        deleteTaskCalls.append(id)
+
+        try await _Concurrency.Task.sleep(nanoseconds: UInt64(simulatedNetworkDelay * 1_000_000_000))
+
+        if shouldFailRequests {
+            throw simulatedError ?? MockAPIError.networkUnavailable
+        }
+    }
+
     // MARK: - Test Utilities
 
     /// Reset all tracking and simulation state
@@ -152,6 +234,10 @@ class MockAPIClient {
         createCommentCalls.removeAll()
         updateCommentCalls.removeAll()
         deleteCommentCalls.removeAll()
+        createTaskCalls.removeAll()
+        updateTaskCalls.removeAll()
+        deleteTaskCalls.removeAll()
+        nextTaskId = nil
     }
 
     // MARK: - List Member Operations

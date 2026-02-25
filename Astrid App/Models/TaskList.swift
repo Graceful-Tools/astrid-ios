@@ -75,13 +75,36 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
 }
 
 struct ListMember: Identifiable, Codable, Equatable, Hashable {
-    let id: String
-    let listId: String
+    var id: String
+    var listId: String?
     let userId: String
     let role: String
     var createdAt: Date?
     var updatedAt: Date?
     var user: User?
+
+    init(id: String, listId: String?, userId: String, role: String, createdAt: Date? = nil, updatedAt: Date? = nil, user: User? = nil) {
+        self.id = id
+        self.listId = listId
+        self.userId = userId
+        self.role = role
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.user = user
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.userId = try container.decode(String.self, forKey: .userId)
+        self.role = try container.decode(String.self, forKey: .role)
+        self.listId = try container.decodeIfPresent(String.self, forKey: .listId)
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+        self.user = try container.decodeIfPresent(User.self, forKey: .user)
+        // id may be missing in embedded list member responses (e.g. create task)
+        // Fall back to userId to satisfy Identifiable
+        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? userId
+    }
 }
 
 struct ListInvite: Identifiable, Codable, Equatable, Hashable {

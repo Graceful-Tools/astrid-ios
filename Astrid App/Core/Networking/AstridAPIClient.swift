@@ -310,7 +310,8 @@ class AstridAPIClient {
         dueDateTime: Date? = nil,  // The due date/time (UTC midnight for all-day tasks)
         isAllDay: Bool? = nil,  // Whether this is an all-day task
         isPrivate: Bool? = nil,
-        repeating: String? = nil
+        repeating: String? = nil,
+        clientRequestId: String? = nil  // Idempotency key for dedup
     ) async throws -> Task {
         // Convert Date to ISO8601 string for API
         // Backend expects:
@@ -347,7 +348,8 @@ class AstridAPIClient {
             reminderType: nil,
             listIds: listIds,
             assigneeId: assigneeId,
-            assigneeEmail: nil
+            assigneeEmail: nil,
+            clientRequestId: clientRequestId
         )
 
         let response: TaskResponse = try await request(
@@ -804,56 +806,34 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - OpenClaw Workers
+    // MARK: - OpenClaw Agents
 
-    /// Get user's OpenClaw workers
-    func getOpenClawWorkers() async throws -> [OpenClawWorker] {
-        let response: OpenClawWorkersResponse = try await request(
+    /// Get user's OpenClaw agents
+    func getOpenClawAgents() async throws -> [OpenClawAgent] {
+        let response: OpenClawAgentsResponse = try await request(
             method: "GET",
-            path: "/api/openclaw/workers"
+            path: "/api/v1/openclaw/agents"
         )
-        return response.workers
+        return response.agents
     }
 
-    /// Create a new OpenClaw worker
-    func createOpenClawWorker(name: String, gatewayUrl: String, authToken: String?, authMode: String) async throws -> OpenClawWorkerResponse {
-        struct CreateWorkerRequest: Codable {
-            let name: String
-            let gatewayUrl: String
-            let authToken: String?
-            let authMode: String
-        }
-
-        let body = CreateWorkerRequest(
-            name: name,
-            gatewayUrl: gatewayUrl,
-            authToken: authToken,
-            authMode: authMode
-        )
-
+    /// Register a new OpenClaw agent
+    func registerOpenClawAgent(name: String) async throws -> OpenClawRegistrationResult {
+        struct RegisterRequest: Codable { let agentName: String }
+        let body = RegisterRequest(agentName: name)
         return try await request(
             method: "POST",
-            path: "/api/openclaw/workers",
+            path: "/api/v1/openclaw/register",
             body: body
         )
     }
 
-    /// Delete an OpenClaw worker
-    func deleteOpenClawWorker(id: String) async throws {
-        struct DeleteWorkerResponse: Codable {
-            let success: Bool?
-        }
-        let _: DeleteWorkerResponse = try await request(
+    /// Delete an OpenClaw agent
+    func deleteOpenClawAgent(id: String) async throws {
+        struct DeleteResponse: Codable { let success: Bool? }
+        let _: DeleteResponse = try await request(
             method: "DELETE",
-            path: "/api/openclaw/workers/\(id)"
-        )
-    }
-
-    /// Check health of an OpenClaw worker
-    func checkOpenClawWorkerHealth(id: String) async throws -> OpenClawHealthResponse {
-        return try await request(
-            method: "GET",
-            path: "/api/openclaw/workers/\(id)/health"
+            path: "/api/v1/openclaw/agents/\(id)"
         )
     }
 
@@ -1160,45 +1140,47 @@ struct DeleteAPIKeyResponse: Codable {
     let success: Bool
 }
 
-// MARK: - OpenClaw Types
+// MARK: - OpenClaw Agent Types
 
-/// OpenClaw worker representing a self-hosted AI gateway
-struct OpenClawWorker: Codable, Identifiable {
+struct OpenClawAgent: Codable, Identifiable {
     let id: String
+    let email: String
     let name: String
-    let gatewayUrl: String
-    let authMode: String  // "token", "astrid-signed", "tailscale", "none"
-    let status: String    // "online", "offline", "error", "unknown"
-    let lastSeen: Date?
-    let lastError: String?
-    let isActive: Bool
-    let createdAt: Date
-    let updatedAt: Date
+    let image: String?
+    let agentName: String
+    let status: String          // "active" or "idle"
+    let registeredAt: String
+    let lastActiveAt: String?
+    let oauthClientId: String?
 }
 
-struct OpenClawWorkersResponse: Codable {
-    let workers: [OpenClawWorker]
+struct OpenClawAgentsResponse: Codable {
+    let agents: [OpenClawAgent]
 }
 
-struct OpenClawWorkerResponse: Codable {
-    let worker: OpenClawWorker
-    let connectionTest: OpenClawConnectionTestResult?
-}
-
-struct OpenClawConnectionTestResult: Codable {
-    let success: Bool
-    let latencyMs: Int?
-    let version: String?
-    let error: String?
-}
-
-struct OpenClawHealthResponse: Codable {
+struct OpenClawRegistrationAgent: Codable {
     let id: String
+    let email: String
     let name: String
-    let gatewayUrl: String
-    let status: String
-    let lastSeen: String?
-    let health: OpenClawConnectionTestResult
+    let aiAgentType: String
+}
+
+struct OpenClawRegistrationOAuth: Codable {
+    let clientId: String
+    let clientSecret: String
+    let scopes: [String]
+}
+
+struct OpenClawRegistrationConfig: Codable {
+    let sseEndpoint: String
+    let apiBase: String
+    let tokenEndpoint: String
+}
+
+struct OpenClawRegistrationResult: Codable {
+    let agent: OpenClawRegistrationAgent
+    let oauth: OpenClawRegistrationOAuth
+    let config: OpenClawRegistrationConfig
 }
 
 // MARK: - Client Error Type

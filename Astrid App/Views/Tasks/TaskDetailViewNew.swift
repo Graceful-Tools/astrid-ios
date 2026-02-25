@@ -169,6 +169,13 @@ struct TaskDetailViewNew: View {
             .task {
                 await refreshTaskDetails()
             }
+            .onDisappear {
+                // Save any unsaved title/description changes when navigating away
+                if !isReadOnly {
+                    saveTitle()
+                    saveDescription()
+                }
+            }
             .fullScreenCover(isPresented: $showTimer) {
                 TaskTimerView(task: $task, onUpdate: { updatedTask in
                     self.task = updatedTask
@@ -236,8 +243,8 @@ struct TaskDetailViewNew: View {
                 }
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.top, Theme.spacing8)
-                .onChange(of: editedTitle) {
-                    if !isReadOnly {
+                .onChange(of: isTitleFocused) {
+                    if !isTitleFocused && !isReadOnly {
                         saveTitle()
                     }
                 }
@@ -434,11 +441,6 @@ struct TaskDetailViewNew: View {
                         onSave: saveDescription
                     )
                     .padding(.horizontal, Theme.spacing16)
-                    .onChange(of: editedDescription) {
-                        if !isReadOnly {
-                            saveDescription()
-                        }
-                    }
                 }
 
                 TaskAttachmentSectionView(task: task)
@@ -485,6 +487,7 @@ struct TaskDetailViewNew: View {
                 Spacer().frame(height: Theme.spacing12)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: isCommentFocused) { _, focused in
                 // Scroll to bottom when comment input is focused (like messaging apps)
                 if focused {
@@ -708,6 +711,13 @@ struct TaskDetailViewNew: View {
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
         .padding(.horizontal, 8)
         .padding(.bottom, 0)
+        .simultaneousGesture(
+            DragGesture().onChanged { value in
+                if value.translation.height > 10 {
+                    isCommentFocused = false
+                }
+            }
+        )
         .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
         .photosPicker(isPresented: $showingVideoPicker, selection: $selectedVideoItem, matching: .videos, photoLibrary: .shared())
         .fileImporter(
@@ -1098,8 +1108,7 @@ struct TaskDetailViewNew: View {
                 isAllDay = freshTask.isAllDay
             }
 
-            // Reload comments using CommentService with force refresh
-            _ = try? await CommentService.shared.fetchComments(taskId: task.id, useCache: false)
+            // Comments are loaded by CommentSectionViewEnhanced — no need to fetch here
         } catch {
             // Silent failure - just fail gracefully if offline
             print("⚠️ [TaskDetailViewNew] Failed to refresh task details: \(error)")

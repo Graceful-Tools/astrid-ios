@@ -34,13 +34,6 @@ public class CDComment: NSManagedObject {
     // MARK: - Conversion to Domain Model
 
     func toDomainModel() -> Comment {
-        // Log what we're loading from CoreData
-        let idPrefix = String(self.id.prefix(8))
-        let contentPreview = String(self.content.prefix(20))
-        let authorIdVal = self.authorId ?? "NIL"
-        let authorNameVal = self.authorName ?? "NIL"
-        logger.notice("LOADING comment \(idPrefix, privacy: .public): authorId=\(authorIdVal, privacy: .public), authorName=\(authorNameVal, privacy: .public), content='\(contentPreview, privacy: .public)...'")
-
         // Reconstruct author from cached data if available
         var author: User? = nil
         if let authorId = authorId {
@@ -61,9 +54,6 @@ public class CDComment: NSManagedObject {
         var secureFiles: [SecureFile]? = nil
         if let jsonData = secureFilesData?.data(using: .utf8) {
             secureFiles = try? JSONDecoder().decode([SecureFile].self, from: jsonData)
-            if let count = secureFiles?.count, count > 0 {
-                logger.notice("LOADED \(count) secureFiles for comment \(idPrefix, privacy: .public)")
-            }
         }
 
         return Comment(
@@ -88,11 +78,6 @@ public class CDComment: NSManagedObject {
     // MARK: - Update from Domain Model
 
     func update(from comment: Comment) {
-        // Log data being saved for debugging
-        let contentPreview = String(comment.content.prefix(30))
-        let authorDisplayName = comment.author?.displayName ?? "nil"
-        logger.notice("SAVING comment \(comment.id.prefix(8), privacy: .public): authorId=\(comment.authorId ?? "nil", privacy: .public), author=\(authorDisplayName, privacy: .public), content='\(contentPreview, privacy: .public)...'")
-
         self.content = comment.content
         self.type = comment.type.rawValue
         self.authorId = comment.authorId
@@ -107,14 +92,10 @@ public class CDComment: NSManagedObject {
             if let jsonData = try? JSONEncoder().encode(secureFiles),
                let jsonString = String(data: jsonData, encoding: .utf8) {
                 self.secureFilesData = jsonString
-                logger.notice("SAVED \(secureFiles.count) secureFiles for comment \(comment.id.prefix(8), privacy: .public)")
             }
         } else {
             self.secureFilesData = nil
         }
-
-        // Verify values were set
-        logger.notice("SAVED: authorId=\(self.authorId ?? "nil", privacy: .public), authorName=\(self.authorName ?? "nil", privacy: .public), content.count=\(self.content.count, privacy: .public)")
     }
 }
 
@@ -143,24 +124,24 @@ extension CDComment {
         return try context.fetch(request)
     }
 
-    /// Fetch all pending comments (create, update, delete operations)
+    /// Fetch all pending comments (create, update, delete operations; excludes permanently failed)
     static func fetchPending(context: NSManagedObjectContext) throws -> [CDComment] {
         let request = fetchRequest()
         request.predicate = NSPredicate(
             format: "syncStatus IN %@",
-            ["pending", "pending_update", "pending_delete", "failed"]
+            ["pending", "pending_update", "pending_delete"]
         )
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         return try context.fetch(request)
     }
 
-    /// Fetch pending comments for a specific task
+    /// Fetch pending comments for a specific task (excludes permanently failed)
     static func fetchPendingForTask(_ taskId: String, context: NSManagedObjectContext) throws -> [CDComment] {
         let request = fetchRequest()
         request.predicate = NSPredicate(
             format: "taskId == %@ AND syncStatus IN %@",
             taskId,
-            ["pending", "pending_update", "pending_delete", "failed"]
+            ["pending", "pending_update", "pending_delete"]
         )
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         return try context.fetch(request)

@@ -20,6 +20,9 @@ struct QuickAddTaskView: View {
     @State private var selectedAssigneeId: String?
     @State private var showingPicker = false
 
+    // Submit debounce guard — prevents double-tap creating duplicate tasks
+    @State private var isSubmitting = false
+
     // Height constraints for expandable input
     private let minHeight: CGFloat = 36
     private let maxHeight: CGFloat = 200  // Allow for longer task titles (~8-10 lines)
@@ -364,6 +367,8 @@ struct QuickAddTaskView: View {
 
     private func addTask(navigateToDetails: Bool = false) {
         guard !taskTitle.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        guard !isSubmitting else { return } // Prevent double-tap
+        isSubmitting = true
 
         // Dismiss keyboard immediately before any navigation to prevent
         // keyboard staying visible when navigating to task details
@@ -543,6 +548,7 @@ struct QuickAddTaskView: View {
                     }
                 }
                 // For quick add, haptic already fired and user can keep typing
+                await MainActor.run { isSubmitting = false }
             } catch {
                 print("Failed to create task: \(error)")
                 await MainActor.run {
@@ -550,6 +556,7 @@ struct QuickAddTaskView: View {
                     if !navigateToDetails {
                         taskTitle = rawTitle
                     }
+                    isSubmitting = false
                 }
             }
         }

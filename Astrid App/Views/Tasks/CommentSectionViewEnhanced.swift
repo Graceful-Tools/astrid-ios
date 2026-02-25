@@ -431,6 +431,13 @@ struct CommentSectionViewEnhanced: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                    .simultaneousGesture(
+                        DragGesture().onChanged { value in
+                            if value.translation.height > 10 {
+                                isTextFieldFocused = false
+                            }
+                        }
+                    )
 
                     // Attachment menu button with paperclip icon
                     Menu {

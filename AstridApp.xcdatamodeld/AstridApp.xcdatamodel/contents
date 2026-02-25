@@ -31,6 +31,7 @@
         <attribute name="lastTimerValue" optional="YES" attributeType="String"/>
         <attribute name="originalTaskId" optional="YES" attributeType="String"/>
         <attribute name="sourceListId" optional="YES" attributeType="String"/>
+        <attribute name="clientRequestId" optional="YES" attributeType="String"/>
     </entity>
     <entity name="CDTaskList" representedClassName="CDTaskList" syncable="YES">
         <attribute name="color" optional="YES" attributeType="String"/>

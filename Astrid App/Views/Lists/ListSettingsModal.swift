@@ -9,7 +9,19 @@ struct ListSettingsModal: View {
     let onUpdate: (TaskList) -> Void
     let onDelete: () -> Void
 
+    // Mutable local copy — lives at the sheet root so @State is stable
+    // (page-style TabView can destroy/recreate child views, wiping their @State)
+    @State private var currentList: TaskList
     @State private var selectedTab = 0
+    // Track removed member emails so we can re-apply removals if parent sends stale data
+    @State private var removedMemberEmails = Set<String>()
+
+    init(list: TaskList, onUpdate: @escaping (TaskList) -> Void, onDelete: @escaping () -> Void) {
+        self.list = list
+        self.onUpdate = onUpdate
+        self.onDelete = onDelete
+        self._currentList = State(initialValue: list)
+    }
 
     /// Check if current user can edit settings (is owner or admin)
     private var canEditSettings: Bool {
@@ -17,19 +29,15 @@ struct ListSettingsModal: View {
             return false
         }
 
-        // Check if user is owner (check both ownerId field and owner object)
-        // API may return ownerId or owner object depending on the endpoint
-        if list.ownerId == currentUserId || list.owner?.id == currentUserId {
+        if currentList.ownerId == currentUserId || currentList.owner?.id == currentUserId {
             return true
         }
 
-        // Check if user is admin in legacy admins array
-        if let admins = list.admins, admins.contains(where: { $0.id == currentUserId }) {
+        if let admins = currentList.admins, admins.contains(where: { $0.id == currentUserId }) {
             return true
         }
 
-        // Check in listMembers for admin role
-        if let listMembers = list.listMembers {
+        if let listMembers = currentList.listMembers {
             if listMembers.contains(where: { $0.user?.id == currentUserId && $0.role == "admin" }) {
                 return true
             }
@@ -38,10 +46,21 @@ struct ListSettingsModal: View {
         return false
     }
 
+    /// Update local state AND forward to parent (for sort/filter/admin changes)
+    private func handleUpdate(_ updatedList: TaskList) {
+        currentList = updatedList
+        onUpdate(updatedList)
+    }
+
+    /// Update local state only — no parent notification (for membership changes
+    /// that make their own API calls and don't need the parent to re-render)
+    private func handleLocalUpdate(_ updatedList: TaskList) {
+        currentList = updatedList
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Tab Picker - Only show if user has edit permissions
                 if canEditSettings {
                     Picker("", selection: $selectedTab) {
                         Label(NSLocalizedString("lists.filters", comment: ""), systemImage: "line.3.horizontal.decrease.circle")
@@ -57,23 +76,20 @@ struct ListSettingsModal: View {
                     Divider()
                 }
 
-                // Tab Content
                 if canEditSettings {
-                    // Show all tabs for owners/admins
                     TabView(selection: $selectedTab) {
-                        ListSortFiltersTab(list: list, onUpdate: onUpdate)
+                        ListSortFiltersTab(list: currentList, onUpdate: handleUpdate)
                             .tag(0)
 
-                        ListMembershipTab(list: list, onUpdate: onUpdate)
+                        ListMembershipTab(list: currentList, onUpdate: handleLocalUpdate, removedMemberEmails: $removedMemberEmails)
                             .tag(1)
 
-                        ListAdminTab(list: list, onUpdate: onUpdate, onDelete: onDelete)
+                        ListAdminTab(list: currentList, onUpdate: handleUpdate, onDelete: onDelete)
                             .tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                 } else {
-                    // Only show Filters tab for non-owners/non-admins
-                    ListSortFiltersTab(list: list, onUpdate: onUpdate)
+                    ListSortFiltersTab(list: currentList, onUpdate: handleUpdate)
                 }
             }
             .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
@@ -85,6 +101,17 @@ struct ListSettingsModal: View {
                         dismiss()
                     }
                 }
+            }
+            .onChange(of: list) {
+                // Sync external updates into local state, but re-apply any
+                // pending member removals so stale parent data can't revert them
+                var incoming = list
+                if !removedMemberEmails.isEmpty {
+                    incoming.admins?.removeAll { removedMemberEmails.contains($0.email ?? "") }
+                    incoming.members?.removeAll { removedMemberEmails.contains($0.email ?? "") }
+                    incoming.listMembers?.removeAll { removedMemberEmails.contains($0.user?.email ?? "") }
+                }
+                currentList = incoming
             }
         }
     }

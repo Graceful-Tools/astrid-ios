@@ -7,6 +7,7 @@ struct ListMembershipTab: View {
 
     let list: TaskList
     let onUpdate: (TaskList) -> Void
+    @Binding var removedMemberEmails: Set<String>
 
     @State private var showingAddMember = false
     @State private var isProcessing = false
@@ -19,7 +20,7 @@ struct ListMembershipTab: View {
     @State private var showingShareList = false
     @State private var isGitHubConnected = false
 
-    @StateObject private var listService = ListService.shared
+    private let listService = ListService.shared
     private let apiClient = AstridAPIClient.shared
 
     /// Check if current user can edit settings (is owner or admin)
@@ -676,13 +677,8 @@ struct ListMembershipTab: View {
                     role: role
                 )
 
-                // Refresh list data
+                // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
-
-                // Notify parent to update
-                if let updatedList = listService.lists.first(where: { $0.id == list.id }) {
-                    onUpdate(updatedList)
-                }
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -700,13 +696,8 @@ struct ListMembershipTab: View {
                     role: newRole
                 )
 
-                // Refresh list data
+                // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
-
-                // Notify parent to update
-                if let updatedList = listService.lists.first(where: { $0.id == list.id }) {
-                    onUpdate(updatedList)
-                }
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -714,6 +705,19 @@ struct ListMembershipTab: View {
     }
 
     private func removeMember(userId: String, email: String) {
+        // Track removal so UI stays correct even if stale data flows in
+        if !email.isEmpty {
+            removedMemberEmails.insert(email)
+        }
+
+        // Optimistic update: remove member from list immediately
+        var updatedList = list
+        updatedList.admins?.removeAll { $0.id == userId }
+        updatedList.members?.removeAll { $0.id == userId }
+        updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
+        onUpdate(updatedList)
+
+        // Sync with server in background
         _Concurrency.Task {
             do {
                 _ = try await apiClient.removeListMember(
@@ -721,14 +725,13 @@ struct ListMembershipTab: View {
                     userId: userId
                 )
 
-                // Refresh list data
-                _ = try? await listService.fetchLists()
-
-                // Notify parent to update
-                if let updatedList = listService.lists.first(where: { $0.id == list.id }) {
-                    onUpdate(updatedList)
-                }
+                print("✅ [ListMembershipTab] Removed member from list")
             } catch {
+                // Revert on failure
+                if !email.isEmpty {
+                    removedMemberEmails.remove(email)
+                }
+                onUpdate(list)
                 errorMessage = error.localizedDescription
             }
         }
@@ -789,6 +792,9 @@ struct ListMembershipTab: View {
     private func isAgentMember(agentEmail: String?) -> Bool {
         guard let email = agentEmail else { return false }
 
+        // If we've locally removed this member, it's not a member regardless of stale list data
+        if removedMemberEmails.contains(email) { return false }
+
         // Check in all member sources
         if list.owner?.email == email { return true }
         if list.admins?.contains(where: { $0.email == email }) == true { return true }
@@ -800,6 +806,9 @@ struct ListMembershipTab: View {
 
     private func addCodingAgent(agent: User) {
         guard let email = agent.email else { return }
+
+        // Clear any stale removal tracking for this agent
+        removedMemberEmails.remove(email)
 
         _Concurrency.Task {
             do {
@@ -814,13 +823,8 @@ struct ListMembershipTab: View {
 
                 print("✅ [ListMembershipTab] Added \(email) to list")
 
-                // Refresh list data
+                // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
-
-                // Notify parent to update
-                if let updatedList = listService.lists.first(where: { $0.id == list.id }) {
-                    onUpdate(updatedList)
-                }
             } catch {
                 print("❌ [ListMembershipTab] Failed to add agent: \(error)")
                 errorMessage = "Failed to add AI agent: \(error.localizedDescription)"
@@ -832,50 +836,56 @@ struct ListMembershipTab: View {
         // Set loading state
         removingAgents.insert(agent.id)
 
+        guard let email = agent.email else { return }
+        print("🤖 [ListMembershipTab] Removing \(email) from list")
+
+        // Track removal so UI stays correct even if stale data flows in
+        removedMemberEmails.insert(email)
+
+        // Find agent in list members by email
+        var agentUserId: String?
+
+        if list.owner?.email == email {
+            agentUserId = list.owner?.id
+        } else if let admin = list.admins?.first(where: { $0.email == email }) {
+            agentUserId = admin.id
+        } else if let member = list.members?.first(where: { $0.email == email }) {
+            agentUserId = member.id
+        } else if let listMember = list.listMembers?.first(where: { $0.user?.email == email }) {
+            agentUserId = listMember.userId
+        }
+
+        guard let userId = agentUserId else {
+            print("⚠️ [ListMembershipTab] Agent \(email) not found in list members")
+            removingAgents.remove(agent.id)
+            return
+        }
+
+        // Optimistic update: remove agent from list immediately
+        var updatedList = list
+        updatedList.admins?.removeAll { $0.id == userId }
+        updatedList.members?.removeAll { $0.id == userId }
+        updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
+        onUpdate(updatedList)
+
+        // Sync with server in background
         _Concurrency.Task {
             defer {
                 removingAgents.remove(agent.id)
             }
 
             do {
-                guard let email = agent.email else { return }
-                print("🤖 [ListMembershipTab] Removing \(email) from list")
-
-                // Find agent in list members by email
-                var agentUserId: String?
-
-                if list.owner?.email == email {
-                    agentUserId = list.owner?.id
-                } else if let admin = list.admins?.first(where: { $0.email == email }) {
-                    agentUserId = admin.id
-                } else if let member = list.members?.first(where: { $0.email == email }) {
-                    agentUserId = member.id
-                } else if let listMember = list.listMembers?.first(where: { $0.user?.email == email }) {
-                    agentUserId = listMember.user?.id
-                }
-
-                guard let userId = agentUserId else {
-                    print("⚠️ [ListMembershipTab] Agent \(email) not found in list members")
-                    return
-                }
-
-                // Remove the agent from the list
                 _ = try await apiClient.removeListMember(
                     listId: list.id,
                     userId: userId
                 )
 
                 print("✅ [ListMembershipTab] Removed \(email) from list")
-
-                // Refresh list data
-                _ = try? await listService.fetchLists()
-
-                // Notify parent to update
-                if let updatedList = listService.lists.first(where: { $0.id == list.id }) {
-                    onUpdate(updatedList)
-                }
             } catch {
+                // Revert on failure
                 print("❌ [ListMembershipTab] Failed to remove agent: \(error)")
+                removedMemberEmails.remove(email)
+                onUpdate(list)
                 errorMessage = "Failed to remove AI agent: \(error.localizedDescription)"
             }
         }

@@ -192,7 +192,7 @@ class ListMemberService: ObservableObject {
             for member in members {
                 let cdMember = CDMember(context: context)
                 cdMember.id = member.id
-                cdMember.listId = member.listId
+                cdMember.listId = member.listId ?? listId
                 cdMember.userId = member.userId
                 cdMember.role = member.role
                 cdMember.syncStatus = "synced"

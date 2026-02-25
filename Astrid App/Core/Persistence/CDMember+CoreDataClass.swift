@@ -38,7 +38,7 @@ public class CDMember: NSManagedObject {
     func update(from member: ListMember) {
         self.role = member.role
         self.userId = member.userId
-        self.listId = member.listId
+        self.listId = member.listId ?? ""
         self.createdAt = member.createdAt
         self.updatedAt = member.updatedAt ?? Date()
     }
