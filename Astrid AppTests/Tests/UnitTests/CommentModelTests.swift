@@ -391,7 +391,7 @@ final class CommentModelTests: XCTestCase {
 
     // MARK: - Comment Hashable Tests
 
-    func testCommentHashable() {
+    @MainActor func testCommentHashable() {
         // Given: A comment
         let comment = TestHelpers.createTestComment(id: "hash-test")
 
@@ -401,7 +401,7 @@ final class CommentModelTests: XCTestCase {
         XCTAssertTrue(commentSet.contains(comment))
     }
 
-    func testMultipleCommentsInSet() {
+    @MainActor func testMultipleCommentsInSet() {
         // Given: Multiple comments
         let comments = [
             TestHelpers.createTestComment(id: "c1"),

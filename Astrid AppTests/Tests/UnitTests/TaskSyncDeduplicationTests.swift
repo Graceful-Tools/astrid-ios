@@ -180,7 +180,7 @@ final class TaskSyncDeduplicationTests: XCTestCase {
         XCTAssertFalse(serverId.hasPrefix("temp_"))
     }
 
-    func testLocalEditsDetectedByUpdatedAtChange() {
+    @MainActor func testLocalEditsDetectedByUpdatedAtChange() {
         let original = task(updatedAt: Date())
         var edited = original
         edited.updatedAt = Date().addingTimeInterval(5)
@@ -188,7 +188,7 @@ final class TaskSyncDeduplicationTests: XCTestCase {
         XCTAssertNotEqual(original.updatedAt, edited.updatedAt)
     }
 
-    func testMergePreservesLocalEditsOverServerResponse() {
+    @MainActor func testMergePreservesLocalEditsOverServerResponse() {
         // Simulate: optimistic task created, then edited, then server responds
         let serverTask = task(id: "server-1", title: "Original", priority: .none)
         var localEdited = task(id: "temp_1", title: "Edited title", priority: .high)
@@ -213,7 +213,7 @@ final class TaskSyncDeduplicationTests: XCTestCase {
         XCTAssertTrue(merged.isAllDay, "Should preserve local isAllDay")
     }
 
-    func testMergeDoesNotOverwriteWhenNoEdits() {
+    @MainActor func testMergeDoesNotOverwriteWhenNoEdits() {
         let now = Date()
         let original = task(id: "temp_1", title: "Buy milk", updatedAt: now, priority: .none)
         // "current local" has same updatedAt → not edited
@@ -242,7 +242,7 @@ final class TaskSyncDeduplicationTests: XCTestCase {
 
     // MARK: - Group 3: Edge Cases
 
-    func testMultipleEditsToSameField() {
+    @MainActor func testMultipleEditsToSameField() {
         var t = task(id: "temp_1", title: "v1", priority: .none)
 
         // Rapid edits
@@ -271,7 +271,7 @@ final class TaskSyncDeduplicationTests: XCTestCase {
         XCTAssertTrue(pendingCreates.contains("temp_4"))
     }
 
-    func testRapidCreateEditDoesNotCorruptState() {
+    @MainActor func testRapidCreateEditDoesNotCorruptState() {
         // Simulate: create → edit → the merge logic
         let now = Date()
         let originalOptimistic = task(id: "temp_1", title: "Original", updatedAt: now, priority: .none)

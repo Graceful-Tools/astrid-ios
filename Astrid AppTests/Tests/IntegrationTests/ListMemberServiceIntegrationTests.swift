@@ -53,7 +53,7 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
 
         // When: Adding a member
         let startTime = Date()
-        let member = try await service.addMember(
+        let addedMember = try await service.addMember(
             listId: "list-123",
             email: "newuser@example.com",
             role: "member"
@@ -64,8 +64,8 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
         XCTAssertLessThan(elapsed, 0.1, "Optimistic add should be instant")
 
         // Then: Should have temp ID
-        XCTAssertTrue(member.id.hasPrefix("temp_"))
-        XCTAssertEqual(member.role, "member")
+        XCTAssertTrue(addedMember.id.hasPrefix("temp_"))
+        XCTAssertEqual(addedMember.role, "member")
     }
 
     func testOptimisticAddMember_SavesToCoreDataAsPending() async throws {
@@ -117,7 +117,7 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
         )
 
         // When: Adding member and syncing
-        let member = try await service.addMember(
+        _ = try await service.addMember(
             listId: "list-123",
             email: "newuser@example.com",
             role: "member"
@@ -160,12 +160,11 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
         )
 
         // When: Adding member and syncing
-        let member = try await service.addMember(
+        _ = try await service.addMember(
             listId: "list-123",
             email: "john@example.com",
             role: "member"
         )
-        let tempId = member.id
         try await _Concurrency.Task.sleep(nanoseconds: 500_000_000)
 
         try await service.syncPendingOperations()
@@ -262,7 +261,7 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
             isAdmin: false
         )
 
-        let member = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
+        _ = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
         try await service.syncPendingOperations()
         try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
 
@@ -310,7 +309,7 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
             isAdmin: false
         )
 
-        let member = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
+        _ = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
         try await service.syncPendingOperations()
         try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
 
@@ -355,7 +354,7 @@ final class ListMemberServiceIntegrationTests: XCTestCase {
             isAdmin: false
         )
 
-        let member = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
+        _ = try await service.addMember(listId: "list-123", email: "test@example.com", role: "member")
         try await service.syncPendingOperations()
         try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
 

@@ -144,6 +144,11 @@ struct AstridApp: App {
                         // This ensures web-updated images show on iOS
                         ImageCache.shared.clearMemoryCache()
 
+                        // Reconnect SSE if it dropped while in background
+                        _Concurrency.Task {
+                            await connectSSE()
+                        }
+
                         // Check for review prompt when app becomes active (good time to ask)
                         _Concurrency.Task {
                             await ReviewPromptManager.shared.checkAndPromptForReview()
@@ -152,6 +157,12 @@ struct AstridApp: App {
                         print("📱 [AstridApp] App went to background - scheduling sync")
                         // Schedule background sync to complete pending operations
                         BackgroundSyncHandler.shared.scheduleBackgroundSync()
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .networkDidBecomeAvailable)) { _ in
+                    // Reconnect SSE when network is restored
+                    _Concurrency.Task {
+                        await connectSSE()
                     }
                 }
                 .alert("Enable Push Notifications", isPresented: $notificationPromptManager.showPromptAlert) {
@@ -471,6 +482,13 @@ struct AstridApp: App {
     private func connectSSE() async {
         guard authManager.isAuthenticated else {
             print("⚠️ [AstridApp] Not authenticated - skipping SSE connection")
+            return
+        }
+
+        // Only connect SSE if we have a real server session (not local-only mode)
+        let hasCookie = (try? KeychainService.shared.getSessionCookie()) != nil
+        guard hasCookie else {
+            print("⚠️ [AstridApp] No session cookie - skipping SSE (local-only mode)")
             return
         }
 

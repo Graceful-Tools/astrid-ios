@@ -22,8 +22,6 @@ final class ListUITests: XCTestCase {
     func testListsTabVisible() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
             throw XCTSkip("User not authenticated")
@@ -38,16 +36,14 @@ final class ListUITests: XCTestCase {
         add(screenshot)
 
         // Tab bar might use different naming
-        let hasListsTab = listsTab.exists ||
-                         app.tabBars.buttons["Lists"].exists ||
-                         app.buttons["Lists"].exists
+        _ = listsTab.exists ||
+            app.tabBars.buttons["Lists"].exists ||
+            app.buttons["Lists"].exists
     }
 
     @MainActor
     func testNavigateToLists() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
@@ -73,8 +69,6 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testListExists() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
@@ -107,8 +101,6 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testSelectList() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
@@ -146,8 +138,6 @@ final class ListUITests: XCTestCase {
     func testCreateListButtonExists() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
             throw XCTSkip("User not authenticated")
@@ -181,8 +171,6 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testPublicListSettingsShowsOnlyFiltersTab() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {

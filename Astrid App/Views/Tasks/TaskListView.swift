@@ -24,6 +24,7 @@ struct TaskListView: View {
     @State private var showingCopySheet = false
     @State private var taskToCopy: Task?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
+    @State private var showChat = false  // Toggle between task list and chat
 
     // My Tasks filter preferences (synced across devices via server)
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
@@ -334,6 +335,11 @@ struct TaskListView: View {
                     .disabled(isCopyingList)
                 }
 
+                // Chat toggle button (always available — shows sign-in prompt if not authenticated)
+                if !isViewingFromFeatured {
+                    ChatToggleButton(showChat: $showChat)
+                }
+
                 // Settings/Filter button
                 if selectedListId == "my-tasks" {
                     Button {
@@ -396,19 +402,27 @@ struct TaskListView: View {
                     floatingHeader
 
                     // Main content
-                    Group {
-                        if (!taskService.hasCompletedInitialLoad || !listService.hasCompletedInitialLoad) || (taskService.isLoading && taskService.tasks.isEmpty) || (isViewingFromFeatured && isLoadingFeaturedTasks) {
-                            loadingState
-                        } else if filteredTasks.isEmpty {
-                            emptyState
-                        } else {
-                            taskList
+                    if showChat, let listId = selectedListId {
+                        // Chat panel — use virtual channel for My Tasks, real channel for lists
+                        ChatPanelView(listId: listId, onSignedIn: {
+                            // After sign-in, switch back to tasks view
+                            showChat = false
+                        })
+                    } else {
+                        Group {
+                            if (!taskService.hasCompletedInitialLoad || !listService.hasCompletedInitialLoad) || (taskService.isLoading && taskService.tasks.isEmpty) || (isViewingFromFeatured && isLoadingFeaturedTasks) {
+                                loadingState
+                            } else if filteredTasks.isEmpty {
+                                emptyState
+                            } else {
+                                taskList
+                            }
                         }
                     }
 
                     // Quick add task at bottom (phone and iPad)
                     // Show if user can add tasks to this list
-                    if shouldShowQuickAdd {
+                    if shouldShowQuickAdd && !showChat {
                         QuickAddTaskView(
                             selectedList: selectedList,
                             onTaskCreated: { task in
@@ -497,6 +511,9 @@ struct TaskListView: View {
             }
         }
         .onChange(of: selectedListId) { _, newListId in
+            // Reset chat view when switching lists
+            showChat = false
+
             if isViewingFromFeatured, let listId = newListId {
                 _Concurrency.Task {
                     await loadFeaturedListTasks(listId: listId)

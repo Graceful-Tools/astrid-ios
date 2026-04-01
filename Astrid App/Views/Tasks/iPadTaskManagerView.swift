@@ -43,6 +43,7 @@ struct iPadTaskManagerView: View {
 
     // Selected task for detail panel
     @State private var selectedTask: Task?
+    @State private var showChatPanel = false  // Toggle chat in right panel
 
     // Portrait mode: sidebar shown via sliding overlay (like iPhone)
     @State private var showingSidebar = false
@@ -107,6 +108,7 @@ struct iPadTaskManagerView: View {
         .onChange(of: selectedListId) { _, _ in
             withAnimation(.easeInOut(duration: 0.25)) {
                 selectedTask = nil
+                showChatPanel = false
             }
         }
     }
@@ -132,7 +134,7 @@ struct iPadTaskManagerView: View {
 
             Divider()
 
-            // Middle: Task List (37% when detail shown, 72% when no task selected)
+            // Middle: Task List (37% when detail/chat shown, 72% when neither)
             // No onMenuTap - hamburger button does nothing in landscape since sidebar is always visible
             iPadTaskListView(
                 selectedListId: $selectedListId,
@@ -142,14 +144,34 @@ struct iPadTaskManagerView: View {
                 selectedTask: $selectedTask,
                 onMenuTap: nil  // Sidebar always visible in landscape
             )
-            .frame(width: selectedTask != nil ? width * 0.37 : width * 0.72)
+            .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
 
-            // Right: Task Detail Panel (35% when task selected) - animates with task list
+            // Right panel: Task Detail or Chat (35%)
             if selectedTask != nil {
                 Divider()
 
-                taskDetailPanel
-                    .frame(width: width * 0.35)
+                VStack(spacing: 0) {
+                    // Panel toggle: Detail / Chat
+                    if selectedListId != nil && !isViewingFromFeatured {
+                        iPadPanelToggle
+                    }
+
+                    if showChatPanel, let listId = selectedListId {
+                        ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                    } else {
+                        taskDetailPanel
+                    }
+                }
+                .frame(width: width * 0.35)
+            } else if showChatPanel, let listId = selectedListId {
+                // Show chat panel even with no task selected
+                Divider()
+
+                VStack(spacing: 0) {
+                    iPadPanelToggle
+                    ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                }
+                .frame(width: width * 0.35)
             }
         }
     }
@@ -348,6 +370,34 @@ struct iPadTaskManagerView: View {
         }
     }
 
+
+    // MARK: - iPad Panel Toggle (Detail / Chat)
+
+    private var iPadPanelToggle: some View {
+        HStack {
+            Text(showChatPanel ? "Chat" : "Details")
+                .font(Theme.Typography.caption1())
+                .fontWeight(.semibold)
+                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+
+            Spacer()
+
+            // Toggle button — shows opposite mode's icon
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showChatPanel.toggle()
+                }
+            } label: {
+                Image(systemName: showChatPanel ? "doc.text" : "bubble.left.and.bubble.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Theme.spacing12)
+        .padding(.vertical, Theme.spacing8)
+        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+    }
 
     // MARK: - Helper Methods
 

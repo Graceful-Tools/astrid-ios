@@ -218,14 +218,14 @@ final class UserModelTests: XCTestCase {
 
     // MARK: - Equatable Tests
 
-    func testUserEquality() {
+    @MainActor func testUserEquality() {
         let user1 = TestHelpers.createTestUser(id: "same-id", name: "User One")
         let user2 = TestHelpers.createTestUser(id: "same-id", name: "User One")
 
         XCTAssertEqual(user1, user2)
     }
 
-    func testUserInequality() {
+    @MainActor func testUserInequality() {
         let user1 = TestHelpers.createTestUser(id: "user-1", name: "User One")
         let user2 = TestHelpers.createTestUser(id: "user-2", name: "User Two")
 
@@ -234,7 +234,7 @@ final class UserModelTests: XCTestCase {
 
     // MARK: - Hashable Tests
 
-    func testUserHashable() {
+    @MainActor func testUserHashable() {
         let user = TestHelpers.createTestUser(id: "hash-user")
 
         var userSet = Set<User>()
@@ -243,7 +243,7 @@ final class UserModelTests: XCTestCase {
         XCTAssertTrue(userSet.contains(user))
     }
 
-    func testUserInDictionary() {
+    @MainActor func testUserInDictionary() {
         let user1 = TestHelpers.createTestUser(id: "user-1")
         let user2 = TestHelpers.createTestUser(id: "user-2")
 

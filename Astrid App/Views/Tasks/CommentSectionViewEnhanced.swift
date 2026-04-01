@@ -5,18 +5,6 @@ import os.log
 
 private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "CommentSection")
 
-struct AttachedFileInfo {
-    let fileId: String
-    let fileName: String
-    let fileSize: Int
-    let mimeType: String
-    let imageData: Data?  // For thumbnail preview (images only)
-
-    var isImage: Bool {
-        mimeType.lowercased().hasPrefix("image/")
-    }
-}
-
 /// Enhanced Comment Section with Markdown and SSE support
 struct CommentSectionViewEnhanced: View {
     @Environment(\.colorScheme) var colorScheme
@@ -45,7 +33,12 @@ struct CommentSectionViewEnhanced: View {
     @State private var isUploadingFile = false
     @State private var uploadError: String?
 
-    // Mention state - cached to avoid expensive traversal on every keystroke
+    // Autocomplete state — @mentions, #lists, !tasks (matches ChatInputView)
+    @State private var activeTrigger: AutocompleteItem.AutocompleteType?
+    @State private var triggerPosition: String.Index?
+    @State private var autocompleteItems: [AutocompleteItem] = []
+    @State private var insertedReferences: [InsertedReference] = []
+    // Legacy mention state kept for compatibility
     @State private var mentionSearch: String?
     @State private var cachedMentionableUsers: [User] = []
     @State private var filteredMentionResults: [User] = []
@@ -125,6 +118,9 @@ struct CommentSectionViewEnhanced: View {
     @State private var unsubscribeCommentAdded: (@Sendable () -> Void)?
     @State private var unsubscribeCommentUpdated: (@Sendable () -> Void)?
     @State private var unsubscribeCommentDeleted: (@Sendable () -> Void)?
+    @State private var unsubscribeTypingStart: (@Sendable () -> Void)?
+    @State private var unsubscribeTypingStop: (@Sendable () -> Void)?
+    @State private var agentTypingName: String?
 
     // Computed properties for filtering comments
     private var userComments: [Comment] {
@@ -198,10 +194,200 @@ struct CommentSectionViewEnhanced: View {
 
     private func insertMention(_ user: User) {
         guard let lastAtRange = newCommentText.range(of: "@", options: .backwards) else { return }
-        
+
         let mentionText = "@[\(user.displayName)](\(user.id)) "
         newCommentText = newCommentText.replacingCharacters(in: lastAtRange.lowerBound..<newCommentText.endIndex, with: mentionText)
         mentionSearch = nil
+    }
+
+    // MARK: - Autocomplete (@ # !)
+
+    private func detectCommentTrigger(in text: String) {
+        let triggerChars: [(Character, AutocompleteItem.AutocompleteType)] = [
+            ("@", .mention), ("#", .list), ("!", .task),
+        ]
+
+        var bestTrigger: AutocompleteItem.AutocompleteType?
+        var bestPos: String.Index?
+        var bestSearch: String = ""
+
+        for (char, type) in triggerChars {
+            guard let idx = text.lastIndex(of: char) else { continue }
+            if idx != text.startIndex {
+                let charBefore = text[text.index(before: idx)]
+                if !charBefore.isWhitespace && charBefore != "\n" { continue }
+            }
+            let afterTrigger = String(text[text.index(after: idx)...])
+            if afterTrigger.contains(" ") || afterTrigger.contains("\n") { continue }
+            if bestPos == nil || idx > bestPos! {
+                bestTrigger = type
+                bestPos = idx
+                bestSearch = afterTrigger
+            }
+        }
+
+        if let trigger = bestTrigger, let pos = bestPos {
+            activeTrigger = trigger
+            triggerPosition = pos
+            filterCommentAutocomplete(type: trigger, search: bestSearch)
+        } else {
+            clearCommentAutocomplete()
+        }
+    }
+
+    private func filterCommentAutocomplete(type: AutocompleteItem.AutocompleteType, search: String) {
+        let results: [AutocompleteItem]
+        switch type {
+        case .mention:
+            results = filterCommentMentions(search: search)
+        case .list:
+            results = filterCommentLists(search: search)
+        case .task:
+            results = filterCommentTasks(search: search)
+        }
+        autocompleteItems = results
+    }
+
+    private func filterCommentMentions(search: String) -> [AutocompleteItem] {
+        // Use existing cachedMentionableUsers + AI agents
+        var users = cachedMentionableUsers
+        if let agents = AIAgentCache.shared.load() {
+            let currentUserId = AuthManager.shared.userId
+            for agent in agents where agent.id != currentUserId && !users.contains(where: { $0.id == agent.id }) {
+                users.append(agent)
+            }
+        }
+        let lowered = search.lowercased()
+        let filtered = lowered.isEmpty ? users : users.filter {
+            $0.displayName.lowercased().contains(lowered) ||
+            ($0.email?.lowercased().contains(lowered) ?? false)
+        }
+        return filtered.map { user in
+            AutocompleteItem(
+                id: user.id, type: .mention, label: user.displayName,
+                secondaryLabel: user.email, image: user.image,
+                isAIAgent: user.isAIAgent == true, isShared: false, privacy: nil, completed: false
+            )
+        }
+    }
+
+    private func filterCommentLists(search: String) -> [AutocompleteItem] {
+        let lists = ListService.shared.lists.filter { $0.isVirtual != true }
+        let lowered = search.lowercased()
+        let filtered = lowered.isEmpty ? lists : lists.filter { $0.name.lowercased().contains(lowered) }
+        return Array(filtered.prefix(10)).map { list in
+            let isShared = list.privacy == .SHARED || list.privacy == .PUBLIC
+            return AutocompleteItem(
+                id: list.id, type: .list, label: list.name,
+                secondaryLabel: list.privacy?.rawValue.capitalized, image: nil,
+                isAIAgent: false, isShared: isShared, privacy: list.privacy?.rawValue, completed: false
+            )
+        }
+    }
+
+    private func filterCommentTasks(search: String) -> [AutocompleteItem] {
+        let allTasks = TaskService.shared.tasks
+        let lowered = search.lowercased()
+        var filtered = lowered.isEmpty ? allTasks : allTasks.filter { $0.title.lowercased().contains(lowered) }
+        filtered.sort { a, b in
+            if a.completed != b.completed { return !a.completed }
+            return (a.updatedAt ?? a.createdAt ?? .distantPast) > (b.updatedAt ?? b.createdAt ?? .distantPast)
+        }
+        return Array(filtered.prefix(15)).map { task in
+            let listName = task.lists?.first?.name ?? task.listIds?.compactMap { id in
+                ListService.shared.lists.first(where: { $0.id == id })?.name
+            }.first
+            return AutocompleteItem(
+                id: task.id, type: .task, label: task.title,
+                secondaryLabel: listName, image: nil,
+                isAIAgent: false, isShared: false, privacy: nil, completed: task.completed
+            )
+        }
+    }
+
+    private func insertAutocompleteItem(_ item: AutocompleteItem) {
+        guard let pos = triggerPosition else { return }
+        let displayText = "\(item.triggerChar)\(item.label)"
+        let textBefore = String(newCommentText[newCommentText.startIndex..<pos])
+        newCommentText = textBefore + displayText + " "
+        insertedReferences.append(InsertedReference(id: item.id, type: item.type, displayText: displayText))
+        clearCommentAutocomplete()
+    }
+
+    private func clearCommentAutocomplete() {
+        activeTrigger = nil
+        triggerPosition = nil
+        autocompleteItems = []
+    }
+
+    /// Reconstruct @[Name](id) format from display text
+    private func reconstructReferences(in text: String) -> String {
+        var result = text
+        let sorted = insertedReferences.sorted { $0.displayText.count > $1.displayText.count }
+        for ref in sorted {
+            let fullRef = "\(ref.displayText.prefix(1))[\(ref.displayText.dropFirst())](\(ref.id))"
+            if let range = result.range(of: ref.displayText) {
+                result = result.replacingCharacters(in: range, with: fullRef)
+            }
+        }
+        return result
+    }
+
+    private func pruneCommentReferences() {
+        insertedReferences.removeAll { ref in !newCommentText.contains(ref.displayText) }
+    }
+
+    /// AttributedString that colors @mentions blue, #lists green, !tasks orange
+    private var coloredCommentText: AttributedString {
+        let text = newCommentText.isEmpty ? " " : newCommentText
+        let defaultColor: Color = colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
+
+        guard !insertedReferences.isEmpty else {
+            var plain = AttributedString(text)
+            plain.foregroundColor = defaultColor
+            plain.font = Theme.Typography.body()
+            return plain
+        }
+
+        var result = AttributedString()
+        var remaining = text[text.startIndex...]
+
+        let sortedRefs = insertedReferences.compactMap { ref -> (ref: InsertedReference, range: Range<String.Index>)? in
+            guard let range = text.range(of: ref.displayText) else { return nil }
+            return (ref, range)
+        }.sorted { $0.range.lowerBound < $1.range.lowerBound }
+
+        for (ref, range) in sortedRefs {
+            guard range.lowerBound >= remaining.startIndex else { continue }
+
+            if remaining.startIndex < range.lowerBound {
+                var plain = AttributedString(remaining[remaining.startIndex..<range.lowerBound])
+                plain.foregroundColor = defaultColor
+                plain.font = Theme.Typography.body()
+                result += plain
+            }
+
+            let color: Color = switch ref.type {
+            case .mention: .blue
+            case .list: .green
+            case .task: .orange
+            }
+            var colored = AttributedString(ref.displayText)
+            colored.foregroundColor = color
+            colored.font = Theme.Typography.body()
+            result += colored
+
+            remaining = text[range.upperBound...]
+        }
+
+        if !remaining.isEmpty {
+            var plain = AttributedString(remaining)
+            plain.foregroundColor = defaultColor
+            plain.font = Theme.Typography.body()
+            result += plain
+        }
+
+        return result
     }
 
     var body: some View {
@@ -270,9 +456,28 @@ struct CommentSectionViewEnhanced: View {
             }
 
             // New comment input (offline sync supported via optimistic updates)
+            // Agent typing indicator
+            if let typingName = agentTypingName {
+                AgentTypingIndicator(agentName: typingName)
+            }
+
             // When hideInput is true, input is handled externally (fixed position above keyboard)
             if !hideInput {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
+                // Autocomplete popup — @mentions, #lists, !tasks
+                if activeTrigger != nil && !autocompleteItems.isEmpty {
+                    AutocompletePopupView(
+                        items: autocompleteItems,
+                        activeTrigger: activeTrigger,
+                        textColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                        mutedColor: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
+                        backgroundColor: colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary,
+                        borderColor: colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder,
+                        onSelect: { item in insertAutocompleteItem(item) },
+                        onDismiss: { clearCommentAutocomplete() }
+                    )
+                }
+
                 if let replyingTo = replyingTo {
                     HStack {
                         Text("Replying to \(replyingTo.author?.displayName ?? "Unknown")")
@@ -344,51 +549,10 @@ struct CommentSectionViewEnhanced: View {
                     }
                 }
 
-                // Mention autocomplete list - uses pre-filtered results with debounce
-                if mentionSearch != nil && !filteredMentionResults.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(filteredMentionResults) { user in
-                            Button {
-                                insertMention(user)
-                            } label: {
-                                HStack {
-                                    // Avatar
-                                    CachedAsyncImage(url: user.image.flatMap { URL(string: $0) }) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    } placeholder: {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Theme.accent)
-                                            Text(user.initials)
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(Theme.accentText)
-                                        }
-                                    }
-                                    .frame(width: 24, height: 24)
-                                    .clipShape(Circle())
-
-                                    Text(user.displayName)
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    Spacer()
-                                }
-                                .padding(Theme.spacing8)
-                            }
-                            Divider()
-                        }
-                    }
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                    .cornerRadius(Theme.radiusSmall)
-                    .shadow(radius: 2)
-                    .padding(.horizontal, Theme.spacing4)
-                }
-
                 HStack(alignment: .bottom, spacing: Theme.spacing8) {
-                    // Expandable comment input (like QuickAddTaskView)
+                    // Expandable comment input with @/#/! autocomplete
                     ZStack(alignment: .topLeading) {
-                        // Hidden sizing text - determines the height of the container
+                        // Hidden sizing text
                         Text(newCommentText.isEmpty ? " " : newCommentText)
                             .font(Theme.Typography.body())
                             .foregroundColor(.clear)
@@ -404,7 +568,7 @@ struct CommentSectionViewEnhanced: View {
                                 .allowsHitTesting(false)
                         }
 
-                        // Actual TextEditor
+                        // TextEditor — visible text, standard behavior
                         TextEditor(text: $newCommentText)
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
@@ -413,18 +577,8 @@ struct CommentSectionViewEnhanced: View {
                             .padding(.vertical, Theme.spacing4)
                             .focused($isTextFieldFocused)
                             .onChange(of: newCommentText) { _, newValue in
-                                // Detect @ mention
-                                if let lastAtRange = newValue.range(of: "@", options: .backwards) {
-                                    let substring = newValue[lastAtRange.upperBound...]
-                                    if !substring.contains(" ") {
-                                        let search = String(substring)
-                                        mentionSearch = search
-                                        filterMentionableUsers(search: search)
-                                        return
-                                    }
-                                }
-                                mentionSearch = nil
-                                filteredMentionResults = []
+                                detectCommentTrigger(in: newValue)
+                                pruneCommentReferences()
                             }
                     }
                     .frame(minHeight: 44, maxHeight: 200)
@@ -667,6 +821,11 @@ struct CommentSectionViewEnhanced: View {
                     return
                 }
 
+                // Clear typing indicator if agent comment arrived
+                if comment.author?.isAIAgent == true {
+                    agentTypingName = nil
+                }
+
                 // Check if this is a synced version of a temp comment (match by content)
                 if let index = comments.firstIndex(where: { $0.id.hasPrefix("temp_") && $0.content == comment.content }) {
                     // Just update the ID - keep our local data (author, secureFiles, etc.)
@@ -711,6 +870,21 @@ struct CommentSectionViewEnhanced: View {
             }
         }
 
+        // Typing indicators for task comments
+        unsubscribeTypingStart = await SSEClient.shared.onAgentTypingStart { [taskId] agentName, _, eventTaskId in
+            guard eventTaskId == taskId else { return }
+            _Concurrency.Task { @MainActor in
+                self.agentTypingName = agentName
+            }
+        }
+
+        unsubscribeTypingStop = await SSEClient.shared.onAgentTypingStop { [taskId] _, eventTaskId in
+            guard eventTaskId == taskId else { return }
+            _Concurrency.Task { @MainActor in
+                self.agentTypingName = nil
+            }
+        }
+
         print("✅ [CommentSection] SSE subscriptions registered")
     }
 
@@ -720,10 +894,14 @@ struct CommentSectionViewEnhanced: View {
         unsubscribeCommentAdded?()
         unsubscribeCommentUpdated?()
         unsubscribeCommentDeleted?()
+        unsubscribeTypingStart?()
+        unsubscribeTypingStop?()
 
         unsubscribeCommentAdded = nil
         unsubscribeCommentUpdated = nil
         unsubscribeCommentDeleted = nil
+        unsubscribeTypingStart = nil
+        unsubscribeTypingStop = nil
 
         print("✅ [CommentSection] SSE subscriptions cleaned up")
     }
@@ -743,15 +921,15 @@ struct CommentSectionViewEnhanced: View {
         let commentType: Comment.CommentType
         if attachedFile != nil {
             commentType = .ATTACHMENT
-            print("📎 [CommentSection] Comment type: ATTACHMENT, fileId: \(attachedFile?.fileId ?? "nil")")
         } else if useMarkdown {
             commentType = .MARKDOWN
         } else {
             commentType = .TEXT
         }
 
-        // Prepare content - attachment-only comments have empty text (attachment shows as thumbnail)
-        let commentContent = trimmedText
+        // Reconstruct @[Name](id), #[Name](id), ![Name](id) from display text
+        let commentContent = reconstructReferences(in: trimmedText)
+        insertedReferences = []
 
         // OPTIMISTIC UPDATE: Create and show comment immediately
         let tempId = "temp_\(UUID().uuidString)"
@@ -824,7 +1002,6 @@ struct CommentSectionViewEnhanced: View {
             if let realFileId = attachmentService.getRealFileId(for: tempFileId) {
                 // Upload already complete, use real ID
                 fileIdToSend = realFileId
-                print("📎 [CommentSection] Using already-uploaded fileId: \(realFileId)")
             } else if !isOnline {
                 // OFFLINE: Keep temp fileId - will be resolved when syncing
                 print("📵 [CommentSection] Offline - using temp fileId: \(tempFileId)")
@@ -843,6 +1020,7 @@ struct CommentSectionViewEnhanced: View {
         attachedFile = nil
         replyingTo = nil
         isTextFieldFocused = false
+        clearCommentAutocomplete()
 
         isSubmitting = true
 
@@ -1051,8 +1229,6 @@ struct CommentSectionViewEnhanced: View {
         defer { isUploadingFile = false }
 
         do {
-            print("📎 [CommentSection] Starting document upload from: \(url.path)")
-
             // Access the file
             guard url.startAccessingSecurityScopedResource() else {
                 print("❌ [CommentSection] Failed to access document at: \(url.path)")
@@ -1067,8 +1243,6 @@ struct CommentSectionViewEnhanced: View {
             let fileData = try Data(contentsOf: url)
             let fileName = url.lastPathComponent
             let mimeType = attachmentService.getMimeType(for: url.pathExtension)
-
-            print("📎 [CommentSection] File details: name=\(fileName), size=\(fileData.count) bytes, type=\(mimeType)")
 
             // Check file size
             if fileData.count > maxFileSize {
@@ -1086,8 +1260,6 @@ struct CommentSectionViewEnhanced: View {
                 mimeType: mimeType,
                 taskId: taskId
             )
-
-            print("📎 [CommentSection] Document saved locally, uploading in background: \(tempFileId)")
 
             // Set attached file immediately (no waiting for upload!)
             await MainActor.run {
@@ -1311,16 +1483,12 @@ struct CommentRowViewEnhanced: View {
                         }
 
                         // Content
+                        // Content — with colored @mentions, #lists, !tasks
                         if hasTextContent {
-                            if useMarkdown && (comment.type == .MARKDOWN || comment.content.containsMarkdown) {
-                                Text(comment.content.attributedMarkdown())
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            } else {
-                                Text(comment.content)
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            }
+                            Text(comment.content.attributedWithReferences(
+                                defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
+                            ))
+                            .font(Theme.Typography.body())
                         }
 
                         // Pending indicator removed - comments sync automatically in background

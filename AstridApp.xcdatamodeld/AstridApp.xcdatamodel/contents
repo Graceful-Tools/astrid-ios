@@ -95,6 +95,36 @@
         <attribute name="syncError" optional="YES" attributeType="String"/>
         <attribute name="lastSyncAttemptAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="CDChatChannel" representedClassName="CDChatChannel" syncable="YES">
+        <attribute name="id" attributeType="String"/>
+        <attribute name="listId" optional="YES" attributeType="String"/>
+        <attribute name="virtualKey" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="lastFetchedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <entity name="CDChatMessage" representedClassName="CDChatMessage" syncable="YES">
+        <attribute name="id" attributeType="String"/>
+        <attribute name="channelId" attributeType="String"/>
+        <attribute name="authorId" optional="YES" attributeType="String"/>
+        <attribute name="authorName" optional="YES" attributeType="String"/>
+        <attribute name="authorImage" optional="YES" attributeType="String"/>
+        <attribute name="authorIsAIAgent" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="authorAIAgentType" optional="YES" attributeType="String"/>
+        <attribute name="content" attributeType="String"/>
+        <attribute name="type" attributeType="String"/>
+        <attribute name="replyToId" optional="YES" attributeType="String"/>
+        <attribute name="clientRequestId" optional="YES" attributeType="String"/>
+        <attribute name="secureFilesData" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="syncStatus" attributeType="String"/>
+        <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="pendingOperation" optional="YES" attributeType="String"/>
+        <attribute name="pendingFileId" optional="YES" attributeType="String"/>
+        <attribute name="syncAttempts" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="syncError" optional="YES" attributeType="String"/>
+        <attribute name="lastSyncAttemptAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
     <entity name="CDReminderMapping" representedClassName="CDReminderMapping" syncable="YES">
         <attribute name="astridTaskId" optional="YES" attributeType="String" defaultValueString=""/>
         <attribute name="astridListId" optional="YES" attributeType="String"/>

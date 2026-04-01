@@ -48,6 +48,12 @@ struct TaskDetailViewNew: View {
     @State private var isSubmittingComment = false
     @FocusState private var isCommentFocused: Bool
 
+    // Autocomplete state for comment input (@mentions, #lists, !tasks)
+    @State private var activeTrigger: AutocompleteItem.AutocompleteType?
+    @State private var triggerPosition: String.Index?
+    @State private var autocompleteItems: [AutocompleteItem] = []
+    @State private var insertedReferences: [InsertedReference] = []
+
     // Attachment state for comment input
     @State private var attachedFile: AttachedFileInfo?
     @State private var isUploadingFile = false
@@ -516,7 +522,14 @@ struct TaskDetailViewNew: View {
             .safeAreaInset(edge: .bottom) {
                 // Fixed comment input above keyboard (like messaging apps)
                 if !isReadOnly {
-                    commentInputBar
+                    RichTextInput(
+                        placeholder: "Add a comment...",
+                        listId: task.listIds?.first,
+                        uploadContext: task.listIds?.first != nil ? ["listId": task.listIds!.first!] : ["taskId": task.id],
+                        onSend: { content, type, fileId in
+                            _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileId: fileId) }
+                        }
+                    )
                         .background(
                             // Extend background to cover home indicator area
                             taskDetailsBackground
@@ -578,6 +591,20 @@ struct TaskDetailViewNew: View {
     /// Fixed comment input bar that stays above the keyboard (styled like QuickAddTaskView)
     private var commentInputBar: some View {
         VStack(spacing: Theme.spacing8) {
+            // Autocomplete popup — @mentions, #lists, !tasks
+            if activeTrigger != nil && !autocompleteItems.isEmpty {
+                AutocompletePopupView(
+                    items: autocompleteItems,
+                    activeTrigger: activeTrigger,
+                    textColor: commentInputTextColor,
+                    mutedColor: commentInputMutedColor,
+                    backgroundColor: commentInputBackgroundColor,
+                    borderColor: commentInputBorderColor,
+                    onSelect: { item in insertCommentAutocompleteItem(item) },
+                    onDismiss: { clearCommentAutocomplete() }
+                )
+            }
+
             // File attachment preview
             if let file = attachedFile {
                 HStack(alignment: .bottom, spacing: Theme.spacing8) {
@@ -676,6 +703,9 @@ struct TaskDetailViewNew: View {
                         .scrollContentBackground(.hidden)
                         .padding(.horizontal, Theme.spacing8)
                         .padding(.vertical, Theme.spacing4)
+                        .onChange(of: newCommentText) { _, newValue in
+                            handleCommentTextChange(newValue)
+                        }
                 }
                 .frame(minHeight: 36, maxHeight: 200)
                 .fixedSize(horizontal: false, vertical: true)
@@ -821,9 +851,85 @@ struct TaskDetailViewNew: View {
     }
 
     /// Submit a new comment
+    // MARK: - Comment Autocomplete
+
+    private func handleCommentTextChange(_ text: String) {
+        insertedReferences.removeAll { ref in !text.contains(ref.displayText) }
+        if let trigger = detectAutocompleteTrigger(in: text) {
+            activeTrigger = trigger.type
+            triggerPosition = trigger.position
+            let results: [AutocompleteItem]
+            switch trigger.type {
+            case .mention:
+                results = filterMentionItems(users: buildMentionableUsers(), search: trigger.search)
+            case .list:
+                results = filterListItems(search: trigger.search)
+            case .task:
+                results = filterTaskItems(search: trigger.search)
+            }
+            autocompleteItems = results
+        } else {
+            clearCommentAutocomplete()
+        }
+    }
+
+    private func insertCommentAutocompleteItem(_ item: AutocompleteItem) {
+        guard let pos = triggerPosition else { return }
+        let displayText = "\(item.triggerChar)\(item.label)"
+        let textBefore = String(newCommentText[newCommentText.startIndex..<pos])
+        newCommentText = textBefore + displayText + " "
+        insertedReferences.append(InsertedReference(id: item.id, type: item.type, displayText: displayText))
+        clearCommentAutocomplete()
+    }
+
+    private func clearCommentAutocomplete() {
+        activeTrigger = nil
+        triggerPosition = nil
+        autocompleteItems = []
+    }
+
+    /// Called by RichTextInput when user sends a comment
+    private func submitCommentFromRichInput(content: String, type: Comment.CommentType, fileId: String?) async {
+        guard !content.isEmpty || fileId != nil else { return }
+
+        // Resolve temp fileId if needed
+        var resolvedFileId = fileId
+        if let tempFileId = fileId, tempFileId.hasPrefix("temp_") {
+            if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
+                resolvedFileId = realFileId
+            } else if !NetworkMonitor.shared.isConnected {
+                // OFFLINE: Keep temp fileId
+            } else if AttachmentService.shared.isPendingUpload(tempFileId) {
+                resolvedFileId = await waitForUploadCompletion(tempFileId: tempFileId)
+            }
+        }
+
+        do {
+            _ = try await CommentService.shared.createComment(
+                taskId: task.id,
+                content: content,
+                type: type,
+                fileId: resolvedFileId,
+                parentCommentId: nil,
+                authorId: AuthManager.shared.userId
+            )
+
+            NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": task.id])
+
+            try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
+            await MainActor.run { scrollToBottomAction?() }
+        } catch {
+            print("❌ [TaskDetailViewNew] Failed to submit comment: \(error)")
+        }
+    }
+
     private func submitComment() async {
-        let trimmedText = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Reconstruct @[Name](id) format from display text before sending
+        let reconstructed = reconstructReferencesInText(newCommentText, references: insertedReferences)
+        let trimmedText = reconstructed.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty || attachedFile != nil else { return }
+        insertedReferences = []
+        clearCommentAutocomplete()
 
         isSubmittingComment = true
 

@@ -42,7 +42,7 @@ import Foundation
                     #if targetEnvironment(simulator)
                     return "http://localhost:3000"
                     #else
-                    return "http://192.168.50.161:3000"
+                    return "http://192.168.50.254:3000"
                     #endif
                 case .production:
                     return "https://astrid.cc"
@@ -54,7 +54,7 @@ import Foundation
         #if DEBUG
         enum ServerOption: String, CaseIterable {
             case localhost = "http://localhost:3000"
-            case localNetwork = "http://192.168.50.161:3000"
+            case localNetwork = "http://192.168.50.254:3000"
             case production = "https://astrid.cc"
 
             var displayName: String {

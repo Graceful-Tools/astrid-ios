@@ -32,8 +32,8 @@ final class TaskUITests: XCTestCase {
 
         // Check if quick add task input is visible (may be on main task list view)
         // This will depend on the actual UI structure
-        let quickAddExists = app.textFields["Add a task..."].waitForExistence(timeout: timeout) ||
-                            app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: timeout)
+        _ = app.textFields["Add a task..."].waitForExistence(timeout: timeout) ||
+            app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: timeout)
 
         // Take screenshot for debugging
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -99,8 +99,6 @@ final class TaskUITests: XCTestCase {
     func testCompleteTask() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
             throw XCTSkip("User not authenticated")
@@ -143,8 +141,6 @@ final class TaskUITests: XCTestCase {
     func testOpenTaskDetail() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
             throw XCTSkip("User not authenticated")
@@ -182,8 +178,6 @@ final class TaskUITests: XCTestCase {
     @MainActor
     func testChangePriority() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {

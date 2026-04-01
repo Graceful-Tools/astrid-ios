@@ -32,6 +32,11 @@ actor SSEClient {
     private var commentDeletedHandlers: [UUID: (@Sendable (String, String) -> Void)] = [:]  // (commentId, taskId)
     private var myTasksPreferencesUpdatedHandlers: [(@Sendable (MyTasksPreferences) -> Void)] = []
     private var userSettingsUpdatedHandlers: [(@Sendable (UserSettings) -> Void)] = []
+    private var chatMessageCreatedHandlers: [UUID: (@Sendable (ChatMessage, String) -> Void)] = [:]  // (message, channelId)
+    private var chatMessageUpdatedHandlers: [UUID: (@Sendable (ChatMessage, String) -> Void)] = [:]
+    private var chatMessageDeletedHandlers: [UUID: (@Sendable (String, String) -> Void)] = [:]  // (messageId, channelId)
+    private var agentTypingStartHandlers: [UUID: (@Sendable (String, String?, String?) -> Void)] = [:]  // (agentName, channelId?, taskId?)
+    private var agentTypingStopHandlers: [UUID: (@Sendable (String?, String?) -> Void)] = [:]  // (channelId?, taskId?)
 
     private init() {}
 
@@ -59,13 +64,11 @@ actor SSEClient {
             try KeychainService.shared.getSessionCookie()
         }
 
-        if let cookie = sessionCookie {
-            request.setValue(cookie, forHTTPHeaderField: "Cookie")
-            print("🍪 [SSE] Using session cookie from Keychain")
-            print("🔍 [SSE] Cookie value preview: \(String(cookie.prefix(50)))...")
-        } else {
-            print("⚠️ [SSE] No session cookie in Keychain - SSE will fail with 401")
+        guard let cookie = sessionCookie else {
+            print("⚠️ [SSE] No session cookie in Keychain")
+            throw SSEError.noSessionCookie
         }
+        request.setValue(cookie, forHTTPHeaderField: "Cookie")
 
         return request
     }
@@ -74,13 +77,10 @@ actor SSEClient {
 
     func connect() async {
         guard !isConnected else {
-            print("⚠️ [SSE] Already connected, skipping")
             return
         }
 
-        print("📡 [SSE] Connecting...")
-
-        // Build request
+        // Build request — this also checks for session cookie
         let request: URLRequest
         do {
             request = try await buildSSERequest()
@@ -89,8 +89,14 @@ actor SSEClient {
             return
         }
 
+        // Verify the request has a Cookie header (no cookie = no point connecting)
+        guard request.value(forHTTPHeaderField: "Cookie") != nil else {
+            print("⚠️ [SSE] No session cookie - skipping connection")
+            return
+        }
+
+        print("📡 [SSE] Connecting...")
         isConnected = true
-        reconnectAttempts = 0
 
         // Create streaming task
         streamTask = _Concurrency.Task { [weak self] in
@@ -122,6 +128,7 @@ actor SSEClient {
             }
 
             print("✅ [SSE] Connected and streaming")
+            resetReconnectAttempts()
 
             // Process bytes as they stream in
             var buffer = ""
@@ -149,7 +156,14 @@ actor SSEClient {
                 }
             }
 
-            print("📡 [SSE] Stream ended")
+            print("📡 [SSE] Stream ended — will reconnect")
+            // Stream ended normally (server closed connection) — reconnect
+            isConnected = false
+            resetReconnectAttempts()
+            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)  // 2s delay
+            if !_Concurrency.Task.isCancelled {
+                await connect()
+            }
 
         } catch {
             print("❌ [SSE] Stream error: \(error.localizedDescription)")
@@ -157,11 +171,22 @@ actor SSEClient {
         }
     }
 
+    private func resetReconnectAttempts() {
+        reconnectAttempts = 0
+    }
+
     private func handleConnectionError(_ error: Error) async {
         isConnected = false
 
         // Don't reconnect if task was cancelled (intentional disconnect)
         guard !_Concurrency.Task.isCancelled else {
+            return
+        }
+
+        // Don't reconnect on auth errors (401) — no point retrying without valid session
+        let nsError = error as NSError
+        if nsError.code == 401 {
+            print("🔒 [SSE] Auth failed (401) - stopping reconnection")
             return
         }
 
@@ -303,6 +328,46 @@ actor SSEClient {
                     let settings = try decoder.decode(UserSettings.self, from: payload)
                     await notifyUserSettingsUpdated(settings)
 
+                case "chat_message_created":
+                    if let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any],
+                       let channelId = json["channelId"] as? String,
+                       let messageData = json["message"] as? [String: Any],
+                       let messageJsonData = try? JSONSerialization.data(withJSONObject: messageData) {
+                        let message = try decoder.decode(ChatMessage.self, from: messageJsonData)
+                            await notifyChatMessageCreated(message, channelId: channelId)
+                    }
+
+                case "chat_message_updated":
+                    if let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any],
+                       let channelId = json["channelId"] as? String,
+                       let messageData = json["message"] as? [String: Any],
+                       let messageJsonData = try? JSONSerialization.data(withJSONObject: messageData) {
+                        let message = try decoder.decode(ChatMessage.self, from: messageJsonData)
+                        await notifyChatMessageUpdated(message, channelId: channelId)
+                    }
+
+                case "chat_message_deleted":
+                    if let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any],
+                       let channelId = json["channelId"] as? String,
+                       let messageId = json["messageId"] as? String {
+                        await notifyChatMessageDeleted(messageId, channelId: channelId)
+                    }
+
+                case "agent_typing_start":
+                    if let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any] {
+                        let agentName = json["agentName"] as? String ?? "Agent"
+                        let channelId = json["channelId"] as? String
+                        let taskId = json["taskId"] as? String
+                        await notifyAgentTypingStart(agentName, channelId: channelId, taskId: taskId)
+                    }
+
+                case "agent_typing_stop":
+                    if let json = try JSONSerialization.jsonObject(with: payload) as? [String: Any] {
+                        let channelId = json["channelId"] as? String
+                        let taskId = json["taskId"] as? String
+                        await notifyAgentTypingStop(channelId: channelId, taskId: taskId)
+                    }
+
                 case "connected", "ping":
                     // Standard SSE keepalive events - handle silently
                     break
@@ -393,7 +458,64 @@ actor SSEClient {
         print("✅ [SSE] User Settings handler registered. Total handlers: \(userSettingsUpdatedHandlers.count)")
     }
 
+    func onChatMessageCreated(_ handler: @escaping @Sendable (ChatMessage, String) -> Void) -> @Sendable () -> Void {
+        let handlerId = UUID()
+        chatMessageCreatedHandlers[handlerId] = handler
+        print("💬 [SSE] Registered chat_message_created handler \(handlerId). Total: \(chatMessageCreatedHandlers.count)")
+        return { @Sendable [weak self] in
+            _Concurrency.Task { [weak self] in
+                await self?.removeChatMessageCreatedHandler(id: handlerId)
+            }
+        }
+    }
+
+    func onChatMessageUpdated(_ handler: @escaping @Sendable (ChatMessage, String) -> Void) -> @Sendable () -> Void {
+        let handlerId = UUID()
+        chatMessageUpdatedHandlers[handlerId] = handler
+        print("💬 [SSE] Registered chat_message_updated handler \(handlerId). Total: \(chatMessageUpdatedHandlers.count)")
+        return { @Sendable [weak self] in
+            _Concurrency.Task { [weak self] in
+                await self?.removeChatMessageUpdatedHandler(id: handlerId)
+            }
+        }
+    }
+
+    func onChatMessageDeleted(_ handler: @escaping @Sendable (String, String) -> Void) -> @Sendable () -> Void {
+        let handlerId = UUID()
+        chatMessageDeletedHandlers[handlerId] = handler
+        print("💬 [SSE] Registered chat_message_deleted handler \(handlerId). Total: \(chatMessageDeletedHandlers.count)")
+        return { @Sendable [weak self] in
+            _Concurrency.Task { [weak self] in
+                await self?.removeChatMessageDeletedHandler(id: handlerId)
+            }
+        }
+    }
+
+    func onAgentTypingStart(_ handler: @escaping @Sendable (String, String?, String?) -> Void) -> @Sendable () -> Void {
+        let handlerId = UUID()
+        agentTypingStartHandlers[handlerId] = handler
+        return { @Sendable [weak self] in
+            _Concurrency.Task { [weak self] in await self?.removeAgentTypingStartHandler(id: handlerId) }
+        }
+    }
+
+    func onAgentTypingStop(_ handler: @escaping @Sendable (String?, String?) -> Void) -> @Sendable () -> Void {
+        let handlerId = UUID()
+        agentTypingStopHandlers[handlerId] = handler
+        return { @Sendable [weak self] in
+            _Concurrency.Task { [weak self] in await self?.removeAgentTypingStopHandler(id: handlerId) }
+        }
+    }
+
     // MARK: - Handler Removal
+
+    private func removeAgentTypingStartHandler(id: UUID) {
+        agentTypingStartHandlers.removeValue(forKey: id)
+    }
+
+    private func removeAgentTypingStopHandler(id: UUID) {
+        agentTypingStopHandlers.removeValue(forKey: id)
+    }
 
     private func removeCommentAddedHandler(id: UUID) {
         commentAddedHandlers.removeValue(forKey: id)
@@ -408,6 +530,21 @@ actor SSEClient {
     private func removeCommentDeletedHandler(id: UUID) {
         commentDeletedHandlers.removeValue(forKey: id)
         print("🗑️ [SSE] Removed comment_deleted handler \(id). Remaining: \(commentDeletedHandlers.count)")
+    }
+
+    private func removeChatMessageCreatedHandler(id: UUID) {
+        chatMessageCreatedHandlers.removeValue(forKey: id)
+        print("🗑️ [SSE] Removed chat_message_created handler \(id). Remaining: \(chatMessageCreatedHandlers.count)")
+    }
+
+    private func removeChatMessageUpdatedHandler(id: UUID) {
+        chatMessageUpdatedHandlers.removeValue(forKey: id)
+        print("🗑️ [SSE] Removed chat_message_updated handler \(id). Remaining: \(chatMessageUpdatedHandlers.count)")
+    }
+
+    private func removeChatMessageDeletedHandler(id: UUID) {
+        chatMessageDeletedHandlers.removeValue(forKey: id)
+        print("🗑️ [SSE] Removed chat_message_deleted handler \(id). Remaining: \(chatMessageDeletedHandlers.count)")
     }
 
     // MARK: - Notifications
@@ -514,10 +651,44 @@ actor SSEClient {
             print("🔔 [SSE] User Settings handler called successfully")
         }
     }
+
+    private func notifyChatMessageCreated(_ message: ChatMessage, channelId: String) {
+        print("🔔 [SSE] Notifying \(chatMessageCreatedHandlers.count) chat_message_created handlers for channel \(channelId)")
+        for (_, handler) in chatMessageCreatedHandlers {
+            handler(message, channelId)
+        }
+    }
+
+    private func notifyChatMessageUpdated(_ message: ChatMessage, channelId: String) {
+        print("🔔 [SSE] Notifying \(chatMessageUpdatedHandlers.count) chat_message_updated handlers for channel \(channelId)")
+        for (_, handler) in chatMessageUpdatedHandlers {
+            handler(message, channelId)
+        }
+    }
+
+    private func notifyChatMessageDeleted(_ messageId: String, channelId: String) {
+        print("🔔 [SSE] Notifying \(chatMessageDeletedHandlers.count) chat_message_deleted handlers for channel \(channelId)")
+        for (_, handler) in chatMessageDeletedHandlers {
+            handler(messageId, channelId)
+        }
+    }
+
+    private func notifyAgentTypingStart(_ agentName: String, channelId: String?, taskId: String?) {
+        for (_, handler) in agentTypingStartHandlers {
+            handler(agentName, channelId, taskId)
+        }
+    }
+
+    private func notifyAgentTypingStop(channelId: String?, taskId: String?) {
+        for (_, handler) in agentTypingStopHandlers {
+            handler(channelId, taskId)
+        }
+    }
 }
 
 // MARK: - Errors
 
 enum SSEError: Error {
     case invalidURL
+    case noSessionCookie
 }

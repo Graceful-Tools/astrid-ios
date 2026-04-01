@@ -22,8 +22,6 @@ final class AuthUITests: XCTestCase {
     func testLoginScreenElements() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         // Wait for either login screen or main app
         sleep(2)
 
@@ -59,8 +57,6 @@ final class AuthUITests: XCTestCase {
     func testAppleSignInButtonTappable() throws {
         app.launch()
 
-        let timeout: TimeInterval = 10
-
         sleep(2)
 
         let appleSignIn = app.buttons["Sign in with Apple"]
@@ -77,8 +73,6 @@ final class AuthUITests: XCTestCase {
     @MainActor
     func testGoogleSignInButtonTappable() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         sleep(2)
 
@@ -98,8 +92,6 @@ final class AuthUITests: XCTestCase {
     @MainActor
     func testSettingsAccessible() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
@@ -129,8 +121,6 @@ final class AuthUITests: XCTestCase {
     @MainActor
     func testSignOutButtonExists() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
 
         // Skip if on login screen
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {

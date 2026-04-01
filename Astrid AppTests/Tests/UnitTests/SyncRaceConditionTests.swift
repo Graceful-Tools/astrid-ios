@@ -20,7 +20,7 @@ final class SyncRaceConditionTests: XCTestCase {
         )
     }
 
-    private func task(
+    @MainActor private func task(
         id: String = UUID().uuidString,
         title: String = "Test Task",
         listIds: [String]? = ["list-1"],
@@ -47,7 +47,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Non-temp pending edits survive merge
 
-    func testPendingEditWithRealIdOverridesServerVersion() async {
+    @MainActor func testPendingEditWithRealIdOverridesServerVersion() async {
         // Scenario: user edits a synced task (real ID), then pull-to-refresh
         // fetches stale server version. The local edit should win.
         let now = Date()
@@ -64,7 +64,7 @@ final class SyncRaceConditionTests: XCTestCase {
         XCTAssertEqual(merged.assigneeId, "user-456", "Local assignee should override server")
     }
 
-    func testMultiplePendingEditsAllPreserved() async {
+    @MainActor func testMultiplePendingEditsAllPreserved() async {
         // Multiple tasks with pending edits should all be preserved
         let now = Date()
         let server = [
@@ -91,7 +91,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Deleted tasks don't reappear
 
-    func testDeletedTaskFilteredFromServerResults() async {
+    @MainActor func testDeletedTaskFilteredFromServerResults() async {
         // Simulate: task deleted locally, but server still returns it
         // updateTasksFromSync filters pendingDeleteIds BEFORE merge
         let server = [
@@ -112,7 +112,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - clientRequestId dedup
 
-    func testClientRequestIdMatchPreventsDuplicate() async {
+    @MainActor func testClientRequestIdMatchPreventsDuplicate() async {
         let crid = "crid-\(UUID().uuidString)"
         let now = Date()
 
@@ -127,7 +127,7 @@ final class SyncRaceConditionTests: XCTestCase {
         XCTAssertEqual(result.first?.id, "server-xyz", "Server ID should win")
     }
 
-    func testClientRequestIdMatchWithEditedTitle() async {
+    @MainActor func testClientRequestIdMatchWithEditedTitle() async {
         let crid = "crid-\(UUID().uuidString)"
         let now = Date()
 
@@ -160,7 +160,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Mixed pending temp + pending edit tasks
 
-    func testMixedTempAndRealPendingTasks() async {
+    @MainActor func testMixedTempAndRealPendingTasks() async {
         let now = Date()
 
         let server = [
@@ -207,7 +207,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Sort order preserved
 
-    func testMergePreservesSortOrder() async {
+    @MainActor func testMergePreservesSortOrder() async {
         let now = Date()
         let server = [
             TestHelpers.createTestTask(id: "s1", title: "Due tomorrow", dueDateTime: now.addingTimeInterval(86400)),
@@ -225,7 +225,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Completed tasks preserved
 
-    func testCompletedTaskEditPreserved() async {
+    @MainActor func testCompletedTaskEditPreserved() async {
         let now = Date()
 
         // User just completed a task (pending edit)
@@ -240,7 +240,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Timestamp-based merge (newer local wins, server wins if same or newer)
 
-    func testServerVersionWinsWhenNewer() async {
+    @MainActor func testServerVersionWinsWhenNewer() async {
         let now = Date()
         // Server has a newer version (e.g., edited on web)
         let server = [task(id: "r1", title: "Edited on web", updatedAt: now.addingTimeInterval(10), priority: .high)]
@@ -253,7 +253,7 @@ final class SyncRaceConditionTests: XCTestCase {
         XCTAssertEqual(result.first!.priority, .high, "Server priority should win when it's newer")
     }
 
-    func testServerVersionWinsWhenSameTimestamp() async {
+    @MainActor func testServerVersionWinsWhenSameTimestamp() async {
         let now = Date()
         // Both have same updatedAt (task was synced, no local edits)
         let server = [task(id: "r1", title: "Server title", updatedAt: now)]
@@ -265,7 +265,7 @@ final class SyncRaceConditionTests: XCTestCase {
         XCTAssertEqual(result.first!.title, "Server title", "Server should win when timestamps are equal")
     }
 
-    func testLocalEditPreservedWhenServerStale() async {
+    @MainActor func testLocalEditPreservedWhenServerStale() async {
         let now = Date()
         // Simulates: syncPendingOps pushed edit, then getAllTasks returns stale data
         let server = [task(id: "r1", title: "Stale server data", updatedAt: now)]
@@ -280,7 +280,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Local-only tasks not re-added when missing from server
 
-    func testLocalTaskNotOnServerIsDropped() async {
+    @MainActor func testLocalTaskNotOnServerIsDropped() async {
         // Task was deleted on server (another device), no local edits
         let now = Date()
         let server = [task(id: "r1", title: "Still on server", updatedAt: now)]
@@ -298,7 +298,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Full local task set as pendingTasks
 
-    func testAllLocalTasksPassedToMerge() async {
+    @MainActor func testAllLocalTasksPassedToMerge() async {
         // Simulates the new behavior: ALL local tasks are passed (not just "pending" ones)
         // Tasks with no edits should still use server version (same timestamp)
         let now = Date()
@@ -327,7 +327,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - App restart delete persistence (UserDefaults-backed)
 
-    func testDeleteFilteringWithPersistedIds() async {
+    @MainActor func testDeleteFilteringWithPersistedIds() async {
         // Simulates the EXACT bug: delete tasks → close app → reopen → sync
         // After restart, CoreData pending_delete records were already cleaned up
         // by syncPendingOperations, but recentlyDeletedIds persists via UserDefaults.
@@ -357,7 +357,7 @@ final class SyncRaceConditionTests: XCTestCase {
         XCTAssertTrue(result.contains(where: { $0.id == "keep-2" }))
     }
 
-    func testBulkDeleteFilteringSimulatesListDeletion() async {
+    @MainActor func testBulkDeleteFilteringSimulatesListDeletion() async {
         // Simulates: user selects and deletes ALL tasks in a list, closes app, reopens
         let now = Date()
         let server = (1...10).map { i in
@@ -385,7 +385,7 @@ final class SyncRaceConditionTests: XCTestCase {
 
     // MARK: - Failed delete sync must not lose delete tracking
 
-    func testFailedDeleteKeepsFilteringAcrossMultipleSyncs() async {
+    @MainActor func testFailedDeleteKeepsFilteringAcrossMultipleSyncs() async {
         // THE BUG: Delete fails (server 500) → syncStatus becomes "failed" →
         // getPendingDeleteIds() no longer finds it → recentlyDeletedIds cleared →
         // next sync: task reappears.

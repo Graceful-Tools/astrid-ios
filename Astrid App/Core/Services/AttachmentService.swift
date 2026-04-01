@@ -10,15 +10,67 @@ struct PendingAttachment: Codable {
     let fileName: String
     let mimeType: String
     let fileSize: Int
-    let taskId: String
+    let uploadContext: [String: String]  // e.g. {"taskId": "..."} or {"listId": "..."}
     var realFileId: String?  // Set when upload completes
     var uploadStatus: UploadStatus
+
+    /// Backward compatibility — reads taskId from context
+    var taskId: String { uploadContext["taskId"] ?? "" }
 
     enum UploadStatus: String, Codable {
         case pending
         case uploading
         case completed
         case failed
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tempFileId, localPath, fileName, mimeType, fileSize
+        case uploadContext, realFileId, uploadStatus
+        case taskId  // Legacy field for decoding old data
+    }
+
+    init(tempFileId: String, localPath: String, fileName: String, mimeType: String, fileSize: Int, uploadContext: [String: String], realFileId: String? = nil, uploadStatus: UploadStatus) {
+        self.tempFileId = tempFileId
+        self.localPath = localPath
+        self.fileName = fileName
+        self.mimeType = mimeType
+        self.fileSize = fileSize
+        self.uploadContext = uploadContext
+        self.realFileId = realFileId
+        self.uploadStatus = uploadStatus
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        tempFileId = try container.decode(String.self, forKey: .tempFileId)
+        localPath = try container.decode(String.self, forKey: .localPath)
+        fileName = try container.decode(String.self, forKey: .fileName)
+        mimeType = try container.decode(String.self, forKey: .mimeType)
+        fileSize = try container.decode(Int.self, forKey: .fileSize)
+        realFileId = try container.decodeIfPresent(String.self, forKey: .realFileId)
+        uploadStatus = try container.decode(UploadStatus.self, forKey: .uploadStatus)
+
+        // Try new context dict first, fall back to legacy taskId string
+        if let ctx = try? container.decode([String: String].self, forKey: .uploadContext) {
+            uploadContext = ctx
+        } else if let legacyTaskId = try? container.decode(String.self, forKey: .taskId) {
+            uploadContext = ["taskId": legacyTaskId]
+        } else {
+            uploadContext = [:]
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(tempFileId, forKey: .tempFileId)
+        try container.encode(localPath, forKey: .localPath)
+        try container.encode(fileName, forKey: .fileName)
+        try container.encode(mimeType, forKey: .mimeType)
+        try container.encode(fileSize, forKey: .fileSize)
+        try container.encode(uploadContext, forKey: .uploadContext)
+        try container.encodeIfPresent(realFileId, forKey: .realFileId)
+        try container.encode(uploadStatus, forKey: .uploadStatus)
     }
 }
 
@@ -87,11 +139,12 @@ class AttachmentService: ObservableObject {
 
     /// Save file locally and return temp fileId immediately
     /// Upload happens asynchronously in background
+    /// Save file locally and upload in background. Accepts a generic context dict.
     func saveLocallyAndUploadAsync(
         fileData: Data,
         fileName: String,
         mimeType: String,
-        taskId: String
+        context: [String: String]
     ) -> String {
         let tempFileId = "temp_\(UUID().uuidString)"
         let localPath = cacheDirectory.appendingPathComponent(tempFileId).path
@@ -112,7 +165,7 @@ class AttachmentService: ObservableObject {
             fileName: fileName,
             mimeType: mimeType,
             fileSize: fileData.count,
-            taskId: taskId,
+            uploadContext: context,
             realFileId: nil,
             uploadStatus: .pending
         )
@@ -126,6 +179,16 @@ class AttachmentService: ObservableObject {
         }
 
         return tempFileId
+    }
+
+    /// Convenience wrapper: save file with taskId context (existing callers)
+    func saveLocallyAndUploadAsync(
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        taskId: String
+    ) -> String {
+        return saveLocallyAndUploadAsync(fileData: fileData, fileName: fileName, mimeType: mimeType, context: ["taskId": taskId])
     }
 
     /// Get the real fileId for a temp fileId (if upload completed)
@@ -326,7 +389,7 @@ class AttachmentService: ObservableObject {
                 fileData: fileData,
                 fileName: pending.fileName,
                 mimeType: pending.mimeType,
-                taskId: pending.taskId
+                context: pending.uploadContext
             )
 
             // Update mapping and status
@@ -488,7 +551,7 @@ class AttachmentService: ObservableObject {
     /// 1. Request upload URL from server (validates permissions, generates token)
     /// 2. PUT file directly to Vercel Blob (bypasses serverless size limits)
     /// 3. Server callback stores metadata
-    func uploadToSecureEndpoint(fileData: Data, fileName: String, mimeType: String, taskId: String) async throws -> String {
+    func uploadToSecureEndpoint(fileData: Data, fileName: String, mimeType: String, context: [String: String]) async throws -> String {
         isUploading = true
         uploadProgress = 0
         errorMessage = nil
@@ -499,15 +562,20 @@ class AttachmentService: ObservableObject {
         let fileSizeMB = Double(fileData.count) / (1024 * 1024)
         if fileSizeMB > 4.0 {
             print("📦 [AttachmentService] Large file detected (\(String(format: "%.1f", fileSizeMB)) MB), using direct upload")
-            return try await uploadDirectToBlob(fileData: fileData, fileName: fileName, mimeType: mimeType, taskId: taskId)
+            return try await uploadDirectToBlob(fileData: fileData, fileName: fileName, mimeType: mimeType, context: context)
         }
 
         // For smaller files, use the original server-side upload
-        return try await uploadViaServer(fileData: fileData, fileName: fileName, mimeType: mimeType, taskId: taskId)
+        return try await uploadViaServer(fileData: fileData, fileName: fileName, mimeType: mimeType, context: context)
+    }
+
+    /// Convenience wrapper for existing callers that pass taskId
+    func uploadToSecureEndpoint(fileData: Data, fileName: String, mimeType: String, taskId: String) async throws -> String {
+        return try await uploadToSecureEndpoint(fileData: fileData, fileName: fileName, mimeType: mimeType, context: ["taskId": taskId])
     }
 
     /// Upload directly to Vercel Blob using a client token (for large files)
-    private func uploadDirectToBlob(fileData: Data, fileName: String, mimeType: String, taskId: String) async throws -> String {
+    private func uploadDirectToBlob(fileData: Data, fileName: String, mimeType: String, context: [String: String]) async throws -> String {
         // Step 1: Get upload URL and token from server
         print("📡 [AttachmentService] Step 1: Requesting upload URL...")
 
@@ -529,7 +597,7 @@ class AttachmentService: ObservableObject {
             "fileName": fileName,
             "fileType": mimeType,
             "fileSize": fileData.count,
-            "context": ["taskId": taskId]
+            "context": context
         ]
         getUrlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
@@ -599,7 +667,7 @@ class AttachmentService: ObservableObject {
     }
 
     /// Upload via server (for smaller files)
-    private func uploadViaServer(fileData: Data, fileName: String, mimeType: String, taskId: String) async throws -> String {
+    private func uploadViaServer(fileData: Data, fileName: String, mimeType: String, context: [String: String]) async throws -> String {
         // Create multipart form data
         let boundary = UUID().uuidString
         var body = Data()
@@ -611,10 +679,9 @@ class AttachmentService: ObservableObject {
         body.append(fileData)
         body.append("\r\n".data(using: .utf8)!)
 
-        // Add context field
-        let contextJSON = """
-        {"taskId":"\(taskId)"}
-        """
+        // Add context field (serialize dict to JSON)
+        let contextJSON = (try? JSONSerialization.data(withJSONObject: context))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"context\"\r\n\r\n".data(using: .utf8)!)
         body.append(contextJSON.data(using: .utf8)!)

@@ -56,7 +56,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
 
         // When: Creating a comment
         let startTime = Date()
-        let comment = try await service.createComment(
+        let createdComment = try await service.createComment(
             taskId: "task-123",
             content: "Test comment",
             type: .TEXT
@@ -67,7 +67,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
         XCTAssertLessThan(elapsed, 0.1, "Optimistic create should be instant")
 
         // Then: Should have temp ID indicating optimistic creation
-        XCTAssertTrue(comment.id.hasPrefix("temp_"), "Comment should have temp ID")
+        XCTAssertTrue(createdComment.id.hasPrefix("temp_"), "Comment should have temp ID")
     }
 
     func testOptimisticCreate_SavesToCoreDataAsPending() async throws {
@@ -240,7 +240,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
         mockAPIClient.shouldFailRequests = false
         mockAPIClient.nextCommentId = "comment-123"
 
-        let comment = try await service.createComment(
+        _ = try await service.createComment(
             taskId: "task-123",
             content: "Original",
             type: .TEXT
@@ -250,7 +250,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
 
         // When: Updating comment
         let startTime = Date()
-        try await service.updateComment(id: "comment-123", content: "Updated")
+        _ = try await service.updateComment(id: "comment-123", content: "Updated")
         let elapsed = Date().timeIntervalSince(startTime)
 
         // Then: Should update instantly
@@ -284,7 +284,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
         mockAPIClient.shouldFailRequests = false
         mockAPIClient.nextCommentId = "comment-123"
 
-        let comment = try await service.createComment(
+        _ = try await service.createComment(
             taskId: "task-123",
             content: "To delete",
             type: .TEXT
@@ -324,7 +324,7 @@ final class CommentServiceIntegrationTests: XCTestCase {
         mockAPIClient.shouldFailRequests = false
         mockAPIClient.nextCommentId = "comment-123"
 
-        let comment = try await service.createComment(
+        _ = try await service.createComment(
             taskId: "task-123",
             content: "To delete",
             type: .TEXT

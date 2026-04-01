@@ -63,7 +63,6 @@ final class TaskListModelTests: XCTestCase {
 
     func testCreateFullList() {
         let owner = TestHelpers.createTestUser(id: "owner-123", name: "List Owner")
-        let now = Date()
 
         let list = TestHelpers.createTestList(
             id: "full-list",
@@ -149,14 +148,14 @@ final class TaskListModelTests: XCTestCase {
 
     // MARK: - Equatable Tests
 
-    func testListEquality() {
+    @MainActor func testListEquality() {
         let list1 = TestHelpers.createTestList(id: "same-id", name: "List")
         let list2 = TestHelpers.createTestList(id: "same-id", name: "List")
 
         XCTAssertEqual(list1, list2)
     }
 
-    func testListInequality() {
+    @MainActor func testListInequality() {
         let list1 = TestHelpers.createTestList(id: "list-1", name: "List One")
         let list2 = TestHelpers.createTestList(id: "list-2", name: "List Two")
 
@@ -165,7 +164,7 @@ final class TaskListModelTests: XCTestCase {
 
     // MARK: - Hashable Tests
 
-    func testListHashable() {
+    @MainActor func testListHashable() {
         let list = TestHelpers.createTestList(id: "hash-list")
 
         var listSet = Set<TaskList>()
@@ -387,7 +386,7 @@ final class TaskListModelTests: XCTestCase {
     // MARK: - AI/MCP Settings Tests
 
     func testListWithMCPEnabled() {
-        var list = TestHelpers.createTestList()
+        _ = TestHelpers.createTestList()
         // MCP settings are optional in factory, test full initialization
         let mcpList = TaskList(
             id: "mcp-list",
@@ -444,7 +443,7 @@ final class TaskListModelTests: XCTestCase {
         let task1 = TestHelpers.createTestTask(title: "Task 1")
         let task2 = TestHelpers.createTestTask(title: "Task 2")
 
-        var list = TestHelpers.createTestList()
+        let list = TestHelpers.createTestList()
         // Create list with tasks inline
         let listWithTasks = TaskList(
             id: list.id,

@@ -840,3 +840,31 @@
 "welcome.sign_in" = "Accedi";
 "welcome.use_locally" = "Usa senza account";
 "welcome.local_note" = "Puoi accedere più tardi per sincronizzare tra dispositivi";
+
+/* Chat */
+"chat.toggle.tasks" = "Tasks";
+"chat.toggle.chat" = "Chat";
+"chat.empty" = "No messages yet";
+"chat.empty.hint" = "Start a conversation or @mention an AI agent";
+"chat.loading" = "Loading chat...";
+"chat.offline" = "Offline — messages will sync when connected";
+"chat.load_earlier" = "Load earlier messages";
+"chat.message_placeholder" = "Message...";
+"chat.send" = "Send";
+
+/* Default Agent Settings */
+"settings.default_agent.section" = "Default AI Agent";
+"settings.default_agent.title" = "Default Agent";
+"settings.default_agent.subtitle" = "Choose which AI agent responds in chat";
+"settings.default_agent.none" = "None";
+"settings.default_agent.none_description" = "No default agent — mention agents manually";
+"settings.default_agent.available" = "Available Agents";
+
+/* List Agent Settings */
+"settings.list_agent.title" = "List AI Agent";
+"settings.list_agent.use_default" = "Use Default Agent";
+"settings.list_agent.use_default_description" = "Uses your global default agent setting";
+"settings.list_agent.no_agent" = "No Agent";
+"settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
+"settings.list_agent.choose" = "Choose Agent";
+"settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";

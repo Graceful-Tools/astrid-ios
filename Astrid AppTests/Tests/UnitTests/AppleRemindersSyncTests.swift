@@ -261,7 +261,7 @@ final class AppleRemindersSyncTests: XCTestCase {
 
     // MARK: - ReminderListLink Model Tests
 
-    func testReminderListLinkCreation() {
+    @MainActor func testReminderListLinkCreation() {
         let link = ReminderListLink(
             astridListId: "list-123",
             astridListName: "My Tasks",
@@ -283,7 +283,7 @@ final class AppleRemindersSyncTests: XCTestCase {
         XCTAssertTrue(link.includeCompletedTasks)
     }
 
-    func testReminderListLinkWithIncludeCompletedFalse() {
+    @MainActor func testReminderListLinkWithIncludeCompletedFalse() {
         let link = ReminderListLink(
             astridListId: "list-abc",
             astridListName: "Work",
@@ -299,7 +299,7 @@ final class AppleRemindersSyncTests: XCTestCase {
         XCTAssertNotNil(link.lastSyncedAt)
     }
 
-    func testReminderListLinkDefaultIncludeCompleted() {
+    @MainActor func testReminderListLinkDefaultIncludeCompleted() {
         // Test that includeCompletedTasks defaults to true
         let link = ReminderListLink(
             astridListId: "list-def",
@@ -316,25 +316,25 @@ final class AppleRemindersSyncTests: XCTestCase {
 
     // MARK: - SyncDirection Tests
 
-    func testSyncDirectionRawValues() {
+    @MainActor func testSyncDirectionRawValues() {
         XCTAssertEqual(SyncDirection.export.rawValue, "export")
         XCTAssertEqual(SyncDirection.import_.rawValue, "import")
         XCTAssertEqual(SyncDirection.bidirectional.rawValue, "bidirectional")
     }
 
-    func testSyncDirectionDisplayNames() {
+    @MainActor func testSyncDirectionDisplayNames() {
         XCTAssertEqual(SyncDirection.export.displayName, "Export to Reminders")
         XCTAssertEqual(SyncDirection.import_.displayName, "Import from Reminders")
         XCTAssertEqual(SyncDirection.bidirectional.displayName, "Two-way Sync")
     }
 
-    func testSyncDirectionDescriptions() {
+    @MainActor func testSyncDirectionDescriptions() {
         XCTAssertEqual(SyncDirection.export.description, "Push Astrid tasks to Apple Reminders")
         XCTAssertEqual(SyncDirection.import_.description, "Pull Apple Reminders into Astrid")
         XCTAssertEqual(SyncDirection.bidirectional.description, "Keep both apps in sync")
     }
 
-    func testSyncDirectionAllCases() {
+    @MainActor func testSyncDirectionAllCases() {
         XCTAssertEqual(SyncDirection.allCases.count, 3)
         XCTAssertTrue(SyncDirection.allCases.contains(.export))
         XCTAssertTrue(SyncDirection.allCases.contains(.import_))
@@ -343,7 +343,7 @@ final class AppleRemindersSyncTests: XCTestCase {
 
     // MARK: - AppleRemindersError Tests
 
-    func testAppleRemindersErrorDescriptions() {
+    @MainActor func testAppleRemindersErrorDescriptions() {
         XCTAssertEqual(
             AppleRemindersError.notAuthorized.errorDescription,
             "Reminders access not authorized. Please enable in Settings."
@@ -366,7 +366,7 @@ final class AppleRemindersSyncTests: XCTestCase {
         )
     }
 
-    func testAppleRemindersErrorSyncFailed() {
+    @MainActor func testAppleRemindersErrorSyncFailed() {
         let underlyingError = NSError(domain: "TestDomain", code: 123, userInfo: [NSLocalizedDescriptionKey: "Test error"])
         let error = AppleRemindersError.syncFailed(underlyingError)
         XCTAssertTrue(error.errorDescription?.contains("Test error") ?? false)
@@ -374,7 +374,7 @@ final class AppleRemindersSyncTests: XCTestCase {
 
     // MARK: - ReminderListLink Codable Tests
 
-    func testReminderListLinkEncodeDecode() throws {
+    @MainActor func testReminderListLinkEncodeDecode() throws {
         let original = ReminderListLink(
             astridListId: "encode-test",
             astridListName: "Encode Test List",

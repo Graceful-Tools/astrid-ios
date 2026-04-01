@@ -837,6 +837,134 @@ class AstridAPIClient {
         )
     }
 
+    // MARK: - Chat Channels
+
+    /// Get or create a chat channel for a list
+    func getOrCreateChatChannel(listId: String) async throws -> ChatChannel {
+        let body = CreateChatChannelRequest(listId: listId)
+        let response: ChatChannelResponse = try await request(
+            method: "POST",
+            path: "/api/chat/channels",
+            body: body
+        )
+        return response.channel
+    }
+
+    /// Get or create a virtual chat channel
+    func getOrCreateVirtualChannel(virtualKey: String) async throws -> ChatChannel {
+        let body = CreateChatChannelRequest(virtualKey: virtualKey)
+        let response: ChatChannelResponse = try await request(
+            method: "POST",
+            path: "/api/chat/channels",
+            body: body
+        )
+        return response.channel
+    }
+
+    // MARK: - Chat Messages
+
+    /// Get paginated messages for a channel (cursor-based, newest first)
+    func getChatMessages(channelId: String, before: Date? = nil, limit: Int = 50) async throws -> ChatMessagesResponse {
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "limit", value: String(limit))
+        ]
+        if let before = before {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            queryItems.append(URLQueryItem(name: "before", value: formatter.string(from: before)))
+        }
+        return try await request(
+            method: "GET",
+            path: "/api/chat/channels/\(channelId)/messages",
+            queryItems: queryItems
+        )
+    }
+
+    /// Send a message to a channel
+    func sendChatMessage(
+        channelId: String,
+        content: String,
+        type: Comment.CommentType = .TEXT,
+        fileId: String? = nil,
+        attachmentUrl: String? = nil,
+        attachmentName: String? = nil,
+        attachmentType: String? = nil,
+        attachmentSize: Int? = nil,
+        replyToId: String? = nil,
+        clientRequestId: String? = nil
+    ) async throws -> ChatMessage {
+        let body = CreateChatMessageRequest(
+            content: content,
+            type: type.rawValue,
+            fileId: fileId,
+            attachmentUrl: attachmentUrl,
+            attachmentName: attachmentName,
+            attachmentType: attachmentType,
+            attachmentSize: attachmentSize,
+            replyToId: replyToId,
+            clientRequestId: clientRequestId
+        )
+        let response: ChatMessageResponse = try await request(
+            method: "POST",
+            path: "/api/chat/channels/\(channelId)/messages",
+            body: body
+        )
+        return response.message
+    }
+
+    // MARK: - AI Agent Settings
+
+    /// Get available AI agents for the current user
+    func getAvailableAgents() async throws -> [AvailableAgent] {
+        let response: AvailableAgentsResponse = try await request(
+            method: "GET",
+            path: "/api/user/available-agents"
+        )
+        return response.agents
+    }
+
+    /// Get current user's AI assistant settings
+    func getAIAssistantSettings() async throws -> AIAssistantSettings {
+        let response: AIAssistantSettingsResponse = try await request(
+            method: "GET",
+            path: "/api/user/ai-assistant-settings"
+        )
+        return AIAssistantSettings(
+            defaultAgentId: response.defaultAgentId,
+            preferredService: response.preferredService
+        )
+    }
+
+    /// Update AI assistant settings (default agent, preferred service)
+    func updateAIAssistantSettings(
+        defaultAgentId: String? = nil,
+        preferredService: String? = nil
+    ) async throws -> AIAssistantSettings {
+        let body = UpdateAIAssistantSettingsRequest(
+            defaultAgentId: defaultAgentId,
+            preferredService: preferredService
+        )
+        let response: AIAssistantSettingsResponse = try await request(
+            method: "PATCH",
+            path: "/api/user/ai-assistant-settings",
+            body: body
+        )
+        return AIAssistantSettings(
+            defaultAgentId: response.defaultAgentId,
+            preferredService: response.preferredService
+        )
+    }
+
+    /// Get available models for a service (claude, openai, gemini)
+    func getAvailableModels(service: String) async throws -> [String] {
+        let response: AvailableModelsResponse = try await request(
+            method: "GET",
+            path: "/api/user/ai-available-models",
+            queryItems: [URLQueryItem(name: "service", value: service)]
+        )
+        return response.models
+    }
+
     // MARK: - Account Management
 
     /// Get current user's account data

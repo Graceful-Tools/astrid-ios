@@ -183,6 +183,55 @@ xcodebuild test -scheme "Astrid App" -destination "platform=iOS Simulator,name=i
 
 ---
 
+## Chat & Agent Features
+
+### Per-List Chat
+Every list (including My Tasks) has a chat channel accessible via the chat toggle button in the header. Chat supports:
+- **@mentions** for users and AI agents (format: `@[Name](id)`)
+- **#list** and **!task** references (format: `#[Name](id)`, `![Name](id)`)
+- **File attachments** — photos and documents via paperclip button, with offline queue support
+- **AI agent responses** — @mention Astrid or configured agents; server-side processing via `processAstridMessage`
+- **Real-time updates** — SSE for live messages + 3-second polling fallback
+
+### Key Chat Files
+
+| File | Purpose |
+|------|---------|
+| `Views/Chat/ChatPanelView.swift` | Main chat container with channel resolution |
+| `Views/Chat/ChatInputView.swift` | Rich input with @/#/! autocomplete + attachments |
+| `Views/Chat/ChatMessageBubble.swift` | Message rendering with agent indicators |
+| `Views/Chat/ChatMessageListView.swift` | Scrollable message list with pagination |
+| `Views/Chat/ChatToggleView.swift` | Header toggle button (tasks ↔ chat) |
+| `Core/Services/ChatService.swift` | Local-first service with offline sync |
+| `Core/Persistence/CDChatMessage+CoreDataClass.swift` | CoreData persistence |
+| `Models/ChatMessage.swift` | ChatChannel + ChatMessage domain models |
+| `Models/DTOs/ChatDTOs.swift` | API request/response types |
+
+### Chat API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/chat/channels` | POST | Get or create channel for list/virtual key |
+| `/api/chat/channels/{id}/messages` | GET | Paginated messages (cursor-based) |
+| `/api/chat/channels/{id}/messages` | POST | Send message (with optional fileId + attachment fields) |
+| `/api/user/available-agents` | GET | List AI agents for @mention |
+| `/api/user/ai-assistant-settings` | GET/PATCH | Default agent preferences |
+
+### Attachment Upload Flow
+1. User picks photo/document → `AttachmentService.saveLocallyAndUploadAsync(context:)` saves locally + starts background upload
+2. Context is `{"listId": "..."}` for list channels or `{"channelId": "..."}` for virtual channels
+3. Upload goes to `/api/secure-upload/request-upload` (<4MB) or `/api/secure-upload/get-upload-url` + direct blob (≥4MB)
+4. On send, `ChatService.syncPendingCreate` resolves temp fileId → real fileId and sends with attachment metadata
+5. Server associates `SecureFile` with `ChatMessage` via `chatMessageId`
+6. Response includes `secureFiles` array for rendering
+
+### Offline Support
+- Messages saved to CoreData with `syncStatus: "pending"` and `clientRequestId` for deduplication
+- Attachments cached locally with temp IDs, uploaded when online
+- `ChatService.syncPendingMessages()` triggered on network restoration
+
+---
+
 ## Documentation
 
 ### Root Files

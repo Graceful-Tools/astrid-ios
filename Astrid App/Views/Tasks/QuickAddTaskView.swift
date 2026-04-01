@@ -48,9 +48,9 @@ struct QuickAddTaskView: View {
             .buttonStyle(.plain)
             .frame(width: 34, height: 34)
 
-            // Expandable text input with chrome/silver styling in ocean mode
+            // Expandable text input with @mention, #list, !task autocomplete
             ZStack(alignment: .topLeading) {
-                // Hidden sizing text - determines the height of the container
+                // Hidden sizing text
                 Text(taskTitle.isEmpty ? " " : taskTitle)
                     .font(Theme.Typography.body())
                     .foregroundColor(.clear)
@@ -68,7 +68,7 @@ struct QuickAddTaskView: View {
                         .allowsHitTesting(false)
                 }
 
-                // Actual TextEditor
+                // TextEditor — visible text, standard behavior
                 TextEditor(text: $taskTitle)
                     .font(Theme.Typography.body())
                     .foregroundColor(textColor)
@@ -80,11 +80,8 @@ struct QuickAddTaskView: View {
                         // Detect return key press (newline)
                         if newValue.contains("\n") {
                             let cleanTitle = newValue.replacingOccurrences(of: "\n", with: "")
-                            // Defer text and focus changes to next run loop to avoid
-                            // invalidating the keyboard session mid-input processing
                             DispatchQueue.main.async {
                                 taskTitle = cleanTitle
-                                // If empty after removing newline, dismiss keyboard
                                 if cleanTitle.trimmingCharacters(in: .whitespaces).isEmpty {
                                     isFocused = false
                                 } else {

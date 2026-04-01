@@ -18,9 +18,9 @@ final class CommentSSETests: XCTestCase {
     func testCommentHandlersAreRegistered() async {
         let sseClient = SSEClient.shared
 
-        var commentAddedCalled = false
-        var commentUpdatedCalled = false
-        var commentDeletedCalled = false
+        nonisolated(unsafe) var commentAddedCalled = false
+        nonisolated(unsafe) var commentUpdatedCalled = false
+        nonisolated(unsafe) var commentDeletedCalled = false
 
         // Register handlers
         let unsubscribeAdded = await sseClient.onCommentAdded { _, _ in
@@ -57,8 +57,8 @@ final class CommentSSETests: XCTestCase {
         let targetTaskId = "task-123"
         let otherTaskId = "task-456"
 
-        var receivedComment: Comment?
-        var receivedTaskId: String?
+        nonisolated(unsafe) var receivedComment: Comment?
+        nonisolated(unsafe) var receivedTaskId: String?
 
         // Register handler that filters by taskId
         let unsubscribe = await sseClient.onCommentAdded { comment, taskId in
@@ -104,8 +104,8 @@ final class CommentSSETests: XCTestCase {
     func testMultipleSubscribersCanCoexist() async {
         let sseClient = SSEClient.shared
 
-        var view1Called = false
-        var view2Called = false
+        nonisolated(unsafe) var view1Called = false
+        nonisolated(unsafe) var view2Called = false
 
         // Register handlers for "two views"
         let unsubscribe1 = await sseClient.onCommentAdded { _, _ in
@@ -137,8 +137,8 @@ final class CommentSSETests: XCTestCase {
         let sseClient = SSEClient.shared
         let testTaskId = "test-task"
 
-        var capturedComment: Comment?
-        var capturedTaskId: String?
+        nonisolated(unsafe) var capturedComment: Comment?
+        nonisolated(unsafe) var capturedTaskId: String?
 
         let unsubscribe = await sseClient.onCommentAdded { comment, taskId in
             capturedComment = comment

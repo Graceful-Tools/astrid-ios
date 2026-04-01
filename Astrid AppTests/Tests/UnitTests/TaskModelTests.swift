@@ -453,7 +453,7 @@ final class TaskModelTests: XCTestCase {
 
     // MARK: - Task Equatable Tests
 
-    func testTaskEquality() {
+    @MainActor func testTaskEquality() {
         let task1 = Task(
             id: "same-id",
             title: "Task",
@@ -517,7 +517,7 @@ final class TaskModelTests: XCTestCase {
         XCTAssertEqual(task1, task2)
     }
 
-    func testTaskHashable() {
+    @MainActor func testTaskHashable() {
         let task = Task(
             id: "hash-test",
             title: "Task",

@@ -36,7 +36,7 @@ final class TaskIdempotencyTests: XCTestCase {
 
     // MARK: - CreateTaskRequest Encoding
 
-    func testCreateTaskRequestIncludesClientRequestId() throws {
+    @MainActor func testCreateTaskRequestIncludesClientRequestId() throws {
         // Given: A CreateTaskRequest with clientRequestId
         let request = CreateTaskRequest(
             title: "Test Task",
@@ -53,7 +53,7 @@ final class TaskIdempotencyTests: XCTestCase {
         XCTAssertEqual(json["title"] as? String, "Test Task")
     }
 
-    func testCreateTaskRequestOmitsNilClientRequestId() throws {
+    @MainActor func testCreateTaskRequestOmitsNilClientRequestId() throws {
         // Given: A CreateTaskRequest without clientRequestId
         let request = CreateTaskRequest(
             title: "Test Task"
@@ -84,7 +84,7 @@ final class TaskIdempotencyTests: XCTestCase {
 
     // MARK: - Sync CREATE Sends Full State (Latest Edits)
 
-    func testCreateTaskRequestIncludesPriorityAndDate() throws {
+    @MainActor func testCreateTaskRequestIncludesPriorityAndDate() throws {
         // Scenario: User creates task, then edits priority + date locally.
         // When sync retries the CREATE, it must include the LATEST fields.
         let dueDate = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: 1773792000)) // 2026-03-15 midnight UTC
@@ -112,7 +112,7 @@ final class TaskIdempotencyTests: XCTestCase {
         XCTAssertEqual(json["clientRequestId"] as? String, "retry-key-12345678")
     }
 
-    func testCreateTaskRequestIncludesAssigneeAndRepeating() throws {
+    @MainActor func testCreateTaskRequestIncludesAssigneeAndRepeating() throws {
         // Verify all editable fields are sent in CREATE request (sync retry must send full state)
         let request = CreateTaskRequest(
             title: "Full State Task",
@@ -196,7 +196,7 @@ final class TaskIdempotencyTests: XCTestCase {
         XCTAssertEqual(serverTask.title, localTask.title)
     }
 
-    func testUpdateRequestIncludesLatestEdits() throws {
+    @MainActor func testUpdateRequestIncludesLatestEdits() throws {
         // When local differs from server, UpdateTaskRequest must carry the latest values
         let updates = UpdateTaskRequest(
             title: "Edited Title",
@@ -221,7 +221,7 @@ final class TaskIdempotencyTests: XCTestCase {
         XCTAssertEqual(json["isPrivate"] as? Bool, true)
     }
 
-    func testPriorityEditSurvivesRoundTrip() throws {
+    @MainActor func testPriorityEditSurvivesRoundTrip() throws {
         // Simulates: create(priority=0) → server returns task → user edits priority to 3
         // → sync retry CREATE → server returns stale(priority=0) → UPDATE with priority=3
         // The UPDATE request must carry the user's latest priority.
@@ -242,7 +242,7 @@ final class TaskIdempotencyTests: XCTestCase {
             "UPDATE must carry the user's edited priority, not the server's stale value")
     }
 
-    func testDueDateEditSurvivesRoundTrip() throws {
+    @MainActor func testDueDateEditSurvivesRoundTrip() throws {
         // Simulates: create(date=nil) → server returns task → user adds due date
         // → sync retry → server returns stale(date=nil) → UPDATE with date
 

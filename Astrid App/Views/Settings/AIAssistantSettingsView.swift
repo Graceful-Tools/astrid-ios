@@ -68,6 +68,25 @@ struct AIAssistantSettingsView: View {
                 }
             }
 
+            // Default AI Agent Section
+            Section(header: Text(NSLocalizedString("settings.default_agent.section", comment: "Default AI Agent"))) {
+                NavigationLink(destination: DefaultAgentPickerView()) {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.questionmark")
+                            .foregroundColor(.purple)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("settings.default_agent.title", comment: "Default Agent"))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text(NSLocalizedString("settings.default_agent.subtitle", comment: "Choose which AI agent responds in chat"))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+
             // Apple Reminders Section
             Section(header: Text(NSLocalizedString("apple_reminders", comment: ""))) {
                 NavigationLink(destination: AppleRemindersSettingsView()) {

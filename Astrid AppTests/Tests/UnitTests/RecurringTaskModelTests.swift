@@ -432,7 +432,7 @@ final class RecurringTaskModelTests: XCTestCase {
 
     // MARK: - Pattern Equality Tests
 
-    func testCustomPatternEquality() {
+    @MainActor func testCustomPatternEquality() {
         // Given: Two identical patterns
         let pattern1 = TestHelpers.createDailyPattern(interval: 3)
         let pattern2 = TestHelpers.createDailyPattern(interval: 3)
@@ -441,7 +441,7 @@ final class RecurringTaskModelTests: XCTestCase {
         XCTAssertEqual(pattern1, pattern2)
     }
 
-    func testCustomPatternInequality() {
+    @MainActor func testCustomPatternInequality() {
         // Given: Two different patterns
         let pattern1 = TestHelpers.createDailyPattern(interval: 3)
         let pattern2 = TestHelpers.createDailyPattern(interval: 5)

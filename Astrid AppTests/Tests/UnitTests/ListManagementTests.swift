@@ -494,7 +494,7 @@ final class ListManagementTests: XCTestCase {
 
     // MARK: - List Hashable Tests
 
-    func testListHashable() {
+    @MainActor func testListHashable() {
         // Given: A list
         let list = TestHelpers.createTestList(id: "hash-test")
 

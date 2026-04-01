@@ -369,7 +369,7 @@ final class TaskCreationTests: XCTestCase {
 
     // MARK: - Task Hashable Tests
 
-    func testTaskHashable() {
+    @MainActor func testTaskHashable() {
         // Given: A task
         let task = TestHelpers.createTestTask(id: "hash-test")
 
@@ -379,7 +379,7 @@ final class TaskCreationTests: XCTestCase {
         XCTAssertTrue(taskSet.contains(task))
     }
 
-    func testMultipleTasksInSet() {
+    @MainActor func testMultipleTasksInSet() {
         // Given: Multiple tasks
         let tasks = [
             TestHelpers.createTestTask(id: "task-1"),
@@ -388,7 +388,7 @@ final class TaskCreationTests: XCTestCase {
         ]
 
         // When: Added to set
-        var taskSet = Set<Task>(tasks)
+        let taskSet = Set<Task>(tasks)
 
         // Then: All should be present
         XCTAssertEqual(taskSet.count, 3)
