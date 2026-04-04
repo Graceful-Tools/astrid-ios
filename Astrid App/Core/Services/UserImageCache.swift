@@ -106,13 +106,25 @@ class UserImageCache {
 // MARK: - User Extension for Cached Image URL
 
 extension User {
-    /// Get the user's image URL, falling back to UserImageCache if nil
+    /// Get the user's image URL, falling back to UserImageCache if nil.
+    /// Resolves relative paths against the API base URL and converts SVGs to PNGs for iOS compatibility.
     var cachedImageURL: String? {
-        // First try the user's own image property
-        if let image = self.image, !image.isEmpty {
-            return image
-        }
+        var url = self.image
         // Fall back to cached image URL
-        return UserImageCache.shared.getImageURL(userId: self.id)
+        if url == nil || url?.isEmpty == true {
+            url = UserImageCache.shared.getImageURL(userId: self.id)
+        }
+        guard var path = url, !path.isEmpty else { return nil }
+
+        // iOS can't render SVG via AsyncImage — use PNG version instead
+        if path.hasSuffix(".svg") {
+            path = path.replacingOccurrences(of: ".svg", with: ".png")
+        }
+        // Resolve relative paths against API base URL
+        if !path.hasPrefix("http") {
+            let baseURL = Constants.API.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            path = baseURL + path
+        }
+        return path
     }
 }

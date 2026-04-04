@@ -52,6 +52,15 @@ struct AstridApp: App {
         // Pre-compile SmartTaskParser regex patterns (synchronous, fast)
         SmartTaskParser.warmUp()
 
+        // Pre-warm iOS keyboard + autocorrect engine after window is ready
+        NotificationCenter.default.addObserver(
+            forName: UIScene.didActivateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Self.preWarmKeyboard()
+        }
+
         // Touch singletons to trigger their initialization
         // These load from UserDefaults (synchronous) and fetch from server (background)
         _Concurrency.Task.detached(priority: .userInitiated) {
@@ -64,6 +73,33 @@ struct AstridApp: App {
 
             let elapsed = CFAbsoluteTimeGetCurrent() - start
             print("⚡️ [AstridApp] Service warm-up completed in \(String(format: "%.3f", elapsed))s")
+        }
+    }
+
+    /// Pre-warm the iOS keyboard and autocorrect/prediction engine.
+    /// Creates a hidden text field, focuses it, and simulates typing to force
+    /// the full text input stack to initialize before the user needs it.
+    private static func preWarmKeyboard() {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first?.windows.first else { return }
+
+        let field = UITextField(frame: CGRect(x: -100, y: -100, width: 1, height: 1))
+        field.autocorrectionType = .yes
+        field.spellCheckingType = .yes
+        window.addSubview(field)
+        field.becomeFirstResponder()
+
+        // Simulate typing to trigger autocorrect/prediction engine loading
+        field.insertText("t")
+        field.insertText("e")
+        field.insertText("s")
+
+        // Clean up after a brief delay to let the input pipeline initialize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            field.text = ""
+            field.resignFirstResponder()
+            field.removeFromSuperview()
         }
     }
 

@@ -70,9 +70,57 @@ struct ChatInputView: View {
                     authorId: currentUserId
                 )
                 await MainActor.run { onCancelReply?() }
+
+                // Check if @Astrid was mentioned and we have on-device model selected
+                await handleOnDeviceAstridMention(content: content)
             } catch {
                 logger.error("Failed to send chat message: \(error.localizedDescription, privacy: .public)")
             }
+        }
+    }
+
+    /// If the message mentions @Astrid and the user has Apple FM selected,
+    /// process the message on-device and post the response via the server.
+    private func handleOnDeviceAstridMention(content: String) async {
+        // Check if on-device model is selected
+        guard let settings = try? await AstridAPIClient.shared.getAIAssistantSettings(),
+              settings.isOnDeviceModel else { return }
+
+        // Check if message contains an @Astrid mention (format: @[Astrid](userId))
+        // Also trigger for any message in a personal channel (listId is nil or "my-tasks")
+        let hasAstridMention = content.contains("@[Astrid]") || content.contains("@[astrid]")
+        let isPersonalChannel = listId == nil || listId == "my-tasks"
+        guard hasAstridMention || isPersonalChannel else { return }
+
+        guard AppleFoundationModelService.shared.isAvailable else {
+            logger.warning("On-device model not available on this device")
+            return
+        }
+
+        logger.notice("Processing @Astrid mention on-device")
+
+        // Strip the mention markup to get the plain message
+        let plainMessage = content
+            .replacingOccurrences(of: "@\\[[^\\]]+\\]\\([^)]+\\)", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !plainMessage.isEmpty else { return }
+
+        // Process on-device
+        guard let response = await AppleFoundationModelService.shared.processChatMessage(plainMessage) else {
+            logger.error("On-device processing returned no response")
+            return
+        }
+
+        // Post the response as Astrid via the server endpoint
+        do {
+            try await AstridAPIClient.shared.postAgentResponse(
+                channelId: channelId,
+                content: response
+            )
+            logger.notice("On-device response posted to channel")
+        } catch {
+            logger.error("Failed to post on-device response: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

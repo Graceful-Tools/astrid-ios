@@ -912,6 +912,20 @@ class AstridAPIClient {
         return response.message
     }
 
+    // MARK: - On-Device Agent Response
+
+    /// Post a response from the on-device AI model as Astrid
+    func postAgentResponse(channelId: String, content: String) async throws {
+        struct AgentResponseBody: Encodable {
+            let content: String
+        }
+        let _: ChatMessageResponse = try await request(
+            method: "POST",
+            path: "/api/chat/channels/\(channelId)/agent-response",
+            body: AgentResponseBody(content: content)
+        )
+    }
+
     // MARK: - AI Agent Settings
 
     /// Get available AI agents for the current user

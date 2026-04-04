@@ -73,27 +73,19 @@ struct SettingsView: View {
 
                 // Exploratory Features section
                 Section(NSLocalizedString("exploratory_features", comment: "")) {
+                    NavigationLink(destination: DefaultAgentPickerView()) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(.purple)
+                            Text("Astrid's AI")
+                        }
+                    }
+
                     NavigationLink(destination: AIAssistantSettingsView()) {
                         HStack {
-                            Image(systemName: "robot")
+                            Image(systemName: "cpu")
                                 .foregroundColor(Theme.accent)
                             Text(NSLocalizedString("ai_assistant", comment: ""))
-                        }
-                    }
-
-                    NavigationLink(destination: AIAPIKeyManagerView()) {
-                        HStack {
-                            Image(systemName: "key.fill")
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("setting.ai.api_keys", comment: ""))
-                        }
-                    }
-
-                    NavigationLink(destination: OpenClawSettingsView()) {
-                        HStack {
-                            Text("🦞")
-                                .font(.body)
-                            Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                         }
                     }
 

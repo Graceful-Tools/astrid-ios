@@ -45,9 +45,48 @@ struct DefaultAgentPickerView: View {
                         .foregroundColor(Theme.error)
                 }
             } else {
-                // Available models + None option in one section
-                Section(header: Text("Choose a Model"), footer: Text("Choose the model that powers Astrid for My Tasks and your private lists. Mention @Astrid in any chat or comment to get help.")) {
-                    // Model options
+                Section(footer: Text("Choose the model that powers Astrid for My Tasks and your private lists. Mention @Astrid in any chat or comment to get help.")) {
+                    // Apple Intelligence (on-device, free) — shown first when available
+                    if AppleFoundationModelService.shared.isAvailable {
+                        Button {
+                            selectAgent(kAppleFoundationModelId)
+                        } label: {
+                            HStack(spacing: Theme.spacing12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.blue, .purple, .pink],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 36, height: 36)
+                                    Image(systemName: "apple.intelligence")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.white)
+                                }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apple Intelligence")
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    Text("Free \u{00B7} On-Device \u{00B7} Private")
+                                        .font(Theme.Typography.caption2())
+                                        .foregroundColor(.blue)
+                                }
+
+                                Spacer()
+
+                                if selectedAgentId == kAppleFoundationModelId {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(Theme.accent)
+                                }
+                            }
+                        }
+                    }
+
+                    // Cloud model options
                     ForEach(modelOptions) { agent in
                         Button {
                             selectAgent(agent.id)
@@ -190,6 +229,11 @@ struct DefaultAgentPickerView: View {
             agents = try await fetchedAgents
             currentSettings = try await fetchedSettings
             selectedAgentId = currentSettings?.defaultAgentId
+
+            // Auto-select Apple Intelligence for new users with no agent configured
+            if selectedAgentId == nil && AppleFoundationModelService.shared.isAvailable {
+                selectAgent(kAppleFoundationModelId)
+            }
 
             // Cache agents for mention autocomplete
             AIAgentCache.shared.save(agents)

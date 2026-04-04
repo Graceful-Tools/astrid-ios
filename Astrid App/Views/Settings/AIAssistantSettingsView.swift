@@ -12,25 +12,26 @@ struct AIAssistantSettingsView: View {
 
     var body: some View {
         Form {
-            // Header
-            Section {
-                HStack {
-                    Image(systemName: "sparkles")
-                        .foregroundColor(.purple)
-                    Text(NSLocalizedString("exploratory_features", comment: ""))
-                        .font(Theme.Typography.headline())
-                    Spacer()
-                    Text(NSLocalizedString("alpha", comment: ""))
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Theme.warning)
-                        .cornerRadius(4)
+            // Astrid's AI — top of the page
+            Section(header: Text("Astrid's AI")) {
+                NavigationLink(destination: DefaultAgentPickerView()) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.purple)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Astrid's AI")
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text("Choose which AI model powers Astrid")
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                        Spacer()
+                    }
                 }
             }
 
-            // AI Assistants Section
+            // AI Assistants Section (API Keys + OpenClaw)
             Section(header: Text(NSLocalizedString("ai_assistants", comment: ""))) {
                 NavigationLink(destination: AIAPIKeyManagerView()) {
                     HStack {
@@ -47,10 +48,7 @@ struct AIAssistantSettingsView: View {
                         Spacer()
                     }
                 }
-            }
 
-            // OpenClaw Section (Self-Hosted AI)
-            Section(header: Text(NSLocalizedString("settings.openclaw.section", comment: ""))) {
                 NavigationLink(destination: OpenClawSettingsView()) {
                     HStack {
                         Text("🦞")
@@ -60,25 +58,6 @@ struct AIAssistantSettingsView: View {
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                             Text(NSLocalizedString("settings.openclaw.subtitle", comment: ""))
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                        Spacer()
-                    }
-                }
-            }
-
-            // Default AI Agent Section
-            Section(header: Text(NSLocalizedString("settings.default_agent.section", comment: "Default AI Agent"))) {
-                NavigationLink(destination: DefaultAgentPickerView()) {
-                    HStack {
-                        Image(systemName: "person.crop.circle.badge.questionmark")
-                            .foregroundColor(.purple)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("settings.default_agent.title", comment: "Default Agent"))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text(NSLocalizedString("settings.default_agent.subtitle", comment: "Choose which AI agent responds in chat"))
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

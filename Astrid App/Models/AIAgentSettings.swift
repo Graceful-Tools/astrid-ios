@@ -5,6 +5,11 @@ import Foundation
 struct AIAssistantSettings: Codable {
     var defaultAgentId: String?
     var preferredService: String?
+
+    /// Whether the selected model is an on-device model (no API key / server needed)
+    var isOnDeviceModel: Bool {
+        defaultAgentId == kAppleFoundationModelId
+    }
 }
 
 // MARK: - Available Agent
@@ -29,6 +34,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "gemini": return "Gemini"
         case "openclaw": return "OpenClaw"
         case "astrid": return "Astrid"
+        case "apple-fm": return "Apple Intelligence"
         default: return service.capitalized
         }
     }

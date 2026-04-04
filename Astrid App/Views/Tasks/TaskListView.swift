@@ -25,6 +25,7 @@ struct TaskListView: View {
     @State private var taskToCopy: Task?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
     @State private var showChat = false  // Toggle between task list and chat
+    @FocusState private var isSearchFieldFocused: Bool  // Keyboard focus for search header
 
     // My Tasks filter preferences (synced across devices via server)
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
@@ -66,6 +67,11 @@ struct TaskListView: View {
 
     /// Determine if user can add tasks (show quick add and + button)
     private var shouldShowQuickAdd: Bool {
+        // No quick add in search mode
+        if selectedListId == "search" {
+            return false
+        }
+
         // My Tasks and no list selected always allow adding tasks
         if selectedListId == "my-tasks" || selectedListId == nil {
             return true
@@ -299,7 +305,84 @@ struct TaskListView: View {
     }
 
     /// Floating header with rounded corners (modern look)
+    @ViewBuilder
     private var floatingHeader: some View {
+        if selectedListId == "search" {
+            searchHeader
+        } else {
+            standardHeader
+        }
+    }
+
+    /// Search mode header with editable text field
+    private var searchHeader: some View {
+        HStack(spacing: 0) {
+            // Leading: Hamburger menu icon
+            HamburgerMenuIcon()
+                .padding(.leading, 22)
+                .padding(.trailing, 10)
+
+            // Editable search field styled like the header title
+            HStack(spacing: Theme.spacing8) {
+                Image(systemName: "magnifyingglass")
+                    .font(Theme.Typography.body())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+
+                TextField(NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks"), text: $searchText)
+                    .font(Theme.Typography.headline())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .focused($isSearchFieldFocused)
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, Theme.spacing12)
+        .padding(.horizontal, Theme.spacing4)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radiusLarge)
+                .fill(colorScheme == .dark ? Theme.Dark.bgSecondary : Color.white)
+                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+        )
+        .padding(.horizontal, 8)
+        .padding(.top, Theme.spacing8)
+        .overlay(alignment: .topLeading) {
+            Button(action: {
+                onMenuTap?()
+            }) {
+                Color.clear
+                    .frame(width: 120, height: 60)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .offset(x: 8, y: 8)
+            .allowsHitTesting(true)
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+            .zIndex(999)
+        }
+        .onAppear {
+            // Auto-focus the search field when entering search mode
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isSearchFieldFocused = true
+            }
+        }
+    }
+
+    /// Standard (non-search) floating header
+    private var standardHeader: some View {
         HStack(spacing: 0) {
             // Leading: Hamburger menu icon (visual only, tap target is overlay)
             HamburgerMenuIcon()
@@ -670,6 +753,11 @@ struct TaskListView: View {
     }
     
     private var filteredTasks: [Task] {
+        // Search mode with no query — show empty state
+        if selectedListId == "search" && searchText.isEmpty {
+            return []
+        }
+
         var tasks = taskService.tasks
 
         // If search is active, show ALL matching tasks across all lists (ignore list selection)
@@ -1212,7 +1300,15 @@ struct TaskListView: View {
 
     /// Get contextual empty state message based on list type
     private func getEmptyStateMessage() -> String {
-        // If search is active, return default creative response instead of "No results found"
+        // Search mode
+        if selectedListId == "search" {
+            if searchText.isEmpty {
+                return NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks")
+            }
+            return NSLocalizedString("empty_state.default", comment: "")
+        }
+
+        // If search is active from sidebar, return default creative response
         if !searchText.isEmpty {
             return NSLocalizedString("empty_state.default", comment: "")
         }

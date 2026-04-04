@@ -68,12 +68,11 @@ struct ListSidebarView: View {
                 userProfileSection
                     .id("top")
                 myTasksSection
+                searchRow
                 favoritesSection
                 yourListsSection
                 featuredCollaborativeSection
                 featuredSuggestedSection
-                searchSection
-                settingsSection
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
@@ -210,65 +209,36 @@ struct ListSidebarView: View {
         }
     }
 
-    // MARK: - Search Section
+    // MARK: - Search Row
 
-    private var searchSection: some View {
+    private var searchRow: some View {
         Section {
-            HStack(spacing: Theme.spacing12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                    .font(Theme.Typography.body())
-
-                TextField(NSLocalizedString("tasks.search_tasks_placeholder", comment: ""), text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                    .autocorrectionDisabled()
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, Theme.spacing8)
-        }
-    }
-
-    // MARK: - Settings Section
-
-    private var settingsSection: some View {
-        Section {
-            ZStack(alignment: .leading) {
-                NavigationLink(destination: SettingsView().environmentObject(authManager)) {
-                    EmptyView()
-                }
-                .opacity(0)
-
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+                selectedListId = "search"
+                searchText = "" // Clear previous search
+                onListTap?()
+            } label: {
                 HStack(spacing: Theme.spacing12) {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "magnifyingglass")
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                         .font(Theme.Typography.body())
 
-                    Text(NSLocalizedString("settings", comment: ""))
+                    Text(NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks"))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
                     Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(Theme.Typography.caption1().weight(.medium))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
                 .padding(.vertical, Theme.spacing8)
+                .padding(.horizontal, Theme.spacing12)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "search"))
         }
     }
+
+    // Settings is now in UserProfileView (accessible from the profile section above)
 
     // MARK: - Sections
 
