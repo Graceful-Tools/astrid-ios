@@ -15,10 +15,19 @@ struct DefaultAgentPickerView: View {
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var keyStatuses: [String: Bool] = [:]  // service -> hasValidKey
+    @State private var showAPIKeyManager = false
+    @State private var apiKeyServiceToShow: AIService?
 
     /// Filter out Astrid itself — this selector picks the model that powers Astrid
     private var modelOptions: [AvailableAgent] {
         agents.filter { $0.email != "astrid@astrid.cc" }
+    }
+
+    /// Built-in models not yet returned by the API (no key configured)
+    private var unconfiguredModels: [BuiltInModel] {
+        let configuredServices = Set(modelOptions.map { $0.service })
+        return BuiltInModel.allCases.filter { !configuredServices.contains($0.rawValue) }
     }
 
     private var effectiveTheme: String {
@@ -113,6 +122,38 @@ struct DefaultAgentPickerView: View {
                         }
                     }
 
+                    // Unconfigured built-in models (no API key yet)
+                    ForEach(unconfiguredModels, id: \.rawValue) { model in
+                        Button {
+                            apiKeyServiceToShow = AIService(rawValue: model.rawValue)
+                            showAPIKeyManager = true
+                        } label: {
+                            HStack(spacing: Theme.spacing12) {
+                                Image(model.imageAsset)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 36, height: 36)
+                                    .clipShape(Circle())
+                                    .opacity(0.5)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(model.displayName)
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    Text("\(model.subtitle) \u{00B7} API key required")
+                                        .font(Theme.Typography.caption2())
+                                        .foregroundColor(.orange)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "key.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+
                     // None option at the bottom
                     Button {
                         selectAgent(nil)
@@ -150,6 +191,9 @@ struct DefaultAgentPickerView: View {
         .navigationTitle("Astrid's AI Model")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadData() }
+        .navigationDestination(isPresented: $showAPIKeyManager) {
+            AIAPIKeyManagerView()
+        }
     }
 
     /// Resolve agent image URL: handles relative paths, prefers PNG over SVG for iOS
@@ -188,14 +232,23 @@ struct DefaultAgentPickerView: View {
         }
     }
 
+    @ViewBuilder
     private func defaultAgentIcon(_ agent: AvailableAgent) -> some View {
-        ZStack {
-            Circle()
-                .fill(Color.purple.opacity(0.15))
+        if let asset = agent.serviceImageAsset {
+            Image(asset)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 36, height: 36)
-            Image(systemName: "sparkles")
-                .font(.system(size: 16))
-                .foregroundColor(.purple)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16))
+                    .foregroundColor(.purple)
+            }
         }
     }
 

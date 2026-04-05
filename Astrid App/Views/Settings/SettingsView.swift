@@ -75,8 +75,11 @@ struct SettingsView: View {
                 Section(NSLocalizedString("exploratory_features", comment: "")) {
                     NavigationLink(destination: DefaultAgentPickerView()) {
                         HStack {
-                            Image(systemName: "sparkles")
-                                .foregroundColor(.purple)
+                            Image("AstridCharacter")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 24, height: 24)
+                                .clipShape(Circle())
                             Text("Astrid's AI")
                         }
                     }
@@ -86,6 +89,14 @@ struct SettingsView: View {
                             Image(systemName: "cpu")
                                 .foregroundColor(Theme.accent)
                             Text(NSLocalizedString("ai_assistant", comment: ""))
+                        }
+                    }
+
+                    NavigationLink(destination: OpenClawSettingsView()) {
+                        HStack {
+                            Image(systemName: "network")
+                                .foregroundColor(.red)
+                            Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                         }
                     }
 

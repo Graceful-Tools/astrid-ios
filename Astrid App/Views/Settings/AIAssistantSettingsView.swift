@@ -16,8 +16,11 @@ struct AIAssistantSettingsView: View {
             Section(header: Text("Astrid's AI")) {
                 NavigationLink(destination: DefaultAgentPickerView()) {
                     HStack {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(.purple)
+                        Image("AstridCharacter")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
+                            .clipShape(Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Astrid's AI")
                                 .font(Theme.Typography.body())
@@ -51,8 +54,8 @@ struct AIAssistantSettingsView: View {
 
                 NavigationLink(destination: OpenClawSettingsView()) {
                     HStack {
-                        Text("🦞")
-                            .font(.title3)
+                        Image(systemName: "network")
+                            .foregroundColor(.red)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                                 .font(Theme.Typography.body())

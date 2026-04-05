@@ -38,4 +38,47 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         default: return service.capitalized
         }
     }
+
+    /// Local asset image name for the service brand icon, if available
+    var serviceImageAsset: String? {
+        switch service {
+        case "claude": return "ai-claude"
+        case "openai": return "ai-openai"
+        case "gemini": return "ai-gemini"
+        default: return nil
+        }
+    }
+}
+
+// MARK: - All Built-in Models
+
+/// Static list of all built-in model agents (shown even without API keys)
+enum BuiltInModel: String, CaseIterable {
+    case claude = "claude"
+    case openai = "openai"
+    case gemini = "gemini"
+
+    var displayName: String {
+        switch self {
+        case .claude: return "Claude"
+        case .openai: return "OpenAI"
+        case .gemini: return "Gemini"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .claude: return "Anthropic"
+        case .openai: return "OpenAI"
+        case .gemini: return "Google"
+        }
+    }
+
+    var imageAsset: String {
+        switch self {
+        case .claude: return "ai-claude"
+        case .openai: return "ai-openai"
+        case .gemini: return "ai-gemini"
+        }
+    }
 }

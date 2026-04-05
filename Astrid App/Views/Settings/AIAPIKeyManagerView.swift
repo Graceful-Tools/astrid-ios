@@ -24,19 +24,11 @@ enum AIService: String, CaseIterable, Identifiable {
         }
     }
 
-    var iconName: String {
+    var imageAsset: String {
         switch self {
-        case .claude: return "brain.head.profile"
-        case .openai: return "sparkles"
-        case .gemini: return "wand.and.stars"
-        }
-    }
-
-    var iconColor: Color {
-        switch self {
-        case .claude: return .orange
-        case .openai: return .green
-        case .gemini: return .blue
+        case .claude: return "ai-claude"
+        case .openai: return "ai-openai"
+        case .gemini: return "ai-gemini"
         }
     }
 
@@ -191,15 +183,11 @@ struct AIAPIKeyManagerView: View {
             }) {
                 HStack(spacing: Theme.spacing12) {
                     // Service icon
-                    ZStack {
-                        Circle()
-                            .fill(service.iconColor.opacity(0.2))
-                            .frame(width: 40, height: 40)
-
-                        Image(systemName: service.iconName)
-                            .font(.system(size: 18))
-                            .foregroundColor(service.iconColor)
-                    }
+                    Image(service.imageAsset)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
 
                     // Service info
                     VStack(alignment: .leading, spacing: 4) {
