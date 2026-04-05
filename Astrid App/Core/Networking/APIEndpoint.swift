@@ -140,11 +140,11 @@ enum APIEndpoint {
     
     var method: HTTPMethod {
         switch self {
-        case .signUpPasswordless, .signInWithApple, .signInWithGoogle, .mcpToken, .createTask, .createList, .createComment, .copyTask, .batchCopyTasks, .uploadFile, .verifyEmail, .deleteAccount:
+        case .signUpPasswordless, .signInWithApple, .signInWithGoogle, .mcpToken, .createTask, .createList, .createComment, .copyTask, .batchCopyTasks, .uploadFile, .verifyEmail, .deleteAccount, .leaveList:
             return .post
         case .updateTask, .updateList, .completeTask, .updateComment, .inviteToList, .favoriteList, .snoozeReminder, .dismissReminder, .updateAccount:
             return .put
-        case .deleteTask, .deleteList, .deleteComment, .leaveList, .signOut:
+        case .deleteTask, .deleteList, .deleteComment, .signOut:
             return .delete
         default:
             return .get

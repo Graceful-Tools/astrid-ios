@@ -74,7 +74,6 @@ struct ListSettingsModal: View {
         _Concurrency.Task {
             do {
                 try await AstridAPIClient.shared.leaveList(id: currentList.id)
-                dismiss()
                 onLeave?()
             } catch {
                 isLeaving = false

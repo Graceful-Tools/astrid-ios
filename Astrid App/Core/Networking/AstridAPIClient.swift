@@ -476,7 +476,7 @@ class AstridAPIClient {
     func leaveList(id: String) async throws {
         struct EmptyResponse: Codable {}
         let _: EmptyResponse = try await request(
-            method: "DELETE",
+            method: "POST",
             path: "/api/lists/\(id)/leave"
         )
     }

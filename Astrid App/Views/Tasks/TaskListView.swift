@@ -1716,11 +1716,11 @@ struct TaskListView: View {
     }
 
     private func handleListLeave(listId: String) {
+        showingListSettings = false
+        selectedListId = "my-tasks"
         _Concurrency.Task {
             _ = try? await listService.fetchLists()
-            selectedListId = "my-tasks"
         }
-        showingListSettings = false
     }
 
     // MARK: - Theme Helpers

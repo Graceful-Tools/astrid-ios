@@ -245,7 +245,7 @@ Invite users to a list.
 }
 ```
 
-### DELETE `/api/lists/{id}/leave`
+### POST `/api/lists/{id}/leave`
 Leave a shared list.
 
 ### PUT `/api/lists/{id}/favorite`
