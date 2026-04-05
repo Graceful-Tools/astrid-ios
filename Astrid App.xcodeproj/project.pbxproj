@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		CB5DE3932EBDCC160056928E /* Astrid.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB5DE3892EBDCC150056928E /* Astrid.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		CB8D79F02EE5D10D008AD96F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = CB8D79EF2EE5D10D008AD96F /* PostHog */; };
 		CBB1360B2EAB284400D41E86 /* AstridApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB1360A2EAB284400D41E86 /* AstridApp.swift */; };
 		DCA6E9C682DE48EF8A1490EC /* AstridApp.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */; };
 /* End PBXBuildFile section */
@@ -108,7 +107,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CB8D79F02EE5D10D008AD96F /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -197,7 +195,6 @@
 			);
 			name = "Astrid App";
 			packageProductDependencies = (
-				CB8D79EF2EE5D10D008AD96F /* PostHog */,
 			);
 			productName = "Astrid App";
 			productReference = CBB135842EAB27CD00D41E86 /* Astrid App.app */;
@@ -296,7 +293,6 @@
 			mainGroup = CBB1357B2EAB27CD00D41E86;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				CB8D79EE2EE5D10D008AD96F /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CBB135852EAB27CD00D41E86 /* Products */;
@@ -766,25 +762,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		CB8D79EE2EE5D10D008AD96F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/PostHog/posthog-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.35.1;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		CB8D79EF2EE5D10D008AD96F /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = CB8D79EE2EE5D10D008AD96F /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */ = {

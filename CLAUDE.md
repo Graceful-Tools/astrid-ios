@@ -101,25 +101,22 @@ git push origin main
 
 ## Workflow Trigger: "Let's Fix Stuff"
 
-When user says "let's fix stuff", "just fix stuff", or similar:
+When user says "let's fix stuff", "just fix stuff", or similar (or use `/fixstuff`):
 
 ```bash
-# 1. BASELINE TESTING - Run BEFORE any changes
-npm run predeploy
-# Document test pass rates before starting work
+# 1. Ensure environment is set up
+# Copy .env.local from astrid-web if not present
+cp ../astrid-web/.env.local .env.local 2>/dev/null || true
 
 # 2. Pull tasks from Astrid iOS To-do list
 cd ../astrid-web && npx tsx scripts/get-astrid-tasks.ts ios
 ```
 
+Present tasks to the user and ask which to work on. Run `npm run predeploy` **after** implementation, not before.
+
 ### Environment Setup
 
-Copy `.env.local` from astrid-web if not present:
-```bash
-cp ../astrid-web/.env.local .env.local
-```
-
-Required variables:
+Required variables (in `.env.local`, copied from astrid-web):
 - `ASTRID_OAUTH_CLIENT_ID` - OAuth client ID
 - `ASTRID_OAUTH_CLIENT_SECRET` - OAuth client secret
 - `ASTRID_IOS_LIST_ID` - iOS task list ID (`aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36`)

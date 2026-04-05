@@ -294,14 +294,6 @@ class AuthManager: ObservableObject {
                 UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
-            // Track login and identify user
-            AnalyticsService.shared.trackLogin(method: "apple")
-            AnalyticsService.shared.identify(
-                userId: response.user.id,
-                email: response.user.email,
-                name: response.user.name
-            )
-
             // Set authenticated (session-based auth)
             self.isAuthenticated = true
 
@@ -352,14 +344,6 @@ class AuthManager: ObservableObject {
             if let image = response.user.image {
                 UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
             }
-
-            // Track login and identify user
-            AnalyticsService.shared.trackLogin(method: "google")
-            AnalyticsService.shared.identify(
-                userId: response.user.id,
-                email: response.user.email,
-                name: response.user.name
-            )
 
             // Set authenticated (session-based auth)
             self.isAuthenticated = true
@@ -412,14 +396,6 @@ class AuthManager: ObservableObject {
             if let image = user.image {
                 UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
             }
-
-            // Track login and identify user
-            AnalyticsService.shared.trackLogin(method: "passkey")
-            AnalyticsService.shared.identify(
-                userId: user.id,
-                email: user.email,
-                name: user.name
-            )
 
             // Set authenticated (session-based auth)
             self.isAuthenticated = true
@@ -481,14 +457,6 @@ class AuthManager: ObservableObject {
             if let image = user.image {
                 UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
             }
-
-            // Track sign-up and identify user
-            AnalyticsService.shared.trackSignUp(method: "passkey")
-            AnalyticsService.shared.identify(
-                userId: user.id,
-                email: user.email,
-                name: user.name
-            )
 
             // Set authenticated (session-based auth)
             self.isAuthenticated = true
@@ -612,11 +580,6 @@ class AuthManager: ObservableObject {
         ProfileCache.shared.clearAllCache()
         ImageCache.shared.clearCache()
         AIAgentCache.shared.clear()
-
-        // ===== ANALYTICS =====
-        // Track logout and reset analytics user context
-        AnalyticsService.shared.trackLogout()
-        AnalyticsService.shared.reset()
 
         print("✅ [AuthManager] All user data cleared successfully")
 

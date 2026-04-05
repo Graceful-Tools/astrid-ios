@@ -18,7 +18,6 @@ struct AstridApp: App {
 
         configureAppearance()
         configureLogs()
-        configureAnalytics()
         print("📍 [AstridApp] About to configure OAuth...")
         configureOAuth()
         print("📍 [AstridApp] OAuth configuration complete")
@@ -349,15 +348,6 @@ struct AstridApp: App {
         print("📋 [AstridApp] Logging configured")
         print("📋 [AstridApp] Base URL: \(Constants.API.baseURL)")
         print("📋 [AstridApp] Environment: \(Constants.API.environment)")
-    }
-
-    private func configureAnalytics() {
-        print("📊 [AstridApp] Initializing analytics...")
-        // Initialize AnalyticsService singleton (PostHog)
-        _ = AnalyticsService.shared
-        // Track session start
-        AnalyticsService.shared.trackSessionStart()
-        print("✅ [AstridApp] Analytics initialized")
     }
 
     private func configureOAuth() {

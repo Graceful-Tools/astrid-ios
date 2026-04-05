@@ -332,17 +332,6 @@ class TaskService: ObservableObject {
 
             print("✅ [TaskService] Server confirmed task: \(task.title)")
 
-            // Track task creation
-            AnalyticsService.shared.trackTaskCreated(AnalyticsService.TaskEventProps(
-                taskId: task.id,
-                listId: task.listIds?.first,
-                hasDescription: !task.description.isEmpty,
-                hasDueDate: task.dueDateTime != nil,
-                hasReminder: task.reminderTime != nil,
-                priority: task.priority.rawValue,
-                isRepeating: task.repeating != .never
-            ))
-
             // Schedule notification if task has due date
             if task.dueDateTime != nil {
                 do {
@@ -581,42 +570,6 @@ class TaskService: ObservableObject {
             }
 
             print("✅ [TaskService] Server confirmed update: \(task.title)")
-
-            // Track completion status changes
-            if let completed = completed, completed != originalTask.completed {
-                let props = AnalyticsService.TaskEventProps(
-                    taskId: task.id,
-                    listId: task.listIds?.first,
-                    hasDescription: !task.description.isEmpty,
-                    hasDueDate: task.dueDateTime != nil,
-                    hasReminder: task.reminderTime != nil,
-                    priority: task.priority.rawValue,
-                    isRepeating: task.repeating != .never
-                )
-                if completed {
-                    AnalyticsService.shared.trackTaskCompleted(props, source: "checkbox")
-                } else {
-                    AnalyticsService.shared.trackTaskUncompleted(props)
-                }
-            }
-
-            // Track task edits (non-completion changes)
-            var fieldsChanged: [String] = []
-            if title != nil && title != originalTask.title { fieldsChanged.append("title") }
-            if description != nil && description != originalTask.description { fieldsChanged.append("description") }
-            if priority != nil && priority != originalTask.priority.rawValue { fieldsChanged.append("priority") }
-            if dueDateTime != nil || when != nil || whenTime != nil { fieldsChanged.append("dueDate") }
-            if assigneeId != nil && assigneeId != originalTask.assigneeId { fieldsChanged.append("assignee") }
-            if listIds != nil { fieldsChanged.append("lists") }
-            if repeating != nil && repeating != originalTask.repeating?.rawValue { fieldsChanged.append("repeating") }
-
-            if !fieldsChanged.isEmpty {
-                let props = AnalyticsService.TaskEventProps(
-                    taskId: task.id,
-                    listId: task.listIds?.first
-                )
-                AnalyticsService.shared.trackTaskEdited(props, fieldsChanged: fieldsChanged)
-            }
 
             // Handle notification updates
             if let completed = completed, completed {
@@ -894,12 +847,6 @@ class TaskService: ObservableObject {
                     throw error
                 }
             }
-
-            // Track task deletion
-            AnalyticsService.shared.trackTaskDeleted(AnalyticsService.TaskEventProps(
-                taskId: deletedTask.id,
-                listId: deletedTask.listIds?.first
-            ))
 
             // Remove from CoreData after successful deletion (CRITICAL: await to ensure persistence)
             do {

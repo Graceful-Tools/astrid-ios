@@ -86,12 +86,6 @@ import Foundation
         static let userImage = "user_image"
     }
     
-    enum Analytics {
-        // PostHog configuration - must match NEXT_PUBLIC_POSTHOG_KEY from web
-        static let posthogKey = "phc_kAz4vpgDNuzSUTy1ihE49NeLkNvAtvmgg3lVBijBJsH"
-        static let posthogHost = "https://us.i.posthog.com"
-    }
-
     enum UI {
         // Match web app colors
         static let primaryColor = "3b82f6" // blue-500

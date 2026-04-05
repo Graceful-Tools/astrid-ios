@@ -290,14 +290,6 @@ class ListService: ObservableObject {
 
             print("✅ [ListService] Server confirmed list: \(list.name)")
 
-            // Track list creation
-            AnalyticsService.shared.trackListCreated(
-                listId: list.id,
-                isShared: (list.members?.count ?? 0) > 0,
-                hasGitIntegration: list.githubRepositoryId != nil,
-                isPublic: list.privacy == .PUBLIC
-            )
-
             // CRITICAL: Notify TaskService to update any tasks created with the temp list ID
             // This handles the case where tasks were created on this list before server confirmed
             await TaskService.shared.onListSynced(tempListId: tempId, realListId: list.id)
@@ -474,16 +466,6 @@ class ListService: ObservableObject {
 
             print("✅ [ListService] Server confirmed list update: \(updatedList.name)")
 
-            // Track list edit if meaningful fields changed
-            let fieldsChanged = Array(updates.keys).filter { key in
-                // Exclude internal/filter fields from tracking
-                !["manualSortOrder", "filterCompletion", "filterDueDate", "filterAssignee",
-                  "filterAssignedBy", "filterRepeating", "filterPriority", "filterInLists", "sortBy"].contains(key)
-            }
-            if !fieldsChanged.isEmpty {
-                AnalyticsService.shared.trackListEdited(listId: listId, fieldsChanged: fieldsChanged)
-            }
-
             return updatedList
         } catch {
             // DON'T ROLLBACK - Keep optimistic update for offline support
@@ -512,11 +494,6 @@ class ListService: ObservableObject {
             try await apiClient.deleteList(id: listId)
             print("✅ [ListService] Server confirmed list deletion: \(listId)")
 
-            // Track list deletion
-            AnalyticsService.shared.trackListDeleted(
-                listId: listId,
-                taskCount: deletedList.taskCount ?? deletedList.tasks?.count ?? 0
-            )
         } catch {
             // ROLLBACK: Restore list on error
             cachedLists[listId] = deletedList
