@@ -479,6 +479,8 @@
 "lists.next_month" = "В следующем месяце";
 "lists.none" = "Нет";
 "lists.delete_confirm" = "Вы уверены, что хотите удалить этот список? Это действие нельзя отменить.";
+"lists.leave_list" = "Покинуть список";
+"lists.leave_confirm" = "Вы уверены, что хотите покинуть этот список? Для повторного присоединения потребуется новое приглашение.";
 "messages.danger_zone" = "Опасная зона";
 "settings.account.no_name" = "Имя не задано";
 "settings.account.unknown" = "Неизвестно";

@@ -479,6 +479,8 @@
 "lists.next_month" = "Próximo mês";
 "lists.none" = "Nenhum";
 "lists.delete_confirm" = "Tem certeza de que deseja excluir esta lista? Esta ação não pode ser desfeita.";
+"lists.leave_list" = "Sair da lista";
+"lists.leave_confirm" = "Tem certeza de que deseja sair desta lista? Você precisará ser convidado novamente para participar.";
 "messages.danger_zone" = "Zona de perigo";
 "settings.account.no_name" = "Nenhum nome definido";
 "settings.account.unknown" = "Desconhecido";

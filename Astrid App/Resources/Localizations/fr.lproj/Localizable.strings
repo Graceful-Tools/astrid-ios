@@ -586,6 +586,8 @@
 "lists.next_month" = "Mois prochain";
 "lists.none" = "Aucun";
 "lists.delete_confirm" = "Êtes-vous sûr de vouloir supprimer cette liste ? Cette action est irréversible.";
+"lists.leave_list" = "Quitter la liste";
+"lists.leave_confirm" = "Êtes-vous sûr de vouloir quitter cette liste ? Vous devrez être réinvité pour rejoindre.";
 "messages.danger_zone" = "Zone de danger";
 "settings.account.no_name" = "Aucun nom défini";
 "settings.account.unknown" = "Inconnu";

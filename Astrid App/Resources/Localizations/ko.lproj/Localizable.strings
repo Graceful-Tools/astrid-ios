@@ -479,6 +479,8 @@
 "lists.next_month" = "다음 달";
 "lists.none" = "없음";
 "lists.delete_confirm" = "이 목록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.";
+"lists.leave_list" = "목록 나가기";
+"lists.leave_confirm" = "이 목록을 나가시겠습니까? 다시 참여하려면 재초대가 필요합니다.";
 "messages.danger_zone" = "위험 구역";
 "settings.account.no_name" = "이름 미설정";
 "settings.account.unknown" = "알 수 없음";

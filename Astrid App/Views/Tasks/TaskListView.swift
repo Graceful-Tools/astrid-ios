@@ -90,14 +90,14 @@ struct TaskListView: View {
         return canUserAddTasks(userId: currentUserId, list: list)
     }
 
-    /// Determine if user can view list settings (owner or admin only for PUBLIC lists)
+    /// Determine if user can view list settings (any member can access sort/filter/leave)
     private var canShowListSettings: Bool {
         guard let list = selectedList,
               let currentUserId = AuthManager.shared.userId else {
             return false
         }
 
-        // Check if user is owner (check both ownerId field and owner object)
+        // Owner can always see settings
         if list.ownerId == currentUserId || list.owner?.id == currentUserId {
             return true
         }
@@ -107,11 +107,16 @@ struct TaskListView: View {
             return true
         }
 
-        // Check in listMembers for admin role
+        // Check if user is a member (any role) in listMembers
         if let listMembers = list.listMembers {
-            if listMembers.contains(where: { $0.userId == currentUserId && $0.role == "admin" }) {
+            if listMembers.contains(where: { $0.userId == currentUserId }) {
                 return true
             }
+        }
+
+        // Check legacy members array
+        if let members = list.members, members.contains(where: { $0.id == currentUserId }) {
+            return true
         }
 
         return false
@@ -658,6 +663,9 @@ struct TaskListView: View {
                 },
                 onDelete: {
                     handleListDelete(listId: list.id)
+                },
+                onLeave: {
+                    handleListLeave(listId: list.id)
                 }
             )
         }
@@ -1703,6 +1711,14 @@ struct TaskListView: View {
         _Concurrency.Task {
             try? await listService.deleteList(listId: listId)
             selectedListId = "my-tasks"  // Redirect to My Tasks instead of All Tasks
+        }
+        showingListSettings = false
+    }
+
+    private func handleListLeave(listId: String) {
+        _Concurrency.Task {
+            _ = try? await listService.fetchLists()
+            selectedListId = "my-tasks"
         }
         showingListSettings = false
     }

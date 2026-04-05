@@ -91,13 +91,21 @@ struct ListAgentSettingsView: View {
                                 saveListAgentSetting(agent.id)
                             } label: {
                                 HStack(spacing: Theme.spacing12) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.purple.opacity(0.15))
+                                    if let asset = agent.serviceImageAsset {
+                                        Image(asset)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
                                             .frame(width: 32, height: 32)
-                                        Image(systemName: "sparkles")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.purple)
+                                            .clipShape(Circle())
+                                    } else {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.purple.opacity(0.15))
+                                                .frame(width: 32, height: 32)
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.purple)
+                                        }
                                     }
 
                                     VStack(alignment: .leading, spacing: 2) {

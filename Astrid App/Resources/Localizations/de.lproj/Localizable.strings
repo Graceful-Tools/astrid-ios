@@ -221,6 +221,8 @@
 "lists.next_month" = "Nächster Monat";
 "lists.none" = "Keine";
 "lists.delete_confirm" = "Sind Sie sicher, dass Sie diese Liste löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.";
+"lists.leave_list" = "Liste verlassen";
+"lists.leave_confirm" = "Sind Sie sicher, dass Sie diese Liste verlassen möchten? Sie müssen erneut eingeladen werden, um beizutreten.";
 
 /* Priority */
 "priority.none" = "Keine";

@@ -97,7 +97,11 @@ class ContactsService: ObservableObject {
         guard hasPermission else {
             throw ContactsError.notAuthorized
         }
+        return try Self.enumerateContacts(store: store)
+    }
 
+    /// Enumerate contacts from a CNContactStore — safe to call off main thread
+    private nonisolated static func enumerateContacts(store: CNContactStore) throws -> [DeviceContact] {
         let keysToFetch: [CNKeyDescriptor] = [
             CNContactGivenNameKey as CNKeyDescriptor,
             CNContactFamilyNameKey as CNKeyDescriptor,
@@ -109,14 +113,12 @@ class ContactsService: ObservableObject {
         let request = CNContactFetchRequest(keysToFetch: keysToFetch)
 
         try store.enumerateContacts(with: request) { cnContact, _ in
-            // Only include contacts with at least one email
             guard !cnContact.emailAddresses.isEmpty else { return }
 
             let name = [cnContact.givenName, cnContact.familyName]
                 .filter { !$0.isEmpty }
                 .joined(separator: " ")
 
-            // Create a DeviceContact for each email address
             for email in cnContact.emailAddresses {
                 let emailString = email.value as String
                 let phoneNumber = cnContact.phoneNumbers.first?.value.stringValue
@@ -156,8 +158,11 @@ class ContactsService: ObservableObject {
             }
         }
 
-        // Fetch contacts from device
-        let deviceContacts = try fetchDeviceContacts()
+        // Fetch contacts from device (off main thread — CNContactStore enumeration is expensive)
+        let contactStore = store
+        let deviceContacts = try await _Concurrency.Task.detached {
+            try Self.enumerateContacts(store: contactStore)
+        }.value
 
         // Upload in batches to avoid timeout with large contact lists
         var finalResult: ContactSyncResult?

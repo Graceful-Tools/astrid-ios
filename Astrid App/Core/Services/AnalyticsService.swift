@@ -29,6 +29,7 @@ class AnalyticsService {
         let config = PostHogConfig(apiKey: posthogKey, host: Constants.Analytics.posthogHost)
         config.captureApplicationLifecycleEvents = true
         config.captureScreenViews = false // We'll track manually for more control
+        config.sessionReplay = false // Disable session replay — causes SwiftUI view hierarchy warnings
 
         PostHogSDK.shared.setup(config)
         isConfigured = true

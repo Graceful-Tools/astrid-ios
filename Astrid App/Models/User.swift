@@ -36,4 +36,16 @@ struct User: Identifiable, Codable, Equatable, Hashable {
     var avatarURL: String? {
         return image
     }
+
+    /// Local asset image name for AI agent brand icon, if available
+    var agentBrandImageAsset: String? {
+        guard isAIAgent == true else { return nil }
+        switch aiAgentType {
+        case "claude", "claude_agent": return "ai-claude"
+        case "openai", "openai_agent": return "ai-openai"
+        case "gemini", "gemini_agent": return "ai-gemini"
+        case "openclaw", "astrid": return "ai-openclaw"
+        default: return nil
+        }
+    }
 }

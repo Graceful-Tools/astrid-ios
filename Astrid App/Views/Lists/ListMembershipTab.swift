@@ -8,6 +8,7 @@ struct ListMembershipTab: View {
     let list: TaskList
     let onUpdate: (TaskList) -> Void
     @Binding var removedMemberEmails: Set<String>
+    var onLeave: (() -> Void)?
 
     @State private var showingAddMember = false
     @State private var isProcessing = false
@@ -218,34 +219,40 @@ struct ListMembershipTab: View {
 
                                 Spacer()
 
-                                Menu {
-                                    Button {
-                                        changeRole(userId: admin.id, currentRole: "admin", newRole: "member")
-                                    } label: {
-                                        Label(NSLocalizedString("lists.make_member", comment: ""), systemImage: "person")
-                                    }
+                                if canEditSettings {
+                                    Menu {
+                                        Button {
+                                            changeRole(userId: admin.id, currentRole: "admin", newRole: "member")
+                                        } label: {
+                                            Label(NSLocalizedString("lists.make_member", comment: ""), systemImage: "person")
+                                        }
 
-                                    Button(role: .destructive) {
-                                        removeMember(userId: admin.id, email: admin.email ?? "")
+                                        Button(role: .destructive) {
+                                            removeMember(userId: admin.id, email: admin.email ?? "")
+                                        } label: {
+                                            Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
+                                        }
                                     } label: {
-                                        Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
-                                    }
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Text(NSLocalizedString("lists.admin_role", comment: ""))
-                                            .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        HStack(spacing: 6) {
+                                            Text(NSLocalizedString("lists.admin_role", comment: ""))
+                                                .font(Theme.Typography.caption1())
+                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
-                                        Image(systemName: "ellipsis")
-                                            .rotationEffect(.degrees(90))
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            Image(systemName: "ellipsis")
+                                                .rotationEffect(.degrees(90))
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .contentShape(Rectangle())
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .contentShape(Rectangle())
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Text(NSLocalizedString("lists.admin_role", comment: ""))
+                                        .font(Theme.Typography.caption1())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -288,34 +295,40 @@ struct ListMembershipTab: View {
 
                                 Spacer()
 
-                                Menu {
-                                    Button {
-                                        changeRole(userId: member.id, currentRole: "member", newRole: "admin")
-                                    } label: {
-                                        Label(NSLocalizedString("lists.make_admin", comment: ""), systemImage: "star")
-                                    }
+                                if canEditSettings {
+                                    Menu {
+                                        Button {
+                                            changeRole(userId: member.id, currentRole: "member", newRole: "admin")
+                                        } label: {
+                                            Label(NSLocalizedString("lists.make_admin", comment: ""), systemImage: "star")
+                                        }
 
-                                    Button(role: .destructive) {
-                                        removeMember(userId: member.id, email: member.email ?? "")
+                                        Button(role: .destructive) {
+                                            removeMember(userId: member.id, email: member.email ?? "")
+                                        } label: {
+                                            Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
+                                        }
                                     } label: {
-                                        Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
-                                    }
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Text(NSLocalizedString("lists.member_role", comment: ""))
-                                            .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        HStack(spacing: 6) {
+                                            Text(NSLocalizedString("lists.member_role", comment: ""))
+                                                .font(Theme.Typography.caption1())
+                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
-                                        Image(systemName: "ellipsis")
-                                            .rotationEffect(.degrees(90))
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            Image(systemName: "ellipsis")
+                                                .rotationEffect(.degrees(90))
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .contentShape(Rectangle())
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .contentShape(Rectangle())
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Text(NSLocalizedString("lists.member_role", comment: ""))
+                                        .font(Theme.Typography.caption1())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -359,47 +372,53 @@ struct ListMembershipTab: View {
 
                                     Spacer()
 
-                                    Menu {
-                                        Button {
-                                            let newRole = listMember.role == "admin" ? "member" : "admin"
-                                            changeRole(userId: user.id, currentRole: listMember.role, newRole: newRole)
-                                        } label: {
-                                            if listMember.role == "admin" {
-                                                Label(NSLocalizedString("lists.make_member", comment: ""), systemImage: "person")
-                                            } else {
-                                                Label(NSLocalizedString("lists.make_admin", comment: ""), systemImage: "star")
+                                    if canEditSettings {
+                                        Menu {
+                                            Button {
+                                                let newRole = listMember.role == "admin" ? "member" : "admin"
+                                                changeRole(userId: user.id, currentRole: listMember.role, newRole: newRole)
+                                            } label: {
+                                                if listMember.role == "admin" {
+                                                    Label(NSLocalizedString("lists.make_member", comment: ""), systemImage: "person")
+                                                } else {
+                                                    Label(NSLocalizedString("lists.make_admin", comment: ""), systemImage: "star")
+                                                }
                                             }
-                                        }
 
-                                        Button(role: .destructive) {
-                                            removeMember(userId: user.id, email: user.email ?? "")
+                                            Button(role: .destructive) {
+                                                removeMember(userId: user.id, email: user.email ?? "")
+                                            } label: {
+                                                Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
+                                            }
                                         } label: {
-                                            Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
-                                        }
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Text(listMember.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
-                                                .font(Theme.Typography.caption1())
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                            HStack(spacing: 6) {
+                                                Text(listMember.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
+                                                    .font(Theme.Typography.caption1())
+                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
-                                            Image(systemName: "ellipsis")
-                                                .rotationEffect(.degrees(90))
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                                Image(systemName: "ellipsis")
+                                                    .rotationEffect(.degrees(90))
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 6)
+                                            .contentShape(Rectangle())
                                         }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .contentShape(Rectangle())
+                                        .buttonStyle(.plain)
+                                    } else {
+                                        Text(listMember.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
+                                            .font(Theme.Typography.caption1())
+                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
                     }
                 }
 
-                // Pending Invitations (only show invitations for users who haven't accepted yet)
-                if !pendingInvitations.isEmpty {
+                // Pending Invitations (only show to admins/owners)
+                if canEditSettings && !pendingInvitations.isEmpty {
                     ForEach(pendingInvitations) { invitation in
                         HStack(spacing: Theme.spacing12) {
                             Circle()
@@ -642,6 +661,18 @@ struct ListMembershipTab: View {
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                 }
             }
+            }
+
+            // Leave List - shown for non-owner members
+            if let onLeave = onLeave {
+                Section {
+                    Button(role: .destructive, action: onLeave) {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text(NSLocalizedString("lists.leave_list", comment: "Leave List"))
+                        }
+                    }
+                }
             }
         }
         .scrollContentBackground(.hidden)

@@ -103,6 +103,7 @@ struct AppleRemindersSettingsView: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             } else {
@@ -125,6 +126,7 @@ struct AppleRemindersSettingsView: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -245,6 +247,7 @@ struct AppleRemindersSettingsView: View {
                                 Image(systemName: "arrow.down.circle")
                                     .foregroundColor(Theme.accent)
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -326,6 +329,7 @@ struct ListSyncRow: View {
                         .foregroundColor(Theme.accent)
                 }
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -403,6 +407,7 @@ struct LinkListSheet: View {
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
@@ -429,6 +434,7 @@ struct LinkListSheet: View {
                                                 .foregroundColor(Theme.accent)
                                         }
                                     }
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -447,6 +453,7 @@ struct LinkListSheet: View {
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         } header: {
@@ -577,6 +584,7 @@ struct ImportCalendarSheet: View {
                                         .foregroundColor(Theme.accent)
                                 }
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
 
@@ -597,6 +605,7 @@ struct ImportCalendarSheet: View {
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }

@@ -48,6 +48,7 @@ struct LanguageSettingsView: View {
                                         .foregroundColor(Theme.accent)
                                 }
                             }
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
 
@@ -68,6 +69,7 @@ struct LanguageSettingsView: View {
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }

@@ -479,6 +479,8 @@
 "lists.next_month" = "来月";
 "lists.none" = "なし";
 "lists.delete_confirm" = "このリストを削除してもよろしいですか？この操作は元に戻せません。";
+"lists.leave_list" = "リストから退出";
+"lists.leave_confirm" = "このリストから退出してもよろしいですか？再び参加するには招待が必要です。";
 "messages.danger_zone" = "危険な操作";
 "settings.account.no_name" = "名前未設定";
 "settings.account.unknown" = "不明";

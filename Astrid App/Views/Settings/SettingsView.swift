@@ -4,12 +4,9 @@ import Contacts
 struct SettingsView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
-    @Environment(\.scenePhase) var scenePhase
     @EnvironmentObject var authManager: AuthManager
-    @StateObject private var syncManager = SyncManager.shared
-    @StateObject private var contactsService = ContactsService.shared
-    @StateObject private var userSettings = UserSettingsService.shared
     @State private var showingSignOutAlert = false
+    @State private var isReady = false
 
     // Debug mode toggles (stored in UserDefaults like web app)
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
@@ -27,53 +24,27 @@ struct SettingsView: View {
                 FloatingTextHeader(NSLocalizedString("settings", comment: ""), icon: "gearshape", showBackButton: true)
                     .padding(.top, Theme.spacing8)
 
-                // Content
+                // Content — defer heavy sections until after navigation animation
                 List {
+                if !isReady {
+                    // Lightweight placeholder so the view pushes instantly
+                    Section {
+                        Color.clear.frame(height: 0)
+                    }
+                } else {
                     // Sync section
-                Section(NSLocalizedString("sync", comment: "")) {
-                    HStack {
-                        Label(NSLocalizedString("last_sync", comment: ""), systemImage: "arrow.triangle.2.circlepath")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        Spacer()
-                        if let lastSync = syncManager.lastSyncDate {
-                            Text(lastSync, style: .relative)
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        } else {
-                            Text(NSLocalizedString("never", comment: ""))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-
-                    Button {
-                        _Concurrency.Task {
-                            // Manual sync should always do full sync
-                            try? await syncManager.performFullSync()
-                        }
-                    } label: {
-                        HStack {
-                            Label(NSLocalizedString("sync_now", comment: ""), systemImage: "arrow.clockwise")
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Spacer()
-                            if syncManager.isSyncing {
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(syncManager.isSyncing)
-                }
+                    SettingsSyncSection()
 
                 // Features section
                 Section(NSLocalizedString("features", comment: "")) {
-                    NavigationLink(destination: ReminderSettingsView()) {
+                    NavigationLink(destination: LazyView { ReminderSettingsView() }) {
                         Label(NSLocalizedString("reminders", comment: ""), systemImage: "bell")
                     }
                 }
 
                 // Exploratory Features section
                 Section(NSLocalizedString("exploratory_features", comment: "")) {
-                    NavigationLink(destination: DefaultAgentPickerView()) {
+                    NavigationLink(destination: LazyView { DefaultAgentPickerView() }) {
                         HStack {
                             Image("AstridCharacter")
                                 .resizable()
@@ -84,7 +55,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    NavigationLink(destination: AIAssistantSettingsView()) {
+                    NavigationLink(destination: LazyView { AIAssistantSettingsView() }) {
                         HStack {
                             Image(systemName: "cpu")
                                 .foregroundColor(Theme.accent)
@@ -92,7 +63,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    NavigationLink(destination: OpenClawSettingsView()) {
+                    NavigationLink(destination: LazyView { OpenClawSettingsView() }) {
                         HStack {
                             Image("ai-openclaw")
                                 .resizable()
@@ -103,7 +74,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    NavigationLink(destination: AppleRemindersSettingsView()) {
+                    NavigationLink(destination: LazyView { AppleRemindersSettingsView() }) {
                         HStack {
                             Image(systemName: "checklist")
                                 .foregroundColor(.blue)
@@ -113,152 +84,10 @@ struct SettingsView: View {
                 }
 
                 // Preferences section
-                Section(NSLocalizedString("preferences", comment: "")) {
-                    NavigationLink(destination: AppearanceSettingsView()) {
-                        Label(NSLocalizedString("appearance", comment: ""), systemImage: "paintbrush")
-                    }
-
-                    NavigationLink(destination: LanguageSettingsView()) {
-                        HStack {
-                            Label(NSLocalizedString("language", comment: ""), systemImage: "globe")
-                            Spacer()
-                            Text(LocalizationManager.shared.isUsingAutomaticLanguage() ? NSLocalizedString("automatic", comment: "") : LocalizationManager.shared.getLanguageDisplayName(LocalizationManager.shared.getCurrentLanguage()))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-
-                    Toggle(isOn: Binding(
-                        get: { userSettings.smartTaskCreationEnabled },
-                        set: { userSettings.smartTaskCreationEnabled = $0 }
-                    )) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(NSLocalizedString("smart_task_creations", comment: "Smart Task Creation"))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text(NSLocalizedString("smart_task_creation_description", comment: "Parse dates, priorities, hashtags from titles"))
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-                    .tint(Theme.accent)
-                }
+                    SettingsPreferencesSection()
 
                 // Contacts section
-                Section {
-                    if contactsService.authorizationStatus == .authorized || contactsService.authorizationStatus == .limited {
-                        // Contact count
-                        HStack {
-                            Label(NSLocalizedString("contacts.synced_contacts", comment: ""), systemImage: "person.crop.circle")
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Spacer()
-                            Text("\(contactsService.contactCount)")
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-
-                        // Last sync
-                        if let lastSync = contactsService.lastSyncDate {
-                            HStack {
-                                Label(NSLocalizedString("last_sync", comment: ""), systemImage: "clock")
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Spacer()
-                                Text(lastSync, style: .relative)
-                                    .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                            }
-                        }
-
-                        // Sync button
-                        Button {
-                            syncContacts()
-                        } label: {
-                            HStack {
-                                Label(NSLocalizedString("contacts.sync_contacts_now", comment: ""), systemImage: "arrow.triangle.2.circlepath")
-                                    .foregroundColor(Theme.accent)
-                                Spacer()
-                                if contactsService.isSyncing {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                }
-                            }
-                        }
-                        .disabled(contactsService.isSyncing)
-
-                        // Show option to grant full access if using limited access
-                        if contactsService.authorizationStatus == .limited {
-                            Button {
-                                openContactsSettings()
-                            } label: {
-                                HStack {
-                                    Label(NSLocalizedString("contacts.grant_full_access", comment: ""), systemImage: "person.crop.circle.badge.plus")
-                                        .foregroundColor(Theme.accent)
-                                    Spacer()
-                                    Image(systemName: "arrow.up.forward.app")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                }
-                            }
-                        }
-                    } else if contactsService.authorizationStatus == .denied {
-                        // Permission denied - need to open Settings
-                        Button {
-                            openContactsSettings()
-                        } label: {
-                            HStack {
-                                Image(systemName: "person.crop.circle.badge.exclamationmark")
-                                    .foregroundColor(.orange)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("contacts.access_required", comment: ""))
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    Text(NSLocalizedString("contacts.open_settings_prompt", comment: ""))
-                                        .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                }
-                                Spacer()
-                                Image(systemName: "arrow.up.forward.app")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        // Not determined - show enable button
-                        Button {
-                            requestContactsAccess()
-                        } label: {
-                            HStack {
-                                Image(systemName: "person.crop.circle.badge.plus")
-                                    .foregroundColor(Theme.accent)
-                                    .frame(width: 24)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("contacts.add_collaborators", comment: ""))
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    Text(NSLocalizedString("contacts.upload_for_collaboration", comment: ""))
-                                        .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } header: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "person.2.fill")
-                        Text(NSLocalizedString("contacts", comment: ""))
-                    }
-                } footer: {
-                    Text(NSLocalizedString("contacts.footer_text", comment: ""))
-                        .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                }
+                    SettingsContactsSection()
 
                 // Debug settings (matching web app)
                 #if DEBUG
@@ -342,7 +171,7 @@ struct SettingsView: View {
 
                 // Account section
                 Section(NSLocalizedString("account", comment: "")) {
-                    NavigationLink(destination: AccountSettingsView()) {
+                    NavigationLink(destination: LazyView { AccountSettingsView() }) {
                         HStack {
                             Image(systemName: "person.circle")
                                 .foregroundColor(Theme.accent)
@@ -407,9 +236,16 @@ struct SettingsView: View {
                         }
                     }
                 }
+                } // end isReady else
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
+                .onAppear {
+                    if !isReady {
+                        // Defer content load until after push animation completes
+                        DispatchQueue.main.async { isReady = true }
+                    }
+                }
             }
         }
         .navigationBarHidden(true)
@@ -423,45 +259,6 @@ struct SettingsView: View {
             }
         } message: {
             Text(NSLocalizedString("are_you_sure_sign_out", comment: ""))
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            // Refresh contacts status when returning from Settings
-            if newPhase == .active {
-                contactsService.checkAuthorizationStatus()
-                // If now authorized but we have no contacts synced, sync them
-                if contactsService.hasPermission && contactsService.contactCount == 0 {
-                    _Concurrency.Task {
-                        await contactsService.fetchContactStatus()
-                        // If still 0, this is a new authorization - sync contacts
-                        if contactsService.contactCount == 0 {
-                            _ = try? await contactsService.syncContacts()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Contacts Functions
-
-    private func requestContactsAccess() {
-        _Concurrency.Task {
-            let granted = await contactsService.requestAccess()
-            if granted {
-                _ = try? await contactsService.syncContacts()
-            }
-        }
-    }
-
-    private func syncContacts() {
-        _Concurrency.Task {
-            _ = try? await contactsService.syncContacts()
-        }
-    }
-
-    private func openContactsSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
         }
     }
 
@@ -482,6 +279,225 @@ struct SettingsView: View {
         ReviewPromptManager.shared.resetPromptTracking()
     }
     #endif
+}
+
+// MARK: - Extracted Sections (isolate @ObservedObject re-renders)
+
+/// Sync section — only re-renders when SyncManager publishes
+private struct SettingsSyncSection: View {
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject private var syncManager = SyncManager.shared
+
+    var body: some View {
+        Section(NSLocalizedString("sync", comment: "")) {
+            HStack {
+                Label(NSLocalizedString("last_sync", comment: ""), systemImage: "arrow.triangle.2.circlepath")
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                Spacer()
+                if let lastSync = syncManager.lastSyncDate {
+                    Text(lastSync, style: .relative)
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                } else {
+                    Text(NSLocalizedString("never", comment: ""))
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                }
+            }
+
+            Button {
+                _Concurrency.Task {
+                    try? await syncManager.performFullSync()
+                }
+            } label: {
+                HStack {
+                    Label(NSLocalizedString("sync_now", comment: ""), systemImage: "arrow.clockwise")
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    Spacer()
+                    if syncManager.isSyncing {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(syncManager.isSyncing)
+        }
+    }
+}
+
+/// Preferences section — only re-renders when UserSettingsService publishes
+private struct SettingsPreferencesSection: View {
+    @Environment(\.colorScheme) var colorScheme
+    @ObservedObject private var userSettings = UserSettingsService.shared
+
+    var body: some View {
+        Section(NSLocalizedString("preferences", comment: "")) {
+            NavigationLink(destination: LazyView { AppearanceSettingsView() }) {
+                Label(NSLocalizedString("appearance", comment: ""), systemImage: "paintbrush")
+            }
+
+            NavigationLink(destination: LazyView { LanguageSettingsView() }) {
+                HStack {
+                    Label(NSLocalizedString("language", comment: ""), systemImage: "globe")
+                    Spacer()
+                    Text(LocalizationManager.shared.isUsingAutomaticLanguage() ? NSLocalizedString("automatic", comment: "") : LocalizationManager.shared.getLanguageDisplayName(LocalizationManager.shared.getCurrentLanguage()))
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                }
+            }
+
+            Toggle(isOn: Binding(
+                get: { userSettings.smartTaskCreationEnabled },
+                set: { userSettings.smartTaskCreationEnabled = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(NSLocalizedString("smart_task_creations", comment: "Smart Task Creation"))
+                        .font(Theme.Typography.body())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    Text(NSLocalizedString("smart_task_creation_description", comment: "Parse dates, priorities, hashtags from titles"))
+                        .font(Theme.Typography.caption2())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                }
+            }
+            .tint(Theme.accent)
+        }
+    }
+}
+
+/// Contacts section — only re-renders when ContactsService publishes
+private struct SettingsContactsSection: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.scenePhase) var scenePhase
+    @ObservedObject private var contactsService = ContactsService.shared
+
+    var body: some View {
+        Section {
+            if contactsService.authorizationStatus == .authorized || contactsService.authorizationStatus == .limited {
+                HStack {
+                    Label(NSLocalizedString("contacts.synced_contacts", comment: ""), systemImage: "person.crop.circle")
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    Spacer()
+                    Text("\(contactsService.contactCount)")
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                }
+
+                if let lastSync = contactsService.lastSyncDate {
+                    HStack {
+                        Label(NSLocalizedString("last_sync", comment: ""), systemImage: "clock")
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        Spacer()
+                        Text(lastSync, style: .relative)
+                            .font(Theme.Typography.caption1())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    }
+                }
+
+                Button {
+                    _Concurrency.Task { _ = try? await contactsService.syncContacts() }
+                } label: {
+                    HStack {
+                        Label(NSLocalizedString("contacts.sync_contacts_now", comment: ""), systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundColor(Theme.accent)
+                        Spacer()
+                        if contactsService.isSyncing {
+                            ProgressView().scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(contactsService.isSyncing)
+
+                if contactsService.authorizationStatus == .limited {
+                    Button { openContactsSettings() } label: {
+                        HStack {
+                            Label(NSLocalizedString("contacts.grant_full_access", comment: ""), systemImage: "person.crop.circle.badge.plus")
+                                .foregroundColor(Theme.accent)
+                            Spacer()
+                            Image(systemName: "arrow.up.forward.app")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        }
+                    }
+                }
+            } else if contactsService.authorizationStatus == .denied {
+                Button { openContactsSettings() } label: {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("contacts.access_required", comment: ""))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text(NSLocalizedString("contacts.open_settings_prompt", comment: ""))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button { requestContactsAccess() } label: {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .foregroundColor(Theme.accent)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("contacts.add_collaborators", comment: ""))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text(NSLocalizedString("contacts.upload_for_collaboration", comment: ""))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.2.fill")
+                Text(NSLocalizedString("contacts", comment: ""))
+            }
+        } footer: {
+            Text(NSLocalizedString("contacts.footer_text", comment: ""))
+                .font(Theme.Typography.caption2())
+                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                contactsService.checkAuthorizationStatus()
+                if contactsService.hasPermission && contactsService.contactCount == 0 {
+                    _Concurrency.Task {
+                        await contactsService.fetchContactStatus()
+                        if contactsService.contactCount == 0 {
+                            _ = try? await contactsService.syncContacts()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func requestContactsAccess() {
+        _Concurrency.Task {
+            let granted = await contactsService.requestAccess()
+            if granted { _ = try? await contactsService.syncContacts() }
+        }
+    }
+
+    private func openContactsSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
 }
 
 #Preview {

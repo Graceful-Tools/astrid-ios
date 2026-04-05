@@ -223,6 +223,7 @@ struct AIAPIKeyManagerView: View {
                         .font(.system(size: 14))
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 

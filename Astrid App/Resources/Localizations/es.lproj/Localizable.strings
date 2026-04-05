@@ -600,6 +600,8 @@
 "lists.next_month" = "Próximo mes";
 "lists.none" = "Ninguno";
 "lists.delete_confirm" = "¿Estás seguro de que quieres eliminar esta lista? Esta acción no se puede deshacer.";
+"lists.leave_list" = "Abandonar lista";
+"lists.leave_confirm" = "¿Estás seguro de que quieres abandonar esta lista? Necesitarás ser invitado de nuevo para volver a unirte.";
 "messages.danger_zone" = "Zona de peligro";
 
 /* Apple Reminders Sync */

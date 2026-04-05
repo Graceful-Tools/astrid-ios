@@ -479,6 +479,8 @@
 "lists.next_month" = "Volgende maand";
 "lists.none" = "Geen";
 "lists.delete_confirm" = "Weet je zeker dat je deze lijst wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.";
+"lists.leave_list" = "Lijst verlaten";
+"lists.leave_confirm" = "Weet je zeker dat je deze lijst wilt verlaten? Je moet opnieuw worden uitgenodigd om weer deel te nemen.";
 "messages.danger_zone" = "Gevarenzone";
 "settings.account.no_name" = "Geen naam ingesteld";
 "settings.account.unknown" = "Onbekend";

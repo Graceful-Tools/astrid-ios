@@ -106,8 +106,11 @@ struct OpenClawSettingsView: View {
         Section {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 HStack {
-                    Text("🦞")
-                        .font(.title2)
+                    Image("ai-openclaw")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
                     Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                         .font(Theme.Typography.headline())
                 }

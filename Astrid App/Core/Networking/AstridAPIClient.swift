@@ -472,6 +472,15 @@ class AstridAPIClient {
         )
     }
 
+    /// Leave a shared list
+    func leaveList(id: String) async throws {
+        struct EmptyResponse: Codable {}
+        let _: EmptyResponse = try await request(
+            method: "DELETE",
+            path: "/api/lists/\(id)/leave"
+        )
+    }
+
     // MARK: - GitHub Integration
 
     /// Get GitHub connection and AI provider status

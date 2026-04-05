@@ -479,6 +479,8 @@
 "lists.next_month" = "Prossimo mese";
 "lists.none" = "Nessuno";
 "lists.delete_confirm" = "Sei sicuro di voler eliminare questa lista? Questa azione non può essere annullata.";
+"lists.leave_list" = "Lascia lista";
+"lists.leave_confirm" = "Sei sicuro di voler lasciare questa lista? Dovrai essere reinvitato per rientrare.";
 "messages.danger_zone" = "Zona pericolosa";
 "settings.account.no_name" = "Nessun nome impostato";
 "settings.account.unknown" = "Sconosciuto";

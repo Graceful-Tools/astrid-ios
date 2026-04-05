@@ -226,18 +226,26 @@ struct ChatMessageBubble: View {
 
     private var initialsAvatar: some View {
         ZStack {
-            Circle()
-                .fill(message.isFromAgent ? Color.purple.opacity(0.2) : Theme.accent.opacity(0.2))
-                .frame(width: 32, height: 32)
-
-            if message.isFromAgent {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14))
-                    .foregroundColor(.purple)
+            if let brandAsset = message.author?.agentBrandImageAsset {
+                Image(brandAsset)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
             } else {
-                Text(message.author?.initials ?? "?")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Theme.accent)
+                Circle()
+                    .fill(message.isFromAgent ? Color.purple.opacity(0.2) : Theme.accent.opacity(0.2))
+                    .frame(width: 32, height: 32)
+
+                if message.isFromAgent {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                        .foregroundColor(.purple)
+                } else {
+                    Text(message.author?.initials ?? "?")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.accent)
+                }
             }
         }
     }

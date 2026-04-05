@@ -135,7 +135,7 @@ struct UserProfileView: View {
 
     private var settingsCard: some View {
         VStack(spacing: 0) {
-            NavigationLink(destination: SettingsView().environmentObject(authManager)) {
+            NavigationLink(destination: LazyView { SettingsView().environmentObject(authManager) }) {
                 HStack(spacing: Theme.spacing12) {
                     Image(systemName: "gearshape")
                         .font(Theme.Typography.body())
@@ -149,8 +149,12 @@ struct UserProfileView: View {
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
                 .padding(Theme.spacing16)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            })
         }
         .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
         .cornerRadius(Theme.radiusLarge)
@@ -421,28 +425,59 @@ class UserProfileViewModel: ObservableObject {
             profile = response
             print("[UserProfileViewModel] Profile loaded successfully")
         } catch {
-            hasLoaded = false // Allow retry on error
-            if let apiError = error as? APIError {
-                switch apiError {
-                case .httpError(let statusCode, _):
-                    if statusCode == 404 {
-                        self.error = NSLocalizedString("profile.error_not_found", comment: "User not found")
-                    } else if statusCode == 401 {
-                        // For local users, provide a friendlier message
-                        self.error = NSLocalizedString("profile.error_not_signed_in", comment: "Sign in to view your profile")
-                    } else {
-                        self.error = NSLocalizedString("profile.error_load_failed", comment: "Failed to load user profile")
+            // For the current user, fall back to locally cached auth data
+            if let localProfile = buildOfflineProfile() {
+                profile = localProfile
+                print("[UserProfileViewModel] Using offline profile from local auth data")
+            } else {
+                hasLoaded = false // Allow retry on error
+                if let apiError = error as? APIError {
+                    switch apiError {
+                    case .httpError(let statusCode, _):
+                        if statusCode == 404 {
+                            self.error = NSLocalizedString("profile.error_not_found", comment: "User not found")
+                        } else if statusCode == 401 {
+                            // For local users, provide a friendlier message
+                            self.error = NSLocalizedString("profile.error_not_signed_in", comment: "Sign in to view your profile")
+                        } else {
+                            self.error = NSLocalizedString("profile.error_load_failed", comment: "Failed to load user profile")
+                        }
+                    default:
+                        self.error = "Failed to load user profile"
                     }
-                default:
+                } else {
                     self.error = "Failed to load user profile"
                 }
-            } else {
-                self.error = "Failed to load user profile"
+                print("[UserProfileViewModel] Load failed: \(self.error ?? "unknown")")
             }
-            print("[UserProfileViewModel] Load failed: \(self.error ?? "unknown")")
         }
 
         isLoading = false
+    }
+
+    /// Build a profile from local auth data when offline (current user only)
+    private func buildOfflineProfile() -> UserProfileResponse? {
+        guard let currentUser = AuthManager.shared.currentUser,
+              currentUser.id == userId else {
+            return nil
+        }
+
+        let profileData = UserProfileData(
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email ?? "",
+            image: currentUser.image,
+            createdAt: currentUser.createdAt ?? Date(),
+            isAIAgent: false,
+            aiAgentType: nil
+        )
+
+        return UserProfileResponse(
+            user: profileData,
+            stats: UserStats(completed: 0, inspired: 0, supported: 0),
+            sharedTasks: [],
+            isOwnProfile: true
+        )
     }
 }
 

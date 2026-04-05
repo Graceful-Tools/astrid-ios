@@ -479,6 +479,8 @@
 "lists.next_month" = "下个月";
 "lists.none" = "无";
 "lists.delete_confirm" = "您确定要删除此列表吗？此操作无法撤销。";
+"lists.leave_list" = "离开列表";
+"lists.leave_confirm" = "您确定要离开此列表吗？您需要重新被邀请才能重新加入。";
 "messages.danger_zone" = "危险区域";
 "settings.account.no_name" = "未设置名称";
 "settings.account.unknown" = "未知";

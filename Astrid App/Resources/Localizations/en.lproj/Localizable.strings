@@ -234,6 +234,8 @@
 "lists.next_month" = "Next Month";
 "lists.none" = "None";
 "lists.delete_confirm" = "Are you sure you want to delete this list? This action cannot be undone.";
+"lists.leave_list" = "Leave List";
+"lists.leave_confirm" = "Are you sure you want to leave this list? You will need to be re-invited to rejoin.";
 
 /* Priority */
 "priority.none" = "None";
