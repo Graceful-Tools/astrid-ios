@@ -45,6 +45,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "claude": return "ai-claude"
         case "openai": return "ai-openai"
         case "gemini": return "ai-gemini"
+        case "openclaw": return "ai-openclaw"
         default: return nil
         }
     }

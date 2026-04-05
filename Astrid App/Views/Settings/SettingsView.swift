@@ -94,8 +94,11 @@ struct SettingsView: View {
 
                     NavigationLink(destination: OpenClawSettingsView()) {
                         HStack {
-                            Image(systemName: "network")
-                                .foregroundColor(.red)
+                            Image("ai-openclaw")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 24, height: 24)
+                                .clipShape(Circle())
                             Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                         }
                     }

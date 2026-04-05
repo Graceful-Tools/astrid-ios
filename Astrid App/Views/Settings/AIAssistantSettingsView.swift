@@ -54,8 +54,11 @@ struct AIAssistantSettingsView: View {
 
                 NavigationLink(destination: OpenClawSettingsView()) {
                     HStack {
-                        Image(systemName: "network")
-                            .foregroundColor(.red)
+                        Image("ai-openclaw")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
+                            .clipShape(Circle())
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                                 .font(Theme.Typography.body())
