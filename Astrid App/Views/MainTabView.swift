@@ -12,6 +12,7 @@ struct MainTabView: View {
     @State private var searchText = ""  // Search text shared between sidebar and task list
     @State private var showSidebar = false
     @State private var dragOffset: CGFloat = 0
+    @State private var isShowingTaskDetail = false  // Track if task detail is pushed
     @State private var shouldScrollSidebarToTop = false  // Flag to control sidebar scroll behavior
     @State private var hasScrolledDuringDrag = false  // Track if we've scrolled during current drag
 
@@ -68,7 +69,22 @@ struct MainTabView: View {
         // NOTE: .withTaskPresentation() is now applied inside each NavigationStack
         // in TaskListView to avoid "A navigationDestination was declared outside of
         // any NavigationStack" warning
-        .withSettingsPresentation()
+        .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+            // Navigate to settings in the main content area
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                showSidebar = false
+            }
+            selectedListId = "settings"
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .closeSettings)) { _ in
+            selectedListId = "my-tasks"
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .taskDetailDidAppear)) { _ in
+            isShowingTaskDetail = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .taskDetailDidDisappear)) { _ in
+            isShowingTaskDetail = false
+        }
         .onChange(of: listPresenter.listIdToShow) { _, newListId in
             // Handle programmatic list navigation from ListPresenter
             if let listId = newListId {
@@ -156,27 +172,32 @@ struct MainTabView: View {
 
             // Main content - slides to the right to reveal sidebar underneath
             NavigationStack {
-                TaskListView(
-                    selectedListId: $selectedListId,
-                    isViewingFromFeatured: $isViewingFromFeatured,
-                    featuredList: $featuredList,
-                    searchText: $searchText,
-                    onMenuTap: {
-                        // Dismiss keyboard first (important: must happen before sidebar animation)
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                if selectedListId == "settings" {
+                    SettingsView()
+                        .environmentObject(authManager)
+                } else {
+                    TaskListView(
+                        selectedListId: $selectedListId,
+                        isViewingFromFeatured: $isViewingFromFeatured,
+                        featuredList: $featuredList,
+                        searchText: $searchText,
+                        onMenuTap: {
+                            // Dismiss keyboard first (important: must happen before sidebar animation)
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
-                        // Open sidebar
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                            showSidebar = true
-                        }
+                            // Open sidebar
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showSidebar = true
+                            }
 
-                        // Haptic feedback when sidebar finishes opening (after animation completes)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
+                            // Haptic feedback when sidebar finishes opening (after animation completes)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                impact.impactOccurred()
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
             .frame(width: UIScreen.main.bounds.width)
             .offset(x: showSidebar ? UIScreen.main.bounds.width * 0.85 + dragOffset : dragOffset)
@@ -185,9 +206,10 @@ struct MainTabView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))  // Fade out as sidebar opens
             .saturation(1.0 - (0.5 * sidebarProgress))  // Desaturate as sidebar opens
             .allowsHitTesting(sidebarProgress < 0.95) // Disable task interactions when sidebar is nearly/fully open
-            .simultaneousGesture(
-                // Edge swipe from left to open sidebar
-                DragGesture(minimumDistance: 20)
+            .gesture(
+                // Edge swipe from left to open sidebar — disabled when task detail is pushed
+                // so the system navigation back gesture can work
+                isShowingTaskDetail ? nil : DragGesture(minimumDistance: 20)
                     .onChanged { value in
                         // When closed, allow drag from left edge to right (to open)
                         if !showSidebar {

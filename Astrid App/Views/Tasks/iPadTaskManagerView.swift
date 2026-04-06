@@ -134,28 +134,31 @@ struct iPadTaskManagerView: View {
 
             Divider()
 
-            // Middle: Task List (37% when detail/chat shown, 72% when neither)
-            // No onMenuTap - hamburger button does nothing in landscape since sidebar is always visible
-            iPadTaskListView(
-                selectedListId: $selectedListId,
-                isViewingFromFeatured: $isViewingFromFeatured,
-                featuredList: $featuredList,
-                searchText: $searchText,
-                selectedTask: $selectedTask,
-                onMenuTap: nil  // Sidebar always visible in landscape
-            )
-            .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
+            // Middle: Task List or Settings (37% when detail/chat shown, 72% when neither)
+            if selectedListId == "settings" {
+                NavigationStack {
+                    SettingsView()
+                        .environmentObject(authManager)
+                }
+                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
+            } else {
+                // No onMenuTap - hamburger button does nothing in landscape since sidebar is always visible
+                iPadTaskListView(
+                    selectedListId: $selectedListId,
+                    isViewingFromFeatured: $isViewingFromFeatured,
+                    featuredList: $featuredList,
+                    searchText: $searchText,
+                    selectedTask: $selectedTask,
+                    onMenuTap: nil  // Sidebar always visible in landscape
+                )
+                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
+            }
 
             // Right panel: Task Detail or Chat (35%)
             if selectedTask != nil {
                 Divider()
 
                 VStack(spacing: 0) {
-                    // Panel toggle: Detail / Chat
-                    if selectedListId != nil && !isViewingFromFeatured {
-                        iPadPanelToggle
-                    }
-
                     if showChatPanel, let listId = selectedListId {
                         ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
                     } else {
@@ -167,11 +170,8 @@ struct iPadTaskManagerView: View {
                 // Show chat panel even with no task selected
                 Divider()
 
-                VStack(spacing: 0) {
-                    iPadPanelToggle
-                    ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
-                }
-                .frame(width: width * 0.35)
+                ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                    .frame(width: width * 0.35)
             }
         }
     }
@@ -225,27 +225,35 @@ struct iPadTaskManagerView: View {
 
             // Main content - slides right to reveal sidebar
             HStack(spacing: 0) {
-                // Task List
-                iPadTaskListView(
-                    selectedListId: $selectedListId,
-                    isViewingFromFeatured: $isViewingFromFeatured,
-                    featuredList: $featuredList,
-                    searchText: $searchText,
-                    selectedTask: $selectedTask,
-                    onMenuTap: {
-                        // Dismiss keyboard first
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        // Open sidebar
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                            showingSidebar = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
-                        }
+                // Task List or Settings
+                if selectedListId == "settings" {
+                    NavigationStack {
+                        SettingsView()
+                            .environmentObject(authManager)
                     }
-                )
-                .frame(width: selectedTask != nil ? width * 0.40 : width)
+                    .frame(width: selectedTask != nil ? width * 0.40 : width)
+                } else {
+                    iPadTaskListView(
+                        selectedListId: $selectedListId,
+                        isViewingFromFeatured: $isViewingFromFeatured,
+                        featuredList: $featuredList,
+                        searchText: $searchText,
+                        selectedTask: $selectedTask,
+                        onMenuTap: {
+                            // Dismiss keyboard first
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            // Open sidebar
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showingSidebar = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                impact.impactOccurred()
+                            }
+                        }
+                    )
+                    .frame(width: selectedTask != nil ? width * 0.40 : width)
+                }
 
                 // Task Detail Panel - animates with task list
                 if selectedTask != nil {
@@ -372,32 +380,6 @@ struct iPadTaskManagerView: View {
 
 
     // MARK: - iPad Panel Toggle (Detail / Chat)
-
-    private var iPadPanelToggle: some View {
-        HStack {
-            Text(showChatPanel ? "Chat" : "Details")
-                .font(Theme.Typography.caption1())
-                .fontWeight(.semibold)
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-
-            Spacer()
-
-            // Toggle button — shows opposite mode's icon
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showChatPanel.toggle()
-                }
-            } label: {
-                Image(systemName: showChatPanel ? "doc.text" : "bubble.left.and.bubble.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, Theme.spacing12)
-        .padding(.vertical, Theme.spacing8)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-    }
 
     // MARK: - Helper Methods
 

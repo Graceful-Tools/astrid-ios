@@ -21,7 +21,9 @@ struct SettingsView: View {
 
             VStack(spacing: 0) {
                 // Floating header
-                FloatingTextHeader(NSLocalizedString("settings", comment: ""), icon: "gearshape", showBackButton: true)
+                FloatingTextHeader(NSLocalizedString("settings", comment: ""), icon: "gearshape", showBackButton: true, onBack: {
+                    NotificationCenter.default.post(name: .closeSettings, object: nil)
+                })
                     .padding(.top, Theme.spacing8)
 
                 // Content — defer heavy sections until after navigation animation

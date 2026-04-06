@@ -162,4 +162,8 @@ extension Notification.Name {
     static let commentDidSync = Notification.Name("commentDidSync")
     static let attachmentUploadCompleted = Notification.Name("attachmentUploadCompleted")
     static let attachmentUpdated = Notification.Name("attachmentUpdated")
+    static let openSettings = Notification.Name("openSettings")
+    static let closeSettings = Notification.Name("closeSettings")
+    static let taskDetailDidAppear = Notification.Name("taskDetailDidAppear")
+    static let taskDetailDidDisappear = Notification.Name("taskDetailDidDisappear")
 }

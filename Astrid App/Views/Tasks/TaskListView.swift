@@ -530,6 +530,12 @@ struct TaskListView: View {
             .navigationTitle("")
             .navigationDestination(item: $taskToNavigateTo) { task in
                 getTaskDetailView(for: task)
+                    .onAppear {
+                        NotificationCenter.default.post(name: .taskDetailDidAppear, object: nil)
+                    }
+                    .onDisappear {
+                        NotificationCenter.default.post(name: .taskDetailDidDisappear, object: nil)
+                    }
             }
             .withTaskPresentation()  // Handle global TaskPresenter navigation
             .navigationBarTitleDisplayMode(.inline)

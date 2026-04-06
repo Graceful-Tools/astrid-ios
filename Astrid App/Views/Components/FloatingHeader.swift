@@ -60,12 +60,14 @@ struct FloatingTextHeader: View {
     let icon: String?
     let iconColor: Color?
     let showBackButton: Bool
+    let onBack: (() -> Void)?
 
-    init(_ text: String, icon: String? = nil, iconColor: Color? = nil, showBackButton: Bool = false) {
+    init(_ text: String, icon: String? = nil, iconColor: Color? = nil, showBackButton: Bool = false, onBack: (() -> Void)? = nil) {
         self.text = text
         self.icon = icon
         self.iconColor = iconColor
         self.showBackButton = showBackButton
+        self.onBack = onBack
     }
 
     /// Effective theme - Auto resolves to Light or Dark based on system setting
@@ -97,7 +99,7 @@ struct FloatingTextHeader: View {
             HStack(spacing: Theme.spacing8) {
                 // Back button (leading)
                 if showBackButton {
-                    Button(action: { dismiss() }) {
+                    Button(action: { onBack?() ?? dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(Theme.Typography.headline())
                             .foregroundColor(textColor)

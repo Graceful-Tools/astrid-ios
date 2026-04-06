@@ -120,42 +120,56 @@ struct ListSidebarView: View {
 
     private var userProfileSection: some View {
         Section {
-            ZStack(alignment: .leading) {
-                // Navigate to SignInPromptView for local users, UserProfileView for signed-in users
-                if authManager.isLocalOnlyMode {
-                    NavigationLink(destination: SignInPromptView().environmentObject(authManager)) {
-                        EmptyView()
-                    }
-                    .opacity(0)
-                } else if let userId = authManager.currentUser?.id {
-                    NavigationLink(destination: UserProfileView(userId: userId).environmentObject(authManager)) {
-                        EmptyView()
-                    }
-                    .opacity(0)
-                }
-
-                HStack(spacing: Theme.spacing12) {
-                    // Avatar - Show person.circle for local users
+            HStack(spacing: Theme.spacing12) {
+                // Profile tap area (avatar + name)
+                ZStack(alignment: .leading) {
                     if authManager.isLocalOnlyMode {
-                        // Local user: person outline icon with accent color
-                        Circle()
-                            .fill(Theme.accent.opacity(0.15))
-                            .frame(width: 40, height: 40)
-                            .overlay {
-                                Image(systemName: "person.crop.circle.badge.plus")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(Theme.accent)
+                        NavigationLink(destination: SignInPromptView().environmentObject(authManager)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    } else if let userId = authManager.currentUser?.id {
+                        NavigationLink(destination: UserProfileView(userId: userId).environmentObject(authManager)) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    }
+
+                    HStack(spacing: Theme.spacing12) {
+                        // Avatar
+                        if authManager.isLocalOnlyMode {
+                            Circle()
+                                .fill(Theme.accent.opacity(0.15))
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Image(systemName: "person.crop.circle.badge.plus")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(Theme.accent)
+                                }
+                        } else if let user = authManager.currentUser,
+                           let imageUrl = user.image,
+                           let url = URL(string: imageUrl) {
+                            CachedAsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                Circle()
+                                    .fill(Theme.accent)
+                                    .overlay {
+                                        if let user = authManager.currentUser {
+                                            Text(user.initials)
+                                                .foregroundColor(.white)
+                                                .font(Theme.Typography.body())
+                                        }
+                                    }
                             }
-                    } else if let user = authManager.currentUser,
-                       let imageUrl = user.image,
-                       let url = URL(string: imageUrl) {
-                        CachedAsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                        } else {
                             Circle()
                                 .fill(Theme.accent)
+                                .frame(width: 40, height: 40)
                                 .overlay {
                                     if let user = authManager.currentUser {
                                         Text(user.initials)
@@ -164,48 +178,43 @@ struct ListSidebarView: View {
                                     }
                                 }
                         }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Theme.accent)
-                            .frame(width: 40, height: 40)
-                            .overlay {
-                                if let user = authManager.currentUser {
-                                    Text(user.initials)
-                                        .foregroundColor(.white)
-                                        .font(Theme.Typography.body())
-                                }
-                            }
-                    }
 
-                    // User info - Show sign-in CTA for local users
-                    VStack(alignment: .leading, spacing: 2) {
-                        if authManager.isLocalOnlyMode {
-                            Text(NSLocalizedString("auth.sign_in_short", comment: "Sign In"))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(Theme.accent)
-                            Text(NSLocalizedString("profile.sign_in_to_sync", comment: "Sign in to sync"))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        } else if let user = authManager.currentUser {
-                            Text(user.displayName)
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text(user.email ?? NSLocalizedString("profile.no_email", comment: ""))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        // User info
+                        VStack(alignment: .leading, spacing: 2) {
+                            if authManager.isLocalOnlyMode {
+                                Text(NSLocalizedString("auth.sign_in_short", comment: "Sign In"))
+                                    .font(Theme.Typography.body())
+                                    .foregroundColor(Theme.accent)
+                                Text(NSLocalizedString("profile.sign_in_to_sync", comment: "Sign in to sync"))
+                                    .font(Theme.Typography.caption1())
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            } else if let user = authManager.currentUser {
+                                Text(user.displayName)
+                                    .font(Theme.Typography.body())
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                Text(user.email ?? NSLocalizedString("profile.no_email", comment: ""))
+                                    .font(Theme.Typography.caption1())
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            }
                         }
                     }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(Theme.Typography.caption1().weight(.medium))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
+
+                Spacer()
+
+                // Settings gear button
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18))
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .padding(Theme.spacing8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 

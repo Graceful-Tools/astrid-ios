@@ -120,44 +120,10 @@ struct UserProfileView: View {
                     if !profile.sharedTasks.isEmpty {
                         sharedTasksSection(tasks: profile.sharedTasks, isOwnProfile: profile.isOwnProfile, user: profile.user)
                     }
-
-                    // Settings — only on own profile
-                    if profile.isOwnProfile {
-                        settingsCard
-                    }
                 }
                 .padding(Theme.spacing16)
             }
         }
-    }
-
-    // MARK: - Settings Card
-
-    private var settingsCard: some View {
-        VStack(spacing: 0) {
-            NavigationLink(destination: LazyView { SettingsView().environmentObject(authManager) }) {
-                HStack(spacing: Theme.spacing12) {
-                    Image(systemName: "gearshape")
-                        .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                    Text(NSLocalizedString("settings", comment: ""))
-                        .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(Theme.Typography.caption1().weight(.medium))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                }
-                .padding(Theme.spacing16)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .simultaneousGesture(TapGesture().onEnded {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            })
-        }
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-        .cornerRadius(Theme.radiusLarge)
     }
 
     // MARK: - User Info Card

@@ -103,29 +103,33 @@ struct TaskDetailViewNew: View {
     }
 
     var body: some View {
-        mainContent
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarHidden(UIDevice.current.userInterfaceIdiom == .pad)
-            .toolbarBackground(toolbarBackgroundColor, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar {
-                // Tappable title in center - tap to scroll to top (iPhone only)
-                if UIDevice.current.userInterfaceIdiom != .pad {
-                    ToolbarItem(placement: .principal) {
-                        Button {
-                            scrollToTopAction?()
-                        } label: {
-                            Text(NSLocalizedString("tasks.task_details", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        }
-                        .buttonStyle(.plain)
+        VStack(spacing: 0) {
+            // Custom header — avoids iOS 26 glass toolbar bubbles
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                     }
-                }
+                    .buttonStyle(.plain)
 
-                // More menu with Copy, Share, Delete actions (hide for read-only)
-                if !isReadOnly {
-                    ToolbarItem(placement: .primaryAction) {
+                    Spacer()
+
+                    Button {
+                        scrollToTopAction?()
+                    } label: {
+                        Text(NSLocalizedString("tasks.task_details", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    if !isReadOnly {
                         Menu {
                             Button {
                                 showingCopySheet = true
@@ -147,12 +151,30 @@ struct TaskDetailViewNew: View {
                                 Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis.circle")
+                            Image(systemName: "ellipsis")
                                 .font(.system(size: 20))
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                         }
+                        .buttonStyle(.plain)
+                    } else {
+                        // Spacer to balance the back button
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                            .opacity(0)
                     }
                 }
+                .padding(.horizontal, Theme.spacing16)
+                .padding(.vertical, Theme.spacing12)
+                .background(toolbarBackgroundColor)
             }
+
+            mainContent
+        }
+        .navigationBarBackButtonHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .enableInteractivePopGesture()
+        .swipeToDismiss()
             .sheet(isPresented: $showingCopySheet) {
                 CopyTaskView(task: task, currentListId: task.listIds?.first ?? task.lists?.first?.id)
             }
