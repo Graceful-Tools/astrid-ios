@@ -527,6 +527,18 @@ struct TaskListView: View {
                     }
                 }
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        let isHorizontal = value.translation.width > abs(value.translation.height)
+                        let isRight = value.translation.width > 0
+                        let meetsThreshold = value.translation.width > 80
+                            || value.predictedEndTranslation.width > 200
+                        if isHorizontal && isRight && meetsThreshold {
+                            onMenuTap?()
+                        }
+                    }
+            )
             .navigationTitle("")
             .navigationDestination(item: $taskToNavigateTo) { task in
                 getTaskDetailView(for: task)

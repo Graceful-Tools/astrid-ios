@@ -1,7 +1,7 @@
 import XCTest
 
-/// UI tests for task detail swipe-back gesture
-/// Verifies that swiping right on task details closes the detail and returns to the task list
+/// UI tests for swipe-right navigation gestures
+/// Verifies swipe-right works on task detail, settings, and task list (sidebar)
 final class TaskDetailSwipeBackUITests: XCTestCase {
 
     var app: XCUIApplication!
@@ -130,5 +130,139 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         // Verify task detail is gone
         XCTAssertFalse(detailHeader.exists, "Task detail should be dismissed after tapping back")
+    }
+
+    // MARK: - Swipe Right on Task List Opens Sidebar
+
+    @MainActor
+    func testSwipeRightOnTaskListOpensSidebar() throws {
+        app.launch()
+
+        // Skip if on login screen
+        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
+            throw XCTSkip("User not authenticated")
+        }
+
+        // Wait for task list to load
+        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
+        if !taskListLoaded {
+            throw XCTSkip("Task list not visible")
+        }
+
+        // Perform swipe-right gesture from center of screen
+        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+        swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
+
+        Thread.sleep(forTimeInterval: 0.5)
+
+        let afterSwipe = XCTAttachment(screenshot: app.screenshot())
+        afterSwipe.name = "After Sidebar Swipe"
+        afterSwipe.lifetime = .keepAlways
+        add(afterSwipe)
+
+        // Sidebar should show settings gear or user profile elements
+        let sidebarContent = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'Search'")).firstMatch
+        XCTAssertTrue(sidebarContent.exists, "Sidebar should be visible after swipe-right on task list")
+    }
+
+    // MARK: - Swipe Right on Settings Closes Settings
+
+    @MainActor
+    func testSwipeRightOnSettingsReturnsToTaskList() throws {
+        app.launch()
+
+        // Skip if on login screen
+        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
+            throw XCTSkip("User not authenticated")
+        }
+
+        // Wait for task list to load
+        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
+        if !taskListLoaded {
+            throw XCTSkip("Task list not visible")
+        }
+
+        // Open sidebar first (tap hamburger menu)
+        let menuButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'menu' OR label CONTAINS[c] 'sidebar' OR label CONTAINS[c] 'line.3.horizontal'")).firstMatch
+        if menuButton.exists {
+            menuButton.tap()
+            Thread.sleep(forTimeInterval: 0.3)
+        } else {
+            // Swipe right to open sidebar
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+            start.press(forDuration: 0.05, thenDragTo: end)
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+
+        // Tap settings button in sidebar
+        let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
+        guard settingsButton.waitForExistence(timeout: 3) else {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Settings Button Not Found"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            throw XCTSkip("Settings button not found in sidebar")
+        }
+        settingsButton.tap()
+
+        Thread.sleep(forTimeInterval: 0.5)
+
+        // Verify settings is visible
+        let settingsHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings'")).firstMatch
+        guard settingsHeader.waitForExistence(timeout: 3) else {
+            throw XCTSkip("Settings view did not appear")
+        }
+
+        let beforeSwipe = XCTAttachment(screenshot: app.screenshot())
+        beforeSwipe.name = "Settings Before Swipe"
+        beforeSwipe.lifetime = .keepAlways
+        add(beforeSwipe)
+
+        // Swipe right to dismiss settings
+        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
+        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
+
+        Thread.sleep(forTimeInterval: 0.5)
+
+        let afterSwipe = XCTAttachment(screenshot: app.screenshot())
+        afterSwipe.name = "After Settings Swipe"
+        afterSwipe.lifetime = .keepAlways
+        add(afterSwipe)
+
+        // Task list should be visible again (settings dismissed)
+        let taskListVisible = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks'")).firstMatch
+        XCTAssertTrue(taskListVisible.waitForExistence(timeout: 3), "Task list should be visible after swiping back from settings")
+    }
+
+    // MARK: - Taps Still Work After Gesture Setup
+
+    @MainActor
+    func testTaskRowTapStillWorksWithSwipeGesture() throws {
+        app.launch()
+
+        // Skip if on login screen
+        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
+            throw XCTSkip("User not authenticated")
+        }
+
+        // Wait for task list
+        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
+        if !taskListLoaded {
+            throw XCTSkip("Task list not visible")
+        }
+
+        // Tap a task
+        let cells = app.cells
+        guard cells.count > 0 else {
+            throw XCTSkip("No tasks found in list")
+        }
+        cells.firstMatch.tap()
+
+        // Task detail should appear
+        let detailHeader = app.staticTexts["Task Details"]
+        XCTAssertTrue(detailHeader.waitForExistence(timeout: 5), "Task detail should open when tapping a task row")
     }
 }

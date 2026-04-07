@@ -206,43 +206,6 @@ struct MainTabView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))  // Fade out as sidebar opens
             .saturation(1.0 - (0.5 * sidebarProgress))  // Desaturate as sidebar opens
             .allowsHitTesting(sidebarProgress < 0.95) // Disable task interactions when sidebar is nearly/fully open
-            .gesture(
-                // Edge swipe from left to open sidebar — disabled when task detail is pushed
-                // so the system navigation back gesture can work
-                isShowingTaskDetail ? nil : DragGesture(minimumDistance: 20)
-                    .onChanged { value in
-                        // When closed, allow drag from left edge to right (to open)
-                        if !showSidebar {
-                            let isNearLeftEdge = value.startLocation.x < 50
-                            if isNearLeftEdge && value.translation.width > 0 {
-                                dragOffset = value.translation.width
-                            }
-                        }
-                    }
-                    .onEnded { value in
-                        if !showSidebar {
-                            // If dragged right from edge more than 100 points, open
-                            let isNearLeftEdge = value.startLocation.x < 50
-                            if isNearLeftEdge && (value.translation.width > 100 || value.predictedEndTranslation.width > 200) {
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                    showSidebar = true
-                                    dragOffset = 0
-                                }
-
-                                // Haptic feedback when sidebar finishes opening
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    let impact = UIImpactFeedbackGenerator(style: .light)
-                                    impact.impactOccurred()
-                                }
-                            } else {
-                                // Snap back to closed position
-                                withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
-                                    dragOffset = 0
-                                }
-                            }
-                        }
-                    }
-            )
 
             // Overlay with FIXED 85/15 split - left passes through, right captures gestures
             if showSidebar {

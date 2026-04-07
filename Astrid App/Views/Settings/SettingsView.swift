@@ -251,7 +251,9 @@ struct SettingsView: View {
             }
         }
         .navigationBarHidden(true)
-        .swipeToDismiss()
+        .swipeToDismiss {
+            NotificationCenter.default.post(name: .closeSettings, object: nil)
+        }
         .alert(NSLocalizedString("sign_out", comment: ""), isPresented: $showingSignOutAlert) {
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }
             Button(NSLocalizedString("sign_out", comment: ""), role: .destructive) {

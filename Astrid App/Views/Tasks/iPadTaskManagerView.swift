@@ -268,37 +268,6 @@ struct iPadTaskManagerView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))
             .saturation(1.0 - (0.5 * sidebarProgress))
             .allowsHitTesting(sidebarProgress < 0.95)
-            .simultaneousGesture(
-                // Edge swipe from left to open sidebar
-                DragGesture(minimumDistance: 20)
-                    .onChanged { value in
-                        if !showingSidebar {
-                            let isNearLeftEdge = value.startLocation.x < 50
-                            if isNearLeftEdge && value.translation.width > 0 {
-                                dragOffset = value.translation.width
-                            }
-                        }
-                    }
-                    .onEnded { value in
-                        if !showingSidebar {
-                            let isNearLeftEdge = value.startLocation.x < 50
-                            if isNearLeftEdge && (value.translation.width > 100 || value.predictedEndTranslation.width > 200) {
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                    showingSidebar = true
-                                    dragOffset = 0
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    let impact = UIImpactFeedbackGenerator(style: .light)
-                                    impact.impactOccurred()
-                                }
-                            } else {
-                                withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
-                                    dragOffset = 0
-                                }
-                            }
-                        }
-                    }
-            )
 
             // Overlay to capture taps/drags when sidebar is open
             if showingSidebar {

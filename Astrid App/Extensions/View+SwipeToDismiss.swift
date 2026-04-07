@@ -4,6 +4,7 @@ import SwiftUI
 /// Works from anywhere on the screen, not just the edge
 struct SwipeToDismissModifier: ViewModifier {
     @Environment(\.dismiss) private var dismiss
+    var customAction: (() -> Void)?
 
     // Thresholds for dismissal
     private let dismissThreshold: CGFloat = 50
@@ -25,7 +26,11 @@ struct SwipeToDismissModifier: ViewModifier {
 
                         // Dismiss if threshold reached or velocity is high enough
                         if horizontalAmount > dismissThreshold || velocity > velocityThreshold {
-                            dismiss()
+                            if let customAction {
+                                customAction()
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
             )
@@ -36,5 +41,10 @@ extension View {
     /// Adds a responsive swipe-to-dismiss gesture that works from anywhere on the screen
     func swipeToDismiss() -> some View {
         modifier(SwipeToDismissModifier())
+    }
+
+    /// Adds a responsive swipe-to-dismiss gesture with a custom action instead of dismiss()
+    func swipeToDismiss(action: @escaping () -> Void) -> some View {
+        modifier(SwipeToDismissModifier(customAction: action))
     }
 }
