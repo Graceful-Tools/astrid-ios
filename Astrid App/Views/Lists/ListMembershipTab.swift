@@ -802,9 +802,16 @@ struct ListMembershipTab: View {
             if let idx { ListService.shared.lists[idx] = cachedList }
         }
 
-        // Note: No server-side cancel invitation API yet.
-        // Local removal persists via removedMemberEmails until next fresh sync.
-        print("✅ [ListMembershipTab] Invitation hidden locally (no server cancel API yet)")
+        // Cancel the invitation via API
+        _Concurrency.Task {
+            do {
+                _ = try await apiClient.cancelInvitation(listId: list.id, email: email)
+                print("✅ [ListMembershipTab] Invitation cancelled for \(email)")
+            } catch {
+                print("⚠️ [ListMembershipTab] Cancel invitation failed: \(error.localizedDescription)")
+                // Keep the local removal — user doesn't need to see the error
+            }
+        }
     }
 
     // MARK: - AI Agents Functions

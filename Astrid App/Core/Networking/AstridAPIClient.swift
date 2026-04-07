@@ -666,6 +666,18 @@ class AstridAPIClient {
         )
     }
 
+    /// Cancel a pending invitation
+    func cancelInvitation(listId: String, email: String) async throws -> DeleteResponse {
+        struct CancelInvitationRequest: Codable {
+            let email: String
+        }
+        return try await request(
+            method: "DELETE",
+            path: "/api/v1/lists/\(listId)/invitations",
+            body: CancelInvitationRequest(email: email)
+        )
+    }
+
     // MARK: - Public Lists
 
     /// Get public lists
@@ -1175,6 +1187,7 @@ struct ListMemberData: Codable {
     let role: String
     let isOwner: Bool
     let isAdmin: Bool
+    let type: String?  // "member" or "invite" — invite entries have id prefixed with "invite_"
 }
 
 struct AddMemberResponse: Codable {

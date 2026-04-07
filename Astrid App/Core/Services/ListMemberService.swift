@@ -86,9 +86,10 @@ class ListMemberService: ObservableObject {
             print("📡 [ListMemberService] Fetching members for list: \(listId)")
             let response = try await apiClient.getListMembers(listId: listId)
 
-            // Convert to User objects (legacy format), deduplicate by ID
+            // Filter out invite-type entries and deduplicate by ID
+            let activeMembers = response.members.filter { $0.type != "invite" }
             var seenIds = Set<String>()
-            members = response.members.compactMap { memberData -> User? in
+            members = activeMembers.compactMap { memberData -> User? in
                 guard seenIds.insert(memberData.id).inserted else {
                     print("⚠️ [ListMemberService] Skipping duplicate member: \(memberData.name ?? "unknown") (id: \(memberData.id))")
                     return nil
@@ -101,6 +102,10 @@ class ListMemberService: ObservableObject {
                 )
             }
             print("👥 [ListMemberService] Members: \(members.map { "\($0.displayName) (id: \($0.id), email: \($0.email ?? "nil"))" })")
+            let inviteCount = response.members.filter { $0.type == "invite" }.count
+            if inviteCount > 0 {
+                print("📨 [ListMemberService] Filtered out \(inviteCount) pending invitations")
+            }
 
             // Convert to ListMember objects (new format)
             let listMembers = response.members.map { memberData in
