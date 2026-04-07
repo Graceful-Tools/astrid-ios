@@ -1187,7 +1187,7 @@ struct ListMemberData: Codable {
     let role: String
     let isOwner: Bool
     let isAdmin: Bool
-    let type: String?  // "member" or "invite" — invite entries have id prefixed with "invite_"
+    var type: String? = nil  // "member" or "invite" — invite entries have id prefixed with "invite_"
 }
 
 struct AddMemberResponse: Codable {
