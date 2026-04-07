@@ -139,6 +139,16 @@ struct ListMembershipTab: View {
         Form {
             // Members Section
             Section(NSLocalizedString("lists.members", comment: "")) {
+                // Debug: log member data sources
+                let _ = {
+                    print("👥 [ListMembershipTab] Rendering members for list: \(list.id)")
+                    print("  Owner: \(list.owner?.displayName ?? "nil") (id: \(list.owner?.id ?? "nil"))")
+                    print("  admins: \(list.admins?.map { "\($0.displayName) (id: \($0.id))" } ?? ["nil"])")
+                    print("  members: \(list.members?.map { "\($0.displayName) (id: \($0.id))" } ?? ["nil"])")
+                    print("  listMembers: \(list.listMembers?.map { "userId: \($0.userId), role: \($0.role), user: \($0.user?.displayName ?? "nil")" } ?? ["nil"])")
+                    print("  removedEmails: \(removedMemberEmails)")
+                    print("  canEditSettings: \(canEditSettings)")
+                }()
                 // Owner
                 if let owner = list.owner {
                     ZStack(alignment: .leading) {
@@ -182,8 +192,8 @@ struct ListMembershipTab: View {
                     }
                 }
 
-                // Admins (exclude owner to prevent duplicate display)
-                if let admins = list.admins, !admins.isEmpty {
+                // Admins (exclude owner; skip if listMembers is populated to avoid duplicates)
+                if let admins = list.admins, !admins.isEmpty, (list.listMembers ?? []).isEmpty {
                     ForEach(admins.filter { $0.id != list.owner?.id }) { admin in
                         ZStack(alignment: .leading) {
                             NavigationLink(destination: UserProfileView(userId: admin.id)) {
@@ -258,8 +268,8 @@ struct ListMembershipTab: View {
                     }
                 }
 
-                // Regular Members (from legacy members array)
-                if let members = list.members, !members.isEmpty {
+                // Regular Members (from legacy members array; skip if listMembers is populated)
+                if let members = list.members, !members.isEmpty, (list.listMembers ?? []).isEmpty {
                     ForEach(members) { member in
                         ZStack(alignment: .leading) {
                             NavigationLink(destination: UserProfileView(userId: member.id)) {
@@ -736,6 +746,7 @@ struct ListMembershipTab: View {
     }
 
     private func removeMember(userId: String, email: String) {
+        print("🗑️ [ListMembershipTab] Removing member: userId=\(userId), email=\(email)")
         // Track removal so UI stays correct even if stale data flows in
         if !email.isEmpty {
             removedMemberEmails.insert(email)
@@ -747,6 +758,10 @@ struct ListMembershipTab: View {
         updatedList.members?.removeAll { $0.id == userId }
         updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
         onUpdate(updatedList)
+
+        // Also update cached list so change persists across view dismissals
+        let originalList = list
+        ListService.shared.removeMemberFromCachedList(listId: list.id, userId: userId)
 
         // Sync with server in background
         _Concurrency.Task {
@@ -763,6 +778,7 @@ struct ListMembershipTab: View {
                     removedMemberEmails.remove(email)
                 }
                 onUpdate(list)
+                ListService.shared.restoreCachedList(listId: list.id, from: originalList)
                 errorMessage = error.localizedDescription
             }
         }
@@ -899,6 +915,10 @@ struct ListMembershipTab: View {
         updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
         onUpdate(updatedList)
 
+        // Also update cached list so change persists across view dismissals
+        let originalList = list
+        ListService.shared.removeMemberFromCachedList(listId: list.id, userId: userId)
+
         // Sync with server in background
         _Concurrency.Task {
             defer {
@@ -917,6 +937,7 @@ struct ListMembershipTab: View {
                 print("❌ [ListMembershipTab] Failed to remove agent: \(error)")
                 removedMemberEmails.remove(email)
                 onUpdate(list)
+                ListService.shared.restoreCachedList(listId: list.id, from: originalList)
                 errorMessage = "Failed to remove AI agent: \(error.localizedDescription)"
             }
         }

@@ -86,15 +86,21 @@ class ListMemberService: ObservableObject {
             print("📡 [ListMemberService] Fetching members for list: \(listId)")
             let response = try await apiClient.getListMembers(listId: listId)
 
-            // Convert to User objects (legacy format)
-            members = response.members.map { memberData in
-                User(
+            // Convert to User objects (legacy format), deduplicate by ID
+            var seenIds = Set<String>()
+            members = response.members.compactMap { memberData -> User? in
+                guard seenIds.insert(memberData.id).inserted else {
+                    print("⚠️ [ListMemberService] Skipping duplicate member: \(memberData.name ?? "unknown") (id: \(memberData.id))")
+                    return nil
+                }
+                return User(
                     id: memberData.id,
                     email: memberData.email,
                     name: memberData.name,
                     image: memberData.image
                 )
             }
+            print("👥 [ListMemberService] Members: \(members.map { "\($0.displayName) (id: \($0.id), email: \($0.email ?? "nil"))" })")
 
             // Convert to ListMember objects (new format)
             let listMembers = response.members.map { memberData in

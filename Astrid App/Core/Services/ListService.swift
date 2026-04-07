@@ -307,6 +307,25 @@ class ListService: ObservableObject {
         }
     }
 
+    /// Remove a member from the cached list so the change persists across view dismissals.
+    /// Called after optimistic removal in the UI — reverted if the API call fails.
+    func removeMemberFromCachedList(listId: String, userId: String) {
+        if let index = lists.firstIndex(where: { $0.id == listId }) {
+            lists[index].admins?.removeAll { $0.id == userId }
+            lists[index].members?.removeAll { $0.id == userId }
+            lists[index].listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
+            cachedLists[listId] = lists[index]
+        }
+    }
+
+    /// Restore a member to the cached list (used when API removal fails and we need to revert).
+    func restoreCachedList(listId: String, from original: TaskList) {
+        if let index = lists.firstIndex(where: { $0.id == listId }) {
+            lists[index] = original
+            cachedLists[listId] = original
+        }
+    }
+
     func updateList(
         listId: String,
         name: String? = nil,
