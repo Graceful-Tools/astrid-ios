@@ -445,7 +445,7 @@ struct ListMembershipTab: View {
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 HStack(spacing: 4) {
-                                    Text(NSLocalizedString("messages.loading", comment: ""))
+                                    Text(NSLocalizedString("lists.pending", comment: "Pending"))
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(.orange)
                                     Text("·")
@@ -785,12 +785,26 @@ struct ListMembershipTab: View {
     }
 
     private func removeInvitation(invitationId: String, email: String) {
-        // For invitations, we need the userId from the invitation
-        // Since invitations don't have userId yet (user hasn't accepted), this is a special case
-        // For now, we'll handle this by email-based removal when backend supports it
-        _Concurrency.Task {
-            errorMessage = "Removing pending invitations will be supported in a future update"
+        print("🗑️ [ListMembershipTab] Removing invitation: id=\(invitationId), email=\(email)")
+
+        // Track removal so invitation doesn't reappear from stale data
+        removedMemberEmails.insert(email)
+
+        // Optimistic update: remove invitation from list
+        var updatedList = list
+        updatedList.invitations?.removeAll { $0.id == invitationId }
+        onUpdate(updatedList)
+
+        // Also update cached list
+        if var cachedList = ListService.shared.lists.first(where: { $0.id == list.id }) {
+            cachedList.invitations?.removeAll { $0.id == invitationId }
+            let idx = ListService.shared.lists.firstIndex(where: { $0.id == list.id })
+            if let idx { ListService.shared.lists[idx] = cachedList }
         }
+
+        // Note: No server-side cancel invitation API yet.
+        // Local removal persists via removedMemberEmails until next fresh sync.
+        print("✅ [ListMembershipTab] Invitation hidden locally (no server cancel API yet)")
     }
 
     // MARK: - AI Agents Functions
