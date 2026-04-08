@@ -55,16 +55,27 @@ struct MainTabView: View {
         }
     }
 
+    @AppStorage("iPadPortraitMode") private var iPadPortraitMode: String = "twoColumn"
+    @State private var isIPadPortrait = false
+
     var body: some View {
         Group {
             if UIDevice.current.userInterfaceIdiom == .pad {
-                // iPad: Use split view with list sidebar
-                iPadLayout
+                if isIPadPortrait && iPadPortraitMode == "iPhone" {
+                    // iPad portrait single-column: use exact iPhone layout
+                    iPhoneLayout
+                } else {
+                    iPadLayout
+                }
             } else {
                 // iPhone: Use overlay sidebar pattern (like mobile web)
                 iPhoneLayout
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            updateIPadOrientation()
+        }
+        .onAppear { updateIPadOrientation() }
         .withReminderPresentation()
         // NOTE: .withTaskPresentation() is now applied inside each NavigationStack
         // in TaskListView to avoid "A navigationDestination was declared outside of
@@ -114,6 +125,22 @@ struct MainTabView: View {
                 // Clear the navigation request
                 listPresenter.clearNavigation()
             }
+        }
+    }
+
+    // MARK: - iPad Orientation Tracking
+
+    private func updateIPadOrientation() {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        let orientation = UIDevice.current.orientation
+        if orientation.isPortrait {
+            isIPadPortrait = true
+        } else if orientation.isLandscape {
+            isIPadPortrait = false
+        }
+        // If .unknown/.faceUp/.faceDown, use screen bounds as fallback
+        if !orientation.isPortrait && !orientation.isLandscape {
+            isIPadPortrait = UIScreen.main.bounds.height > UIScreen.main.bounds.width
         }
     }
 
@@ -221,6 +248,7 @@ struct MainTabView: View {
                         isViewingFromFeatured: $isViewingFromFeatured,
                         featuredList: $featuredList,
                         searchText: $searchText,
+                        forcePushNavigation: UIDevice.current.userInterfaceIdiom == .pad,
                         onMenuTap: {
                             // Dismiss keyboard first (important: must happen before sidebar animation)
                             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)

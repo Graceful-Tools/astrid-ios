@@ -5,6 +5,10 @@ struct AppearanceSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
+    // iPad layout settings (per-device, not synced)
+    @AppStorage("iPadLandscapeColumns") private var landscapeColumns: Int = 3
+    @AppStorage("iPadPortraitMode") private var portraitMode: String = "twoColumn"
+
     var body: some View {
         ZStack {
             // Theme background
@@ -84,8 +88,22 @@ struct AppearanceSettingsView: View {
                 }
                 .padding(.vertical, Theme.spacing8)
             }
-                }
 
+                    // iPad Layout section (only shown on iPad)
+                    if UIDevice.current.userInterfaceIdiom == .pad {
+                        Section(header: Text(NSLocalizedString("settings.appearance.ipad_layout", comment: "iPad Layout"))) {
+                            Picker(NSLocalizedString("settings.appearance.landscape_layout", comment: "Landscape"), selection: $landscapeColumns) {
+                                Text(NSLocalizedString("settings.appearance.three_columns", comment: "3 Columns")).tag(3)
+                                Text(NSLocalizedString("settings.appearance.two_columns", comment: "2 Columns")).tag(2)
+                            }
+
+                            Picker(NSLocalizedString("settings.appearance.portrait_layout", comment: "Portrait"), selection: $portraitMode) {
+                                Text(NSLocalizedString("settings.appearance.two_columns", comment: "2 Columns")).tag("twoColumn")
+                                Text(NSLocalizedString("settings.appearance.single_column", comment: "Single Column")).tag("iPhone")
+                            }
+                        }
+                    }
+                }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
             }

@@ -12,6 +12,7 @@ struct TaskListView: View {
     @Binding var featuredList: TaskList?  // The featured list data
     @Binding var searchText: String  // Search text from sidebar
     @Binding var selectedTaskForPanel: Task?  // For iPad side panel presentation
+    var forcePushNavigation: Bool = false  // When true, use iPhone-style push even on iPad
     var onMenuTap: (() -> Void)?
 
     @State private var isCopyingList = false
@@ -44,6 +45,7 @@ struct TaskListView: View {
         featuredList: Binding<TaskList?> = .constant(nil),
         searchText: Binding<String> = .constant(""),
         selectedTaskForPanel: Binding<Task?> = .constant(nil),
+        forcePushNavigation: Bool = false,
         onMenuTap: (() -> Void)? = nil
     ) {
         _selectedListId = selectedListId
@@ -51,6 +53,7 @@ struct TaskListView: View {
         _featuredList = featuredList
         _searchText = searchText
         _selectedTaskForPanel = selectedTaskForPanel
+        self.forcePushNavigation = forcePushNavigation
         self.onMenuTap = onMenuTap
     }
 
@@ -514,8 +517,8 @@ struct TaskListView: View {
                         QuickAddTaskView(
                             selectedList: selectedList,
                             onTaskCreated: { task in
-                                // iPad: Show in side panel (replacing any existing), iPhone: Push navigation
-                                if UIDevice.current.userInterfaceIdiom == .pad {
+                                // iPad: Show in side panel (replacing any existing), iPhone/forcePush: Push navigation
+                                if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
                                     withAnimation(.easeInOut(duration: 0.25)) {
                                         selectedTaskForPanel = task
                                     }
@@ -741,8 +744,8 @@ struct TaskListView: View {
                     print("🔵🔵🔵 [TaskListView] Task tapped: \(task.title)")
                     print("  - Current isViewingFromFeatured: \(isViewingFromFeatured)")
 
-                    // iPad: Toggle side panel (tap same task to close), iPhone: Push to navigation
-                    if UIDevice.current.userInterfaceIdiom == .pad {
+                    // iPad: Toggle side panel (tap same task to close), iPhone/forcePush: Push to navigation
+                    if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
                         if selectedTaskForPanel?.id == task.id {
                             // Same task tapped - close it
                             withAnimation(.easeInOut(duration: 0.25)) {

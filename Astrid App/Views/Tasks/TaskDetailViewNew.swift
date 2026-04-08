@@ -18,6 +18,7 @@ struct TaskDetailViewNew: View {
 
     @State private var task: Task
     let isReadOnly: Bool  // View-only mode for public lists
+    var onClose: (() -> Void)?  // iPad panel close callback (clears selectedTask)
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var notificationPromptManager = NotificationPromptManager.shared
@@ -68,9 +69,10 @@ struct TaskDetailViewNew: View {
     @State private var scrollToTopAction: (() -> Void)?
     @State private var scrollToBottomAction: (() -> Void)?
 
-    init(task: Task, isReadOnly: Bool = false) {
+    init(task: Task, isReadOnly: Bool = false, onClose: (() -> Void)? = nil) {
         self._task = State(initialValue: task)
         self.isReadOnly = isReadOnly
+        self.onClose = onClose
         _editedTitle = State(initialValue: task.title)
         _editedDescription = State(initialValue: task.description)
         _editedDueDate = State(initialValue: task.dueDateTime)
@@ -105,10 +107,9 @@ struct TaskDetailViewNew: View {
     var body: some View {
         VStack(spacing: 0) {
             // Custom header — avoids iOS 26 glass toolbar bubbles
-            if UIDevice.current.userInterfaceIdiom != .pad {
-                HStack {
+            HStack {
                     Button {
-                        dismiss()
+                        if let onClose { onClose() } else { dismiss() }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 17, weight: .semibold))
@@ -166,10 +167,10 @@ struct TaskDetailViewNew: View {
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.vertical, Theme.spacing12)
                 .background(toolbarBackgroundColor)
-            }
 
             mainContent
         }
+        .background(getBackgroundColor())  // Ensures consistent bg in dark mode on iPad panels
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)

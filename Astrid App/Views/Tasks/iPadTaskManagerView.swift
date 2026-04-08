@@ -31,6 +31,8 @@ struct iPadTaskManagerView: View {
     @Environment(\.verticalSizeClass) var verticalSizeClass
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
+    @AppStorage("iPadLandscapeColumns") private var landscapeColumns: Int = 3
+    @AppStorage("iPadPortraitMode") private var portraitMode: String = "twoColumn"
     @EnvironmentObject var authManager: AuthManager
 
     @Binding var selectedListId: String?
@@ -96,11 +98,22 @@ struct iPadTaskManagerView: View {
             let isLandscapeOrientation = geometry.size.width > geometry.size.height
 
             if isLandscapeOrientation {
-                // Landscape: 3-column layout (sidebar permanently visible | tasks | details)
-                threeColumnLandscapeLayout(width: geometry.size.width)
+                if landscapeColumns == 2 {
+                    // Landscape 2-column: sliding sidebar (like portrait)
+                    threeColumnPortraitLayout(width: geometry.size.width)
+                } else {
+                    // Landscape 3-column: sidebar permanently visible | tasks | details
+                    threeColumnLandscapeLayout(width: geometry.size.width)
+                }
             } else {
-                // Portrait: sliding sidebar like iPhone
-                threeColumnPortraitLayout(width: geometry.size.width)
+                if portraitMode == "iPhone" {
+                    // Portrait single-column is now handled by MainTabView using iPhoneLayout.
+                    // This branch is a fallback — use portrait 2-column layout.
+                    threeColumnPortraitLayout(width: geometry.size.width)
+                } else {
+                    // Portrait 2-column: sliding sidebar
+                    threeColumnPortraitLayout(width: geometry.size.width)
+                }
             }
         }
         .withReminderPresentation()
@@ -117,6 +130,11 @@ struct iPadTaskManagerView: View {
 
     @ViewBuilder
     private func threeColumnLandscapeLayout(width: CGFloat) -> some View {
+        ZStack {
+            // Full-screen background (fills safe areas — fixes black in dark mode)
+            themeBackground
+                .ignoresSafeArea()
+
         HStack(spacing: 0) {
             // Left: Sidebar (28% - permanently visible)
             NavigationStack {
@@ -134,13 +152,19 @@ struct iPadTaskManagerView: View {
 
             Divider()
 
-            // Middle: Task List or Settings (37% when detail/chat shown, 72% when neither)
+            // Middle: Task List, Settings, or Profile (22% when detail/chat shown, 72% when neither)
             if selectedListId == "settings" {
                 NavigationStack {
                     SettingsView()
                         .environmentObject(authManager)
                 }
-                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
+                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
+            } else if selectedListId == "profile", let userId = authManager.userId {
+                NavigationStack {
+                    UserProfileView(userId: userId)
+                        .environmentObject(authManager)
+                }
+                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
             } else {
                 // No onMenuTap - hamburger button does nothing in landscape since sidebar is always visible
                 iPadTaskListView(
@@ -151,7 +175,7 @@ struct iPadTaskManagerView: View {
                     selectedTask: $selectedTask,
                     onMenuTap: nil  // Sidebar always visible in landscape
                 )
-                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.37 : width * 0.72)
+                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
             }
 
             // Right panel: Task Detail or Chat (35%)
@@ -165,15 +189,16 @@ struct iPadTaskManagerView: View {
                         taskDetailPanel
                     }
                 }
-                .frame(width: width * 0.35)
+                .frame(width: width * 0.40)
             } else if showChatPanel, let listId = selectedListId {
                 // Show chat panel even with no task selected
                 Divider()
 
                 ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
-                    .frame(width: width * 0.35)
+                    .frame(width: width * 0.40)
             }
         }
+        } // ZStack
     }
 
     // MARK: - Portrait Layout (Sliding sidebar like iPhone)
@@ -225,7 +250,7 @@ struct iPadTaskManagerView: View {
 
             // Main content - slides right to reveal sidebar
             HStack(spacing: 0) {
-                // Task List or Settings
+                // Task List, Settings, or Profile
                 if selectedListId == "settings" {
                     NavigationStack {
                         SettingsView(onMenuTap: {
@@ -240,7 +265,31 @@ struct iPadTaskManagerView: View {
                         })
                             .environmentObject(authManager)
                     }
-                    .frame(width: selectedTask != nil ? width * 0.40 : width)
+                    .frame(width: selectedTask != nil ? width * 0.50 : width)
+                } else if selectedListId == "profile", let userId = authManager.userId {
+                    NavigationStack {
+                        UserProfileView(userId: userId)
+                            .environmentObject(authManager)
+                            .simultaneousGesture(
+                                DragGesture(minimumDistance: 20)
+                                    .onEnded { value in
+                                        let isHorizontal = value.translation.width > abs(value.translation.height)
+                                        let isRight = value.translation.width > 0
+                                        let meetsThreshold = value.translation.width > 80
+                                            || value.predictedEndTranslation.width > 200
+                                        if isHorizontal && isRight && meetsThreshold {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                                showingSidebar = true
+                                            }
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                                impact.impactOccurred()
+                                            }
+                                        }
+                                    }
+                            )
+                    }
+                    .frame(width: selectedTask != nil ? width * 0.50 : width)
                 } else {
                     iPadTaskListView(
                         selectedListId: $selectedListId,
@@ -261,14 +310,14 @@ struct iPadTaskManagerView: View {
                             }
                         }
                     )
-                    .frame(width: selectedTask != nil ? width * 0.40 : width)
+                    .frame(width: selectedTask != nil ? width * 0.50 : width)
                 }
 
                 // Task Detail Panel - animates with task list
                 if selectedTask != nil {
                     Divider()
                     taskDetailPanel
-                        .frame(width: width * 0.60)
+                        .frame(width: width * 0.50)
                 }
             }
             .frame(width: width)
@@ -345,8 +394,9 @@ struct iPadTaskManagerView: View {
         if let task = selectedTask {
             // Wrap with theme background and padding to align with task list
             NavigationStack {
-                TaskDetailViewNew(task: task, isReadOnly: shouldShowTaskAsReadOnly(task: task))
+                TaskDetailViewNew(task: task, isReadOnly: shouldShowTaskAsReadOnly(task: task), onClose: { selectedTask = nil })
             }
+            .background(themeBackground)  // Match theme inside NavigationStack (fixes black in dark mode)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.top, 8)      // Top margin (aligns with floating header)
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
@@ -357,7 +407,119 @@ struct iPadTaskManagerView: View {
     }
 
 
-    // MARK: - iPad Panel Toggle (Detail / Chat)
+    // MARK: - iPhone-Style Single Column Layout (for iPad portrait)
+
+    @ViewBuilder
+    private func iPhoneStyleLayout(width: CGFloat) -> some View {
+        let sidebarWidth = width * 0.40
+
+        ZStack(alignment: .leading) {
+            themeBackground
+                .ignoresSafeArea()
+
+            // Sidebar underneath
+            ZStack {
+                themeBackground
+                    .ignoresSafeArea()
+                NavigationStack {
+                    ListSidebarView(
+                        selectedListId: $selectedListId,
+                        isViewingFromFeatured: $isViewingFromFeatured,
+                        featuredList: $featuredList,
+                        searchText: $searchText,
+                        shouldScrollToTop: $shouldScrollSidebarToTop,
+                        onListTap: {
+                            shouldScrollSidebarToTop = true
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showingSidebar = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                shouldScrollSidebarToTop = false
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        }
+                    )
+                    .environmentObject(authManager)
+                }
+            }
+            .frame(width: sidebarWidth)
+            .scaleEffect(0.95 + (0.05 * sidebarProgress))
+            .offset(y: 20 - (20 * sidebarProgress))
+            .opacity(0.8 + (0.2 * sidebarProgress))
+
+            // Main content — full width, slides right
+            iPhoneStyleMainContent(width: width, sidebarWidth: sidebarWidth)
+            .offset(x: showingSidebar ? sidebarWidth + dragOffset : dragOffset)
+            .shadow(color: .black.opacity(0.3 * sidebarProgress), radius: 10, x: -5, y: 0)
+            .opacity(1.0 - (0.3 * sidebarProgress))
+            .saturation(1.0 - (0.5 * sidebarProgress))
+            .allowsHitTesting(sidebarProgress < 0.95)
+
+            // Sidebar close overlay
+            if showingSidebar {
+                HStack(spacing: 0) {
+                    Color.clear
+                        .frame(width: sidebarWidth)
+                        .allowsHitTesting(false)
+                    Color.clear
+                        .frame(width: width - sidebarWidth)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            shouldScrollSidebarToTop = true
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showingSidebar = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                shouldScrollSidebarToTop = false
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        }
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    // MARK: - iPhone-Style Main Content (extracted for type-checker)
+
+    @ViewBuilder
+    private func iPhoneStyleMainContent(width: CGFloat, sidebarWidth: CGFloat) -> some View {
+        NavigationStack {
+            if selectedListId == "settings" {
+                SettingsView(onMenuTap: {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                        showingSidebar = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
+                })
+                    .environmentObject(authManager)
+            } else if selectedListId == "profile", let userId = authManager.userId {
+                UserProfileView(userId: userId)
+                    .environmentObject(authManager)
+            } else {
+                TaskListView(
+                    selectedListId: $selectedListId,
+                    isViewingFromFeatured: $isViewingFromFeatured,
+                    featuredList: $featuredList,
+                    searchText: $searchText,
+                    forcePushNavigation: true,
+                    onMenuTap: {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            showingSidebar = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                    }
+                )
+            }
+        }
+        .frame(width: width)
+    }
 
     // MARK: - Helper Methods
 
