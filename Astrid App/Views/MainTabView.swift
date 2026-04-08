@@ -79,6 +79,15 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .closeSettings)) { _ in
             selectedListId = "my-tasks"
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openProfile)) { _ in
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                showSidebar = false
+            }
+            selectedListId = "profile"
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .closeProfile)) { _ in
+            selectedListId = "my-tasks"
+        }
         .onReceive(NotificationCenter.default.publisher(for: .taskDetailDidAppear)) { _ in
             isShowingTaskDetail = true
         }
@@ -184,6 +193,28 @@ struct MainTabView: View {
                         }
                     })
                         .environmentObject(authManager)
+                } else if selectedListId == "profile", let userId = authManager.userId {
+                    UserProfileView(userId: userId)
+                        .environmentObject(authManager)
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 20)
+                                .onEnded { value in
+                                    let isHorizontal = value.translation.width > abs(value.translation.height)
+                                    let isRight = value.translation.width > 0
+                                    let meetsThreshold = value.translation.width > 80
+                                        || value.predictedEndTranslation.width > 200
+                                    if isHorizontal && isRight && meetsThreshold {
+                                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                            showSidebar = true
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                            let impact = UIImpactFeedbackGenerator(style: .light)
+                                            impact.impactOccurred()
+                                        }
+                                    }
+                                }
+                        )
                 } else {
                     TaskListView(
                         selectedListId: $selectedListId,

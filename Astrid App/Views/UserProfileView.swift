@@ -104,7 +104,9 @@ struct UserProfileView: View {
     private func profileContent(profile: UserProfileResponse) -> some View {
         VStack(spacing: 0) {
             // Native iOS header (like Settings)
-            FloatingTextHeader(NSLocalizedString("profile.title", comment: ""), icon: "person.circle", showBackButton: true)
+            FloatingTextHeader(NSLocalizedString("profile.title", comment: ""), icon: "person.circle", showBackButton: true, onBack: {
+                    NotificationCenter.default.post(name: .closeProfile, object: nil)
+                })
                 .padding(.top, Theme.spacing8)
 
             // Content

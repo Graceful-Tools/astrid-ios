@@ -122,19 +122,14 @@ struct ListSidebarView: View {
         Section {
             HStack(spacing: Theme.spacing12) {
                 // Profile tap area (avatar + name)
-                ZStack(alignment: .leading) {
+                Button {
                     if authManager.isLocalOnlyMode {
-                        NavigationLink(destination: SignInPromptView().environmentObject(authManager)) {
-                            EmptyView()
-                        }
-                        .opacity(0)
-                    } else if let userId = authManager.currentUser?.id {
-                        NavigationLink(destination: UserProfileView(userId: userId).environmentObject(authManager)) {
-                            EmptyView()
-                        }
-                        .opacity(0)
+                        // Local-only users get sign-in prompt (handled separately)
+                    } else {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        NotificationCenter.default.post(name: .openProfile, object: nil)
                     }
-
+                } label: {
                     HStack(spacing: Theme.spacing12) {
                         // Avatar
                         if authManager.isLocalOnlyMode {

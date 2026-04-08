@@ -164,6 +164,8 @@ extension Notification.Name {
     static let attachmentUpdated = Notification.Name("attachmentUpdated")
     static let openSettings = Notification.Name("openSettings")
     static let closeSettings = Notification.Name("closeSettings")
+    static let openProfile = Notification.Name("openProfile")
+    static let closeProfile = Notification.Name("closeProfile")
     static let taskDetailDidAppear = Notification.Name("taskDetailDidAppear")
     static let taskDetailDidDisappear = Notification.Name("taskDetailDidDisappear")
 }
