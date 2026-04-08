@@ -228,7 +228,16 @@ struct iPadTaskManagerView: View {
                 // Task List or Settings
                 if selectedListId == "settings" {
                     NavigationStack {
-                        SettingsView()
+                        SettingsView(onMenuTap: {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showingSidebar = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                impact.impactOccurred()
+                            }
+                        })
                             .environmentObject(authManager)
                     }
                     .frame(width: selectedTask != nil ? width * 0.40 : width)

@@ -173,7 +173,16 @@ struct MainTabView: View {
             // Main content - slides to the right to reveal sidebar underneath
             NavigationStack {
                 if selectedListId == "settings" {
-                    SettingsView()
+                    SettingsView(onMenuTap: {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            showSidebar = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            let impact = UIImpactFeedbackGenerator(style: .light)
+                            impact.impactOccurred()
+                        }
+                    })
                         .environmentObject(authManager)
                 } else {
                     TaskListView(

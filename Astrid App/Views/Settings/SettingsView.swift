@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
+    var onMenuTap: (() -> Void)?
     @State private var showingSignOutAlert = false
     @State private var isReady = false
 
@@ -251,9 +252,18 @@ struct SettingsView: View {
             }
         }
         .navigationBarHidden(true)
-        .swipeToDismiss {
-            NotificationCenter.default.post(name: .closeSettings, object: nil)
-        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    let isHorizontal = value.translation.width > abs(value.translation.height)
+                    let isRight = value.translation.width > 0
+                    let meetsThreshold = value.translation.width > 80
+                        || value.predictedEndTranslation.width > 200
+                    if isHorizontal && isRight && meetsThreshold {
+                        onMenuTap?()
+                    }
+                }
+        )
         .alert(NSLocalizedString("sign_out", comment: ""), isPresented: $showingSignOutAlert) {
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }
             Button(NSLocalizedString("sign_out", comment: ""), role: .destructive) {
