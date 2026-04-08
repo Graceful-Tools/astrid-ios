@@ -322,10 +322,10 @@ struct TaskListView: View {
     /// Search mode header with editable text field
     private var searchHeader: some View {
         HStack(spacing: 0) {
-            // Leading: Hamburger menu icon
-            HamburgerMenuIcon()
-                .padding(.leading, 22)
-                .padding(.trailing, 10)
+            // Leading: Profile avatar
+            ProfileMenuButton()
+                .padding(.leading, 18)
+                .padding(.trailing, 8)
 
             // Editable search field styled like the header title
             HStack(spacing: Theme.spacing8) {
@@ -389,10 +389,10 @@ struct TaskListView: View {
     /// Standard (non-search) floating header
     private var standardHeader: some View {
         HStack(spacing: 0) {
-            // Leading: Hamburger menu icon (visual only, tap target is overlay)
-            HamburgerMenuIcon()
-                .padding(.leading, 22)  // Align with task row checkboxes
-                .padding(.trailing, 10)  // Space to align title with task titles
+            // Leading: Profile avatar (visual only, tap target is overlay)
+            ProfileMenuButton()
+                .padding(.leading, 18)
+                .padding(.trailing, 8)
 
             // Title (with colored priority indicators for My Tasks filters, including ○)
             navigationTitleView

@@ -71,6 +71,7 @@ struct OpenClawSettingsView: View {
         .themedBackgroundPrimary()
         .navigationTitle(NSLocalizedString("settings.openclaw.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .swipeToDismiss()
         .sheet(isPresented: $showRegisterSheet) {
             registerAgentSheet
         }

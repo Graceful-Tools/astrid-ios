@@ -190,6 +190,7 @@ struct DefaultAgentPickerView: View {
         }
         .navigationTitle("Astrid's AI Model")
         .navigationBarTitleDisplayMode(.inline)
+        .swipeToDismiss()
         .task { await loadData() }
         .navigationDestination(isPresented: $showAPIKeyManager) {
             AIAPIKeyManagerView()

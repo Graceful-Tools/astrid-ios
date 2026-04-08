@@ -21,10 +21,29 @@ struct SettingsView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Floating header
-                FloatingTextHeader(NSLocalizedString("settings", comment: ""), icon: "gearshape", showBackButton: true, onBack: {
-                    NotificationCenter.default.post(name: .closeSettings, object: nil)
-                })
+                // Floating header with profile avatar
+                FloatingHeader {
+                    HStack(spacing: Theme.spacing8) {
+                        // Back button
+                        Button(action: {
+                            NotificationCenter.default.post(name: .closeSettings, object: nil)
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .font(Theme.Typography.headline())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Profile avatar
+                        ProfileMenuButton()
+
+                        Text(NSLocalizedString("settings", comment: ""))
+                            .font(Theme.Typography.headline())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+
+                        Spacer()
+                    }
+                }
                     .padding(.top, Theme.spacing8)
 
                 // Content — defer heavy sections until after navigation animation

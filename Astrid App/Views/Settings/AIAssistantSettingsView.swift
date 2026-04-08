@@ -100,6 +100,7 @@ struct AIAssistantSettingsView: View {
         .themedBackgroundPrimary()
         .navigationTitle(NSLocalizedString("exploratory_features", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .swipeToDismiss()
     }
 }
 
