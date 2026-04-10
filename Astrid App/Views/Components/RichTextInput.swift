@@ -97,8 +97,8 @@ struct RichTextInput: View {
                         .tint(textColor)
                         .focused($isFocused)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, Theme.spacing8)
-                        .padding(.vertical, Theme.spacing4)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 12)
                         .onChange(of: text) { _, newValue in
                             handleTextChange(newValue)
                         }

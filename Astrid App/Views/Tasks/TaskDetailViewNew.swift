@@ -724,8 +724,8 @@ struct TaskDetailViewNew: View {
                         .foregroundColor(commentInputTextColor)
                         .focused($isCommentFocused)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, Theme.spacing8)
-                        .padding(.vertical, Theme.spacing4)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 12)
                         .onChange(of: newCommentText) { _, newValue in
                             handleCommentTextChange(newValue)
                         }
