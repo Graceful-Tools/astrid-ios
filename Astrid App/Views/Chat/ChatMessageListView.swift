@@ -62,6 +62,8 @@ struct ChatMessageListView: View {
                 .padding(.horizontal, Theme.spacing12)
                 .padding(.vertical, Theme.spacing8)
             }
+            .withReferenceNavigation()
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("bottom", anchor: .bottom)

@@ -241,6 +241,7 @@ struct TaskDetailViewNew: View {
     private var mainContent: some View {
         ScrollViewReader { proxy in
             ScrollView {
+
                 VStack(spacing: Theme.spacing12) {
                     // Anchor for scroll-to-top
                     Color.clear
@@ -538,7 +539,9 @@ struct TaskDetailViewNew: View {
                     }
                 }
             }
+            .withReferenceNavigation()
             .coordinateSpace(name: "scroll")
+            .scrollDismissesKeyboard(.interactively)
             .refreshable {
                 await refreshTaskDetails()
             }
@@ -698,34 +701,24 @@ struct TaskDetailViewNew: View {
                 .buttonStyle(.plain)
                 .disabled(isUploadingFile || isSubmittingComment)
 
-                // Expandable text input with chrome/silver styling
+                // Expandable text input
                 ZStack(alignment: .topLeading) {
-                    // Hidden sizing text
-                    Text(newCommentText.isEmpty ? " " : newCommentText)
-                        .font(Theme.Typography.body())
-                        .foregroundColor(.clear)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Placeholder text
+                    // Placeholder text — offset to match TextEditor's natural text position
                     if newCommentText.isEmpty {
                         Text("Add a comment...")
                             .font(Theme.Typography.body())
                             .foregroundColor(commentInputPlaceholderColor)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
                             .allowsHitTesting(false)
                     }
 
-                    // Actual TextEditor
+                    // Visible TextEditor — uses natural internal padding
                     TextEditor(text: $newCommentText)
                         .font(Theme.Typography.body())
                         .foregroundColor(commentInputTextColor)
                         .focused($isCommentFocused)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
                         .onChange(of: newCommentText) { _, newValue in
                             handleCommentTextChange(newValue)
                         }

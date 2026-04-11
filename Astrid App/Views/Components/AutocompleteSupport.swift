@@ -167,6 +167,9 @@ func buildMentionableUsers(listId: String? = nil) -> [User] {
             if let user = lm.user { users.append(user) }
         }
     }
+    // Also include members from ListMemberService (loaded separately via /members endpoint)
+    // This catches cases where listMembers[].user is nil but the member data is available
+    users.append(contentsOf: ListMemberService.shared.members)
     if let agents = AIAgentCache.shared.load() {
         users.append(contentsOf: agents)
     }
@@ -309,7 +312,7 @@ struct AutocompletePopupView: View {
                     }
                 }
             }
-            .frame(maxHeight: 200)
+            .frame(maxHeight: 280)
         }
         .background(backgroundColor)
         .cornerRadius(Theme.radiusSmall)

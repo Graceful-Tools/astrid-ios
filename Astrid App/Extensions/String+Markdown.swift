@@ -14,10 +14,10 @@ extension String {
         }
     }
 
-    /// Convert content with @[Name](id), #[Name](id), ![Name](id) references into colored AttributedString
-    /// @mentions → blue, #lists → green, !tasks → orange. Also renders markdown.
+    /// Convert content with @[Name](id), #[Name](id), ![Name](id) references into colored, tappable AttributedString
+    /// @mentions → blue (links to profile), #lists → green (links to list), !tasks → orange (links to task). Also renders markdown.
     func attributedWithReferences(defaultColor: Color = .primary) -> AttributedString {
-        let pattern = try! NSRegularExpression(pattern: #"([@#!])\[([^\]]+)\]\([^)]+\)"#)
+        let pattern = try! NSRegularExpression(pattern: #"([@#!])\[([^\]]+)\]\(([^)]+)\)"#)
         let nsText = self as NSString
         let fullRange = NSRange(location: 0, length: nsText.length)
         let matches = pattern.matches(in: self, range: fullRange)
@@ -29,14 +29,15 @@ extension String {
             return attr
         }
 
-        // Build attributed string with colored references
+        // Build attributed string with colored, tappable references
         var result = AttributedString()
         var lastEnd = startIndex
 
         for match in matches {
             guard let matchRange = Range(match.range, in: self),
                   let triggerRange = Range(match.range(at: 1), in: self),
-                  let nameRange = Range(match.range(at: 2), in: self) else { continue }
+                  let nameRange = Range(match.range(at: 2), in: self),
+                  let idRange = Range(match.range(at: 3), in: self) else { continue }
 
             // Plain text before this reference (render as markdown)
             if lastEnd < matchRange.lowerBound {
@@ -46,18 +47,32 @@ extension String {
                 result += plain
             }
 
-            // Colored reference: @Name, #Name, !Name
+            // Colored, tappable reference: @Name, #Name, !Name
             let trigger = String(self[triggerRange])
             let name = String(self[nameRange])
-            let color: Color = switch trigger {
-            case "@": .blue
-            case "#": .green
-            case "!": .orange
-            default: defaultColor
+            let refId = String(self[idRange])
+            let color: Color
+            let urlScheme: String
+            switch trigger {
+            case "@":
+                color = .blue
+                urlScheme = "astrid://users/\(refId)"
+            case "#":
+                color = .green
+                urlScheme = "astrid://lists/\(refId)"
+            case "!":
+                color = .orange
+                urlScheme = "astrid://tasks/\(refId)"
+            default:
+                color = defaultColor
+                urlScheme = ""
             }
             var ref = AttributedString("\(trigger)\(name)")
             ref.foregroundColor = color
             ref.font = .body
+            if let url = URL(string: urlScheme) {
+                ref.link = url
+            }
             result += ref
 
             lastEnd = matchRange.upperBound

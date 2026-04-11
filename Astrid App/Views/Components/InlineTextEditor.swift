@@ -67,13 +67,6 @@ struct InlineTextAreaEditor: View {
     @State private var isEditing = false
     @FocusState private var isFocused: Bool
 
-    // Autocomplete state
-    @State private var activeTrigger: AutocompleteItem.AutocompleteType?
-    @State private var triggerPosition: String.Index?
-    @State private var autocompleteItems: [AutocompleteItem] = []
-    @State private var insertedReferences: [InsertedReference] = []
-    @State private var filterTask: _Concurrency.Task<Void, Never>?
-
     private var defaultTextColor: Color {
         colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
     }
@@ -91,48 +84,26 @@ struct InlineTextAreaEditor: View {
                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
             if isEditing {
-                // Autocomplete popup
-                if activeTrigger != nil && !autocompleteItems.isEmpty {
-                    AutocompletePopupView(
-                        items: autocompleteItems,
-                        activeTrigger: activeTrigger,
-                        textColor: defaultTextColor,
-                        mutedColor: mutedColor,
-                        backgroundColor: bgColor,
-                        borderColor: colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder,
-                        onSelect: { item in insertAutocompleteItem(item) },
-                        onDismiss: { clearAutocomplete() }
-                    )
-                }
-
-                // Text editor with colored overlay
+                // Standard TextEditor — no overlay, no cursor alignment issues
                 ZStack(alignment: .topLeading) {
-                    // Colored overlay
-                    Text(coloredAttributedString(text: text, references: insertedReferences, defaultColor: defaultTextColor))
-                        .font(Theme.Typography.body())
-                        .padding(Theme.spacing12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .allowsHitTesting(false)
+                    if text.isEmpty {
+                        Text(placeholder)
+                            .font(Theme.Typography.body())
+                            .foregroundColor(mutedColor)
+                            .padding(Theme.spacing12)
+                            .allowsHitTesting(false)
+                    }
 
-                    // Invisible TextEditor
                     TextEditor(text: $text)
                         .font(Theme.Typography.body())
-                        .foregroundColor(.clear)
-                        .tint(defaultTextColor)
+                        .foregroundColor(defaultTextColor)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 100)
                         .padding(Theme.spacing12)
                         .focused($isFocused)
-                        .onChange(of: text) { _, newValue in
-                            handleTextChange(newValue)
-                        }
                         .onChange(of: isFocused) { _, focused in
                             if !focused && isEditing {
                                 isEditing = false
-                                // Reconstruct references before saving
-                                text = reconstructReferencesInText(text, references: insertedReferences)
-                                insertedReferences = []
-                                clearAutocomplete()
                                 onSave?()
                             }
                         }
@@ -148,80 +119,30 @@ struct InlineTextAreaEditor: View {
                     }
                 }
             } else {
-                // Render with colored references when not editing
-                if text.isEmpty {
-                    Text(placeholder)
-                        .font(Theme.Typography.body())
-                        .foregroundColor(mutedColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Theme.spacing12)
-                        .background(bgColor)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        .onTapGesture {
-                            isEditing = true
-                            isFocused = true
-                        }
-                } else {
-                    Text(text.attributedWithReferences(defaultColor: defaultTextColor))
-                        .font(Theme.Typography.body())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Theme.spacing12)
-                        .background(bgColor)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        .onTapGesture {
-                            isEditing = true
-                            isFocused = true
-                        }
+                // Display mode — render markdown and colored @mentions/#lists/!tasks
+                Group {
+                    if text.isEmpty {
+                        Text(placeholder)
+                            .font(Theme.Typography.body())
+                            .foregroundColor(mutedColor)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Theme.spacing12)
+                            .background(bgColor)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                    } else {
+                        Text(text.attributedWithReferences(defaultColor: defaultTextColor))
+                            .font(Theme.Typography.body())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Theme.spacing12)
+                            .background(bgColor)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                    }
+                }
+                .onTapGesture {
+                    isEditing = true
+                    isFocused = true
                 }
             }
         }
-    }
-
-    // MARK: - Autocomplete
-
-    private func handleTextChange(_ newValue: String) {
-        insertedReferences.removeAll { ref in !newValue.contains(ref.displayText) }
-
-        if let trigger = detectAutocompleteTrigger(in: newValue) {
-            activeTrigger = trigger.type
-            triggerPosition = trigger.position
-            filterItems(type: trigger.type, search: trigger.search)
-        } else {
-            clearAutocomplete()
-        }
-    }
-
-    private func filterItems(type: AutocompleteItem.AutocompleteType, search: String) {
-        filterTask?.cancel()
-        filterTask = _Concurrency.Task {
-            try? await _Concurrency.Task.sleep(nanoseconds: 80_000_000)
-            guard !_Concurrency.Task.isCancelled else { return }
-            let results: [AutocompleteItem]
-            switch type {
-            case .mention: results = filterMentionItems(users: buildMentionableUsers(), search: search)
-            case .list: results = filterListItems(search: search)
-            case .task: results = filterTaskItems(search: search)
-            }
-            await MainActor.run {
-                guard !_Concurrency.Task.isCancelled else { return }
-                autocompleteItems = results
-            }
-        }
-    }
-
-    private func insertAutocompleteItem(_ item: AutocompleteItem) {
-        guard let pos = triggerPosition else { return }
-        let displayText = "\(item.triggerChar)\(item.label)"
-        let textBefore = String(text[text.startIndex..<pos])
-        text = textBefore + displayText + " "
-        insertedReferences.append(InsertedReference(id: item.id, type: item.type, displayText: displayText))
-        clearAutocomplete()
-    }
-
-    private func clearAutocomplete() {
-        activeTrigger = nil
-        triggerPosition = nil
-        autocompleteItems = []
-        filterTask?.cancel()
     }
 }

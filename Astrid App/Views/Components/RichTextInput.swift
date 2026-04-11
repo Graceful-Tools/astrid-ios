@@ -49,11 +49,6 @@ struct RichTextInput: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Autocomplete popup
-            if showAutocomplete {
-                autocompletePopup
-            }
-
             // Attachment preview
             if let file = attachedFile {
                 attachmentPreview(file: file)
@@ -70,35 +65,25 @@ struct RichTextInput: View {
 
             // Main input row: [text field] [paperclip] [send]
             HStack(alignment: .bottom, spacing: Theme.spacing8) {
-                // Text input with colored references
+                // Text input — standard visible TextEditor with placeholder
                 ZStack(alignment: .topLeading) {
-                    // Colored overlay
-                    Text(coloredDisplayText)
-                        .font(Theme.Typography.body())
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .allowsHitTesting(false)
-
-                    // Placeholder
+                    // Placeholder — offset to match TextEditor's natural text position
                     if text.isEmpty {
                         Text(placeholder)
                             .font(Theme.Typography.body())
                             .foregroundColor(placeholderColor)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
                             .allowsHitTesting(false)
                     }
 
-                    // Invisible TextEditor
+                    // Visible TextEditor — uses natural internal padding, cursor aligns with text
                     TextEditor(text: $text)
                         .font(Theme.Typography.body())
-                        .foregroundColor(.clear)
+                        .foregroundColor(textColor)
                         .tint(textColor)
                         .focused($isFocused)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
                         .onChange(of: text) { _, newValue in
                             handleTextChange(newValue)
                         }
@@ -173,11 +158,36 @@ struct RichTextInput: View {
         }
         .padding(.horizontal, Theme.spacing16)
         .padding(.vertical, Theme.spacing12)
-        .background(containerBackground)
-        .cornerRadius(Theme.radiusLarge)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.radiusLarge)
+                .fill(containerBackgroundColor)
+        }
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
+        .overlay(alignment: .topLeading) {
+            // Autocomplete popup — overlay extends ABOVE the input (negative y offset)
+            // Not constrained by parent container bounds
+            if showAutocomplete {
+                VStack {
+                    Spacer()
+                    autocompletePopup
+                        .frame(maxHeight: UIScreen.main.bounds.height * 0.35)
+                }
+                .frame(height: UIScreen.main.bounds.height * 0.35 + 8)
+                .offset(y: -(UIScreen.main.bounds.height * 0.35 + 8))
+                .padding(.horizontal, 4)
+            }
+        }
         .padding(.horizontal, 8)
         .padding(.bottom, 0)
+        .onAppear {
+            isFocused = false  // Dismiss keyboard when returning from navigation
+            // Pre-fetch list members so @mentions work immediately
+            if let listId = listId, ListMemberService.shared.members.isEmpty {
+                _Concurrency.Task {
+                    try? await ListMemberService.shared.fetchMembers(listId: listId)
+                }
+            }
+        }
         .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { _, item in
             if let item = item {
@@ -235,6 +245,7 @@ struct RichTextInput: View {
     private func handleTextChange(_ newValue: String) {
         insertedReferences.removeAll { ref in !newValue.contains(ref.displayText) }
         if let trigger = detectAutocompleteTrigger(in: newValue) {
+            print("🔍 [RichTextInput] Trigger detected: type=\(trigger.type), search='\(trigger.search)', text='\(newValue)'")
             activeTrigger = trigger.type
             triggerPosition = trigger.position
             selectedIndex = 0
@@ -242,10 +253,19 @@ struct RichTextInput: View {
             switch trigger.type {
             case .mention:
                 var users = buildMentionableUsers(listId: listId)
+                print("🔍 [RichTextInput] @mention: listId=\(listId ?? "nil"), buildMentionable=\(users.count), agents=\(availableAgents.count), memberService=\(ListMemberService.shared.members.count)")
                 for agent in availableAgents where !users.contains(where: { $0.id == agent.id }) {
                     users.append(agent)
                 }
                 results = filterMentionItems(users: users, search: trigger.search)
+                print("🔍 [RichTextInput] @mention results after filter: \(results.count) (users total: \(users.count))")
+                // If no users found, try fetching members in background for next trigger
+                if results.isEmpty, let listId = listId {
+                    print("🔍 [RichTextInput] @mention empty, fetching members for list \(listId)")
+                    _Concurrency.Task {
+                        try? await ListMemberService.shared.fetchMembers(listId: listId)
+                    }
+                }
             case .list:
                 results = filterListItems(search: trigger.search)
             case .task:

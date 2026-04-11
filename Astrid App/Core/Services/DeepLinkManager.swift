@@ -72,6 +72,12 @@ class DeepLinkManager {
             if listId != "lists" {
                 ListPresenter.shared.showList(listId: listId)
             }
+        case "users":
+            let userId = url.lastPathComponent
+            if userId != "users" {
+                // Navigate to profile in main content area
+                NotificationCenter.default.post(name: .openProfile, object: userId)
+            }
         case "settings":
             let page = url.lastPathComponent
             if page != "settings", let settingsPage = SettingsPresenter.SettingsPage(rawValue: page) {
