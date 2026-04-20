@@ -11,11 +11,13 @@ final class SharedListTests: XCTestCase {
         let owner = TestHelpers.createTestUser(id: "owner-123", name: "List Owner", email: "owner@example.com")
         let member = TestHelpers.createTestUser(id: "member-456", name: "Team Member", email: "member@example.com")
 
+        // Role strings are lowercase per server contract — match web's
+        // `getUserRoleInList` which compares against exactly "admin" / "member".
         let listMember = ListMember(
             id: "lm-1",
             listId: "shared-list",
             userId: member.id,
-            role: "MEMBER",
+            role: "member",
             createdAt: Date(),
             updatedAt: nil,
             user: member
@@ -358,8 +360,8 @@ final class SharedListTests: XCTestCase {
 
         // Step 2: Create shared list
         let listMembers = [
-            ListMember(id: "lm-1", listId: "project-list", userId: dev1.id, role: "MEMBER", createdAt: nil, updatedAt: nil, user: dev1),
-            ListMember(id: "lm-2", listId: "project-list", userId: dev2.id, role: "MEMBER", createdAt: nil, updatedAt: nil, user: dev2)
+            ListMember(id: "lm-1", listId: "project-list", userId: dev1.id, role: "member", createdAt: nil, updatedAt: nil, user: dev1),
+            ListMember(id: "lm-2", listId: "project-list", userId: dev2.id, role: "member", createdAt: nil, updatedAt: nil, user: dev2)
         ]
 
         let projectList = TaskList(
@@ -473,9 +475,10 @@ final class SharedListTests: XCTestCase {
         let admin = TestHelpers.createTestUser(id: "admin", name: "Admin")
         let member = TestHelpers.createTestUser(id: "member", name: "Member")
 
+        // Server contract uses lowercase role strings.
         let listMembers = [
-            ListMember(id: "lm-1", listId: "list-1", userId: admin.id, role: "ADMIN", createdAt: nil, updatedAt: nil, user: admin),
-            ListMember(id: "lm-2", listId: "list-1", userId: member.id, role: "MEMBER", createdAt: nil, updatedAt: nil, user: member)
+            ListMember(id: "lm-1", listId: "list-1", userId: admin.id, role: "admin", createdAt: nil, updatedAt: nil, user: admin),
+            ListMember(id: "lm-2", listId: "list-1", userId: member.id, role: "member", createdAt: nil, updatedAt: nil, user: member)
         ]
 
         let list = TaskList(
@@ -523,8 +526,8 @@ final class SharedListTests: XCTestCase {
         XCTAssertTrue(list.isMember(userId: admin.id))
         XCTAssertTrue(list.isMember(userId: member.id))
 
-        // Verify roles
-        XCTAssertEqual(listMembers[0].role, "ADMIN")
-        XCTAssertEqual(listMembers[1].role, "MEMBER")
+        // Verify roles (lowercase per server contract).
+        XCTAssertEqual(listMembers[0].role, "admin")
+        XCTAssertEqual(listMembers[1].role, "member")
     }
 }

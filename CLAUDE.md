@@ -180,6 +180,85 @@ xcodebuild test -scheme "Astrid App" -destination "platform=iOS Simulator,name=i
 
 ---
 
+## Canonical Control Points
+
+Every write to a backend-backed resource must flow through a service layer — never call `AstridAPIClient` directly from a view, timer, notification handler, or other non-service module. The service layer is where optimistic updates, offline queue, CoreData cache, and dedup live, and it's where iOS stays aligned with the web's logic contract.
+
+**Rule of thumb:** if a service is missing the method you need, add it first. Adding a one-off direct `AstridAPIClient` call from a view is how we introduced the weekly-M/W/F completion regression, the on-device-AI-skips-rollover bug, and the offline-member-mutation loss bug — all in the last few days.
+
+| Domain | Canonical service | Entry point | Notes |
+|--------|-------------------|-------------|-------|
+| Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | Offline queue via CDTask. |
+| Task completion (incl. repeat rollover) | `TaskService.completeTask` | See "Repeating Tasks" below for all six entry points. | MUST go through this — never `updateTask(completed: true)`. |
+| Lists | `ListService` | `createList`, `updateList`, `deleteList`, `toggleFavorite`, `fetchLists` | |
+| List members (add / role / remove) | `ListMemberService` | `addMember`, `updateMemberRole`, `removeMember`, `cancelInvitation` | Offline queue via CDMember. |
+| Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | |
+| Chat | `ChatService` | `sendMessage`, `getAIAssistantSettings`, `postAgentResponse` | AI-assistant helpers are cached (60s TTL). |
+| Attachments | `AttachmentService` | `saveLocallyAndUploadAsync`, etc. | |
+| User smart-task settings | `UserSettingsService` ↔ `AstridAPIClient.getSmartTaskSettings` / `updateSmartTaskSettings` | `/api/user/settings` | UserDefaults-first, 300ms debounce to server. |
+| My Tasks preferences | `MyTasksPreferencesService` ↔ `AstridAPIClient.getMyTasksPreferences` / `updateMyTasksPreferences` | `/api/user/my-tasks-preferences` | UserDefaults-first, 300ms debounce to server. |
+| Reminder/notification completion | `ReminderPresenter` → `TaskService.completeTask(task:)` | Must pass `task:` so rollover doesn't depend on cache state. |
+| Apple Reminders sync | `AppleRemindersService` → `TaskService.completeTask(task:)` | |
+| On-device AI complete action | `AppleFoundationModelService` → `TaskService.completeTask` | Must NOT use `updateTask(completed: true)`. |
+
+**Detail-view-style callers:** when a view lets the user edit fields before confirming (completion, submit, save), propagate ALL edited fields — at minimum `dueDateTime`, `isAllDay`, `repeating`, `repeatingData`, `repeatFrom` — into the `task:` argument before calling `TaskService.completeTask` / `updateTask`. Otherwise rollover anchors on stale values.
+
+**Alignment with web:** the service layer is also the boundary where we keep iOS aligned with the reference implementation in `astrid-web`. When you add a field to a request/response on one platform, mirror it on the other. The `CanonicalControlPointsTests` suite locks down the JSON wire shape of shared types (`MyTasksPreferences`, `UserSettings`) so a silent drift fails a unit test rather than shipping to production.
+
+### Cross-platform contracts to preserve
+
+| Contract | Canonical file (web) | iOS mirror | Test |
+|---|---|---|---|
+| Repeating task rollover | `astrid-web/types/repeating.ts` | `Utilities/RepeatingTaskHandler.swift` (`RepeatingTaskCalculator`) | `CustomRepeatingPatternTests`, `RepeatingTaskCalculatorTests` |
+| All-day task date handling (UTC midnight, Google Calendar / RFC 5545) | `astrid-web/lib/date-comparison.ts`, `date-filter-utils.ts` | `Task.isDueToday` / `Task.isOverdue` in `BadgeManager.swift` + filter in `TaskListView.applyDateFilter` | `AllDayTimezoneTests` |
+| List role / permission (listMembers is source of truth — legacy `admins[]`/`members[]` arrays are not populated by server endpoints iOS consumes and must NOT be branched on) | `astrid-web/lib/list-permissions.ts` (`getUserRoleInList`) | `TaskList.role(for:)`, `TaskList.isMember(userId:)`, `TaskList.canUserSaveServerSettings()` | |
+| My Tasks empty-state message (single string per list type, no completed-task threshold) | `astrid-web/components/ui/astrid-empty-state.tsx` | `TaskListView.getMyTasksEmptyMessage` | `EmptyStateMessageTests` |
+| Preferences + settings wire shape (`/api/user/my-tasks-preferences`, `/api/user/settings`) | web endpoints under `app/api/user/` | `MyTasksPreferences`, `UserSettings` structs | `CanonicalControlPointsTests` |
+
+---
+
+## Repeating Tasks
+
+**Single source of truth for next-occurrence math:**
+`Astrid App/Utilities/RepeatingTaskHandler.swift` (`RepeatingTaskCalculator`). This mirrors `astrid-web/types/repeating.ts` + `astrid-web/lib/repeating-task-handler.ts` and must stay behavior-compatible with them.
+
+**Production entry point:** `TaskService.completeTask(id:completed:task:...)`. Completing a task MUST go through this function — it calls `calculateNextOccurrence`, which delegates to `RepeatingTaskCalculator`. Do NOT complete a task by calling `updateTask(completed: true)` — that path skips repeat rollover.
+
+**Every completion entry point in the app** (keep this list in sync when you add one):
+
+| Caller | File |
+|--------|------|
+| Task list checkbox | `Views/Tasks/TaskListView.swift` |
+| Task detail checkbox | `Views/Tasks/TaskDetailViewNew.swift` (`toggleCompletion`) |
+| Timer finished | `Views/Tasks/TaskTimerView.swift` |
+| Reminder popup "Done" | `Core/Notifications/ReminderPresenter.swift` |
+| Apple Reminders two-way sync | `Core/Services/AppleRemindersService.swift` |
+| On-device AI "complete" action | `Core/Services/AppleFoundationModelService.swift` |
+
+Detail-view completion (and any future caller that supports in-flight edits) must propagate edited fields — at minimum `repeating`, `repeatingData`, `repeatFrom`, `dueDateTime`, `isAllDay` — into the `task:` argument before handing off, so the rollover anchors on what the user sees, not stale state.
+
+`TaskService.calculateNextOccurrence(for:)` itself is a thin delegator. Do NOT inline pattern math there or anywhere else — a prior inline implementation ignored `weekdays`, `monthRepeatType`, `monthWeekday`, and yearly `month`/`day`, breaking weekly M/W/F rollover.
+
+**When changing pattern logic:**
+1. Update `RepeatingTaskCalculator` only.
+2. Mirror the change in `astrid-web/types/repeating.ts`.
+3. Add tests at BOTH levels:
+   - `RepeatingTaskCalculatorTests` / `CustomRepeatingPatternTests` — calculator in isolation.
+   - `testTaskService_*` cases in `CustomRepeatingPatternTests` — covers the production completion path so isolation-only tests don't mask a broken wire-up.
+4. Multi-step progression tests (walk 6+ completions) surface bugs that single-step tests miss.
+
+**Key files:**
+
+| File | Purpose |
+|------|---------|
+| `Astrid App/Utilities/RepeatingTaskHandler.swift` | Canonical `RepeatingTaskCalculator` |
+| `Astrid App/Core/Services/TaskService.swift` (`calculateNextOccurrence`) | Production entry point — delegates only |
+| `Astrid App/Models/Task.swift` (`CustomRepeatingPattern`) | Pattern model; marked `nonisolated` so Codable round-trips through `CDTask` |
+| `Astrid AppTests/Tests/UnitTests/RepeatingTaskCalculatorTests.swift` | Calculator unit tests |
+| `Astrid AppTests/Tests/UnitTests/CustomRepeatingPatternTests.swift` | Round-trip + multi-step progression + TaskService-path tests |
+
+---
+
 ## Chat & Agent Features
 
 ### Per-List Chat

@@ -1272,15 +1272,20 @@ struct TaskDetailViewNew: View {
         // Optimistic UI update
         isCompleted.toggle()
 
-        // CRITICAL FIX for offline mode:
-        // Create a copy of task with current edited values (especially repeating status).
-        // When user changes a task from repeating to non-repeating offline, editedRepeating
-        // is updated but task.repeating stays stale. TaskService needs the current state
-        // to correctly handle completion (avoiding incorrect roll-forward for non-repeating tasks).
+        // CRITICAL: Propagate ALL edited fields that affect repeat rollover
+        // before handing off to TaskService. If the user changed the due
+        // date, time, all-day flag, or repeat configuration in the detail
+        // view but hasn't saved yet, `task` still holds the old values. The
+        // repeat calculator anchors on these fields, so stale values produce
+        // the wrong next occurrence.
         var taskWithEdits = task
         taskWithEdits.repeating = editedRepeating
         taskWithEdits.repeatingData = editedRepeatingData
         taskWithEdits.repeatFrom = editedRepeatFrom
+        taskWithEdits.isAllDay = isAllDay
+        // For timed tasks, editedDueTime carries the full datetime; for
+        // all-day tasks, editedDueDate is the source of truth.
+        taskWithEdits.dueDateTime = isAllDay ? editedDueDate : (editedDueTime ?? editedDueDate)
 
         // Sync to server in background
         _Concurrency.Task {

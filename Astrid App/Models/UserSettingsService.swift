@@ -65,48 +65,20 @@ class UserSettingsService: ObservableObject {
         set { updateSettings(UserSettings(smartTaskCreationEnabled: newValue)) }
     }
 
-    /// Fetch settings from server
+    /// Fetch settings from the server via AstridAPIClient (the canonical
+    /// network entry point). UI already has the UserDefaults snapshot, so
+    /// failure here is non-fatal.
     func fetchSettings() async {
         do {
-            guard let url = URL(string: "\(Constants.API.baseURL)/api/user/settings") else {
-                print("❌ Invalid URL for user settings")
-                return
-            }
+            let fetchedSettings = try await AstridAPIClient.shared.getSmartTaskSettings()
+            self.settings = fetchedSettings
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-            // Add session cookie if available
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            } else {
-                print("⚠️ No session cookie available for user settings")
-                return
-            }
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response for user settings")
-                return
-            }
-
-            if httpResponse.statusCode == 200 {
-                let decoder = JSONDecoder()
-                let fetchedSettings = try decoder.decode(UserSettings.self, from: data)
-                self.settings = fetchedSettings
-
-                // Save to UserDefaults for offline support
-                if let encoded = try? JSONEncoder().encode(fetchedSettings) {
-                    UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-                    print("✅ [UserSettings] Loaded from server and saved to UserDefaults")
-                }
-            } else {
-                print("❌ Failed to fetch user settings: \(httpResponse.statusCode)")
+            if let encoded = try? JSONEncoder().encode(fetchedSettings) {
+                UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+                print("✅ [UserSettings] Loaded from server and saved to UserDefaults")
             }
         } catch {
-            print("❌ Error fetching user settings: \(error)")
+            print("❌ [UserSettings] Error fetching settings: \(error)")
         }
     }
 
@@ -139,45 +111,15 @@ class UserSettingsService: ObservableObject {
             print("💾 [UserSettings] Saved to UserDefaults")
         }
 
-        // Debounce server update (300ms)
+        // Debounced server push via AstridAPIClient so cookies/auth/retry
+        // flow through the same code path as every other network call.
         updateTask = _Concurrency.Task {
-            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000) // 300ms
-
+            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
             guard !_Concurrency.Task.isCancelled else { return }
 
             do {
-                guard let url = URL(string: "\(Constants.API.baseURL)/api/user/settings") else {
-                    print("❌ Invalid URL for user settings update")
-                    return
-                }
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                // Add session cookie if available
-                if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                    request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-                } else {
-                    print("⚠️ No session cookie available for user settings update")
-                    return
-                }
-
-                let encoder = JSONEncoder()
-                request.httpBody = try encoder.encode(updates)
-
-                let (_, response) = try await URLSession.shared.data(for: request)
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response for user settings update")
-                    return
-                }
-
-                if httpResponse.statusCode == 200 {
-                    print("✅ Updated user settings on server")
-                } else {
-                    print("❌ Failed to update user settings: \(httpResponse.statusCode)")
-                }
+                try await AstridAPIClient.shared.updateSmartTaskSettings(merged)
+                print("✅ Updated user settings on server")
             } catch {
                 print("❌ Error updating user settings: \(error)")
             }

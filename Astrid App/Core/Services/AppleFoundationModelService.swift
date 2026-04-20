@@ -235,7 +235,9 @@ extension AppleFoundationModelService {
     private func executeCompleteAction(_ taskId: String) async {
         let id = taskId.trimmingCharacters(in: .whitespaces)
         do {
-            _ = try await TaskService.shared.updateTask(taskId: id, completed: true)
+            // Use completeTask (not updateTask) so repeating patterns roll
+            // forward via RepeatingTaskCalculator — the canonical path.
+            _ = try await TaskService.shared.completeTask(id: id, completed: true)
             logger.notice("On-device AI completed task: \(id)")
         } catch {
             logger.error("On-device AI failed to complete task \(id): \(error.localizedDescription)")

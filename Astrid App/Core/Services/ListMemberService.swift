@@ -216,149 +216,169 @@ class ListMemberService: ObservableObject {
 
     // MARK: - CRUD Operations (Optimistic)
 
-    /// Add a member to a list (optimistic)
-    /// Returns immediately with optimistic member, syncs in background
+    /// Add a member to a list.
+    ///
+    /// Semantics match the pre-v1.5.8 direct-API behavior exactly when
+    /// online — call the API, return the response. No CoreData
+    /// reconciliation dance; the caller's follow-up `fetchLists()` is the
+    /// single source of truth for the updated list. When offline, save a
+    /// pending CDMember + optimistic in-memory insert so
+    /// `syncPendingOperations` can finish the add on reconnect.
+    ///
+    /// The earlier inline-CDMember variant had two problems:
+    ///   1. Trying to update a pending CDMember's `id` and `userId` to the
+    ///      server-issued values could conflict with CoreData's identity
+    ///      model and surface as a throw *after* the API had already
+    ///      succeeded — so the user saw an error even though the add
+    ///      landed on the server.
+    ///   2. If that reconciliation throw triggered the rollback, the
+    ///      pending CDMember was deleted, masking a successful add.
+    /// By keeping the online path purely networking, neither scenario is
+    /// reachable.
     func addMember(listId: String, email: String, role: String = "member") async throws -> ListMember {
-        print("⚡️ [ListMemberService] Adding member (optimistic): \(email)")
+        print("⚡️ [ListMemberService] Adding member: \(email) (online: \(networkMonitor.isConnected))")
 
-        // 1. Generate temp ID for optimistic member
+        if networkMonitor.isConnected {
+            let response = try await apiClient.addListMember(listId: listId, email: email, role: role)
+
+            if let memberData = response.member {
+                return ListMember(
+                    id: memberData.id,
+                    listId: listId,
+                    userId: memberData.id,
+                    role: memberData.role,
+                    createdAt: Date(),
+                    updatedAt: Date(),
+                    user: User(
+                        id: memberData.id,
+                        email: memberData.email,
+                        name: memberData.name,
+                        image: memberData.image
+                    )
+                )
+            }
+            // Invitation-only response: server queued an email but the user
+            // hasn't joined yet. Return a stub so the caller can dismiss
+            // the add-member sheet; fetchLists picks up the real invitation.
+            let stubId = "invite_\(UUID().uuidString)"
+            return ListMember(
+                id: stubId, listId: listId, userId: stubId, role: role,
+                createdAt: Date(), updatedAt: Date(),
+                user: User(id: stubId, email: email, name: nil, image: nil)
+            )
+        }
+
+        // Offline: optimistic in-memory insert + pending CDMember so the
+        // add survives a relaunch and `syncPendingOperations` can finish
+        // it on reconnect.
         let tempId = "temp_\(UUID().uuidString)"
-
-        // 2. Create optimistic member (without user info yet)
         let optimisticMember = ListMember(
-            id: tempId,
-            listId: listId,
-            userId: tempId, // Will be replaced after server response
-            role: role,
-            createdAt: Date(),
-            updatedAt: Date(),
+            id: tempId, listId: listId, userId: tempId, role: role,
+            createdAt: Date(), updatedAt: Date(),
             user: User(id: tempId, email: email, name: nil, image: nil)
         )
-
-        // 3. Update UI immediately
         var currentMembers = membersByList[listId] ?? []
         currentMembers.append(optimisticMember)
         membersByList[listId] = currentMembers
         members = currentMembers.compactMap { $0.user }
 
-        // 4. Save to Core Data as "pending"
-        _Concurrency.Task.detached { [weak self] in
-            do {
-                try await self?.coreDataManager.saveInBackground { context in
-                    let cdMember = CDMember(context: context)
-                    cdMember.id = tempId
-                    cdMember.listId = listId
-                    cdMember.userId = tempId
-                    cdMember.role = role
-                    cdMember.syncStatus = "pending"
-                    cdMember.pendingOperation = "create"
-                    cdMember.syncAttempts = 0
-                    // Store email for sync (we'll need it for API call)
-                    cdMember.pendingRole = email // Temporary storage of email
-                }
-
-                await self?.updatePendingOperationsCount()
-            } catch {
-                print("⚠️ [ListMemberService] Failed to save pending member: \(error)")
-            }
+        try? await coreDataManager.saveInBackground { context in
+            let cdMember = CDMember(context: context)
+            cdMember.id = tempId
+            cdMember.listId = listId
+            cdMember.userId = tempId
+            cdMember.role = role
+            cdMember.syncStatus = "pending"
+            cdMember.pendingOperation = "create"
+            cdMember.syncAttempts = 0
+            cdMember.pendingRole = email
         }
-
-        // 5. Trigger background sync
-        if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingOperations()
-            }
-        }
+        await updatePendingOperationsCount()
 
         return optimisticMember
     }
 
-    /// Update a member's role (optimistic)
+    /// Update a member's role.
+    ///
+    /// Online: just call the API and return. The caller's follow-up
+    /// `fetchLists()` refreshes the authoritative list.listMembers.
+    /// Offline: write a pending CDMember so `syncPendingOperations` can
+    /// push the change on reconnect.
     func updateMemberRole(listId: String, userId: String, role: String) async throws {
-        print("✏️ [ListMemberService] Updating member role (optimistic): \(userId) → \(role)")
+        print("✏️ [ListMemberService] Updating member role: \(userId) → \(role) (online: \(networkMonitor.isConnected))")
 
-        // 1. Update in-memory immediately
-        if var currentMembers = membersByList[listId] {
-            if let index = currentMembers.firstIndex(where: { $0.userId == userId }) {
-                // Create new member with updated role
-                let oldMember = currentMembers[index]
-                let updatedMember = ListMember(
-                    id: oldMember.id,
-                    listId: oldMember.listId,
-                    userId: oldMember.userId,
-                    role: role, // New role
-                    createdAt: oldMember.createdAt,
-                    updatedAt: Date(),
-                    user: oldMember.user
-                )
-                currentMembers[index] = updatedMember
-                membersByList[listId] = currentMembers
-            }
-        }
-
-        // 2. Save pending update to Core Data
-        _Concurrency.Task.detached { [weak self] in
-            do {
-                try await self?.coreDataManager.saveInBackground { context in
-                    guard let cdMember = try CDMember.fetchById(userId, context: context) else {
-                        return
-                    }
-
-                    cdMember.pendingRole = role
-                    cdMember.syncStatus = "pending_update"
-                    cdMember.pendingOperation = "update"
-                    cdMember.syncAttempts = 0
-                }
-
-                await self?.updatePendingOperationsCount()
-            } catch {
-                print("⚠️ [ListMemberService] Failed to save pending update: \(error)")
-            }
-        }
-
-        // 3. Trigger background sync
         if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingOperations()
-            }
+            _ = try await apiClient.updateListMember(listId: listId, userId: userId, role: role)
+            return
         }
+
+        // Offline: persist the pending role change.
+        try? await coreDataManager.saveInBackground { context in
+            guard let cdMember = try CDMember.fetchById(userId, context: context) else { return }
+            cdMember.pendingRole = role
+            cdMember.syncStatus = "pending_update"
+            cdMember.pendingOperation = "update"
+            cdMember.syncAttempts = 0
+        }
+        await updatePendingOperationsCount()
     }
 
-    /// Remove a member from a list (optimistic)
+    /// Remove a member from a list.
+    ///
+    /// Online: just call the API. Offline: mark the CDMember pending_delete
+    /// so the removal lands on the server when the network returns.
     func removeMember(listId: String, userId: String) async throws {
-        print("🗑️ [ListMemberService] Removing member (optimistic): \(userId)")
+        print("🗑️ [ListMemberService] Removing member: \(userId) (online: \(networkMonitor.isConnected))")
 
-        // 1. Remove from UI immediately
-        if var currentMembers = membersByList[listId] {
-            currentMembers.removeAll { $0.userId == userId }
-            membersByList[listId] = currentMembers
-            members = currentMembers.compactMap { $0.user }
-        }
-
-        // 2. Mark as pending delete in Core Data
-        _Concurrency.Task.detached { [weak self] in
-            do {
-                try await self?.coreDataManager.saveInBackground { context in
-                    guard let cdMember = try CDMember.fetchById(userId, context: context) else {
-                        return
-                    }
-
-                    cdMember.syncStatus = "pending_delete"
-                    cdMember.pendingOperation = "delete"
-                    cdMember.syncAttempts = 0
-                }
-
-                await self?.updatePendingOperationsCount()
-            } catch {
-                print("⚠️ [ListMemberService] Failed to mark for deletion: \(error)")
-            }
-        }
-
-        // 3. Trigger background sync
         if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingOperations()
+            _ = try await apiClient.removeListMember(listId: listId, userId: userId)
+            return
+        }
+
+        // Offline: mark pending_delete; syncPendingOperations finishes it.
+        try? await coreDataManager.saveInBackground { context in
+            guard let cdMember = try CDMember.fetchById(userId, context: context) else { return }
+            cdMember.syncStatus = "pending_delete"
+            cdMember.pendingOperation = "delete"
+            cdMember.syncAttempts = 0
+        }
+        await updatePendingOperationsCount()
+    }
+
+    /// Cancel a pending invitation by email (optimistic).
+    ///
+    /// Invitations live on the `List.invitations` collection, not in CDMember,
+    /// so the optimistic update is a cached-list edit rather than a CDMember
+    /// pending-op. On network failure the invitation is restored to the list.
+    ///
+    /// Returns immediately so the view can hide the invitation row without
+    /// waiting on the server.
+    func cancelInvitation(listId: String, invitationId: String, email: String) async throws {
+        print("🗑️ [ListMemberService] Cancelling invitation (optimistic): \(email)")
+
+        // 1. Capture the list snapshot for rollback.
+        guard let index = ListService.shared.lists.firstIndex(where: { $0.id == listId }) else {
+            // List not cached — just hit the API.
+            _ = try await apiClient.cancelInvitation(listId: listId, email: email)
+            return
+        }
+        let originalList = ListService.shared.lists[index]
+
+        // 2. Optimistic update.
+        var updatedList = originalList
+        updatedList.invitations?.removeAll { $0.id == invitationId }
+        ListService.shared.lists[index] = updatedList
+
+        // 3. API call in background; restore on failure.
+        do {
+            _ = try await apiClient.cancelInvitation(listId: listId, email: email)
+            print("✅ [ListMemberService] Invitation cancelled for \(email)")
+        } catch {
+            print("⚠️ [ListMemberService] Cancel failed, restoring invitation: \(error)")
+            if let idx = ListService.shared.lists.firstIndex(where: { $0.id == listId }) {
+                ListService.shared.lists[idx] = originalList
             }
+            throw error
         }
     }
 

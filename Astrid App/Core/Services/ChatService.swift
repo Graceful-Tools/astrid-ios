@@ -486,6 +486,39 @@ class ChatService: ObservableObject {
         }
     }
 
+    // MARK: - AI Assistant (on-device / agent response)
+    //
+    // These wrap AstridAPIClient so views and on-device-AI callers have a
+    // single chat entry point — matches the ChatService contract for regular
+    // messages. `getAIAssistantSettings` is called on every @Astrid send, so
+    // it's cached briefly to avoid a round-trip per message.
+
+    private var cachedAIAssistantSettings: (value: AIAssistantSettings, fetchedAt: Date)?
+    private let aiAssistantSettingsTTL: TimeInterval = 60
+
+    /// Returns the user's AI assistant settings, using a short in-memory
+    /// cache so the on-device-model gate doesn't re-fetch on every keystroke.
+    func getAIAssistantSettings() async throws -> AIAssistantSettings {
+        if let cached = cachedAIAssistantSettings,
+           Date().timeIntervalSince(cached.fetchedAt) < aiAssistantSettingsTTL {
+            return cached.value
+        }
+        let settings = try await AstridAPIClient.shared.getAIAssistantSettings()
+        cachedAIAssistantSettings = (settings, Date())
+        return settings
+    }
+
+    /// Invalidate the AI-assistant-settings cache (e.g., after the user
+    /// changes the model in settings).
+    func invalidateAIAssistantSettingsCache() {
+        cachedAIAssistantSettings = nil
+    }
+
+    /// Post an on-device AI agent's response to a chat channel.
+    func postAgentResponse(channelId: String, content: String) async throws {
+        try await AstridAPIClient.shared.postAgentResponse(channelId: channelId, content: content)
+    }
+
     // MARK: - SSE Event Handling
 
     /// Handle a new message from SSE

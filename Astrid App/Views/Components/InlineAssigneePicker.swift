@@ -26,26 +26,10 @@ struct InlineAssigneePicker: View {
         let taskLists = availableLists.filter { taskListIds.contains($0.id) }
 
         for list in taskLists {
-            // Add owner
+            // Owner + listMembers are the canonical member sources.
             if let owner = list.owner {
                 membersMap[owner.id] = owner
             }
-
-            // Add admins
-            if let admins = list.admins {
-                for admin in admins {
-                    membersMap[admin.id] = admin
-                }
-            }
-
-            // Add members
-            if let members = list.members {
-                for member in members {
-                    membersMap[member.id] = member
-                }
-            }
-
-            // Add from listMembers
             if let listMembers = list.listMembers {
                 for listMember in listMembers {
                     if let user = listMember.user {

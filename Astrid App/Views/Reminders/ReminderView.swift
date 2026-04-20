@@ -20,10 +20,11 @@ struct ReminderView: View {
 
         var members: [User] = []
         for list in lists where list.privacy == .SHARED {
-            // Add members from list, excluding current user
-            if let listMembers = list.members {
-                members.append(contentsOf: listMembers.filter { member in
-                    member.id != authManager.userId
+            // Pull from canonical `listMembers`, excluding current user.
+            if let listMembers = list.listMembers {
+                members.append(contentsOf: listMembers.compactMap { lm in
+                    guard let user = lm.user, user.id != authManager.userId else { return nil }
+                    return user
                 })
             }
         }

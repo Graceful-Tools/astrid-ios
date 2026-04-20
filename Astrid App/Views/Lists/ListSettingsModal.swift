@@ -27,27 +27,14 @@ struct ListSettingsModal: View {
         self._currentList = State(initialValue: list)
     }
 
-    /// Check if current user can edit settings (is owner or admin)
+    /// Check if current user can edit settings (is owner or admin).
+    /// Mirrors web's `canUserManageList` — only consults `listMembers`.
     private var canEditSettings: Bool {
         guard let currentUserId = AuthManager.shared.userId else {
             return false
         }
-
-        if currentList.ownerId == currentUserId || currentList.owner?.id == currentUserId {
-            return true
-        }
-
-        if let admins = currentList.admins, admins.contains(where: { $0.id == currentUserId }) {
-            return true
-        }
-
-        if let listMembers = currentList.listMembers {
-            if listMembers.contains(where: { $0.user?.id == currentUserId && $0.role == "admin" }) {
-                return true
-            }
-        }
-
-        return false
+        let role = currentList.role(for: currentUserId)
+        return role == .owner || role == .admin
     }
 
     /// Check if current user is the list owner

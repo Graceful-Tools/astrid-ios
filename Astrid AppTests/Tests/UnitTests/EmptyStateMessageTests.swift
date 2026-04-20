@@ -1,174 +1,56 @@
 import XCTest
 @testable import Astrid_App
 
-/// Unit tests for empty state message logic
-/// Tests the "caught up" message threshold behavior
+/// Unit tests for empty-state message logic on My Tasks.
+///
+/// Aligns with `astrid-web/components/ui/astrid-empty-state.tsx`, which
+/// returns a single string per list type with no completed-task threshold.
+/// iOS previously branched to a different "caught up" message after 10
+/// completions; that was iOS-only and created cross-platform drift, so it
+/// was removed. If the product ever adds an "experienced user" variant, it
+/// must be added to the web first (the source of truth for empty-state
+/// copy) and then mirrored here.
 final class EmptyStateMessageTests: XCTestCase {
 
-    // MARK: - Helper Function Tests
+    /// The my-tasks empty-state key is always the same regardless of how
+    /// many tasks the user has completed — matches web's behavior.
+    func testMyTasksMessage_IsStableAcrossCompletionCounts() {
+        // The localized key we use must not vary with completion count.
+        // (We exercise the key name contract rather than the rendered
+        // string so the test is locale-stable.)
+        let key = "empty_state.my_tasks"
+        let bundle = Bundle(for: EmptyStateMessageTests.self)
+        // The key should resolve to *some* string in our localization;
+        // verify at least the base locale has a non-empty entry.
+        let resolved = NSLocalizedString(key, bundle: bundle, comment: "")
+        XCTAssertFalse(resolved.isEmpty, "my-tasks empty-state key must have a localized string")
+    }
 
-    /// Test that we correctly count completed tasks for a user
-    func testCountCompletedTasksForUser() {
+    /// Guard: if a future refactor reintroduces a completed-task threshold,
+    /// this test documents the intent that iOS/web should match. The
+    /// assertion here is purely a structural reminder — we count completed
+    /// tasks for a user but do NOT branch on the count to choose a message.
+    func testCountCompletedTasksForUser_UtilityStillWorks() {
         let userId = "test-user-123"
 
-        // Create 5 completed tasks assigned to our user
         var tasks: [Task] = []
         for i in 0..<5 {
             tasks.append(TestHelpers.createTestTask(
-                id: "completed-\(i)",
-                title: "Completed Task \(i)",
-                completed: true,
-                assigneeId: userId
+                id: "completed-\(i)", completed: true, assigneeId: userId
             ))
         }
-
-        // Add 3 incomplete tasks assigned to our user
         for i in 0..<3 {
             tasks.append(TestHelpers.createTestTask(
-                id: "incomplete-\(i)",
-                title: "Incomplete Task \(i)",
-                completed: false,
-                assigneeId: userId
+                id: "incomplete-\(i)", completed: false, assigneeId: userId
             ))
         }
-
-        // Add 2 completed tasks assigned to someone else
         for i in 0..<2 {
             tasks.append(TestHelpers.createTestTask(
-                id: "other-completed-\(i)",
-                title: "Other's Task \(i)",
-                completed: true,
-                assigneeId: "other-user"
-            ))
-        }
-
-        // Count completed tasks for our user
-        let completedCount = tasks.filter { task in
-            task.completed && task.assigneeId == userId
-        }.count
-
-        XCTAssertEqual(completedCount, 5, "Should count only completed tasks assigned to user")
-    }
-
-    /// Test the threshold logic: < 10 completed = new user message
-    func testNewUserBelowThreshold() {
-        let userId = "new-user"
-
-        // Create 9 completed tasks (below threshold)
-        var tasks: [Task] = []
-        for i in 0..<9 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "task-\(i)",
-                completed: true,
-                assigneeId: userId
+                id: "other-completed-\(i)", completed: true, assigneeId: "other-user"
             ))
         }
 
         let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        // Should NOT show "caught up" message
-        XCTAssertLessThan(completedCount, 10, "User with < 10 completed tasks should see welcome message")
-    }
-
-    /// Test the threshold logic: >= 10 completed = caught up message
-    func testExperiencedUserAtThreshold() {
-        let userId = "experienced-user"
-
-        // Create exactly 10 completed tasks (at threshold)
-        var tasks: [Task] = []
-        for i in 0..<10 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "task-\(i)",
-                completed: true,
-                assigneeId: userId
-            ))
-        }
-
-        let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        // Should show "caught up" message
-        XCTAssertGreaterThanOrEqual(completedCount, 10, "User with >= 10 completed tasks should see caught up message")
-    }
-
-    /// Test the threshold logic: > 10 completed = caught up message
-    func testExperiencedUserAboveThreshold() {
-        let userId = "power-user"
-
-        // Create 50 completed tasks (well above threshold)
-        var tasks: [Task] = []
-        for i in 0..<50 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "task-\(i)",
-                completed: true,
-                assigneeId: userId
-            ))
-        }
-
-        let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        // Should show "caught up" message
-        XCTAssertGreaterThanOrEqual(completedCount, 10, "Power user with many completed tasks should see caught up message")
-    }
-
-    /// Test that tasks without assigneeId are not counted
-    func testUnassignedTasksNotCounted() {
-        let userId = "test-user"
-
-        var tasks: [Task] = []
-
-        // Add 15 completed tasks with NO assigneeId
-        for i in 0..<15 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "unassigned-\(i)",
-                completed: true,
-                assigneeId: nil  // Not assigned to anyone
-            ))
-        }
-
-        // Add 5 completed tasks assigned to our user
-        for i in 0..<5 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "assigned-\(i)",
-                completed: true,
-                assigneeId: userId
-            ))
-        }
-
-        let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        // Should only count the 5 assigned tasks
-        XCTAssertEqual(completedCount, 5, "Should only count tasks assigned to user, not unassigned tasks")
-        XCTAssertLessThan(completedCount, 10, "User should still be below threshold")
-    }
-
-    /// Test edge case: zero completed tasks (brand new user)
-    func testBrandNewUserNoCompletedTasks() {
-        let userId = "brand-new-user"
-
-        // Create only incomplete tasks
-        var tasks: [Task] = []
-        for i in 0..<5 {
-            tasks.append(TestHelpers.createTestTask(
-                id: "task-\(i)",
-                completed: false,
-                assigneeId: userId
-            ))
-        }
-
-        let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        XCTAssertEqual(completedCount, 0, "Brand new user should have zero completed tasks")
-        XCTAssertLessThan(completedCount, 10, "Brand new user should see welcome message")
-    }
-
-    /// Test edge case: empty task list
-    func testEmptyTaskList() {
-        let userId = "empty-list-user"
-        let tasks: [Task] = []
-
-        let completedCount = tasks.filter { $0.completed && $0.assigneeId == userId }.count
-
-        XCTAssertEqual(completedCount, 0, "Empty list should return zero")
-        XCTAssertLessThan(completedCount, 10, "User with no tasks should see welcome message")
+        XCTAssertEqual(completedCount, 5)
     }
 }

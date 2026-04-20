@@ -233,11 +233,14 @@ final class ListManagementTests: XCTestCase {
         // Given: A list with members
         let memberId = "member-123"
         let member = TestHelpers.createTestUser(id: memberId)
+        // Role string must match the server contract: lowercase "admin"
+        // or "member". Mirrors web's `getUserRoleInList` which does strict
+        // string comparison against those two values.
         let listMember = ListMember(
             id: "lm-1",
             listId: "list-1",
             userId: memberId,
-            role: "MEMBER",
+            role: "member",
             createdAt: nil,
             updatedAt: nil,
             user: member

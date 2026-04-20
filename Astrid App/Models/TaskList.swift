@@ -118,60 +118,52 @@ struct ListInvite: Identifiable, Codable, Equatable, Hashable {
 }
 
 // MARK: - TaskList Permission Checks
+//
+// These mirror `astrid-web/lib/list-permissions.ts` — `listMembers` is the
+// canonical source of role information on both platforms. The legacy
+// `admins` and `members` fields on this struct are kept only so Codable
+// decoding still works against the `/api/v1/public/lists` endpoint
+// (which synthesizes an `admins` array from `listMembers` for older
+// clients). Do NOT consult them when determining a user's role —
+// consulting them here would diverge from the web's permission checks.
 
 extension TaskList {
-    /// Check if the current user can access settings for this list
-    /// Returns true if user is owner or admin, false otherwise
-    func canUserSaveServerSettings() -> Bool {
-        guard let currentUserId = AuthManager.shared.userId else {
-            return false
-        }
-
-        // Check if user is owner
-        if ownerId == currentUserId || owner?.id == currentUserId {
-            return true
-        }
-
-        // Check if user is admin in legacy admins array
-        if let admins = admins, admins.contains(where: { $0.id == currentUserId }) {
-            return true
-        }
-
-        // Check in listMembers for admin role
-        if let listMembers = listMembers {
-            if listMembers.contains(where: { $0.user?.id == currentUserId && $0.role == "admin" }) {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    /// Check if a user is a member of this list (owner, admin, or member)
-    /// Used to determine if tasks in this list should be visible to the user
-    func isMember(userId: String) -> Bool {
-        // Check if user is owner
+    /// User's role on this list. Returns nil if user has no access.
+    /// Matches web's `getUserRoleInList`.
+    func role(for userId: String) -> ListRole? {
         if ownerId == userId || owner?.id == userId {
-            return true
+            return .owner
         }
-
-        // Check if user is admin in legacy admins array
-        if let admins = admins, admins.contains(where: { $0.id == userId }) {
-            return true
+        if let listMembers = listMembers,
+           listMembers.contains(where: { $0.userId == userId && $0.role == "admin" }) {
+            return .admin
         }
-
-        // Check if user is member in legacy members array
-        if let members = members, members.contains(where: { $0.id == userId }) {
-            return true
+        if let listMembers = listMembers,
+           listMembers.contains(where: { $0.userId == userId && $0.role == "member" }) {
+            return .member
         }
-
-        // Check in listMembers for any role (admin, member)
-        if let listMembers = listMembers {
-            if listMembers.contains(where: { $0.userId == userId }) {
-                return true
-            }
+        if privacy == .PUBLIC {
+            return .viewer
         }
-
-        return false
+        return nil
     }
+
+    /// Check if the current user can access settings for this list.
+    /// Returns true if user is owner or admin.
+    func canUserSaveServerSettings() -> Bool {
+        guard let currentUserId = AuthManager.shared.userId else { return false }
+        let role = role(for: currentUserId)
+        return role == .owner || role == .admin
+    }
+
+    /// Check if a user is a member of this list (owner, admin, or member).
+    /// Used to determine if tasks in this list should be visible to the user.
+    func isMember(userId: String) -> Bool {
+        let role = role(for: userId)
+        return role == .owner || role == .admin || role == .member
+    }
+}
+
+enum ListRole: String {
+    case owner, admin, member, viewer
 }

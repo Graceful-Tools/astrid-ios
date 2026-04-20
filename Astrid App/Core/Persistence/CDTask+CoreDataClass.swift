@@ -145,11 +145,6 @@ public class CDTask: NSManagedObject {
 
     // MARK: - Private Helpers
 
-    // Note: These methods handle encoding/decoding of CustomRepeatingPattern.
-    // Swift 6 Warning: These trigger concurrency warnings because CustomRepeatingPattern's
-    // Codable conformance is main-actor-isolated. This is a known Swift 6 migration issue.
-    // The operations are safe as all involved types are value types.
-
     private func encodeRepeatingData(_ pattern: CustomRepeatingPattern) -> String? {
         let encoder = JSONEncoder()
         guard let data = try? encoder.encode(pattern) else {

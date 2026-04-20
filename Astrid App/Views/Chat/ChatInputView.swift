@@ -82,8 +82,10 @@ struct ChatInputView: View {
     /// If the message mentions @Astrid and the user has Apple FM selected,
     /// process the message on-device and post the response via the server.
     private func handleOnDeviceAstridMention(content: String) async {
-        // Check if on-device model is selected
-        guard let settings = try? await AstridAPIClient.shared.getAIAssistantSettings(),
+        // Check if on-device model is selected. Routed through ChatService
+        // so the call goes through the same control point as message sends
+        // and benefits from the short TTL cache (called on every @mention).
+        guard let settings = try? await ChatService.shared.getAIAssistantSettings(),
               settings.isOnDeviceModel else { return }
 
         // Check if message contains an @Astrid mention (format: @[Astrid](userId))
@@ -112,9 +114,10 @@ struct ChatInputView: View {
             return
         }
 
-        // Post the response as Astrid via the server endpoint
+        // Post the response as Astrid via ChatService (canonical entry point
+        // for everything that writes to a chat channel).
         do {
-            try await AstridAPIClient.shared.postAgentResponse(
+            try await ChatService.shared.postAgentResponse(
                 channelId: channelId,
                 content: response
             )

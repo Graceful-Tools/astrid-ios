@@ -22,58 +22,34 @@ struct ListMembershipTab: View {
     @State private var isGitHubConnected = false
 
     private let listService = ListService.shared
+    private let memberService = ListMemberService.shared
     private let apiClient = AstridAPIClient.shared
 
-    /// Check if current user can edit settings (is owner or admin)
+    /// Check if current user can edit settings (is owner or admin).
+    /// Mirrors web's `canUserManageList` — only consults `listMembers`.
     private var canEditSettings: Bool {
         guard let currentUserId = AuthManager.shared.userId else {
             return false
         }
-
-        // Check if user is owner (check both ownerId field and owner object)
-        // API may return ownerId or owner object depending on the endpoint
-        if list.ownerId == currentUserId || list.owner?.id == currentUserId {
-            return true
-        }
-
-        // Check if user is admin
-        if let admins = list.admins, admins.contains(where: { $0.id == currentUserId }) {
-            return true
-        }
-
-        // Check in listMembers for admin role
-        if let listMembers = list.listMembers {
-            if listMembers.contains(where: { $0.user?.id == currentUserId && $0.role == "admin" }) {
-                return true
-            }
-        }
-
-        return false
+        let role = list.role(for: currentUserId)
+        return role == .owner || role == .admin
     }
 
     /// Filter invitations to only show truly pending ones (exclude users who have already accepted)
     private var pendingInvitations: [ListInvite] {
         guard let invitations = list.invitations else { return [] }
 
-        // Get all member emails (from both legacy members and listMembers)
+        // Collect member emails from the canonical `listMembers` source +
+        // the owner. The legacy `members` array is no longer populated by
+        // server endpoints iOS consumes.
         var memberEmails = Set<String>()
-
-        // Add emails from legacy members array
-        if let members = list.members {
-            memberEmails.formUnion(members.compactMap { $0.email })
-        }
-
-        // Add emails from listMembers
         if let listMembers = list.listMembers {
             memberEmails.formUnion(listMembers.compactMap { $0.user?.email })
         }
-
-        // Add owner email
         if let ownerEmail = list.owner?.email {
             memberEmails.insert(ownerEmail)
         }
 
-        // Filter out invitations where user has already accepted (email exists in members)
         return invitations.filter { !memberEmails.contains($0.email) }
     }
 
@@ -712,13 +688,11 @@ struct ListMembershipTab: View {
 
         _Concurrency.Task {
             do {
-                _ = try await apiClient.addListMember(
-                    listId: list.id,
-                    email: email,
-                    role: role
-                )
+                // Route through ListMemberService so the operation lands in
+                // the pending-ops queue and syncs on reconnect if offline.
+                _ = try await memberService.addMember(listId: list.id, email: email, role: role)
 
-                // Refresh list data — parent chain propagates via onChange guard
+                // Server-confirmed list refresh (picks up newly-created member/invitation)
                 _ = try? await listService.fetchLists()
             } catch {
                 errorMessage = error.localizedDescription
@@ -731,11 +705,7 @@ struct ListMembershipTab: View {
     private func changeRole(userId: String, currentRole: String, newRole: String) {
         _Concurrency.Task {
             do {
-                _ = try await apiClient.updateListMember(
-                    listId: list.id,
-                    userId: userId,
-                    role: newRole
-                )
+                try await memberService.updateMemberRole(listId: list.id, userId: userId, role: newRole)
 
                 // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
@@ -747,33 +717,29 @@ struct ListMembershipTab: View {
 
     private func removeMember(userId: String, email: String) {
         print("🗑️ [ListMembershipTab] Removing member: userId=\(userId), email=\(email)")
-        // Track removal so UI stays correct even if stale data flows in
+        // Track removal so UI stays correct even if stale data flows in.
         if !email.isEmpty {
             removedMemberEmails.insert(email)
         }
 
-        // Optimistic update: remove member from list immediately
+        // View-level optimistic update on the current list snapshot so the
+        // row disappears immediately. The service also updates its caches
+        // and queues the API call for offline resilience.
         var updatedList = list
         updatedList.admins?.removeAll { $0.id == userId }
         updatedList.members?.removeAll { $0.id == userId }
         updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
         onUpdate(updatedList)
 
-        // Also update cached list so change persists across view dismissals
         let originalList = list
         ListService.shared.removeMemberFromCachedList(listId: list.id, userId: userId)
 
-        // Sync with server in background
         _Concurrency.Task {
             do {
-                _ = try await apiClient.removeListMember(
-                    listId: list.id,
-                    userId: userId
-                )
-
+                try await memberService.removeMember(listId: list.id, userId: userId)
                 print("✅ [ListMembershipTab] Removed member from list")
             } catch {
-                // Revert on failure
+                // Revert on failure.
                 if !email.isEmpty {
                     removedMemberEmails.remove(email)
                 }
@@ -787,29 +753,27 @@ struct ListMembershipTab: View {
     private func removeInvitation(invitationId: String, email: String) {
         print("🗑️ [ListMembershipTab] Removing invitation: id=\(invitationId), email=\(email)")
 
-        // Track removal so invitation doesn't reappear from stale data
+        // Track removal so invitation doesn't reappear from stale data.
         removedMemberEmails.insert(email)
 
-        // Optimistic update: remove invitation from list
+        // View-level optimistic update so the invitation row disappears
+        // immediately; the service also touches the cached list + calls API.
         var updatedList = list
         updatedList.invitations?.removeAll { $0.id == invitationId }
         onUpdate(updatedList)
 
-        // Also update cached list
-        if var cachedList = ListService.shared.lists.first(where: { $0.id == list.id }) {
-            cachedList.invitations?.removeAll { $0.id == invitationId }
-            let idx = ListService.shared.lists.firstIndex(where: { $0.id == list.id })
-            if let idx { ListService.shared.lists[idx] = cachedList }
-        }
-
-        // Cancel the invitation via API
         _Concurrency.Task {
             do {
-                _ = try await apiClient.cancelInvitation(listId: list.id, email: email)
-                print("✅ [ListMembershipTab] Invitation cancelled for \(email)")
+                try await memberService.cancelInvitation(
+                    listId: list.id,
+                    invitationId: invitationId,
+                    email: email
+                )
             } catch {
                 print("⚠️ [ListMembershipTab] Cancel invitation failed: \(error.localizedDescription)")
-                // Keep the local removal — user doesn't need to see the error
+                // Service has already restored its cache; the view-level
+                // optimistic removal stays (matches prior behavior — user
+                // doesn't need to see the error).
             }
         }
     }
@@ -863,10 +827,8 @@ struct ListMembershipTab: View {
         // If we've locally removed this member, it's not a member regardless of stale list data
         if removedMemberEmails.contains(email) { return false }
 
-        // Check in all member sources
+        // Check listMembers (canonical source — matches web's role tables).
         if list.owner?.email == email { return true }
-        if list.admins?.contains(where: { $0.email == email }) == true { return true }
-        if list.members?.contains(where: { $0.email == email }) == true { return true }
         if list.listMembers?.contains(where: { $0.user?.email == email }) == true { return true }
 
         return false
@@ -882,12 +844,8 @@ struct ListMembershipTab: View {
             do {
                 print("🤖 [ListMembershipTab] Adding \(email) to list")
 
-                // Add agent to list members
-                _ = try await apiClient.addListMember(
-                    listId: list.id,
-                    email: email,
-                    role: "member"
-                )
+                // Route through ListMemberService so offline queue applies.
+                _ = try await memberService.addMember(listId: list.id, email: email, role: "member")
 
                 print("✅ [ListMembershipTab] Added \(email) to list")
 
@@ -910,15 +868,11 @@ struct ListMembershipTab: View {
         // Track removal so UI stays correct even if stale data flows in
         removedMemberEmails.insert(email)
 
-        // Find agent in list members by email
+        // Find agent in list members by email (owner or listMembers — the
+        // canonical sources; legacy admins/members are no longer populated).
         var agentUserId: String?
-
         if list.owner?.email == email {
             agentUserId = list.owner?.id
-        } else if let admin = list.admins?.first(where: { $0.email == email }) {
-            agentUserId = admin.id
-        } else if let member = list.members?.first(where: { $0.email == email }) {
-            agentUserId = member.id
         } else if let listMember = list.listMembers?.first(where: { $0.user?.email == email }) {
             agentUserId = listMember.userId
         }
@@ -947,11 +901,7 @@ struct ListMembershipTab: View {
             }
 
             do {
-                _ = try await apiClient.removeListMember(
-                    listId: list.id,
-                    userId: userId
-                )
-
+                try await memberService.removeMember(listId: list.id, userId: userId)
                 print("✅ [ListMembershipTab] Removed \(email) from list")
             } catch {
                 // Revert on failure

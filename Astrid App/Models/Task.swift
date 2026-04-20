@@ -168,12 +168,10 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
-// Value type with only primitive properties - implicitly thread-safe.
-// Swift 6 Warning: The Codable conformance triggers a concurrency warning when used
-// in nonisolated contexts (CDTask). This is a known Swift 6 migration issue that will
-// need to be addressed when adopting Swift 6. For now, the warning is acceptable as
-// the struct only contains value types which are inherently safe.
-struct CustomRepeatingPattern: Codable, Equatable, Hashable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated
+// contexts (e.g. CDTask encode/decode helpers). The struct holds only value-type
+// fields, so it is inherently thread-safe.
+nonisolated struct CustomRepeatingPattern: Codable, Equatable, Hashable {
     var type: String?  // Always "custom"
     var unit: String?  // "days", "weeks", "months", "years"
     var interval: Int?  // Every X days/weeks/months/years
@@ -193,7 +191,7 @@ struct CustomRepeatingPattern: Codable, Equatable, Hashable {
     var month: Int?  // 1-12
     var day: Int?    // 1-31
 
-    struct MonthWeekday: Codable, Equatable, Hashable {
+    nonisolated struct MonthWeekday: Codable, Equatable, Hashable {
         var weekday: String  // "monday", "tuesday", etc.
         var weekOfMonth: Int  // 1-5
     }

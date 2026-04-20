@@ -42,23 +42,8 @@ class UserImageCache {
                 count += 1
             }
 
-            // Cache admins
-            if let admins = list.admins {
-                for admin in admins {
-                    cacheUser(admin)
-                    count += 1
-                }
-            }
-
-            // Cache members
-            if let members = list.members {
-                for member in members {
-                    cacheUser(member)
-                    count += 1
-                }
-            }
-
-            // Cache from listMembers
+            // Cache from listMembers — canonical member source (legacy
+            // admins/members arrays are no longer populated).
             if let listMembers = list.listMembers {
                 for listMember in listMembers {
                     if let user = listMember.user {

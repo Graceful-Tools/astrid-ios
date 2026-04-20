@@ -1,12 +1,32 @@
 import Foundation
 
-/// Repeating Task Handler
+/// Repeating Task Handler — **canonical, single source of truth** for
+/// next-occurrence calculation on iOS.
 ///
 /// Handles the logic for calculating next occurrences of repeating tasks.
 /// Implements both "Repeat from due date" and "Repeat from completion date" modes.
 ///
-/// This mirrors the web implementation in lib/repeating-task-handler.ts
-/// and types/repeating.ts
+/// This mirrors the web implementation in `astrid-web/lib/repeating-task-handler.ts`
+/// and `astrid-web/types/repeating.ts`. Keep the two in sync: when one changes,
+/// update the other and mirror the corresponding tests.
+///
+/// ⚠️ Do NOT add pattern math anywhere else in the app. Call
+/// `RepeatingTaskCalculator.calculateSimpleNextOccurrence` or
+/// `calculateCustomNextOccurrence` from the single production entry point
+/// (`TaskService.calculateNextOccurrence`). A previous inline implementation
+/// in `TaskService` ignored `weekdays`, `monthRepeatType`, `monthWeekday`,
+/// and the yearly `month`/`day` fields — weekly M/W/F patterns added 7 days
+/// instead of picking the next selected weekday. The fix collapsed that
+/// logic into this file.
+///
+/// When adding a new field to `CustomRepeatingPattern`:
+/// 1. Teach this calculator to honor it.
+/// 2. Add a test in `CustomRepeatingPatternTests.swift` that walks the
+///    pattern through multiple completions.
+/// 3. Add a matching test at the `TaskService.calculateNextOccurrence` level
+///    so the production entry point is covered, not just the calculator in
+///    isolation.
+/// 4. Mirror the change in `astrid-web`.
 
 // MARK: - Helper Extensions
 

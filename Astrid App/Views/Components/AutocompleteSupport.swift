@@ -161,8 +161,8 @@ func buildMentionableUsers(listId: String? = nil) -> [User] {
     }
     for list in listsToScan {
         if let owner = list.owner { users.append(owner) }
-        for member in list.members ?? [] { users.append(member) }
-        for admin in list.admins ?? [] { users.append(admin) }
+        // Canonical source: `listMembers`. Legacy admins/members arrays are
+        // not populated by the lists endpoints iOS calls.
         for lm in list.listMembers ?? [] {
             if let user = lm.user { users.append(user) }
         }

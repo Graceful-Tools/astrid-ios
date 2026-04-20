@@ -653,145 +653,82 @@ class TaskService: ObservableObject {
         return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task)
     }
 
-    /// Calculate the next occurrence date for a repeating task
-    private func calculateNextOccurrence(for task: Task) -> (nextDate: Date?, shouldTerminate: Bool) {
-        let completionDate = Date()
+    /// Calculate the next occurrence date for a repeating task.
+    ///
+    /// Delegates to `RepeatingTaskCalculator`, which is the canonical
+    /// implementation shared with `astrid-web` and exercised by
+    /// `RepeatingTaskCalculatorTests` and `CustomRepeatingPatternTests`.
+    /// Do NOT reintroduce pattern logic here — it caused a regression where
+    /// weekly patterns with selected weekdays jumped a full week instead of
+    /// picking the next selected weekday.
+    ///
+    /// Marked `internal` so tests can lock down the completion path.
+    func calculateNextOccurrence(for task: Task) -> (nextDate: Date?, shouldTerminate: Bool) {
         let currentDueDate = task.dueDateTime
         let repeatFrom = task.repeatFrom ?? .COMPLETION_DATE
         let currentOccurrenceCount = task.occurrenceCount ?? 0
-        let newOccurrenceCount = currentOccurrenceCount + 1
 
-        // Determine anchor date based on repeat mode
-        // CRITICAL: Use UTC calendar for all date/time operations to match web behavior
-        // All-day tasks are stored as UTC midnight (e.g., 2026-01-06T00:00:00Z)
-        // Using local calendar would extract incorrect time (e.g., 4 PM PST for UTC midnight)
-        // which causes the anchor date to shift by a day, making next occurrence 2 days ahead
+        // For all-day tasks in COMPLETION_DATE mode, normalize completion to
+        // the user's LOCAL date at UTC midnight (how all-day tasks are stored).
+        // This matches the web's `localCompletionDate` behavior: completing at
+        // 9pm PST (= 5am UTC next day) should anchor to the local date, not the
+        // UTC date that crossed midnight.
+        let completionDate = effectiveCompletionDate(for: task, repeatFrom: repeatFrom)
+
+        // Custom patterns: weekdays, monthly same_date/same_weekday, yearly
+        if task.repeating == .custom, let pattern = task.repeatingData {
+            let result = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+                pattern: pattern,
+                currentDueDate: currentDueDate,
+                completionDate: completionDate,
+                repeatFrom: repeatFrom,
+                currentOccurrenceCount: currentOccurrenceCount
+            )
+            return (result.nextDueDate, result.shouldTerminate)
+        }
+
+        // Simple patterns with optional end conditions piggybacked on repeatingData
+        guard let repeating = task.repeating, repeating != .never else {
+            return (nil, false)
+        }
+        var endData: SimplePatternEndCondition? = nil
+        if let pattern = task.repeatingData, let endCondition = pattern.endCondition {
+            endData = SimplePatternEndCondition(
+                endCondition: endCondition,
+                endAfterOccurrences: pattern.endAfterOccurrences,
+                endUntilDate: pattern.endUntilDate
+            )
+        }
+        let result = RepeatingTaskCalculator.calculateSimpleNextOccurrence(
+            repeatingType: repeating,
+            currentDueDate: currentDueDate,
+            completionDate: completionDate,
+            repeatFrom: repeatFrom,
+            currentOccurrenceCount: currentOccurrenceCount,
+            endData: endData
+        )
+        return (result.nextDueDate, result.shouldTerminate)
+    }
+
+    /// Adjust completion date for all-day + COMPLETION_DATE mode so the
+    /// anchor is the user's local date (stored as UTC midnight). Timed tasks
+    /// and DUE_DATE mode pass through unchanged.
+    private func effectiveCompletionDate(for task: Task, repeatFrom: Task.RepeatFromMode) -> Date {
+        let now = Date()
+        guard task.isAllDay, repeatFrom == .COMPLETION_DATE else { return now }
+
+        let localComponents = Calendar.current.dateComponents([.year, .month, .day], from: now)
+        var utcComponents = DateComponents()
+        utcComponents.year = localComponents.year
+        utcComponents.month = localComponents.month
+        utcComponents.day = localComponents.day
+        utcComponents.hour = 0
+        utcComponents.minute = 0
+        utcComponents.second = 0
+        utcComponents.timeZone = TimeZone(identifier: "UTC")
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-        let anchorDate: Date
-        if let dueDate = currentDueDate {
-            if repeatFrom == .DUE_DATE {
-                anchorDate = dueDate
-            } else {
-                // COMPLETION_DATE mode: Use completion date with original due time
-                if task.isAllDay {
-                    // CRITICAL FIX for all-day tasks:
-                    // Extract the LOCAL date from completion (not UTC date)
-                    // This fixes the bug where completing at 9pm PST (= 5am UTC next day)
-                    // would extract Jan 6 UTC instead of Jan 5 local
-                    //
-                    // Example: Task due "Jan 5" (stored as Jan 5, 00:00 UTC)
-                    // User completes at Jan 5, 9pm PST = Jan 6, 5am UTC
-                    // Wrong: UTC date = Jan 6, next = Jan 7
-                    // Right: Local date = Jan 5, next = Jan 6
-                    let localCalendar = Calendar.current
-                    let localDateComponents = localCalendar.dateComponents([.year, .month, .day], from: completionDate)
-
-                    // Create anchor as the LOCAL date at UTC midnight (how all-day tasks are stored)
-                    var utcComponents = DateComponents()
-                    utcComponents.year = localDateComponents.year
-                    utcComponents.month = localDateComponents.month
-                    utcComponents.day = localDateComponents.day
-                    utcComponents.hour = 0
-                    utcComponents.minute = 0
-                    utcComponents.second = 0
-                    utcComponents.timeZone = TimeZone(identifier: "UTC")
-                    anchorDate = utcCalendar.date(from: utcComponents) ?? dueDate
-                } else {
-                    // Timed tasks: Use UTC date from completion with time from due date
-                    let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: completionDate)
-                    let timeComponents = utcCalendar.dateComponents([.hour, .minute, .second], from: dueDate)
-                    var combined = DateComponents()
-                    combined.year = dateComponents.year
-                    combined.month = dateComponents.month
-                    combined.day = dateComponents.day
-                    combined.hour = timeComponents.hour
-                    combined.minute = timeComponents.minute
-                    combined.second = timeComponents.second
-                    combined.timeZone = TimeZone(identifier: "UTC")
-                    anchorDate = utcCalendar.date(from: combined) ?? completionDate
-                }
-            }
-        } else {
-            anchorDate = completionDate
-        }
-
-        // Calculate next date based on pattern
-        // CRITICAL: Use UTC calendar for all date arithmetic to match web behavior
-        // Using local calendar causes timezone issues, especially for all-day tasks
-        // where the UTC midnight date may differ from the local date
-        var nextDate: Date?
-
-        if task.repeating == .custom, let pattern = task.repeatingData {
-            // Custom pattern
-            let interval = pattern.interval ?? 1
-
-            switch pattern.unit {
-            case "days":
-                // Use UTC-safe day addition (24 hours in milliseconds)
-                nextDate = anchorDate.addingTimeInterval(Double(interval) * 24 * 60 * 60)
-            case "weeks":
-                // Use UTC-safe week addition (7 * 24 hours in milliseconds)
-                nextDate = anchorDate.addingTimeInterval(Double(interval * 7) * 24 * 60 * 60)
-            case "months":
-                nextDate = utcCalendar.date(byAdding: .month, value: interval, to: anchorDate)
-            case "years":
-                nextDate = utcCalendar.date(byAdding: .year, value: interval, to: anchorDate)
-            default:
-                nextDate = anchorDate.addingTimeInterval(Double(interval) * 24 * 60 * 60)
-            }
-
-            // Check end conditions
-            if pattern.endCondition == "after_occurrences",
-               let endAfter = pattern.endAfterOccurrences,
-               newOccurrenceCount >= endAfter {
-                return (nil, true)
-            }
-
-            if pattern.endCondition == "until_date",
-               let endDate = pattern.endUntilDate,
-               let next = nextDate,
-               next > endDate {
-                return (nil, true)
-            }
-        } else {
-            // Simple patterns - use UTC-safe date arithmetic
-            switch task.repeating {
-            case .daily:
-                // Add exactly 24 hours (avoids local calendar timezone issues)
-                nextDate = anchorDate.addingTimeInterval(24 * 60 * 60)
-            case .weekly:
-                // Add exactly 7 days (168 hours)
-                nextDate = anchorDate.addingTimeInterval(7 * 24 * 60 * 60)
-            case .monthly:
-                nextDate = utcCalendar.date(byAdding: .month, value: 1, to: anchorDate)
-            case .yearly:
-                nextDate = utcCalendar.date(byAdding: .year, value: 1, to: anchorDate)
-            default:
-                break
-            }
-        }
-
-        // Preserve time from original due date if available (for timed tasks only)
-        // Use UTC calendar to avoid timezone conversion issues
-        if let next = nextDate, let original = currentDueDate, !task.isAllDay {
-            var utcCal = Calendar.current
-            utcCal.timeZone = TimeZone(identifier: "UTC")!
-            let timeComponents = utcCal.dateComponents([.hour, .minute, .second], from: original)
-            let dateComponents = utcCal.dateComponents([.year, .month, .day], from: next)
-            var combined = DateComponents()
-            combined.year = dateComponents.year
-            combined.month = dateComponents.month
-            combined.day = dateComponents.day
-            combined.hour = timeComponents.hour
-            combined.minute = timeComponents.minute
-            combined.second = timeComponents.second
-            combined.timeZone = TimeZone(identifier: "UTC")
-            nextDate = utcCal.date(from: combined)
-        }
-
-        return (nextDate, false)
+        return utcCalendar.date(from: utcComponents) ?? now
     }
 
     func updateTaskLists(taskId: String, listIds: [String]) async throws -> Task {

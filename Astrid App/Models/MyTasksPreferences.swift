@@ -55,104 +55,46 @@ class MyTasksPreferencesService: ObservableObject {
         }
     }
 
-    /// Fetch preferences from server
+    /// Fetch preferences from the server via AstridAPIClient (the canonical
+    /// network entry point — handles cookies/auth/retry centrally). UI has
+    /// already loaded the UserDefaults snapshot synchronously, so this call
+    /// only refreshes; a failure here is non-fatal.
     func fetchPreferences() async {
         do {
-            guard let url = URL(string: "\(Constants.API.baseURL)/api/user/my-tasks-preferences") else {
-                print("❌ Invalid URL for My Tasks preferences")
-                return
-            }
+            let fetchedPrefs = try await AstridAPIClient.shared.getMyTasksPreferences()
+            self.preferences = fetchedPrefs
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-            // Add session cookie if available
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            } else {
-                print("⚠️ No session cookie available for My Tasks preferences")
-                return
-            }
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ Invalid response for My Tasks preferences")
-                return
-            }
-
-            if httpResponse.statusCode == 200 {
-                let decoder = JSONDecoder()
-                let fetchedPrefs = try decoder.decode(MyTasksPreferences.self, from: data)
-                self.preferences = fetchedPrefs
-
-                // Save to UserDefaults for offline support
-                if let encoded = try? JSONEncoder().encode(fetchedPrefs) {
-                    UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-                    print("✅ [MyTasksPrefs] Loaded from server and saved to UserDefaults")
-                }
-            } else {
-                print("❌ Failed to fetch My Tasks preferences: \(httpResponse.statusCode)")
+            if let encoded = try? JSONEncoder().encode(fetchedPrefs) {
+                UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+                print("✅ [MyTasksPrefs] Loaded from server and saved to UserDefaults")
             }
         } catch {
-            print("❌ Error fetching My Tasks preferences: \(error)")
+            print("❌ [MyTasksPrefs] Error fetching preferences: \(error)")
         }
     }
 
-    /// Update preferences on server
+    /// Update preferences.
+    /// Optimistic: writes to local state + UserDefaults synchronously so the
+    /// UI reflects the change instantly and survives app restart. The server
+    /// update is debounced 300ms and routed through AstridAPIClient.
     func updatePreferences(_ updates: MyTasksPreferences) async {
-        // Cancel any pending update
         updateTask?.cancel()
 
-        // Optimistically update local state
+        // Optimistic local state + durable UserDefaults snapshot.
         self.preferences = updates
-
-        // Save to UserDefaults immediately for offline support
         if let encoded = try? JSONEncoder().encode(updates) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
             print("💾 [MyTasksPrefs] Saved to UserDefaults")
         }
 
-        // Debounce server update (300ms)
+        // Debounced network push.
         updateTask = _Concurrency.Task {
-            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000) // 300ms
-
+            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
             guard !_Concurrency.Task.isCancelled else { return }
 
             do {
-                guard let url = URL(string: "\(Constants.API.baseURL)/api/user/my-tasks-preferences") else {
-                    print("❌ Invalid URL for My Tasks preferences update")
-                    return
-                }
-
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                // Add session cookie if available
-                if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                    request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-                } else {
-                    print("⚠️ No session cookie available for My Tasks preferences update")
-                    return
-                }
-
-                let encoder = JSONEncoder()
-                request.httpBody = try encoder.encode(updates)
-
-                let (_, response) = try await URLSession.shared.data(for: request)
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    print("❌ Invalid response for My Tasks preferences update")
-                    return
-                }
-
-                if httpResponse.statusCode == 200 {
-                    print("✅ Updated My Tasks preferences on server")
-                } else {
-                    print("❌ Failed to update My Tasks preferences: \(httpResponse.statusCode)")
-                }
+                try await AstridAPIClient.shared.updateMyTasksPreferences(updates)
+                print("✅ Updated My Tasks preferences on server")
             } catch {
                 print("❌ Error updating My Tasks preferences: \(error)")
             }

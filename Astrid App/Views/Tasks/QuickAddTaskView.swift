@@ -246,26 +246,12 @@ struct QuickAddTaskView: View {
             return Array(membersMap.values)
         }
 
-        // Add owner
+        // Owner + listMembers are the canonical member sources (matches
+        // what the web's lists endpoint returns; legacy admins/members
+        // arrays are no longer populated).
         if let owner = list.owner {
             membersMap[owner.id] = owner
         }
-
-        // Add admins
-        if let admins = list.admins {
-            for admin in admins {
-                membersMap[admin.id] = admin
-            }
-        }
-
-        // Add members
-        if let members = list.members {
-            for member in members {
-                membersMap[member.id] = member
-            }
-        }
-
-        // Add from listMembers
         if let listMembers = list.listMembers {
             for listMember in listMembers {
                 if let user = listMember.user {

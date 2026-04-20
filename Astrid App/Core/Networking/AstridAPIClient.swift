@@ -586,6 +586,51 @@ class AstridAPIClient {
         )
     }
 
+    // MARK: - User Preferences (app-level settings)
+    //
+    // These target `/api/user/settings` and `/api/user/my-tasks-preferences`,
+    // which are distinct from `/api/v1/users/me/settings` above (used for
+    // reminder settings). Do not merge them. Keep iOS and web aligned by
+    // using the same Codable shape the web returns.
+
+    /// Fetch the user's "smart task" settings (smart creation, email-to-task,
+    /// default due offset, default due time).
+    func getSmartTaskSettings() async throws -> UserSettings {
+        return try await request(
+            method: "GET",
+            path: "/api/user/settings"
+        )
+    }
+
+    /// Patch the user's smart-task settings. Accepts the merged struct; only
+    /// non-nil fields are sent by virtue of Codable optional encoding rules.
+    func updateSmartTaskSettings(_ settings: UserSettings) async throws {
+        struct EmptyResponse: Codable {}
+        let _: EmptyResponse = try await request(
+            method: "PATCH",
+            path: "/api/user/settings",
+            body: settings
+        )
+    }
+
+    /// Fetch the user's My Tasks filter/sort preferences.
+    func getMyTasksPreferences() async throws -> MyTasksPreferences {
+        return try await request(
+            method: "GET",
+            path: "/api/user/my-tasks-preferences"
+        )
+    }
+
+    /// Patch the user's My Tasks preferences.
+    func updateMyTasksPreferences(_ preferences: MyTasksPreferences) async throws {
+        struct EmptyResponse: Codable {}
+        let _: EmptyResponse = try await request(
+            method: "PATCH",
+            path: "/api/user/my-tasks-preferences",
+            body: preferences
+        )
+    }
+
     // MARK: - User Search
 
     /// Search for users with AI agents included (based on user's configured API keys)

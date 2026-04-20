@@ -93,36 +93,15 @@ struct TaskListView: View {
         return canUserAddTasks(userId: currentUserId, list: list)
     }
 
-    /// Determine if user can view list settings (any member can access sort/filter/leave)
+    /// Determine if user can view list settings (any member can access sort/filter/leave).
+    /// Canonical source of roles is `listMembers` — mirrors web's
+    /// `getUserRoleInList` in `astrid-web/lib/list-permissions.ts`.
     private var canShowListSettings: Bool {
         guard let list = selectedList,
               let currentUserId = AuthManager.shared.userId else {
             return false
         }
-
-        // Owner can always see settings
-        if list.ownerId == currentUserId || list.owner?.id == currentUserId {
-            return true
-        }
-
-        // Check if user is admin in legacy admins array
-        if let admins = list.admins, admins.contains(where: { $0.id == currentUserId }) {
-            return true
-        }
-
-        // Check if user is a member (any role) in listMembers
-        if let listMembers = list.listMembers {
-            if listMembers.contains(where: { $0.userId == currentUserId }) {
-                return true
-            }
-        }
-
-        // Check legacy members array
-        if let members = list.members, members.contains(where: { $0.id == currentUserId }) {
-            return true
-        }
-
-        return false
+        return list.isMember(userId: currentUserId)
     }
 
     /// Navigation title based on current view state
@@ -1380,21 +1359,12 @@ struct TaskListView: View {
     /// Shows "caught up" message only for users who have completed 10+ tasks
     /// New users see a welcoming message instead
     private func getMyTasksEmptyMessage() -> String {
-        guard let currentUserId = AuthManager.shared.userId else {
-            return NSLocalizedString("empty_state.my_tasks", comment: "")
-        }
-
-        // Count completed tasks assigned to this user
-        let completedTaskCount = taskService.tasks.filter { task in
-            task.completed && task.assigneeId == currentUserId
-        }.count
-
-        // Only show "caught up" message if user has completed 10+ tasks
-        if completedTaskCount >= 10 {
-            return NSLocalizedString("empty_state.my_tasks_caught_up", comment: "")
-        } else {
-            return NSLocalizedString("empty_state.my_tasks", comment: "")
-        }
+        // Aligns with web's `AstridEmptyState` (see
+        // astrid-web/components/ui/astrid-empty-state.tsx): a single empty
+        // message per list type, no completed-task threshold. iOS used to
+        // branch to a "caught up" message after 10 completions, but web has
+        // no equivalent and this created cross-platform UX inconsistency.
+        return NSLocalizedString("empty_state.my_tasks", comment: "")
     }
 
     // MARK: - Actions
@@ -1528,90 +1498,49 @@ struct TaskListView: View {
             return false
         }
 
-        // Check user's role in the list
-        let role = getUserRoleInList(userId: currentUserId, list: taskList)
+        // Check user's role in the list (shared with web semantics).
+        let role = taskList.role(for: currentUserId)
 
-        // List owner and admins can always edit
+        // List owner and admins can always edit.
         if role == .owner || role == .admin {
             return false
         }
 
-        // For public copy-only lists (default), only owner/admin can edit (already handled above)
-        // Members and viewers should copy the list to edit tasks
+        // For public copy-only lists (default), only owner/admin can edit (already handled above).
+        // Members and viewers should copy the list to edit tasks.
         if taskList.privacy == .PUBLIC && (taskList.publicListType == "copy_only" || taskList.publicListType == nil) {
             return true // Always read-only for non-owners/non-admins
         }
 
-        // For public collaborative lists, task creator OR admin can edit
+        // For public collaborative lists, task creator OR admin can edit.
         if taskList.privacy == .PUBLIC && taskList.publicListType == "collaborative" {
             let isCreator = task.isCreatedBy(currentUserId)
             let isAdmin = role == .owner || role == .admin
             return !isCreator && !isAdmin // Read-only unless creator or admin
         }
 
-        // For non-public lists, members can edit
+        // For non-public lists, members can edit.
         return role != .member && role != .owner && role != .admin
     }
 
-    /// Get user's role in a list (matching web's getUserRoleInList)
-    private func getUserRoleInList(userId: String, list: TaskList) -> ListRole {
-        // Check if user is the owner (use ownerId field or owner.id)
-        let listOwnerId = list.ownerId ?? list.owner?.id
-        if listOwnerId == userId {
-            return .owner
-        }
-
-        // Check if user is an admin (check both legacy admins and listMembers with admin role)
-        if list.admins?.contains(where: { $0.id == userId }) == true {
-            return .admin
-        }
-
-        if list.listMembers?.contains(where: { $0.userId == userId && $0.role == "admin" }) == true {
-            return .admin
-        }
-
-        // Check if user is a member (check both legacy members and listMembers)
-        if list.members?.contains(where: { $0.id == userId }) == true {
-            return .member
-        }
-
-        if list.listMembers?.contains(where: { $0.userId == userId }) == true {
-            return .member
-        }
-
-        // For public lists, users have viewer access
-        if list.privacy == .PUBLIC {
-            return .viewer
-        }
-
-        return .none
-    }
-
-    /// Check if user can add tasks to a list (matching web's canUserEditTasks)
+    /// Check if user can add tasks to a list (matching web's canUserEditTasks).
+    /// Role source is the shared `TaskList.role(for:)` — see `TaskList.swift`.
     private func canUserAddTasks(userId: String, list: TaskList) -> Bool {
-        let role = getUserRoleInList(userId: userId, list: list)
+        let role = list.role(for: userId)
 
-        // For public copy-only lists (default), only owner/admin can add tasks
-        // Members and viewers should copy the list to add/edit tasks
+        // For public copy-only lists (default), only owner/admin can add tasks.
+        // Members and viewers should copy the list to add/edit tasks.
         if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
             return role == .owner || role == .admin
         }
 
-        // For public collaborative lists, viewers can also add tasks
+        // For public collaborative lists, viewers can also add tasks.
         if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
-            return role != .none // Anyone with access can add tasks (including viewers)
+            return role != nil
         }
 
-        // Default: owner, admin, or member can add tasks
+        // Default: owner, admin, or member can add tasks.
         return role == .owner || role == .admin || role == .member
-    }
-
-    private enum ListRole {
-        case owner
-        case admin
-        case member
-        case viewer
-        case none
     }
 
     private func handleListUpdate(original: TaskList, updated: TaskList) {

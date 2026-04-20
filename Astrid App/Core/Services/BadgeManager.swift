@@ -80,30 +80,30 @@ class BadgeManager {
 // MARK: - Task Extensions for Due/Overdue Logic
 
 extension Task {
-    /// Check if task is due today (not overdue, but due sometime today)
+    /// Check if task is due today (same calendar day as now).
+    ///
+    /// Matches web's `isTaskDueToday` in `astrid-web/lib/date-filter-utils.ts`:
+    /// - All-day: compare UTC date components (date-only, timezone-independent).
+    /// - Timed: same LOCAL calendar day (regardless of whether the time has
+    ///   already passed today — a 9am task is still "due today" at 10am).
+    ///
+    /// For "due today AND not yet passed" callers, combine with `!isOverdue`.
     var isDueToday: Bool {
         guard let dueDate = dueDateTime else { return false }
 
         let calendar = Calendar.current
         let now = Date()
 
-        // For all-day tasks: Extract date components from UTC and compare to today
-        // For timed tasks: due date should be today and in the future (not yet overdue)
         if isAllDay {
-            // All-day tasks are stored at UTC midnight representing the date
-            // Extract the date components (year, month, day) and compare
             var utcCalendar = Calendar.current
             utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
             let dueDateComponents = utcCalendar.dateComponents([.year, .month, .day], from: dueDate)
             let todayComponents = calendar.dateComponents([.year, .month, .day], from: now)
-
             return dueDateComponents.year == todayComponents.year &&
                    dueDateComponents.month == todayComponents.month &&
                    dueDateComponents.day == todayComponents.day
         } else {
-            // For timed tasks, check if it's today AND not yet passed
-            return calendar.isDateInToday(dueDate) && dueDate > now
+            return calendar.isDateInToday(dueDate)
         }
     }
 

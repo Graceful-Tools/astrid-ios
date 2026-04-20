@@ -119,7 +119,11 @@ class ReminderPresenter: ObservableObject {
 
         _Concurrency.Task {
             do {
-                _ = try await taskService.completeTask(id: task.id, completed: true)
+                // Pass `task` so the rollover uses the latest known state
+                // instead of relying on whatever happens to be in the
+                // in-memory cache at notification time (which may be empty
+                // if the app was just launched from the banner).
+                _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
                 await MainActor.run {
                     self.isShowingReminder = false
                     self.taskToShow = nil
