@@ -911,7 +911,7 @@ class AstridAPIClient {
         let body = CreateChatChannelRequest(listId: listId)
         let response: ChatChannelResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels",
+            path: "/api/v1/chat/channels",
             body: body
         )
         return response.channel
@@ -922,7 +922,7 @@ class AstridAPIClient {
         let body = CreateChatChannelRequest(virtualKey: virtualKey)
         let response: ChatChannelResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels",
+            path: "/api/v1/chat/channels",
             body: body
         )
         return response.channel
@@ -988,7 +988,7 @@ class AstridAPIClient {
         }
         let _: ChatMessageResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels/\(channelId)/agent-response",
+            path: "/api/v1/chat/channels/\(channelId)/agent-response",
             body: AgentResponseBody(content: content)
         )
     }

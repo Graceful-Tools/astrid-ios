@@ -450,7 +450,7 @@ struct ImagePickerView: View {
 
         // Parse response
         let json = try JSONDecoder().decode(SecureFileUploadResponse.self, from: responseData)
-        return "/api/secure-files/\(json.fileId)"
+        return "/api/v1/secure-files/\(json.fileId)"
     }
 }
 

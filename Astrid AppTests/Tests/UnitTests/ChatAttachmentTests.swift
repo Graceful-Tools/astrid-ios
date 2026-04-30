@@ -414,7 +414,7 @@ final class ChatAttachmentTests: XCTestCase {
             author: nil,
             content: "See attached",
             type: .ATTACHMENT,
-            attachmentUrl: "/api/secure-files/file-123",
+            attachmentUrl: "/api/v1/secure-files/file-123",
             attachmentName: "budget.xlsx",
             attachmentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             attachmentSize: 15360,
@@ -425,7 +425,7 @@ final class ChatAttachmentTests: XCTestCase {
             updatedAt: Date()
         )
 
-        XCTAssertEqual(message.attachmentUrl, "/api/secure-files/file-123")
+        XCTAssertEqual(message.attachmentUrl, "/api/v1/secure-files/file-123")
         XCTAssertEqual(message.attachmentName, "budget.xlsx")
         XCTAssertEqual(message.attachmentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         XCTAssertEqual(message.attachmentSize, 15360)

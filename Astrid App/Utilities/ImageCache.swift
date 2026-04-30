@@ -187,8 +187,10 @@ class CachedImageLoader: ObservableObject {
             do {
                 let data: Data
 
-                // Check if this is a secure-files URL that requires authentication
-                if url.path.contains("/api/secure-files/") {
+                // Check if this is a secure-files URL that requires authentication.
+                // Match both /api/secure-files/ (older stored URLs) and /api/v1/secure-files/
+                // (new emissions) so cached attachments from before the v1 cutover keep loading.
+                if url.path.contains("/api/secure-files/") || url.path.contains("/api/v1/secure-files/") {
                     var request = URLRequest(url: url)
                     // Add session cookie for authentication
                     if let sessionCookie = try? KeychainService.shared.getSessionCookie() {

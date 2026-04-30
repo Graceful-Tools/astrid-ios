@@ -514,7 +514,7 @@ class AttachmentService: ObservableObject {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         // Create request
-        let url = URL(string: Constants.API.baseURL + "/api/tasks/\(taskId)/attachments")!
+        let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -579,7 +579,7 @@ class AttachmentService: ObservableObject {
         // Step 1: Get upload URL and token from server
         print("📡 [AttachmentService] Step 1: Requesting upload URL...")
 
-        let getUrlEndpoint = URL(string: Constants.API.baseURL + "/api/secure-upload/get-upload-url")!
+        let getUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/get-upload-url")!
         var getUrlRequest = URLRequest(url: getUrlEndpoint)
         getUrlRequest.httpMethod = "POST"
         getUrlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -689,7 +689,7 @@ class AttachmentService: ObservableObject {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         // Create request to secure upload endpoint
-        let url = URL(string: Constants.API.baseURL + "/api/secure-upload/request-upload")!
+        let url = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/request-upload")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -787,7 +787,7 @@ class AttachmentService: ObservableObject {
 
         // Step 1: Request upload URL from server
         print("📤 [AttachmentService] Step 1: Getting upload URL...")
-        let uploadUrlEndpoint = URL(string: Constants.API.baseURL + "/api/secure-files/\(fileId)/upload-url")!
+        let uploadUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/upload-url")!
         var uploadUrlRequest = URLRequest(url: uploadUrlEndpoint)
         uploadUrlRequest.httpMethod = "POST"
         uploadUrlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -868,7 +868,7 @@ class AttachmentService: ObservableObject {
 
         // Step 3: Confirm upload with our server
         print("📤 [AttachmentService] Step 3: Confirming upload...")
-        let confirmEndpoint = URL(string: Constants.API.baseURL + "/api/secure-files/\(fileId)/confirm-upload")!
+        let confirmEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/confirm-upload")!
         var confirmRequest = URLRequest(url: confirmEndpoint)
         confirmRequest.httpMethod = "POST"
         confirmRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -938,7 +938,7 @@ class AttachmentService: ObservableObject {
     // MARK: - Delete
 
     func deleteAttachment(taskId: String, attachmentId: String) async throws {
-        let url = URL(string: Constants.API.baseURL + "/api/tasks/\(taskId)/attachments/\(attachmentId)")!
+        let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments/\(attachmentId)")!
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         

@@ -55,18 +55,17 @@ enum APIEndpoint {
     
     var path: String {
         switch self {
-        // signUpPasswordless and signOut have no /api/v1/* equivalent — and
-        // their legacy /api/auth/* paths do not exist on the server either.
-        // Both are effectively no-ops today; leaving the legacy paths so that
-        // a future fix on the backend can hook them up without an iOS bump.
+        // signUpPasswordless has no backend route at any path (legacy or v1).
+        // Pre-existing iOS bug; leaving the namespaced /api/v1/* path so that
+        // any future backend implementation can land without an iOS bump.
         case .signUpPasswordless:
-            return "/api/auth/mobile-signup"
+            return "/api/v1/auth/mobile-signup"
         case .signInWithApple:
             return "/api/v1/auth/apple"
         case .signInWithGoogle:
             return "/api/v1/auth/google"
         case .signOut:
-            return "/api/auth/signout"
+            return "/api/v1/auth/signout"
         case .session:
             return "/api/v1/auth/mobile-session"
         case .mcpToken:

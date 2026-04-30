@@ -702,7 +702,7 @@ class ChatService: ObservableObject {
             if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
                 resolvedFileId = realFileId
                 // Build secure file URL for the attachment
-                attachmentUrl = "/api/secure-files/\(realFileId)"
+                attachmentUrl = "/api/v1/secure-files/\(realFileId)"
             } else if AttachmentService.shared.isPendingUpload(tempFileId) {
                 throw ChatSyncError.attachmentPending
             } else {
