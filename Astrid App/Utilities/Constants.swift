@@ -70,7 +70,7 @@ import Foundation
         static let timeout: TimeInterval = 30
 
         // SSE endpoint for real-time updates
-        static let sseEndpoint = "/api/sse"
+        static let sseEndpoint = "/api/v1/sse"
     }
     
     enum Keychain {

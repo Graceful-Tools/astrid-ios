@@ -55,95 +55,103 @@ enum APIEndpoint {
     
     var path: String {
         switch self {
+        // signUpPasswordless has no backend route at any path (legacy or v1).
+        // Pre-existing iOS bug; leaving the namespaced /api/v1/* path so that
+        // any future backend implementation can land without an iOS bump.
         case .signUpPasswordless:
-            return "/api/auth/mobile-signup"
+            return "/api/v1/auth/mobile-signup"
         case .signInWithApple:
-            return "/api/auth/apple"
+            return "/api/v1/auth/apple"
         case .signInWithGoogle:
-            return "/api/auth/google"
+            return "/api/v1/auth/google"
         case .signOut:
-            return "/api/auth/signout"
+            return "/api/v1/auth/signout"
         case .session:
-            return "/api/auth/mobile-session"
+            return "/api/v1/auth/mobile-session"
         case .mcpToken:
-            return "/api/auth/mobile-mcp-token"
-            
+            return "/api/v1/auth/mobile-mcp-token"
+
         case .tasks:
-            return "/api/tasks"
+            return "/api/v1/tasks"
         case .task(let id):
-            return "/api/tasks/\(id)"
+            return "/api/v1/tasks/\(id)"
         case .createTask:
-            return "/api/tasks"
+            return "/api/v1/tasks"
         case .updateTask(let id, _):
-            return "/api/tasks/\(id)"
+            return "/api/v1/tasks/\(id)"
         case .deleteTask(let id):
-            return "/api/tasks/\(id)"
+            return "/api/v1/tasks/\(id)"
         case .completeTask(let id, _):
-            return "/api/tasks/\(id)"
+            return "/api/v1/tasks/\(id)"
         case .copyTask(let id):
-            return "/api/tasks/\(id)/copy"
+            return "/api/v1/tasks/\(id)/copy"
         case .batchCopyTasks:
-            return "/api/tasks/copy"
-            
+            return "/api/v1/tasks/copy"
+
         case .lists:
-            return "/api/lists"
+            return "/api/v1/lists"
         case .list(let id):
-            return "/api/lists/\(id)"
+            return "/api/v1/lists/\(id)"
         case .createList:
-            return "/api/lists"
+            return "/api/v1/lists"
         case .updateList(let id, _):
-            return "/api/lists/\(id)"
+            return "/api/v1/lists/\(id)"
         case .deleteList(let id):
-            return "/api/lists/\(id)"
+            return "/api/v1/lists/\(id)"
         case .inviteToList(let id, _):
-            return "/api/lists/\(id)/invite"
+            return "/api/v1/lists/\(id)/invite"
         case .leaveList(let id):
-            return "/api/lists/\(id)/leave"
+            return "/api/v1/lists/\(id)/leave"
         case .favoriteList(let id, _):
-            return "/api/lists/\(id)/favorite"
-            
+            return "/api/v1/lists/\(id)/favorite"
+
         case .taskComments(let taskId):
-            return "/api/tasks/\(taskId)/comments"
+            return "/api/v1/tasks/\(taskId)/comments"
         case .createComment(let taskId, _):
-            return "/api/tasks/\(taskId)/comments"
+            return "/api/v1/tasks/\(taskId)/comments"
         case .updateComment(let id, _):
-            return "/api/comments/\(id)"
+            return "/api/v1/comments/\(id)"
         case .deleteComment(let id):
-            return "/api/comments/\(id)"
-            
+            return "/api/v1/comments/\(id)"
+
+        // Note: legacy was /api/reminders/status — v1 drops the /status suffix.
         case .reminders:
-            return "/api/reminders/status"
+            return "/api/v1/reminders"
         case .dismissReminder(let id):
-            return "/api/reminders/\(id)/dismiss"
+            return "/api/v1/reminders/\(id)/dismiss"
         case .snoozeReminder(let id, _):
-            return "/api/reminders/\(id)/snooze"
-            
+            return "/api/v1/reminders/\(id)/snooze"
+
         case .searchUsers, .searchUsersWithAIAgents:
-            return "/api/users/search"
+            return "/api/v1/users/search"
         case .userProfile(let userId):
-            return "/api/users/\(userId)/profile"
+            return "/api/v1/users/\(userId)/profile"
 
         case .getAccount:
-            return "/api/account"
+            return "/api/v1/users/me"
         case .updateAccount:
-            return "/api/account"
+            return "/api/v1/users/me"
         case .uploadFile:
-            return "/api/upload"
+            return "/api/v1/upload"
         case .verifyEmail:
-            return "/api/account/verify-email"
+            return "/api/v1/users/me/verify-email"
         case .deleteAccount:
-            return "/api/account/delete"
+            return "/api/v1/users/me/delete"
         case .exportAccount:
-            return "/api/account/export"
+            return "/api/v1/users/me/export"
         }
     }
     
     var method: HTTPMethod {
         switch self {
-        case .signUpPasswordless, .signInWithApple, .signInWithGoogle, .mcpToken, .createTask, .createList, .createComment, .copyTask, .batchCopyTasks, .uploadFile, .verifyEmail, .deleteAccount, .leaveList:
+        // v1 uses POST (legacy used PUT) for: dismissReminder, snoozeReminder, inviteToList.
+        // v1 uses PATCH (legacy used PUT) for: favoriteList.
+        case .signUpPasswordless, .signInWithApple, .signInWithGoogle, .mcpToken, .createTask, .createList, .createComment, .copyTask, .batchCopyTasks, .uploadFile, .verifyEmail, .deleteAccount, .leaveList, .inviteToList, .dismissReminder, .snoozeReminder:
             return .post
-        case .updateTask, .updateList, .completeTask, .updateComment, .inviteToList, .favoriteList, .snoozeReminder, .dismissReminder, .updateAccount:
+        case .updateTask, .updateList, .completeTask, .updateComment, .updateAccount:
             return .put
+        case .favoriteList:
+            return .patch
         case .deleteTask, .deleteList, .deleteComment, .signOut:
             return .delete
         default:
@@ -269,5 +277,6 @@ enum HTTPMethod: String {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
+    case patch = "PATCH"
     case delete = "DELETE"
 }

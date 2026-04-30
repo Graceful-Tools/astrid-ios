@@ -477,7 +477,7 @@ class AstridAPIClient {
         struct EmptyResponse: Codable {}
         let _: EmptyResponse = try await request(
             method: "POST",
-            path: "/api/lists/\(id)/leave"
+            path: "/api/v1/lists/\(id)/leave"
         )
     }
 
@@ -588,9 +588,10 @@ class AstridAPIClient {
 
     // MARK: - User Preferences (app-level settings)
     //
-    // These target `/api/user/settings` and `/api/user/my-tasks-preferences`,
-    // which are distinct from `/api/v1/users/me/settings` above (used for
-    // reminder settings). Do not merge them. Keep iOS and web aligned by
+    // These target `/api/v1/users/me/smart-tasks` and
+    // `/api/v1/users/me/my-tasks-preferences`, distinct from
+    // `/api/v1/users/me/settings` above (used for reminder settings). Do not
+    // merge them — they hold different fields. Keep iOS and web aligned by
     // using the same Codable shape the web returns.
 
     /// Fetch the user's "smart task" settings (smart creation, email-to-task,
@@ -598,7 +599,7 @@ class AstridAPIClient {
     func getSmartTaskSettings() async throws -> UserSettings {
         return try await request(
             method: "GET",
-            path: "/api/user/settings"
+            path: "/api/v1/users/me/smart-tasks"
         )
     }
 
@@ -608,7 +609,7 @@ class AstridAPIClient {
         struct EmptyResponse: Codable {}
         let _: EmptyResponse = try await request(
             method: "PATCH",
-            path: "/api/user/settings",
+            path: "/api/v1/users/me/smart-tasks",
             body: settings
         )
     }
@@ -617,7 +618,7 @@ class AstridAPIClient {
     func getMyTasksPreferences() async throws -> MyTasksPreferences {
         return try await request(
             method: "GET",
-            path: "/api/user/my-tasks-preferences"
+            path: "/api/v1/users/me/my-tasks-preferences"
         )
     }
 
@@ -626,7 +627,7 @@ class AstridAPIClient {
         struct EmptyResponse: Codable {}
         let _: EmptyResponse = try await request(
             method: "PATCH",
-            path: "/api/user/my-tasks-preferences",
+            path: "/api/v1/users/me/my-tasks-preferences",
             body: preferences
         )
     }
@@ -655,7 +656,7 @@ class AstridAPIClient {
 
         let response: UserSearchResponse = try await request(
             method: "GET",
-            path: "/api/users/search",
+            path: "/api/v1/users/search",
             queryItems: queryItems
         )
 
@@ -822,7 +823,7 @@ class AstridAPIClient {
     func getAIAPIKeys() async throws -> AIAPIKeysResponse {
         return try await request(
             method: "GET",
-            path: "/api/user/ai-api-keys"
+            path: "/api/v1/users/me/ai-credentials"
         )
     }
 
@@ -837,7 +838,7 @@ class AstridAPIClient {
 
         return try await request(
             method: "PUT",
-            path: "/api/user/ai-api-keys",
+            path: "/api/v1/users/me/ai-credentials",
             body: body
         )
     }
@@ -852,7 +853,7 @@ class AstridAPIClient {
 
         return try await request(
             method: "POST",
-            path: "/api/user/ai-api-keys/test",
+            path: "/api/v1/users/me/ai-credentials/test",
             body: body
         )
     }
@@ -867,7 +868,7 @@ class AstridAPIClient {
 
         return try await request(
             method: "DELETE",
-            path: "/api/user/ai-api-keys",
+            path: "/api/v1/users/me/ai-credentials",
             body: body
         )
     }
@@ -910,7 +911,7 @@ class AstridAPIClient {
         let body = CreateChatChannelRequest(listId: listId)
         let response: ChatChannelResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels",
+            path: "/api/v1/chat/channels",
             body: body
         )
         return response.channel
@@ -921,7 +922,7 @@ class AstridAPIClient {
         let body = CreateChatChannelRequest(virtualKey: virtualKey)
         let response: ChatChannelResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels",
+            path: "/api/v1/chat/channels",
             body: body
         )
         return response.channel
@@ -941,7 +942,7 @@ class AstridAPIClient {
         }
         return try await request(
             method: "GET",
-            path: "/api/chat/channels/\(channelId)/messages",
+            path: "/api/v1/chat/channels/\(channelId)/messages",
             queryItems: queryItems
         )
     }
@@ -972,7 +973,7 @@ class AstridAPIClient {
         )
         let response: ChatMessageResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels/\(channelId)/messages",
+            path: "/api/v1/chat/channels/\(channelId)/messages",
             body: body
         )
         return response.message
@@ -987,7 +988,7 @@ class AstridAPIClient {
         }
         let _: ChatMessageResponse = try await request(
             method: "POST",
-            path: "/api/chat/channels/\(channelId)/agent-response",
+            path: "/api/v1/chat/channels/\(channelId)/agent-response",
             body: AgentResponseBody(content: content)
         )
     }
@@ -998,7 +999,7 @@ class AstridAPIClient {
     func getAvailableAgents() async throws -> [AvailableAgent] {
         let response: AvailableAgentsResponse = try await request(
             method: "GET",
-            path: "/api/user/available-agents"
+            path: "/api/v1/users/me/available-agents"
         )
         return response.agents
     }
@@ -1007,7 +1008,7 @@ class AstridAPIClient {
     func getAIAssistantSettings() async throws -> AIAssistantSettings {
         let response: AIAssistantSettingsResponse = try await request(
             method: "GET",
-            path: "/api/user/ai-assistant-settings"
+            path: "/api/v1/users/me/ai-preferences"
         )
         return AIAssistantSettings(
             defaultAgentId: response.defaultAgentId,
@@ -1026,7 +1027,7 @@ class AstridAPIClient {
         )
         let response: AIAssistantSettingsResponse = try await request(
             method: "PATCH",
-            path: "/api/user/ai-assistant-settings",
+            path: "/api/v1/users/me/ai-preferences",
             body: body
         )
         return AIAssistantSettings(
@@ -1039,7 +1040,7 @@ class AstridAPIClient {
     func getAvailableModels(service: String) async throws -> [String] {
         let response: AvailableModelsResponse = try await request(
             method: "GET",
-            path: "/api/user/ai-available-models",
+            path: "/api/v1/users/me/available-models",
             queryItems: [URLQueryItem(name: "service", value: service)]
         )
         return response.models
@@ -1051,7 +1052,7 @@ class AstridAPIClient {
     func getAccount() async throws -> AccountData {
         let response: AccountResponse = try await request(
             method: "GET",
-            path: "/api/account"
+            path: "/api/v1/users/me"
         )
         return response.user
     }
@@ -1068,7 +1069,7 @@ class AstridAPIClient {
 
         return try await request(
             method: "PUT",
-            path: "/api/account",
+            path: "/api/v1/users/me",
             body: body
         )
     }
@@ -1078,7 +1079,7 @@ class AstridAPIClient {
     func verifyEmail(action: String) async throws -> VerifyEmailResponse {
         return try await request(
             method: "POST",
-            path: "/api/account/verify-email",
+            path: "/api/v1/users/me/verify-email",
             queryItems: [URLQueryItem(name: "action", value: action)]
         )
     }
@@ -1094,7 +1095,7 @@ class AstridAPIClient {
 
         return try await request(
             method: "POST",
-            path: "/api/account/delete",
+            path: "/api/v1/users/me/delete",
             body: body
         )
     }
@@ -1104,7 +1105,7 @@ class AstridAPIClient {
     /// - Returns: Raw data of the export file
     func exportAccountData(format: String) async throws -> Data {
         // Build URL with query parameters
-        var urlComponents = URLComponents(url: baseURL.appendingPathComponent("/api/account/export"), resolvingAgainstBaseURL: false)
+        var urlComponents = URLComponents(url: baseURL.appendingPathComponent("/api/v1/users/me/export"), resolvingAgainstBaseURL: false)
         urlComponents?.queryItems = [URLQueryItem(name: "format", value: format)]
 
         guard let url = urlComponents?.url else {
