@@ -1091,11 +1091,15 @@ struct CommentSectionViewEnhanced: View {
         do {
             print("📸 [CommentSection] Starting photo upload... (network: \(networkMonitor.isConnected))")
 
-            // Load image data
+            // Load image data. Note: PhotosPicker.loadTransferable requires network
+            // for iCloud Photos with "Optimize iPhone Storage" enabled — the full
+            // data downloads on demand. Surface a useful error in that case.
             guard let imageData = try await photoItem.loadTransferable(type: Data.self) else {
                 print("❌ [CommentSection] Failed to load image data from PhotosPicker")
                 await MainActor.run {
-                    uploadError = "Failed to load photo. Please try again."
+                    uploadError = networkMonitor.isConnected
+                        ? "Failed to load photo. Please try again."
+                        : "This photo isn't downloaded to your device. Connect to the internet, or pick a recently-taken photo (those are stored locally)."
                 }
                 return
             }
