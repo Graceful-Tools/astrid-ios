@@ -262,9 +262,15 @@ class CommentService: ObservableObject {
                 try await self.saveCommentsToCoreData(response.comments, taskId: taskId)
                 logger.notice("✓ SAVED to CoreData")
 
-                // Update memory cache, preserving pending comments (temp_ IDs not on server yet)
+                // Update memory cache, preserving pending comments (temp_ IDs not on server yet).
+                // Drop any temp whose id matches a clientRequestId in the response — that means
+                // the server already accepted the sync and the syncPendingCreate cache swap is
+                // racing this fetch.
                 await MainActor.run {
-                    let pendingComments = self.cachedComments[taskId]?.filter { $0.id.hasPrefix("temp_") } ?? []
+                    let acknowledgedTempIds = Set(response.comments.compactMap { $0.clientRequestId })
+                    let pendingComments = (self.cachedComments[taskId] ?? []).filter {
+                        $0.id.hasPrefix("temp_") && !acknowledgedTempIds.contains($0.id)
+                    }
                     var mergedComments = response.comments
                     mergedComments.append(contentsOf: pendingComments)
                     mergedComments.sort { ($0.createdAt ?? Date.distantPast) < ($1.createdAt ?? Date.distantPast) }
@@ -316,9 +322,43 @@ class CommentService: ObservableObject {
                     fetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
                     let cdComments = try context.fetch(fetchRequest)
 
+                    // Heal pre-fix duplicates: an offline-sync race could leave two CDComment
+                    // rows for the same comment — one with the temp_ id, one synced. Dedup by
+                    // grouping (taskId, content, authorId, createdAt-second) and keeping the
+                    // non-temp row. Only deletes rows that look like the same comment.
+                    var hadChanges = false
+                    var keepers: [CDComment] = []
+                    var seenSignatures: [String: CDComment] = [:]
+                    for cd in cdComments {
+                        let createdSecond = cd.createdAt.map { Int($0.timeIntervalSince1970) } ?? 0
+                        let signature = "\(cd.taskId)|\(cd.authorId ?? "")|\(cd.content)|\(createdSecond)"
+                        if let existing = seenSignatures[signature] {
+                            // Keep the non-temp one; if both are non-temp, keep the older inserted (existing)
+                            let existingIsTemp = existing.id.hasPrefix("temp_")
+                            let currentIsTemp = cd.id.hasPrefix("temp_")
+                            if existingIsTemp && !currentIsTemp {
+                                context.delete(existing)
+                                seenSignatures[signature] = cd
+                                if let idx = keepers.firstIndex(where: { $0 === existing }) {
+                                    keepers[idx] = cd
+                                }
+                            } else {
+                                context.delete(cd)
+                            }
+                            hadChanges = true
+                        } else {
+                            seenSignatures[signature] = cd
+                            keepers.append(cd)
+                        }
+                    }
+                    if hadChanges {
+                        try context.save()
+                        logger.notice("🧹 Removed duplicate CDComment rows for task \(taskId.prefix(8), privacy: .public)")
+                    }
+
                     // CRITICAL: Convert to domain models INSIDE context block
                     // Otherwise managed objects are faulted and return nil for properties
-                    let domainComments = cdComments.map { $0.toDomainModel() }
+                    let domainComments = keepers.map { $0.toDomainModel() }
                     continuation.resume(returning: domainComments)
                 } catch {
                     continuation.resume(throwing: error)
@@ -345,8 +385,13 @@ class CommentService: ObservableObject {
                 try await self.saveCommentsToCoreData(response.comments, taskId: taskId)
                 let count = response.comments.count
                 await MainActor.run {
-                    // Preserve pending comments (temp_ IDs not on server yet)
-                    let pendingComments = self.cachedComments[taskId]?.filter { $0.id.hasPrefix("temp_") } ?? []
+                    // Preserve pending comments (temp_ IDs not on server yet); drop any whose
+                    // id matches a clientRequestId echoed by the server — those are already
+                    // synced and racing the cache swap in syncPendingCreate.
+                    let acknowledgedTempIds = Set(response.comments.compactMap { $0.clientRequestId })
+                    let pendingComments = (self.cachedComments[taskId] ?? []).filter {
+                        $0.id.hasPrefix("temp_") && !acknowledgedTempIds.contains($0.id)
+                    }
                     var mergedComments = response.comments
                     mergedComments.append(contentsOf: pendingComments)
                     mergedComments.sort { ($0.createdAt ?? Date.distantPast) < ($1.createdAt ?? Date.distantPast) }
@@ -784,11 +829,16 @@ extension CommentService {
         let startTime = Date()
 
         try await coreDataManager.saveInBackground { context in
-            // Fetch all existing comments for this task in ONE batch query
+            // Fetch all existing comments for this task in ONE batch query.
+            // Also include temp_ ids the server echoes back as clientRequestId — those
+            // identify the still-renaming pending row from a racing syncPendingCreate.
             let commentIds = comments.map { $0.id }
+            let acknowledgedTempIds = comments.compactMap { $0.clientRequestId }
+                .filter { $0.hasPrefix("temp_") }
+            let lookupIds = Array(Set(commentIds + acknowledgedTempIds))
 
             let fetchRequest = CDComment.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id IN %@", commentIds)
+            fetchRequest.predicate = NSPredicate(format: "id IN %@", lookupIds)
             let existingComments = try context.fetch(fetchRequest)
 
             // Create dictionary for O(1) lookup
@@ -806,18 +856,31 @@ extension CommentService {
             var skippedCount = 0
 
             for comment in comments {
-                if let existing = existingCommentsDict[comment.id] {
-                    // Skip if updatedAt hasn't changed (comment is identical)
-                    if let existingUpdatedAt = existing.updatedAt,
+                // Prefer the row indexed by server id; fall back to the temp_ row that
+                // matches this comment's clientRequestId. Renaming the temp row in place
+                // prevents leaving a duplicate after syncPendingCreate later swaps its id.
+                let existing = existingCommentsDict[comment.id]
+                    ?? (comment.clientRequestId.flatMap { existingCommentsDict[$0] })
+
+                if let existing = existing {
+                    // Skip if updatedAt hasn't changed (comment is identical) AND ids match
+                    if existing.id == comment.id,
+                       let existingUpdatedAt = existing.updatedAt,
                        let commentUpdatedAt = comment.updatedAt,
                        existingUpdatedAt == commentUpdatedAt {
                         skippedCount += 1
                         continue
                     }
+                    existing.id = comment.id
                     existing.update(from: comment)
                     existing.taskId = taskId
                     existing.syncStatus = "synced"
                     existing.lastSyncedAt = Date()
+                    existing.pendingOperation = nil
+                    existing.pendingContent = nil
+                    existing.pendingFileId = nil
+                    existing.syncAttempts = 0
+                    existing.syncError = nil
                     updatedCount += 1
                 } else {
                     let cdComment = CDComment(context: context)

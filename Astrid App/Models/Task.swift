@@ -223,6 +223,7 @@ struct Comment: Identifiable, Codable, Equatable, Hashable {
     var parentCommentId: String?
     var replies: [Comment]?
     var secureFiles: [SecureFile]?
+    var clientRequestId: String?  // Server echoes back the temp_<UUID> idempotency key — use it for offline-sync dedup
 
     /// Stable ID for SwiftUI ForEach - uses id if valid, otherwise generates from content hash
     var stableId: String {
