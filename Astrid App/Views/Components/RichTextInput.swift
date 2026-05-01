@@ -374,7 +374,14 @@ struct RichTextInput: View {
         }
 
         guard let data = photoData, data.count <= 100 * 1024 * 1024 else {
-            uploadError = photoData == nil ? "Failed to load photo" : "File size cannot exceed 100MB"
+            if photoData == nil {
+                // PhotosPicker.loadTransferable needs network for iCloud-Optimized photos.
+                uploadError = NetworkMonitor.shared.isConnected
+                    ? "Failed to load photo"
+                    : "This photo isn't downloaded to your device. Connect to the internet, or pick a recently-taken photo (those are stored locally)."
+            } else {
+                uploadError = "File size cannot exceed 100MB"
+            }
             return
         }
 
