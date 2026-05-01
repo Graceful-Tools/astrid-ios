@@ -201,6 +201,7 @@ struct CreateCommentRequest: Codable {
     var fileId: String?
     var parentCommentId: String?
     var createdAt: Date?  // Client timestamp for correct ordering
+    var clientRequestId: String?  // Idempotency key — server dedups retries by this
 }
 
 // MARK: - Response DTOs

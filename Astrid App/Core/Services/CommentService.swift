@@ -639,14 +639,19 @@ class CommentService: ObservableObject {
             }
         }
 
-        // Call API to create comment (pass client createdAt for correct ordering)
+        // Call API to create comment (pass client createdAt for correct ordering).
+        // The temp ID (data.id, "temp_<UUID>") doubles as the idempotency key — it's
+        // already persisted on CDComment.id, so any retry of this same pending row
+        // sends the same key, and the server returns the existing comment instead of
+        // creating a duplicate. This is the airplane-mode fix for the Bam-x4 bug.
         let response = try await apiClient.createComment(
             taskId: data.taskId,
             content: data.content,
             type: Comment.CommentType(rawValue: data.type) ?? .TEXT,
             fileId: resolvedFileId,
             parentCommentId: nil,
-            createdAt: data.createdAt
+            createdAt: data.createdAt,
+            clientRequestId: data.id
         )
 
         // Update Core Data with server ID and mark as synced

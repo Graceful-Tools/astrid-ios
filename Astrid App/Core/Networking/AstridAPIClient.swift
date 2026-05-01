@@ -518,21 +518,28 @@ class AstridAPIClient {
         )
     }
 
-    /// Create a new comment on a task
+    /// Create a new comment on a task.
+    /// - Parameter clientRequestId: Idempotency key — when iOS replays a queued
+    ///   create after a network reconnect, the server returns the same row
+    ///   instead of inserting a duplicate. Pass the optimistic temp ID so the
+    ///   key is stable across all retry attempts (it's already persisted in
+    ///   CDComment.id).
     func createComment(
         taskId: String,
         content: String,
         type: Comment.CommentType = .TEXT,
         fileId: String? = nil,
         parentCommentId: String? = nil,
-        createdAt: Date? = nil
+        createdAt: Date? = nil,
+        clientRequestId: String? = nil
     ) async throws -> CommentResponse {
         let body = CreateCommentRequest(
             content: content,
             type: type.rawValue,
             fileId: fileId,
             parentCommentId: parentCommentId,
-            createdAt: createdAt
+            createdAt: createdAt,
+            clientRequestId: clientRequestId
         )
 
         return try await request(
