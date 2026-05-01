@@ -26,6 +26,7 @@ class CommentService: ObservableObject {
     private var lastFetchTime: [String: Date] = [:] // taskId -> last fetch time
     private var inFlightFetches: [String: _Concurrency.Task<[Comment], Error>] = [:] // taskId -> active network fetch
     private var networkObserver: NSObjectProtocol?
+    private var attachmentUploadObserver: NSObjectProtocol?
 
     init() {
         // Load cached comments on initialization
@@ -42,12 +43,29 @@ class CommentService: ObservableObject {
         if let observer = networkObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = attachmentUploadObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     /// Setup network observer to sync when connection is restored
     private func setupNetworkObserver() {
         networkObserver = NotificationCenter.default.addObserver(
             forName: .networkDidBecomeAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in
+                try? await self?.syncPendingComments()
+            }
+        }
+
+        // Re-sync when an attachment upload completes — pending comments
+        // that were waiting for `pendingFileId` to resolve (offline flow:
+        // attachment uploaded after the comment was queued) only retry on
+        // the next network event without this. Mirrors ChatService:60.
+        attachmentUploadObserver = NotificationCenter.default.addObserver(
+            forName: .attachmentUploadCompleted,
             object: nil,
             queue: .main
         ) { [weak self] _ in
