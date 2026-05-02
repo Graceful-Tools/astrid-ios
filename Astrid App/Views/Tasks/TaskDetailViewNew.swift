@@ -152,8 +152,9 @@ struct TaskDetailViewNew: View {
                                 Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis.vertical")
+                            Image(systemName: "ellipsis")
                                 .font(.system(size: 20))
+                                .rotationEffect(.degrees(90))  // SF Symbols has no ellipsis.vertical — rotate the horizontal one to match the web's vertical three-dot
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 .frame(minWidth: 44, minHeight: 44)  // 44pt is Apple HIG min tap target
                                 .contentShape(Rectangle())
