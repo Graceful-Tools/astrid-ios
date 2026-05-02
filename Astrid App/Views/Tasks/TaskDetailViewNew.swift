@@ -152,7 +152,7 @@ struct TaskDetailViewNew: View {
                                 Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
                             }
                         } label: {
-                            Image(systemName: "ellipsis")
+                            Image(systemName: "ellipsis.vertical")
                                 .font(.system(size: 20))
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 .frame(minWidth: 44, minHeight: 44)  // 44pt is Apple HIG min tap target
