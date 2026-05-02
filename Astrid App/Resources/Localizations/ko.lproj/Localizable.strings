@@ -7,7 +7,6 @@
 
 /* Settings */
 "settings" = "설정";
-"sync" = "동기화";
 "last_sync" = "최근 동기화";
 "never" = "없음";
 "sync_now" = "지금 동기화";
@@ -181,7 +180,7 @@
 /* Debug Settings */
 "debug.settings" = "디버그 설정";
 "debug.server_config" = "서버 구성";
-"debug.current_server" = "현재: %@";
+"debug.current_server_with_url" = "현재: %@";
 "debug.toast_debug_mode" = "토스트 디버그 모드";
 "debug.toast_debug_desc" = "디버깅을 위한 상세 토스트 알림 표시";
 "debug.reminder_debug_mode" = "알림 디버그 모드";
@@ -545,37 +544,6 @@
 "reminders.import" = "가져오기";
 
 /* Repeating Pattern Editor */
-"repeating.custom_pattern" = "사용자 지정 반복 패턴";
-"repeating.repeat_every" = "반복 주기";
-"repeating.repeat_on_days" = "반복 요일";
-"repeating.repeat_type" = "반복 유형";
-"repeating.same_date_monthly" = "매월 같은 날짜";
-"repeating.same_weekday_monthly" = "매월 같은 요일과 주차";
-"repeating.day_of_month" = "날짜";
-"repeating.weekday" = "요일";
-"repeating.week_of_month" = "주차";
-"repeating.month" = "월";
-"repeating.day" = "일";
-"repeating.repeat_mode" = "반복 모드";
-"repeating.from_completion" = "완료일 기준으로 다음 발생";
-"repeating.from_due_date" = "원래 마감일 기준으로 다음 발생";
-"repeating.end_condition" = "종료 조건";
-"repeating.never" = "없음";
-"repeating.after_occurrences" = "X회 반복 후";
-"repeating.until_date" = "특정 날짜까지";
-"repeating.num_occurrences" = "반복 횟수";
-"repeating.end_date" = "종료 날짜";
-"repeating.preview" = "미리보기";
-"repeating.no_repeat" = "반복 없음";
-"repeating.days" = "일";
-"repeating.weeks" = "주";
-"repeating.months" = "개월";
-"repeating.years" = "년";
-"repeating.1st" = "첫째 주";
-"repeating.2nd" = "둘째 주";
-"repeating.3rd" = "셋째 주";
-"repeating.4th" = "넷째 주";
-"repeating.5th" = "다섯째 주";
 
 /* Repeating Pattern Editor */
 "repeating.custom_pattern" = "사용자 지정 반복 패턴";
@@ -903,3 +871,11 @@
 "settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
 "settings.list_agent.choose" = "Choose Agent";
 "settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";
+
+/* iPad Layout Settings */
+"settings.appearance.ipad_layout" = "iPad 레이아웃";
+"settings.appearance.landscape_layout" = "가로";
+"settings.appearance.portrait_layout" = "세로";
+"settings.appearance.three_columns" = "3개 열";
+"settings.appearance.two_columns" = "2개 열";
+"settings.appearance.single_column" = "단일 열";

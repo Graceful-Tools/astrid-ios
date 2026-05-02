@@ -16,21 +16,35 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         app = nil
     }
 
+    // MARK: - Helpers
+
+    /// Skips the test if the welcome / sign-in screen is showing.
+    /// The screen exposes a "Use without account" button regardless of provider buttons,
+    /// so we use that as the canonical not-signed-in marker.
+    @MainActor
+    private func skipIfNotSignedIn() throws {
+        if app.buttons["Use without account"].waitForExistence(timeout: 3)
+            || app.buttons["Sign in"].exists
+            || app.buttons["Sign in with Apple"].exists {
+            throw XCTSkip("User not authenticated (welcome screen visible)")
+        }
+    }
+
+    /// Waits for the task list "My Tasks" header to appear.
+    /// Uses an exact match on the localized header so we don't accidentally match
+    /// the welcome screen subtitle "Your intelligent task manager".
+    @MainActor
+    private func waitForTaskList(timeout: TimeInterval = 10) -> Bool {
+        let header = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'My Tasks'")).firstMatch
+        return header.waitForExistence(timeout: timeout)
+    }
+
     @MainActor
     func testSwipeBackOnTaskDetailReturnsToTaskList() throws {
         app.launch()
+        try skipIfNotSignedIn()
 
-        let timeout: TimeInterval = 10
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
-        // Wait for task list to load
-        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: timeout)
-        if !taskListLoaded {
-            // Take screenshot for debugging
+        if !waitForTaskList() {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "Task List Not Found"
             screenshot.lifetime = .keepAlways
@@ -39,7 +53,6 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Find and tap the first task cell
-        // Tasks are in a scrollable list — look for any tappable cell
         let cells = app.cells
         guard cells.count > 0 else {
             throw XCTSkip("No tasks found in list")
@@ -88,17 +101,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
     @MainActor
     func testBackButtonOnTaskDetailReturnsToTaskList() throws {
         app.launch()
+        try skipIfNotSignedIn()
 
-        let timeout: TimeInterval = 10
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
-        // Wait for task list to load
-        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: timeout)
-        if !taskListLoaded {
+        guard waitForTaskList() else {
             throw XCTSkip("Task list not visible")
         }
 
@@ -137,33 +142,26 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
     @MainActor
     func testSwipeRightOnTaskListOpensSidebar() throws {
         app.launch()
+        try skipIfNotSignedIn()
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
-        // Wait for task list to load
-        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
-        if !taskListLoaded {
+        guard waitForTaskList() else {
             throw XCTSkip("Task list not visible")
         }
 
-        // Perform swipe-right gesture from center of screen
-        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
-        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+        // Perform swipe-right gesture from upper area to avoid task cells / list swipe actions
+        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
+        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
         swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
-
-        Thread.sleep(forTimeInterval: 0.5)
 
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
         afterSwipe.name = "After Sidebar Swipe"
         afterSwipe.lifetime = .keepAlways
         add(afterSwipe)
 
-        // Sidebar should show settings gear or user profile elements
-        let sidebarContent = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'Search'")).firstMatch
-        XCTAssertTrue(sidebarContent.exists, "Sidebar should be visible after swipe-right on task list")
+        // Sidebar contains a "Lists" section header that does NOT appear on the task list itself.
+        // Use waitForExistence to allow for the open animation.
+        let listsHeader = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Lists' OR label ==[c] 'Add List'")).firstMatch
+        XCTAssertTrue(listsHeader.waitForExistence(timeout: 3), "Sidebar should be visible after swipe-right on task list")
     }
 
     // MARK: - Swipe Right on Settings Closes Settings
@@ -171,15 +169,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
     @MainActor
     func testSwipeRightOnSettingsReturnsToTaskList() throws {
         app.launch()
+        try skipIfNotSignedIn()
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
-        // Wait for task list to load
-        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
-        if !taskListLoaded {
+        guard waitForTaskList() else {
             throw XCTSkip("Task list not visible")
         }
 
@@ -190,8 +182,8 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.3)
         } else {
             // Swipe right to open sidebar
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
             start.press(forDuration: 0.05, thenDragTo: end)
             Thread.sleep(forTimeInterval: 0.5)
         }
@@ -233,8 +225,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         add(afterSwipe)
 
         // Task list should be visible again (settings dismissed)
-        let taskListVisible = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks'")).firstMatch
-        XCTAssertTrue(taskListVisible.waitForExistence(timeout: 3), "Task list should be visible after swiping back from settings")
+        XCTAssertTrue(waitForTaskList(timeout: 3), "Task list should be visible after swiping back from settings")
     }
 
     // MARK: - Taps Still Work After Gesture Setup
@@ -242,15 +233,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
     @MainActor
     func testTaskRowTapStillWorksWithSwipeGesture() throws {
         app.launch()
+        try skipIfNotSignedIn()
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
-        // Wait for task list
-        let taskListLoaded = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: 10)
-        if !taskListLoaded {
+        guard waitForTaskList() else {
             throw XCTSkip("Task list not visible")
         }
 

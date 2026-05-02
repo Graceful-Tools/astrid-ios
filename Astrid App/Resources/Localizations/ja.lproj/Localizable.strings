@@ -7,7 +7,6 @@
 
 /* Settings */
 "settings" = "設定";
-"sync" = "同期";
 "last_sync" = "最終同期";
 "never" = "なし";
 "sync_now" = "今すぐ同期";
@@ -181,7 +180,7 @@
 /* Debug Settings */
 "debug.settings" = "デバッグ設定";
 "debug.server_config" = "サーバー設定";
-"debug.current_server" = "現在: %@";
+"debug.current_server_with_url" = "現在: %@";
 "debug.toast_debug_mode" = "トーストデバッグモード";
 "debug.toast_debug_desc" = "デバッグ用の詳細なトースト通知を表示";
 "debug.reminder_debug_mode" = "リマインダーデバッグモード";
@@ -870,3 +869,11 @@
 "settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
 "settings.list_agent.choose" = "Choose Agent";
 "settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";
+
+/* iPad Layout Settings */
+"settings.appearance.ipad_layout" = "iPad レイアウト";
+"settings.appearance.landscape_layout" = "横向き";
+"settings.appearance.portrait_layout" = "縦向き";
+"settings.appearance.three_columns" = "3カラム";
+"settings.appearance.two_columns" = "2カラム";
+"settings.appearance.single_column" = "1カラム";

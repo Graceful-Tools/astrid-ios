@@ -7,7 +7,6 @@
 
 /* Settings */
 "settings" = "Configuración";
-"sync" = "Sincronización";
 "last_sync" = "Última sincronización";
 "never" = "Nunca";
 "sync_now" = "Sincronizar ahora";
@@ -179,7 +178,7 @@
 /* Debug Settings */
 "debug.settings" = "Configuración de Depuración";
 "debug.server_config" = "Configuración del Servidor";
-"debug.current_server" = "Actual: %@";
+"debug.current_server_with_url" = "Actual: %@";
 "debug.toast_debug_mode" = "Modo de Depuración de Toast";
 "debug.toast_debug_desc" = "Mostrar notificaciones toast detalladas para depuración";
 "debug.reminder_debug_mode" = "Modo de Depuración de Recordatorios";
@@ -280,97 +279,17 @@
 "settings.reminders.test_message" = "Una notificación de prueba aparecerá en 5 segundos";
 
 /* Settings - Appearance */
-"settings.appearance.theme" = "Tema";
-"settings.appearance.email_to_task" = "Correo-a-Tarea";
-"settings.appearance.email_to_task_footer" = "Crea tareas enviando correos a remindme@astrid.cc";
-"settings.appearance.email_to_task_self" = "Tarea propia: Envía PARA remindme@astrid.cc";
-"settings.appearance.email_to_task_assigned" = "Tarea asignada: CC remindme@astrid.cc con un destinatario";
-"settings.appearance.email_to_task_group" = "Tarea grupal: CC remindme@astrid.cc con múltiples destinatarios";
-"settings.appearance.email_to_task_subject" = "El asunto se convierte en el título de la tarea";
-"settings.appearance.email_to_task_body" = "El cuerpo se convierte en la descripción de la tarea";
 
 /* Theme Modes */
-"theme.ocean" = "Océano";
-"theme.light" = "Claro";
-"theme.dark" = "Oscuro";
-"theme.auto" = "Auto";
 
 /* Settings - Account */
-"settings.account.loading" = "Cargando cuenta...";
-"settings.account.display_name" = "Nombre a mostrar";
-"settings.account.name_placeholder" = "Nombre";
-"settings.account.email_placeholder" = "Correo";
-"settings.account.save_changes" = "Guardar cambios";
-"settings.account.oauth_footer" = "Sesión iniciada con Google. Algunos campos pueden ser gestionados por tu cuenta de Google.";
-"settings.account.pending_email" = "Cambio de correo pendiente";
-"settings.account.resend_verification" = "Reenviar verificación";
-"settings.account.cancel_change" = "Cancelar cambio";
-"settings.account.email_not_verified" = "Correo no verificado";
-"settings.account.send_verification" = "Enviar correo de verificación";
-"settings.account.passkeys" = "Passkeys";
-"settings.account.loading_passkeys" = "Cargando passkeys...";
-"settings.account.add_passkey" = "Agregar Passkey";
-"settings.account.no_passkeys" = "No hay passkeys agregadas aún.";
 "settings.account.passkeys_description" = "Las passkeys te permiten iniciar sesión de forma segura sin contraseña.";
 "settings.account.data" = "Datos";
 "settings.account.export_data" = "Exportar mis datos";
 "settings.account.export_description" = "Descarga todas tus tareas, listas y datos de perfil en formato JSON.";
-"settings.account.danger_zone" = "Zona de peligro";
-"settings.account.delete_account" = "Eliminar cuenta";
-"settings.account.delete_warning" = "Esta acción no se puede deshacer";
-"settings.account.delete_remove_list_header" = "Eliminar tu cuenta eliminará permanentemente:";
-"settings.account.delete_remove_tasks" = "Todas tus tareas y su historial";
-"settings.account.delete_remove_lists" = "Todas las listas de las que eres propietario";
-"settings.account.delete_remove_comments" = "Todos tus comentarios";
-"settings.account.delete_remove_profile" = "Tu perfil y configuración";
-"settings.account.delete_remove_files" = "Todos los archivos subidos";
-"settings.account.delete_confirm_prompt" = "Para confirmar, escribe \"ELIMINAR MI CUENTA\" abajo:";
-"settings.account.delete_confirm_placeholder" = "Escribe la confirmación";
-"settings.account.delete_confirmation" = "Confirmación";
-"settings.account.delete_confirm_instruction" = "Debes escribir \"ELIMINAR MI CUENTA\" exactamente para proceder.";
-"settings.account.delete_confirm_mismatch" = "El texto de confirmación no coincide";
-"settings.account.delete_confirm_match" = "El texto de confirmación coincide";
-"settings.account.delete_my_account_button" = "Eliminar mi cuenta";
-"settings.account.delete_final_confirmation" = "Confirmación final";
-"settings.account.delete_forever" = "Eliminar para siempre";
-"settings.account.delete_final_warning" = "¿Estás absolutamente seguro? Esto eliminará permanentemente tu cuenta y TODOS tus datos. Esta acción NO se puede deshacer.";
-"settings.account.delete_confirm_phrase" = "ELIMINAR MI CUENTA";
 "settings.account.delete_description" = "Elimina permanentemente tu cuenta y todos los datos.";
-"settings.account.passkey" = "Passkey";
-"settings.account.adding_passkey" = "Agregando passkey...";
-"settings.account.add_passkey_button" = "Agregar una Passkey";
-"settings.account.passkeys_footer" = "Las passkeys usan biometría o el PIN del dispositivo para una autenticación segura y sin contraseña. Se sincronizan automáticamente entre tus dispositivos.";
-"settings.account.passkey_name_placeholder" = "Nombre de la passkey";
-"settings.account.synced" = "Sincronizado";
-"settings.account.added_on" = "Agregado el %@";
-"settings.account.added_recently" = "Agregado recientemente";
-"settings.account.rename_failed" = "Error al renombrar la passkey";
-"settings.account.delete_failed" = "Error al eliminar la passkey";
-"settings.account.export_json" = "Exportar datos (JSON)";
-"settings.account.export_csv" = "Exportar datos (CSV)";
-"settings.account.your_data" = "Tus datos";
-"settings.account.your_data_footer" = "Descarga todas tus tareas, listas y datos de cuenta.";
-"settings.account.delete_account_footer" = "Elimina permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.";
-"settings.account.no_passkeys_registered" = "No hay passkeys registradas";
-"settings.account.add_passkey_description" = "Agrega una passkey para un inicio de sesión más rápido y sin contraseña";
-"settings.account.email_verification" = "Verificación de Correo";
-"settings.account.pending_email_footer" = "Revisa tu bandeja de entrada para verificar la nueva dirección. El cambio no tendrá efecto hasta que se verifique.";
-"settings.account.verify_email_footer" = "Verifica tu correo para acceder a todas las funciones y recibir notificaciones.";
-"settings.account.info" = "Información de la Cuenta";
-"settings.account.id" = "ID de Cuenta";
-"settings.account.created" = "Creada";
-"settings.account.auth_method" = "Método de Autenticación";
-"settings.account.google" = "Google";
 
 /* Settings - AI */
-"settings.ai.api_keys" = "Claves API de IA";
-"settings.ai.api_keys_description" = "Agrega tus propias claves API para usar asistentes de IA. Las claves se encriptan y almacenan de forma segura en el servidor.";
-"settings.ai.loading_keys" = "Cargando claves API...";
-"settings.ai.about_keys" = "Acerca de las claves API";
-"settings.ai.about_description" = "Tus claves API se usan para potenciar las funciones del asistente de IA en Astrid. Cada proveedor ofrece diferentes capacidades y precios.";
-"settings.ai.encryption_info" = "Las claves se encriptan usando AES-256 antes de ser almacenadas. Astrid nunca comparte tus claves con terceros.";
-"settings.ai.not_configured" = "No configurado";
-"settings.ai.new_badge" = "NUEVO";
 
 /* Tasks */
 "tasks.task_details" = "Detalles de la Tarea";
@@ -966,3 +885,11 @@
 "settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
 "settings.list_agent.choose" = "Choose Agent";
 "settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";
+
+/* iPad Layout Settings */
+"settings.appearance.ipad_layout" = "Diseño de iPad";
+"settings.appearance.landscape_layout" = "Horizontal";
+"settings.appearance.portrait_layout" = "Vertical";
+"settings.appearance.three_columns" = "3 columnas";
+"settings.appearance.two_columns" = "2 columnas";
+"settings.appearance.single_column" = "Una columna";

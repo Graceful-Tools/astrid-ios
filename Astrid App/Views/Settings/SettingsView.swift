@@ -100,7 +100,7 @@ struct SettingsView: View {
                             Text(NSLocalizedString("debug.server_config", comment: ""))
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text(String(format: NSLocalizedString("debug.current_server", comment: ""), Constants.API.baseURL))
+                            Text(String(format: NSLocalizedString("debug.current_server_with_url", comment: ""), Constants.API.baseURL))
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

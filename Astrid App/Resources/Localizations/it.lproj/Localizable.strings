@@ -7,7 +7,6 @@
 
 /* Settings */
 "settings" = "Impostazioni";
-"sync" = "Sincronizzazione";
 "last_sync" = "Ultima sincronizzazione";
 "never" = "Mai";
 "sync_now" = "Sincronizza ora";
@@ -180,7 +179,7 @@
 /* Debug Settings */
 "debug.settings" = "Impostazioni di debug";
 "debug.server_config" = "Configurazione server";
-"debug.current_server" = "Attuale: %@";
+"debug.current_server_with_url" = "Attuale: %@";
 "debug.toast_debug_mode" = "Modalità debug Toast";
 "debug.toast_debug_desc" = "Mostra notifiche toast dettagliate per il debug";
 "debug.reminder_debug_mode" = "Modalità debug promemoria";
@@ -870,3 +869,11 @@
 "settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
 "settings.list_agent.choose" = "Choose Agent";
 "settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";
+
+/* iPad Layout Settings */
+"settings.appearance.ipad_layout" = "Layout iPad";
+"settings.appearance.landscape_layout" = "Orizzontale";
+"settings.appearance.portrait_layout" = "Verticale";
+"settings.appearance.three_columns" = "3 colonne";
+"settings.appearance.two_columns" = "2 colonne";
+"settings.appearance.single_column" = "Una colonna";

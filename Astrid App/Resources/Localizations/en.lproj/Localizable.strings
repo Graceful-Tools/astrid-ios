@@ -10,7 +10,6 @@
 
 /* Settings */
 "settings" = "Settings";
-"sync" = "Sync";
 "last_sync" = "Last Sync";
 "never" = "Never";
 "sync_now" = "Sync Now";
@@ -299,7 +298,7 @@
 /* Debug Settings */
 "debug.settings" = "Debug Settings";
 "debug.server_config" = "Server Configuration";
-"debug.current_server" = "Current: %@";
+"debug.current_server_with_url" = "Current: %@";
 "debug.toast_debug_mode" = "Toast Debug Mode";
 "debug.toast_debug_desc" = "Show detailed toast notifications for debugging";
 "debug.reminder_debug_mode" = "Reminder Debug Mode";

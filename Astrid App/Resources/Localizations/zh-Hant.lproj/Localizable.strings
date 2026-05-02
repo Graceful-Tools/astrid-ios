@@ -7,7 +7,6 @@
 
 /* Settings */
 "settings" = "設置";
-"sync" = "同步";
 "last_sync" = "上次同步";
 "never" = "從不";
 "sync_now" = "立即同步";
@@ -181,7 +180,7 @@
 /* Debug Settings */
 "debug.settings" = "調試設置";
 "debug.server_config" = "服務器配置";
-"debug.current_server" = "當前：%@";
+"debug.current_server_with_url" = "當前：%@";
 "debug.toast_debug_mode" = "Toast 調試模式";
 "debug.toast_debug_desc" = "顯示用於調試的詳細 Toast 通知";
 "debug.reminder_debug_mode" = "提醒調試模式";
@@ -545,37 +544,6 @@
 "reminders.import" = "匯入";
 
 /* Repeating Pattern Editor */
-"repeating.custom_pattern" = "自訂重複模式";
-"repeating.repeat_every" = "每隔";
-"repeating.repeat_on_days" = "在這些日子重複";
-"repeating.repeat_type" = "重複類型";
-"repeating.same_date_monthly" = "每月同一日期";
-"repeating.same_weekday_monthly" = "每月同一週的同一星期幾";
-"repeating.day_of_month" = "每月的第幾天";
-"repeating.weekday" = "星期幾";
-"repeating.week_of_month" = "每月的第幾週";
-"repeating.month" = "月";
-"repeating.day" = "天";
-"repeating.repeat_mode" = "重複模式";
-"repeating.from_completion" = "下次從完成日期起算";
-"repeating.from_due_date" = "下次從原定截止日期起算";
-"repeating.end_condition" = "結束條件";
-"repeating.never" = "永不";
-"repeating.after_occurrences" = "在指定次數後";
-"repeating.until_date" = "直到指定日期";
-"repeating.num_occurrences" = "重複次數";
-"repeating.end_date" = "結束日期";
-"repeating.preview" = "預覽";
-"repeating.no_repeat" = "不重複";
-"repeating.days" = "天";
-"repeating.weeks" = "週";
-"repeating.months" = "月";
-"repeating.years" = "年";
-"repeating.1st" = "第一";
-"repeating.2nd" = "第二";
-"repeating.3rd" = "第三";
-"repeating.4th" = "第四";
-"repeating.5th" = "第五";
 
 /* Repeating Pattern Editor */
 "repeating.custom_pattern" = "自訂重複模式";
@@ -903,3 +871,11 @@
 "settings.list_agent.no_agent_description" = "Disable automatic agent responses for this list";
 "settings.list_agent.choose" = "Choose Agent";
 "settings.list_agent.footer" = "When set, this agent will automatically respond to messages in this list's chat.";
+
+/* iPad Layout Settings */
+"settings.appearance.ipad_layout" = "iPad 版面配置";
+"settings.appearance.landscape_layout" = "橫向";
+"settings.appearance.portrait_layout" = "縱向";
+"settings.appearance.three_columns" = "3 欄";
+"settings.appearance.two_columns" = "2 欄";
+"settings.appearance.single_column" = "單欄";
