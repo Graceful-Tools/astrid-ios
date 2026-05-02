@@ -1236,7 +1236,11 @@ struct TaskDetailViewNew: View {
                 isAllDay = freshTask.isAllDay
             }
 
-            // Comments are loaded by CommentSectionViewEnhanced — no need to fetch here
+            // Force-refresh comments too — CommentSectionViewEnhanced only reloads
+            // off the .commentDidSync notification, which fires from inside fetchComments
+            // after a network call. Without useCache: false here, pull-to-refresh would
+            // never re-hit the network for comments.
+            _ = try? await CommentService.shared.fetchComments(taskId: task.id, useCache: false)
         } catch {
             // Silent failure - just fail gracefully if offline
             print("⚠️ [TaskDetailViewNew] Failed to refresh task details: \(error)")
