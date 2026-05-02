@@ -93,7 +93,8 @@ struct ListImageHelper {
             return URL(string: imageUrl)
         }
 
-        // Handle API secure file paths (/api/secure-files/...)
+        // Handle API secure file paths — accepts both /api/v1/secure-files/...
+        // (current) and legacy /api/secure-files/... (older URLs persisted server-side).
         if imageUrl.hasPrefix("/api/") {
             return URL(string: baseURL + imageUrl)
         }

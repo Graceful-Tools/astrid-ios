@@ -215,7 +215,7 @@ struct AttachmentThumbnail: View {
 
         // Download from server
         do {
-            let infoURL = "\(Constants.API.baseURL)/api/secure-files/\(file.id)?info=true"
+            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
             guard let url = URL(string: infoURL) else { return }
 
             var request = URLRequest(url: url)
@@ -325,7 +325,7 @@ struct AttachmentThumbnail: View {
         // Load from server for uploaded files
         do {
             // Get the signed download URL from the API
-            let infoURL = "\(Constants.API.baseURL)/api/secure-files/\(file.id)?info=true"
+            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
             guard let url = URL(string: infoURL) else {
                 isLoadingThumbnail = false
                 return
@@ -460,7 +460,7 @@ struct AttachmentThumbnail: View {
         // Download from server for uploaded files
         do {
             // Get the signed download URL from the API
-            let infoURL = "\(Constants.API.baseURL)/api/secure-files/\(file.id)?info=true"
+            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
             guard let url = URL(string: infoURL) else {
                 print("❌ [AttachmentThumbnail] Invalid URL")
                 return

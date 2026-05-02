@@ -427,7 +427,7 @@ struct ImagePickerView: View {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         // Make request
-        guard let url = URL(string: "\(Constants.API.baseURL)/api/secure-upload/request-upload") else {
+        guard let url = URL(string: "\(Constants.API.baseURL)/api/v1/secure-upload/request-upload") else {
             throw URLError(.badURL)
         }
 

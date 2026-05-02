@@ -260,7 +260,7 @@ class AttachmentService: ObservableObject {
 
     /// Get the signed download URL for a secure file
     func getSecureFileDownloadURL(for fileId: String) async throws -> URL? {
-        let infoURL = "\(Constants.API.baseURL)/api/secure-files/\(fileId)?info=true"
+        let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(fileId)?info=true"
         guard let url = URL(string: infoURL) else { return nil }
         
         var request = URLRequest(url: url)
@@ -303,7 +303,7 @@ class AttachmentService: ObservableObject {
             
             // 3. Download if not cached
             do {
-                let infoURL = "\(Constants.API.baseURL)/api/secure-files/\(file.id)?info=true"
+                let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
                 guard let url = URL(string: infoURL) else { continue }
                 
                 var request = URLRequest(url: url)

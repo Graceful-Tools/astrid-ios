@@ -277,7 +277,7 @@ struct UploadResponse: Codable {
 
 // MARK: - GitHub Integration
 
-/// GitHub repository model matching API response from /api/github/repositories
+/// GitHub repository model matching API response from /api/v1/github/repositories
 struct GitHubRepository: Codable, Identifiable, Equatable, Hashable {
     let id: Int
     let name: String
@@ -294,14 +294,14 @@ struct GitHubRepository: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
-/// Response from /api/github/repositories endpoint
+/// Response from /api/v1/github/repositories endpoint
 struct GitHubRepositoriesResponse: Codable {
     let repositories: [GitHubRepository]
     let cached: Bool?
     let lastRefreshed: String?
 }
 
-/// Response from /api/github/status endpoint
+/// Response from /api/v1/github/status endpoint
 struct GitHubStatusResponse: Codable {
     let isGitHubConnected: Bool
     let hasAIKeys: Bool
@@ -321,7 +321,7 @@ struct UserStats: Codable {
     let supported: Int
 }
 
-/// User profile response from /api/users/[userId]/profile
+/// User profile response from /api/v1/users/[userId]/profile
 struct UserProfileResponse: Codable {
     let user: UserProfileData
     let stats: UserStats

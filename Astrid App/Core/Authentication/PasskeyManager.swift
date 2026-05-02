@@ -201,6 +201,10 @@ class PasskeyManager: NSObject, ObservableObject {
 
     // MARK: - Passkey Management
 
+    // NOTE: WebAuthn endpoints stay on /api/auth/webauthn/* — there is no
+    // /api/v1/auth/webauthn/* on the server. The v1 migration intentionally
+    // skipped the WebAuthn paths.
+
     func getPasskeys() async throws -> [PasskeyInfo] {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys")!
         var request = URLRequest(url: url)
