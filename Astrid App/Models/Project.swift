@@ -8,20 +8,20 @@ import Foundation
 /// regular (domain) lists and status lists (one per board column).
 /// Inbox and Done remain virtual columns derived from task state and are
 /// never stored. See `docs/product/project-status-board.md` (astrid-web).
-public struct Project: Identifiable, Codable, Equatable, Hashable {
-    public let id: String
-    public var name: String
-    public var description: String?
-    public var color: String?
-    public var imageUrl: String?
-    public var ownerId: String?
-    public var owner: User?
-    public var members: [ProjectMember]?
-    public var lists: [TaskList]?
-    public var createdAt: Date?
-    public var updatedAt: Date?
+struct Project: Identifiable, Codable, Equatable, Hashable {
+    let id: String
+    var name: String
+    var description: String?
+    var color: String?
+    var imageUrl: String?
+    var ownerId: String?
+    var owner: User?
+    var members: [ProjectMember]?
+    var lists: [TaskList]?
+    var createdAt: Date?
+    var updatedAt: Date?
 
-    public init(
+    init(
         id: String,
         name: String,
         description: String? = nil,
@@ -47,21 +47,21 @@ public struct Project: Identifiable, Codable, Equatable, Hashable {
         self.updatedAt = updatedAt
     }
 
-    public var displayColor: String {
+    var displayColor: String {
         color ?? "#3b82f6"
     }
 }
 
-public struct ProjectMember: Identifiable, Codable, Equatable, Hashable {
-    public var id: String
-    public let projectId: String?
-    public let userId: String
-    public let role: String
-    public var createdAt: Date?
-    public var updatedAt: Date?
-    public var user: User?
+struct ProjectMember: Identifiable, Codable, Equatable, Hashable {
+    var id: String
+    let projectId: String?
+    let userId: String
+    let role: String
+    var createdAt: Date?
+    var updatedAt: Date?
+    var user: User?
 
-    public init(
+    init(
         id: String,
         projectId: String? = nil,
         userId: String,
@@ -79,7 +79,7 @@ public struct ProjectMember: Identifiable, Codable, Equatable, Hashable {
         self.user = user
     }
 
-    public init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.userId = try container.decode(String.self, forKey: .userId)
         self.role = try container.decode(String.self, forKey: .role)

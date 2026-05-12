@@ -13,8 +13,8 @@ import Foundation
 /// - `{ "kind": "since-weekday", "weekday": 0...6 }`  (0 = Sunday)
 /// - `{ "kind": "since-day-of-month", "day": 1...31 }`
 /// - `{ "kind": "since-date", "date": "YYYY-MM-DD" }`
-public enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
-    public enum DurationUnit: String, Codable, Equatable, Hashable {
+enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
+    enum DurationUnit: String, Codable, Equatable, Hashable {
         case hour, day, week, month
     }
 
@@ -34,7 +34,7 @@ public enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
         case date
     }
 
-    public init(from decoder: Decoder) throws {
+    init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try container.decode(String.self, forKey: .kind)
         switch kind {
@@ -60,7 +60,7 @@ public enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
         }
     }
 
-    public func encode(to encoder: Encoder) throws {
+    func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .duration(let amount, let unit):
@@ -86,7 +86,7 @@ public enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
 /// the "default" completion filter. `nil` window falls back to "24 hours
 /// ago from now". Mirrors `getRecentlyCompletedCutoff` in
 /// `lib/recently-completed-window.ts`.
-public func getRecentlyCompletedCutoff(
+func getRecentlyCompletedCutoff(
     _ window: RecentlyCompletedWindow?,
     now: Date = Date(),
     calendar: Calendar = .current
@@ -161,7 +161,7 @@ public func getRecentlyCompletedCutoff(
 /// True iff `task.completedAt` (falling back to `task.updatedAt` when the
 /// dedicated column is nil) is on or after the cutoff. Mirrors
 /// `isTaskRecentlyCompleted` on web.
-public func isTaskRecentlyCompleted(
+func isTaskRecentlyCompleted(
     completedAt: Date?,
     updatedAt: Date?,
     window: RecentlyCompletedWindow?,
@@ -180,7 +180,7 @@ public func isTaskRecentlyCompleted(
 /// - "show": always show
 /// - "hide": never show
 /// - "all" / nil: defer to caller (return true)
-public func shouldShowCompletedByFilter(
+func shouldShowCompletedByFilter(
     filterMode: String?,
     completedAt: Date?,
     updatedAt: Date?,
