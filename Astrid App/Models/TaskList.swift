@@ -50,11 +50,27 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
     var filterRepeating: String?
     var filterPriority: String?
     var filterInLists: String?
-    
+
+    // ── Project status board (added 2026-05-12 for board parity) ─────
+    //
+    // `projectId` is set when this list belongs to a project. A project
+    // contains both `listType: "regular"` (domain) lists and
+    // `listType: "status"` (board column) lists. Inbox and Done are
+    // virtual columns derived from task state and are never stored.
+    var projectId: String?
+    var listType: String?           // "regular" | "status"
+    var statusRole: String?         // "ready" | "doing" | "waiting" | "custom" | "inbox" | "done"
+    var statusOrder: Int?
+    var statusDescription: String?
+    var statusCompleted: Bool?
+    /// Per-list "Recently completed" window config. `nil` falls back to
+    /// the legacy 24h default. See `RecentlyCompletedWindow.swift`.
+    var recentlyCompletedWindow: RecentlyCompletedWindow?
+
     enum Privacy: String, Codable {
         case PRIVATE, SHARED, PUBLIC
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case id, name, color, imageUrl, coverImageUrl, privacy, publicListType
         case ownerId, owner, admins, members, listMembers, invitations
@@ -67,6 +83,8 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
         case isFavorite, favoriteOrder, isVirtual, virtualListType, sortBy, manualSortOrder
         case filterCompletion, filterDueDate, filterAssignee, filterAssignedBy
         case filterRepeating, filterPriority, filterInLists
+        case projectId, listType, statusRole, statusOrder
+        case statusDescription, statusCompleted, recentlyCompletedWindow
     }
     
     var displayColor: String {

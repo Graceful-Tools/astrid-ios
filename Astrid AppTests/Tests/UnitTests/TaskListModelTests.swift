@@ -488,4 +488,105 @@ final class TaskListModelTests: XCTestCase {
         XCTAssertEqual(listWithTasks.tasks?.count, 2)
         XCTAssertEqual(listWithTasks.taskCount, 2)
     }
+
+    // MARK: - Board fields (added 2026-05-12)
+
+    /// Status lists return all seven board fields under `/api/v1/lists/*`.
+    /// This pins the iOS-side decoder against that contract.
+    func testDecode_statusListIncludesAllBoardFields() throws {
+        let json = """
+        {
+          "id": "l-ready",
+          "name": "Ready",
+          "projectId": "p1",
+          "listType": "status",
+          "statusRole": "ready",
+          "statusOrder": 0,
+          "statusDescription": "Time to get to work!",
+          "statusCompleted": false,
+          "recentlyCompletedWindow": null,
+          "privacy": "SHARED",
+          "ownerId": "u1"
+        }
+        """.data(using: .utf8)!
+
+        let decoder = JSONDecoder()
+        let list = try decoder.decode(TaskList.self, from: json)
+        XCTAssertEqual(list.projectId, "p1")
+        XCTAssertEqual(list.listType, "status")
+        XCTAssertEqual(list.statusRole, "ready")
+        XCTAssertEqual(list.statusOrder, 0)
+        XCTAssertEqual(list.statusDescription, "Time to get to work!")
+        XCTAssertEqual(list.statusCompleted, false)
+        XCTAssertNil(list.recentlyCompletedWindow)
+    }
+
+    /// Legacy lists with no project attached return null/defaults — make
+    /// sure the decoder treats those as absent without crashing.
+    func testDecode_legacyListHasNilBoardFields() throws {
+        let json = """
+        {
+          "id": "legacy",
+          "name": "Legacy List",
+          "privacy": "PRIVATE",
+          "ownerId": "u1",
+          "projectId": null,
+          "listType": "regular",
+          "statusRole": null,
+          "statusOrder": null,
+          "statusDescription": null,
+          "statusCompleted": false,
+          "recentlyCompletedWindow": null
+        }
+        """.data(using: .utf8)!
+
+        let list = try JSONDecoder().decode(TaskList.self, from: json)
+        XCTAssertNil(list.projectId)
+        XCTAssertEqual(list.listType, "regular")
+        XCTAssertNil(list.statusRole)
+        XCTAssertNil(list.statusOrder)
+        XCTAssertNil(list.statusDescription)
+        XCTAssertEqual(list.statusCompleted, false)
+        XCTAssertNil(list.recentlyCompletedWindow)
+    }
+
+    /// `recentlyCompletedWindow` is a discriminated union; iOS must decode
+    /// every shape the web emits. Spot-check each kind.
+    func testDecode_recentlyCompletedWindow_eachKind() throws {
+        struct Wrap: Codable { var window: RecentlyCompletedWindow? }
+        let cases: [(String, RecentlyCompletedWindow)] = [
+            ("{\"kind\":\"duration\",\"amount\":7,\"unit\":\"day\"}",
+             .duration(amount: 7, unit: .day)),
+            ("{\"kind\":\"since-weekday\",\"weekday\":1}",
+             .sinceWeekday(weekday: 1)),
+            ("{\"kind\":\"since-day-of-month\",\"day\":15}",
+             .sinceDayOfMonth(day: 15)),
+            ("{\"kind\":\"since-date\",\"date\":\"2026-04-01\"}",
+             .sinceDate(date: "2026-04-01")),
+        ]
+        for (windowJson, expected) in cases {
+            let json = "{\"window\":\(windowJson)}".data(using: .utf8)!
+            let decoded = try JSONDecoder().decode(Wrap.self, from: json)
+            XCTAssertEqual(decoded.window, expected)
+        }
+    }
+
+    /// A TaskList carrying a recentlyCompletedWindow encodes it back as
+    /// the same shape iOS receives — important for PUT round-trips.
+    func testEncode_taskListWithWindow_roundTrips() throws {
+        var list = TestHelpers.createTestList(id: "l-1", name: "List")
+        list.projectId = "p-1"
+        list.listType = "status"
+        list.recentlyCompletedWindow = .duration(amount: 7, unit: .day)
+
+        let data = try JSONEncoder().encode(list)
+        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
+        XCTAssertTrue(json.contains("\"projectId\":\"p-1\""))
+        XCTAssertTrue(json.contains("\"listType\":\"status\""))
+        XCTAssertTrue(json.contains("\"recentlyCompletedWindow\""))
+
+        let decoded = try JSONDecoder().decode(TaskList.self, from: data)
+        XCTAssertEqual(decoded.projectId, "p-1")
+        XCTAssertEqual(decoded.recentlyCompletedWindow, .duration(amount: 7, unit: .day))
+    }
 }
