@@ -482,6 +482,11 @@ struct TaskListView: View {
                         Group {
                             if (!taskService.hasCompletedInitialLoad || !listService.hasCompletedInitialLoad) || (taskService.isLoading && taskService.tasks.isEmpty) || (isViewingFromFeatured && isLoadingFeaturedTasks) {
                                 loadingState
+                            } else if let projectId = selectedList?.projectId,
+                                      let project = ProjectService.shared.project(id: projectId) {
+                                // List has a project board attached → render
+                                // the board instead of the flat task list.
+                                ProjectStatusBoardView(project: project)
                             } else if filteredTasks.isEmpty {
                                 emptyState
                             } else {
