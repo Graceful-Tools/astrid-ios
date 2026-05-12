@@ -193,6 +193,34 @@ struct UpdateListRequest: Codable {
     var filterRepeating: String?
     var filterAssignedBy: String?
     var filterInLists: String?
+    // Project status board (round-trips via PUT /api/v1/lists/[id]).
+    // `projectId` is set/unset implicitly via project create/delete on the
+    // server; iOS rarely needs to send it directly. `recentlyCompletedWindow`
+    // is sent by the list admin Recently-completed-window picker.
+    var projectId: String?
+    var recentlyCompletedWindow: RecentlyCompletedWindow?
+}
+
+// MARK: - Projects (status boards)
+
+struct CreateProjectRequest: Codable {
+    var name: String
+    var description: String?
+    var color: String?
+    var imageUrl: String?
+}
+
+struct ProjectsResponse: Codable {
+    var projects: [Project]
+}
+
+struct ProjectResponse: Codable {
+    var project: Project
+}
+
+struct DeleteProjectResponse: Codable {
+    var success: Bool
+    var detachedListIds: [String]?
 }
 
 struct CreateCommentRequest: Codable {

@@ -59,6 +59,29 @@
         <attribute name="sortBy" optional="YES" attributeType="String"/>
         <attribute name="syncStatus" attributeType="String"/>
         <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <!-- Project status board (added 2026-05-12). projectId stays as a plain
+             String foreign key — no Core Data relation, matching how
+             CDTask.listIds → CDTaskList works elsewhere. recentlyCompletedWindow
+             is stored as the JSON string the server returns. -->
+        <attribute name="projectId" optional="YES" attributeType="String"/>
+        <attribute name="listType" optional="YES" attributeType="String"/>
+        <attribute name="statusRole" optional="YES" attributeType="String"/>
+        <attribute name="statusOrder" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="NO"/>
+        <attribute name="statusDescription" optional="YES" attributeType="String"/>
+        <attribute name="statusCompleted" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO"/>
+        <attribute name="recentlyCompletedWindowJSON" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="CDProject" representedClassName="CDProject" syncable="YES">
+        <attribute name="id" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="projectDescription" optional="YES" attributeType="String"/>
+        <attribute name="color" optional="YES" attributeType="String"/>
+        <attribute name="imageUrl" optional="YES" attributeType="String"/>
+        <attribute name="ownerId" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="syncStatus" attributeType="String" defaultValueString="synced"/>
+        <attribute name="lastSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <entity name="CDComment" representedClassName="CDComment" syncable="YES">
         <attribute name="id" attributeType="String"/>

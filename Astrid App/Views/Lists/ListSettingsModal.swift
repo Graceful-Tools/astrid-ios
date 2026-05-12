@@ -60,7 +60,7 @@ struct ListSettingsModal: View {
         isLeaving = true
         _Concurrency.Task {
             do {
-                try await AstridAPIClient.shared.leaveList(id: currentList.id)
+                try await ListService.shared.leaveList(listId: currentList.id)
                 onLeave?()
             } catch {
                 isLeaving = false

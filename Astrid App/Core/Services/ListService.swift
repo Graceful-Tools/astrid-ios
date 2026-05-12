@@ -623,6 +623,29 @@ class ListService: ObservableObject {
         }
     }
 
+    /// Leave a shared list through the v1 service boundary.
+    func leaveList(listId: String) async throws {
+        try await apiClient.leaveList(id: listId)
+        cachedLists.removeValue(forKey: listId)
+        lists.removeAll { $0.id == listId }
+        try? await deleteListFromCoreData(listId)
+    }
+
+    /// Server-first list update for settings screens that do not need the
+    /// optimistic local-first flow.
+    @discardableResult
+    func updateListOnServer(listId: String, updates: UpdateListRequest) async throws -> TaskList {
+        let updatedList = try await apiClient.updateList(id: listId, updates: updates)
+        cachedLists[listId] = updatedList
+        if let index = lists.firstIndex(where: { $0.id == listId }) {
+            lists[index] = updatedList
+        } else {
+            lists.append(updatedList)
+        }
+        try? await saveListToCoreData(updatedList, syncStatus: "synced")
+        return updatedList
+    }
+
     func getListMembers(listId: String) async throws -> [User] {
         // TODO: Implement getListMembers in API v1
         // For now, return empty array

@@ -139,7 +139,7 @@ struct ListAgentSettingsView: View {
         isLoading = true
 
         do {
-            agents = try await AstridAPIClient.shared.getAvailableAgents()
+            agents = try await ChatService.shared.fetchAvailableAgents()
 
             // Check current list's agent setting
             if let list = ListService.shared.lists.first(where: { $0.id == listId }) {
@@ -164,7 +164,7 @@ struct ListAgentSettingsView: View {
                 let request = UpdateListRequest(
                     // Pass agent config through list update when API supports it
                 )
-                _ = try await AstridAPIClient.shared.updateList(id: listId, updates: request)
+                _ = try await ListService.shared.updateListOnServer(listId: listId, updates: request)
                 logger.notice("Updated list agent to: \(agentId ?? "default", privacy: .public)")
             } catch {
                 logger.error("Failed to update list agent: \(error.localizedDescription, privacy: .public)")

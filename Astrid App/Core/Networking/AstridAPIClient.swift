@@ -481,6 +481,56 @@ class AstridAPIClient {
         )
     }
 
+    // MARK: - Project (Status Board) Operations
+    //
+    // Mirrors /api/v1/projects on astrid-web. Each project seeds three
+    // status lists on the server (Ready / Doing / Waiting); Inbox + Done
+    // remain virtual columns derived from task state. See
+    // docs/product/project-status-board.md in astrid-web for the spec.
+
+    /// List every project the caller owns or is a member of.
+    /// Requires the `projects:read` OAuth scope.
+    func getProjects() async throws -> [Project] {
+        let response: ProjectsResponse = try await request(
+            method: "GET",
+            path: "/api/v1/projects"
+        )
+        return response.projects
+    }
+
+    /// Create a project + seed Ready/Doing/Waiting status lists.
+    /// Requires the `projects:write` OAuth scope.
+    func createProject(
+        name: String,
+        description: String? = nil,
+        color: String? = nil,
+        imageUrl: String? = nil
+    ) async throws -> Project {
+        let body = CreateProjectRequest(
+            name: name,
+            description: description,
+            color: color,
+            imageUrl: imageUrl
+        )
+        let response: ProjectResponse = try await request(
+            method: "POST",
+            path: "/api/v1/projects",
+            body: body
+        )
+        return response.project
+    }
+
+    /// Delete a project (owner only). Detaches domain lists, cascade-deletes
+    /// the project + its status lists. Requires the `projects:delete` scope.
+    @discardableResult
+    func deleteProject(id: String) async throws -> DeleteProjectResponse {
+        let response: DeleteProjectResponse = try await request(
+            method: "DELETE",
+            path: "/api/v1/projects/\(id)"
+        )
+        return response
+    }
+
     // MARK: - GitHub Integration
 
     /// Get GitHub connection and AI provider status

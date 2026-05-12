@@ -1386,8 +1386,7 @@ struct TaskListView: View {
 
         do {
             print("📱 [TaskListView] Loading tasks for featured public list: \(listId)")
-            // Use API v1 to get tasks for specific list (supports public lists)
-            let (tasks, _) = try await AstridAPIClient.shared.getTasks(listId: listId)
+            let tasks = try await taskService.fetchTasksForListFromServer(listId)
 
             // Merge optimistic tasks from taskService that belong to this list
             // This ensures newly added tasks don't disappear during the reload

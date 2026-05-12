@@ -259,7 +259,7 @@ struct DefaultAgentPickerView: View {
 
         _Concurrency.Task {
             do {
-                _ = try await AstridAPIClient.shared.updateAIAssistantSettings(
+                _ = try await ChatService.shared.updateAIAssistantSettings(
                     defaultAgentId: agentId
                 )
                 logger.notice("Updated default agent to: \(agentId ?? "none", privacy: .public)")
@@ -277,8 +277,8 @@ struct DefaultAgentPickerView: View {
         errorMessage = nil
 
         do {
-            async let fetchedAgents = AstridAPIClient.shared.getAvailableAgents()
-            async let fetchedSettings = AstridAPIClient.shared.getAIAssistantSettings()
+            async let fetchedAgents = ChatService.shared.fetchAvailableAgents()
+            async let fetchedSettings = ChatService.shared.getAIAssistantSettings()
 
             agents = try await fetchedAgents
             currentSettings = try await fetchedSettings
