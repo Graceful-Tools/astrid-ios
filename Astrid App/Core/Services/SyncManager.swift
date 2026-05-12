@@ -16,18 +16,21 @@ class SyncManager: ObservableObject {
     @Published var lastTaskSyncDate: Date?
     @Published var lastListSyncDate: Date?
     @Published var lastCommentSyncDate: Date?
+    @Published var lastProjectSyncDate: Date?
 
     private let apiClient = AstridAPIClient.shared
     private let taskService = TaskService.shared
     private let listService = ListService.shared // Temp: for legacy methods
     private let commentService = CommentService.shared
     private let listMemberService = ListMemberService.shared
+    private let projectService = ProjectService.shared
     private let reminderSettings = ReminderSettings.shared
 
     private let lastSyncKey = "last_sync_timestamp"
     private let lastTaskSyncKey = "last_task_sync_timestamp"
     private let lastListSyncKey = "last_list_sync_timestamp"
     private let lastCommentSyncKey = "last_comment_sync_timestamp"
+    private let lastProjectSyncKey = "last_project_sync_timestamp"
 
     private init() {
         // Load last sync timestamps
@@ -42,6 +45,9 @@ class SyncManager: ObservableObject {
         }
         if let timestamp = UserDefaults.standard.object(forKey: lastCommentSyncKey) as? Date {
             lastCommentSyncDate = timestamp
+        }
+        if let timestamp = UserDefaults.standard.object(forKey: lastProjectSyncKey) as? Date {
+            lastProjectSyncDate = timestamp
         }
     }
 
@@ -152,16 +158,28 @@ class SyncManager: ObservableObject {
             print("🔄 [SyncManager] Syncing pending reminder settings...")
             await reminderSettings.syncPendingChanges()
 
+            // Refresh projects (status boards) — non-critical, runs after
+            // lists/tasks so failure here doesn't poison the rest of the sync.
+            print("📊 [SyncManager] Refreshing projects via API v1...")
+            do {
+                let projects = try await projectService.refreshFromServer()
+                print("✅ [SyncManager] Projects synced: \(projects.count)")
+            } catch {
+                print("⚠️ [SyncManager] Project sync failed (non-critical): \(error)")
+            }
+
             // Update sync timestamps
             let syncTime = Date()
             lastSyncDate = syncTime
             lastTaskSyncDate = syncTime
             lastListSyncDate = syncTime
             lastCommentSyncDate = syncTime
+            lastProjectSyncDate = syncTime
             UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
             UserDefaults.standard.set(syncTime, forKey: lastTaskSyncKey)
             UserDefaults.standard.set(syncTime, forKey: lastListSyncKey)
             UserDefaults.standard.set(syncTime, forKey: lastCommentSyncKey)
+            UserDefaults.standard.set(syncTime, forKey: lastProjectSyncKey)
 
             print("✅ [SyncManager] Full sync completed: \(lists.count) lists, \(taskService.tasks.count) tasks")
             hasCompletedInitialSync = true
