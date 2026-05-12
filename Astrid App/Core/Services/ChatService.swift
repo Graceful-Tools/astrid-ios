@@ -320,6 +320,80 @@ class ChatService: ObservableObject {
         cachedMessages[channelId] = current
     }
 
+    /// Fetch available agents through ChatService so views do not couple
+    /// directly to the API client. The raw agent models are useful in settings
+    /// screens, while chat input can map them to mentionable users.
+    func fetchAvailableAgents(useCacheOnFailure: Bool = true) async throws -> [AvailableAgent] {
+        do {
+            let agents = try await apiClient.getAvailableAgents()
+            AIAgentCache.shared.save(agents.map(Self.agentUser))
+            return agents
+        } catch {
+            if useCacheOnFailure, let cachedUsers = AIAgentCache.shared.load() {
+                return cachedUsers.map {
+                    AvailableAgent(
+                        id: $0.id,
+                        name: $0.displayName,
+                        email: $0.email ?? "",
+                        image: $0.image,
+                        service: $0.aiAgentType ?? ""
+                    )
+                }
+            }
+            throw error
+        }
+    }
+
+    func fetchAvailableAgentUsers(useCacheOnFailure: Bool = true) async throws -> [User] {
+        let agents = try await fetchAvailableAgents(useCacheOnFailure: useCacheOnFailure)
+        return agents.map(Self.agentUser)
+    }
+
+    /// Refresh one channel from the v1 chat messages endpoint and preserve
+    /// locally pending optimistic messages. Used by polling fallbacks and
+    /// explicit refreshes so the merge behavior has one owner.
+    @discardableResult
+    func refreshMessagesFromServer(channelId: String) async throws -> [ChatMessage] {
+        let response = try await apiClient.getChatMessages(channelId: channelId)
+        hasMore[channelId] = response.hasMore
+
+        let serverMessages = response.messages
+        let serverIds = Set(serverMessages.map { $0.id })
+        let serverClientRequestIds = Set(serverMessages.compactMap { $0.clientRequestId })
+        let pendingMessages = cachedMessages[channelId]?.filter { message in
+            guard message.id.hasPrefix("temp_") else { return false }
+            guard !serverIds.contains(message.id) else { return false }
+            if let clientRequestId = message.clientRequestId {
+                return !serverClientRequestIds.contains(clientRequestId)
+            }
+            return true
+        } ?? []
+
+        var merged = serverMessages
+        merged.append(contentsOf: pendingMessages)
+        merged.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+        cachedMessages[channelId] = merged
+        lastFetchTime[channelId] = Date()
+
+        try await saveMessagesToCoreData(serverMessages, channelId: channelId)
+        NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
+        return merged
+    }
+
+    private static func agentUser(_ agent: AvailableAgent) -> User {
+        User(
+            id: agent.id,
+            email: agent.email,
+            name: agent.name,
+            image: agent.image,
+            createdAt: nil,
+            defaultDueTime: nil,
+            isPending: nil,
+            isAIAgent: true,
+            aiAgentType: agent.service
+        )
+    }
+
     private func loadMessagesFromCoreData(channelId: String) async throws -> [ChatMessage] {
         let messages: [ChatMessage] = try await withCheckedThrowingContinuation { continuation in
             coreDataManager.persistentContainer.performBackgroundTask { context in
@@ -512,6 +586,21 @@ class ChatService: ObservableObject {
     /// changes the model in settings).
     func invalidateAIAssistantSettingsCache() {
         cachedAIAssistantSettings = nil
+    }
+
+    /// Update the user's AI-assistant settings through the chat service
+    /// boundary, then refresh the short-lived settings cache.
+    @discardableResult
+    func updateAIAssistantSettings(
+        defaultAgentId: String? = nil,
+        preferredService: String? = nil
+    ) async throws -> AIAssistantSettings {
+        let settings = try await apiClient.updateAIAssistantSettings(
+            defaultAgentId: defaultAgentId,
+            preferredService: preferredService
+        )
+        cachedAIAssistantSettings = (settings, Date())
+        return settings
     }
 
     /// Post an on-device AI agent's response to a chat channel.

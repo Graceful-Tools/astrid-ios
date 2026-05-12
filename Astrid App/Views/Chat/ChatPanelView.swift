@@ -238,25 +238,8 @@ struct ChatPanelView: View {
             // Fetch available agents for @mention (fire-and-forget)
             _Concurrency.Task {
                 do {
-                    let agents = try await AstridAPIClient.shared.getAvailableAgents()
-                    let agentUsers = agents.map { agent in
-                        User(
-                            id: agent.id,
-                            email: agent.email,
-                            name: agent.name,
-                            image: agent.image,
-                            createdAt: nil,
-                            defaultDueTime: nil,
-                            isPending: nil,
-                            isAIAgent: true,
-                            aiAgentType: agent.service
-                        )
-                    }
-                    await MainActor.run {
-                        self.availableAgents = agentUsers
-                        // Also cache for offline use
-                        AIAgentCache.shared.save(agentUsers)
-                    }
+                    let agentUsers = try await chatService.fetchAvailableAgentUsers()
+                    await MainActor.run { self.availableAgents = agentUsers }
                 } catch {
                     // Use cached agents if API fails
                     if let cached = AIAgentCache.shared.load() {
@@ -349,32 +332,10 @@ struct ChatPanelView: View {
                 guard AuthManager.shared.isAuthenticated else { return }
                 guard let channelId = self.channelId else { return }
                 do {
-                    let response = try await AstridAPIClient.shared.getChatMessages(channelId: channelId)
-                    let serverMessages = response.messages
-                    // Compare against non-pending local messages only
-                    let localSynced = self.messages.filter { !$0.id.hasPrefix("temp_") }
-                    let serverIds = Set(serverMessages.map { $0.id })
-                    let localIds = Set(localSynced.map { $0.id })
-
-                    // Update if server has messages we don't, or different set
-                    if serverIds != localIds {
-                        // Preserve pending messages not yet on server
-                        let pending = self.messages.filter { $0.id.hasPrefix("temp_") && !serverIds.contains($0.clientRequestId ?? "") }
-                        var merged = serverMessages
-                        // Remove pending messages whose clientRequestId matches a server message
-                        let serverClientRequestIds = Set(serverMessages.compactMap { $0.clientRequestId })
-                        let stillPending = pending.filter { msg in
-                            guard let crid = msg.clientRequestId else { return true }
-                            return !serverClientRequestIds.contains(crid)
-                        }
-                        merged.append(contentsOf: stillPending)
-                        merged.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-                        self.messages = merged
-                        self.chatService.cachedMessages[channelId] = merged
-                        // Clear typing indicator if an agent message arrived
-                        if serverMessages.last?.isFromAgent == true {
-                            self.agentTypingName = nil
-                        }
+                    let merged = try await chatService.refreshMessagesFromServer(channelId: channelId)
+                    self.messages = merged
+                    if merged.last?.isFromAgent == true {
+                        self.agentTypingName = nil
                     }
                 } catch {
                     // Silent — polling failures are expected sometimes

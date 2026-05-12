@@ -603,6 +603,43 @@ class TaskService: ObservableObject {
         }
     }
 
+    /// Server-first update for callers that cannot use the normal optimistic
+    /// flow because the view hierarchy is sensitive to intermediate state
+    /// changes. This keeps those exceptional paths inside TaskService instead
+    /// of letting views call AstridAPIClient directly.
+    func updateTaskOnServer(
+        taskId: String,
+        updates: UpdateTaskRequest
+    ) async throws -> Task {
+        let resolvedId = tempTaskIdMapping[taskId] ?? taskId
+        guard !resolvedId.hasPrefix("temp_") else {
+            throw NSError(
+                domain: "TaskService",
+                code: 400,
+                userInfo: [NSLocalizedDescriptionKey: "Cannot server-update a task before its temp ID is synced"]
+            )
+        }
+
+        let updatedTask = try await apiClient.updateTask(id: resolvedId, updates: updates)
+        updateTaskInCache(updatedTask)
+
+        do {
+            try await saveTaskToCoreData(updatedTask, syncStatus: "synced")
+        } catch {
+            print("⚠️ [TaskService] Failed to persist server-first update: \(error)")
+        }
+
+        await badgeManager.updateBadge(with: self.tasks)
+        return updatedTask
+    }
+
+    /// Fetch tasks for a list through the v1 TaskService boundary. Used by
+    /// featured/public list views that need a network snapshot without
+    /// reaching into AstridAPIClient from SwiftUI.
+    func fetchTasksForListFromServer(_ listId: String) async throws -> [Task] {
+        try await apiClient.getAllTasks(listId: listId)
+    }
+
     func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil) async throws -> Task {
         // Get the current task - prefer the passed task (what user sees on screen) over cache
         // The cache might be stale if the task was updated on web

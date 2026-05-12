@@ -1339,13 +1339,11 @@ struct TaskDetailViewNew: View {
     private func saveTitle() {
         guard editedTitle != task.title else { return }
         _Concurrency.Task {
-            // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
-            // to prevent view recreation crashes during save
+            // Custom repeating saves use TaskService's server-first path to
+            // avoid optimistic view recreation during inline editing.
             if editedRepeating == .custom {
                 let request = UpdateTaskRequest(title: editedTitle)
-                if let updatedTask = try? await AstridAPIClient.shared.updateTask(id: task.id, updates: request) {
-                    await MainActor.run { taskService.updateTaskInCache(updatedTask) }
-                }
+                _ = try? await taskService.updateTaskOnServer(taskId: task.id, updates: request)
             } else {
                 _ = try? await taskService.updateTask(taskId: task.id, title: editedTitle, task: task)
             }
@@ -1355,13 +1353,11 @@ struct TaskDetailViewNew: View {
     private func saveDescription() {
         guard editedDescription != task.description else { return }
         _Concurrency.Task {
-            // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
-            // to prevent view recreation crashes during save
+            // Custom repeating saves use TaskService's server-first path to
+            // avoid optimistic view recreation during inline editing.
             if editedRepeating == .custom {
                 let request = UpdateTaskRequest(description: editedDescription)
-                if let updatedTask = try? await AstridAPIClient.shared.updateTask(id: task.id, updates: request) {
-                    await MainActor.run { taskService.updateTaskInCache(updatedTask) }
-                }
+                _ = try? await taskService.updateTaskOnServer(taskId: task.id, updates: request)
             } else {
                 _ = try? await taskService.updateTask(taskId: task.id, description: editedDescription, task: task)
             }
@@ -1397,8 +1393,8 @@ struct TaskDetailViewNew: View {
                     }
                 }
 
-                // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
-                // to prevent view recreation crashes during save (same fix as saveCustomRepeating)
+                // Use the server-first service path to avoid intermediate
+                // optimistic state churn while editing custom repeats.
                 if editedRepeating == .custom {
                     await saveDirectToAPI()
                 } else {
@@ -1419,8 +1415,8 @@ struct TaskDetailViewNew: View {
         }
     }
 
-    /// Direct API save for custom repeating tasks - bypasses TaskService optimistic update
-    /// to prevent view recreation crashes during save
+    /// Server-first save for custom repeating tasks. This stays behind
+    /// TaskService while avoiding optimistic view recreation during save.
     private func saveDirectToAPI() async {
         guard let dueDate = editedDueDate else { return }
 
@@ -1447,10 +1443,9 @@ struct TaskDetailViewNew: View {
         )
 
         do {
-            let updatedTask = try await AstridAPIClient.shared.updateTask(id: task.id, updates: request)
-            await MainActor.run { taskService.updateTaskInCache(updatedTask) }
+            _ = try await taskService.updateTaskOnServer(taskId: task.id, updates: request)
         } catch {
-            print("⚠️ [TaskDetailViewNew] Direct API save failed: \(error)")
+            print("⚠️ [TaskDetailViewNew] Server-first save failed: \(error)")
             // Silent failure - data will sync on next refresh
         }
     }
@@ -1458,13 +1453,11 @@ struct TaskDetailViewNew: View {
     private func savePriority() {
         guard editedPriority != task.priority else { return }
         _Concurrency.Task {
-            // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
-            // to prevent view recreation crashes during save
+            // Custom repeating saves use TaskService's server-first path to
+            // avoid optimistic view recreation during inline editing.
             if editedRepeating == .custom {
                 let request = UpdateTaskRequest(priority: editedPriority.rawValue)
-                if let updatedTask = try? await AstridAPIClient.shared.updateTask(id: task.id, updates: request) {
-                    await MainActor.run { taskService.updateTaskInCache(updatedTask) }
-                }
+                _ = try? await taskService.updateTaskOnServer(taskId: task.id, updates: request)
             } else {
                 _ = try? await taskService.updateTask(taskId: task.id, priority: editedPriority.rawValue, task: task)
             }
@@ -1510,7 +1503,7 @@ struct TaskDetailViewNew: View {
                         isAllDay = false  // Now it's a timed task
                     }
 
-                    // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
+                    // Custom repeats use TaskService's server-first path.
                     // to prevent view recreation crashes during save
                     if editedRepeating == .custom {
                         await saveDirectToAPI()
@@ -1543,7 +1536,7 @@ struct TaskDetailViewNew: View {
                         isAllDay = true  // Now it's an all-day task
                     }
 
-                    // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
+                    // Custom repeats use TaskService's server-first path.
                     if editedRepeating == .custom {
                         await saveDirectToAPI()
                     } else {
@@ -1559,7 +1552,7 @@ struct TaskDetailViewNew: View {
                         isAllDay = true  // Now it's an all-day task
                     }
 
-                    // CRITICAL: For tasks with custom repeating patterns, bypass TaskService
+                    // Custom repeats use TaskService's server-first path.
                     if editedRepeating == .custom {
                         await saveDirectToAPI()
                     } else {
@@ -1600,7 +1593,7 @@ struct TaskDetailViewNew: View {
         editedRepeatFrom = repeatFromMode
         editedRepeatingData = data
 
-        // Call API directly - bypass TaskService to prevent view hierarchy crash
+        // Use TaskService's server-first path to prevent view hierarchy churn.
         let taskId = task.id
         do {
             let request = UpdateTaskRequest(
@@ -1608,13 +1601,7 @@ struct TaskDetailViewNew: View {
                 repeatingData: data,
                 repeatFrom: repeatFromMode.rawValue
             )
-            let updatedTask = try await AstridAPIClient.shared.updateTask(id: taskId, updates: request)
-
-            // Update TaskService cache with the server response
-            // This ensures the change persists when the task is reopened
-            await MainActor.run {
-                taskService.updateTaskInCache(updatedTask)
-            }
+            _ = try await taskService.updateTaskOnServer(taskId: taskId, updates: request)
         } catch {
             print("⚠️ [TaskDetailViewNew] Failed to save custom repeating: \(error)")
             // Silent failure - data will sync on next refresh

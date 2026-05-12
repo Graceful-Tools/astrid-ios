@@ -138,10 +138,83 @@ final class CanonicalControlPointsTests: XCTestCase {
         let post: (String, String) async throws -> Void = { channelId, content in
             try await service.postAgentResponse(channelId: channelId, content: content)
         }
+        let updateSettings: (String?) async throws -> AIAssistantSettings = { agentId in
+            try await service.updateAIAssistantSettings(defaultAgentId: agentId)
+        }
+        let getAgents: () async throws -> [AvailableAgent] = {
+            try await service.fetchAvailableAgents()
+        }
+        let getAgentUsers: () async throws -> [User] = {
+            try await service.fetchAvailableAgentUsers()
+        }
+        let refreshMessages: (String) async throws -> [ChatMessage] = { channelId in
+            try await service.refreshMessagesFromServer(channelId: channelId)
+        }
         XCTAssertNotNil(getSettings)
         XCTAssertNotNil(post)
+        XCTAssertNotNil(updateSettings)
+        XCTAssertNotNil(getAgents)
+        XCTAssertNotNil(getAgentUsers)
+        XCTAssertNotNil(refreshMessages)
         // Invalidate the TTL cache from any caller that mutates the setting.
         service.invalidateAIAssistantSettingsCache()
+    }
+
+    // MARK: - Task/List service boundary method contracts
+
+    @MainActor
+    func testTaskService_HasServerFirstAndFeaturedListHelpers() {
+        let service = TaskService.shared
+        let updateServerFirst: (String, UpdateTaskRequest) async throws -> Task = { taskId, updates in
+            try await service.updateTaskOnServer(taskId: taskId, updates: updates)
+        }
+        let fetchListTasks: (String) async throws -> [Task] = { listId in
+            try await service.fetchTasksForListFromServer(listId)
+        }
+        XCTAssertNotNil(updateServerFirst)
+        XCTAssertNotNil(fetchListTasks)
+    }
+
+    @MainActor
+    func testListService_HasServerFirstHelpers() {
+        let service = ListService.shared
+        let leave: (String) async throws -> Void = { listId in
+            try await service.leaveList(listId: listId)
+        }
+        let updateServerFirst: (String, UpdateListRequest) async throws -> TaskList = { listId, updates in
+            try await service.updateListOnServer(listId: listId, updates: updates)
+        }
+        XCTAssertNotNil(leave)
+        XCTAssertNotNil(updateServerFirst)
+    }
+
+    func testRefactoredViews_DoNotCallAstridAPIClientDirectly() throws {
+        let root = try repositoryRoot()
+        let auditedViews = [
+            "Astrid App/Views/Tasks/TaskDetailViewNew.swift",
+            "Astrid App/Views/Tasks/TaskListView.swift",
+            "Astrid App/Views/Chat/ChatPanelView.swift",
+            "Astrid App/Views/Lists/ListAgentSettingsView.swift",
+            "Astrid App/Views/Lists/ListSettingsModal.swift",
+            "Astrid App/Views/Settings/DefaultAgentPickerView.swift"
+        ]
+
+        for relativePath in auditedViews {
+            let url = root.appendingPathComponent(relativePath)
+            let source = try String(contentsOf: url)
+            XCTAssertFalse(
+                source.contains("AstridAPIClient.shared"),
+                "\(relativePath) must route backend work through a service layer"
+            )
+        }
+    }
+
+    private func repositoryRoot() throws -> URL {
+        var url = URL(fileURLWithPath: #filePath)
+        while url.lastPathComponent != "astrid-ios" && url.path != "/" {
+            url.deleteLastPathComponent()
+        }
+        return url
     }
 
     // MARK: - AstridAPIClient exposes the preferences endpoints
