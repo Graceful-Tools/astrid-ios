@@ -33,8 +33,19 @@ public class CDTaskList: NSManagedObject {
     @NSManaged public var filterAssignee: String?
     @NSManaged public var filterRepeating: String?
 
+    // Project status board (added 2026-05-12). Lightweight-migration safe:
+    // every new attribute is optional with a sensible default.
+    @NSManaged public var projectId: String?
+    @NSManaged public var listType: String?
+    @NSManaged public var statusRole: String?
+    @NSManaged public var statusOrder: NSNumber?
+    @NSManaged public var statusDescription: String?
+    @NSManaged public var statusCompleted: NSNumber?
+    /// JSON-serialised `RecentlyCompletedWindow`. Nil = legacy 24h default.
+    @NSManaged public var recentlyCompletedWindowJSON: String?
+
     // MARK: - Conversion to Domain Model
-    
+
     func toDomainModel() -> TaskList {
         TaskList(
             id: id,
@@ -59,12 +70,25 @@ public class CDTaskList: NSManagedObject {
             filterDueDate: filterDueDate,
             filterAssignee: filterAssignee,
             filterRepeating: filterRepeating,
-            filterPriority: filterPriority
+            filterPriority: filterPriority,
+            projectId: projectId,
+            listType: listType,
+            statusRole: statusRole,
+            statusOrder: statusOrder?.intValue,
+            statusDescription: statusDescription,
+            statusCompleted: statusCompleted?.boolValue,
+            recentlyCompletedWindow: decodeRecentlyCompletedWindow()
         )
     }
-    
+
+    private func decodeRecentlyCompletedWindow() -> RecentlyCompletedWindow? {
+        guard let json = recentlyCompletedWindowJSON,
+              let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(RecentlyCompletedWindow.self, from: data)
+    }
+
     // MARK: - Update from Domain Model
-    
+
     func update(from list: TaskList) {
         self.name = list.name
         self.listDescription = list.description
@@ -86,6 +110,19 @@ public class CDTaskList: NSManagedObject {
         self.filterDueDate = list.filterDueDate
         self.filterAssignee = list.filterAssignee
         self.filterRepeating = list.filterRepeating
+        self.projectId = list.projectId
+        self.listType = list.listType
+        self.statusRole = list.statusRole
+        self.statusOrder = list.statusOrder.map(NSNumber.init(value:))
+        self.statusDescription = list.statusDescription
+        self.statusCompleted = list.statusCompleted.map(NSNumber.init(value:))
+        if let window = list.recentlyCompletedWindow,
+           let data = try? JSONEncoder().encode(window),
+           let json = String(data: data, encoding: .utf8) {
+            self.recentlyCompletedWindowJSON = json
+        } else {
+            self.recentlyCompletedWindowJSON = nil
+        }
         self.updatedAt = list.updatedAt ?? Date()
     }
 }
