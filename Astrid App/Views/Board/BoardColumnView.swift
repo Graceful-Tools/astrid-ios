@@ -77,6 +77,13 @@ struct BoardColumnView: View {
                 }
                 .padding(8)
                 .animation(.spring(response: 0.25, dampingFraction: 0.85), value: hoveringIndex)
+                // Animate position changes when the column's task order
+                // updates (drop optimistically rewrites manualSortOrder on
+                // the project's domain list). Without this the card we
+                // just dropped pops into its new slot without a transition
+                // and looks like a "reload".
+                .animation(.spring(response: 0.28, dampingFraction: 0.88),
+                           value: tasks.map { $0.id })
             }
             .frame(minHeight: 160)
 

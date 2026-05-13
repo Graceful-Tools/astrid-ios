@@ -154,6 +154,20 @@ struct ProjectStatusBoardView: View {
         // Light haptic to confirm the drop registered.
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
+        // Optimistically apply the new manualSortOrder to the in-memory
+        // list array BEFORE firing the server PUT. Without this the
+        // task moves (taskService.updateTask is optimistic) but the
+        // column's manual order doesn't, so the card briefly lands in
+        // the wrong intra-column slot and snaps once the server PUT
+        // returns — perceived as a "reload" flicker.
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            ListService.shared.lists = applyBoardReorderLocally(
+                lists: ListService.shared.lists,
+                reorder: reorder,
+                domainListId: domainList.id
+            )
+        }
+
         _Concurrency.Task {
             do {
                 // Persist the task move first so list-membership / completion

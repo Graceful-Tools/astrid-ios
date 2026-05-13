@@ -552,4 +552,81 @@ final class ProjectStatusTests: XCTestCase {
         let result = getProjectDomainTasks([t], lists: [ios], projectId: projectId)
         XCTAssertEqual(result.map { $0.id }, ["t-both"])
     }
+
+    // MARK: - applyBoardReorderLocally (drag-drop no-flicker contract)
+
+    /// Pure helper: given a [TaskList] and a BoardReorder, returns a
+    /// new array with the project's domain list patched in place so
+    /// `manualSortOrder` reflects the drop and `sortBy` is "manual".
+    ///
+    /// The drop handler calls this BEFORE the async server PUT so the
+    /// list state — and therefore the column's task order — is updated
+    /// in the same tick as the task move. Without this the card appears
+    /// to "reload" after the server round-trip lands.
+    func test_applyBoardReorderLocally_writesManualSortOrderAndSetsSortBy() {
+        let projectId = "p-1"
+        var ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        ios.sortBy = "createdAt"
+        ios.manualSortOrder = ["a", "b", "c"]
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId,
+                             listType: "status", statusRole: "doing")
+
+        let reorder = BoardReorder(
+            listIds: ["ios", "doing"],
+            completed: false,
+            newManualOrder: ["a", "c", "b"]
+        )
+
+        let updated = applyBoardReorderLocally(
+            lists: [ios, doing],
+            reorder: reorder,
+            domainListId: "ios"
+        )
+        let updatedIos = updated.first { $0.id == "ios" }!
+        XCTAssertEqual(updatedIos.manualSortOrder, ["a", "c", "b"])
+        XCTAssertEqual(updatedIos.sortBy, "manual")
+        // Other lists untouched.
+        let updatedDoing = updated.first { $0.id == "doing" }!
+        XCTAssertEqual(updatedDoing.manualSortOrder, doing.manualSortOrder)
+        XCTAssertEqual(updatedDoing.sortBy, doing.sortBy)
+    }
+
+    /// If the domain list isn't in the array (defensive — shouldn't
+    /// happen, but the drop handler shouldn't crash if state is stale),
+    /// the function returns the input unchanged.
+    func test_applyBoardReorderLocally_missingListIsNoOp() {
+        let projectId = "p-1"
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId,
+                             listType: "status", statusRole: "doing")
+        let reorder = BoardReorder(
+            listIds: ["ios", "doing"],
+            completed: false,
+            newManualOrder: ["a", "b"]
+        )
+        let updated = applyBoardReorderLocally(
+            lists: [doing],
+            reorder: reorder,
+            domainListId: "ios"
+        )
+        XCTAssertEqual(updated, [doing])
+    }
+
+    /// Already on "manual" — don't churn sortBy back through itself.
+    /// The function should be idempotent on repeat application.
+    func test_applyBoardReorderLocally_isIdempotent() {
+        let projectId = "p-1"
+        var ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        ios.sortBy = "manual"
+        ios.manualSortOrder = ["a", "b"]
+        let reorder = BoardReorder(
+            listIds: ["ios"],
+            completed: false,
+            newManualOrder: ["b", "a"]
+        )
+        let once = applyBoardReorderLocally(lists: [ios], reorder: reorder, domainListId: "ios")
+        let twice = applyBoardReorderLocally(lists: once, reorder: reorder, domainListId: "ios")
+        XCTAssertEqual(once, twice)
+        XCTAssertEqual(once.first?.manualSortOrder, ["b", "a"])
+        XCTAssertEqual(once.first?.sortBy, "manual")
+    }
 }
