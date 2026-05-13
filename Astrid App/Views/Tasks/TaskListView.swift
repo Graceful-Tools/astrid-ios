@@ -507,10 +507,11 @@ struct TaskListView: View {
                         }
                     }
 
-                    // Quick add task at bottom (phone and iPad)
-                    // Show if user can add tasks to this list. Suppressed
-                    // in messages mode (chat has its own input).
-                    if shouldShowQuickAdd && taskViewMode != .messages {
+                    // Quick add task at bottom (phone and iPad). Show only
+                    // when looking at the list view. Suppressed in board
+                    // mode (each column has its own inline footer) and
+                    // messages mode (chat has its own input).
+                    if shouldShowQuickAdd && taskViewMode == .list {
                         QuickAddTaskView(
                             selectedList: selectedList,
                             onTaskCreated: { task in

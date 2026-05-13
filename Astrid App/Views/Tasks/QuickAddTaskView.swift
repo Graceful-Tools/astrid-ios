@@ -11,6 +11,12 @@ struct QuickAddTaskView: View {
 
     let selectedList: TaskList?
     var onTaskCreated: ((Task) -> Void)?
+    /// Extra list ids the new task should join, beyond `selectedList`.
+    /// Used by the board's per-column inline footer so a task added in
+    /// the "Doing" column lands in BOTH the project's regular list AND
+    /// the Doing status list. Defaults to empty so non-board callers
+    /// keep their existing behavior.
+    var additionalListIds: [String] = []
 
     @State private var taskTitle = ""
     @FocusState private var isFocused: Bool
@@ -508,6 +514,14 @@ struct QuickAddTaskView: View {
                 } else if parsedListIds.isEmpty {
                     // Virtual list or no list and no parsed lists - don't add any list ID
                     print("  Virtual list or no list - not adding list ID")
+                }
+
+                // Finally, append any extra list ids the caller wired in.
+                // The board's per-column inline footer uses this so a
+                // task added under the "Doing" column joins the Doing
+                // status list on top of the project's regular list.
+                for extraId in additionalListIds where !listIdsToAdd.contains(extraId) {
+                    listIdsToAdd.append(extraId)
                 }
 
                 // Create task with defaults applied
