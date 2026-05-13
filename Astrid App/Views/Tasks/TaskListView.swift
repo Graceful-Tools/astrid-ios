@@ -530,6 +530,18 @@ struct TaskListView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
+                        // Suppress the swipe-to-open-sidebar gesture when
+                        // the board view is active — the column carousel
+                        // owns horizontal pans in that mode. Mirrors the
+                        // web's shouldHandleMobileListSwipe gate.
+                        let gate = MobileListSwipeGateState(
+                            isMobile: UIDevice.current.userInterfaceIdiom == .phone,
+                            mobileView: "list",
+                            showMobileSidebar: false, // sidebar is owned by parent; this view fires only when sidebar is closed
+                            isBoardMode: taskViewMode == .board
+                        )
+                        guard shouldHandleMobileListSwipe(gate) else { return }
+
                         let isHorizontal = value.translation.width > abs(value.translation.height)
                         let isRight = value.translation.width > 0
                         let meetsThreshold = value.translation.width > 80
