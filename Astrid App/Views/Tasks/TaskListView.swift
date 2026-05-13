@@ -25,11 +25,11 @@ struct TaskListView: View {
     @State private var showingCopySheet = false
     @State private var taskToCopy: Task?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
-    @State private var showChat = false  // Toggle between task list and chat
     /// Which view the user picked from the unified List/Board/Messages
-    /// toggle. Defaults to `.list`; auto-flips to `.board` when the
-    /// selected list has a project board attached (so the board renders
-    /// by default while still letting the user switch back to the list).
+    /// rotator button. Defaults to `.list`; auto-flips to `.board` when
+    /// the selected list has a project board attached (so the board
+    /// renders by default while still letting the user rotate back to
+    /// the list or forward to messages).
     @State private var taskViewMode: HeaderToggleSegment = .list
     @FocusState private var isSearchFieldFocused: Bool  // Keyboard focus for search header
 
@@ -410,9 +410,15 @@ struct TaskListView: View {
                     .disabled(isCopyingList)
                 }
 
-                // Chat toggle button (always available — shows sign-in prompt if not authenticated)
-                if !isViewingFromFeatured {
-                    ChatToggleButton(showChat: $showChat)
+                // Unified view-mode rotator: list → messages → board → list.
+                // Replaces the old 2-way ChatToggleButton. The board step is
+                // skipped automatically when the current list has no project
+                // board attached, matching getHeaderViewToggle()'s rules.
+                if !isViewingFromFeatured, let _ = selectedListId {
+                    ViewModeRotatorButton(
+                        mode: $taskViewMode,
+                        hasBoard: selectedList?.projectId != nil
+                    )
                 }
 
                 // Settings/Filter button
@@ -476,40 +482,23 @@ struct TaskListView: View {
                     // Custom floating header
                     floatingHeader
 
-                    // Unified List/Board/Messages segmented control.
-                    // Visibility + segment composition come from the
-                    // shared HeaderViewToggle helper so iOS matches the
-                    // web's segment-rendering rules exactly.
-                    if let toggleConfig = currentHeaderToggleConfig, !toggleConfig.segments.isEmpty {
-                        Picker("", selection: $taskViewMode) {
-                            ForEach(toggleConfig.segments, id: \.self) { segment in
-                                Text(segmentLabel(segment)).tag(segment)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 6)
-                    }
-
-                    // Main content
+                    // Main content — driven by `taskViewMode`. The rotator
+                    // button in the header advances the mode.
                     if taskViewMode == .messages, let listId = selectedListId {
-                        // Messages segment selected → chat panel.
                         ChatPanelView(listId: listId, onSignedIn: {
                             taskViewMode = .list
-                        })
-                    } else if showChat, let listId = selectedListId {
-                        // Legacy chat toggle (button-driven, pre-unified).
-                        ChatPanelView(listId: listId, onSignedIn: {
-                            showChat = false
                         })
                     } else {
                         Group {
                             if (!taskService.hasCompletedInitialLoad || !listService.hasCompletedInitialLoad) || (taskService.isLoading && taskService.tasks.isEmpty) || (isViewingFromFeatured && isLoadingFeaturedTasks) {
                                 loadingState
                             } else if taskViewMode == .board,
-                                      let projectId = selectedList?.projectId,
-                                      let project = ProjectService.shared.project(id: projectId) {
-                                ProjectStatusBoardView(project: project)
+                                      let projectId = selectedList?.projectId {
+                                // Render the board straight from the projectId —
+                                // we don't need the full Project model to draw
+                                // columns (status lists are on ListService and
+                                // are looked up by projectId).
+                                ProjectStatusBoardView(projectId: projectId)
                             } else if filteredTasks.isEmpty {
                                 emptyState
                             } else {
@@ -519,8 +508,9 @@ struct TaskListView: View {
                     }
 
                     // Quick add task at bottom (phone and iPad)
-                    // Show if user can add tasks to this list
-                    if shouldShowQuickAdd && !showChat {
+                    // Show if user can add tasks to this list. Suppressed
+                    // in messages mode (chat has its own input).
+                    if shouldShowQuickAdd && taskViewMode != .messages {
                         QuickAddTaskView(
                             selectedList: selectedList,
                             onTaskCreated: { task in
@@ -627,12 +617,9 @@ struct TaskListView: View {
             }
         }
         .onChange(of: selectedListId) { _, newListId in
-            // Reset chat view when switching lists
-            showChat = false
-
-            // Default the view-mode toggle: board if the new list has one,
-            // list otherwise. The user can still flip back to .list within
-            // a board-backed list, but a fresh selection resets the default.
+            // Reset the view-mode rotator: default to board when the new
+            // list has one, list otherwise. A fresh selection always
+            // resets the default; within a list the user can rotate freely.
             taskViewMode = selectedList?.projectId != nil ? .board : .list
 
             if isViewingFromFeatured, let listId = newListId {
@@ -719,38 +706,6 @@ struct TaskListView: View {
     }
 
     // MARK: - Task List
-
-    // MARK: - Header view toggle
-
-    /// Compose the input the shared HeaderViewToggle helper expects.
-    /// iOS doesn't have a "settings page" within TaskListView, so
-    /// `activeView` is always `.list` here; search is keyboard-driven and
-    /// owned by a separate input field, so `isSearching` is wired off
-    /// `isSearchFieldFocused`.
-    private var currentHeaderToggleConfig: HeaderViewToggleConfig? {
-        guard !isViewingFromFeatured else { return nil }
-        let isOneColumn = UIDevice.current.userInterfaceIdiom == .phone
-        let hasBoard: Bool = {
-            guard let projectId = selectedList?.projectId else { return false }
-            return ProjectService.shared.project(id: projectId) != nil
-        }()
-        let state = HeaderViewToggleState(
-            isOneColumn: isOneColumn,
-            hasProjectBoard: hasBoard,
-            chatAvailable: selectedListId != nil,
-            activeView: .list,
-            isSearching: isSearchFieldFocused
-        )
-        return getHeaderViewToggle(state)
-    }
-
-    private func segmentLabel(_ segment: HeaderToggleSegment) -> String {
-        switch segment {
-        case .list:     return NSLocalizedString("navigation.list", comment: "List view toggle")
-        case .board:    return NSLocalizedString("navigation.board", comment: "Board view toggle")
-        case .messages: return NSLocalizedString("navigation.messages", comment: "Messages view toggle")
-        }
-    }
 
     private var taskList: some View {
         List {

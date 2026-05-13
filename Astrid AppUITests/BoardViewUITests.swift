@@ -33,26 +33,23 @@ final class BoardViewUITests: XCTestCase {
     }
 
     @MainActor
-    func testBoardSegmentedToggleAppearsWhenBoardAvailable() throws {
+    func testViewModeRotatorButtonAccessibilityLabelsExist() throws {
         app.launch()
 
         if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
             throw XCTSkip("User not authenticated — sign in to a test account before running")
         }
 
-        // The unified List/Board/Messages picker is a SegmentedControl that
-        // only renders when getHeaderViewToggle decides there's more than
-        // one segment to offer (i.e. a project board exists for the list
-        // OR chat is available in 1-col). If neither precondition is met
-        // for the current account, skip.
-        let listSegment = app.segmentedControls
-            .buttons
-            .matching(NSPredicate(format: "label IN { 'List', 'Board', 'Messages' }"))
-            .firstMatch
-        if !listSegment.waitForExistence(timeout: 5) {
-            throw XCTSkip("Segmented toggle not visible — needs a board-backed list or chat-capable account")
+        // The rotator button cycles list → messages → board → list with
+        // each tap. Its accessibilityLabel reflects the *next* mode, so
+        // one of these three labels should be present in the header.
+        let rotator = app.buttons.matching(
+            NSPredicate(format: "label IN { 'Switch to list view', 'Switch to messages', 'Switch to board view' }")
+        ).firstMatch
+        if !rotator.waitForExistence(timeout: 5) {
+            throw XCTSkip("Rotator button not visible — no list selected or test account is read-only")
         }
-        XCTAssertTrue(listSegment.exists)
+        XCTAssertTrue(rotator.exists)
     }
 
     @MainActor
