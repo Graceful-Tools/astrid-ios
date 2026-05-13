@@ -37,10 +37,12 @@ struct ProjectStatusBoardView: View {
         }
     }
 
-    /// Horizontal inset between the screen edge and each board column.
-    /// Matches TaskRowView's `.padding(.horizontal, Theme.spacing16)` so
-    /// the board column edges align with the list view's row edges.
-    private let columnHorizontalInset: CGFloat = 16
+    /// Internal padding applied to each column's content so the column
+    /// headers and card stack align with TaskRowView's row inset
+    /// (`.padding(.horizontal, Theme.spacing16)`). Columns themselves
+    /// are full-screen-wide so paging snap matches the header width
+    /// exactly — adjacent columns never peek mid-pan.
+    private let columnContentInset: CGFloat = 16
     /// Top inset between the header chrome and the board's first row.
     /// Mirrors the implicit breathing room the list view gets between
     /// the header and the first task row.
@@ -48,27 +50,22 @@ struct ProjectStatusBoardView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Each column is the available width minus 2× the horizontal
-            // inset, so paging snaps to a fully-inset column with the
-            // adjacent column peeking on neither side (it sits off-screen).
-            let columnWidth = max(geo.size.width - (columnHorizontalInset * 2), 0)
-
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .top, spacing: columnHorizontalInset * 2) {
+                LazyHStack(alignment: .top, spacing: 0) {
                     ForEach(columns) { column in
                         BoardColumnView(
                             column: column,
                             tasks: tasksFor(column),
                             onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
                         )
-                        .frame(width: columnWidth)
+                        .padding(.horizontal, columnContentInset)
+                        .frame(width: geo.size.width)
                         .id(column.id)
                     }
                 }
                 .scrollTargetLayout()
                 .padding(.top, boardTopInset)
             }
-            .contentMargins(.horizontal, columnHorizontalInset, for: .scrollContent)
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $visibleColumnId)
             .onAppear {

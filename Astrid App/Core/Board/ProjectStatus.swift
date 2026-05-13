@@ -158,8 +158,12 @@ func resolveProjectColumnMove(
             .filter { $0.projectId == projectId && isProjectStatusList($0) }
             .map { $0.id }
     )
-    let retainedListIds = (task.lists ?? [])
-        .map { $0.id }
+    // Honor both `task.lists` (hydrated) AND `task.listIds` (cache). Without
+    // the listIds fallback a Core-Data-loaded task drops every list
+    // membership during a board move, vanishing from the board after the
+    // drop. The "in-order" variant preserves the iteration order so the
+    // persisted listIds stay stable across rounds.
+    let retainedListIds = taskListMembershipIdsInOrder(task)
         .filter { !projectStatusIds.contains($0) }
 
     switch targetColumn.kind {
@@ -248,8 +252,21 @@ func getProjectDomainTasks(_ tasks: [Task], lists: [TaskList], projectId: String
 /// hydrated `task.lists` array and the compact `task.listIds` cache.
 /// Centralizes the fallback so every board-side filter respects both.
 func taskListMembershipIds(_ task: Task) -> Set<String> {
-    var ids = Set<String>()
-    if let lists = task.lists { ids.formUnion(lists.map { $0.id }) }
-    if let listIds = task.listIds { ids.formUnion(listIds) }
-    return ids
+    Set(taskListMembershipIdsInOrder(task))
+}
+
+/// Same union as `taskListMembershipIds` but preserves the first
+/// observed order across `task.lists` then `task.listIds`. Used by
+/// `resolveProjectColumnMove` so the persisted listIds keep a stable
+/// ordering that round-trips cleanly through the server.
+func taskListMembershipIdsInOrder(_ task: Task) -> [String] {
+    var seen = Set<String>()
+    var out: [String] = []
+    for id in (task.lists?.map { $0.id } ?? []) {
+        if seen.insert(id).inserted { out.append(id) }
+    }
+    for id in (task.listIds ?? []) {
+        if seen.insert(id).inserted { out.append(id) }
+    }
+    return out
 }
