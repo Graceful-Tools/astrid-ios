@@ -61,11 +61,11 @@ struct ProjectStatusBoardView: View {
                             selectedList: projectDomainList,
                             onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
                         )
-                        // Column = full screen width so the column's
-                        // background extends to the same edges as the
-                        // header chrome above it. Internal card insets
-                        // live INSIDE BoardColumnView so the row width
-                        // still matches the list view's row inset.
+                        // Match the floating header's `.padding(.horizontal, 8)`
+                        // so the column's border lines up exactly with the
+                        // header chrome's left/right edges. Each page is
+                        // still `geo.size.width` so paging snap is clean.
+                        .padding(.horizontal, 8)
                         .frame(width: geo.size.width)
                         .id(column.id)
                     }
