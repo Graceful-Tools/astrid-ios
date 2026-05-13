@@ -230,6 +230,25 @@ func normalizeProjectStatusListIds(
 
 // MARK: - Project domain tasks
 
+/// Decide how many board columns to fit side-by-side based on the
+/// available width.
+///
+/// Phone-narrow widths render one full-screen column with paging snap
+/// (the existing behavior). At iPad-portrait+ widths we fan out to
+/// 2-5 columns side-by-side so the user can see the whole board at a
+/// glance — the user's stated target is "3-5 columns visible in iPad
+/// landscape".
+///
+/// `targetMinColumnWidth` is the smallest width we want any single
+/// column to be (defaults to 300pt — comfortable for two task chips
+/// plus a margin). The result is clamped to [1, 5].
+func boardColumnsVisible(availableWidth: CGFloat,
+                         targetMinColumnWidth: CGFloat = 300) -> Int {
+    guard availableWidth > 0, targetMinColumnWidth > 0 else { return 1 }
+    let raw = Int((availableWidth / targetMinColumnWidth).rounded(.down))
+    return max(1, min(5, raw))
+}
+
 /// Tasks that should appear on a project's board: those attached to at
 /// least one of the project's regular (non-status) lists. A task with
 /// only a status membership and no domain list isn't a "project task".

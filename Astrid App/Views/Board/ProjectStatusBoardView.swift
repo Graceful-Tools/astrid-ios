@@ -1,6 +1,20 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// SwiftUI's `.paging` and `.viewAligned` scroll-target behaviors are
+/// different opaque types, so we can't switch between them via a
+/// ternary. A small ViewModifier picks the right one at apply time.
+private struct BoardScrollSnapModifier: ViewModifier {
+    let multiColumn: Bool
+    func body(content: Content) -> some View {
+        if multiColumn {
+            content.scrollTargetBehavior(.viewAligned)
+        } else {
+            content.scrollTargetBehavior(.paging)
+        }
+    }
+}
+
 /// Renders a project's status board: virtual Inbox + real status lists +
 /// virtual Done. Columns are full-screen-wide and snap one at a time
 /// (paging) — cards drag-drop between columns via SwiftUI's Transferable
@@ -52,6 +66,13 @@ struct ProjectStatusBoardView: View {
 
     var body: some View {
         GeometryReader { geo in
+            // Phone-narrow widths: one full-screen paged column (existing
+            // behavior). Wider iPad layouts: fan out to multiple columns
+            // side-by-side. boardColumnsVisible is the testable helper.
+            let columnsVisible = boardColumnsVisible(availableWidth: geo.size.width)
+            let columnWidth = geo.size.width / CGFloat(columnsVisible)
+            let multiColumn = columnsVisible > 1
+
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 0) {
                     ForEach(columns) { column in
@@ -62,18 +83,21 @@ struct ProjectStatusBoardView: View {
                             onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
-                        // so the column's border lines up exactly with the
-                        // header chrome's left/right edges. Each page is
-                        // still `geo.size.width` so paging snap is clean.
+                        // so the column's border lines up under the header
+                        // chrome's edges. In multi-column mode the same 8pt
+                        // padding gives a uniform 16pt gutter between columns.
                         .padding(.horizontal, 8)
-                        .frame(width: geo.size.width)
+                        .frame(width: columnWidth)
                         .id(column.id)
                     }
                 }
                 .scrollTargetLayout()
                 .padding(.top, boardTopInset)
             }
-            .scrollTargetBehavior(.paging)
+            // Phone: full-page paging snap. iPad multi-column: snap to
+            // each column's leading edge (.viewAligned) so a swipe-right
+            // reveals one more column at a time, not a full screen.
+            .modifier(BoardScrollSnapModifier(multiColumn: multiColumn))
             .scrollPosition(id: $visibleColumnId)
             .onAppear {
                 // Default to virtual Inbox when the board first appears

@@ -283,6 +283,45 @@ final class ProjectStatusTests: XCTestCase {
                        "Task with listIds=[\"ios\"] but task.lists=nil should still surface in the project board")
     }
 
+    // MARK: - boardColumnsVisible (iPad landscape: 3-5 columns)
+
+    /// iPhone portrait width (~390pt). Single full-screen paged column.
+    func test_columnsVisible_iPhonePortrait_isOne() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 390), 1)
+    }
+
+    /// iPhone landscape on standard models (~752pt). Two columns fit.
+    func test_columnsVisible_iPhoneLandscape_isTwo() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 752), 2)
+    }
+
+    /// iPad mini portrait (~744pt). Two columns fit.
+    func test_columnsVisible_iPadMiniPortrait_isTwo() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 744), 2)
+    }
+
+    /// iPad standard landscape (~1080pt). Three columns fit — minimum
+    /// of the user's stated 3-5 range.
+    func test_columnsVisible_iPadStandardLandscape_isThree() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 1080), 3)
+    }
+
+    /// iPad Pro 12.9" landscape (~1366pt). Four columns fit.
+    func test_columnsVisible_iPadProLandscape_isFour() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 1366), 4)
+    }
+
+    /// Clamps to 5 even for unrealistically wide screens.
+    func test_columnsVisible_isClampedToFive() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 3000), 5)
+    }
+
+    /// Degenerate inputs never crash and never yield 0.
+    func test_columnsVisible_handlesZeroOrNegativeWidth() {
+        XCTAssertEqual(boardColumnsVisible(availableWidth: 0), 1)
+        XCTAssertEqual(boardColumnsVisible(availableWidth: -10), 1)
+    }
+
     func test_getProjectDomainTasks_prefersLists_butListIdsAlsoCountsWhenBothPresent() {
         // Defensive: when both lists and listIds are populated, either
         // matching the project's regular list should include the task.
