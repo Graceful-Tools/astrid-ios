@@ -236,4 +236,38 @@ final class ProjectStatusTests: XCTestCase {
         )
         XCTAssertEqual(result.map { $0.id }, ["t-1"])
     }
+
+    /// Bug 2026-05-12 #2: tasks loaded from Core Data have `task.lists`
+    /// nil but `task.listIds` populated (the cache stores only ids).
+    /// Without this fallback the board's Inbox column appears empty on
+    /// cold start until a full sync repopulates `task.lists`.
+    func test_getProjectDomainTasks_fallsBackToListIds_whenListsIsNil() {
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: projectId, listType: "regular")
+
+        // Task has no `lists` array (came from Core Data) but listIds has the regular list id.
+        var cachedTask = makeTask(id: "t-cache", lists: [])
+        cachedTask.lists = nil
+        cachedTask.listIds = ["ios"]
+
+        let result = getProjectDomainTasks(
+            [cachedTask],
+            lists: [ios],
+            projectId: projectId
+        )
+        XCTAssertEqual(result.map { $0.id }, ["t-cache"],
+                       "Task with listIds=[\"ios\"] but task.lists=nil should still surface in the project board")
+    }
+
+    func test_getProjectDomainTasks_prefersLists_butListIdsAlsoCountsWhenBothPresent() {
+        // Defensive: when both lists and listIds are populated, either
+        // matching the project's regular list should include the task.
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: projectId, listType: "regular")
+        var t = makeTask(id: "t-both", lists: [ios])
+        t.listIds = ["ios"]
+
+        let result = getProjectDomainTasks([t], lists: [ios], projectId: projectId)
+        XCTAssertEqual(result.map { $0.id }, ["t-both"])
+    }
 }

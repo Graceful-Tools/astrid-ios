@@ -178,10 +178,14 @@ struct TaskRowView: View {
                             }
                         }
 
-                        // Lists (after date) - only show when full list objects are available
-                        if let lists = task.lists, !lists.isEmpty {
+                        // Lists (after date) - only show when full list objects are available.
+                        // Status lists ("Ready"/"Doing"/"Waiting") are filtered out so the
+                        // regular project list survives `prefix(2)`; status only makes sense
+                        // inside the board view, not the flat list.
+                        let chipLists = chipListsForTaskRow(task.lists)
+                        if !chipLists.isEmpty {
                             HStack(spacing: 4) {
-                                ForEach(lists.prefix(2)) { list in
+                                ForEach(chipLists.prefix(2)) { list in
                                     HStack(spacing: 4) {
                                         // Icon based on list privacy
                                         if list.privacy == .PUBLIC {
@@ -212,8 +216,8 @@ struct TaskRowView: View {
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
-                                if lists.count > 2 {
-                                    Text("+\(lists.count - 2)")
+                                if chipLists.count > 2 {
+                                    Text("+\(chipLists.count - 2)")
                                         .font(Theme.Typography.subheadline())
                                         .foregroundColor(effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
                                 }
