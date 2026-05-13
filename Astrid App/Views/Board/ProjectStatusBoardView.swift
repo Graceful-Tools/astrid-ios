@@ -2,9 +2,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Renders a project's status board: virtual Inbox + real status lists +
-/// virtual Done. Columns scroll horizontally; cards drag-drop between
-/// columns via SwiftUI's Transferable API. Mirrors
-/// `components/project-status-board.tsx` on the web.
+/// virtual Done. Columns are full-screen-wide and snap one at a time
+/// (paging) — cards drag-drop between columns via SwiftUI's Transferable
+/// API. Mirrors `components/project-status-board.tsx` on the web.
 ///
 /// The view observes the canonical singletons (TaskService, ListService,
 /// ProjectService) so it stays in sync with the rest of the app and
@@ -20,6 +20,8 @@ struct ProjectStatusBoardView: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropError: String? = nil
+    /// Tracks the currently-snapped column for haptic feedback on change.
+    @State private var visibleColumnId: String?
 
     private var columns: [ProjectBoardColumn] {
         getProjectBoardColumns(listService.lists, projectId: projectId)
@@ -36,19 +38,36 @@ struct ProjectStatusBoardView: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(columns) { column in
-                    BoardColumnView(
-                        column: column,
-                        tasks: tasksFor(column),
-                        onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
-                    )
-                    .frame(width: 280)
+        GeometryReader { geo in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 0) {
+                    ForEach(columns) { column in
+                        BoardColumnView(
+                            column: column,
+                            tasks: tasksFor(column),
+                            onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
+                        )
+                        .frame(width: geo.size.width)
+                        .id(column.id)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $visibleColumnId)
+            .onAppear {
+                // Default to virtual Inbox when the board first appears
+                // so the user doesn't start mid-board.
+                if visibleColumnId == nil {
+                    visibleColumnId = columns.first?.id
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .onChange(of: visibleColumnId) { _, newId in
+                // Light haptic on snap-into-place — mirrors the sidebar's
+                // open/close haptic so the board feels native to the app.
+                guard newId != nil else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         }
         .alert("Couldn't move task", isPresented: .constant(dropError != nil), presenting: dropError) { _ in
             Button("OK") { dropError = nil }

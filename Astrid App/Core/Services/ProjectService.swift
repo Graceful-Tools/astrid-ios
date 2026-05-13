@@ -119,6 +119,47 @@ class ProjectService: ObservableObject {
         return project
     }
 
+    /// Build the PUT body that attaches an existing list to a newly-
+    /// created project. Extracted as pure logic so a unit test can pin
+    /// the field set without touching the network.
+    /// Mirrors the web's `components/list-admin-settings.tsx`:
+    ///   `body: JSON.stringify({ ...list, projectId, listType: 'regular' })`.
+    static func buildAttachListRequest(projectId: String) -> UpdateListRequest {
+        var body = UpdateListRequest()
+        body.projectId = projectId
+        return body
+    }
+
+    /// Create a project FOR a specific list: POST /api/v1/projects, then
+    /// PUT /api/v1/lists/[id] with `projectId` set. Mirrors the web's
+    /// `handleCreateProjectBoard` two-step. Without the second step the
+    /// originating list isn't part of the project and the board's Inbox
+    /// column stays empty — root cause of the bug reported on 2026-05-12.
+    @discardableResult
+    func createBoardForList(_ list: TaskList) async throws -> Project {
+        let project = try await apiClient.createProject(
+            name: list.name,
+            description: list.description,
+            color: list.color,
+            imageUrl: list.imageUrl
+        )
+        // Attach the list to the project so its tasks land in the
+        // virtual Inbox column.
+        let body = ProjectService.buildAttachListRequest(projectId: project.id)
+        let updatedList = try await ListService.shared.updateListOnServer(
+            listId: list.id,
+            updates: body
+        )
+        // Mirror the new list state into ListService's published array
+        // so the board renders immediately.
+        if let idx = ListService.shared.lists.firstIndex(where: { $0.id == updatedList.id }) {
+            ListService.shared.lists[idx] = updatedList
+        }
+        projects.insert(project, at: 0)
+        saveProjectToCoreData(project, syncStatus: "synced")
+        return project
+    }
+
     /// Delete a project (owner only). On success, remove it from the
     /// in-memory cache and Core Data, and detach its domain lists.
     @discardableResult

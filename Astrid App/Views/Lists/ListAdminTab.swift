@@ -484,17 +484,11 @@ struct ListAdminTab: View {
         boardError = nil
         _Concurrency.Task {
             do {
-                let project = try await ProjectService.shared.createProject(
-                    name: list.name,
-                    description: list.description,
-                    color: list.color,
-                    imageUrl: list.imageUrl
-                )
-                // Server-side: attaching the existing list to the new project
-                // is a follow-on. For now the project is created standalone
-                // with its three seeded status lists. Mirror what the web
-                // does today (web also creates a fresh project per board).
-                _ = project
+                // Create the project AND attach this list to it as the
+                // regular (domain) list. Without the second step the
+                // board's Inbox column stays empty because
+                // getProjectDomainTasks finds no list with the projectId.
+                _ = try await ProjectService.shared.createBoardForList(list)
                 await MainActor.run {
                     boardOperationInFlight = false
                 }
