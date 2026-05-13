@@ -54,9 +54,13 @@ struct ProjectStatusBoardView: View {
     }
 
     private func tasksFor(_ column: ProjectBoardColumn) -> [Task] {
-        domainTasks.filter { task in
-            getTaskProjectColumnId(task, projectId: projectId, lists: listService.lists) == column.id
-        }
+        boardColumnTasksSorted(
+            domainTasks,
+            projectId: projectId,
+            column: column,
+            lists: listService.lists,
+            manualOrder: projectDomainList?.manualSortOrder
+        )
     }
 
     /// Top inset between the header chrome and the board's first row.
@@ -80,7 +84,9 @@ struct ProjectStatusBoardView: View {
                             column: column,
                             tasks: tasksFor(column),
                             selectedList: projectDomainList,
-                            onDrop: { payload in handleDrop(payload: payload, into: column) }
+                            onDropAt: { payload, index in
+                                handleDrop(payload: payload, into: column, at: index)
+                            }
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
@@ -120,41 +126,57 @@ struct ProjectStatusBoardView: View {
         }
     }
 
-    private func handleDrop(payload: BoardCardPayload, into column: ProjectBoardColumn) {
+    private func handleDrop(payload: BoardCardPayload,
+                            into column: ProjectBoardColumn,
+                            at targetIndex: Int) {
         let taskId = payload.taskId
         guard let task = taskService.tasks.first(where: { $0.id == taskId }) else {
             print("⚠️ [Board] Drop received for unknown task id=\(taskId)")
             return
         }
-        // Short-circuit no-op drops. Without this, dragging a card a few
-        // pixels inside its own column fires a full PUT for an unchanged
-        // state — wasteful, and the optimistic update flickered the cell.
-        if isTaskAlreadyInColumn(task, targetColumn: column,
-                                 projectId: projectId,
-                                 lists: listService.lists) {
-            print("ℹ️ [Board] Drop ignored (already in column \(column.id))")
+        guard let domainList = projectDomainList else {
+            print("⚠️ [Board] No regular project list found — drop ignored")
             return
         }
 
-        let move = resolveProjectColumnMove(
-            task,
+        // Compute the new task state AND the new manual sort order so a
+        // drop at index N lands the card at that visual position.
+        let reorder = resolveBoardReorder(
+            task: task,
             targetColumn: column,
+            targetIndex: targetIndex,
             projectId: projectId,
-            lists: listService.lists
+            lists: listService.lists,
+            allTasks: taskService.tasks,
+            currentManualOrder: domainList.manualSortOrder ?? []
         )
-        // Light haptic confirms the drop registered before the network
-        // round-trip starts. Matches the snap haptic so the gesture feels
-        // consistent on every interaction.
+
+        // Light haptic to confirm the drop registered.
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         _Concurrency.Task {
             do {
+                // Persist the task move first so list-membership / completion
+                // is correct before the order is interpreted.
                 _ = try await taskService.updateTask(
                     taskId: task.id,
-                    completed: move.completed,
-                    listIds: move.listIds
+                    completed: reorder.completed,
+                    listIds: reorder.listIds
                 )
-                print("✅ [Board] Moved task=\(task.id) → column=\(column.id)")
+                // Then persist the new manualSortOrder on the project's
+                // domain list so the order survives across launches.
+                // We also auto-set the list's sortBy to "manual" if it
+                // wasn't already, so the rendering respects the order.
+                var listUpdate = UpdateListRequest()
+                listUpdate.manualSortOrder = reorder.newManualOrder
+                if domainList.sortBy != "manual" {
+                    listUpdate.sortBy = "manual"
+                }
+                _ = try await ListService.shared.updateListOnServer(
+                    listId: domainList.id,
+                    updates: listUpdate
+                )
+                print("✅ [Board] Moved task=\(task.id) → \(column.id)@\(targetIndex)")
             } catch {
                 print("❌ [Board] Move failed for task=\(task.id): \(error)")
                 await MainActor.run {

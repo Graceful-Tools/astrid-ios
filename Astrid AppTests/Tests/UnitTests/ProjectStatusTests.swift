@@ -283,6 +283,169 @@ final class ProjectStatusTests: XCTestCase {
                        "Task with listIds=[\"ios\"] but task.lists=nil should still surface in the project board")
     }
 
+    // MARK: - Manual ordering: boardColumnTasksSorted + resolveBoardReorder
+
+    /// boardColumnTasksSorted returns column tasks in the order
+    /// dictated by manualSortOrder when one is present.
+    func test_boardColumnTasksSorted_appliesManualOrder() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let a = makeTask(id: "a", lists: [ios, doing])
+        let b = makeTask(id: "b", lists: [ios, doing])
+        let c = makeTask(id: "c", lists: [ios, doing])
+
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+
+        let sorted = boardColumnTasksSorted(
+            [a, b, c],
+            projectId: projectId,
+            column: doingColumn,
+            lists: [ios, doing],
+            manualOrder: ["c", "a", "b"]
+        )
+        XCTAssertEqual(sorted.map { $0.id }, ["c", "a", "b"])
+    }
+
+    func test_boardColumnTasksSorted_nilManualOrder_returnsIncomingOrder() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let a = makeTask(id: "a", lists: [ios])
+        let b = makeTask(id: "b", lists: [ios])
+        let columns = getProjectBoardColumns([ios], projectId: projectId)
+        let inboxColumn = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
+
+        let result = boardColumnTasksSorted(
+            [a, b],
+            projectId: projectId,
+            column: inboxColumn,
+            lists: [ios],
+            manualOrder: nil
+        )
+        XCTAssertEqual(result.map { $0.id }, ["a", "b"])
+    }
+
+    /// Drop a Doing task between two Inbox tasks → manual order places
+    /// the dragged task at the right global slot so it shows in that
+    /// position in Inbox AFTER the move.
+    func test_resolveBoardReorder_insertsAtMiddleIndex_inSameColumn() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let a = makeTask(id: "a", lists: [ios, doing])
+        let b = makeTask(id: "b", lists: [ios, doing])
+        let c = makeTask(id: "c", lists: [ios, doing])
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+
+        // current order: a, b, c. Drag c to index 1 → expect a, c, b
+        let result = resolveBoardReorder(
+            task: c,
+            targetColumn: doingColumn,
+            targetIndex: 1,
+            projectId: projectId,
+            lists: [ios, doing],
+            allTasks: [a, b, c],
+            currentManualOrder: ["a", "b", "c"]
+        )
+        XCTAssertEqual(result.newManualOrder, ["a", "c", "b"])
+        XCTAssertFalse(result.completed)
+        XCTAssertTrue(result.listIds.contains("ios"))
+        XCTAssertTrue(result.listIds.contains("doing"))
+    }
+
+    /// Drop an Inbox task at index 0 of Doing → task joins Doing's
+    /// listIds AND its id moves to before Doing's current first task
+    /// in the global manual order.
+    func test_resolveBoardReorder_movesAcrossColumns_atSlotZero() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let inboxTask = makeTask(id: "i-1", lists: [ios])
+        let doing1 = makeTask(id: "d-1", lists: [ios, doing])
+        let doing2 = makeTask(id: "d-2", lists: [ios, doing])
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+
+        // Inbox task → top of Doing
+        let result = resolveBoardReorder(
+            task: inboxTask,
+            targetColumn: doingColumn,
+            targetIndex: 0,
+            projectId: projectId,
+            lists: [ios, doing],
+            allTasks: [inboxTask, doing1, doing2],
+            currentManualOrder: ["d-1", "d-2", "i-1"]
+        )
+        XCTAssertEqual(result.newManualOrder.firstIndex(of: "i-1"), 0)
+        XCTAssertEqual(result.newManualOrder, ["i-1", "d-1", "d-2"])
+        XCTAssertTrue(result.listIds.contains("doing"))
+    }
+
+    /// Drop a task at the END of a column → appended after the column's
+    /// current last task in the global order.
+    func test_resolveBoardReorder_appendAtEnd() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let a = makeTask(id: "a", lists: [ios, doing])
+        let b = makeTask(id: "b", lists: [ios, doing])
+        let c = makeTask(id: "c", lists: [ios])  // currently inbox
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+
+        // Drop c at end of Doing (index 2 = past last task)
+        let result = resolveBoardReorder(
+            task: c,
+            targetColumn: doingColumn,
+            targetIndex: 2,
+            projectId: projectId,
+            lists: [ios, doing],
+            allTasks: [a, b, c],
+            currentManualOrder: ["a", "b", "c"]
+        )
+        // c ends up after b in global order: ["a", "b", "c"] still works
+        // but if c was before b, this would reorder. Verify c is after b.
+        let ai = result.newManualOrder.firstIndex(of: "a")!
+        let bi = result.newManualOrder.firstIndex(of: "b")!
+        let ci = result.newManualOrder.firstIndex(of: "c")!
+        XCTAssertLessThan(ai, bi)
+        XCTAssertLessThan(bi, ci)
+        XCTAssertTrue(result.listIds.contains("doing"))
+    }
+
+    /// Drop on Inbox (virtual) → strips status, completed=false, inserts
+    /// at target slot. Mirrors the same persistence semantics.
+    func test_resolveBoardReorder_toInbox_stripsStatusAndOrders() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let inboxA = makeTask(id: "i-a", lists: [ios])
+        let inboxB = makeTask(id: "i-b", lists: [ios])
+        let doingX = makeTask(id: "d-x", lists: [ios, doing])
+
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let inboxColumn = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
+
+        let result = resolveBoardReorder(
+            task: doingX,
+            targetColumn: inboxColumn,
+            targetIndex: 1,  // between inboxA and inboxB
+            projectId: projectId,
+            lists: [ios, doing],
+            allTasks: [inboxA, inboxB, doingX],
+            currentManualOrder: ["i-a", "i-b", "d-x"]
+        )
+        XCTAssertFalse(result.listIds.contains("doing"))
+        XCTAssertTrue(result.listIds.contains("ios"))
+        XCTAssertFalse(result.completed)
+        // d-x ends up between i-a and i-b in the global manual order
+        let positions = ["i-a", "d-x", "i-b"].compactMap { id in result.newManualOrder.firstIndex(of: id) }
+        XCTAssertEqual(positions, positions.sorted(),
+                       "Expected d-x between i-a and i-b; got \(result.newManualOrder)")
+    }
+
     // MARK: - isTaskAlreadyInColumn (drag-drop reliability)
 
     /// Task currently in Doing dropped on Doing → no-op. Short-circuits

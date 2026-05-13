@@ -230,6 +230,119 @@ func normalizeProjectStatusListIds(
 
 // MARK: - Project domain tasks
 
+// MARK: - Column ordering + reorder-on-drop
+
+/// Returns the tasks belonging to `column` in display order.
+/// When `manualOrder` is set, tasks are sorted by their position in
+/// that array (unknown ids sort last). When nil/empty, returns the
+/// project-domain tasks in their incoming order — caller can apply
+/// a different sort if desired.
+func boardColumnTasksSorted(
+    _ allTasks: [Task],
+    projectId: String,
+    column: ProjectBoardColumn,
+    lists: [TaskList],
+    manualOrder: [String]?
+) -> [Task] {
+    let inColumn = allTasks.filter { task in
+        getTaskProjectColumnId(task, projectId: projectId, lists: lists) == column.id
+    }
+    let domain = getProjectDomainTasks(inColumn, lists: lists, projectId: projectId)
+    guard let manualOrder = manualOrder, !manualOrder.isEmpty else {
+        return domain
+    }
+    let orderIdx = Dictionary(uniqueKeysWithValues:
+        manualOrder.enumerated().map { ($1, $0) })
+    return domain.sorted { a, b in
+        let ai = orderIdx[a.id] ?? Int.max
+        let bi = orderIdx[b.id] ?? Int.max
+        return ai < bi
+    }
+}
+
+/// Output of `resolveBoardReorder`. `listIds` / `completed` are what
+/// the task PUT should send; `newManualOrder` is what the project's
+/// domain list's PUT should send for `manualSortOrder`.
+struct BoardReorder: Equatable {
+    let listIds: [String]
+    let completed: Bool
+    let newManualOrder: [String]
+}
+
+/// Compute the persisted state for a drag-drop reorder onto a board
+/// column at a specific slot index.
+///
+/// Inputs:
+/// - `task`: the dragged task
+/// - `targetColumn`: where it was dropped
+/// - `targetIndex`: 0-based slot within the column's visible tasks
+///   (caller computes this from which card was hovered). Pass
+///   `tasks-in-target.count` to append at end.
+/// - `projectId`, `lists`, `allTasks`: board context
+/// - `currentManualOrder`: the project domain list's existing
+///   `manualSortOrder` (use `[]` if none yet).
+///
+/// The function is pure — no I/O. Tests pin the contract; the SwiftUI
+/// view layer only persists the result.
+func resolveBoardReorder(
+    task: Task,
+    targetColumn: ProjectBoardColumn,
+    targetIndex: Int,
+    projectId: String,
+    lists: [TaskList],
+    allTasks: [Task],
+    currentManualOrder: [String]
+) -> BoardReorder {
+    let move = resolveProjectColumnMove(
+        task,
+        targetColumn: targetColumn,
+        projectId: projectId,
+        lists: lists
+    )
+
+    // Tasks that will be in the target column AFTER this drop, ignoring
+    // the dragged task itself. We figure out the global insertion point
+    // by locating the task we're dropping ABOVE in this filtered list,
+    // then translating that to a global manualSortOrder index.
+    let targetColumnTasks = boardColumnTasksSorted(
+        allTasks.filter { $0.id != task.id },
+        projectId: projectId,
+        column: targetColumn,
+        lists: lists,
+        manualOrder: currentManualOrder
+    )
+
+    var newOrder = currentManualOrder
+    newOrder.removeAll { $0 == task.id }
+
+    let clamped = max(0, min(targetIndex, targetColumnTasks.count))
+    if clamped < targetColumnTasks.count {
+        let anchorId = targetColumnTasks[clamped].id
+        if let globalIdx = newOrder.firstIndex(of: anchorId) {
+            newOrder.insert(task.id, at: globalIdx)
+        } else {
+            // Anchor isn't in current manual order yet — append, then
+            // the rest of the column will sort behind it naturally.
+            newOrder.append(task.id)
+        }
+    } else {
+        // Append-at-end: place after the column's current last task in
+        // the global manual order so it stays the tail of the column.
+        if let lastInColumn = targetColumnTasks.last,
+           let globalIdx = newOrder.firstIndex(of: lastInColumn.id) {
+            newOrder.insert(task.id, at: globalIdx + 1)
+        } else {
+            newOrder.append(task.id)
+        }
+    }
+
+    return BoardReorder(
+        listIds: move.listIds,
+        completed: move.completed,
+        newManualOrder: newOrder
+    )
+}
+
 /// True when the task is already in the target column. Used by the
 /// drop handler to short-circuit no-op moves (e.g. dragging a card a
 /// few pixels and releasing inside its own column). Without this every
