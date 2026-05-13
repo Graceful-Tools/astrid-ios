@@ -343,32 +343,6 @@ func resolveBoardReorder(
     )
 }
 
-/// Apply a `BoardReorder` to a `[TaskList]` in-place: writes the new
-/// `manualSortOrder` onto the project's domain list and flips `sortBy`
-/// to "manual" so column rendering respects the order.
-///
-/// Called by the drop handler BEFORE the async server PUT — without
-/// this the local column's task order stays stale until the server
-/// round-trip lands, and the just-dropped card visibly "reloads" into
-/// its final position. Pure / synchronous so it can be wrapped in
-/// `withAnimation` for a smooth visual settle.
-///
-/// If `domainListId` isn't in the array (defensive: stale Core Data),
-/// returns the input unchanged. Idempotent.
-func applyBoardReorderLocally(
-    lists: [TaskList],
-    reorder: BoardReorder,
-    domainListId: String
-) -> [TaskList] {
-    guard let idx = lists.firstIndex(where: { $0.id == domainListId }) else {
-        return lists
-    }
-    var updated = lists
-    updated[idx].manualSortOrder = reorder.newManualOrder
-    updated[idx].sortBy = "manual"
-    return updated
-}
-
 /// True when the task is already in the target column. Used by the
 /// drop handler to short-circuit no-op moves (e.g. dragging a card a
 /// few pixels and releasing inside its own column). Without this every
