@@ -283,6 +283,62 @@ final class ProjectStatusTests: XCTestCase {
                        "Task with listIds=[\"ios\"] but task.lists=nil should still surface in the project board")
     }
 
+    // MARK: - isTaskAlreadyInColumn (drag-drop reliability)
+
+    /// Task currently in Doing dropped on Doing → no-op. Short-circuits
+    /// the network round-trip so the cell doesn't flicker from a
+    /// pointless re-render.
+    func test_isTaskAlreadyInColumn_droppedOnOwnStatusColumn_isTrue() {
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let t = makeTask(lists: [ios, doing])
+
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+        XCTAssertTrue(isTaskAlreadyInColumn(t, targetColumn: doingColumn,
+                                            projectId: projectId,
+                                            lists: [ios, doing]))
+    }
+
+    /// Inbox task dropped on Doing → not a no-op (real move).
+    func test_isTaskAlreadyInColumn_inboxDroppedOnDoing_isFalse() {
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+        let t = makeTask(lists: [ios])
+
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+        XCTAssertFalse(isTaskAlreadyInColumn(t, targetColumn: doingColumn,
+                                             projectId: projectId,
+                                             lists: [ios, doing]))
+    }
+
+    /// Completed task dropped on Done → no-op (already in virtual Done).
+    func test_isTaskAlreadyInColumn_completedDroppedOnDone_isTrue() {
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let t = makeTask(lists: [ios], completed: true)
+
+        let columns = getProjectBoardColumns([ios], projectId: projectId)
+        let doneColumn = columns.first { $0.id == VIRTUAL_DONE_COLUMN_ID }!
+        XCTAssertTrue(isTaskAlreadyInColumn(t, targetColumn: doneColumn,
+                                            projectId: projectId,
+                                            lists: [ios]))
+    }
+
+    // MARK: - BoardCardPayload (typed drag-drop)
+
+    /// The custom Transferable round-trips through JSON encoding.
+    /// Smoke check that the payload type itself is stable.
+    func test_boardCardPayload_codableRoundTrip() throws {
+        let original = BoardCardPayload(taskId: "task-abc-123")
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(BoardCardPayload.self, from: data)
+        XCTAssertEqual(decoded, original)
+    }
+
     // MARK: - boardColumnsVisible (iPad landscape: 3-5 columns)
 
     /// iPhone portrait width (~390pt). Single full-screen paged column.
