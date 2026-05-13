@@ -917,9 +917,17 @@ struct TaskListView: View {
     private func applyListFilters(_ tasks: [Task], list: TaskList) -> [Task] {
         var filtered = tasks
 
-        // Completion filter
+        // Completion filter — honors the list's per-list
+        // recentlyCompletedWindow so iOS matches the web (which already
+        // does this via shouldShowCompletedByFilter in useFilterState).
+        // Previously hardcoded to 24h, which is why tasks visible on web
+        // weren't visible on iOS for lists with a longer window.
         let completionFilter = list.filterCompletion ?? "default"
-        filtered = applyCompletionFilter(filtered, filterCompletion: completionFilter)
+        filtered = applyCompletionFilterWithWindow(
+            filtered,
+            filter: completionFilter,
+            window: list.recentlyCompletedWindow
+        )
 
         // Priority filter
         if let priority = list.filterPriority, priority != "all" {

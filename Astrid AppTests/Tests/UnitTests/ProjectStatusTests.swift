@@ -160,6 +160,30 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertTrue(result.completed)
     }
 
+    /// Bug 2026-05-12 #3: a task loaded from Core Data has
+    /// `task.lists = nil` but `task.listIds = ["ios"]`. Dropping it on
+    /// the Doing column was producing `listIds = ["doing"]` — wiping
+    /// the regular-list membership, so the task vanished from the
+    /// board after the move. resolveProjectColumnMove must respect
+    /// listIds the same way getProjectDomainTasks does.
+    func test_resolveMove_honorsListIds_whenTaskListsIsNil() {
+        let projectId = "project-1"
+        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: projectId, listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId, listType: "status", statusRole: "doing")
+
+        var cachedTask = makeTask(lists: [])
+        cachedTask.lists = nil
+        cachedTask.listIds = ["ios"]
+
+        let columns = getProjectBoardColumns([ios, doing], projectId: projectId)
+        let doingColumn = columns.first { $0.id == "doing" }!
+        let move = resolveProjectColumnMove(cachedTask, targetColumn: doingColumn,
+                                            projectId: projectId, lists: [ios, doing])
+        XCTAssertEqual(move.listIds, ["ios", "doing"],
+                       "Regular list membership must survive the move even when task.lists is nil")
+        XCTAssertFalse(move.completed)
+    }
+
     func test_movesBackToInbox_strippingStatusesAndClearingCompleted() {
         let projectId = "project-1"
         let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: projectId, listType: "regular")

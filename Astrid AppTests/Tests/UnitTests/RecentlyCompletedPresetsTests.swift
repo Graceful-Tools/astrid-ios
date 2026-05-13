@@ -53,4 +53,72 @@ final class RecentlyCompletedPresetsTests: XCTestCase {
     func test_presetForValue_sinceSpecificDate_returnsNil_soCallerPromptsForDate() {
         XCTAssertNil(presetForValue(.sinceSpecificDate))
     }
+
+    // MARK: - applyCompletionFilterWithWindow (bug 2026-05-12 #4)
+
+    /// iOS's filter was hardcoded to 24 hours and ignored
+    /// `list.recentlyCompletedWindow`. The web honored it. Result: a
+    /// list with `Last 7 days` set on the web showed tasks the user
+    /// didn't see on iOS. This test pins the fix.
+    private func makeTask(id: String, completed: Bool, updatedAt: Date) -> Task {
+        Task(
+            id: id, title: id, description: "",
+            isAllDay: false, priority: .none,
+            isPrivate: false, completed: completed,
+            updatedAt: updatedAt
+        )
+    }
+
+    func test_default_withSevenDayWindow_keepsCompletedFromThreeDaysAgo() {
+        let now = ISO8601DateFormatter().date(from: "2026-05-11T12:00:00Z")!
+        let threeDaysAgo = now.addingTimeInterval(-3 * 24 * 60 * 60)
+        let completed3d = makeTask(id: "c-3d", completed: true, updatedAt: threeDaysAgo)
+        let incomplete = makeTask(id: "i", completed: false, updatedAt: threeDaysAgo)
+
+        let result = applyCompletionFilterWithWindow(
+            [completed3d, incomplete],
+            filter: "default",
+            window: .duration(amount: 7, unit: .day),
+            now: now
+        )
+        XCTAssertEqual(Set(result.map { $0.id }), Set(["c-3d", "i"]),
+                       "7-day window must include a task completed 3 days ago")
+    }
+
+    func test_default_withNilWindow_hidesCompletedOlderThan24h() {
+        let now = ISO8601DateFormatter().date(from: "2026-05-11T12:00:00Z")!
+        let twoDaysAgo = now.addingTimeInterval(-48 * 60 * 60)
+        let oneHourAgo = now.addingTimeInterval(-60 * 60)
+        let stale = makeTask(id: "stale", completed: true, updatedAt: twoDaysAgo)
+        let fresh = makeTask(id: "fresh", completed: true, updatedAt: oneHourAgo)
+        let incomplete = makeTask(id: "i", completed: false, updatedAt: twoDaysAgo)
+
+        let result = applyCompletionFilterWithWindow(
+            [stale, fresh, incomplete],
+            filter: "default",
+            window: nil,
+            now: now
+        )
+        XCTAssertEqual(Set(result.map { $0.id }), Set(["fresh", "i"]),
+                       "nil window = legacy 24h default: 2-day-old completion is hidden")
+    }
+
+    func test_all_returnsEverything() {
+        let now = Date()
+        let result = applyCompletionFilterWithWindow(
+            [makeTask(id: "x", completed: true, updatedAt: now.addingTimeInterval(-365 * 86400))],
+            filter: "all",
+            window: nil,
+            now: now
+        )
+        XCTAssertEqual(result.count, 1)
+    }
+
+    func test_completed_andIncomplete_useStrictFilter() {
+        let now = Date()
+        let c = makeTask(id: "c", completed: true, updatedAt: now)
+        let i = makeTask(id: "i", completed: false, updatedAt: now)
+        XCTAssertEqual(applyCompletionFilterWithWindow([c, i], filter: "completed", window: nil, now: now).map { $0.id }, ["c"])
+        XCTAssertEqual(applyCompletionFilterWithWindow([c, i], filter: "incomplete", window: nil, now: now).map { $0.id }, ["i"])
+    }
 }
