@@ -27,6 +27,14 @@ struct ProjectStatusBoardView: View {
         getProjectBoardColumns(listService.lists, projectId: projectId)
     }
 
+    /// The project's regular (domain) list. Cached lookup so the per-
+    /// column "+ Add task" footer can drop new tasks into the right list.
+    /// Returns nil for projects with no regular list attached yet (very
+    /// rare — should only happen for an unfinished migration).
+    private var projectDomainList: TaskList? {
+        listService.lists.first { $0.projectId == projectId && $0.listType != "status" }
+    }
+
     private var domainTasks: [Task] {
         getProjectDomainTasks(taskService.tasks, lists: listService.lists, projectId: projectId)
     }
@@ -37,12 +45,6 @@ struct ProjectStatusBoardView: View {
         }
     }
 
-    /// Internal padding applied to each column's content so the column
-    /// headers and card stack align with TaskRowView's row inset
-    /// (`.padding(.horizontal, Theme.spacing16)`). Columns themselves
-    /// are full-screen-wide so paging snap matches the header width
-    /// exactly — adjacent columns never peek mid-pan.
-    private let columnContentInset: CGFloat = 16
     /// Top inset between the header chrome and the board's first row.
     /// Mirrors the implicit breathing room the list view gets between
     /// the header and the first task row.
@@ -56,9 +58,14 @@ struct ProjectStatusBoardView: View {
                         BoardColumnView(
                             column: column,
                             tasks: tasksFor(column),
+                            selectedList: projectDomainList,
                             onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
                         )
-                        .padding(.horizontal, columnContentInset)
+                        // Column = full screen width so the column's
+                        // background extends to the same edges as the
+                        // header chrome above it. Internal card insets
+                        // live INSIDE BoardColumnView so the row width
+                        // still matches the list view's row inset.
                         .frame(width: geo.size.width)
                         .id(column.id)
                     }
