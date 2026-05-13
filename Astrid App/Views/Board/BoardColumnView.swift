@@ -18,7 +18,7 @@ struct BoardColumnView: View {
     /// The project's regular (domain) list — used by the inline footer
     /// so newly-added tasks land in the right list. Nil hides the footer.
     let selectedList: TaskList?
-    let onDrop: (String) -> Void
+    let onDrop: (BoardCardPayload) -> Void
 
     @State private var isTargeted = false
 
@@ -63,7 +63,10 @@ struct BoardColumnView: View {
                 LazyVStack(spacing: 6) {
                     ForEach(tasks) { task in
                         BoardTaskCardView(task: task)
-                            .draggable(task.id) {
+                            // Typed payload — only board dropDestinations
+                            // accept this, so plain-text droppers (text
+                            // fields, share sheets) can't intercept.
+                            .draggable(BoardCardPayload(taskId: task.id)) {
                                 // Lightweight static preview — see the
                                 // note in BoardColumnView's earlier commit
                                 // about transient drag-preview crashes.
@@ -115,9 +118,15 @@ struct BoardColumnView: View {
                 .stroke(isTargeted ? Color.accentColor : columnBorderColor,
                         lineWidth: isTargeted ? 2 : 1)
         )
-        .dropDestination(for: String.self) { items, _ in
-            guard let taskId = items.first else { return false }
-            onDrop(taskId)
+        // Force the hit area to span the full visible column shape so
+        // drops on the column's whitespace (e.g. empty Done column)
+        // still land. Without this the dropDestination only matches
+        // hits on the column's child views (cards), which made empty
+        // columns and sparse columns feel unresponsive.
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .dropDestination(for: BoardCardPayload.self) { items, _ in
+            guard let payload = items.first else { return false }
+            onDrop(payload)
             return true
         } isTargeted: { hovering in
             isTargeted = hovering

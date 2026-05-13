@@ -230,6 +230,19 @@ func normalizeProjectStatusListIds(
 
 // MARK: - Project domain tasks
 
+/// True when the task is already in the target column. Used by the
+/// drop handler to short-circuit no-op moves (e.g. dragging a card a
+/// few pixels and releasing inside its own column). Without this every
+/// touch-drag triggered a round-trip PUT for an unchanged state, which
+/// is wasteful and — more importantly — flickered the cell visually
+/// because the optimistic update re-rendered.
+func isTaskAlreadyInColumn(_ task: Task,
+                           targetColumn: ProjectBoardColumn,
+                           projectId: String,
+                           lists: [TaskList]) -> Bool {
+    getTaskProjectColumnId(task, projectId: projectId, lists: lists) == targetColumn.id
+}
+
 /// Decide how many board columns to fit side-by-side based on the
 /// available width.
 ///

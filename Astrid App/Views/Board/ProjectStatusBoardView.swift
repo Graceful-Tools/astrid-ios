@@ -80,7 +80,7 @@ struct ProjectStatusBoardView: View {
                             column: column,
                             tasks: tasksFor(column),
                             selectedList: projectDomainList,
-                            onDrop: { taskId in handleDrop(taskId: taskId, into: column) }
+                            onDrop: { payload in handleDrop(payload: payload, into: column) }
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
@@ -120,14 +120,33 @@ struct ProjectStatusBoardView: View {
         }
     }
 
-    private func handleDrop(taskId: String, into column: ProjectBoardColumn) {
-        guard let task = taskService.tasks.first(where: { $0.id == taskId }) else { return }
+    private func handleDrop(payload: BoardCardPayload, into column: ProjectBoardColumn) {
+        let taskId = payload.taskId
+        guard let task = taskService.tasks.first(where: { $0.id == taskId }) else {
+            print("⚠️ [Board] Drop received for unknown task id=\(taskId)")
+            return
+        }
+        // Short-circuit no-op drops. Without this, dragging a card a few
+        // pixels inside its own column fires a full PUT for an unchanged
+        // state — wasteful, and the optimistic update flickered the cell.
+        if isTaskAlreadyInColumn(task, targetColumn: column,
+                                 projectId: projectId,
+                                 lists: listService.lists) {
+            print("ℹ️ [Board] Drop ignored (already in column \(column.id))")
+            return
+        }
+
         let move = resolveProjectColumnMove(
             task,
             targetColumn: column,
             projectId: projectId,
             lists: listService.lists
         )
+        // Light haptic confirms the drop registered before the network
+        // round-trip starts. Matches the snap haptic so the gesture feels
+        // consistent on every interaction.
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
         _Concurrency.Task {
             do {
                 _ = try await taskService.updateTask(
@@ -135,7 +154,9 @@ struct ProjectStatusBoardView: View {
                     completed: move.completed,
                     listIds: move.listIds
                 )
+                print("✅ [Board] Moved task=\(task.id) → column=\(column.id)")
             } catch {
+                print("❌ [Board] Move failed for task=\(task.id): \(error)")
                 await MainActor.run {
                     self.dropError = error.localizedDescription
                 }
