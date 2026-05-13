@@ -10,23 +10,28 @@ import UniformTypeIdentifiers
 /// ProjectService) so it stays in sync with the rest of the app and
 /// supports offline cache hydration.
 struct ProjectStatusBoardView: View {
-    let project: Project
+    /// The project being rendered. Identified by id alone so the board
+    /// can render before the Project model has been pulled from
+    /// /api/v1/projects — status lists already live on ListService.lists
+    /// keyed by projectId, so that's the only thing the column derivation
+    /// needs.
+    let projectId: String
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropError: String? = nil
 
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists, projectId: project.id)
+        getProjectBoardColumns(listService.lists, projectId: projectId)
     }
 
     private var domainTasks: [Task] {
-        getProjectDomainTasks(taskService.tasks, lists: listService.lists, projectId: project.id)
+        getProjectDomainTasks(taskService.tasks, lists: listService.lists, projectId: projectId)
     }
 
     private func tasksFor(_ column: ProjectBoardColumn) -> [Task] {
         domainTasks.filter { task in
-            getTaskProjectColumnId(task, projectId: project.id, lists: listService.lists) == column.id
+            getTaskProjectColumnId(task, projectId: projectId, lists: listService.lists) == column.id
         }
     }
 
@@ -57,7 +62,7 @@ struct ProjectStatusBoardView: View {
         let move = resolveProjectColumnMove(
             task,
             targetColumn: column,
-            projectId: project.id,
+            projectId: projectId,
             lists: listService.lists
         )
         _Concurrency.Task {
