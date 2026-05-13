@@ -26,14 +26,20 @@ struct BoardColumnView: View {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
     }
 
-    /// Mirrors TaskRowView.getCardBackground so the column wrapper reads
-    /// the same on every theme — especially ocean, where the secondary
-    /// system bg clashed with the cyan gradient.
+    /// Column fill = the page's theme background. The column blends
+    /// with the page so the white-wash isn't visually "too wide"; the
+    /// border below defines where the column sits.
     private var columnBackgroundColor: Color {
-        if effectiveTheme == "ocean" {
-            return Color.white.opacity(0.8)
-        }
+        if effectiveTheme == "ocean" { return Theme.Ocean.bgPrimary }
         return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
+    }
+
+    /// Visible border to define the column shape against the theme bg.
+    /// Ocean's theme `border` is the same cyan as the page, so it would
+    /// be invisible — substitute a translucent white that reads on cyan.
+    private var columnBorderColor: Color {
+        if effectiveTheme == "ocean" { return Color.white.opacity(0.5) }
+        return effectiveTheme == "dark" ? Theme.Dark.border : Theme.border
     }
 
     /// listIds the inline add-task footer should attach in addition to
@@ -102,8 +108,12 @@ struct BoardColumnView: View {
                 .fill(columnBackgroundColor)
         )
         .overlay(
+            // Always-visible subtle border + heavier accent when a drag is
+            // hovering. The border is what defines the column shape now
+            // that the fill matches the page background.
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isTargeted ? Color.accentColor : Color.clear, lineWidth: 2)
+                .stroke(isTargeted ? Color.accentColor : columnBorderColor,
+                        lineWidth: isTargeted ? 2 : 1)
         )
         .dropDestination(for: String.self) { items, _ in
             guard let taskId = items.first else { return false }
