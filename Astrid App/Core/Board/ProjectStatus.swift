@@ -120,11 +120,15 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String) -> [ProjectB
 ///   completed=true              → virtual Done id
 ///   has a real status list      → that list's id
 ///   otherwise                   → virtual Inbox id
+///
+/// Reads both `task.lists` (full join, present after a fresh fetch) and
+/// `task.listIds` (compact form, present after a Core Data load). Either
+/// is sufficient to assign a column.
 func getTaskProjectColumnId(_ task: Task, projectId: String, lists: [TaskList]) -> String {
     if task.completed { return VIRTUAL_DONE_COLUMN_ID }
 
     let statusLists = getProjectStatusLists(lists, projectId: projectId)
-    let taskListIds = Set((task.lists ?? []).map { $0.id })
+    let taskListIds = taskListMembershipIds(task)
     if let explicit = statusLists.first(where: { taskListIds.contains($0.id) }) {
         return explicit.id
     }
@@ -225,6 +229,10 @@ func normalizeProjectStatusListIds(
 /// Tasks that should appear on a project's board: those attached to at
 /// least one of the project's regular (non-status) lists. A task with
 /// only a status membership and no domain list isn't a "project task".
+///
+/// Honors both `task.lists` (full join) AND `task.listIds` (compact form
+/// stored in Core Data). Without the listIds fallback the Inbox column
+/// is empty on cold start until the next full sync hydrates `task.lists`.
 func getProjectDomainTasks(_ tasks: [Task], lists: [TaskList], projectId: String) -> [Task] {
     let regularIds = Set(
         lists
@@ -232,6 +240,16 @@ func getProjectDomainTasks(_ tasks: [Task], lists: [TaskList], projectId: String
             .map { $0.id }
     )
     return tasks.filter { task in
-        (task.lists ?? []).contains { regularIds.contains($0.id) }
+        !taskListMembershipIds(task).isDisjoint(with: regularIds)
     }
+}
+
+/// The union of a task's list-membership identifiers from both the
+/// hydrated `task.lists` array and the compact `task.listIds` cache.
+/// Centralizes the fallback so every board-side filter respects both.
+func taskListMembershipIds(_ task: Task) -> Set<String> {
+    var ids = Set<String>()
+    if let lists = task.lists { ids.formUnion(lists.map { $0.id }) }
+    if let listIds = task.listIds { ids.formUnion(listIds) }
+    return ids
 }

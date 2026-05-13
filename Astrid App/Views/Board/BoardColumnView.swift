@@ -19,9 +19,27 @@ struct BoardColumnView: View {
                     ForEach(tasks) { task in
                         BoardTaskCardView(task: task)
                             .draggable(task.id) {
-                                BoardTaskCardView(task: task)
-                                    .frame(width: 260)
-                                    .opacity(0.85)
+                                // Lightweight static preview — the full
+                                // BoardTaskCardView is rendered in the main
+                                // tree by the ForEach above. Using it as
+                                // the drag preview re-instantiates the
+                                // view in a transient hierarchy outside
+                                // the main tree, which can crash any
+                                // state-object machinery the preview
+                                // touches.
+                                Text(task.title)
+                                    .font(.body)
+                                    .padding(12)
+                                    .frame(maxWidth: 260, alignment: .leading)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color(.systemBackground))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.separator), lineWidth: 0.5)
+                                    )
+                                    .opacity(0.92)
                             }
                     }
                     if tasks.isEmpty {
