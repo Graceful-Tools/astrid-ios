@@ -35,11 +35,11 @@ struct BoardTaskCardView: View {
                     }
                 }
             },
-            // Match the task list view's truncation rule (no truncate
-            // on iPhone, single-line on iPad where the details panel
-            // shares the row). Hard-coded `compactMode: true` was
-            // truncating every card on phone too.
-            compactMode: UIDevice.current.userInterfaceIdiom == .pad,
+            // Always wrap titles on board cards. The list view truncates
+            // on iPad because the details side-panel shares the row, but
+            // the board has no such layout constraint — let titles use
+            // multiple lines when they need to.
+            compactMode: false,
             hiddenListIds: hiddenListIds
         )
         .padding(8)
