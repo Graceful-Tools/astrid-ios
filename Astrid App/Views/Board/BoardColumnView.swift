@@ -1,14 +1,22 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// One board column: header + scrollable card list + inline "Add task"
-/// footer. Drops are accepted for any text-payload representing a task
-/// id; the parent view computes the new task state.
+/// One board column: header + a SwiftUI `List` of task cards + inline
+/// "Add task" footer.
 ///
-/// The column's wrapper background matches the card background so the
-/// ocean theme (cyan page) reads correctly — `Color(.secondarySystemBackground)`
-/// looked off against the cyan gradient. Cards still have their own
-/// border so they're individually distinguishable inside the column.
+/// Drag-drop mirrors the task list view: intra-column reorder uses
+/// `List` + `.onMove`, which lets SwiftUI animate the row movement
+/// natively while the drag is in progress (no optimistic state mutation
+/// needed — server PUT lands invisibly because the visual order is
+/// already correct). Cross-column moves use `.draggable` on each row
+/// so the user can drag a card OUT of this list into another column's
+/// `.dropDestination`.
+///
+/// We deliberately avoid `LazyVStack` + custom `.dropDestination` slots
+/// here. That approach required optimistic mutation of the project
+/// list's `manualSortOrder` and re-rendering on every drop, which read
+/// as a "reload" flicker. `ListService.updateManualOrder` explicitly
+/// skips its own optimistic update for the same reason. See PR #21.
 struct BoardColumnView: View {
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("themeMode") private var themeMode: String = "ocean"
@@ -18,16 +26,16 @@ struct BoardColumnView: View {
     /// The project's regular (domain) list — used by the inline footer
     /// so newly-added tasks land in the right list. Nil hides the footer.
     let selectedList: TaskList?
-    /// (payload, slotIndex) — slotIndex is 0..<tasks.count for "above
-    /// this card" and equals `tasks.count` for "append at end".
+    /// Cross-column drop landing in THIS column. The parent computes the
+    /// new task state from `(payload, slotIndex)` — slotIndex 0 means
+    /// "insert at top"; the column-level drop just falls back to that.
     let onDropAt: (BoardCardPayload, Int) -> Void
+    /// Intra-column reorder via SwiftUI's List `.onMove`. The parent
+    /// computes the new manualSortOrder for the project's domain list
+    /// and persists it — same mechanism as TaskListView.moveTask.
+    let onIntraReorder: (IndexSet, Int) -> Void
 
     @State private var isTargeted = false
-    /// Which slot index is currently being hovered, if any. Drives the
-    /// "tasks move out of the way" visual: a thin accent line appears
-    /// above the hovered card and the card gains a top spacer, so the
-    /// user can see exactly where the drop will land before releasing.
-    @State private var hoveringIndex: Int?
 
     private var effectiveTheme: String {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
@@ -66,19 +74,8 @@ struct BoardColumnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            ScrollView {
-                LazyVStack(spacing: 6) {
-                    ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
-                        cardSlot(for: task, at: index)
-                    }
-                    // Append-at-end drop slot. Always present so the user
-                    // can drop into an empty column or below the last card.
-                    appendSlot
-                }
-                .padding(8)
-                .animation(.spring(response: 0.25, dampingFraction: 0.85), value: hoveringIndex)
-            }
-            .frame(minHeight: 160)
+            cardList
+                .frame(minHeight: 160)
 
             if shouldShowFooter {
                 Divider()
@@ -102,10 +99,10 @@ struct BoardColumnView: View {
                 .stroke(isTargeted ? Color.accentColor : columnBorderColor,
                         lineWidth: isTargeted ? 2 : 1)
         )
-        // The per-slot drops handle precise positioning. The column's
-        // outer dropDestination remains as a fallback so a drop on the
-        // header / footer chrome (above the cards) still lands —
-        // defaults to inserting at the top of the column.
+        // Cross-column drops land via the column-level dropDestination —
+        // SwiftUI fires it when a `.draggable` payload from another
+        // column is released anywhere over our chrome. Intra-column
+        // reorder is handled by `.onMove` on the List below.
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .dropDestination(for: BoardCardPayload.self) { items, _ in
             guard let payload = items.first else { return false }
@@ -116,84 +113,57 @@ struct BoardColumnView: View {
         }
     }
 
-    /// One card with a hover-aware drop indicator above it. When a
-    /// drag is hovering this slot, a colored line appears at the top
-    /// edge and the card gets a top spacer so the user sees exactly
-    /// where the drop will land before releasing.
+    /// The native SwiftUI `List` that hosts the column's task rows.
+    /// Mirrors TaskListView.taskList: plain style, transparent
+    /// background, hidden separators, `.onMove` for reorder.
     @ViewBuilder
-    private func cardSlot(for task: Task, at index: Int) -> some View {
-        VStack(spacing: 0) {
-            // Drop indicator. Animates in/out via the parent's .animation.
-            if hoveringIndex == index {
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 8)
-                    .padding(.bottom, 4)
-                    .transition(.scale.combined(with: .opacity))
+    private var cardList: some View {
+        List {
+            ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+                BoardTaskCardView(task: task)
+                    .draggable(BoardCardPayload(taskId: task.id)) {
+                        // The drag preview is a lightweight Text card so
+                        // SwiftUI's transient preview hierarchy can't trip
+                        // over @StateObject inside BoardTaskCardView.
+                        Text(task.title)
+                            .font(.body)
+                            .padding(12)
+                            .frame(maxWidth: 260, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemBackground))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color(.separator), lineWidth: 0.5)
+                            )
+                            .opacity(0.92)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(
+                        top: index == 0 ? 8 : 3,
+                        leading: 8,
+                        bottom: 3,
+                        trailing: 8
+                    ))
             }
+            .onMove(perform: onIntraReorder)
 
-            BoardTaskCardView(task: task)
-                .draggable(BoardCardPayload(taskId: task.id)) {
-                    Text(task.title)
-                        .font(.body)
-                        .padding(12)
-                        .frame(maxWidth: 260, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemBackground))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.separator), lineWidth: 0.5)
-                        )
-                        .opacity(0.92)
-                }
-                .dropDestination(for: BoardCardPayload.self) { items, _ in
-                    guard let payload = items.first else { return false }
-                    hoveringIndex = nil
-                    onDropAt(payload, index)
-                    return true
-                } isTargeted: { hovering in
-                    hoveringIndex = hovering ? index : (hoveringIndex == index ? nil : hoveringIndex)
-                }
-        }
-    }
-
-    /// Drop slot at the bottom of the column for "append at end" drops.
-    /// Visible only when a drag is hovering — at rest it's invisible
-    /// padding. Also covers empty columns (Inbox/Done with no cards).
-    @ViewBuilder
-    private var appendSlot: some View {
-        let appendIndex = tasks.count
-        ZStack(alignment: .top) {
-            if hoveringIndex == appendIndex {
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
-                    .transition(.scale.combined(with: .opacity))
-            }
-            // Empty placeholder text — only when the column has zero cards
-            // and nothing is hovering.
-            if tasks.isEmpty && hoveringIndex == nil {
+            // Empty-state row so the column has a visible drop target
+            // when no cards are present (e.g. Inbox/Done with no tasks).
+            if tasks.isEmpty {
                 Text("No tasks")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: tasks.isEmpty ? 80 : 24)
-        .contentShape(Rectangle())
-        .dropDestination(for: BoardCardPayload.self) { items, _ in
-            guard let payload = items.first else { return false }
-            hoveringIndex = nil
-            onDropAt(payload, appendIndex)
-            return true
-        } isTargeted: { hovering in
-            hoveringIndex = hovering ? appendIndex : (hoveringIndex == appendIndex ? nil : hoveringIndex)
-        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     @ViewBuilder

@@ -552,4 +552,5 @@ final class ProjectStatusTests: XCTestCase {
         let result = getProjectDomainTasks([t], lists: [ios], projectId: projectId)
         XCTAssertEqual(result.map { $0.id }, ["t-both"])
     }
+
 }

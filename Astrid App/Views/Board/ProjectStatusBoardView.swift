@@ -86,6 +86,13 @@ struct ProjectStatusBoardView: View {
                             selectedList: projectDomainList,
                             onDropAt: { payload, index in
                                 handleDrop(payload: payload, into: column, at: index)
+                            },
+                            onIntraReorder: { source, destination in
+                                handleIntraReorder(
+                                    column: column,
+                                    from: source,
+                                    to: destination
+                                )
                             }
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
@@ -184,5 +191,102 @@ struct ProjectStatusBoardView: View {
                 }
             }
         }
+    }
+
+    /// Intra-column reorder triggered by SwiftUI's List `.onMove`. Same
+    /// pattern as TaskListView.moveTask: no optimistic state mutation —
+    /// SwiftUI's List handles the visual reorder natively during the
+    /// drag, and we just persist the new manualSortOrder so the order
+    /// survives across launches.
+    ///
+    /// Tasks NOT in this column (other columns + hidden) keep their
+    /// existing relative order; the column's tasks get re-spliced.
+    private func handleIntraReorder(column: ProjectBoardColumn,
+                                    from source: IndexSet,
+                                    to destination: Int) {
+        guard let domainList = projectDomainList else {
+            print("⚠️ [Board] Intra-reorder: no domain list — ignored")
+            return
+        }
+
+        let newOrder = computeIntraReorderManualOrder(
+            column: column,
+            from: source,
+            to: destination,
+            currentManualOrder: domainList.manualSortOrder ?? []
+        )
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        _Concurrency.Task {
+            do {
+                try await ListService.shared.updateManualOrder(
+                    listId: domainList.id,
+                    order: newOrder
+                )
+                // updateManualOrder doesn't touch sortBy; flip the list
+                // to "manual" via a second small PUT if needed so the
+                // rendering honors the order.
+                if domainList.sortBy != "manual" {
+                    var sortByUpdate = UpdateListRequest()
+                    sortByUpdate.sortBy = "manual"
+                    _ = try await ListService.shared.updateListOnServer(
+                        listId: domainList.id,
+                        updates: sortByUpdate
+                    )
+                }
+                print("✅ [Board] Intra-reorder \(column.id): \(source) → \(destination)")
+            } catch {
+                print("❌ [Board] Intra-reorder failed: \(error)")
+                await MainActor.run {
+                    self.dropError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Pure helper extracted for testability: given a column's task
+    /// reorder (source → destination), compute the new global
+    /// manualSortOrder for the project's domain list.
+    ///
+    /// Algorithm mirrors TaskListView.moveTask:
+    /// 1. Take the column's visible tasks in their NEW order.
+    /// 2. Remove their ids from currentManualOrder.
+    /// 3. Append the column's new order at the end.
+    /// 4. Append any domain-list tasks that weren't already represented
+    ///    (preserving creation-date-desc so newcomers don't jump).
+    ///
+    /// Cross-column relative order is irrelevant — each column filters
+    /// to its own subset before sorting, so visible-block placement
+    /// doesn't affect any other column's rendering.
+    func computeIntraReorderManualOrder(
+        column: ProjectBoardColumn,
+        from source: IndexSet,
+        to destination: Int,
+        currentManualOrder: [String]
+    ) -> [String] {
+        var visible = tasksFor(column)
+        visible.move(fromOffsets: source, toOffset: destination)
+        let visibleIds = visible.map { $0.id }
+        let visibleIdSet = Set(visibleIds)
+
+        // Drop column tasks from current order, then append the new
+        // order. Tasks in other columns keep their relative positions.
+        var newOrder = currentManualOrder.filter { !visibleIdSet.contains($0) }
+        newOrder.append(contentsOf: visibleIds)
+
+        // Append any domain-list tasks not yet represented (e.g. the
+        // list was previously sorted by createdAt — currentManualOrder
+        // is empty for tasks in other columns).
+        let knownIds = Set(newOrder)
+        let domainTasksSorted = domainTasks.sorted { a, b in
+            let da = a.createdAt ?? Date.distantPast
+            let db = b.createdAt ?? Date.distantPast
+            return da > db
+        }
+        for task in domainTasksSorted where !knownIds.contains(task.id) {
+            newOrder.append(task.id)
+        }
+        return newOrder
     }
 }
