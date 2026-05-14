@@ -266,27 +266,25 @@ class AstridAPIClient {
         return (response.tasks, response.meta?.total ?? response.tasks.count)
     }
 
-    /// Get all tasks with automatic pagination (for full sync)
-    /// Fetches all pages until all tasks are retrieved
+    /// Get all tasks with automatic pagination (for full sync).
+    ///
+    /// Stops on a SHORT page (`items.count < limit`) or an empty page —
+    /// NOT on `meta.total`. The server's count can disagree with its
+    /// actual result set under complex `OR` where-clauses, which would
+    /// silently drop tasks for users with large libraries. See
+    /// `paginatedFetchAllItems` and `PaginatedFetchTests`.
     func getAllTasks(listId: String? = nil, completed: Bool? = nil) async throws -> [Task] {
-        var allTasks: [Task] = []
-        var offset = 0
         let limit = 1000
-
-        while true {
-            let (tasks, total) = try await getTasks(listId: listId, completed: completed, limit: limit, offset: offset)
-            allTasks.append(contentsOf: tasks)
-
-            print("📥 [AstridAPI] Fetched \(tasks.count) tasks (offset: \(offset), total: \(total))")
-
-            // Check if we've fetched all tasks
-            if allTasks.count >= total || tasks.isEmpty {
-                break
-            }
-
-            offset += limit
+        let allTasks = try await paginatedFetchAllItems(limit: limit) { pageLimit, pageOffset in
+            let (tasks, total) = try await self.getTasks(
+                listId: listId,
+                completed: completed,
+                limit: pageLimit,
+                offset: pageOffset
+            )
+            print("📥 [AstridAPI] Fetched \(tasks.count) tasks (offset: \(pageOffset), serverTotal: \(total))")
+            return PaginatedPage(items: tasks, total: total)
         }
-
         print("📥 [AstridAPI] Total tasks fetched: \(allTasks.count)")
         return allTasks
     }
