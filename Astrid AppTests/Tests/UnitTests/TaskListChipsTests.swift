@@ -39,4 +39,66 @@ final class TaskListChipsTests: XCTestCase {
         let result = chipListsForTaskRow([ios, ready, doing])
         XCTAssertEqual(result.map { $0.id }, ["ios"])
     }
+
+    // MARK: - hiddenListIds (context-aware chip filter)
+    //
+    // The list/board view that's *already* showing the task knows which
+    // list-context the user is in. Surfacing that same list as a chip
+    // is redundant noise. Same idea for the board column's status list:
+    // the column header already says "Ready"/"Doing" — no need to label
+    // each card.
+
+    /// 2026-05-13: hide the chip for the list the user is currently
+    /// viewing — there's no point telling them "this is in iOS To-do"
+    /// when they're looking AT the iOS To-do list view.
+    func test_hidesCurrentlyViewedListChip() {
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let groceries = makeList(id: "groc", name: "Groceries", listType: "regular")
+        let result = chipListsForTaskRow([ios, groceries], hiddenListIds: ["ios"])
+        XCTAssertEqual(result.map { $0.id }, ["groc"])
+    }
+
+    /// 2026-05-13: in board view, hide the chip for the column's
+    /// status list (the column header already conveys that status).
+    func test_hidesStatusListIdInBoardContext_evenIfNotMarkedAsStatusType() {
+        // Defensive: even if listType isn't yet "status" (stale data),
+        // an explicit hidden id still removes the chip.
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing")
+        let result = chipListsForTaskRow([ios, doing], hiddenListIds: ["doing"])
+        XCTAssertEqual(result.map { $0.id }, ["ios"])
+    }
+
+    /// Hide BOTH the project's domain list (because the board itself
+    /// implies the project) AND the column's status list. Result:
+    /// only OTHER lists the task is shared into are shown — and in
+    /// the common single-list-per-project case, no chips at all.
+    func test_boardHidesDomainAndStatus_leavesOnlyForeignLists() {
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let doing = makeList(id: "doing", name: "Doing", listType: "status")
+        let shared = makeList(id: "shared", name: "Shared with Alice", listType: "regular")
+        let result = chipListsForTaskRow(
+            [ios, doing, shared],
+            hiddenListIds: ["ios", "doing"]
+        )
+        XCTAssertEqual(result.map { $0.id }, ["shared"])
+    }
+
+    /// Empty hiddenListIds — backwards-compatible behavior (existing
+    /// callers that haven't been updated still work).
+    func test_emptyHiddenListIds_matchesUnaryOverload() {
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let inbox = makeList(id: "inbox", name: "Inbox")
+        XCTAssertEqual(
+            chipListsForTaskRow([ios, inbox], hiddenListIds: []).map { $0.id },
+            chipListsForTaskRow([ios, inbox]).map { $0.id }
+        )
+    }
+
+    /// Unknown id in hiddenListIds — no-op, not an error.
+    func test_unknownHiddenIdIsNoOp() {
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let result = chipListsForTaskRow([ios], hiddenListIds: ["nonexistent"])
+        XCTAssertEqual(result.map { $0.id }, ["ios"])
+    }
 }

@@ -10,6 +10,10 @@ struct TaskRowView: View {
     var onCopy: (() -> Void)? = nil
     var isSelected: Bool = false
     var compactMode: Bool = false  // When true, truncate title to single line (used when details panel is visible)
+    /// List ids the surrounding view already conveys (current list,
+    /// current board column's status list, etc.) — filtered out of
+    /// the chip set so the row doesn't surface redundant noise.
+    var hiddenListIds: Set<String> = []
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
@@ -156,9 +160,14 @@ struct TaskRowView: View {
                     )
 
                 // Combined metadata row: date first (left), then lists - matching web
-                // Show row if task has lists (via listIds) OR has due date
-                // Use taskHasLists to detect lists early (before full list objects load)
-                if taskHasLists || (task.dueDateTime != nil && !isPublicListTask) {
+                // Drop the row entirely when there's nothing useful to show
+                // (no chips after context-filtering AND no due date). Without
+                // this, a task whose only list IS the currently-viewed list
+                // would leave an empty metadata strip beneath the title and
+                // the title wouldn't vertically center in the row.
+                let chipLists = chipListsForTaskRow(task.lists, hiddenListIds: hiddenListIds)
+                let hasDateToShow = task.dueDateTime != nil && !isPublicListTask
+                if !chipLists.isEmpty || hasDateToShow {
                     HStack(spacing: Theme.spacing8) {
                         // Date/Time (left side, plain text) - hide for public list tasks
                         // Use dueDateTime + isAllDay to determine display
@@ -182,7 +191,6 @@ struct TaskRowView: View {
                         // Status lists ("Ready"/"Doing"/"Waiting") are filtered out so the
                         // regular project list survives `prefix(2)`; status only makes sense
                         // inside the board view, not the flat list.
-                        let chipLists = chipListsForTaskRow(task.lists)
                         if !chipLists.isEmpty {
                             HStack(spacing: 4) {
                                 ForEach(chipLists.prefix(2)) { list in

@@ -13,7 +13,20 @@ import Foundation
 
 /// Returns the lists worth surfacing as chips on a flat task row:
 /// every regular list, in original order, with status lists removed.
-func chipListsForTaskRow(_ lists: [TaskList]?) -> [TaskList] {
+///
+/// `hiddenListIds` are list ids the surrounding view already conveys
+/// to the user — they'd appear as redundant noise in chip form.
+/// Examples:
+///   - In the LIST view: the list currently being viewed.
+///   - In the BOARD view: the project's domain list (the whole board
+///     is already inside that list) AND the current column's status
+///     list (the column header already says "Doing").
+///
+/// Pure / synchronous: just an array filter. No rendering delay.
+func chipListsForTaskRow(_ lists: [TaskList]?,
+                         hiddenListIds: Set<String> = []) -> [TaskList] {
     guard let lists = lists else { return [] }
-    return lists.filter { $0.listType != "status" }
+    return lists.filter { list in
+        list.listType != "status" && !hiddenListIds.contains(list.id)
+    }
 }
