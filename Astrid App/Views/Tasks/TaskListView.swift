@@ -742,7 +742,8 @@ struct TaskListView: View {
                         showingCopySheet = true
                     },
                     isSelected: selectedTaskForPanel?.id == task.id,
-                    compactMode: UIDevice.current.userInterfaceIdiom == .pad  // Always truncate on iPad
+                    compactMode: UIDevice.current.userInterfaceIdiom == .pad,  // Always truncate on iPad
+                    hiddenListIds: rowHiddenListIds
                 )
                 .listRowBackground(getPrimaryBackground())
                 .listRowSeparator(.hidden)  // Hide separator for card effect
@@ -1026,6 +1027,18 @@ struct TaskListView: View {
     }
 
     /// Check if manual sorting is enabled for the current list
+    /// List ids to hide as chips on each task row — namely the list
+    /// the user is currently viewing. Virtual lists (`my-tasks`,
+    /// `search`, featured) don't have a meaningful id to hide.
+    private var rowHiddenListIds: Set<String> {
+        guard let listId = selectedListId,
+              !["my-tasks", "search", "shared", "favorites"].contains(listId),
+              !isViewingFromFeatured else {
+            return []
+        }
+        return [listId]
+    }
+
     private var isManualSortEnabled: Bool {
         // Handle My Tasks separately
         if selectedListId == "my-tasks" {

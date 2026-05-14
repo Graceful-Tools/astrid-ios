@@ -13,6 +13,11 @@ import SwiftUI
 /// instead — no observation is needed (the parent already observes).
 struct BoardTaskCardView: View {
     let task: Task
+    /// List ids the board context already conveys (the project's
+    /// domain list + this column's status list) — filtered out of the
+    /// row's chip set so cards don't show "iOS To-do / Doing" when
+    /// the column header is "Doing" inside the iOS project's board.
+    var hiddenListIds: Set<String> = []
 
     var body: some View {
         TaskRowView(
@@ -30,7 +35,8 @@ struct BoardTaskCardView: View {
                     }
                 }
             },
-            compactMode: true
+            compactMode: true,
+            hiddenListIds: hiddenListIds
         )
         .padding(8)
         .background(

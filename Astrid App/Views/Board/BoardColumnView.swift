@@ -59,6 +59,17 @@ struct BoardColumnView: View {
         return [statusList.id]
     }
 
+    /// List ids the board context already conveys on each card:
+    /// the project's domain list (the whole board lives inside it)
+    /// plus this column's status list (the column header IS the
+    /// status name). Hidden from chip rendering on each row.
+    private var rowHiddenListIds: Set<String> {
+        var ids: Set<String> = []
+        if let domainListId = selectedList?.id { ids.insert(domainListId) }
+        if let statusList = column.statusList { ids.insert(statusList.id) }
+        return ids
+    }
+
     private var shouldShowFooter: Bool {
         column.kind != .done && selectedList != nil
     }
@@ -162,7 +173,7 @@ struct BoardColumnView: View {
                     .transition(.scale.combined(with: .opacity))
             }
 
-            BoardTaskCardView(task: task)
+            BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds)
                 .draggable(BoardCardPayload(taskId: task.id)) {
                     Text(task.title)
                         .font(.body)
