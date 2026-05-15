@@ -234,9 +234,49 @@ struct CreateCommentRequest: Codable {
 
 // MARK: - Response DTOs
 
+/// Lossy element wrapper: decoding never throws (even on a broken
+/// element), so the surrounding array decode advances normally and
+/// preserves every element that DID decode.
+private struct FailableDecodable<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.value = try? container.decode(T.self)
+    }
+}
+
 struct TasksResponse: Codable {
     var tasks: [Task]
     var meta: TasksResponseMeta?
+
+    enum CodingKeys: String, CodingKey { case tasks, meta }
+
+    init(tasks: [Task], meta: TasksResponseMeta? = nil) {
+        self.tasks = tasks
+        self.meta = meta
+    }
+
+    /// Resilient array decode: a single bad task (unknown enum value,
+    /// missing required field, schema drift) MUST NOT brick the
+    /// entire response. One task with `priority: 4` returning 0 tasks
+    /// total was the original bug — see TaskDecodingTests.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.meta = try container.decodeIfPresent(TasksResponseMeta.self, forKey: .meta)
+        let failable = try container.decode([FailableDecodable<Task>].self, forKey: .tasks)
+        let total = failable.count
+        let kept = failable.compactMap { $0.value }
+        if kept.count < total {
+            print("⚠️ [TasksResponse] Dropped \(total - kept.count) un-decodable task(s) out of \(total)")
+        }
+        self.tasks = kept
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(tasks, forKey: .tasks)
+        try container.encodeIfPresent(meta, forKey: .meta)
+    }
 }
 
 struct TasksResponseMeta: Codable {

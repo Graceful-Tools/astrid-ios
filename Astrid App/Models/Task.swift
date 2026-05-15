@@ -38,7 +38,24 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         case low = 1
         case medium = 2
         case high = 3
-        
+
+        /// Lenient decode: the server is permissive (Prisma schema has
+        /// no cap on `priority`), and 2 prod tasks for jonparis@gmail.com
+        /// were observed with `priority: 4`. Swift's default rawValue
+        /// decode would throw on those, which fails the WHOLE tasks
+        /// array decode and silently breaks sync. Unknown values fall
+        /// back to `.none` so the task stays usable.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(Int.self)
+            self = Priority(rawValue: raw) ?? .none
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(rawValue)
+        }
+
         var displayName: String {
             switch self {
             case .none: return "None"
