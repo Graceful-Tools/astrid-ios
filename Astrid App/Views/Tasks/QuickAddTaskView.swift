@@ -1,5 +1,29 @@
 import SwiftUI
 
+/// Outer chrome for QuickAddTaskView.
+///
+/// Default (list view): a floating rounded card with a lift shadow and
+/// an 8pt side margin.
+///
+/// Board footer: flush — no corner radius, no shadow, no side margin —
+/// so the bar spans the full column width and sits flat against the
+/// column's bottom edge. The column's own `.clipShape` rounds the
+/// bottom corners.
+private struct QuickAddOuterChrome: ViewModifier {
+    let boardFooterStyle: Bool
+    func body(content: Content) -> some View {
+        if boardFooterStyle {
+            content
+        } else {
+            content
+                .cornerRadius(Theme.radiusLarge)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
+                .padding(.horizontal, 8)  // Match task row horizontal margins
+                .padding(.bottom, 0)      // Sit at bottom, SwiftUI handles keyboard avoidance
+        }
+    }
+}
+
 /// Quick add task view fixed at bottom (matching mobile web)
 /// Allows adding multiple tasks in a row
 struct QuickAddTaskView: View {
@@ -17,6 +41,11 @@ struct QuickAddTaskView: View {
     /// the Doing status list. Defaults to empty so non-board callers
     /// keep their existing behavior.
     var additionalListIds: [String] = []
+    /// When true, render as a flush board-column footer: full column
+    /// width, no rounded card / shadow / side margin, and the inner
+    /// content inset to 24pt so the add-task checkbox lines up with
+    /// the task cards' checkboxes (8pt column inset + 16pt row inset).
+    var boardFooterStyle: Bool = false
 
     @State private var taskTitle = ""
     @FocusState private var isFocused: Bool
@@ -117,13 +146,13 @@ struct QuickAddTaskView: View {
             .disabled(taskTitle.isEmpty)
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, Theme.spacing16)
+        // Board footer aligns its checkbox with the task cards: cards
+        // are inset 8pt (column LazyVStack) + 16pt (row) = 24pt, so the
+        // footer's inner inset is 24pt. List view keeps the 16pt inset.
+        .padding(.horizontal, boardFooterStyle ? Theme.spacing24 : Theme.spacing16)
         .padding(.vertical, Theme.spacing12)
         .background(containerBackground)
-        .cornerRadius(Theme.radiusLarge)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
-        .padding(.horizontal, 8)  // Match task row horizontal margins
-        .padding(.bottom, 0)  // Sit at bottom, SwiftUI handles keyboard avoidance
+        .modifier(QuickAddOuterChrome(boardFooterStyle: boardFooterStyle))
         .simultaneousGesture(
             DragGesture().onChanged { value in
                 if value.translation.height > 10 {
