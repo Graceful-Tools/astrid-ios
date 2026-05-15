@@ -177,6 +177,15 @@ struct BoardColumnView: View {
             }
 
             BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds)
+                // Tap opens the task detail — same as tapping a row in
+                // the flat list. Routed through the global TaskPresenter,
+                // which TaskListView (the board's host) already wires up
+                // via `.withTaskPresentation()`. The checkbox Button
+                // inside the card intercepts its own taps first, so a
+                // completion toggle doesn't also open the detail.
+                .onTapGesture {
+                    TaskPresenter.shared.showTask(task)
+                }
                 .draggable(BoardCardPayload(taskId: task.id)) {
                     Text(task.title)
                         .font(.body)
