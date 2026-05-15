@@ -200,6 +200,13 @@ struct BoardColumnView: View {
         }
     }
 
+    /// Empty-column placeholder message. Reuses the same Astrid
+    /// empty-state copy the flat list view shows so the board and the
+    /// list feel like the same app.
+    private var emptyColumnMessage: String {
+        NSLocalizedString("empty_state.default", comment: "")
+    }
+
     /// Drop slot at the bottom of the column for "append at end" drops.
     @ViewBuilder
     private var appendSlot: some View {
@@ -213,13 +220,14 @@ struct BoardColumnView: View {
                     .transition(.scale.combined(with: .opacity))
             }
             if displayedTasks.isEmpty && hoveringIndex == nil {
-                Text("No tasks")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 16)
+                // Same EmptyStateView (Astrid + speech bubble) the flat
+                // list view uses — board columns get the same friendly
+                // empty state instead of a bare "No tasks" label.
+                EmptyStateView(message: emptyColumnMessage)
+                    .padding(.vertical, 8)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: displayedTasks.isEmpty ? 80 : 24)
+        .frame(maxWidth: .infinity, minHeight: displayedTasks.isEmpty ? 260 : 24)
         .contentShape(Rectangle())
         .dropDestination(for: BoardCardPayload.self) { items, _ in
             guard let payload = items.first else { return false }
