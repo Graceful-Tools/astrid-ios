@@ -1,5 +1,23 @@
 import SwiftUI
 
+/// Applies `.refreshable` only when `isEnabled` — `.refreshable`
+/// returns an opaque type, so it can't be toggled with a plain
+/// ternary. Used to suppress pull-to-refresh in board mode, where an
+/// inherited refresh control caused a vertical bounce while swiping
+/// between columns.
+private struct ConditionalRefreshable: ViewModifier {
+    let isEnabled: Bool
+    let action: () async -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.refreshable { await action() }
+        } else {
+            content
+        }
+    }
+}
+
 struct TaskListView: View {
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("themeMode") private var themeMode: String = "ocean"
@@ -610,14 +628,17 @@ struct TaskListView: View {
                 }
             }
         }
-        .refreshable {
+        // Pull-to-refresh is suppressed in board mode: the column
+        // carousel owns vertical drags, and an inherited `.refreshable`
+        // caused a vertical bounce while swiping between columns.
+        .modifier(ConditionalRefreshable(isEnabled: taskViewMode != .board) {
             do {
                 try await loadData()
             } catch {
                 print("❌ [TaskListView] Failed to refresh data: \(error)")
                 // Errors on refresh are less critical, don't show to user
             }
-        }
+        })
         .onChange(of: isViewingFromFeatured) { _, newValue in
             if newValue, let listId = selectedListId {
                 _Concurrency.Task {
