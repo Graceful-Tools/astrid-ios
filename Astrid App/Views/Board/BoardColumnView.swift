@@ -115,12 +115,13 @@ struct BoardColumnView: View {
 
             if shouldShowFooter {
                 Divider()
+                // Flush footer: full column width, no outer margin, so
+                // its checkbox lines up with the task-card checkboxes.
                 QuickAddTaskView(
                     selectedList: selectedList,
-                    additionalListIds: footerStatusListIds
+                    additionalListIds: footerStatusListIds,
+                    boardFooterStyle: true
                 )
-                .padding(.horizontal, 4)
-                .padding(.vertical, 4)
             }
         }
         .background(
