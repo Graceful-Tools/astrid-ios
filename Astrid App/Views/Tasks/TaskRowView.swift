@@ -14,6 +14,10 @@ struct TaskRowView: View {
     /// current board column's status list, etc.) — filtered out of
     /// the chip set so the row doesn't surface redundant noise.
     var hiddenListIds: Set<String> = []
+    /// When true, the row draws NO background / border / clip — the
+    /// host (e.g. a board card) provides the single card chrome.
+    /// Without this a board card showed two nested borders.
+    var embeddedInCard: Bool = false
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
@@ -245,9 +249,13 @@ struct TaskRowView: View {
         .padding(.horizontal, Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
         .background(
-            // Main card background + selection arrow for iPad
+            // Main card background + selection arrow for iPad.
+            // Suppressed when embedded in a board card — the host
+            // supplies the single card background there.
             ZStack(alignment: .trailing) {
-                cardBackground
+                if !embeddedInCard {
+                    cardBackground
+                }
 
                 // Arrow indicator pointing to task details (iPad only, when selected)
                 if isSelected && UIDevice.current.userInterfaceIdiom == .pad {
@@ -258,12 +266,13 @@ struct TaskRowView: View {
         )
         .contentShape(Rectangle())
         .overlay(
-            // Card border with rounded corners
+            // Card border with rounded corners. Suppressed when
+            // embedded in a board card so there's just ONE border.
             RoundedRectangle(cornerRadius: 8)
                 .stroke(
-                    isSelected
-                        ? Color.blue.opacity(0.5)
-                        : getBorderColor(),
+                    embeddedInCard
+                        ? Color.clear
+                        : (isSelected ? Color.blue.opacity(0.5) : getBorderColor()),
                     lineWidth: isSelected ? 2 : 0.5
                 )
         )

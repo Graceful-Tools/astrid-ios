@@ -127,6 +127,9 @@ struct BoardColumnView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(columnBackgroundColor)
         )
+        // Clip so the header strip's (square-cornered) background fill
+        // is trimmed to the column's rounded top corners.
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isTargeted ? Color.accentColor : columnBorderColor,
@@ -264,6 +267,33 @@ struct BoardColumnView: View {
         onDropAt(payload, index)
     }
 
+    /// Header strip fill. Ocean's column body is the cyan page colour,
+    /// so the header needs a distinct fill to read as a header row —
+    /// white, matching the card treatment. Dark/light use the theme's
+    /// secondary surface.
+    private var headerBackgroundColor: Color {
+        switch effectiveTheme {
+        case "ocean": return Color.white.opacity(0.8)
+        case "dark":  return Theme.Dark.bgSecondary
+        default:      return Theme.bgSecondary
+        }
+    }
+
+    /// Task-count pill — same treatment as the list count badge in the
+    /// left sidebar (`ListRowView`): caption text in a soft capsule.
+    @ViewBuilder
+    private var countBadge: some View {
+        Text("\(displayedTasks.count)")
+            .font(Theme.Typography.caption1())
+            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            .padding(.horizontal, Theme.spacing8)
+            .padding(.vertical, Theme.spacing4)
+            .background(
+                Capsule()
+                    .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
+            )
+    }
+
     @ViewBuilder
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -271,9 +301,7 @@ struct BoardColumnView: View {
                 Text(column.name)
                     .font(.headline)
                 Spacer()
-                Text("\(displayedTasks.count)")
-                    .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                countBadge
             }
             if !column.description.isEmpty {
                 Text(column.description)
@@ -284,6 +312,8 @@ struct BoardColumnView: View {
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(headerBackgroundColor)
     }
 }
