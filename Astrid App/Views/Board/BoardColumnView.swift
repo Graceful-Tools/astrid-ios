@@ -132,9 +132,10 @@ struct BoardColumnView: View {
         // is trimmed to the column's rounded top corners.
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
+            // Thick side walls give the column a defined "column" look.
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isTargeted ? Color.accentColor : columnBorderColor,
-                        lineWidth: isTargeted ? 2 : 1)
+                        lineWidth: isTargeted ? 5 : 4)
         )
         // Column-level drop is the fallback when a drag releases over
         // the header / footer chrome (above or below the cards). Defaults
