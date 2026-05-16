@@ -34,7 +34,13 @@ enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
         case date
     }
 
-    init(from decoder: Decoder) throws {
+    // `nonisolated` so the Codable conformance can be used from
+    // nonisolated contexts — notably CDTaskList's Core Data encode/
+    // decode. Under the project's default main-actor isolation a
+    // *custom* init(from:)/encode(to:) would otherwise be main-actor
+    // isolated (synthesized conformances are exempt; hand-written ones
+    // are not), which is an error in the Swift 6 language mode.
+    nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try container.decode(String.self, forKey: .kind)
         switch kind {
@@ -60,7 +66,7 @@ enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .duration(let amount, let unit):
