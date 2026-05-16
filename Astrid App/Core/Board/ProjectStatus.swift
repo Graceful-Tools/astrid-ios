@@ -415,3 +415,40 @@ func taskListMembershipIdsInOrder(_ task: Task) -> [String] {
     }
     return out
 }
+
+// MARK: - Board create / disable: local list-state mirroring
+
+/// Merge a project's seeded status lists into a list array. Idempotent
+/// — a status list already present (matched by id) is not duplicated;
+/// non-status lists in `statusLists` are ignored.
+///
+/// Used right after creating a board: `POST /api/v1/projects` seeds
+/// Ready/Doing/Waiting and returns them on the project, but they must
+/// be mirrored into `ListService.lists` or the board has no columns
+/// until the next full sync.
+func applyProjectStatusLists(_ lists: [TaskList], adding statusLists: [TaskList]) -> [TaskList] {
+    var result = lists
+    for statusList in statusLists where statusList.listType == "status" {
+        if !result.contains(where: { $0.id == statusList.id }) {
+            result.append(statusList)
+        }
+    }
+    return result
+}
+
+/// Mirror a project deletion onto a list array, matching the server's
+/// `DELETE /api/v1/projects/[id]` cascade: the project's status lists
+/// are removed, and its non-status (domain) lists are detached —
+/// `projectId` cleared, the list itself kept.
+///
+/// Used when disabling a board so the in-memory state is consistent
+/// immediately, without waiting for a full sync.
+func applyProjectDeletion(_ lists: [TaskList], deletedProjectId: String) -> [TaskList] {
+    lists.compactMap { list in
+        guard list.projectId == deletedProjectId else { return list }
+        if list.listType == "status" { return nil }  // status list — cascade-deleted
+        var detached = list
+        detached.projectId = nil                      // domain list — detached, kept
+        return detached
+    }
+}

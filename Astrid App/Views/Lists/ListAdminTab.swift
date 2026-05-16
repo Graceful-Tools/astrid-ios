@@ -491,6 +491,12 @@ struct ListAdminTab: View {
                 _ = try await ProjectService.shared.createBoardForList(list)
                 await MainActor.run {
                     boardOperationInFlight = false
+                    // createBoardForList set the list's projectId in
+                    // ListService; push the fresh list up so this tab
+                    // re-renders and the button flips to "Disable Board".
+                    if let fresh = ListService.shared.lists.first(where: { $0.id == list.id }) {
+                        onUpdate(fresh)
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -510,6 +516,12 @@ struct ListAdminTab: View {
                 _ = try await ProjectService.shared.deleteProject(id: projectId)
                 await MainActor.run {
                     boardOperationInFlight = false
+                    // deleteProject detached the list in ListService;
+                    // push the fresh (projectId-cleared) list up so the
+                    // button flips back to "Create Board".
+                    if let fresh = ListService.shared.lists.first(where: { $0.id == list.id }) {
+                        onUpdate(fresh)
+                    }
                 }
             } catch {
                 await MainActor.run {

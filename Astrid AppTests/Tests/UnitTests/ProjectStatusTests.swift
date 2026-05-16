@@ -553,4 +553,83 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertEqual(result.map { $0.id }, ["t-both"])
     }
 
+    // MARK: - Board create / disable: local list-state mirroring
+    //
+    // Context: 2026-05-16 user report — "Create Board" from list
+    // settings on mobile didn't visibly work. The service persisted
+    // to the server but never mirrored the result into ListService's
+    // in-memory lists, so the board had no status columns and the
+    // settings button never flipped. These helpers do the mirroring.
+
+    /// Creating a board seeds Ready/Doing/Waiting status lists on the
+    /// server; the helper merges them into the in-memory list array so
+    /// the board's columns render before the next full sync.
+    func test_applyProjectStatusLists_addsSeededStatusLists() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let ready = makeList(id: "ready", name: "Ready", projectId: projectId,
+                             listType: "status", statusRole: "ready", statusOrder: 0)
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId,
+                             listType: "status", statusRole: "doing", statusOrder: 1)
+
+        let result = applyProjectStatusLists([ios], adding: [ready, doing])
+        XCTAssertEqual(Set(result.map { $0.id }), ["ios", "ready", "doing"])
+    }
+
+    /// Idempotent — a status list already present (by id) is not
+    /// duplicated when the helper runs again.
+    func test_applyProjectStatusLists_isIdempotent() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let ready = makeList(id: "ready", name: "Ready", projectId: projectId,
+                             listType: "status", statusRole: "ready")
+
+        let once = applyProjectStatusLists([ios], adding: [ready])
+        let twice = applyProjectStatusLists(once, adding: [ready])
+        XCTAssertEqual(once.map { $0.id }, twice.map { $0.id })
+        XCTAssertEqual(twice.filter { $0.id == "ready" }.count, 1)
+    }
+
+    /// Non-status lists in the `adding` set are ignored — the helper
+    /// only merges in actual status lists.
+    func test_applyProjectStatusLists_ignoresNonStatusLists() {
+        let ios = makeList(id: "ios", name: "iOS", projectId: "p-1", listType: "regular")
+        let other = makeList(id: "other", name: "Other", projectId: "p-1", listType: "regular")
+        let result = applyProjectStatusLists([ios], adding: [other])
+        XCTAssertEqual(result.map { $0.id }, ["ios"])
+    }
+
+    /// Disabling a board deletes the project: its status lists must be
+    /// removed from the in-memory list array, and its domain (regular)
+    /// list detached — projectId cleared, the list itself kept.
+    func test_applyProjectDeletion_dropsStatusLists_detachesDomainList() {
+        let projectId = "p-1"
+        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
+        let ready = makeList(id: "ready", name: "Ready", projectId: projectId,
+                             listType: "status", statusRole: "ready")
+        let doing = makeList(id: "doing", name: "Doing", projectId: projectId,
+                             listType: "status", statusRole: "doing")
+
+        let result = applyProjectDeletion([ios, ready, doing], deletedProjectId: projectId)
+        XCTAssertEqual(result.map { $0.id }, ["ios"],
+                       "Status lists removed, domain list kept")
+        XCTAssertNil(result.first { $0.id == "ios" }?.projectId,
+                     "Domain list detached — projectId cleared")
+    }
+
+    /// Lists belonging to OTHER projects (or no project) are untouched.
+    func test_applyProjectDeletion_leavesOtherProjectsListsAlone() {
+        let groceries = makeList(id: "groc", name: "Groceries", listType: "regular")
+        let otherDomain = makeList(id: "od", name: "Other", projectId: "p-2", listType: "regular")
+        let otherStatus = makeList(id: "os", name: "Doing", projectId: "p-2", listType: "status")
+        let deadStatus = makeList(id: "ds", name: "Doing", projectId: "p-1", listType: "status")
+
+        let result = applyProjectDeletion(
+            [groceries, otherDomain, otherStatus, deadStatus],
+            deletedProjectId: "p-1"
+        )
+        XCTAssertEqual(result.map { $0.id }, ["groc", "od", "os"])
+        XCTAssertEqual(result.first { $0.id == "od" }?.projectId, "p-2")
+        XCTAssertNil(result.first { $0.id == "groc" }?.projectId)
+    }
 }

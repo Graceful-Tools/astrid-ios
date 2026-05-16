@@ -155,18 +155,32 @@ class ProjectService: ObservableObject {
         if let idx = ListService.shared.lists.firstIndex(where: { $0.id == updatedList.id }) {
             ListService.shared.lists[idx] = updatedList
         }
+        // Also mirror the project's seeded status lists (Ready / Doing /
+        // Waiting) — without this the board has no columns until the
+        // next full sync, which reads as "Create Board didn't work".
+        ListService.shared.lists = applyProjectStatusLists(
+            ListService.shared.lists,
+            adding: project.lists ?? []
+        )
         projects.insert(project, at: 0)
         saveProjectToCoreData(project, syncStatus: "synced")
         return project
     }
 
     /// Delete a project (owner only). On success, remove it from the
-    /// in-memory cache and Core Data, and detach its domain lists.
+    /// in-memory cache and Core Data, and mirror the server's cascade
+    /// onto ListService: drop the project's status lists and detach
+    /// its domain list(s). Without this the board's columns linger and
+    /// the list keeps a stale `projectId` until the next full sync.
     @discardableResult
     func deleteProject(id: String) async throws -> DeleteProjectResponse {
         let response = try await apiClient.deleteProject(id: id)
         projects.removeAll { $0.id == id }
         deleteProjectFromCoreData(id)
+        ListService.shared.lists = applyProjectDeletion(
+            ListService.shared.lists,
+            deletedProjectId: id
+        )
         return response
     }
 
