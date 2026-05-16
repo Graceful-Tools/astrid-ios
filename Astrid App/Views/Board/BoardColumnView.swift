@@ -57,7 +57,7 @@ struct BoardColumnView: View {
     private var frameColor: Color {
         switch effectiveTheme {
         case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgTertiary
+        case "dark":  return Theme.Dark.headerBg
         default:      return Theme.bgPrimary
         }
     }
