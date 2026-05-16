@@ -246,7 +246,9 @@ struct TaskRowView: View {
             Spacer()
         }
         .padding(.vertical, 14)  // Vertical padding (14pt top + 14pt bottom, reduced by half margin)
-        .padding(.horizontal, Theme.spacing16)
+        // Board cards trim 2pt off each side vs the list view so the
+        // thicker column walls read more like columns.
+        .padding(.horizontal, embeddedInCard ? 14 : Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
         .background(
             // Main card background + selection arrow for iPad.

@@ -147,9 +147,9 @@ struct QuickAddTaskView: View {
             .buttonStyle(.plain)
         }
         // Board footer aligns its checkbox with the task cards: cards
-        // are inset 8pt (column LazyVStack) + 16pt (row) = 24pt, so the
-        // footer's inner inset is 24pt. List view keeps the 16pt inset.
-        .padding(.horizontal, boardFooterStyle ? Theme.spacing24 : Theme.spacing16)
+        // sit at 8pt (column LazyVStack) + 14pt (row) = 22pt, so the
+        // footer's inner inset is 22pt. List view keeps the 16pt inset.
+        .padding(.horizontal, boardFooterStyle ? 22 : Theme.spacing16)
         .padding(.vertical, Theme.spacing12)
         .background(containerBackground)
         .modifier(QuickAddOuterChrome(boardFooterStyle: boardFooterStyle))
