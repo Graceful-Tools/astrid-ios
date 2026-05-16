@@ -47,21 +47,31 @@ struct BoardColumnView: View {
     /// The column's "frame" surface — the rounded outer rectangle. The
     /// header strip, the side borders and the add-task footer are all
     /// just this one colour showing through, so the frame reads as a
-    /// single continuous surface (no translucent layers stacking, which
-    /// made the old overlay border look whiter than the chrome).
+    /// single continuous surface.
+    ///
+    /// This is the *elevated* tier — it matches the card surface, and
+    /// contrasts with the recessed `interiorColor` well. (Ocean already
+    /// worked this way: white frame, cyan well.) On dark/light the
+    /// frame previously sat one tier off the interior, which was barely
+    /// distinguishable.
     private var frameColor: Color {
         switch effectiveTheme {
         case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgSecondary
-        default:      return Theme.bgSecondary
+        case "dark":  return Theme.Dark.bgTertiary
+        default:      return Theme.bgPrimary
         }
     }
 
-    /// The page-coloured interior behind the cards, inset from the
-    /// frame by `columnBorderWidth` on the left and right.
+    /// The recessed interior "well" behind the cards, inset from the
+    /// frame by `columnBorderWidth` on the left and right. A distinct
+    /// tier from the frame/card surface so cards and borders are
+    /// clearly visible against it.
     private var interiorColor: Color {
-        if effectiveTheme == "ocean" { return Theme.Ocean.bgPrimary }
-        return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
+        switch effectiveTheme {
+        case "ocean": return Theme.Ocean.bgPrimary
+        case "dark":  return Theme.Dark.bgPrimary
+        default:      return Theme.bgTertiary
+        }
     }
 
     /// Width of the white side border between the column edge and the
