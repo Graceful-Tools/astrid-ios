@@ -38,7 +38,7 @@ struct ProjectStatusBoardView: View {
     @State private var visibleColumnId: String?
 
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists, projectId: projectId)
+        getProjectBoardColumns(listService.lists)
     }
 
     /// The project's regular (domain) list. Cached lookup so the per-
