@@ -245,9 +245,10 @@ struct TaskRowView: View {
 
             Spacer()
         }
-        .padding(.vertical, 14)  // Vertical padding (14pt top + 14pt bottom, reduced by half margin)
-        // Board cards run a tighter horizontal inset than the list
-        // view so the cards read as narrower "column" cards.
+        // Board cards use an even 12pt inset on all four sides so the
+        // content's top/bottom breathing room matches its left/right.
+        // The list view keeps 14pt vertical / 16pt horizontal.
+        .padding(.vertical, embeddedInCard ? 12 : 14)
         .padding(.horizontal, embeddedInCard ? 12 : Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
         .background(
