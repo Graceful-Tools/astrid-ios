@@ -49,11 +49,6 @@ struct BoardColumnView: View {
         return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
     }
 
-    private var columnBorderColor: Color {
-        if effectiveTheme == "ocean" { return Color.white.opacity(0.5) }
-        return effectiveTheme == "dark" ? Theme.Dark.border : Theme.border
-    }
-
     private var footerStatusListIds: [String] {
         guard column.kind == .status, let statusList = column.statusList else { return [] }
         return [statusList.id]
@@ -132,10 +127,17 @@ struct BoardColumnView: View {
         // is trimmed to the column's rounded top corners.
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            // Thick side walls give the column a defined "column" look.
+            // Side walls give the column a defined "column" look.
+            // `strokeBorder` (not `stroke`) draws the line INSIDE the
+            // rounded-rect path, so the border's outer edge sits flush
+            // with the column edge — aligned with the header strip and
+            // the add-task footer, which both fill to that same edge.
+            // The border colour matches the header / footer chrome so
+            // they read as one continuous frame, and the rounded
+            // corners are preserved.
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isTargeted ? Color.accentColor : columnBorderColor,
-                        lineWidth: isTargeted ? 5 : 4)
+                .strokeBorder(isTargeted ? Color.accentColor : headerBackgroundColor,
+                              lineWidth: isTargeted ? 4 : 3)
         )
         // Column-level drop is the fallback when a drag releases over
         // the header / footer chrome (above or below the cards). Defaults
