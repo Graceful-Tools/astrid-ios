@@ -66,12 +66,16 @@ func isLegacyInboxStatusList(_ list: TaskList?) -> Bool {
 
 // MARK: - Column derivation
 
-/// Returns the project's real status lists in display order, excluding
-/// any legacy Inbox/Done lists (the board renders virtual columns for those).
-func getProjectStatusLists(_ lists: [TaskList], projectId: String) -> [TaskList] {
+/// Returns the user's real status lists in display order, excluding any
+/// legacy Inbox/Done lists (the board renders virtual columns for those).
+///
+/// Status lists are per-user globals — one Ready/Doing/Waiting set shared
+/// across every project board, not duplicated per project. This therefore
+/// takes no project id; every board renders the same status columns.
+func getProjectStatusLists(_ lists: [TaskList]) -> [TaskList] {
     let intMax = Int.max
     return lists
-        .filter { $0.projectId == projectId && isProjectStatusList($0) }
+        .filter { isProjectStatusList($0) }
         .filter { !isLegacyDoneStatusList($0) && !isLegacyInboxStatusList($0) }
         .sorted { a, b in
             let aOrder = a.statusOrder ?? intMax
@@ -82,7 +86,7 @@ func getProjectStatusLists(_ lists: [TaskList], projectId: String) -> [TaskList]
 }
 
 /// Build the ordered board columns: [virtual Inbox, ...real statuses, virtual Done].
-func getProjectBoardColumns(_ lists: [TaskList], projectId: String) -> [ProjectBoardColumn] {
+func getProjectBoardColumns(_ lists: [TaskList]) -> [ProjectBoardColumn] {
     var result: [ProjectBoardColumn] = [
         ProjectBoardColumn(
             id: VIRTUAL_INBOX_COLUMN_ID,
@@ -92,7 +96,7 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String) -> [ProjectB
             statusList: nil
         )
     ]
-    for status in getProjectStatusLists(lists, projectId: projectId) {
+    for status in getProjectStatusLists(lists) {
         let description = status.statusDescription
             ?? status.description
             ?? ""
@@ -124,10 +128,10 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String) -> [ProjectB
 /// Reads both `task.lists` (full join, present after a fresh fetch) and
 /// `task.listIds` (compact form, present after a Core Data load). Either
 /// is sufficient to assign a column.
-func getTaskProjectColumnId(_ task: Task, projectId: String, lists: [TaskList]) -> String {
+func getTaskProjectColumnId(_ task: Task, lists: [TaskList]) -> String {
     if task.completed { return VIRTUAL_DONE_COLUMN_ID }
 
-    let statusLists = getProjectStatusLists(lists, projectId: projectId)
+    let statusLists = getProjectStatusLists(lists)
     let taskListIds = taskListMembershipIds(task)
     if let explicit = statusLists.first(where: { taskListIds.contains($0.id) }) {
         return explicit.id
@@ -143,19 +147,18 @@ struct ProjectColumnMove: Equatable {
 }
 
 /// Compute the post-move task state when dragging a task onto a board column.
-///   inbox  → strip every project status from this project, completed=false
-///   done   → strip every project status from this project, completed=true
+///   inbox  → strip the (global) status, completed=false
+///   done   → strip the (global) status, completed=true
 ///   status → replace any existing status with the target, completed=false
 /// Regular (non-status) list memberships are preserved in all cases.
 func resolveProjectColumnMove(
     _ task: Task,
     targetColumn: ProjectBoardColumn,
-    projectId: String,
     lists: [TaskList]
 ) -> ProjectColumnMove {
     let projectStatusIds = Set(
         lists
-            .filter { $0.projectId == projectId && isProjectStatusList($0) }
+            .filter { isProjectStatusList($0) }
             .map { $0.id }
     )
     // Honor both `task.lists` (hydrated) AND `task.listIds` (cache). Without
@@ -186,46 +189,43 @@ struct NormalizedProjectStatusListIds: Equatable {
 /// Mirrors the web's `normalizeProjectStatusListIds`. The server enforces
 /// this; iOS only uses it for optimistic-state computations so the UI
 /// can preview the same outcome before the network round-trip.
+///
+/// Status is a single per-user global concept, so a task has at most one
+/// status list total (not one per project).
 func normalizeProjectStatusListIds(
     requestedListIds: [String],
     knownLists: [TaskList],
     completed: Bool? = nil
 ) -> NormalizedProjectStatusListIds {
-    let statusLists = knownLists.filter(isProjectStatusList)
-    let statusById = Dictionary(uniqueKeysWithValues: statusLists.map { ($0.id, $0) })
-    let allStatusIds = Set(statusById.keys)
+    let allStatusIds = Set(knownLists.filter(isProjectStatusList).map { $0.id })
 
-    // Task being marked done → drop every project status.
+    func orderedUnique(_ ids: [String]) -> [String] {
+        Array(NSOrderedSet(array: ids)) as? [String] ?? []
+    }
+
+    // Task being marked done → drop every status membership.
     if completed == true {
-        let filtered = Array(NSOrderedSet(array: requestedListIds.filter { !allStatusIds.contains($0) })) as? [String] ?? []
-        return NormalizedProjectStatusListIds(listIds: filtered, completedFromStatus: nil)
+        return NormalizedProjectStatusListIds(
+            listIds: orderedUnique(requestedListIds.filter { !allStatusIds.contains($0) }),
+            completedFromStatus: nil
+        )
     }
 
-    var selectedStatusByProject: [String: TaskList] = [:]
-    for listId in requestedListIds {
-        if let status = statusById[listId], let projectId = status.projectId {
-            selectedStatusByProject[projectId] = status
-        }
+    let statusInRequest = requestedListIds.filter { allStatusIds.contains($0) }
+    if statusInRequest.isEmpty {
+        return NormalizedProjectStatusListIds(
+            listIds: orderedUnique(requestedListIds),
+            completedFromStatus: nil
+        )
     }
 
-    if selectedStatusByProject.isEmpty {
-        let deduped = Array(NSOrderedSet(array: requestedListIds)) as? [String] ?? []
-        return NormalizedProjectStatusListIds(listIds: deduped, completedFromStatus: nil)
-    }
-
-    var affectedStatusIds = Set<String>()
-    for projectId in selectedStatusByProject.keys {
-        for list in knownLists where list.projectId == projectId && isProjectStatusList(list) {
-            affectedStatusIds.insert(list.id)
-        }
-    }
-
-    var result = requestedListIds.filter { !affectedStatusIds.contains($0) }
-    for status in selectedStatusByProject.values {
-        result.append(status.id)
-    }
-    let deduped = Array(NSOrderedSet(array: result)) as? [String] ?? []
-    return NormalizedProjectStatusListIds(listIds: deduped, completedFromStatus: false)
+    // Keep at most one status list — the last one in the request wins.
+    let winningStatus = statusInRequest[statusInRequest.count - 1]
+    let nonStatus = requestedListIds.filter { !allStatusIds.contains($0) }
+    return NormalizedProjectStatusListIds(
+        listIds: orderedUnique(nonStatus + [winningStatus]),
+        completedFromStatus: false
+    )
 }
 
 // MARK: - Project domain tasks
@@ -245,7 +245,7 @@ func boardColumnTasksSorted(
     manualOrder: [String]?
 ) -> [Task] {
     let inColumn = allTasks.filter { task in
-        getTaskProjectColumnId(task, projectId: projectId, lists: lists) == column.id
+        getTaskProjectColumnId(task, lists: lists) == column.id
     }
     let domain = getProjectDomainTasks(inColumn, lists: lists, projectId: projectId)
     guard let manualOrder = manualOrder, !manualOrder.isEmpty else {
@@ -296,7 +296,6 @@ func resolveBoardReorder(
     let move = resolveProjectColumnMove(
         task,
         targetColumn: targetColumn,
-        projectId: projectId,
         lists: lists
     )
 
@@ -351,9 +350,8 @@ func resolveBoardReorder(
 /// because the optimistic update re-rendered.
 func isTaskAlreadyInColumn(_ task: Task,
                            targetColumn: ProjectBoardColumn,
-                           projectId: String,
                            lists: [TaskList]) -> Bool {
-    getTaskProjectColumnId(task, projectId: projectId, lists: lists) == targetColumn.id
+    getTaskProjectColumnId(task, lists: lists) == targetColumn.id
 }
 
 /// Decide how many board columns to fit side-by-side based on the
@@ -437,16 +435,17 @@ func applyProjectStatusLists(_ lists: [TaskList], adding statusLists: [TaskList]
 }
 
 /// Mirror a project deletion onto a list array, matching the server's
-/// `DELETE /api/v1/projects/[id]` cascade: the project's status lists
-/// are removed, and its non-status (domain) lists are detached —
-/// `projectId` cleared, the list itself kept.
+/// `DELETE /api/v1/projects/[id]` cascade: the project's domain lists are
+/// detached — `projectId` cleared, the list itself kept.
+///
+/// Status lists are per-user globals (`projectId == nil`), shared across
+/// every board, so they are NOT touched by a project deletion.
 ///
 /// Used when disabling a board so the in-memory state is consistent
 /// immediately, without waiting for a full sync.
 func applyProjectDeletion(_ lists: [TaskList], deletedProjectId: String) -> [TaskList] {
-    lists.compactMap { list in
+    lists.map { list in
         guard list.projectId == deletedProjectId else { return list }
-        if list.listType == "status" { return nil }  // status list — cascade-deleted
         var detached = list
         detached.projectId = nil                      // domain list — detached, kept
         return detached
