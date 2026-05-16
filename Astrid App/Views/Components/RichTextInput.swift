@@ -418,10 +418,13 @@ struct RichTextInput: View {
     private var textColor: Color { isOceanTheme ? Theme.Ocean.textPrimary : effectiveTheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
     private var mutedTextColor: Color { isOceanTheme ? Theme.Ocean.textMuted : effectiveTheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
     private var placeholderColor: Color { isOceanTheme ? Color(UIColor.darkGray) : effectiveTheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
-    private var inputBackgroundColor: Color { effectiveTheme == .dark ? Theme.Dark.inputBg : Color.white }
+    // Dark: input field = header-bar tier, container chrome = board-frame
+    // tier — so the messages/comment composer matches the dark scheme
+    // used by the task list footer and the board.
+    private var inputBackgroundColor: Color { effectiveTheme == .dark ? Theme.Dark.headerBg : Color.white }
     private var inputBorderColor: Color { effectiveTheme == .dark ? Theme.Dark.inputBorder : Theme.Ocean.inputBorder }
     @ViewBuilder var containerBackground: some View {
         if effectiveTheme == .light { Rectangle().fill(Theme.LiquidGlass.secondaryGlassMaterial) } else { containerBackgroundColor }
     }
-    private var containerBackgroundColor: Color { effectiveTheme == .dark ? Theme.Dark.bgPrimary : Color.white.opacity(0.8) }
+    private var containerBackgroundColor: Color { effectiveTheme == .dark ? Theme.Dark.bgTertiary : Color.white.opacity(0.8) }
 }

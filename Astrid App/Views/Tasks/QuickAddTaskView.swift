@@ -348,9 +348,10 @@ struct QuickAddTaskView: View {
     }
 
     private var inputBackgroundColor: Color {
-        // White input in both ocean and light modes, dark theme uses its own
+        // Dark: the text field uses the header-bar tier so inputs read
+        // as the same surface as the floating header / list title.
         if effectiveTheme == .dark {
-            return Theme.Dark.inputBg
+            return Theme.Dark.headerBg
         }
         return Color.white  // White text input on silver container (light & ocean)
     }
@@ -381,9 +382,10 @@ struct QuickAddTaskView: View {
     }
 
     private var containerBackgroundColor: Color {
-        // 20% transparent white container in ocean mode (matches task row transparency)
+        // Dark: the footer chrome uses the board-frame tier (bgTertiary)
+        // so the floating add-task card matches the board's chrome.
         if effectiveTheme == .dark {
-            return Theme.Dark.bgPrimary
+            return Theme.Dark.bgTertiary
         }
         return Color.white.opacity(0.8)  // 20% transparent white (light & ocean)
     }

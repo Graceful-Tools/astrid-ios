@@ -31,15 +31,14 @@ struct BoardTaskCardView: View {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
     }
 
-    /// Card fill — the *elevated* surface tier, matching the board
-    /// column frame and contrasting with the column's recessed
-    /// interior well. On dark/light the card previously used
-    /// `bgPrimary`, which was identical to the column interior — the
-    /// card was effectively invisible against its background.
+    /// Card fill. Dark mode uses the mid `bgSecondary` tier — darker
+    /// than the board frame (`bgTertiary`) so the card recedes against
+    /// the chrome, still above the deep `bgPrimary` interior well. The
+    /// card's own separator stroke carries the edge definition.
     private var cardBackgroundColor: Color {
         switch effectiveTheme {
         case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgTertiary
+        case "dark":  return Theme.Dark.bgSecondary
         default:      return Theme.bgPrimary
         }
     }
