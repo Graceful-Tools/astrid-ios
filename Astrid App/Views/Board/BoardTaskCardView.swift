@@ -31,13 +31,15 @@ struct BoardTaskCardView: View {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
     }
 
-    /// Card fill — matches the flat list's task-row background per
-    /// theme. On Ocean that's a translucent white (the cyan page
-    /// shows through subtly), NOT pure `systemBackground`.
+    /// Card fill — the *elevated* surface tier, matching the board
+    /// column frame and contrasting with the column's recessed
+    /// interior well. On dark/light the card previously used
+    /// `bgPrimary`, which was identical to the column interior — the
+    /// card was effectively invisible against its background.
     private var cardBackgroundColor: Color {
         switch effectiveTheme {
         case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgPrimary
+        case "dark":  return Theme.Dark.bgTertiary
         default:      return Theme.bgPrimary
         }
     }
