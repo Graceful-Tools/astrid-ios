@@ -195,7 +195,7 @@ extension Theme {
         static let headerBg = Color(red: 31/255, green: 41/255, blue: 55/255)
         static let headerBorder = Color(red: 75/255, green: 85/255, blue: 99/255)
 
-        static let inputBg = Color(red: 55/255, green: 65/255, blue: 81/255)
+        static let inputBg = Color.black  // pure black input fields (dark mode)
         static let inputBorder = Color(red: 75/255, green: 85/255, blue: 99/255)
         static let inputPlaceholder = Color(red: 156/255, green: 163/255, blue: 175/255)
 
