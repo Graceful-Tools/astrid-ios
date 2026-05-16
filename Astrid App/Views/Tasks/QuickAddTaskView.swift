@@ -366,7 +366,12 @@ struct QuickAddTaskView: View {
     /// Container background with support for all themes
     @ViewBuilder
     private var containerBackground: some View {
-        if effectiveTheme == .light {
+        if boardFooterStyle {
+            // Board footer: transparent — the board column's frame
+            // already paints the white surface behind the footer.
+            // A fill here would stack on the frame and look whiter.
+            Color.clear
+        } else if effectiveTheme == .light {
             // Light theme: Use thin material for glass effect
             Rectangle()
                 .fill(Theme.LiquidGlass.secondaryGlassMaterial)

@@ -44,10 +44,29 @@ struct BoardColumnView: View {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
     }
 
-    private var columnBackgroundColor: Color {
+    /// The column's "frame" surface — the rounded outer rectangle. The
+    /// header strip, the side borders and the add-task footer are all
+    /// just this one colour showing through, so the frame reads as a
+    /// single continuous surface (no translucent layers stacking, which
+    /// made the old overlay border look whiter than the chrome).
+    private var frameColor: Color {
+        switch effectiveTheme {
+        case "ocean": return Color.white.opacity(0.8)
+        case "dark":  return Theme.Dark.bgSecondary
+        default:      return Theme.bgSecondary
+        }
+    }
+
+    /// The page-coloured interior behind the cards, inset from the
+    /// frame by `columnBorderWidth` on the left and right.
+    private var interiorColor: Color {
         if effectiveTheme == "ocean" { return Theme.Ocean.bgPrimary }
         return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
     }
+
+    /// Width of the white side border between the column edge and the
+    /// cyan interior — roughly double the previous 3pt stroke.
+    private let columnBorderWidth: CGFloat = 6
 
     private var footerStatusListIds: [String] {
         guard column.kind == .status, let statusList = column.statusList else { return [] }
@@ -100,18 +119,22 @@ struct BoardColumnView: View {
                     }
                     appendSlot
                 }
-                .padding(8)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 8)
                 .animation(.spring(response: 0.28, dampingFraction: 0.88),
                            value: displayedTasks.map { $0.id })
                 .animation(.spring(response: 0.2, dampingFraction: 0.85),
                            value: hoveringIndex)
             }
             .frame(minHeight: 160)
+            // Cyan interior, inset from the column edges by the border
+            // width — the frame colour shows through as the side walls.
+            .background(interiorColor)
+            .padding(.horizontal, columnBorderWidth)
 
             if shouldShowFooter {
-                Divider()
-                // Flush footer: full column width, no outer margin, so
-                // its checkbox lines up with the task-card checkboxes.
+                // Flush footer: full column width, transparent — the
+                // column frame provides the white surface behind it.
                 QuickAddTaskView(
                     selectedList: selectedList,
                     additionalListIds: footerStatusListIds,
@@ -119,25 +142,19 @@ struct BoardColumnView: View {
                 )
             }
         }
+        // The whole column is the white frame; the header, side
+        // borders and footer are all this one surface.
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(columnBackgroundColor)
+                .fill(frameColor)
         )
-        // Clip so the header strip's (square-cornered) background fill
-        // is trimmed to the column's rounded top corners.
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
-            // Side walls give the column a defined "column" look.
-            // `strokeBorder` (not `stroke`) draws the line INSIDE the
-            // rounded-rect path, so the border's outer edge sits flush
-            // with the column edge — aligned with the header strip and
-            // the add-task footer, which both fill to that same edge.
-            // The border colour matches the header / footer chrome so
-            // they read as one continuous frame, and the rounded
-            // corners are preserved.
+            // Accent ring only while a drag is hovering — the resting
+            // frame is the column background itself, not an overlay.
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isTargeted ? Color.accentColor : headerBackgroundColor,
-                              lineWidth: isTargeted ? 4 : 3)
+                .strokeBorder(isTargeted ? Color.accentColor : Color.clear,
+                              lineWidth: 3)
         )
         // Column-level drop is the fallback when a drag releases over
         // the header / footer chrome (above or below the cards). Defaults
@@ -280,18 +297,6 @@ struct BoardColumnView: View {
         onDropAt(payload, index)
     }
 
-    /// Header strip fill. Ocean's column body is the cyan page colour,
-    /// so the header needs a distinct fill to read as a header row —
-    /// white, matching the card treatment. Dark/light use the theme's
-    /// secondary surface.
-    private var headerBackgroundColor: Color {
-        switch effectiveTheme {
-        case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgSecondary
-        default:      return Theme.bgSecondary
-        }
-    }
-
     /// Task-count pill — same treatment as the list count badge in the
     /// left sidebar (`ListRowView`): caption text in a soft capsule.
     @ViewBuilder
@@ -327,6 +332,7 @@ struct BoardColumnView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(headerBackgroundColor)
+        // No own background — the header sits directly on the column
+        // frame, so it's the same surface as the side borders/footer.
     }
 }
