@@ -119,7 +119,7 @@ struct BoardColumnView: View {
                     }
                     appendSlot
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 8)
                 .animation(.spring(response: 0.28, dampingFraction: 0.88),
                            value: displayedTasks.map { $0.id })
