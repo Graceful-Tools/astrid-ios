@@ -3,6 +3,8 @@ import Foundation
 /// Handler keys for Outbox entries.
 enum OutboxKind {
     static let createTask = "createTask"
+    static let uploadAttachment = "uploadAttachment"
+    static let createComment = "createComment"
 }
 
 /// Feature flags for the Outbox rollout. Dual-write is OFF by default: the
@@ -32,7 +34,9 @@ final class OutboxManager {
         let runner = OutboxRunner(
             store: OutboxStore(fileURL: OutboxStore.defaultFileURL()),
             handlers: [
-                OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) }
+                OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) },
+                OutboxKind.uploadAttachment: { entry, _ in await UploadAttachmentOutboxHandler.handle(entry) },
+                OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) }
             ]
         )
         self.runner = runner
@@ -72,5 +76,44 @@ final class OutboxManager {
         )
         let runner = self.runner
         _Concurrency.Task { await runner.enqueue(entry) }
+    }
+
+    /// Enqueue a comment, optionally with an attachment that must upload first.
+    /// Builds the dependency chain (upload → comment) so the comment is created
+    /// with the real fileId by construction. No-op unless dual-write is enabled.
+    func enqueueComment(
+        _ comment: CreateCommentOutboxPayload,
+        clientRequestId: String,
+        attachment: UploadAttachmentOutboxPayload? = nil,
+        attachmentClientRequestId: String? = nil
+    ) {
+        guard OutboxConfig.dualWriteEnabled else { return }
+        let now = Date()
+        var toEnqueue: [OutboxEntry] = []
+        var dependsOn: [String] = []
+
+        if let attachment,
+           let attachmentClientRequestId,
+           let attachmentData = try? JSONEncoder().encode(attachment) {
+            let uploadId = UUID().uuidString
+            toEnqueue.append(OutboxEntry(
+                id: uploadId, kind: OutboxKind.uploadAttachment, payload: attachmentData,
+                clientRequestId: attachmentClientRequestId, dependsOn: [], status: .pending,
+                attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
+            ))
+            dependsOn.append(uploadId)
+        }
+
+        guard let commentData = try? JSONEncoder().encode(comment) else { return }
+        toEnqueue.append(OutboxEntry(
+            id: UUID().uuidString, kind: OutboxKind.createComment, payload: commentData,
+            clientRequestId: clientRequestId, dependsOn: dependsOn, status: .pending,
+            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
+        ))
+
+        let runner = self.runner
+        _Concurrency.Task {
+            for entry in toEnqueue { await runner.enqueue(entry) }
+        }
     }
 }

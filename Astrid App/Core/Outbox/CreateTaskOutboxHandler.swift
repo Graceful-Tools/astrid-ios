@@ -25,7 +25,7 @@ enum CreateTaskOutboxHandler {
             return .permanent("createTask: undecodable payload")
         }
         do {
-            _ = try await AstridAPIClient.shared.createTask(
+            let task = try await AstridAPIClient.shared.createTask(
                 title: payload.title,
                 listIds: payload.listIds,
                 description: payload.description,
@@ -38,7 +38,9 @@ enum CreateTaskOutboxHandler {
                 repeatingData: payload.repeatingData,
                 clientRequestId: entry.clientRequestId
             )
-            return .success([:])
+            // Expose the real id so a dependent (e.g. a comment created against
+            // this offline task) can target the real task instead of the temp id.
+            return .success(["taskId": task.id])
         } catch {
             return OutboxResultMapper.classify(error)
         }
