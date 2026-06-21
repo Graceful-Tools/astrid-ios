@@ -32,7 +32,7 @@ final class OutboxManager {
         let runner = OutboxRunner(
             store: OutboxStore(fileURL: OutboxStore.defaultFileURL()),
             handlers: [
-                OutboxKind.createTask: { entry in await CreateTaskOutboxHandler.handle(entry) }
+                OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) }
             ]
         )
         self.runner = runner

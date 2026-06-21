@@ -37,7 +37,7 @@ final class OutboxRunnerTests: XCTestCase {
 
     func testSuccessMarksCompleted() async {
         let rec = Recorder()
-        let runner = makeRunner(["k": { e in await rec.record(e.id); return .success }])
+        let runner = makeRunner(["k": { e, _ in await rec.record(e.id); return .success([:]) }])
         await runner.enqueue(entry("a"))
 
         let snap = await runner.snapshot()
@@ -47,7 +47,7 @@ final class OutboxRunnerTests: XCTestCase {
     }
 
     func testRetryableFailureBacksOffAndStaysPending() async {
-        let runner = makeRunner(["k": { _ in .retryable("network") }])
+        let runner = makeRunner(["k": { _, _ in .retryable("network") }])
         await runner.enqueue(entry("a"))
 
         let e = await runner.snapshot().first
@@ -58,7 +58,7 @@ final class OutboxRunnerTests: XCTestCase {
     }
 
     func testPermanentFailureDeadLetters() async {
-        let runner = makeRunner(["k": { _ in .permanent("403") }])
+        let runner = makeRunner(["k": { _, _ in .permanent("403") }])
         await runner.enqueue(entry("a"))
         let e = await runner.snapshot().first
         XCTAssertEqual(e?.status, .failedPermanent)
@@ -74,7 +74,7 @@ final class OutboxRunnerTests: XCTestCase {
 
     func testDependentRunsOnlyAfterDependencyCompletes() async {
         let rec = Recorder()
-        let runner = makeRunner(["k": { e in await rec.record(e.id); return .success }])
+        let runner = makeRunner(["k": { e, _ in await rec.record(e.id); return .success([:]) }])
         await runner.enqueue(entry("a"))
         await runner.enqueue(entry("b", dependsOn: ["a"]))
 
@@ -87,8 +87,8 @@ final class OutboxRunnerTests: XCTestCase {
     func testDependentBlockedWhenDependencyFailsRetryable() async {
         let rec = Recorder()
         let runner = makeRunner([
-            "dep": { e in await rec.record(e.id); return .retryable("boom") },
-            "child": { e in await rec.record(e.id); return .success }
+            "dep": { e, _ in await rec.record(e.id); return .retryable("boom") },
+            "child": { e, _ in await rec.record(e.id); return .success([:]) }
         ])
         await runner.enqueue(entry("a", kind: "dep"))
         await runner.enqueue(entry("b", kind: "child", dependsOn: ["a"]))
@@ -100,7 +100,7 @@ final class OutboxRunnerTests: XCTestCase {
     }
 
     func testJournalPersistsAcrossRunnerInstances() async {
-        let runner = makeRunner(["k": { _ in .success }])
+        let runner = makeRunner(["k": { _, _ in .success([:]) }])
         await runner.enqueue(entry("a"))
 
         // A fresh store reading the same file should see the completed entry.

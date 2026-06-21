@@ -2,14 +2,33 @@ import Foundation
 
 /// Outcome a handler reports for an Outbox entry.
 enum OutboxResult: Equatable {
-    case success
+    /// Succeeded, optionally producing output for dependents (e.g. the real
+    /// fileId an attachment upload yields). Pass `[:]` when there's no output.
+    case success([String: String])
     case retryable(String)   // transient (network/5xx) — back off and retry
     case permanent(String)   // auth/validation/not-found — dead-letter, don't retry
 }
 
+/// Resolved outputs of an entry's dependencies, handed to its handler so it can
+/// fill in values produced upstream (e.g. read the uploaded fileId).
+struct OutboxContext {
+    /// dependency entry id → that entry's `result` output.
+    let dependencyOutputs: [String: [String: String]]
+
+    /// First value for `key` across all dependencies (dependencies of one entry
+    /// don't produce colliding keys in practice).
+    func value(_ key: String) -> String? {
+        for (_, output) in dependencyOutputs {
+            if let value = output[key] { return value }
+        }
+        return nil
+    }
+}
+
 /// Performs one Outbox operation. Self-contained: everything it needs is in the
-/// entry's payload. `@Sendable` so it can run off the actor.
-typealias OutboxHandler = @Sendable (OutboxEntry) async -> OutboxResult
+/// entry's payload plus its dependencies' outputs. `@Sendable` so it can run off
+/// the actor.
+typealias OutboxHandler = @Sendable (OutboxEntry, OutboxContext) async -> OutboxResult
 
 /// The single drain loop for all offline-first writes. Replaces the per-service
 /// sync runners: one in-flight guard, one backoff curve, one dependency graph,
@@ -73,14 +92,27 @@ actor OutboxRunner {
                     continue
                 }
 
+                // Hand the handler its dependencies' produced outputs.
+                let dependencyOutputs = Dictionary(uniqueKeysWithValues:
+                    entry.dependsOn.compactMap { depId -> (String, [String: String])? in
+                        guard let dep = entries.first(where: { $0.id == depId }) else { return nil }
+                        return (depId, dep.result ?? [:])
+                    }
+                )
+                let context = OutboxContext(dependencyOutputs: dependencyOutputs)
+
                 update(entry.id) { $0.status = .running }
                 inFlight.insert(entry.id)
-                let result = await handler(entry)
+                let result = await handler(entry, context)
                 inFlight.remove(entry.id)
 
                 switch result {
-                case .success:
-                    update(entry.id) { $0.status = .completed; $0.lastError = nil }
+                case .success(let output):
+                    update(entry.id) {
+                        $0.status = .completed
+                        $0.lastError = nil
+                        $0.result = output.isEmpty ? nil : output
+                    }
                 case .permanent(let message):
                     update(entry.id) { $0.status = .failedPermanent; $0.lastError = message }
                 case .retryable(let message):

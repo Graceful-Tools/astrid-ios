@@ -38,7 +38,7 @@ enum CreateTaskOutboxHandler {
                 repeatingData: payload.repeatingData,
                 clientRequestId: entry.clientRequestId
             )
-            return .success
+            return .success([:])
         } catch {
             return OutboxResultMapper.classify(error)
         }

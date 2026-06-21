@@ -28,4 +28,7 @@ struct OutboxEntry: Identifiable, Codable, Equatable {
     var lastError: String?
     let createdAt: Date
     var updatedAt: Date
+    /// Output produced on success, consumed by dependents (e.g. the real
+    /// fileId from an attachment upload). nil until completed / when empty.
+    var result: [String: String]?
 }
