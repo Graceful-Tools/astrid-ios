@@ -33,6 +33,14 @@ class TaskService: ObservableObject {
     /// Used to redirect edits from stale task detail views that still hold the temp ID.
     private var tempTaskIdMapping: [String: String] = [:]
 
+    /// Real server id for a temporary (offline-created) task id, once it has
+    /// synced; nil if the task hasn't been created on the server yet. Used by
+    /// CommentService so a photo/comment attached to an offline-created task is
+    /// posted to the real task instead of 404'ing against the temp id.
+    func mappedRealTaskId(for tempId: String) -> String? {
+        tempTaskIdMapping[tempId]
+    }
+
     /// Tracks temp IDs with an in-flight createTask API call to prevent
     /// syncPendingOperations from creating a duplicate on the server.
     private var pendingCreates: Set<String> = []

@@ -8,6 +8,29 @@ private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "C
 /// Errors that can occur during comment sync
 enum CommentSyncError: Error {
     case attachmentPending  // Attachment upload not complete yet - will retry later
+    case taskPending        // Parent task created offline hasn't synced yet - will retry later
+}
+
+/// Resolves a pending comment's task id before it's sent to the server.
+///
+/// A comment created against an offline-created task carries that task's
+/// temporary id (`temp_<uuid>`). It must be mapped to the real server id once
+/// the task syncs; until then the comment must wait — sending it to `temp_…`
+/// 404s, and a 404 is treated as a permanent failure (so the photo would be
+/// dropped forever). Pure so it's unit-testable.
+enum PendingCommentResolver {
+    enum TaskIdResolution: Equatable {
+        case ready(String)
+        case taskNotSyncedYet
+    }
+
+    static func resolveTaskId(_ taskId: String, realIdProvider: (String) -> String?) -> TaskIdResolution {
+        guard taskId.hasPrefix("temp_") else { return .ready(taskId) }
+        if let real = realIdProvider(taskId), !real.hasPrefix("temp_") {
+            return .ready(real)
+        }
+        return .taskNotSyncedYet
+    }
 }
 
 @MainActor
@@ -659,6 +682,8 @@ class CommentService: ObservableObject {
                 }
             } catch CommentSyncError.attachmentPending {
                 // Attachment still uploading - will retry automatically
+            } catch CommentSyncError.taskPending {
+                // Parent task (created offline) hasn't synced yet - will retry automatically
             } catch {
                 logger.error("Failed to sync \(data.operation, privacy: .public): \(error.localizedDescription, privacy: .public)")
 
@@ -689,6 +714,18 @@ class CommentService: ObservableObject {
 
     /// Sync a pending create operation
     private func syncPendingCreate(_ data: PendingCommentData) async throws {
+        // Resolve a temp task id (offline-created task) to its real server id.
+        // The task syncs before comments do, so the mapping is available; if it
+        // isn't yet, wait and retry rather than POSTing to a temp_ id (which
+        // 404s → permanent failure → the photo/comment is dropped forever).
+        let resolvedTaskId: String
+        switch PendingCommentResolver.resolveTaskId(data.taskId, realIdProvider: { TaskService.shared.mappedRealTaskId(for: $0) }) {
+        case .ready(let id):
+            resolvedTaskId = id
+        case .taskNotSyncedYet:
+            throw CommentSyncError.taskPending
+        }
+
         // Resolve temp fileId to real fileId if needed
         var resolvedFileId = data.pendingFileId
         if let tempFileId = data.pendingFileId, tempFileId.hasPrefix("temp_") {
@@ -708,7 +745,7 @@ class CommentService: ObservableObject {
         // sends the same key, and the server returns the existing comment instead of
         // creating a duplicate. This is the airplane-mode fix for the Bam-x4 bug.
         let response = try await apiClient.createComment(
-            taskId: data.taskId,
+            taskId: resolvedTaskId,
             content: data.content,
             type: Comment.CommentType(rawValue: data.type) ?? .TEXT,
             fileId: resolvedFileId,
@@ -717,11 +754,15 @@ class CommentService: ObservableObject {
             clientRequestId: data.id
         )
 
-        // Update Core Data with server ID and mark as synced
+        // Update Core Data with server ID and mark as synced. Also migrate the
+        // row to the real task id so it's correctly associated after an
+        // offline-created task syncs.
         let oldId = data.id
+        let newTaskId = resolvedTaskId
         try await coreDataManager.saveInBackground { context in
             guard let comment = try CDComment.fetchById(oldId, context: context) else { return }
             comment.id = response.comment.id
+            comment.taskId = newTaskId
             comment.syncStatus = "synced"
             comment.lastSyncedAt = Date()
             comment.pendingOperation = nil
@@ -730,13 +771,19 @@ class CommentService: ObservableObject {
             comment.syncError = nil
         }
 
-        // Update in-memory cache: replace temp comment with synced one
-        let taskId = data.taskId
-        if var taskComments = cachedComments[taskId] {
-            if let index = taskComments.firstIndex(where: { $0.id == oldId }) {
-                taskComments[index] = response.comment
-                cachedComments[taskId] = taskComments
+        // Update in-memory cache: replace the temp comment, moving it from the
+        // temp-task bucket to the real-task bucket if the id changed.
+        if var oldBucket = cachedComments[data.taskId],
+           let index = oldBucket.firstIndex(where: { $0.id == oldId }) {
+            oldBucket.remove(at: index)
+            cachedComments[data.taskId] = oldBucket
+        }
+        if resolvedTaskId != data.taskId || cachedComments[resolvedTaskId] != nil {
+            var newBucket = cachedComments[resolvedTaskId] ?? []
+            if !newBucket.contains(where: { $0.id == response.comment.id }) {
+                newBucket.append(response.comment)
             }
+            cachedComments[resolvedTaskId] = newBucket
         }
     }
 
