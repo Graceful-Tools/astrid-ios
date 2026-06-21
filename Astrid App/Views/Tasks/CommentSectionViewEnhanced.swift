@@ -1091,10 +1091,17 @@ struct CommentSectionViewEnhanced: View {
         do {
             print("📸 [CommentSection] Starting photo upload... (network: \(networkMonitor.isConnected))")
 
-            // Load image data. Note: PhotosPicker.loadTransferable requires network
-            // for iCloud Photos with "Optimize iPhone Storage" enabled — the full
-            // data downloads on demand. Surface a useful error in that case.
-            guard let imageData = try await photoItem.loadTransferable(type: Data.self) else {
+            // Load via PhotoKit with a no-network read first so an on-device photo
+            // attaches instantly even offline, and a cloud-only photo offline fails
+            // fast (instead of hanging on a doomed iCloud download).
+            let imageData: Data
+            switch await LocalPhotoLoader.loadImageData(for: photoItem, isConnected: networkMonitor.isConnected) {
+            case .data(let data):
+                imageData = data
+            case .notLocallyAvailable:
+                await MainActor.run { uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: false) }
+                return
+            case .failed:
                 print("❌ [CommentSection] Failed to load image data from PhotosPicker")
                 await MainActor.run {
                     uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: networkMonitor.isConnected)

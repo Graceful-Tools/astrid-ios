@@ -1012,12 +1012,18 @@ struct TaskDetailViewNew: View {
         defer { isUploadingFile = false }
 
         do {
-            // PhotosPicker.loadTransferable needs network for iCloud-Optimized photos.
-            guard let imageData = try await photoItem.loadTransferable(type: Data.self) else {
-                let online = await MainActor.run { NetworkMonitor.shared.isConnected }
-                await MainActor.run {
-                    uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: online)
-                }
+            // No-network PhotoKit read first: on-device photos attach offline,
+            // cloud-only photos fail fast with a clear message.
+            let online = await MainActor.run { NetworkMonitor.shared.isConnected }
+            let imageData: Data
+            switch await LocalPhotoLoader.loadImageData(for: photoItem, isConnected: online) {
+            case .data(let data):
+                imageData = data
+            case .notLocallyAvailable:
+                await MainActor.run { uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: false) }
+                return
+            case .failed:
+                await MainActor.run { uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: online) }
                 return
             }
 

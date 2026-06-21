@@ -188,7 +188,7 @@ struct RichTextInput: View {
                 }
             }
         }
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images)
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
         .onChange(of: selectedPhotoItem) { _, item in
             if let item = item {
                 _Concurrency.Task { await handlePhotoSelection(item) }
@@ -359,9 +359,18 @@ struct RichTextInput: View {
         uploadError = nil
         defer { isUploadingFile = false; selectedPhotoItem = nil }
 
+        let online = NetworkMonitor.shared.isConnected
         var photoData: Data?
-        photoData = try? await item.loadTransferable(type: Data.self)
-        if photoData == nil {
+        // No-network PhotoKit read first: on-device photos attach offline,
+        // cloud-only photos fail fast with a clear message.
+        switch await LocalPhotoLoader.loadImageData(for: item, isConnected: online) {
+        case .data(let d):
+            photoData = d
+        case .notLocallyAvailable:
+            uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: false)
+            return
+        case .failed:
+            // Fallback: some formats only come through the Transferable image path.
             struct ImageTransfer: Transferable {
                 let data: Data
                 static var transferRepresentation: some TransferRepresentation {
@@ -374,14 +383,9 @@ struct RichTextInput: View {
         }
 
         guard let data = photoData, data.count <= 100 * 1024 * 1024 else {
-            if photoData == nil {
-                // PhotosPicker.loadTransferable needs network for iCloud-Optimized photos.
-                uploadError = NetworkMonitor.shared.isConnected
-                    ? "Failed to load photo"
-                    : "This photo isn't downloaded to your device. Connect to the internet, or pick a recently-taken photo (those are stored locally)."
-            } else {
-                uploadError = "File size cannot exceed 100MB"
-            }
+            uploadError = photoData == nil
+                ? OfflinePhotoPolicy.unavailableMessage(isConnected: online)
+                : "File size cannot exceed 100MB"
             return
         }
 
