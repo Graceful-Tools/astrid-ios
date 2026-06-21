@@ -130,37 +130,35 @@ class ProjectService: ObservableObject {
         return body
     }
 
-    /// Create a project FOR a specific list: POST /api/v1/projects, then
-    /// PUT /api/v1/lists/[id] with `projectId` set. Mirrors the web's
-    /// `handleCreateProjectBoard` two-step. Without the second step the
-    /// originating list isn't part of the project and the board's Inbox
-    /// column stays empty — root cause of the bug reported on 2026-05-12.
+    /// Create a project FOR a specific list, atomically: a single
+    /// `POST /api/v1/projects/from-list` creates the project AND attaches the
+    /// list in one server-side transaction. This replaces the old two-step
+    /// (POST project, then PUT list) flow whose middle failure left an empty,
+    /// same-named orphan project — root cause of the bug reported on 2026-05-12.
+    /// The returned project's `lists` already contains the attached domain list
+    /// (now `listType: regular`) plus the seeded status columns.
     @discardableResult
     func createBoardForList(_ list: TaskList) async throws -> Project {
-        let project = try await apiClient.createProject(
-            name: list.name,
-            description: list.description,
-            color: list.color,
-            imageUrl: list.imageUrl
-        )
-        // Attach the list to the project so its tasks land in the
-        // virtual Inbox column.
-        let body = ProjectService.buildAttachListRequest(projectId: project.id)
-        let updatedList = try await ListService.shared.updateListOnServer(
-            listId: list.id,
-            updates: body
-        )
-        // Mirror the new list state into ListService's published array
-        // so the board renders immediately.
-        if let idx = ListService.shared.lists.firstIndex(where: { $0.id == updatedList.id }) {
-            ListService.shared.lists[idx] = updatedList
+        let project = try await apiClient.createProjectFromList(listId: list.id)
+
+        // Mirror the attached list's new state into ListService's published
+        // array so the board renders immediately. The server returns it inside
+        // project.lists as a regular (non-status) list.
+        let projectLists = project.lists ?? []
+        if let idx = ListService.shared.lists.firstIndex(where: { $0.id == list.id }) {
+            if let attached = projectLists.first(where: { $0.id == list.id }) {
+                ListService.shared.lists[idx] = attached
+            } else {
+                // Fallback: server didn't echo the list — at least reflect the link.
+                ListService.shared.lists[idx].projectId = project.id
+            }
         }
         // Also mirror the project's seeded status lists (Ready / Doing /
         // Waiting) — without this the board has no columns until the
         // next full sync, which reads as "Create Board didn't work".
         ListService.shared.lists = applyProjectStatusLists(
             ListService.shared.lists,
-            adding: project.lists ?? []
+            adding: projectLists
         )
         projects.insert(project, at: 0)
         saveProjectToCoreData(project, syncStatus: "synced")

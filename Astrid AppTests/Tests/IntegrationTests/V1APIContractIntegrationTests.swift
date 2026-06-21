@@ -40,6 +40,31 @@ final class V1APIContractIntegrationTests: XCTestCase {
         }
     }
 
+    /// The atomic Create Board flow must hit the single-request v1 endpoint
+    /// `POST /api/v1/projects/from-list` rather than the old two-step
+    /// project-then-list-PUT flow that could orphan a project.
+    func testCreateBoardUsesAtomicV1Endpoint() throws {
+        let root = try repositoryRoot()
+        let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
+        let source = try String(contentsOf: clientURL)
+        XCTAssertTrue(source.contains("/api/v1/projects/from-list"),
+                      "client should call the atomic /api/v1/projects/from-list endpoint")
+    }
+
+    /// `resolveShortcode` was the one core endpoint still on a non-v1 path
+    /// (`api/shortcodes/<code>`). It must use the v1 path like every other
+    /// service call, and must not retain the legacy unversioned form.
+    func testResolveShortcodeUsesV1Path() throws {
+        let root = try repositoryRoot()
+        let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
+        let source = try String(contentsOf: clientURL)
+
+        XCTAssertTrue(source.contains("/api/v1/shortcodes/\\(code)"),
+                      "resolveShortcode should request the v1 shortcode path")
+        XCTAssertFalse(source.contains("\"api/shortcodes/"),
+                       "resolveShortcode must not use the legacy non-v1 shortcode path")
+    }
+
     func testSiblingWebRepoHasV1RoutesIOSConsumes() throws {
         let webRoot = try repositoryRoot()
             .deletingLastPathComponent()
@@ -59,6 +84,8 @@ final class V1APIContractIntegrationTests: XCTestCase {
             "app/api/v1/users/me/available-agents/route.ts",
             "app/api/v1/users/me/ai-preferences/route.ts",
             "app/api/v1/shortcodes/route.ts",
+            "app/api/v1/shortcodes/[code]/route.ts",
+            "app/api/v1/projects/from-list/route.ts",
             "app/api/v1/sse/route.ts"
         ]
 

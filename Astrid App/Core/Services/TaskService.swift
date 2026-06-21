@@ -152,7 +152,8 @@ class TaskService: ObservableObject {
         whenTime: Date? = nil,     // The time (maps to backend 'dueDateTime', nil for all-day)
         assigneeId: String? = nil,
         isPrivate: Bool? = nil,
-        repeating: String? = nil
+        repeating: String? = nil,
+        repeatingData: CustomRepeatingPattern? = nil
     ) async throws -> Task {
         // OPTIMISTIC UPDATE: Create temporary task immediately
         let tempId = "temp_\(UUID().uuidString)"
@@ -196,7 +197,7 @@ class TaskService: ObservableObject {
             reminderSent: nil,
             reminderType: nil,
             repeating: repeating.flatMap { Task.Repeating(rawValue: $0) } ?? .never,
-            repeatingData: nil,
+            repeatingData: repeatingData,
             priority: priority.flatMap { Task.Priority(rawValue: $0) } ?? .none,
             lists: resolvedLists,
             listIds: listIds,
@@ -253,6 +254,7 @@ class TaskService: ObservableObject {
                 isAllDay: isAllDay,        // Already computed above
                 isPrivate: isPrivate,
                 repeating: repeating,
+                repeatingData: repeatingData,
                 clientRequestId: clientRequestId  // Idempotency key for server dedup
             )
 

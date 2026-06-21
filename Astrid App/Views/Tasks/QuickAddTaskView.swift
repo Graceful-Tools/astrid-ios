@@ -421,6 +421,7 @@ struct QuickAddTaskView: View {
                 var parsedListIds: [String] = []
 
                 var parsedRepeating: Task.Repeating? = nil
+                var parsedRepeatingData: CustomRepeatingPattern? = nil
 
                 if UserSettingsService.shared.smartTaskCreationEnabled {
                     let parsed = SmartTaskParser.parse(rawTitle, lists: listService.lists)
@@ -429,6 +430,7 @@ struct QuickAddTaskView: View {
                     parsedPriority = parsed.priority
                     parsedListIds = parsed.listIds
                     parsedRepeating = parsed.repeating
+                    parsedRepeatingData = parsed.customRepeatingData
                     print("📝 [SmartParsing] Parsed: title='\(title)', dueDateTime=\(parsedDueDateTime?.description ?? "nil"), priority=\(parsedPriority ?? -1), listIds=\(parsedListIds), repeating=\(parsedRepeating?.rawValue ?? "nil")")
                 }
 
@@ -571,7 +573,10 @@ struct QuickAddTaskView: View {
                     whenTime: whenTime,      // The time (nil for all-day tasks)
                     assigneeId: assigneeId,
                     isPrivate: isPrivate,
-                    repeating: repeating != "never" ? repeating : nil
+                    repeating: repeating != "never" ? repeating : nil,
+                    // Carry the parsed custom recurrence (e.g. "weekly Monday") so the
+                    // task is actually created repeating, not just with a Monday due date.
+                    repeatingData: repeating == "custom" ? parsedRepeatingData : nil
                 )
 
                 // Navigate to task details only when explicitly requested (+ button tap)
