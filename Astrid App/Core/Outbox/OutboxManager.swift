@@ -1,0 +1,76 @@
+import Foundation
+
+/// Handler keys for Outbox entries.
+enum OutboxKind {
+    static let createTask = "createTask"
+}
+
+/// Feature flags for the Outbox rollout. Dual-write is OFF by default: the
+/// Outbox runs alongside the legacy per-service sync only when explicitly
+/// enabled, so we can verify it in production before cutting over (per the
+/// task's dual-write mitigation). Both paths use the same `clientRequestId`, so
+/// the server dedupes — enabling dual-write can't create duplicates.
+enum OutboxConfig {
+    private static let dualWriteKey = "outboxDualWriteEnabled"
+
+    static var dualWriteEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: dualWriteKey) }
+        set { UserDefaults.standard.set(newValue, forKey: dualWriteKey) }
+    }
+}
+
+/// App-facing entry point to the Outbox: owns the single `OutboxRunner`, wires
+/// it to launch + network-restore drains, and exposes typed enqueue helpers.
+@MainActor
+final class OutboxManager {
+    static let shared = OutboxManager()
+
+    private let runner: OutboxRunner
+    private var networkObserver: NSObjectProtocol?
+
+    private init() {
+        let runner = OutboxRunner(
+            store: OutboxStore(fileURL: OutboxStore.defaultFileURL()),
+            handlers: [
+                OutboxKind.createTask: { entry in await CreateTaskOutboxHandler.handle(entry) }
+            ]
+        )
+        self.runner = runner
+
+        // Drain whenever the network comes back. Capturing the actor (Sendable)
+        // rather than self keeps this free of main-actor isolation hazards.
+        networkObserver = NotificationCenter.default.addObserver(
+            forName: .networkDidBecomeAvailable, object: nil, queue: .main
+        ) { _ in
+            _Concurrency.Task { await runner.drain() }
+        }
+    }
+
+    /// Drain any journal persisted from a previous session. Safe to call when
+    /// the journal is empty (the common case while dual-write is off).
+    func start() {
+        _Concurrency.Task { await runner.drain() }
+    }
+
+    /// Enqueue a task creation. No-op unless dual-write is enabled.
+    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
+        guard OutboxConfig.dualWriteEnabled else { return }
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        let now = Date()
+        let entry = OutboxEntry(
+            id: UUID().uuidString,
+            kind: OutboxKind.createTask,
+            payload: data,
+            clientRequestId: clientRequestId,
+            dependsOn: [],
+            status: .pending,
+            attempts: 0,
+            nextAttemptAt: now,
+            lastError: nil,
+            createdAt: now,
+            updatedAt: now
+        )
+        let runner = self.runner
+        _Concurrency.Task { await runner.enqueue(entry) }
+    }
+}

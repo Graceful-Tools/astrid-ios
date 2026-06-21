@@ -51,6 +51,10 @@ struct AstridApp: App {
         // Pre-compile SmartTaskParser regex patterns (synchronous, fast)
         SmartTaskParser.warmUp()
 
+        // Drain any Outbox journal persisted from a previous session (no-op when
+        // empty — the common case while dual-write is off).
+        _Concurrency.Task { @MainActor in OutboxManager.shared.start() }
+
         // Touch singletons to trigger their initialization
         // These load from UserDefaults (synchronous) and fetch from server (background)
         _Concurrency.Task.detached(priority: .userInitiated) {

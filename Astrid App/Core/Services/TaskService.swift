@@ -266,6 +266,26 @@ class TaskService: ObservableObject {
                 print("⚠️ [TaskService] Filtering out temp_ list IDs for API call. Original: \(listIds), Filtered: \(serverListIds)")
             }
 
+            // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
+            // Sends the same create through the Outbox with the SAME clientRequestId
+            // so the server dedupes — lets us verify the Outbox path in production
+            // before cutting over, with zero risk of duplicates.
+            OutboxManager.shared.enqueueCreateTask(
+                CreateTaskOutboxPayload(
+                    title: title,
+                    listIds: serverListIds.isEmpty ? nil : serverListIds,
+                    description: description,
+                    priority: priority,
+                    assigneeId: assigneeId,
+                    dueDateTime: dueDateTime,
+                    isAllDay: isAllDay,
+                    isPrivate: isPrivate,
+                    repeating: repeating,
+                    repeatingData: repeatingData
+                ),
+                clientRequestId: clientRequestId
+            )
+
             // Send dueDateTime and isAllDay to backend
             // For all-day tasks: dueDateTime=date at UTC midnight, isAllDay=true
             // For timed tasks: dueDateTime=date+time, isAllDay=false
