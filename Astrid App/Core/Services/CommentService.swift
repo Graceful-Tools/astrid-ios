@@ -50,6 +50,7 @@ class CommentService: ObservableObject {
     private var inFlightFetches: [String: _Concurrency.Task<[Comment], Error>] = [:] // taskId -> active network fetch
     private var networkObserver: NSObjectProtocol?
     private var attachmentUploadObserver: NSObjectProtocol?
+    private var taskResolvedObserver: NSObjectProtocol?
 
     init() {
         // Load cached comments on initialization
@@ -67,6 +68,9 @@ class CommentService: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = attachmentUploadObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = taskResolvedObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -89,6 +93,20 @@ class CommentService: ObservableObject {
         // the next network event without this. Mirrors ChatService:60.
         attachmentUploadObserver = NotificationCenter.default.addObserver(
             forName: .attachmentUploadCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in
+                try? await self?.syncPendingComments()
+            }
+        }
+
+        // Re-sync when an offline-created task gets its real server id — a
+        // photo-comment queued against the temp task id can now be posted to
+        // the real task instead of waiting (otherwise the attachment "disappears"
+        // until the next manual sync).
+        taskResolvedObserver = NotificationCenter.default.addObserver(
+            forName: .taskTempIdResolved,
             object: nil,
             queue: .main
         ) { [weak self] _ in

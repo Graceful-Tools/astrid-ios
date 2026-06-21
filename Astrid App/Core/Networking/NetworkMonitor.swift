@@ -161,6 +161,9 @@ extension Notification.Name {
     static let connectionQualityChanged = Notification.Name("connectionQualityChanged")
     static let commentDidSync = Notification.Name("commentDidSync")
     static let attachmentUploadCompleted = Notification.Name("attachmentUploadCompleted")
+    /// Posted when an offline-created task's temp id is mapped to its real
+    /// server id, so pending children (e.g. a photo-comment) can re-sync.
+    static let taskTempIdResolved = Notification.Name("taskTempIdResolved")
     static let attachmentUpdated = Notification.Name("attachmentUpdated")
     static let openSettings = Notification.Name("openSettings")
     static let closeSettings = Notification.Name("closeSettings")

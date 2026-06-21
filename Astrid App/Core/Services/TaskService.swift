@@ -41,6 +41,23 @@ class TaskService: ObservableObject {
         tempTaskIdMapping[tempId]
     }
 
+    /// Records that an offline-created task's temporary id now corresponds to a
+    /// real server id. MUST be called from every temp→real transition (online
+    /// create AND offline sync) so callers like CommentService can re-target
+    /// pending children (e.g. a photo-comment) onto the real task.
+    func recordTempTaskMapping(tempId: String, realId: String) {
+        guard tempId.hasPrefix("temp_"), tempId != realId else { return }
+        tempTaskIdMapping[tempId] = realId
+        // Let pending children (e.g. a photo-comment queued offline) re-sync now
+        // that the parent task has a real id — closes the race where the
+        // attachment finished uploading before the task synced.
+        NotificationCenter.default.post(
+            name: .taskTempIdResolved,
+            object: nil,
+            userInfo: ["tempId": tempId, "realId": realId]
+        )
+    }
+
     /// Tracks temp IDs with an in-flight createTask API call to prevent
     /// syncPendingOperations from creating a duplicate on the server.
     private var pendingCreates: Set<String> = []
@@ -317,7 +334,7 @@ class TaskService: ObservableObject {
             cachedTasks[task.id] = taskWithListIds
 
             // Map temp ID → real ID so stale detail views can route edits correctly
-            tempTaskIdMapping[tempId] = task.id
+            recordTempTaskMapping(tempId: tempId, realId: task.id)
 
             if let index = tasks.firstIndex(where: { $0.id == tempId }) {
                 tasks[index] = taskWithListIds
@@ -1501,6 +1518,12 @@ class TaskService: ObservableObject {
                             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                                 tasks[index] = createdTask
                             }
+
+                            // Record temp→real so pending children created offline
+                            // (e.g. a photo-comment) can re-target the real task on
+                            // sync instead of 404'ing against the temp id and being
+                            // dropped.
+                            recordTempTaskMapping(tempId: task.id, realId: createdTask.id)
 
                             print("✅ [TaskService] Synced creation: \(createdTask.title)")
                         } else {
