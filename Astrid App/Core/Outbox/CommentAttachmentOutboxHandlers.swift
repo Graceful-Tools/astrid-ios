@@ -23,11 +23,15 @@ enum UploadAttachmentOutboxHandler {
             return .permanent("uploadAttachment: local file missing at \(payload.localPath)")
         }
         do {
+            // Pass the idempotency key in the upload context so a retry returns
+            // the same file instead of creating a duplicate (web dedups on it).
+            var context = payload.context
+            context["clientRequestId"] = entry.clientRequestId
             let fileId = try await AttachmentService.shared.uploadToSecureEndpoint(
                 fileData: data,
                 fileName: payload.fileName,
                 mimeType: payload.mimeType,
-                context: payload.context
+                context: context
             )
             return .success(["fileId": fileId])
         } catch {
