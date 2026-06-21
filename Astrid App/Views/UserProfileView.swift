@@ -9,8 +9,27 @@ struct UserProfileView: View {
     @State private var showEditProfile = false
     @State private var accountDataForEdit: AccountData?
 
-    init(userId: String) {
+    /// How this profile was presented. `true` only for the root-level profile
+    /// shown via tab routing (`selectedListId == "profile"`, opened from the
+    /// sidebar / deep link). All NavigationLink/navigationDestination pushes
+    /// (comments, task creator, list members, @mentions) leave this `false`.
+    private let isRootDestination: Bool
+
+    /// Resolves the back-button behavior. A pushed profile must pop the
+    /// navigation stack; only the root profile resets tab routing via
+    /// `.closeProfile`. Pure so the contract is unit-testable.
+    enum UserProfileBackAction: Equatable {
+        case dismiss
+        case postCloseProfile
+    }
+
+    static func backAction(isRootDestination: Bool) -> UserProfileBackAction {
+        isRootDestination ? .postCloseProfile : .dismiss
+    }
+
+    init(userId: String, isRootDestination: Bool = false) {
         _viewModel = StateObject(wrappedValue: UserProfileViewModel(userId: userId))
+        self.isRootDestination = isRootDestination
     }
 
     var body: some View {
@@ -105,7 +124,15 @@ struct UserProfileView: View {
         VStack(spacing: 0) {
             // Native iOS header (like Settings)
             FloatingTextHeader(NSLocalizedString("profile.title", comment: ""), icon: "person.circle", showBackButton: true, onBack: {
-                    NotificationCenter.default.post(name: .closeProfile, object: nil)
+                    switch Self.backAction(isRootDestination: isRootDestination) {
+                    case .dismiss:
+                        // Pushed from comments/members/etc — pop the stack so we
+                        // return to the task (not tear down the whole stack).
+                        dismiss()
+                    case .postCloseProfile:
+                        // Root profile (sidebar/deep link) — reset tab routing.
+                        NotificationCenter.default.post(name: .closeProfile, object: nil)
+                    }
                 })
                 .padding(.top, Theme.spacing8)
 

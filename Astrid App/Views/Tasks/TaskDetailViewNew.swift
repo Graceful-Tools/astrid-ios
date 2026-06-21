@@ -1016,9 +1016,7 @@ struct TaskDetailViewNew: View {
             guard let imageData = try await photoItem.loadTransferable(type: Data.self) else {
                 let online = await MainActor.run { NetworkMonitor.shared.isConnected }
                 await MainActor.run {
-                    uploadError = online
-                        ? "Failed to load photo. Please try again."
-                        : "This photo isn't downloaded to your device. Connect to the internet, or pick a recently-taken photo (those are stored locally)."
+                    uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: online)
                 }
                 return
             }

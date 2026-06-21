@@ -161,7 +161,7 @@ struct iPadTaskManagerView: View {
                 .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
             } else if selectedListId == "profile", let userId = authManager.userId {
                 NavigationStack {
-                    UserProfileView(userId: userId)
+                    UserProfileView(userId: userId, isRootDestination: true)
                         .environmentObject(authManager)
                 }
                 .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
@@ -268,7 +268,7 @@ struct iPadTaskManagerView: View {
                     .frame(width: selectedTask != nil ? width * 0.50 : width)
                 } else if selectedListId == "profile", let userId = authManager.userId {
                     NavigationStack {
-                        UserProfileView(userId: userId)
+                        UserProfileView(userId: userId, isRootDestination: true)
                             .environmentObject(authManager)
                             .simultaneousGesture(
                                 DragGesture(minimumDistance: 20)
@@ -497,7 +497,7 @@ struct iPadTaskManagerView: View {
                 })
                     .environmentObject(authManager)
             } else if selectedListId == "profile", let userId = authManager.userId {
-                UserProfileView(userId: userId)
+                UserProfileView(userId: userId, isRootDestination: true)
                     .environmentObject(authManager)
             } else {
                 TaskListView(

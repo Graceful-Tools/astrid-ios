@@ -242,12 +242,32 @@ func boardColumnTasksSorted(
     projectId: String,
     column: ProjectBoardColumn,
     lists: [TaskList],
-    manualOrder: [String]?
+    manualOrder: [String]?,
+    recentlyCompletedWindow: RecentlyCompletedWindow? = nil,
+    completionFilter: String? = nil,
+    now: Date = Date()
 ) -> [Task] {
     let inColumn = allTasks.filter { task in
         getTaskProjectColumnId(task, lists: lists) == column.id
     }
-    let domain = getProjectDomainTasks(inColumn, lists: lists, projectId: projectId)
+    // The Done column honors the list's recently-completed window so the board
+    // matches the web (project-status-board.tsx) — otherwise iOS shows every
+    // completed task forever.
+    let windowed: [Task]
+    if column.kind == .done {
+        windowed = inColumn.filter { task in
+            shouldShowCompletedByFilter(
+                filterMode: completionFilter ?? "default",
+                completedAt: nil,
+                updatedAt: task.updatedAt,
+                window: recentlyCompletedWindow,
+                now: now
+            )
+        }
+    } else {
+        windowed = inColumn
+    }
+    let domain = getProjectDomainTasks(windowed, lists: lists, projectId: projectId)
     guard let manualOrder = manualOrder, !manualOrder.isEmpty else {
         return domain
     }
@@ -291,7 +311,10 @@ func resolveBoardReorder(
     projectId: String,
     lists: [TaskList],
     allTasks: [Task],
-    currentManualOrder: [String]
+    currentManualOrder: [String],
+    recentlyCompletedWindow: RecentlyCompletedWindow? = nil,
+    completionFilter: String? = nil,
+    now: Date = Date()
 ) -> BoardReorder {
     let move = resolveProjectColumnMove(
         task,
@@ -308,7 +331,10 @@ func resolveBoardReorder(
         projectId: projectId,
         column: targetColumn,
         lists: lists,
-        manualOrder: currentManualOrder
+        manualOrder: currentManualOrder,
+        recentlyCompletedWindow: recentlyCompletedWindow,
+        completionFilter: completionFilter,
+        now: now
     )
 
     var newOrder = currentManualOrder
