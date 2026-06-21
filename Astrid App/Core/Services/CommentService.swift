@@ -534,22 +534,22 @@ class CommentService: ObservableObject {
         cachedComments[taskId]?.append(optimisticComment)
 
         // 4b. Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
-        // Only plain comments: it reuses the SAME idempotency key (tempId) as the
-        // legacy sync, so the server dedupes to one comment. Comments WITH an
-        // attachment stay on the legacy path until the cutover (dual-writing the
-        // upload would create a duplicate SecureFile).
-        if fileId == nil {
-            OutboxManager.shared.enqueueComment(
-                CreateCommentOutboxPayload(
-                    taskId: taskId,
-                    content: content,
-                    type: type.rawValue,
-                    parentCommentId: parentCommentId,
-                    createdAt: optimisticComment.createdAt
-                ),
-                clientRequestId: tempId
-            )
-        }
+        // Reuses the SAME idempotency key (tempId) as the legacy sync, so the
+        // server dedupes to one comment. Safe for attachment comments too: the
+        // attachment is still uploaded once by the legacy path, and the Outbox
+        // handler resolves that real fileId (and a temp task id) at run time — it
+        // does NOT re-upload, so no duplicate SecureFile.
+        OutboxManager.shared.enqueueComment(
+            CreateCommentOutboxPayload(
+                taskId: taskId,
+                content: content,
+                type: type.rawValue,
+                parentCommentId: parentCommentId,
+                createdAt: optimisticComment.createdAt,
+                fileId: fileId
+            ),
+            clientRequestId: tempId
+        )
 
         // 5. Trigger background sync (fire-and-forget) - AFTER save completes
         if networkMonitor.isConnected {

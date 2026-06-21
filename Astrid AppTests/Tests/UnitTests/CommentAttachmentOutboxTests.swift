@@ -14,29 +14,37 @@ final class CommentAttachmentOutboxTests: XCTestCase {
 
     func testUsesDependencyTaskIdOverTempPayloadId() {
         let resolved = CommentOutboxResolver.resolve(
-            payloadTaskId: "temp_123",
+            payloadTaskId: "temp_123", payloadFileId: nil,
             context: context(["taskDep": ["taskId": "real-task"]])
         )
         XCTAssertEqual(resolved.taskId, "real-task")
         XCTAssertFalse(resolved.taskUnresolved)
     }
 
-    func testReadsFileIdFromUploadDependency() {
+    func testDependencyFileIdWinsOverPayloadFileId() {
         let resolved = CommentOutboxResolver.resolve(
-            payloadTaskId: "real-task",
+            payloadTaskId: "real-task", payloadFileId: "temp_local",
             context: context(["uploadDep": ["fileId": "file-9"]])
         )
         XCTAssertEqual(resolved.fileId, "file-9")
     }
 
+    func testFallsBackToPayloadFileIdWhenNoDependency() {
+        let resolved = CommentOutboxResolver.resolve(
+            payloadTaskId: "real-task", payloadFileId: "temp_local", context: context([:])
+        )
+        XCTAssertEqual(resolved.fileId, "temp_local",
+                       "dual-write carries the (temp) fileId in the payload; handler resolves it live")
+    }
+
     func testTempTaskWithNoDependencyIsUnresolved() {
-        let resolved = CommentOutboxResolver.resolve(payloadTaskId: "temp_x", context: context([:]))
+        let resolved = CommentOutboxResolver.resolve(payloadTaskId: "temp_x", payloadFileId: nil, context: context([:]))
         XCTAssertTrue(resolved.taskUnresolved, "must wait, not POST to a temp task id")
         XCTAssertNil(resolved.fileId)
     }
 
     func testRealTaskWithNoDependenciesPassesThrough() {
-        let resolved = CommentOutboxResolver.resolve(payloadTaskId: "real-1", context: context([:]))
+        let resolved = CommentOutboxResolver.resolve(payloadTaskId: "real-1", payloadFileId: nil, context: context([:]))
         XCTAssertEqual(resolved.taskId, "real-1")
         XCTAssertFalse(resolved.taskUnresolved)
         XCTAssertNil(resolved.fileId)
@@ -47,7 +55,8 @@ final class CommentAttachmentOutboxTests: XCTestCase {
     func testCommentPayloadRoundTrips() throws {
         let p = CreateCommentOutboxPayload(
             taskId: "temp_1", content: "hi", type: "ATTACHMENT",
-            parentCommentId: nil, createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+            parentCommentId: nil, createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            fileId: "temp_file_1"
         )
         let decoded = try JSONDecoder().decode(
             CreateCommentOutboxPayload.self, from: JSONEncoder().encode(p))
