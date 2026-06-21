@@ -12,6 +12,8 @@ struct SettingsView: View {
     // Debug mode toggles (stored in UserDefaults like web app)
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
+    // Bound to the same UserDefaults key OutboxConfig reads.
+    @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = false
 
 
     var body: some View {
@@ -124,6 +126,21 @@ struct SettingsView: View {
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                             Text(NSLocalizedString("debug.reminder_debug_desc", comment: ""))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                    }
+                    .tint(Theme.accent)
+
+                    // Debug-only: route createTask + plain comments through the unified
+                    // Outbox (dual-write). Safe — same idempotency key as the legacy
+                    // path, so the server dedupes. Plain string label (debug surface).
+                    Toggle(isOn: $outboxDualWriteEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Outbox dual-write")
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text("Mirror task & comment writes through the unified Outbox to verify it (no duplicates).")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }
