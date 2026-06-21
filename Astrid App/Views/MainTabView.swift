@@ -221,7 +221,7 @@ struct MainTabView: View {
                     })
                         .environmentObject(authManager)
                 } else if selectedListId == "profile", let userId = authManager.userId {
-                    UserProfileView(userId: userId)
+                    UserProfileView(userId: userId, isRootDestination: true)
                         .environmentObject(authManager)
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 20)

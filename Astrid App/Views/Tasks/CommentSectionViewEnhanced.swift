@@ -1097,9 +1097,7 @@ struct CommentSectionViewEnhanced: View {
             guard let imageData = try await photoItem.loadTransferable(type: Data.self) else {
                 print("❌ [CommentSection] Failed to load image data from PhotosPicker")
                 await MainActor.run {
-                    uploadError = networkMonitor.isConnected
-                        ? "Failed to load photo. Please try again."
-                        : "This photo isn't downloaded to your device. Connect to the internet, or pick a recently-taken photo (those are stored locally)."
+                    uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: networkMonitor.isConnected)
                 }
                 return
             }

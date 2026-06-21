@@ -59,7 +59,9 @@ struct ProjectStatusBoardView: View {
             projectId: projectId,
             column: column,
             lists: listService.lists,
-            manualOrder: projectDomainList?.manualSortOrder
+            manualOrder: projectDomainList?.manualSortOrder,
+            recentlyCompletedWindow: projectDomainList?.recentlyCompletedWindow,
+            completionFilter: projectDomainList?.filterCompletion
         )
     }
 
@@ -148,7 +150,9 @@ struct ProjectStatusBoardView: View {
             projectId: projectId,
             lists: listService.lists,
             allTasks: taskService.tasks,
-            currentManualOrder: domainList.manualSortOrder ?? []
+            currentManualOrder: domainList.manualSortOrder ?? [],
+            recentlyCompletedWindow: domainList.recentlyCompletedWindow,
+            completionFilter: domainList.filterCompletion
         )
 
         // Light haptic to confirm the drop registered.

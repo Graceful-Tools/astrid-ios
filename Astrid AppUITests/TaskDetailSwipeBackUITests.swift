@@ -148,10 +148,19 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             throw XCTSkip("Task list not visible")
         }
 
-        // Perform swipe-right gesture from upper area to avoid task cells / list swipe actions
+        // Perform swipe-right gesture from upper area to avoid task cells / list swipe actions.
+        // Use a slightly longer press so the gesture registers as a deliberate drag rather
+        // than a flick whose predicted end-translation can fall under the open threshold on
+        // slower/loaded simulators.
         let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
         let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
-        swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
+        swipeStart.press(forDuration: 0.15, thenDragTo: swipeEnd)
+
+        // Let the sidebar's spring open-animation (≈0.25s) settle before asserting, matching
+        // the robust pattern used by the other swipe tests in this file. Asserting mid-animation
+        // is the root cause of this test's flakiness — the accessibility tree is unstable while
+        // the sidebar scales/fades in.
+        Thread.sleep(forTimeInterval: 0.5)
 
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
         afterSwipe.name = "After Sidebar Swipe"
@@ -159,9 +168,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         add(afterSwipe)
 
         // Sidebar contains a "Lists" section header that does NOT appear on the task list itself.
-        // Use waitForExistence to allow for the open animation.
+        // Use waitForExistence to allow for any remaining open animation.
         let listsHeader = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Lists' OR label ==[c] 'Add List'")).firstMatch
-        XCTAssertTrue(listsHeader.waitForExistence(timeout: 3), "Sidebar should be visible after swipe-right on task list")
+        XCTAssertTrue(listsHeader.waitForExistence(timeout: 5), "Sidebar should be visible after swipe-right on task list")
     }
 
     // MARK: - Swipe Right on Settings Closes Settings

@@ -55,6 +55,35 @@ struct InlineTextEditor: View {
     }
 }
 
+/// Layout metrics that keep `InlineTextAreaEditor`'s placeholder aligned with
+/// the caret.
+///
+/// SwiftUI's `TextEditor` is backed by a `UITextView` whose text container
+/// adds its own insets *inside* any SwiftUI `.padding(...)`: a default
+/// `lineFragmentPadding` of 5pt horizontally and a `textContainerInset` of
+/// 8pt vertically. Glyphs and the caret render at `containerPadding + inset`,
+/// so a plain `Text` placeholder given the same `.padding(...)` lands at
+/// `containerPadding` only — leaving the placeholder and caret out of sync.
+/// The placeholder uses `placeholder*Padding` to sit on the real text origin.
+enum InlineTextAreaMetrics {
+    /// SwiftUI padding applied around the TextEditor and placeholder.
+    static let containerPadding: CGFloat = 12
+
+    /// `UITextView.textContainer.lineFragmentPadding` default.
+    static let textViewHorizontalInset: CGFloat = 5
+    /// `UITextView.textContainerInset` default top/bottom.
+    static let textViewVerticalInset: CGFloat = 8
+
+    /// Where the TextEditor renders glyphs and the caret, measured from the
+    /// editor container's top-leading corner.
+    static let textOriginLeading = containerPadding + textViewHorizontalInset
+    static let textOriginTop = containerPadding + textViewVerticalInset
+
+    /// Padding the placeholder must use so it lands exactly on the caret.
+    static let placeholderLeadingPadding = textOriginLeading
+    static let placeholderTopPadding = textOriginTop
+}
+
 /// Inline multiline text editor (for descriptions)
 /// Supports markdown rendering when not editing, and @/#/! autocomplete while editing
 struct InlineTextAreaEditor: View {
@@ -87,10 +116,16 @@ struct InlineTextAreaEditor: View {
                 // Standard TextEditor — no overlay, no cursor alignment issues
                 ZStack(alignment: .topLeading) {
                     if text.isEmpty {
+                        // Offset onto the TextEditor's real text origin so the
+                        // placeholder and caret line up. A plain
+                        // `.padding(containerPadding)` ignores the backing
+                        // UITextView's internal insets — see InlineTextAreaMetrics.
                         Text(placeholder)
                             .font(Theme.Typography.body())
                             .foregroundColor(mutedColor)
-                            .padding(Theme.spacing12)
+                            .padding(.leading, InlineTextAreaMetrics.placeholderLeadingPadding)
+                            .padding(.trailing, InlineTextAreaMetrics.placeholderLeadingPadding)
+                            .padding(.top, InlineTextAreaMetrics.placeholderTopPadding)
                             .allowsHitTesting(false)
                     }
 
@@ -99,7 +134,7 @@ struct InlineTextAreaEditor: View {
                         .foregroundColor(defaultTextColor)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 100)
-                        .padding(Theme.spacing12)
+                        .padding(InlineTextAreaMetrics.containerPadding)
                         .focused($isFocused)
                         .onChange(of: isFocused) { _, focused in
                             if !focused && isEditing {

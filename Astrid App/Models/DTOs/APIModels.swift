@@ -210,6 +210,13 @@ struct CreateProjectRequest: Codable {
     var imageUrl: String?
 }
 
+/// Body for the atomic Create Board endpoint (`POST /api/v1/projects/from-list`):
+/// creates a project AND attaches the list in one transaction, replacing the
+/// two-step flow that could orphan a project.
+struct CreateBoardFromListRequest: Codable {
+    var listId: String
+}
+
 struct ProjectsResponse: Codable {
     var projects: [Project]
 }

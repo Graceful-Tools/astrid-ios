@@ -234,7 +234,7 @@ class AstridAPIClient {
     func resolveShortcode(_ code: String) async throws -> ShortcodeResolution {
         return try await request(
             method: "GET",
-            path: "api/shortcodes/\(code)"
+            path: "/api/v1/shortcodes/\(code)"
         )
     }
 
@@ -298,6 +298,42 @@ class AstridAPIClient {
         return response.task
     }
 
+    /// Builds the `CreateTaskRequest` wire body.
+    ///
+    /// Extracted from `createTask` so the request shape — in particular that a
+    /// parsed `repeatingData` survives to the server — is unit-testable without a
+    /// network round-trip. A prior version hardcoded `repeatingData: nil` here,
+    /// which silently turned "weekly Monday" tasks into a one-off Monday due date.
+    nonisolated static func makeCreateTaskRequest(
+        title: String,
+        description: String?,
+        priority: Int?,
+        assigneeId: String?,
+        dueDateTimeString: String?,
+        isAllDay: Bool?,
+        isPrivate: Bool?,
+        repeating: String?,
+        repeatingData: CustomRepeatingPattern?,
+        clientRequestId: String?
+    ) -> CreateTaskRequest {
+        CreateTaskRequest(
+            title: title,
+            description: description,
+            priority: priority,
+            repeating: repeating,
+            repeatingData: repeatingData,
+            isPrivate: isPrivate,
+            dueDateTime: dueDateTimeString,
+            isAllDay: isAllDay,
+            reminderTime: nil,
+            reminderType: nil,
+            listIds: nil,
+            assigneeId: assigneeId,
+            assigneeEmail: nil,
+            clientRequestId: clientRequestId
+        )
+    }
+
     /// Create a new task
     func createTask(
         title: String,
@@ -309,6 +345,7 @@ class AstridAPIClient {
         isAllDay: Bool? = nil,  // Whether this is an all-day task
         isPrivate: Bool? = nil,
         repeating: String? = nil,
+        repeatingData: CustomRepeatingPattern? = nil,  // Custom recurrence pattern (e.g. weekly Mon/Wed/Fri)
         clientRequestId: String? = nil  // Idempotency key for dedup
     ) async throws -> Task {
         // Convert Date to ISO8601 string for API
@@ -333,22 +370,19 @@ class AstridAPIClient {
             dueDateTimeString = nil
         }
 
-        let body = CreateTaskRequest(
+        var body = Self.makeCreateTaskRequest(
             title: title,
             description: description,
             priority: priority,
-            repeating: repeating,
-            repeatingData: nil,
-            isPrivate: isPrivate,
-            dueDateTime: dueDateTimeString,
-            isAllDay: isAllDay,
-            reminderTime: nil,
-            reminderType: nil,
-            listIds: listIds,
             assigneeId: assigneeId,
-            assigneeEmail: nil,
+            dueDateTimeString: dueDateTimeString,
+            isAllDay: isAllDay,
+            isPrivate: isPrivate,
+            repeating: repeating,
+            repeatingData: repeatingData,
             clientRequestId: clientRequestId
         )
+        body.listIds = listIds
 
         let response: TaskResponse = try await request(
             method: "POST",
@@ -513,6 +547,26 @@ class AstridAPIClient {
         let response: ProjectResponse = try await request(
             method: "POST",
             path: "/api/v1/projects",
+            body: body
+        )
+        return response.project
+    }
+
+    /// Builds the atomic Create Board request body. Extracted so the wire shape
+    /// is unit-testable without a network round-trip.
+    nonisolated static func makeCreateBoardFromListRequest(listId: String) -> CreateBoardFromListRequest {
+        CreateBoardFromListRequest(listId: listId)
+    }
+
+    /// Atomically turn a list into a project board in a single request: the
+    /// server creates the project AND attaches the list in one transaction, so a
+    /// mid-flight failure can't leave an orphan project (the bug the old two-step
+    /// POST-project-then-PUT-list flow caused). Requires the `projects:write` scope.
+    func createProjectFromList(listId: String) async throws -> Project {
+        let body = Self.makeCreateBoardFromListRequest(listId: listId)
+        let response: ProjectResponse = try await request(
+            method: "POST",
+            path: "/api/v1/projects/from-list",
             body: body
         )
         return response.project
