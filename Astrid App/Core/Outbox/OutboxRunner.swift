@@ -66,6 +66,9 @@ actor OutboxRunner {
     /// Current journal — for inspection/tests.
     func snapshot() -> [OutboxEntry] { entries }
 
+    /// Journal counts by status — powers the dual-write soak readout.
+    func stats() -> OutboxStats { OutboxStats(entries: entries) }
+
     /// Add an entry (idempotent on id) and drain.
     func enqueue(_ entry: OutboxEntry) async {
         if !entries.contains(where: { $0.id == entry.id }) {

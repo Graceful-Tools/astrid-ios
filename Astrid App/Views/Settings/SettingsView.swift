@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
     // Bound to the same UserDefaults key OutboxConfig reads.
     @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = false
+    @State private var outboxStats: OutboxStats?
 
 
     var body: some View {
@@ -146,6 +147,29 @@ struct SettingsView: View {
                         }
                     }
                     .tint(Theme.accent)
+
+                    // Soak readout: dead-lettered > 0 = a dropped write (don't deprecate
+                    // legacy yet); all-completed = the Outbox kept up.
+                    if let s = outboxStats {
+                        HStack {
+                            Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(s.isHealthy ? .green : .orange)
+                            Text("Outbox: \(s.completed) done · \(s.pending + s.running) pending · \(s.failedPermanent) dead-letter")
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            Spacer()
+                            Button("Refresh") { _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() } }
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(Theme.accent)
+                        }
+                        .task { outboxStats = await OutboxManager.shared.stats() }
+                    } else {
+                        Button("Load Outbox stats") {
+                            _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }
+                        }
+                        .font(Theme.Typography.caption2())
+                        .foregroundColor(Theme.accent)
+                    }
                 }
 
                 Section(NSLocalizedString("debug.test_prompts", comment: "")) {

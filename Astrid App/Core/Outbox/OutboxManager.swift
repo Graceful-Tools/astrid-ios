@@ -56,6 +56,11 @@ final class OutboxManager {
         _Concurrency.Task { await runner.drain() }
     }
 
+    /// Current journal stats for the debug soak readout.
+    func stats() async -> OutboxStats {
+        await runner.stats()
+    }
+
     /// Enqueue a task creation. No-op unless dual-write is enabled.
     func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
         guard OutboxConfig.dualWriteEnabled else { return }
