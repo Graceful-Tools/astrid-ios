@@ -592,6 +592,14 @@ class TaskService: ObservableObject {
                 lastTimerValue: lastTimerValue
             )
 
+            // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
+            // PUT is value-idempotent and carries no If-Unmodified-Since, so the
+            // Outbox replaying the same body alongside the legacy PUT is safe.
+            OutboxManager.shared.enqueueUpdateTask(
+                UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates),
+                clientRequestId: UUID().uuidString
+            )
+
             let task = try await apiClient.updateTask(id: resolvedId, updates: updates)
 
             // Only replace in-memory if server response is newer than current version.

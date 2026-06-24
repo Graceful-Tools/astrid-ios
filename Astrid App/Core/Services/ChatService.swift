@@ -520,6 +520,21 @@ class ChatService: ObservableObject {
         }
         cachedMessages[channelId]?.append(optimisticMessage)
 
+        // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
+        // Reuses the SAME clientRequestId as the legacy sync, so the server
+        // dedupes (ChatMessage.clientRequestId is unique). The handler resolves a
+        // temp attachment fileId from the legacy upload at run time — no re-upload.
+        OutboxManager.shared.enqueueChatMessage(
+            SendChatMessageOutboxPayload(
+                channelId: channelId,
+                content: content,
+                type: type.rawValue,
+                fileId: fileId,
+                replyToId: replyToId
+            ),
+            clientRequestId: clientRequestId
+        )
+
         // Trigger background sync
         if networkMonitor.isConnected {
             _Concurrency.Task.detached { [weak self] in

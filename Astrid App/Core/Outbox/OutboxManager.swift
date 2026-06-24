@@ -5,6 +5,8 @@ enum OutboxKind {
     static let createTask = "createTask"
     static let uploadAttachment = "uploadAttachment"
     static let createComment = "createComment"
+    static let sendChatMessage = "sendChatMessage"
+    static let updateTask = "updateTask"
 }
 
 /// Feature flags for the Outbox rollout. Dual-write is OFF by default: the
@@ -36,7 +38,9 @@ final class OutboxManager {
             handlers: [
                 OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) },
                 OutboxKind.uploadAttachment: { entry, _ in await UploadAttachmentOutboxHandler.handle(entry) },
-                OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) }
+                OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) },
+                OutboxKind.sendChatMessage: { entry, _ in await SendChatMessageOutboxHandler.handle(entry) },
+                OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) }
             ]
         )
         self.runner = runner
@@ -61,26 +65,34 @@ final class OutboxManager {
         await runner.stats()
     }
 
-    /// Enqueue a task creation. No-op unless dual-write is enabled.
-    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
+    /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
+    /// No-op unless dual-write is enabled.
+    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String) {
         guard OutboxConfig.dualWriteEnabled else { return }
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
-            id: UUID().uuidString,
-            kind: OutboxKind.createTask,
-            payload: data,
-            clientRequestId: clientRequestId,
-            dependsOn: [],
-            status: .pending,
-            attempts: 0,
-            nextAttemptAt: now,
-            lastError: nil,
-            createdAt: now,
-            updatedAt: now
+            id: UUID().uuidString, kind: kind, payload: data,
+            clientRequestId: clientRequestId, dependsOn: [], status: .pending,
+            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now
         )
         let runner = self.runner
         _Concurrency.Task { await runner.enqueue(entry) }
+    }
+
+    /// Enqueue a task creation. No-op unless dual-write is enabled.
+    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    /// Enqueue a chat message send. No-op unless dual-write is enabled.
+    func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    /// Enqueue a task update. No-op unless dual-write is enabled.
+    func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId)
     }
 
     /// Enqueue a comment, optionally with an attachment that must upload first.
