@@ -96,6 +96,45 @@ struct SettingsView: View {
                     SettingsContactsSection()
 
                 // Debug settings (matching web app)
+                // Outbox soak controls — visible in TestFlight (Release) too, so
+                // the dual-write can be verified by testers, not just DEBUG builds.
+                Section("Outbox (beta)") {
+                    Toggle(isOn: $outboxDualWriteEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Outbox dual-write")
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text("Mirror task, comment & chat writes through the unified Outbox to verify it (no duplicates).")
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                    }
+                    .tint(Theme.accent)
+
+                    // Soak readout: dead-lettered > 0 = a dropped write (don't deprecate
+                    // legacy yet); all-completed = the Outbox kept up.
+                    if let s = outboxStats {
+                        HStack {
+                            Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(s.isHealthy ? .green : .orange)
+                            Text("Outbox: \(s.completed) done · \(s.pending + s.running) pending · \(s.failedPermanent) dead-letter")
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            Spacer()
+                            Button("Refresh") { _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() } }
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(Theme.accent)
+                        }
+                        .task { outboxStats = await OutboxManager.shared.stats() }
+                    } else {
+                        Button("Load Outbox stats") {
+                            _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }
+                        }
+                        .font(Theme.Typography.caption2())
+                        .foregroundColor(Theme.accent)
+                    }
+                }
+
                 #if DEBUG
                 Section(NSLocalizedString("debug.settings", comment: "")) {
                     NavigationLink(destination: ServerSettingsView()) {
@@ -132,44 +171,6 @@ struct SettingsView: View {
                         }
                     }
                     .tint(Theme.accent)
-
-                    // Debug-only: route createTask + plain comments through the unified
-                    // Outbox (dual-write). Safe — same idempotency key as the legacy
-                    // path, so the server dedupes. Plain string label (debug surface).
-                    Toggle(isOn: $outboxDualWriteEnabled) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Outbox dual-write")
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Mirror task & comment writes through the unified Outbox to verify it (no duplicates).")
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-                    .tint(Theme.accent)
-
-                    // Soak readout: dead-lettered > 0 = a dropped write (don't deprecate
-                    // legacy yet); all-completed = the Outbox kept up.
-                    if let s = outboxStats {
-                        HStack {
-                            Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                                .foregroundColor(s.isHealthy ? .green : .orange)
-                            Text("Outbox: \(s.completed) done · \(s.pending + s.running) pending · \(s.failedPermanent) dead-letter")
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                            Spacer()
-                            Button("Refresh") { _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() } }
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(Theme.accent)
-                        }
-                        .task { outboxStats = await OutboxManager.shared.stats() }
-                    } else {
-                        Button("Load Outbox stats") {
-                            _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }
-                        }
-                        .font(Theme.Typography.caption2())
-                        .foregroundColor(Theme.accent)
-                    }
                 }
 
                 Section(NSLocalizedString("debug.test_prompts", comment: "")) {
