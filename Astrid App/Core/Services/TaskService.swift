@@ -1431,20 +1431,10 @@ class TaskService: ObservableObject {
                             ISO8601DateFormatter().string(from: date)
                         }
 
-                        let updates = UpdateTaskRequest(
-                            title: task.title,
-                            description: task.description,
-                            priority: task.priority.rawValue,
-                            repeating: task.repeating?.rawValue,
-                            repeatingData: nil,
-                            isPrivate: task.isPrivate,
-                            completed: task.completed,
-                            dueDateTime: dueDateTimeString,  // Pass ISO8601 datetime string
-                            isAllDay: task.isAllDay,  // Pass isAllDay flag
-                            reminderTime: nil,
-                            reminderType: nil,
-                            listIds: task.listIds,
-                            assigneeId: task.assigneeId
+                        let updates = Self.makeSyncUpdateRequest(
+                            task: task,
+                            dueDateTimeString: dueDateTimeString,
+                            listIds: task.listIds
                         )
 
                         let updatedTask = try await apiClient.updateTask(id: task.id, updates: updates)
@@ -1488,21 +1478,14 @@ class TaskService: ObservableObject {
                                 isAllDay: task.isAllDay,
                                 isPrivate: task.isPrivate,
                                 repeating: task.repeating?.rawValue,
+                                repeatingData: task.repeatingData,  // Don't drop custom recurrence on offline replay
                                 clientRequestId: storedClientRequestId  // Reuse same key for dedup
                             )
 
                             // CRITICAL: If server returned an idempotent response (task already existed),
-                            // it may have stale data (e.g. missing priority/date edits the user made locally).
-                            // Compare local CoreData state with server response and push an UPDATE if they differ.
-                            let localDiffersFromServer =
-                                task.priority != createdTask.priority
-                                || task.title != createdTask.title
-                                || task.isAllDay != createdTask.isAllDay
-                                || task.isPrivate != createdTask.isPrivate
-                                || task.completed != createdTask.completed
-                                || !datesMatch(task.dueDateTime, createdTask.dueDateTime)
-                                || task.description != createdTask.description
-                                || task.assigneeId != createdTask.assigneeId
+                            // it may have stale data (e.g. missing priority/date/recurrence edits the user
+                            // made locally). Compare and push an UPDATE if they differ.
+                            let localDiffersFromServer = Self.taskDiffersForSync(local: task, server: createdTask)
 
                             if localDiffersFromServer {
                                 print("🔀 [TaskService] Local edits differ from server response — pushing UPDATE")
@@ -1516,20 +1499,10 @@ class TaskService: ObservableObject {
                                         return ISO8601DateFormatter().string(from: date)
                                     }
                                 }
-                                let syncUpdates = UpdateTaskRequest(
-                                    title: task.title,
-                                    description: task.description,
-                                    priority: task.priority.rawValue,
-                                    repeating: task.repeating?.rawValue,
-                                    repeatingData: nil,
-                                    isPrivate: task.isPrivate,
-                                    completed: task.completed,
-                                    dueDateTime: syncDueDateTimeString,
-                                    isAllDay: task.isAllDay,
-                                    reminderTime: nil,
-                                    reminderType: nil,
-                                    listIds: serverListIds.isEmpty ? nil : serverListIds,
-                                    assigneeId: task.assigneeId
+                                let syncUpdates = Self.makeSyncUpdateRequest(
+                                    task: task,
+                                    dueDateTimeString: syncDueDateTimeString,
+                                    listIds: serverListIds.isEmpty ? nil : serverListIds
                                 )
                                 let updatedFromServer = try await apiClient.updateTask(id: createdTask.id, updates: syncUpdates)
                                 createdTask = updatedFromServer
@@ -1644,12 +1617,51 @@ class TaskService: ObservableObject {
 
     /// Compare two optional dates, treating them as equal if within 1 second
     /// (handles minor serialization/timezone rounding differences)
-    private func datesMatch(_ a: Date?, _ b: Date?) -> Bool {
+    static func datesMatch(_ a: Date?, _ b: Date?) -> Bool {
         switch (a, b) {
         case (nil, nil): return true
         case (nil, _), (_, nil): return false
         case let (a?, b?): return abs(a.timeIntervalSince(b)) < 1.0
         }
+    }
+
+    /// Builds the wire payload for replaying an offline task edit. Centralized so
+    /// recurrence fields (repeating/repeatingData/repeatFrom) are ALWAYS carried —
+    /// a prior inline version sent repeatingData: nil and erased custom patterns
+    /// after offline replay.
+    static func makeSyncUpdateRequest(task: Task, dueDateTimeString: String?, listIds: [String]?) -> UpdateTaskRequest {
+        UpdateTaskRequest(
+            title: task.title,
+            description: task.description,
+            priority: task.priority.rawValue,
+            repeating: task.repeating?.rawValue,
+            repeatingData: task.repeatingData,
+            repeatFrom: task.repeatFrom?.rawValue,
+            isPrivate: task.isPrivate,
+            completed: task.completed,
+            dueDateTime: dueDateTimeString,
+            isAllDay: task.isAllDay,
+            reminderTime: nil,
+            reminderType: nil,
+            listIds: listIds,
+            assigneeId: task.assigneeId
+        )
+    }
+
+    /// Whether a locally-edited task differs from the server's response enough to
+    /// warrant a follow-up update push. Includes recurrence so a recurrence-only
+    /// edit (or an idempotent create that returned a stale/plain task) isn't lost.
+    static func taskDiffersForSync(local: Task, server: Task) -> Bool {
+        local.priority != server.priority
+        || local.title != server.title
+        || local.isAllDay != server.isAllDay
+        || local.isPrivate != server.isPrivate
+        || local.completed != server.completed
+        || !datesMatch(local.dueDateTime, server.dueDateTime)
+        || local.description != server.description
+        || local.assigneeId != server.assigneeId
+        || local.repeating != server.repeating
+        || local.repeatingData != server.repeatingData
     }
 
     private func resolveListIds(_ listIds: [String]) -> [String] {
