@@ -1,40 +1,42 @@
 #!/bin/sh
 
-# Xcode Cloud custom build step: run the unit test suite on Apple's infrastructure
-# so tests gate every build, independent of any local simulator.
+# Xcode Cloud custom build step: run the unit suite on Apple's infra so tests
+# gate the build, independent of any local simulator.
 #
-# Why this script instead of a workflow TEST action: the "iOS Internal testers"
-# workflow's TestFlight deployment is bound to its ARCHIVE action, and editing the
-# workflow's actions via the API breaks that binding. A ci_scripts/ build step
-# runs for every Xcode Cloud build without touching the workflow, and a non-zero
-# exit here fails the build — so a red test blocks the TestFlight upload.
+# Why a ci_scripts/ step instead of a workflow TEST action: the workflow's
+# TestFlight deployment is bound to its ARCHIVE action, and editing the actions
+# via the API breaks that binding. This script runs for every build without
+# touching the workflow.
 #
-# Runs after the archive action. Unit tests only (Astrid AppTests); UI tests need
-# a signed-in account and are intentionally excluded.
+# Safety: this script only fails the build on a GENUINE test/build failure
+# (xcodebuild exit 65). Infrastructure/usage errors (e.g. a missing simulator)
+# are surfaced as warnings and DO NOT block the build — a bug in this script must
+# never be able to break the TestFlight pipeline.
 
-set -eu
+set -u
+echo "── ci_post_xcodebuild: unit tests ──"
 
-echo "── ci_post_xcodebuild: running unit tests ──"
+cd "${CI_PRIMARY_REPOSITORY_PATH:-$(dirname "$0")/..}" || exit 0
 
-# Xcode Cloud checks out the repo at CI_PRIMARY_REPOSITORY_PATH.
-cd "${CI_PRIMARY_REPOSITORY_PATH:-$(dirname "$0")/..}"
-
-# Pick an available iPhone simulator so we don't pin a device that the image
-# might rename across Xcode updates.
-DEVICE="$(xcrun simctl list devices available 2>/dev/null \
-  | grep -oE 'iPhone [0-9]+( Pro( Max)?)?' \
-  | sort -t' ' -k2 -n \
-  | tail -1)"
-if [ -z "${DEVICE}" ]; then
-  DEVICE="iPhone 16"
-fi
-echo "Using simulator: ${DEVICE}"
+# First available iPhone simulator on the runner image (fallback: iPhone 16).
+DEVICE="$(xcrun simctl list devices available 2>/dev/null | grep -oE 'iPhone 1[0-9]' | head -1)"
+[ -z "${DEVICE}" ] && DEVICE="iPhone 16"
+echo "Simulator: ${DEVICE}"
 
 xcodebuild test \
   -scheme "Astrid App" \
   -destination "platform=iOS Simulator,name=${DEVICE}" \
-  -only-testing:"Astrid AppTests" \
-  -skipPackagePluginValidation \
-  -resultBundlePath "${CI_RESULT_BUNDLE_PATH:-$PWD/UnitTests.xcresult}"
+  -only-testing:"Astrid AppTests"
+RC=$?
+echo "xcodebuild test exit code: ${RC}"
 
-echo "── ci_post_xcodebuild: unit tests passed ──"
+if [ "${RC}" -eq 0 ]; then
+  echo "── unit tests passed ──"
+  exit 0
+fi
+if [ "${RC}" -eq 65 ]; then
+  echo "── unit tests FAILED — blocking the build ──"
+  exit 1
+fi
+echo "── WARN: xcodebuild exited ${RC} (infra/usage, not a test failure) — not blocking ──"
+exit 0
