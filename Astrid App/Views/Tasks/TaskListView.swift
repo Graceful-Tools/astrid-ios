@@ -516,7 +516,7 @@ struct TaskListView: View {
                                 // we don't need the full Project model to draw
                                 // columns (status lists are on ListService and
                                 // are looked up by projectId).
-                                ProjectStatusBoardView(projectId: projectId)
+                                ProjectStatusBoardView(projectId: projectId, onOpenSidebar: onMenuTap)
                             } else if filteredTasks.isEmpty {
                                 emptyState
                             } else {

@@ -31,6 +31,11 @@ struct ProjectStatusBoardView: View {
     /// needs.
     let projectId: String
 
+    /// Called when the user swipes left-to-right while on the left-most column —
+    /// there's nothing further left to scroll to, so it opens the shell sidebar
+    /// (matching a regular list). Provided by the parent (TaskListView.onMenuTap).
+    var onOpenSidebar: (() -> Void)?
+
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropError: String? = nil
@@ -120,6 +125,25 @@ struct ProjectStatusBoardView: View {
                 guard newId != nil else { return }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
+            // At the left-most column a left-to-right swipe can't scroll further,
+            // so let it open the sidebar (the carousel still owns pans elsewhere).
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        let atLeftmost = visibleColumnId == columns.first?.id
+                            || (visibleColumnId == nil)  // not yet snapped → defaults to Inbox
+                        let decision = BoardSidebarSwipeState(
+                            isMobile: UIDevice.current.userInterfaceIdiom == .phone,
+                            isAtLeftmostColumn: atLeftmost,
+                            translationWidth: value.translation.width,
+                            translationHeight: value.translation.height,
+                            predictedEndTranslationWidth: value.predictedEndTranslation.width
+                        )
+                        if shouldBoardSwipeOpenSidebar(decision) {
+                            onOpenSidebar?()
+                        }
+                    }
+            )
         }
         .alert("Couldn't move task", isPresented: .constant(dropError != nil), presenting: dropError) { _ in
             Button("OK") { dropError = nil }
