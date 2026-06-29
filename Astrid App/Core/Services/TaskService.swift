@@ -1617,7 +1617,7 @@ class TaskService: ObservableObject {
 
     /// Compare two optional dates, treating them as equal if within 1 second
     /// (handles minor serialization/timezone rounding differences)
-    static func datesMatch(_ a: Date?, _ b: Date?) -> Bool {
+    nonisolated static func datesMatch(_ a: Date?, _ b: Date?) -> Bool {
         switch (a, b) {
         case (nil, nil): return true
         case (nil, _), (_, nil): return false
@@ -1629,7 +1629,7 @@ class TaskService: ObservableObject {
     /// recurrence fields (repeating/repeatingData/repeatFrom) are ALWAYS carried —
     /// a prior inline version sent repeatingData: nil and erased custom patterns
     /// after offline replay.
-    static func makeSyncUpdateRequest(task: Task, dueDateTimeString: String?, listIds: [String]?) -> UpdateTaskRequest {
+    nonisolated static func makeSyncUpdateRequest(task: Task, dueDateTimeString: String?, listIds: [String]?) -> UpdateTaskRequest {
         UpdateTaskRequest(
             title: task.title,
             description: task.description,
@@ -1651,7 +1651,7 @@ class TaskService: ObservableObject {
     /// Whether a locally-edited task differs from the server's response enough to
     /// warrant a follow-up update push. Includes recurrence so a recurrence-only
     /// edit (or an idempotent create that returned a stale/plain task) isn't lost.
-    static func taskDiffersForSync(local: Task, server: Task) -> Bool {
+    nonisolated static func taskDiffersForSync(local: Task, server: Task) -> Bool {
         local.priority != server.priority
         || local.title != server.title
         || local.isAllDay != server.isAllDay
