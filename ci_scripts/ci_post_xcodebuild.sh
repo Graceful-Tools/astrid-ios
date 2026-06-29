@@ -23,10 +23,15 @@ DEVICE="$(xcrun simctl list devices available 2>/dev/null | grep -oE 'iPhone 1[0
 [ -z "${DEVICE}" ] && DEVICE="iPhone 16"
 echo "Simulator: ${DEVICE}"
 
+# Skip repo-introspection tests: they read source files via #filePath and the
+# sibling astrid-web repo, which don't exist in Xcode Cloud's sandbox (only the
+# astrid-ios repo is checked out). They run locally; here they'd false-fail.
 xcodebuild test \
   -scheme "Astrid App" \
   -destination "platform=iOS Simulator,name=${DEVICE}" \
-  -only-testing:"Astrid AppTests"
+  -only-testing:"Astrid AppTests" \
+  -skip-testing:"Astrid AppTests/V1APIContractIntegrationTests" \
+  -skip-testing:"Astrid AppTests/CanonicalControlPointsTests/testRefactoredViews_DoNotCallAstridAPIClientDirectly"
 RC=$?
 echo "xcodebuild test exit code: ${RC}"
 
