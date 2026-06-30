@@ -26,6 +26,8 @@ struct BoardTaskCardView: View {
     /// row's chip set so cards don't show "iOS To-do / Doing" when
     /// the column header is "Doing" inside the iOS project's board.
     var hiddenListIds: Set<String> = []
+    /// Highlighted when this card's task is the one open in the detail panel.
+    var isSelected: Bool = false
 
     private var effectiveTheme: String {
         themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
@@ -75,7 +77,8 @@ struct BoardTaskCardView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(.separator), lineWidth: 0.5)
+                .stroke(isSelected ? Color.accentColor : Color(.separator),
+                        lineWidth: isSelected ? 2.5 : 0.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }

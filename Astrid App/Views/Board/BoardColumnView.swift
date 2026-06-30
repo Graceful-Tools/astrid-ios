@@ -34,6 +34,8 @@ struct BoardColumnView: View {
     /// its side panel (keeping the board visible); when nil we fall back to the
     /// global TaskPresenter (full-screen push, used on iPhone).
     var onTaskTap: ((Task) -> Void)?
+    /// The task currently open in the detail panel (for the selected highlight).
+    var selectedTaskId: String?
 
     @State private var isTargeted = false
     /// Slot index currently being hovered over, if any. Drives the
@@ -215,7 +217,8 @@ struct BoardColumnView: View {
                     .transition(.scale.combined(with: .opacity))
             }
 
-            BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds)
+            BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
+                              isSelected: task.id == selectedTaskId)
                 // Tap opens the task detail — same as tapping a row in
                 // the flat list. Routed through the global TaskPresenter,
                 // which TaskListView (the board's host) already wires up

@@ -104,7 +104,8 @@ struct ProjectStatusBoardView: View {
                             onDropAt: { payload, index in
                                 handleDrop(payload: payload, into: column, at: index)
                             },
-                            onTaskTap: onTaskTap
+                            onTaskTap: onTaskTap,
+                            selectedTaskId: selectedTaskId
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
@@ -123,6 +124,13 @@ struct ProjectStatusBoardView: View {
             // reveals one more column at a time, not a full screen.
             .modifier(BoardScrollSnapModifier(multiColumn: multiColumn))
             .scrollPosition(id: $visibleColumnId)
+            // When a task is open, the detail overlay covers the board's trailing
+            // edge. Add trailing scroll room so ANY column — including the last
+            // (Done) — can scroll fully into the visible area, letting the user
+            // browse that column's tasks while the detail is shown.
+            .contentMargins(.trailing,
+                            selectedTaskId != nil ? max(0, geo.size.width - columnWidth) : 0,
+                            for: .scrollContent)
             .onAppear {
                 // Default to virtual Inbox when the board first appears
                 // so the user doesn't start mid-board.

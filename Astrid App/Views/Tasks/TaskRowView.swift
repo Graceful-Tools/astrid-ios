@@ -276,8 +276,8 @@ struct TaskRowView: View {
                 .stroke(
                     embeddedInCard
                         ? Color.clear
-                        : (isSelected ? Color.blue.opacity(0.5) : getBorderColor()),
-                    lineWidth: isSelected ? 2 : 0.5
+                        : (isSelected ? Color.accentColor : getBorderColor()),
+                    lineWidth: isSelected ? 2.5 : 0.5
                 )
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
