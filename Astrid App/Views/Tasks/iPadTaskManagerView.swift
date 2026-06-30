@@ -152,51 +152,56 @@ struct iPadTaskManagerView: View {
 
             Divider()
 
-            // Middle: Task List, Settings, or Profile (22% when detail/chat shown, 72% when neither)
-            if selectedListId == "settings" {
-                NavigationStack {
-                    SettingsView()
-                        .environmentObject(authManager)
-                }
-                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
-            } else if selectedListId == "profile", let userId = authManager.userId {
-                NavigationStack {
-                    UserProfileView(userId: userId, isRootDestination: true)
-                        .environmentObject(authManager)
-                }
-                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
-            } else {
-                // No onMenuTap - hamburger button does nothing in landscape since sidebar is always visible
-                iPadTaskListView(
-                    selectedListId: $selectedListId,
-                    isViewingFromFeatured: $isViewingFromFeatured,
-                    featuredList: $featuredList,
-                    searchText: $searchText,
-                    selectedTask: $selectedTask,
-                    onMenuTap: nil  // Sidebar always visible in landscape
-                )
-                .frame(width: (selectedTask != nil || showChatPanel) ? width * 0.32 : width * 0.72)
-            }
-
-            // Right panel: Task Detail or Chat (35%)
-            if selectedTask != nil {
-                Divider()
-
-                VStack(spacing: 0) {
-                    if showChatPanel, let listId = selectedListId {
-                        ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+            // Middle + detail. The detail/chat is a trailing OVERLAY so the list/
+            // board keeps its full 0.72 width and doesn't reflow when a task opens.
+            ZStack(alignment: .trailing) {
+                Group {
+                    if selectedListId == "settings" {
+                        NavigationStack {
+                            SettingsView()
+                                .environmentObject(authManager)
+                        }
+                    } else if selectedListId == "profile", let userId = authManager.userId {
+                        NavigationStack {
+                            UserProfileView(userId: userId, isRootDestination: true)
+                                .environmentObject(authManager)
+                        }
                     } else {
-                        taskDetailPanel
+                        // No onMenuTap - hamburger does nothing in landscape since sidebar is always visible
+                        iPadTaskListView(
+                            selectedListId: $selectedListId,
+                            isViewingFromFeatured: $isViewingFromFeatured,
+                            featuredList: $featuredList,
+                            searchText: $searchText,
+                            selectedTask: $selectedTask,
+                            onMenuTap: nil
+                        )
                     }
                 }
-                .frame(width: width * 0.40)
-            } else if showChatPanel, let listId = selectedListId {
-                // Show chat panel even with no task selected
-                Divider()
+                .frame(width: width * 0.72)
 
-                ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                // Right panel: Task Detail or Chat — overlays the list's trailing edge.
+                if selectedTask != nil {
+                    VStack(spacing: 0) {
+                        if showChatPanel, let listId = selectedListId {
+                            ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                        } else {
+                            taskDetailPanel
+                        }
+                    }
                     .frame(width: width * 0.40)
+                    .background(themeBackground)
+                    .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
+                    .transition(.move(edge: .trailing))
+                } else if showChatPanel, let listId = selectedListId {
+                    ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                        .frame(width: width * 0.40)
+                        .background(themeBackground)
+                        .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
+                        .transition(.move(edge: .trailing))
+                }
             }
+            .frame(width: width * 0.72)
         }
         } // ZStack
     }
@@ -248,8 +253,10 @@ struct iPadTaskManagerView: View {
             .offset(y: 20 - (20 * sidebarProgress))
             .opacity(0.8 + (0.2 * sidebarProgress))
 
-            // Main content - slides right to reveal sidebar
-            HStack(spacing: 0) {
+            // Main content - slides right to reveal sidebar. The task detail is a
+            // trailing OVERLAY so the list/board keeps its full width (and doesn't
+            // reflow) when a task opens.
+            ZStack(alignment: .trailing) {
                 // Task List, Settings, or Profile
                 if selectedListId == "settings" {
                     NavigationStack {
@@ -265,7 +272,7 @@ struct iPadTaskManagerView: View {
                         })
                             .environmentObject(authManager)
                     }
-                    .frame(width: selectedTask != nil ? width * 0.50 : width)
+                    .frame(width: width)
                 } else if selectedListId == "profile", let userId = authManager.userId {
                     NavigationStack {
                         UserProfileView(userId: userId, isRootDestination: true)
@@ -289,7 +296,7 @@ struct iPadTaskManagerView: View {
                                     }
                             )
                     }
-                    .frame(width: selectedTask != nil ? width * 0.50 : width)
+                    .frame(width: width)
                 } else {
                     iPadTaskListView(
                         selectedListId: $selectedListId,
@@ -310,14 +317,17 @@ struct iPadTaskManagerView: View {
                             }
                         }
                     )
-                    .frame(width: selectedTask != nil ? width * 0.50 : width)
+                    .frame(width: width)
                 }
 
-                // Task Detail Panel - animates with task list
+                // Task Detail Panel - overlays the trailing half; the list/board
+                // underneath keeps its full width so its rows/cards don't reflow.
                 if selectedTask != nil {
-                    Divider()
                     taskDetailPanel
                         .frame(width: width * 0.50)
+                        .background(themeBackground)
+                        .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
+                        .transition(.move(edge: .trailing))
                 }
             }
             .frame(width: width)
