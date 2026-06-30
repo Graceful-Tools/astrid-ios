@@ -326,24 +326,29 @@ struct iPadTaskManagerView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))
             .saturation(1.0 - (0.5 * sidebarProgress))
             .allowsHitTesting(sidebarProgress < 0.95)
-            // Swipe left-to-right opens the sidebar (matches iPhone). Only when the
-            // sidebar is closed and no task is open — an open task's swipe-right
-            // closes the task instead (handled on the detail panel).
+            // Swipe left-to-right on the LIST reveals the left menu (matches
+            // iPhone) and, if a task is open, closes it on the way. A swipe that
+            // starts over the open task's panel is handled by the panel's own
+            // gesture (closes the task only — no menu), so it's excluded here.
             .simultaneousGesture(
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
-                        guard !showingSidebar, selectedTask == nil else { return }
-                        if isRightwardSwipeGesture(
+                        guard !showingSidebar else { return }
+                        guard isRightwardSwipeGesture(
                             translationWidth: value.translation.width,
                             translationHeight: value.translation.height,
                             predictedEndTranslationWidth: value.predictedEndTranslation.width
-                        ) {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
+                        ) else { return }
+                        // Only act for swipes that begin in the list area; the task
+                        // detail panel (right half when open) handles its own.
+                        let listWidth = selectedTask != nil ? width * 0.5 : width
+                        guard value.startLocation.x < listWidth else { return }
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            selectedTask = nil    // close the open task, if any
+                            showingSidebar = true // reveal the left menu
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                     }
             )
