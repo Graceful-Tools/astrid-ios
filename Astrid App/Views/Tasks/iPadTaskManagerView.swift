@@ -345,14 +345,17 @@ struct iPadTaskManagerView: View {
                         // detail panel (right half when open) handles its own.
                         let listWidth = selectedTask != nil ? width * 0.5 : width
                         guard value.startLocation.x < listWidth else { return }
-                        if isLandscape {
-                            // Landscape: just close the task to reveal the list.
-                            guard selectedTask != nil else { return }
+                        if isLandscape && selectedTask != nil {
+                            // Landscape WITH a task open: just close it to reveal the
+                            // list — there's room for everything, so don't also pull
+                            // in the sidebar.
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                                 selectedTask = nil
                             }
                         } else {
-                            // Portrait: reveal the sliding sidebar (closing any task).
+                            // Otherwise — portrait, or a landscape list/board with no
+                            // task open — reveal the sliding sidebar (the "open list
+                            // menu" gesture), closing any open task on the way.
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
                                 selectedTask = nil
                                 showingSidebar = true
