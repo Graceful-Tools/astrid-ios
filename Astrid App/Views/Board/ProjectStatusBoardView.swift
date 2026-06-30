@@ -36,6 +36,11 @@ struct ProjectStatusBoardView: View {
     /// (matching a regular list). Provided by the parent (TaskListView.onMenuTap).
     var onOpenSidebar: (() -> Void)?
 
+    /// How to open a tapped task. iPad supplies this to use its side panel so the
+    /// board stays visible in the left column; nil falls back to the full-screen
+    /// presenter (iPhone).
+    var onTaskTap: ((Task) -> Void)?
+
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropError: String? = nil
@@ -93,7 +98,8 @@ struct ProjectStatusBoardView: View {
                             selectedList: projectDomainList,
                             onDropAt: { payload, index in
                                 handleDrop(payload: payload, into: column, at: index)
-                            }
+                            },
+                            onTaskTap: onTaskTap
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
@@ -133,7 +139,11 @@ struct ProjectStatusBoardView: View {
                         let atLeftmost = visibleColumnId == columns.first?.id
                             || (visibleColumnId == nil)  // not yet snapped → defaults to Inbox
                         let decision = BoardSidebarSwipeState(
-                            isMobile: UIDevice.current.userInterfaceIdiom == .phone,
+                            // Fire whenever there's a sidebar this swipe can open
+                            // (a drawer): iPhone, and iPad portrait / 2-column. In
+                            // iPad 3-column landscape onOpenSidebar is nil (sidebar
+                            // is permanent), so the swipe stays inert there.
+                            isMobile: onOpenSidebar != nil,
                             isAtLeftmostColumn: atLeftmost,
                             translationWidth: value.translation.width,
                             translationHeight: value.translation.height,

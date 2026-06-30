@@ -516,7 +516,22 @@ struct TaskListView: View {
                                 // we don't need the full Project model to draw
                                 // columns (status lists are on ListService and
                                 // are looked up by projectId).
-                                ProjectStatusBoardView(projectId: projectId, onOpenSidebar: onMenuTap)
+                                ProjectStatusBoardView(
+                                    projectId: projectId,
+                                    onOpenSidebar: onMenuTap,
+                                    onTaskTap: { task in
+                                        // iPad split view: open in the side panel so the
+                                        // board stays visible in the left column, just like
+                                        // the flat list does. iPhone / forced-push: full screen.
+                                        if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
+                                            withAnimation(.easeInOut(duration: 0.25)) {
+                                                selectedTaskForPanel = task
+                                            }
+                                        } else {
+                                            TaskPresenter.shared.showTask(task)
+                                        }
+                                    }
+                                )
                             } else if filteredTasks.isEmpty {
                                 emptyState
                             } else {

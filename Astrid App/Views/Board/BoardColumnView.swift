@@ -30,6 +30,10 @@ struct BoardColumnView: View {
     /// Parent callback: persist the drop. `index` is the desired slot
     /// in the column AFTER the drop (0 = top; tasks.count = end).
     let onDropAt: (BoardCardPayload, Int) -> Void
+    /// How to open a tapped task. The iPad split view supplies this to route into
+    /// its side panel (keeping the board visible); when nil we fall back to the
+    /// global TaskPresenter (full-screen push, used on iPhone).
+    var onTaskTap: ((Task) -> Void)?
 
     @State private var isTargeted = false
     /// Slot index currently being hovered over, if any. Drives the
@@ -215,7 +219,11 @@ struct BoardColumnView: View {
                 // inside the card intercepts its own taps first, so a
                 // completion toggle doesn't also open the detail.
                 .onTapGesture {
-                    TaskPresenter.shared.showTask(task)
+                    if let onTaskTap {
+                        onTaskTap(task)
+                    } else {
+                        TaskPresenter.shared.showTask(task)
+                    }
                 }
                 .draggable(BoardCardPayload(taskId: task.id)) {
                     Text(task.title)
