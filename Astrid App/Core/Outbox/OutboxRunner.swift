@@ -92,10 +92,19 @@ actor OutboxRunner {
 
     /// Add an entry (idempotent on id) and drain.
     func enqueue(_ entry: OutboxEntry) async {
-        if !entries.contains(where: { $0.id == entry.id }) {
+        await enqueueBatch([entry])
+    }
+
+    /// Add several entries atomically — appended and persisted in a single
+    /// journal write — so an interruption can't leave a dependency chain
+    /// half-enqueued (e.g. the upload saved but its dependent comment lost).
+    func enqueueBatch(_ newEntries: [OutboxEntry]) async {
+        var added = false
+        for entry in newEntries where !entries.contains(where: { $0.id == entry.id }) {
             entries.append(entry)
-            persist()
+            added = true
         }
+        if added { persist() }
         await drain()
     }
 

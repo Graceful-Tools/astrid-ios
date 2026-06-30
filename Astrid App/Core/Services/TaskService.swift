@@ -31,7 +31,7 @@ class TaskService: ObservableObject {
 
     /// Mapping of temp task IDs to their real server IDs.
     /// Used to redirect edits from stale task detail views that still hold the temp ID.
-    private var tempTaskIdMapping: [String: String] = [:]
+    private var tempTaskIdMapping: [String: String] = TempTaskMappingStore.load()
 
     /// Real server id for a temporary (offline-created) task id, once it has
     /// synced; nil if the task hasn't been created on the server yet. Used by
@@ -47,7 +47,10 @@ class TaskService: ObservableObject {
     /// pending children (e.g. a photo-comment) onto the real task.
     func recordTempTaskMapping(tempId: String, realId: String) {
         guard tempId.hasPrefix("temp_"), tempId != realId else { return }
-        tempTaskIdMapping[tempId] = realId
+        // Persist durably so a relaunch between the task syncing and a child
+        // (photo/comment) syncing doesn't strand the child.
+        tempTaskIdMapping = TempTaskMappingStore.recording(tempTaskIdMapping, temp: tempId, real: realId)
+        TempTaskMappingStore.save(tempTaskIdMapping)
         // Let pending children (e.g. a photo-comment queued offline) re-sync now
         // that the parent task has a real id — closes the race where the
         // attachment finished uploading before the task synced.

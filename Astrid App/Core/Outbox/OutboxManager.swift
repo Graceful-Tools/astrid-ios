@@ -128,9 +128,10 @@ final class OutboxManager {
             attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
         ))
 
+        // Enqueue the upload→comment chain atomically so an interruption can't
+        // persist the upload but lose the comment.
         let runner = self.runner
-        _Concurrency.Task {
-            for entry in toEnqueue { await runner.enqueue(entry) }
-        }
+        let batch = toEnqueue
+        _Concurrency.Task { await runner.enqueueBatch(batch) }
     }
 }
