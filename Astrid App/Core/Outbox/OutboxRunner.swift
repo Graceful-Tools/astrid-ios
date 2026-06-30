@@ -155,6 +155,19 @@ actor OutboxRunner {
             if !progressed { break }
         }
 
+        // Dead-letter entries stranded by a permanently-failed/missing dependency
+        // so they don't hang pending forever.
+        let stranded = OutboxScheduler.strandedEntryIds(entries)
+        if !stranded.isEmpty {
+            for id in stranded {
+                update(id) { entry in
+                    entry.status = .failedPermanent
+                    if entry.lastError == nil { entry.lastError = "dependency permanently failed or missing" }
+                }
+            }
+            persist()
+        }
+
         // Nothing more is runnable now — if entries are waiting on backoff, wake
         // ourselves to retry them instead of stalling until the next event.
         scheduleNextWakeupIfNeeded()

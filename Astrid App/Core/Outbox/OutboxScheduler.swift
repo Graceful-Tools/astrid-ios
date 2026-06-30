@@ -54,6 +54,33 @@ enum OutboxScheduler {
             && dependenciesSatisfied(entry, completedIds: completedIds)
     }
 
+    /// Ids of pending entries that can never run — a dependency has permanently
+    /// failed or doesn't exist (and isn't completed) — so they must be
+    /// dead-lettered instead of hanging pending forever. Propagates transitively:
+    /// a dependent of a stranded entry is itself stranded.
+    static func strandedEntryIds(_ entries: [OutboxEntry]) -> Set<String> {
+        let byId = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let completedIds = Set(entries.filter { $0.status == .completed }.map { $0.id })
+        var stranded: Set<String> = []
+        var changed = true
+        while changed {
+            changed = false
+            for entry in entries where entry.status == .pending && !stranded.contains(entry.id) {
+                for dep in entry.dependsOn {
+                    let depEntry = byId[dep]
+                    let depFailed = depEntry?.status == .failedPermanent || stranded.contains(dep)
+                    let depMissing = depEntry == nil && !completedIds.contains(dep)
+                    if depFailed || depMissing {
+                        stranded.insert(entry.id)
+                        changed = true
+                        break
+                    }
+                }
+            }
+        }
+        return stranded
+    }
+
     /// When the runner should next wake itself to retry. Returns the earliest
     /// future `nextAttemptAt` among pending, dependency-satisfied entries — or
     /// nil if something is already runnable (drain handles it now) or nothing is
