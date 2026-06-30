@@ -145,6 +145,10 @@ struct BoardColumnView: View {
             // width — the frame colour shows through as the side walls.
             .background(interiorColor)
             .padding(.horizontal, columnBorderWidth)
+            // When there's no footer (e.g. the Done column) the interior would
+            // otherwise run to the very bottom and hide the frame's bottom wall.
+            // Inset it so the bottom border closes the column.
+            .padding(.bottom, shouldShowFooter ? 0 : columnBorderWidth)
 
             if shouldShowFooter {
                 // Flush footer: full column width, transparent — the

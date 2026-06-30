@@ -41,6 +41,11 @@ struct ProjectStatusBoardView: View {
     /// presenter (iPhone).
     var onTaskTap: ((Task) -> Void)?
 
+    /// The task currently shown in the side panel, if any. When set, the board
+    /// snaps to the column that contains it so the user sees where it lives
+    /// (e.g. opening a done task scrolls the board to the Done column).
+    var selectedTaskId: String?
+
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropError: String? = nil
@@ -130,6 +135,17 @@ struct ProjectStatusBoardView: View {
                 // open/close haptic so the board feels native to the app.
                 guard newId != nil else { return }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            // When a task opens in the side panel, scroll the board to the column
+            // that holds it so the user sees its context.
+            .onChange(of: selectedTaskId) { _, newId in
+                guard let newId,
+                      let column = columns.first(where: { col in
+                          tasksFor(col).contains { $0.id == newId }
+                      }) else { return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    visibleColumnId = column.id
+                }
             }
             // At the left-most column a left-to-right swipe can't scroll further,
             // so let it open the sidebar (the carousel still owns pans elsewhere).

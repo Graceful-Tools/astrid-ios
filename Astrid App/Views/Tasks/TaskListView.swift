@@ -530,7 +530,8 @@ struct TaskListView: View {
                                         } else {
                                             TaskPresenter.shared.showTask(task)
                                         }
-                                    }
+                                    },
+                                    selectedTaskId: selectedTaskForPanel?.id
                                 )
                             } else if filteredTasks.isEmpty {
                                 emptyState
