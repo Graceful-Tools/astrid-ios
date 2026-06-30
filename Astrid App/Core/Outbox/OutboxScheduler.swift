@@ -54,6 +54,31 @@ enum OutboxScheduler {
             && dependenciesSatisfied(entry, completedIds: completedIds)
     }
 
+    /// When the runner should next wake itself to retry. Returns the earliest
+    /// future `nextAttemptAt` among pending, dependency-satisfied entries — or
+    /// nil if something is already runnable (drain handles it now) or nothing is
+    /// waiting on the clock (dependency-blocked entries are triggered by their
+    /// dependency completing, not a timer).
+    static func nextWakeupDate(
+        _ entries: [OutboxEntry],
+        now: Date,
+        inFlightIds: Set<String>
+    ) -> Date? {
+        let completedIds = Set(entries.filter { $0.status == .completed }.map { $0.id })
+        if entries.contains(where: { isRunnable($0, now: now, completedIds: completedIds, inFlightIds: inFlightIds) }) {
+            return nil
+        }
+        return entries
+            .filter {
+                $0.status == .pending
+                    && !inFlightIds.contains($0.id)
+                    && dependenciesSatisfied($0, completedIds: completedIds)
+                    && $0.nextAttemptAt > now
+            }
+            .map { $0.nextAttemptAt }
+            .min()
+    }
+
     /// The entries that should be dispatched now, oldest first. Completion is
     /// derived from the journal itself so dependency edges resolve against the
     /// current state.

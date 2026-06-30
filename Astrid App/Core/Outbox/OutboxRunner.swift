@@ -30,6 +30,10 @@ struct OutboxContext {
 /// the actor.
 typealias OutboxHandler = @Sendable (OutboxEntry, OutboxContext) async -> OutboxResult
 
+/// Schedules `action` to run at approximately `at`. Injectable so tests can fire
+/// wake-ups deterministically; production uses a `Task.sleep` timer.
+typealias OutboxWakeupScheduler = @Sendable (_ at: Date, _ action: @escaping @Sendable () async -> Void) -> Void
+
 /// The single drain loop for all offline-first writes. Replaces the per-service
 /// sync runners: one in-flight guard, one backoff curve, one dependency graph,
 /// one dead-letter path.
@@ -47,16 +51,30 @@ actor OutboxRunner {
     private var handlers: [String: OutboxHandler]
     private var inFlight: Set<String> = []
     private let now: @Sendable () -> Date
+    private let scheduleWakeup: OutboxWakeupScheduler
+    /// The time we've already scheduled a wake-up for, so we don't pile up timers.
+    private var pendingWakeupAt: Date?
 
     init(
         store: OutboxStore,
         handlers: [String: OutboxHandler] = [:],
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        scheduleWakeup: @escaping OutboxWakeupScheduler = OutboxRunner.defaultWakeupScheduler
     ) {
         self.store = store
         self.handlers = handlers
         self.now = now
+        self.scheduleWakeup = scheduleWakeup
         self.entries = store.load()
+    }
+
+    /// Production wake-up: a one-shot `Task.sleep` timer.
+    static let defaultWakeupScheduler: OutboxWakeupScheduler = { at, action in
+        let delay = max(0, at.timeIntervalSinceNow)
+        _Concurrency.Task {
+            try? await _Concurrency.Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            await action()
+        }
     }
 
     func register(kind: String, handler: @escaping OutboxHandler) {
@@ -136,6 +154,24 @@ actor OutboxRunner {
             persist()
             if !progressed { break }
         }
+
+        // Nothing more is runnable now — if entries are waiting on backoff, wake
+        // ourselves to retry them instead of stalling until the next event.
+        scheduleNextWakeupIfNeeded()
+    }
+
+    /// Schedules a single timer for the earliest future retry. Coalesces: won't
+    /// stack a later/duplicate wake-up on top of one already pending.
+    private func scheduleNextWakeupIfNeeded() {
+        guard let at = OutboxScheduler.nextWakeupDate(entries, now: now(), inFlightIds: inFlight) else { return }
+        if let already = pendingWakeupAt, already <= at { return }
+        pendingWakeupAt = at
+        scheduleWakeup(at) { [self] in await self.handleWakeup() }
+    }
+
+    private func handleWakeup() async {
+        pendingWakeupAt = nil
+        await drain()
     }
 
     // MARK: - Journal mutation
