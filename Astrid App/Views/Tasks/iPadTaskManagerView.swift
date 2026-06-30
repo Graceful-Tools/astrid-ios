@@ -326,6 +326,27 @@ struct iPadTaskManagerView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))
             .saturation(1.0 - (0.5 * sidebarProgress))
             .allowsHitTesting(sidebarProgress < 0.95)
+            // Swipe left-to-right opens the sidebar (matches iPhone). Only when the
+            // sidebar is closed and no task is open — an open task's swipe-right
+            // closes the task instead (handled on the detail panel).
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        guard !showingSidebar, selectedTask == nil else { return }
+                        if isRightwardSwipeGesture(
+                            translationWidth: value.translation.width,
+                            translationHeight: value.translation.height,
+                            predictedEndTranslationWidth: value.predictedEndTranslation.width
+                        ) {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                showingSidebar = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                        }
+                    }
+            )
 
             // Overlay to capture taps/drags when sidebar is open
             if showingSidebar {
@@ -402,6 +423,23 @@ struct iPadTaskManagerView: View {
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
             .padding(.trailing, 8) // Right margin (matches left side of screen)
             .background(themeBackground)
+            // Swipe left-to-right on the open task closes it (matches iPhone
+            // swipe-back). The detail panel is a side panel on iPad, not a pushed
+            // view, so this gesture is what dismisses it.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        if isRightwardSwipeGesture(
+                            translationWidth: value.translation.width,
+                            translationHeight: value.translation.height,
+                            predictedEndTranslationWidth: value.predictedEndTranslation.width
+                        ) {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                selectedTask = nil
+                            }
+                        }
+                    }
+            )
             .id(task.id) // Force view refresh when task changes
         }
     }

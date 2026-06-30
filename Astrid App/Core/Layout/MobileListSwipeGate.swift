@@ -36,14 +36,28 @@ struct BoardSidebarSwipeState: Equatable {
     var predictedEndTranslationWidth: CGFloat
 }
 
+/// A deliberate left-to-right (rightward), horizontal-dominant swipe past
+/// threshold — the shell gesture used to go back / close an open task / open the
+/// sidebar. Shared so iPhone and iPad use identical thresholds.
+func isRightwardSwipeGesture(
+    translationWidth: CGFloat,
+    translationHeight: CGFloat,
+    predictedEndTranslationWidth: CGFloat
+) -> Bool {
+    let isHorizontal = translationWidth > abs(translationHeight)
+    let isRight = translationWidth > 0
+    let meetsThreshold = translationWidth > 80 || predictedEndTranslationWidth > 200
+    return isHorizontal && isRight && meetsThreshold
+}
+
 /// On a board the column carousel owns horizontal pans, EXCEPT at the left-most
 /// column: there's nothing further left to scroll to, so a left-to-right swipe
-/// should open the sidebar — matching a regular list. Thresholds mirror the
-/// list's swipe-to-open gesture.
+/// should open the sidebar — matching a regular list.
 func shouldBoardSwipeOpenSidebar(_ state: BoardSidebarSwipeState) -> Bool {
     guard state.isMobile, state.isAtLeftmostColumn else { return false }
-    let isHorizontal = state.translationWidth > abs(state.translationHeight)
-    let isRight = state.translationWidth > 0
-    let meetsThreshold = state.translationWidth > 80 || state.predictedEndTranslationWidth > 200
-    return isHorizontal && isRight && meetsThreshold
+    return isRightwardSwipeGesture(
+        translationWidth: state.translationWidth,
+        translationHeight: state.translationHeight,
+        predictedEndTranslationWidth: state.predictedEndTranslationWidth
+    )
 }
