@@ -100,7 +100,7 @@ struct iPadTaskManagerView: View {
             if isLandscapeOrientation {
                 if landscapeColumns == 2 {
                     // Landscape 2-column: sliding sidebar (like portrait)
-                    threeColumnPortraitLayout(width: geometry.size.width)
+                    threeColumnPortraitLayout(width: geometry.size.width, isLandscape: true)
                 } else {
                     // Landscape 3-column: sidebar permanently visible | tasks | details
                     threeColumnLandscapeLayout(width: geometry.size.width)
@@ -109,10 +109,10 @@ struct iPadTaskManagerView: View {
                 if portraitMode == "iPhone" {
                     // Portrait single-column is now handled by MainTabView using iPhoneLayout.
                     // This branch is a fallback — use portrait 2-column layout.
-                    threeColumnPortraitLayout(width: geometry.size.width)
+                    threeColumnPortraitLayout(width: geometry.size.width, isLandscape: false)
                 } else {
                     // Portrait 2-column: sliding sidebar
-                    threeColumnPortraitLayout(width: geometry.size.width)
+                    threeColumnPortraitLayout(width: geometry.size.width, isLandscape: false)
                 }
             }
         }
@@ -206,7 +206,7 @@ struct iPadTaskManagerView: View {
     // Task list and details slide right to reveal sidebar underneath
 
     @ViewBuilder
-    private func threeColumnPortraitLayout(width: CGFloat) -> some View {
+    private func threeColumnPortraitLayout(width: CGFloat, isLandscape: Bool) -> some View {
         let sidebarWidth = width * 0.40  // 40% sidebar width for iPad
 
         ZStack(alignment: .leading) {
@@ -326,10 +326,12 @@ struct iPadTaskManagerView: View {
             .opacity(1.0 - (0.3 * sidebarProgress))
             .saturation(1.0 - (0.5 * sidebarProgress))
             .allowsHitTesting(sidebarProgress < 0.95)
-            // Swipe left-to-right on the LIST reveals the left menu (matches
-            // iPhone) and, if a task is open, closes it on the way. A swipe that
-            // starts over the open task's panel is handled by the panel's own
-            // gesture (closes the task only — no menu), so it's excluded here.
+            // Swipe left-to-right on the LIST. In PORTRAIT it reveals the sliding
+            // sidebar (matches iPhone), closing any open task on the way. In
+            // LANDSCAPE there's room for everything, so it only closes the open
+            // task to reveal the list — it must NOT pull in the sidebar. A swipe
+            // that starts over the open task's panel is handled by the panel's own
+            // gesture, so it's excluded here.
             .simultaneousGesture(
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
@@ -343,12 +345,21 @@ struct iPadTaskManagerView: View {
                         // detail panel (right half when open) handles its own.
                         let listWidth = selectedTask != nil ? width * 0.5 : width
                         guard value.startLocation.x < listWidth else { return }
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                            selectedTask = nil    // close the open task, if any
-                            showingSidebar = true // reveal the left menu
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        if isLandscape {
+                            // Landscape: just close the task to reveal the list.
+                            guard selectedTask != nil else { return }
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                selectedTask = nil
+                            }
+                        } else {
+                            // Portrait: reveal the sliding sidebar (closing any task).
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                selectedTask = nil
+                                showingSidebar = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
                         }
                     }
             )
