@@ -54,6 +54,27 @@ enum OutboxScheduler {
             && dependenciesSatisfied(entry, completedIds: completedIds)
     }
 
+    /// How long a completed entry is retained before pruning (for inspection /
+    /// late-arriving dependents). Referenced completed entries are always kept.
+    static let completedRetention: TimeInterval = 3600
+
+    /// Drops completed entries that are old AND no longer referenced by a pending
+    /// or running entry's dependencies, so the journal doesn't grow without bound.
+    /// Everything else (pending/running/failedPermanent, recent or still-needed
+    /// completed) is kept.
+    static func pruned(_ entries: [OutboxEntry], now: Date) -> [OutboxEntry] {
+        let referencedDeps = Set(
+            entries
+                .filter { $0.status == .pending || $0.status == .running }
+                .flatMap { $0.dependsOn }
+        )
+        return entries.filter { entry in
+            guard entry.status == .completed else { return true }
+            if referencedDeps.contains(entry.id) { return true }
+            return entry.updatedAt > now.addingTimeInterval(-completedRetention)
+        }
+    }
+
     /// Ids of pending entries that can never run — a dependency has permanently
     /// failed or doesn't exist (and isn't completed) — so they must be
     /// dead-lettered instead of hanging pending forever. Propagates transitively:

@@ -25,18 +25,29 @@ final class OutboxStore {
     }
 
     func load() -> [OutboxEntry] {
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
-        return (try? JSONDecoder().decode([OutboxEntry].self, from: data)) ?? []
+        guard let data = try? Data(contentsOf: fileURL) else { return [] }  // no file yet
+        if let decoded = try? JSONDecoder().decode([OutboxEntry].self, from: data) {
+            return decoded
+        }
+        // The file exists but won't decode. Don't silently drop the queued writes:
+        // preserve the corrupt journal alongside (".corrupt") for recovery, then
+        // start fresh so the Outbox isn't wedged.
+        let backup = fileURL.appendingPathExtension("corrupt")
+        try? FileManager.default.removeItem(at: backup)
+        try? FileManager.default.moveItem(at: fileURL, to: backup)
+        return []
     }
 
     func save(_ entries: [OutboxEntry]) throws {
         let data = try JSONEncoder().encode(entries)
         // Ensure the directory exists, then write atomically (temp + rename) so a
-        // crash mid-write can't corrupt the journal.
+        // crash mid-write can't corrupt the journal. File protection encrypts the
+        // payloads at rest while still allowing background drains after first
+        // unlock.
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        try data.write(to: fileURL, options: .atomic)
+        try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 }

@@ -54,6 +54,9 @@ actor OutboxRunner {
     private let scheduleWakeup: OutboxWakeupScheduler
     /// The time we've already scheduled a wake-up for, so we don't pile up timers.
     private var pendingWakeupAt: Date?
+    /// Single-drain guard.
+    private var isDraining = false
+    private var redrainRequested = false
 
     init(
         store: OutboxStore,
@@ -96,9 +99,26 @@ actor OutboxRunner {
         await drain()
     }
 
+    /// Single-drain guard: serialize drain passes. A concurrent caller (a wake-up
+    /// timer firing during an enqueue, etc.) requests a re-drain instead of
+    /// running a second loop alongside the first.
+    func drain() async {
+        if isDraining {
+            redrainRequested = true
+            return
+        }
+        isDraining = true
+        defer { isDraining = false }
+        repeat {
+            redrainRequested = false
+            await drainOnce()
+        } while redrainRequested
+        scheduleNextWakeupIfNeeded()
+    }
+
     /// Dispatch every runnable entry, looping while progress is made so newly
     /// completed entries can unblock dependents within the same drain.
-    func drain() async {
+    private func drainOnce() async {
         while true {
             let runnable = OutboxScheduler.runnableEntries(entries, now: now(), inFlightIds: inFlight)
             guard !runnable.isEmpty else { break }
@@ -168,9 +188,10 @@ actor OutboxRunner {
             persist()
         }
 
-        // Nothing more is runnable now — if entries are waiting on backoff, wake
-        // ourselves to retry them instead of stalling until the next event.
-        scheduleNextWakeupIfNeeded()
+        // Prune old, unreferenced completed entries so the journal stays bounded.
+        let before = entries.count
+        entries = OutboxScheduler.pruned(entries, now: now())
+        if entries.count != before { persist() }
     }
 
     /// Schedules a single timer for the earliest future retry. Coalesces: won't

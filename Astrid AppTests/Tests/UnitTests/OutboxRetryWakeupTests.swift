@@ -108,4 +108,5 @@ final class OutboxRetryWakeupTests: XCTestCase {
 actor OutboxRunnerTestsAttemptCounter {
     private var n = 0
     func next() -> Int { n += 1; return n }
+    func get() -> Int { n }
 }
