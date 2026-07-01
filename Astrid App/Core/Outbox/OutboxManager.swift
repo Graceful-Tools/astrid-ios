@@ -18,6 +18,7 @@ enum OutboxKind {
 /// (surfaced in the soak stats) without affecting the user.
 enum OutboxConfig {
     private static let dualWriteKey = "outboxDualWriteEnabled"
+    private static let sourceOfTruthKey = "outboxSourceOfTruth"
 
     static var dualWriteEnabled: Bool {
         // Default ON when the user hasn't explicitly set the toggle.
@@ -26,6 +27,16 @@ enum OutboxConfig {
             return UserDefaults.standard.bool(forKey: dualWriteKey)
         }
         set { UserDefaults.standard.set(newValue, forKey: dualWriteKey) }
+    }
+
+    /// Cutover flag (default OFF). When ON, the enqueued ops are AUTHORITATIVE:
+    /// the calling service skips its legacy inline server call and the Outbox
+    /// handler owns the full reconciliation (temp→real mapping, cache/CoreData
+    /// swap, mark-synced). Rolled out op-by-op as a canary. While OFF we stay in
+    /// dual-write soak mode (legacy authoritative, Outbox shadows).
+    static var sourceOfTruthEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: sourceOfTruthKey) }
+        set { UserDefaults.standard.set(newValue, forKey: sourceOfTruthKey) }
     }
 }
 
@@ -74,7 +85,7 @@ final class OutboxManager {
     /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
     /// No-op unless dual-write is enabled.
     private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String) {
-        guard OutboxConfig.dualWriteEnabled else { return }
+        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
@@ -110,7 +121,7 @@ final class OutboxManager {
         attachment: UploadAttachmentOutboxPayload? = nil,
         attachmentClientRequestId: String? = nil
     ) {
-        guard OutboxConfig.dualWriteEnabled else { return }
+        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []

@@ -14,6 +14,10 @@ struct CreateTaskOutboxPayload: Codable, Equatable {
     var isPrivate: Bool?
     var repeating: String?
     var repeatingData: CustomRepeatingPattern?
+    /// The optimistic temp id this create reconciles when the Outbox is
+    /// authoritative (handler swaps temp→real + marks synced). Optional so older
+    /// journaled payloads still decode.
+    var tempId: String?
 }
 
 /// Outbox handler for `createTask`. Performs the server create with the entry's
@@ -38,6 +42,13 @@ enum CreateTaskOutboxHandler {
                 repeatingData: payload.repeatingData,
                 clientRequestId: entry.clientRequestId
             )
+            // Reconcile the optimistic temp task with the server task. Idempotent:
+            // during dual-write the legacy path usually reconciles first and this
+            // no-ops; when the Outbox is authoritative, this owns the swap +
+            // mark-synced + temp→real mapping.
+            if let tempId = payload.tempId {
+                await TaskService.shared.reconcileOutboxCreatedTask(tempId: tempId, serverTask: task)
+            }
             // Expose the real id so a dependent (e.g. a comment created against
             // this offline task) can target the real task instead of the temp id.
             return .success(["taskId": task.id])

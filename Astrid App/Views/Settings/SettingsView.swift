@@ -15,6 +15,9 @@ struct SettingsView: View {
     // Bound to the same UserDefaults key OutboxConfig reads. Default ON for the
     // production soak (matches OutboxConfig.dualWriteEnabled).
     @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = true
+    // Cutover canary: when ON, the Outbox is AUTHORITATIVE for createTask (legacy
+    // inline server call is skipped). Default OFF. Matches OutboxConfig.sourceOfTruthEnabled.
+    @AppStorage("outboxSourceOfTruth") private var outboxSourceOfTruth = false
     @State private var outboxStats: OutboxStats?
 
 
@@ -106,6 +109,18 @@ struct SettingsView: View {
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                             Text("Mirror task, comment & chat writes through the unified Outbox to verify it (no duplicates).")
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+                    }
+                    .tint(Theme.accent)
+
+                    Toggle(isOn: $outboxSourceOfTruth) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Outbox authoritative — createTask (canary)")
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            Text("Cutover canary: new tasks sync via the Outbox only (legacy path skipped). Watch dropped = 0.")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

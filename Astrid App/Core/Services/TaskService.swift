@@ -61,6 +61,46 @@ class TaskService: ObservableObject {
         )
     }
 
+    /// Reconcile the optimistic temp task with the server task once the Outbox
+    /// `createTask` handler succeeds — the Outbox-authoritative equivalent of the
+    /// post-server block in `createTask`. Owns: temp→real mapping, cache/`tasks`
+    /// swap, CoreData temp-delete + real-save (marked synced), and clearing the
+    /// `pendingCreates` guard.
+    ///
+    /// Idempotent by design: during dual-write the legacy path usually reconciles
+    /// first (temp already gone), so this only ensures the mapping and returns.
+    func reconcileOutboxCreatedTask(tempId: String, serverTask: Task) async {
+        // Always ensure the mapping — a dependent comment/update may target it.
+        recordTempTaskMapping(tempId: tempId, realId: serverTask.id)
+
+        guard cachedTasks[tempId] != nil || tasks.contains(where: { $0.id == tempId }) else {
+            return  // Legacy path already reconciled (or nothing to swap).
+        }
+        let temp = cachedTasks[tempId] ?? tasks.first(where: { $0.id == tempId })
+
+        // Carry forward client-side fields the server response may not echo.
+        var reconciled = serverTask
+        reconciled.clientRequestId = temp?.clientRequestId ?? serverTask.clientRequestId
+        var mergedListIds = serverTask.listIds ?? []
+        for id in temp?.listIds ?? [] where !mergedListIds.contains(id) { mergedListIds.append(id) }
+        reconciled.listIds = mergedListIds
+
+        // Swap temp → real in the in-memory caches.
+        cachedTasks.removeValue(forKey: tempId)
+        cachedTasks[serverTask.id] = reconciled
+        if let idx = tasks.firstIndex(where: { $0.id == tempId }) {
+            tasks[idx] = reconciled
+        }
+
+        // Persist: remove temp row, save real. If any list ids are still temp
+        // (offline-created list), keep it pending_list_sync like the legacy path.
+        let hasTempListIds = mergedListIds.contains { $0.hasPrefix("temp_") }
+        try? await deleteTaskFromCoreData(tempId)
+        try? await saveTaskToCoreData(reconciled, syncStatus: hasTempListIds ? "pending_list_sync" : "synced")
+
+        pendingCreates.remove(tempId)
+    }
+
     /// Tracks temp IDs with an in-flight createTask API call to prevent
     /// syncPendingOperations from creating a duplicate on the server.
     private var pendingCreates: Set<String> = []
@@ -284,10 +324,19 @@ class TaskService: ObservableObject {
                     isAllDay: isAllDay,
                     isPrivate: isPrivate,
                     repeating: repeating,
-                    repeatingData: repeatingData
+                    repeatingData: repeatingData,
+                    tempId: tempId
                 ),
                 clientRequestId: clientRequestId
             )
+
+            // CUTOVER (flag-gated): when the Outbox is authoritative for
+            // createTask, skip the legacy inline server call entirely. The Outbox
+            // handler does the server create + reconciliation (temp→real swap,
+            // mark synced) when it drains — online now, or on reconnect if offline.
+            if OutboxConfig.sourceOfTruthEnabled {
+                return optimisticTask
+            }
 
             // Send dueDateTime and isAllDay to backend
             // For all-day tasks: dueDateTime=date at UTC midnight, isAllDay=true

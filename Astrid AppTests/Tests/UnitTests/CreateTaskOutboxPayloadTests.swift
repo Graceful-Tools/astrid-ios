@@ -20,7 +20,8 @@ final class CreateTaskOutboxPayloadTests: XCTestCase {
             isAllDay: true,
             isPrivate: false,
             repeating: "custom",
-            repeatingData: pattern
+            repeatingData: pattern,
+            tempId: "temp_abc"
         )
 
         let data = try JSONEncoder().encode(payload)
@@ -28,5 +29,15 @@ final class CreateTaskOutboxPayloadTests: XCTestCase {
 
         XCTAssertEqual(decoded, payload)
         XCTAssertEqual(decoded.repeatingData?.weekdays, ["monday"])
+        XCTAssertEqual(decoded.tempId, "temp_abc")
+    }
+
+    /// tempId is optional so journaled payloads written before the cutover still
+    /// decode (older entries have no tempId key).
+    func testDecodesLegacyPayloadWithoutTempId() throws {
+        let json = #"{"title":"old","isAllDay":false}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(CreateTaskOutboxPayload.self, from: json)
+        XCTAssertEqual(decoded.title, "old")
+        XCTAssertNil(decoded.tempId)
     }
 }
