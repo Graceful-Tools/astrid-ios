@@ -311,7 +311,8 @@ struct TaskRowView: View {
     /// Get card background color (20% transparent white on Ocean theme for subtle cyan show-through)
     private func getCardBackground() -> Color {
         if effectiveTheme == "ocean" {
-            return Color.white.opacity(0.8)  // 20% transparent white (80% opaque)
+            // Selected row is solid white; the rest are 20% translucent.
+            return Color.white.opacity(isSelected ? 1.0 : 0.8)
         }
         return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
     }

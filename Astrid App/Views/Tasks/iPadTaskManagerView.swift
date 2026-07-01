@@ -181,17 +181,20 @@ struct iPadTaskManagerView: View {
                 .frame(width: width * 0.72)
 
                 // Right panel: Task Detail or Chat — overlays the list's trailing edge.
-                if selectedTask != nil {
-                    VStack(spacing: 0) {
+                // The task detail self-styles (rounded card, clear corners); chat
+                // gets its own solid backing + shadow.
+                if let task = selectedTask {
+                    Group {
                         if showChatPanel, let listId = selectedListId {
                             ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
+                                .frame(width: width * 0.40)
+                                .background(themeBackground)
+                                .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
                         } else {
-                            taskDetailPanel
+                            taskDetailPanel(for: task)
+                                .frame(width: width * 0.40)
                         }
                     }
-                    .frame(width: width * 0.40)
-                    .background(themeBackground)
-                    .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
                     .transition(.move(edge: .trailing))
                 } else if showChatPanel, let listId = selectedListId {
                     ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
@@ -322,11 +325,10 @@ struct iPadTaskManagerView: View {
 
                 // Task Detail Panel - overlays the trailing half; the list/board
                 // underneath keeps its full width so its rows/cards don't reflow.
-                if selectedTask != nil {
-                    taskDetailPanel
+                // The panel self-styles (rounded card, shadow, clear corners).
+                if let task = selectedTask {
+                    taskDetailPanel(for: task)
                         .frame(width: width * 0.50)
-                        .background(themeBackground)
-                        .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
                         .transition(.move(edge: .trailing))
                 }
             }
@@ -439,19 +441,29 @@ struct iPadTaskManagerView: View {
 
     // MARK: - Task Detail Panel
 
+    // Takes the task as a parameter (not read from selectedTask) so that when the
+    // panel closes, SwiftUI keeps rendering this content through the slide-out
+    // transition instead of it vanishing the instant selectedTask goes nil.
     @ViewBuilder
-    private var taskDetailPanel: some View {
-        if let task = selectedTask {
+    private func taskDetailPanel(for task: Task) -> some View {
             // Wrap with theme background and padding to align with task list
             NavigationStack {
-                TaskDetailViewNew(task: task, isReadOnly: shouldShowTaskAsReadOnly(task: task), onClose: { selectedTask = nil })
+                TaskDetailViewNew(
+                    task: task,
+                    isReadOnly: shouldShowTaskAsReadOnly(task: task),
+                    onClose: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { selectedTask = nil }
+                    }
+                )
             }
-            .background(themeBackground)  // Match theme inside NavigationStack (fixes black in dark mode)
+            .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            // Shadow on the rounded card; the area outside it (padding + corners)
+            // stays clear so the list/board shows through.
+            .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
             .padding(.top, 8)      // Top margin (aligns with floating header)
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
             .padding(.trailing, 8) // Right margin (matches left side of screen)
-            .background(themeBackground)
             // Swipe left-to-right on the open task closes it (matches iPhone
             // swipe-back). The detail panel is a side panel on iPad, not a pushed
             // view, so this gesture is what dismisses it.
@@ -470,7 +482,6 @@ struct iPadTaskManagerView: View {
                     }
             )
             .id(task.id) // Force view refresh when task changes
-        }
     }
 
 

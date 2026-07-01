@@ -39,8 +39,10 @@ struct BoardTaskCardView: View {
     /// card's own separator stroke carries the edge definition.
     private var cardBackgroundColor: Color {
         switch effectiveTheme {
-        case "ocean": return Color.white.opacity(0.8)
-        case "dark":  return Theme.Dark.bgSecondary
+        // Selected card reads as a solid surface (ocean: solid white vs the
+        // translucent 0.8 of the rest) so the open task stands out.
+        case "ocean": return Color.white.opacity(isSelected ? 1.0 : 0.8)
+        case "dark":  return isSelected ? Theme.Dark.bgTertiary : Theme.Dark.bgSecondary
         default:      return Theme.bgPrimary
         }
     }

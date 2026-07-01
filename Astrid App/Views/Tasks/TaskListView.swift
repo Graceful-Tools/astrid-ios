@@ -522,10 +522,11 @@ struct TaskListView: View {
                                     onTaskTap: { task in
                                         // iPad split view: open in the side panel so the
                                         // board stays visible in the left column, just like
-                                        // the flat list does. iPhone / forced-push: full screen.
+                                        // the flat list does. Tapping the open task again
+                                        // closes it. iPhone / forced-push: full screen.
                                         if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
                                             withAnimation(.easeInOut(duration: 0.25)) {
-                                                selectedTaskForPanel = task
+                                                selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                                             }
                                         } else {
                                             TaskPresenter.shared.showTask(task)
