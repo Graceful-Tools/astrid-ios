@@ -707,11 +707,6 @@ struct TaskListView: View {
         }
     }
 
-    private func getSearchResults() -> [Task] {
-        guard !searchText.isEmpty else { return [] }
-        return applySearchFilter(filteredTasks, query: searchText)
-    }
-
     // MARK: - List Settings Sheet
 
     @ViewBuilder
@@ -759,8 +754,9 @@ struct TaskListView: View {
                     onToggle: {
                         _Concurrency.Task {
                             do {
-                                let updatedTask = try await taskService.completeTask(id: task.id, completed: !task.completed, task: task)
+                                _ = try await taskService.completeTask(id: task.id, completed: !task.completed, task: task)
                             } catch {
+                                // Completion errors surface via the service's own state.
                             }
                         }
                     },
@@ -1633,7 +1629,6 @@ struct TaskListView: View {
                 // Use NSNull() for nil to ensure key is sent to backend (nil removes key in Swift)
                 let valueToSend: Any = updated.defaultAssigneeId != nil ? updated.defaultAssigneeId! : NSNull()
                 updates["defaultAssigneeId"] = valueToSend
-            } else {
             }
 
             // Filters
@@ -1673,11 +1668,11 @@ struct TaskListView: View {
             if !updates.isEmpty {
 
                 do {
-                    let updatedList = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
+                    _ = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
                     // Note: Not calling fetchLists() - updateListAdvanced already updates local lists with server response
                 } catch {
+                    // Advanced-update errors are non-fatal; local state already applied.
                 }
-            } else {
             }
         }
     }

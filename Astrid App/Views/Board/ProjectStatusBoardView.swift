@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// SwiftUI's `.paging` and `.viewAligned` scroll-target behaviors are
 /// different opaque types, so we can't switch between them via a

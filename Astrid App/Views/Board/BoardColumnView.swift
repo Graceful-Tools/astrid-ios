@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// One board column: header + scrollable card list + inline "Add task"
 /// footer.
