@@ -94,6 +94,7 @@ struct ProjectStatusBoardView: View {
             let columnWidth = geo.size.width / CGFloat(columnsVisible)
             let multiColumn = columnsVisible > 1
 
+            ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 0) {
                     ForEach(columns) { column in
@@ -155,8 +156,13 @@ struct ProjectStatusBoardView: View {
                       let column = columns.first(where: { col in
                           tasksFor(col).contains { $0.id == newId }
                       }) else { return }
+                // Scroll imperatively every time. The scrollPosition binding no-ops
+                // when the target column is unchanged (e.g. tapping a second task in
+                // the same Done column), which left that column stuck under the
+                // overlay. scrollTo always re-scrolls, so it behaves the same on the
+                // first tap and every tap after.
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    visibleColumnId = column.id
+                    proxy.scrollTo(column.id, anchor: .leading)
                 }
             }
             // At the left-most column a left-to-right swipe can't scroll further,
@@ -182,6 +188,7 @@ struct ProjectStatusBoardView: View {
                         }
                     }
             )
+            } // ScrollViewReader
         }
         .alert("Couldn't move task", isPresented: .constant(dropError != nil), presenting: dropError) { _ in
             Button("OK") { dropError = nil }
