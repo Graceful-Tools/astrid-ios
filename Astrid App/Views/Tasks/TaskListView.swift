@@ -622,13 +622,11 @@ struct TaskListView: View {
             hasLoadedInitialData = true
 
             // Register SSE handler for My Tasks preferences updates (once only)
-            print("🔧 [TaskListView] Registering My Tasks preferences SSE handler")
             await SSEClient.shared.onMyTasksPreferencesUpdated { preferences in
                 _Concurrency.Task { @MainActor in
                     MyTasksPreferencesService.shared.handleSSEUpdate(preferences)
                 }
             }
-            print("✅ [TaskListView] My Tasks preferences SSE handler registered")
 
             // Load data in background to avoid blocking UI on initial load
             // UI will update automatically when data arrives via @Published properties
@@ -636,8 +634,6 @@ struct TaskListView: View {
                 do {
                     try await loadData()
                 } catch {
-                    print("❌ [TaskListView] Failed to load data on init: \(error)")
-                    print("❌ [TaskListView] Error details: \(error.localizedDescription)")
                     // Show error to user via taskService
                     taskService.errorMessage = "Failed to load tasks: \(error.localizedDescription)"
                 }
@@ -650,7 +646,6 @@ struct TaskListView: View {
             do {
                 try await loadData()
             } catch {
-                print("❌ [TaskListView] Failed to refresh data: \(error)")
                 // Errors on refresh are less critical, don't show to user
             }
         })
@@ -764,11 +759,8 @@ struct TaskListView: View {
                     onToggle: {
                         _Concurrency.Task {
                             do {
-                                print("🔄 [TaskListView] Toggling task completion: \(task.title)")
                                 let updatedTask = try await taskService.completeTask(id: task.id, completed: !task.completed, task: task)
-                                print("✅ [TaskListView] Task updated - completed: \(updatedTask.completed), repeating: \(updatedTask.repeating?.rawValue ?? "nil")")
                             } catch {
-                                print("❌ [TaskListView] Error completing task: \(error)")
                             }
                         }
                     },
@@ -1078,11 +1070,9 @@ struct TaskListView: View {
         // Only allow reordering when manual sort is enabled
         guard isManualSortEnabled,
               let listId = selectedListId else {
-            print("⚠️ [TaskListView] Cannot move task: manual sort not enabled or no list selected")
             return
         }
 
-        print("🔄 [TaskListView] Moving task from \(source) to \(destination)")
 
         // Get ALL tasks in this list (not just filtered - need to include completed tasks, etc.)
         let allTasksInList = taskService.tasks.filter { task in
@@ -1108,7 +1098,6 @@ struct TaskListView: View {
         }
         completeOrder.append(contentsOf: hiddenTasksSorted.map { $0.id })
 
-        print("📋 [TaskListView] Complete order (\(completeOrder.count) tasks): \(completeOrder)")
 
         // Update order via API (no optimistic update - SwiftUI handles visual reordering)
         _Concurrency.Task {
@@ -1118,14 +1107,11 @@ struct TaskListView: View {
                     var updatedPrefs = myTasksPreferences.preferences
                     updatedPrefs.manualSortOrder = completeOrder
                     await myTasksPreferences.updatePreferences(updatedPrefs)
-                    print("✅ [TaskListView] My Tasks manual order updated successfully")
                 } else {
                     // Update list's manual order
                     try await listService.updateManualOrder(listId: listId, order: completeOrder)
-                    print("✅ [TaskListView] List manual order updated successfully")
                 }
             } catch {
-                print("❌ [TaskListView] Failed to update manual order: \(error)")
             }
         }
     }
@@ -1448,8 +1434,6 @@ struct TaskListView: View {
         defer { isCopyingList = false }
 
         // TODO: Implement copy list API v1 endpoint
-        print("⚠️ [TaskListView] copyList not yet implemented in API v1")
-        print("❌ Failed to copy list: Feature not yet available")
     }
 
     private func loadFeaturedListTasks(listId: String) async {
@@ -1457,7 +1441,6 @@ struct TaskListView: View {
         defer { isLoadingFeaturedTasks = false }
 
         do {
-            print("📱 [TaskListView] Loading tasks for featured public list: \(listId)")
             let tasks = try await taskService.fetchTasksForListFromServer(listId)
 
             // Merge optimistic tasks from taskService that belong to this list
@@ -1474,22 +1457,18 @@ struct TaskListView: View {
             }
 
             featuredListTasks = mergedTasks
-            print("✅ Loaded \(featuredListTasks.count) tasks for featured public list (including \(optimisticTasks.count) optimistic)")
         } catch {
-            print("❌ Failed to load featured list tasks: \(error.localizedDescription)")
             featuredListTasks = []
         }
     }
 
     private func loadData() async throws {
-        print("📱 [TaskListView] Starting full sync from pull-to-refresh...")
 
         // On My Tasks view, include user tasks to catch tasks not in lists
         // Otherwise, only fetch tasks from lists (faster, lighter)
         let shouldIncludeUserTasks = selectedListId == "my-tasks"
 
         if shouldIncludeUserTasks {
-            print("📱 [TaskListView] Including user tasks (My Tasks view)")
         }
 
         // Always do full sync on manual refresh to ensure all tasks are visible
@@ -1499,7 +1478,6 @@ struct TaskListView: View {
         // If viewing a featured public list, refresh after sync completes
         // This ensures we get the latest server data INCLUDING any newly created tasks
         if isViewingFromFeatured, let listId = selectedListId {
-            print("📱 [TaskListView] Refreshing featured list tasks for: \(listId)")
             await loadFeaturedListTasks(listId: listId)
         }
 
@@ -1616,7 +1594,6 @@ struct TaskListView: View {
 
     private func handleListUpdate(original: TaskList, updated: TaskList) {
         _Concurrency.Task {
-            print("🔄 [TaskListView] handleListUpdate called for list: '\(original.name)' (id: \(original.id))")
 
             var updates: [String: Any] = [:]
 
@@ -1638,36 +1615,25 @@ struct TaskListView: View {
             // List Defaults
             if updated.defaultPriority != original.defaultPriority {
                 updates["defaultPriority"] = updated.defaultPriority ?? 0
-                print("  - Updating defaultPriority: \(original.defaultPriority ?? -1) → \(updated.defaultPriority ?? 0)")
             }
             if updated.defaultDueDate != original.defaultDueDate {
                 updates["defaultDueDate"] = updated.defaultDueDate ?? "none"
-                print("  - Updating defaultDueDate: \(original.defaultDueDate ?? "nil") → \(updated.defaultDueDate ?? "none")")
             }
             if updated.defaultDueTime != original.defaultDueTime {
                 // Use NSNull() for nil to ensure key is sent to backend (nil removes key in Swift)
                 updates["defaultDueTime"] = updated.defaultDueTime != nil ? updated.defaultDueTime! : NSNull()
-                print("  - Updating defaultDueTime: \(original.defaultDueTime ?? "nil") → \(updated.defaultDueTime ?? "nil (All Day)")")
             }
             if updated.defaultIsPrivate != original.defaultIsPrivate {
                 updates["defaultIsPrivate"] = updated.defaultIsPrivate ?? true
-                print("  - Updating defaultIsPrivate: \(original.defaultIsPrivate ?? false) → \(updated.defaultIsPrivate ?? true)")
             }
             if updated.defaultRepeating != original.defaultRepeating {
                 updates["defaultRepeating"] = updated.defaultRepeating ?? "never"
-                print("  - Updating defaultRepeating: \(original.defaultRepeating ?? "nil") → \(updated.defaultRepeating ?? "never")")
             }
-            print("  🔍 defaultAssigneeId comparison:")
-            print("    - original: \(original.defaultAssigneeId ?? "nil")")
-            print("    - updated: \(updated.defaultAssigneeId ?? "nil")")
-            print("    - are equal: \(updated.defaultAssigneeId == original.defaultAssigneeId)")
             if updated.defaultAssigneeId != original.defaultAssigneeId {
                 // Use NSNull() for nil to ensure key is sent to backend (nil removes key in Swift)
                 let valueToSend: Any = updated.defaultAssigneeId != nil ? updated.defaultAssigneeId! : NSNull()
                 updates["defaultAssigneeId"] = valueToSend
-                print("    ✅ Adding to updates: \(valueToSend)")
             } else {
-                print("    ⏭️ Skipping (no change)")
             }
 
             // Filters
@@ -1696,34 +1662,22 @@ struct TaskListView: View {
             // Privacy
             if updated.privacy != original.privacy {
                 updates["privacy"] = updated.privacy?.rawValue ?? "PRIVATE"
-                print("  - Updating privacy: \(original.privacy?.rawValue ?? "nil") → \(updated.privacy?.rawValue ?? "PRIVATE")")
             }
 
             // Image URL
             if updated.imageUrl != original.imageUrl {
                 updates["imageUrl"] = updated.imageUrl ?? NSNull()
-                print("  - Updating imageUrl: \(original.imageUrl ?? "nil") → \(updated.imageUrl ?? "nil")")
             }
 
             // Save if there are updates
             if !updates.isEmpty {
-                print("📤 [TaskListView] Sending update to MCP API:")
-                print("  - List ID: \(updated.id)")
-                print("  - Updates: \(updates)")
 
                 do {
                     let updatedList = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
-                    print("✅ [TaskListView] List updated successfully")
-                    print("  - Response list name: \(updatedList.name)")
-                    print("  - Response defaultAssigneeId: \(updatedList.defaultAssigneeId ?? "nil")")
                     // Note: Not calling fetchLists() - updateListAdvanced already updates local lists with server response
                 } catch {
-                    print("❌ [TaskListView] Failed to save updates: \(error)")
-                    print("❌ [TaskListView] Error type: \(type(of: error))")
-                    print("❌ [TaskListView] Error details: \(error.localizedDescription)")
                 }
             } else {
-                print("ℹ️ [TaskListView] No changes detected, skipping update")
             }
         }
     }
@@ -1776,45 +1730,6 @@ struct TaskListView: View {
         return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
     }
 
-    /// Get secondary background color based on current theme
-    private func getSecondaryBackground() -> Color {
-        if effectiveTheme == "ocean" {
-            return Theme.Ocean.bgSecondary  // Light gray for Ocean
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.bgSecondary : Theme.bgSecondary
-    }
-
-    /// Get border color based on current theme
-    private func getBorderColor() -> Color {
-        if effectiveTheme == "ocean" {
-            return Theme.Ocean.border
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.border : Theme.border
-    }
-
-    /// Get primary text color based on current theme
-    private func getTextPrimary() -> Color {
-        if effectiveTheme == "ocean" {
-            return Theme.Ocean.textPrimary
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.textPrimary : Theme.textPrimary
-    }
-
-    /// Get secondary text color based on current theme
-    private func getTextSecondary() -> Color {
-        if effectiveTheme == "ocean" {
-            return Theme.Ocean.textSecondary
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.textSecondary : Theme.textSecondary
-    }
-
-    /// Get muted text color based on current theme
-    private func getTextMuted() -> Color {
-        if effectiveTheme == "ocean" {
-            return Theme.Ocean.textMuted
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted
-    }
 }
 
 #Preview {

@@ -52,10 +52,9 @@ struct iPadTaskManagerView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var hasScrolledDuringDrag = false
 
-    // Detect orientation
-    private var isLandscape: Bool {
-        horizontalSizeClass == .regular && verticalSizeClass == .compact
-    }
+    /// One canonical curve for the detail panel's slide, so every close path
+    /// (tap-again, swipe, close button, list switch) feels identical and smooth.
+    private static let panelAnimation: Animation = .spring(response: 0.36, dampingFraction: 0.92)
 
     // Calculate animation progress for sidebar slide (portrait mode)
     private var sidebarProgress: CGFloat {
@@ -117,12 +116,11 @@ struct iPadTaskManagerView: View {
             }
         }
         .withReminderPresentation()
-        // Close task details when list changes
+        // Close task details when list changes. Bare assignment — the container's
+        // panelAnimation drives the slide-out (a nested withAnimation here fought it).
         .onChange(of: selectedListId) { _, _ in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                selectedTask = nil
-                showChatPanel = false
-            }
+            selectedTask = nil
+            showChatPanel = false
         }
     }
 
@@ -195,18 +193,18 @@ struct iPadTaskManagerView: View {
                                 .frame(width: width * 0.40)
                         }
                     }
-                    .transition(.move(edge: .trailing))
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 } else if showChatPanel, let listId = selectedListId {
                     ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
                         .frame(width: width * 0.40)
                         .background(themeBackground)
                         .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
-                        .transition(.move(edge: .trailing))
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .frame(width: width * 0.72)
             // Slide the detail overlay + board scroll room in/out on selection.
-            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: selectedTask?.id)
+            .animation(Self.panelAnimation, value: selectedTask?.id)
         }
         } // ZStack
     }
@@ -331,14 +329,14 @@ struct iPadTaskManagerView: View {
                 if let task = selectedTask {
                     taskDetailPanel(for: task)
                         .frame(width: width * 0.50)
-                        .transition(.move(edge: .trailing))
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .frame(width: width)
             // Slide the detail overlay (and the board's scroll room) in/out when
             // the selected task changes. The flat list opts out so its selected
             // row highlights instantly.
-            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: selectedTask?.id)
+            .animation(Self.panelAnimation, value: selectedTask?.id)
             .offset(x: showingSidebar ? sidebarWidth + dragOffset : dragOffset)
             .shadow(color: .black.opacity(0.3 * sidebarProgress), radius: 10, x: -5, y: 0)
             .opacity(1.0 - (0.3 * sidebarProgress))
@@ -365,17 +363,16 @@ struct iPadTaskManagerView: View {
                         guard value.startLocation.x < listWidth else { return }
                         if isLandscape && selectedTask != nil {
                             // Landscape WITH a task open: just close it to reveal the
-                            // list — there's room for everything, so don't also pull
-                            // in the sidebar.
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                selectedTask = nil
-                            }
+                            // list. Bare — the container animates the panel slide.
+                            selectedTask = nil
                         } else {
                             // Otherwise — portrait, or a landscape list/board with no
                             // task open — reveal the sliding sidebar (the "open list
-                            // menu" gesture), closing any open task on the way.
+                            // menu" gesture), closing any open task on the way. The
+                            // panel slide is driven by the container; only the sidebar
+                            // drawer is animated here.
+                            selectedTask = nil
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                selectedTask = nil
                                 showingSidebar = true
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -462,6 +459,9 @@ struct iPadTaskManagerView: View {
             }
             .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            // compositingGroup so the shadow is cached and translated during the
+            // slide, not re-rasterized from the clipped alpha every frame.
+            .compositingGroup()
             // Shadow on the rounded card; the area outside it (padding + corners)
             // stays clear so the list/board shows through.
             .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
@@ -486,120 +486,6 @@ struct iPadTaskManagerView: View {
             .id(task.id) // Force view refresh when task changes
     }
 
-
-    // MARK: - iPhone-Style Single Column Layout (for iPad portrait)
-
-    @ViewBuilder
-    private func iPhoneStyleLayout(width: CGFloat) -> some View {
-        let sidebarWidth = width * 0.40
-
-        ZStack(alignment: .leading) {
-            themeBackground
-                .ignoresSafeArea()
-
-            // Sidebar underneath
-            ZStack {
-                themeBackground
-                    .ignoresSafeArea()
-                NavigationStack {
-                    ListSidebarView(
-                        selectedListId: $selectedListId,
-                        isViewingFromFeatured: $isViewingFromFeatured,
-                        featuredList: $featuredList,
-                        searchText: $searchText,
-                        shouldScrollToTop: $shouldScrollSidebarToTop,
-                        onListTap: {
-                            shouldScrollSidebarToTop = true
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                shouldScrollSidebarToTop = false
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                        }
-                    )
-                    .environmentObject(authManager)
-                }
-            }
-            .frame(width: sidebarWidth)
-            .scaleEffect(0.95 + (0.05 * sidebarProgress))
-            .offset(y: 20 - (20 * sidebarProgress))
-            .opacity(0.8 + (0.2 * sidebarProgress))
-
-            // Main content — full width, slides right
-            iPhoneStyleMainContent(width: width, sidebarWidth: sidebarWidth)
-            .offset(x: showingSidebar ? sidebarWidth + dragOffset : dragOffset)
-            .shadow(color: .black.opacity(0.3 * sidebarProgress), radius: 10, x: -5, y: 0)
-            .opacity(1.0 - (0.3 * sidebarProgress))
-            .saturation(1.0 - (0.5 * sidebarProgress))
-            .allowsHitTesting(sidebarProgress < 0.95)
-
-            // Sidebar close overlay
-            if showingSidebar {
-                HStack(spacing: 0) {
-                    Color.clear
-                        .frame(width: sidebarWidth)
-                        .allowsHitTesting(false)
-                    Color.clear
-                        .frame(width: width - sidebarWidth)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            shouldScrollSidebarToTop = true
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                shouldScrollSidebarToTop = false
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
-                        }
-                }
-                .ignoresSafeArea()
-            }
-        }
-    }
-
-    // MARK: - iPhone-Style Main Content (extracted for type-checker)
-
-    @ViewBuilder
-    private func iPhoneStyleMainContent(width: CGFloat, sidebarWidth: CGFloat) -> some View {
-        NavigationStack {
-            if selectedListId == "settings" {
-                SettingsView(onMenuTap: {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                        showingSidebar = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
-                })
-                    .environmentObject(authManager)
-            } else if selectedListId == "profile", let userId = authManager.userId {
-                UserProfileView(userId: userId, isRootDestination: true)
-                    .environmentObject(authManager)
-            } else {
-                TaskListView(
-                    selectedListId: $selectedListId,
-                    isViewingFromFeatured: $isViewingFromFeatured,
-                    featuredList: $featuredList,
-                    searchText: $searchText,
-                    forcePushNavigation: true,
-                    onMenuTap: {
-                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                            showingSidebar = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    }
-                )
-            }
-        }
-        .frame(width: width)
-    }
 
     // MARK: - Helper Methods
 

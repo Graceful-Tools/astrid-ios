@@ -131,6 +131,10 @@ struct ProjectStatusBoardView: View {
             .contentMargins(.trailing,
                             selectedTaskId != nil ? max(0, geo.size.width - columnWidth) : 0,
                             for: .scrollContent)
+            // Collapse the scroll room INSTANTLY on close — if it animated with the
+            // container's panel slide, the scroll view would re-snap and the board
+            // would flash/jump as the detail slides out.
+            .animation(nil, value: selectedTaskId)
             .onAppear {
                 // Default to virtual Inbox when the board first appears
                 // so the user doesn't start mid-board.
@@ -191,11 +195,9 @@ struct ProjectStatusBoardView: View {
                             at targetIndex: Int) {
         let taskId = payload.taskId
         guard let task = taskService.tasks.first(where: { $0.id == taskId }) else {
-            print("⚠️ [Board] Drop received for unknown task id=\(taskId)")
             return
         }
         guard let domainList = projectDomainList else {
-            print("⚠️ [Board] No regular project list found — drop ignored")
             return
         }
 
@@ -238,9 +240,7 @@ struct ProjectStatusBoardView: View {
                     listId: domainList.id,
                     updates: listUpdate
                 )
-                print("✅ [Board] Moved task=\(task.id) → \(column.id)@\(targetIndex)")
             } catch {
-                print("❌ [Board] Move failed for task=\(task.id): \(error)")
                 await MainActor.run {
                     self.dropError = error.localizedDescription
                 }

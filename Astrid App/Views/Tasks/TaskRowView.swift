@@ -27,25 +27,9 @@ struct TaskRowView: View {
         return themeMode
     }
 
-    // Don't show assignee badge - it's either shown via avatar (for others) or implied by checkbox (for current user)
-    private var shouldShowAssigneeInMetadata: Bool {
-        false
-    }
-
     // Check if task belongs to any PUBLIC list
     private var isPublicListTask: Bool {
         task.lists?.contains(where: { $0.privacy == .PUBLIC }) ?? false
-    }
-
-    // Check if task belongs to any list (use listIds for immediate availability)
-    private var taskHasLists: Bool {
-        if let listIds = task.listIds, !listIds.isEmpty {
-            return true
-        }
-        if let lists = task.lists, !lists.isEmpty {
-            return true
-        }
-        return false
     }
 
     // Get effective assignee - use task.assignee if available, or create minimal User from assigneeId
@@ -374,15 +358,6 @@ struct TaskRowView: View {
             .frame(width: 34, height: 34)
     }
 
-    /// Format date in short form matching mobile web (e.g., "Jan 5")
-    /// CRITICAL: Uses UTC timezone for all-day tasks (task.dueDateTime with isAllDay=true)
-    private func formatDateShort(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        formatter.timeZone = TimeZone(identifier: "UTC")  // Use UTC for date-only fields
-        return formatter.string(from: date)
-    }
-
     /// Format date + time in short form (e.g., "Jan 5 6:26 PM")
     /// Used when task has a specific time set (not all-day)
     /// Date+time uses local timezone (user's timezone) since it represents a specific moment
@@ -436,9 +411,6 @@ struct TaskRowView: View {
         }
     }
 
-    private func isDue(_ date: Date) -> Bool {
-        date < Date()
-    }
 }
 
 // MARK: - Selection Arrow (points to task details on iPad)

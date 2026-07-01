@@ -59,7 +59,6 @@ struct BoardTaskCardView: View {
                             task: task
                         )
                     } catch {
-                        print("⚠️ [BoardTaskCardView] Toggle failed: \(error)")
                     }
                 }
             },
