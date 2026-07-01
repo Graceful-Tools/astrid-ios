@@ -205,6 +205,8 @@ struct iPadTaskManagerView: View {
                 }
             }
             .frame(width: width * 0.72)
+            // Slide the detail overlay + board scroll room in/out on selection.
+            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: selectedTask?.id)
         }
         } // ZStack
     }
@@ -333,6 +335,10 @@ struct iPadTaskManagerView: View {
                 }
             }
             .frame(width: width)
+            // Slide the detail overlay (and the board's scroll room) in/out when
+            // the selected task changes. The flat list opts out so its selected
+            // row highlights instantly.
+            .animation(.spring(response: 0.34, dampingFraction: 0.86), value: selectedTask?.id)
             .offset(x: showingSidebar ? sidebarWidth + dragOffset : dragOffset)
             .shadow(color: .black.opacity(0.3 * sidebarProgress), radius: 10, x: -5, y: 0)
             .opacity(1.0 - (0.3 * sidebarProgress))
@@ -451,9 +457,7 @@ struct iPadTaskManagerView: View {
                 TaskDetailViewNew(
                     task: task,
                     isReadOnly: shouldShowTaskAsReadOnly(task: task),
-                    onClose: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { selectedTask = nil }
-                    }
+                    onClose: { selectedTask = nil }
                 )
             }
             .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
@@ -475,9 +479,7 @@ struct iPadTaskManagerView: View {
                             translationHeight: value.translation.height,
                             predictedEndTranslationWidth: value.predictedEndTranslation.width
                         ) {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                selectedTask = nil
-                            }
+                            selectedTask = nil  // container animates the slide-out
                         }
                     }
             )

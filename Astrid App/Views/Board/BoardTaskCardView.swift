@@ -83,5 +83,8 @@ struct BoardTaskCardView: View {
                         lineWidth: isSelected ? 2.5 : 0.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        // Selection highlight is instant even though the board's scroll room
+        // animates when the container animates on selection.
+        .animation(nil, value: isSelected)
     }
 }

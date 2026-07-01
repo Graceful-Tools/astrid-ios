@@ -525,9 +525,7 @@ struct TaskListView: View {
                                         // the flat list does. Tapping the open task again
                                         // closes it. iPhone / forced-push: full screen.
                                         if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
-                                            withAnimation(.easeInOut(duration: 0.25)) {
-                                                selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
-                                            }
+                                            selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                                         } else {
                                             TaskPresenter.shared.showTask(task)
                                         }
@@ -792,33 +790,12 @@ struct TaskListView: View {
                     trailing: 8  // Horizontal margin
                 ))
                 .onTapGesture {
-                    print("🔵🔵🔵 [TaskListView] Task tapped: \(task.title)")
-                    print("  - Current isViewingFromFeatured: \(isViewingFromFeatured)")
-
-                    // iPad: Toggle side panel (tap same task to close), iPhone/forcePush: Push to navigation
+                    // iPad: toggle the side panel (tap the same task to close).
+                    // Set instantly so the row's selected state changes immediately;
+                    // the panel's slide is animated by the container. iPhone /
+                    // forced-push: push to navigation.
                     if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
-                        if selectedTaskForPanel?.id == task.id {
-                            // Same task tapped - close it
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                selectedTaskForPanel = nil
-                            }
-                        } else if selectedTaskForPanel != nil {
-                            // Different task tapped while one is open - close first completely, then open new
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                selectedTaskForPanel = nil
-                            }
-                            // Wait for close animation to fully complete, then open the new task
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    selectedTaskForPanel = task
-                                }
-                            }
-                        } else {
-                            // No task open - just open the new one
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                selectedTaskForPanel = task
-                            }
-                        }
+                        selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                     } else {
                         taskToNavigateTo = task
                     }
@@ -830,8 +807,11 @@ struct TaskListView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(getPrimaryBackground())
+        // Selected-row highlight is instant even though the container animates the
+        // detail panel's slide.
+        .animation(nil, value: selectedTaskForPanel?.id)
     }
-    
+
     private var filteredTasks: [Task] {
         // Search mode with no query — show empty state
         if selectedListId == "search" && searchText.isEmpty {
