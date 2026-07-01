@@ -12,8 +12,9 @@ struct SettingsView: View {
     // Debug mode toggles (stored in UserDefaults like web app)
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
-    // Bound to the same UserDefaults key OutboxConfig reads.
-    @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = false
+    // Bound to the same UserDefaults key OutboxConfig reads. Default ON for the
+    // production soak (matches OutboxConfig.dualWriteEnabled).
+    @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = true
     @State private var outboxStats: OutboxStats?
 
 
@@ -117,7 +118,7 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .foregroundColor(s.isHealthy ? .green : .orange)
-                            Text("Outbox: \(s.completed) done · \(s.pending + s.running) pending · \(s.failedPermanent) dead-letter")
+                            Text("Soak: \(s.lifetimeCompleted) synced · \(s.pending + s.running) in-flight · \(s.lifetimeDeadLettered) dropped")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             Spacer()

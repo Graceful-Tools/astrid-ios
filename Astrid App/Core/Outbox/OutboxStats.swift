@@ -12,17 +12,26 @@ struct OutboxStats: Equatable {
     var completed: Int = 0
     var failedPermanent: Int = 0
 
+    /// Cumulative counts across the app's lifetime (persisted). The live journal
+    /// prunes completed entries, so these are what the soak actually watches:
+    /// `lifetimeCompleted` should climb and `lifetimeDeadLettered` must stay 0.
+    var lifetimeCompleted: Int = 0
+    var lifetimeDeadLettered: Int = 0
+
     var total: Int { pending + running + completed + failedPermanent }
 
-    /// No dead-lettered (dropped) entries. Pending/running are transient and
-    /// fine; a permanent failure is the thing that would block deprecation.
-    var isHealthy: Bool { failedPermanent == 0 }
+    /// No dead-lettered (dropped) entries, ever. Pending/running are transient
+    /// and fine; a permanent failure is the thing that would block deprecation.
+    var isHealthy: Bool { failedPermanent == 0 && lifetimeDeadLettered == 0 }
 
-    init(pending: Int = 0, running: Int = 0, completed: Int = 0, failedPermanent: Int = 0) {
+    init(pending: Int = 0, running: Int = 0, completed: Int = 0, failedPermanent: Int = 0,
+         lifetimeCompleted: Int = 0, lifetimeDeadLettered: Int = 0) {
         self.pending = pending
         self.running = running
         self.completed = completed
         self.failedPermanent = failedPermanent
+        self.lifetimeCompleted = lifetimeCompleted
+        self.lifetimeDeadLettered = lifetimeDeadLettered
     }
 
     init(entries: [OutboxEntry]) {

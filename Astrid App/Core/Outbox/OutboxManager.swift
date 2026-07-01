@@ -9,16 +9,22 @@ enum OutboxKind {
     static let updateTask = "updateTask"
 }
 
-/// Feature flags for the Outbox rollout. Dual-write is OFF by default: the
-/// Outbox runs alongside the legacy per-service sync only when explicitly
-/// enabled, so we can verify it in production before cutting over (per the
-/// task's dual-write mitigation). Both paths use the same `clientRequestId`, so
-/// the server dedupes — enabling dual-write can't create duplicates.
+/// Feature flags for the Outbox rollout. Dual-write is now ON by default for the
+/// production soak: the Outbox runs alongside the legacy per-service sync so we
+/// can verify it catches every write before cutting over (per the task's
+/// dual-write mitigation). Legacy remains the source of truth, and both paths use
+/// the same `clientRequestId`, so the server dedupes — dual-write can't create
+/// duplicates, and an Outbox bug can at worst dead-letter a shadow entry
+/// (surfaced in the soak stats) without affecting the user.
 enum OutboxConfig {
     private static let dualWriteKey = "outboxDualWriteEnabled"
 
     static var dualWriteEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: dualWriteKey) }
+        // Default ON when the user hasn't explicitly set the toggle.
+        get {
+            if UserDefaults.standard.object(forKey: dualWriteKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: dualWriteKey)
+        }
         set { UserDefaults.standard.set(newValue, forKey: dualWriteKey) }
     }
 }

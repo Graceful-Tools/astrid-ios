@@ -88,7 +88,21 @@ actor OutboxRunner {
     func snapshot() -> [OutboxEntry] { entries }
 
     /// Journal counts by status — powers the dual-write soak readout.
-    func stats() -> OutboxStats { OutboxStats(entries: entries) }
+    // Persisted lifetime counters for the soak readout (the live journal prunes
+    // completed entries, so a snapshot alone can't answer "did we drop anything").
+    static let lifetimeCompletedKey = "outboxLifetimeCompleted"
+    static let lifetimeDeadLetteredKey = "outboxLifetimeDeadLettered"
+
+    nonisolated static func bumpLifetime(_ key: String) {
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: key) + 1, forKey: key)
+    }
+
+    func stats() -> OutboxStats {
+        var s = OutboxStats(entries: entries)
+        s.lifetimeCompleted = UserDefaults.standard.integer(forKey: Self.lifetimeCompletedKey)
+        s.lifetimeDeadLettered = UserDefaults.standard.integer(forKey: Self.lifetimeDeadLetteredKey)
+        return s
+    }
 
     /// Add an entry (idempotent on id) and drain.
     func enqueue(_ entry: OutboxEntry) async {
@@ -163,19 +177,24 @@ actor OutboxRunner {
                         $0.lastError = nil
                         $0.result = output.isEmpty ? nil : output
                     }
+                    Self.bumpLifetime(Self.lifetimeCompletedKey)
                 case .permanent(let message):
                     update(entry.id) { $0.status = .failedPermanent; $0.lastError = message }
+                    Self.bumpLifetime(Self.lifetimeDeadLetteredKey)
                 case .retryable(let message):
+                    var deadLettered = false
                     update(entry.id) { e in
                         e.attempts += 1
                         e.lastError = message
                         if OutboxScheduler.shouldDeadLetter(attempts: e.attempts) {
                             e.status = .failedPermanent
+                            deadLettered = true
                         } else {
                             e.status = .pending
                             e.nextAttemptAt = OutboxScheduler.nextAttemptDate(now: now(), attempts: e.attempts)
                         }
                     }
+                    if deadLettered { Self.bumpLifetime(Self.lifetimeDeadLetteredKey) }
                 }
                 progressed = true
             }
@@ -193,6 +212,7 @@ actor OutboxRunner {
                     entry.status = .failedPermanent
                     if entry.lastError == nil { entry.lastError = "dependency permanently failed or missing" }
                 }
+                Self.bumpLifetime(Self.lifetimeDeadLetteredKey)
             }
             persist()
         }
