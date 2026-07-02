@@ -121,7 +121,8 @@ final class GoogleTasksSyncService: ObservableObject {
             let dueDate = item.dueDate.flatMap { Self.dueFormatter.date(from: $0) }
 
             if let existing = byRemoteId[item.remoteId] {
-                if let ru = remoteUpdated, let watermark = existing.remoteUpdatedAt, ru <= watermark { continue }
+                guard SyncSuppression.shouldApplyRemote(
+                    remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
                 guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
                 if task.completed != item.completed {
                     _ = try? await taskService.completeTask(
@@ -134,10 +135,10 @@ final class GoogleTasksSyncService: ObservableObject {
                 }
                 // Only adopt Google's date-only due if the task isn't holding a
                 // TIMED due (Google can't express the time — don't clobber it).
-                if let dueDate, task.isAllDay || task.dueDateTime == nil,
-                   task.dueDateTime != dueDate {
+                if let adopted = GoogleDueMapping.adoptedDue(
+                    remoteDue: dueDate, localDue: task.dueDateTime, localIsAllDay: task.isAllDay) {
                     _ = try? await taskService.updateTask(
-                        taskId: task.id, dueDateTime: dueDate, isAllDay: true, source: .google)
+                        taskId: task.id, dueDateTime: adopted, isAllDay: true, source: .google)
                 }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
@@ -182,14 +183,10 @@ final class GoogleTasksSyncService: ObservableObject {
             .filter { ($0.listIds ?? []).contains(link.astridListId) && !$0.id.hasPrefix("temp_") }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         for task in listTasks {
-            let dueString: String? = task.dueDateTime.map { due in
-                var utc = Calendar.current
-                utc.timeZone = TimeZone(identifier: "UTC")!
-                return Self.dueFormatter.string(from: utc.startOfDay(for: due))
-            }
+            let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0) }
             if let existing = byTaskId[task.id] {
-                if let watermark = existing.astridUpdatedAt,
-                   let updated = task.updatedAt, updated <= watermark { continue }
+                guard SyncSuppression.shouldPushLocal(
+                    localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
                 let response = try await apiClient.pushGoogleTask(GoogleTaskPushRequest(
                     linkId: link.id, title: task.title,
                     notes: task.description.isEmpty ? nil : task.description,

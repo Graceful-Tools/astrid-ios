@@ -120,9 +120,8 @@ final class GitHubSyncService: ObservableObject {
             if let existing = byRemoteId[item.remoteId] {
                 // Echo/staleness guard: only apply if remote is newer than the
                 // watermark we wrote at the last push/pull.
-                if let ru = remoteUpdated, let watermark = existing.remoteUpdatedAt, ru <= watermark {
-                    continue
-                }
+                guard SyncSuppression.shouldApplyRemote(
+                    remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
                 guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
                 if task.completed != item.completed {
                     // Canonical completion — repeating tasks roll forward; the
@@ -176,8 +175,8 @@ final class GitHubSyncService: ObservableObject {
         for task in listTasks {
             if let existing = byTaskId[task.id] {
                 // Push only if the local task changed since our last recorded push.
-                if let watermark = existing.astridUpdatedAt,
-                   let updated = task.updatedAt, updated <= watermark { continue }
+                guard SyncSuppression.shouldPushLocal(
+                    localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,
