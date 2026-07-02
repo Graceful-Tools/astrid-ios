@@ -815,10 +815,35 @@ struct TaskListView: View {
         for t in top {
             out.append(t)
             if let subs = byParent[t.id] {
-                out.append(contentsOf: subs.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) })
+                // Subtasks follow the SAME completion settings as the surrounding
+                // list (per-list filterCompletion + recentlyCompletedWindow, My
+                // Tasks prefs, or the default) — hidden completed tasks hide here too.
+                let visible = applyContextCompletionFilter(subs)
+                out.append(contentsOf: visible.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) })
             }
         }
         return out
+    }
+
+    /// The completion filter the CURRENT view context applies to its rows —
+    /// mirrors the branches of `topLevelFilteredTasks` so spliced subtasks obey
+    /// the exact same visibility rule as their surroundings.
+    private func applyContextCompletionFilter(_ tasks: [Task]) -> [Task] {
+        if !searchText.isEmpty {
+            return applyCompletionFilter(tasks, filterCompletion: "default")
+        }
+        if selectedListId == "my-tasks" {
+            let completion = myTasksPreferences.preferences.filterCompletion ?? "default"
+            return applyCompletionFilter(tasks, filterCompletion: completion)
+        }
+        if let list = selectedList {
+            return applyCompletionFilterWithWindow(
+                tasks,
+                filter: list.filterCompletion ?? "default",
+                window: list.recentlyCompletedWindow
+            )
+        }
+        return applyCompletionFilter(tasks, filterCompletion: "default")
     }
 
     private var topLevelFilteredTasks: [Task] {
