@@ -368,6 +368,13 @@ actor SSEClient {
                         await notifyAgentTypingStop(channelId: channelId, taskId: taskId)
                     }
 
+                case "external_sync_refresh":
+                    // Server nudge: an external provider (e.g. a GitHub webhook)
+                    // reported changes — wake the client sync workers to pull.
+                    await MainActor.run {
+                        NotificationCenter.default.post(name: .externalSyncRefresh, object: nil)
+                    }
+
                 case "connected", "ping":
                     // Standard SSE keepalive events - handle silently
                     break
