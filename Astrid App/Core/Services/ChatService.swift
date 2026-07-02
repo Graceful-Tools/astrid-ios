@@ -535,8 +535,10 @@ class ChatService: ObservableObject {
             clientRequestId: clientRequestId
         )
 
-        // Trigger background sync
-        if networkMonitor.isConnected {
+        // Trigger background sync. CUTOVER (flag-gated): when the Outbox is
+        // authoritative, skip this legacy trigger — the Outbox handler sends and
+        // reconciles the message. Legacy observers remain as a safety net.
+        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
             _Concurrency.Task.detached { [weak self] in
                 try? await self?.syncPendingMessages()
             }
@@ -792,6 +794,24 @@ class ChatService: ObservableObject {
 
         await updatePendingOperationsCount()
         NotificationCenter.default.post(name: .chatMessageDidSync, object: nil)
+    }
+
+    /// Reconcile a pending chat message once the Outbox `sendChatMessage` handler
+    /// succeeds — the Outbox-authoritative equivalent of the post-send block in
+    /// `syncPendingCreate`. Looked up by clientRequestId (the temp message id and
+    /// the idempotency key differ for chat). Idempotent with the legacy safety-net
+    /// sync (resetSyncState leaves clientRequestId intact, so a second call no-ops).
+    func reconcileOutboxSentMessage(clientRequestId: String, serverMessage: ChatMessage, channelId: String) async {
+        try? await coreDataManager.saveInBackground { context in
+            guard let cdMessage = try CDChatMessage.fetchByClientRequestId(clientRequestId, context: context) else { return }
+            cdMessage.id = serverMessage.id
+            cdMessage.resetSyncState()
+        }
+        if var channelMessages = cachedMessages[channelId],
+           let index = channelMessages.firstIndex(where: { $0.clientRequestId == clientRequestId }) {
+            channelMessages[index] = serverMessage
+            cachedMessages[channelId] = channelMessages
+        }
     }
 
     private func syncPendingCreate(_ data: PendingMessageData) async throws {

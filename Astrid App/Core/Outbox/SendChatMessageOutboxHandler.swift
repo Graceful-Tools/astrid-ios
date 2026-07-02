@@ -32,13 +32,21 @@ enum SendChatMessageOutboxHandler {
         }
 
         do {
-            _ = try await AstridAPIClient.shared.sendChatMessage(
+            let serverMessage = try await AstridAPIClient.shared.sendChatMessage(
                 channelId: payload.channelId,
                 content: payload.content,
                 type: Comment.CommentType(rawValue: payload.type) ?? .TEXT,
                 fileId: fileId,
                 replyToId: payload.replyToId,
                 clientRequestId: entry.clientRequestId
+            )
+            // Reconcile the pending message (swap temp→real id, mark synced) by
+            // clientRequestId. Idempotent with the legacy safety-net sync; required
+            // once legacy is removed.
+            await ChatService.shared.reconcileOutboxSentMessage(
+                clientRequestId: entry.clientRequestId,
+                serverMessage: serverMessage,
+                channelId: payload.channelId
             )
             return .success([:])
         } catch {
