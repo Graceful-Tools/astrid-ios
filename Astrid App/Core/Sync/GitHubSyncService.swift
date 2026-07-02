@@ -114,6 +114,7 @@ final class GitHubSyncService: ObservableObject {
 
         // ── PULL: apply remote changes newer than our watermark ────────────
         let pulled = try await apiClient.pullGitHubIssues(linkId: link.id)
+        let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
         for item in pulled.items {
             let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
@@ -140,27 +141,43 @@ final class GitHubSyncService: ObservableObject {
                     astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
             } else {
-                // New issue → new Astrid task in the linked list.
-                let newTask = try await taskService.createTask(
-                    listIds: [link.astridListId], title: item.title,
-                    description: item.notes, source: .github)
-                if item.completed {
+                // New issue → adopt an existing UNLINKED same-title task in the
+                // list if one exists (self-heals passes that created the task
+                // but couldn't persist the link), else create one.
+                let adopted = taskService.tasks.first {
+                    ($0.listIds ?? []).contains(link.astridListId)
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.title == item.title
+                }
+                let newTask: Task
+                if let adopted {
+                    newTask = adopted
+                } else {
+                    newTask = try await taskService.createTask(
+                        listIds: [link.astridListId], title: item.title,
+                        description: item.notes, source: .github)
+                }
+                if item.completed, !newTask.completed {
                     _ = try? await taskService.completeTask(
                         id: newTask.id, completed: true, task: newTask, source: .github)
                 }
+                // The link row has an FK to the real Task id — resolve the
+                // optimistic temp id before writing it, or the upsert silently
+                // fails and the next pass duplicates the task.
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 let newLink = ExternalTaskLinkUpsertRequest(
-                    astridTaskId: newTask.id, remoteId: item.remoteId,
+                    astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: newTask.updatedAt, remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata)
                 try? await apiClient.upsertGitHubTaskLink(newLink)
                 let dto = ExternalTaskLinkDTO(
-                    astridTaskId: newTask.id, remoteId: item.remoteId,
+                    astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: newTask.updatedAt,
                     remoteUpdatedAt: remoteUpdated, metadata: item.metadata)
                 byRemoteId[item.remoteId] = dto
-                byTaskId[newTask.id] = dto
+                byTaskId[realId] = dto
                 taskLinks.append(dto)
             }
         }
@@ -177,6 +194,20 @@ final class GitHubSyncService: ObservableObject {
                 // Push only if the local task changed since our last recorded push.
                 guard SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
+                // Content no-op guard: a PATCH that changes nothing still bumps
+                // the issue's updated_at, which echoes back as a webhook nudge.
+                // Advance the watermark instead so this task stops qualifying.
+                if let remote = pulledByRemoteId[existing.remoteId],
+                   remote.title == task.title,
+                   (remote.notes ?? "") == task.description,
+                   remote.completed == task.completed {
+                    try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: task.id, remoteId: existing.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { iso.string(from: $0) },
+                        metadata: nil))
+                    continue
+                }
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,

@@ -115,6 +115,7 @@ final class GoogleTasksSyncService: ObservableObject {
 
         // ── PULL ────────────────────────────────────────────────────────────
         let pulled = try await apiClient.pullGoogleTasks(linkId: link.id)
+        let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         for item in pulled.items {
             if item.metadata?["deleted"] == "1" { continue }  // v1: don't mirror deletions
             let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
@@ -152,27 +153,44 @@ final class GoogleTasksSyncService: ObservableObject {
                 if let parent = item.metadata?["parent"], !parent.isEmpty {
                     parentTaskId = byRemoteId["\(link.remoteContainerId):\(parent)"]?.astridTaskId
                 }
-                let newTask = try await taskService.createTask(
-                    listIds: [link.astridListId], title: item.title,
-                    description: item.notes,
-                    whenDate: dueDate,
-                    parentTaskId: parentTaskId, source: .google)
-                if item.completed {
+                // Adopt an existing UNLINKED same-title task in the list if one
+                // exists (self-heals passes that created the task but couldn't
+                // persist the link), else create one.
+                let adopted = taskService.tasks.first {
+                    ($0.listIds ?? []).contains(link.astridListId)
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.title == item.title
+                }
+                let newTask: Task
+                if let adopted {
+                    newTask = adopted
+                } else {
+                    newTask = try await taskService.createTask(
+                        listIds: [link.astridListId], title: item.title,
+                        description: item.notes,
+                        whenDate: dueDate,
+                        parentTaskId: parentTaskId, source: .google)
+                }
+                if item.completed, !newTask.completed {
                     _ = try? await taskService.completeTask(
                         id: newTask.id, completed: true, task: newTask, source: .google)
                 }
+                // The link row has an FK to the real Task id — resolve the
+                // optimistic temp id before writing it, or the upsert silently
+                // fails and the next pass duplicates the task.
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
-                    astridTaskId: newTask.id, remoteId: item.remoteId,
+                    astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: newTask.updatedAt, remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
                 let dto = ExternalTaskLinkDTO(
-                    astridTaskId: newTask.id, remoteId: item.remoteId,
+                    astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: newTask.updatedAt,
                     remoteUpdatedAt: remoteUpdated, metadata: item.metadata)
                 byRemoteId[item.remoteId] = dto
-                byTaskId[newTask.id] = dto
+                byTaskId[realId] = dto
                 taskLinks.append(dto)
             }
         }
@@ -187,6 +205,21 @@ final class GoogleTasksSyncService: ObservableObject {
             if let existing = byTaskId[task.id] {
                 guard SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
+                // Content no-op guard: an unchanged PATCH still bumps the remote
+                // updated stamp, which echoes back as a change. Advance the
+                // watermark instead.
+                if let remote = pulledByRemoteId[existing.remoteId],
+                   remote.title == task.title,
+                   (remote.notes ?? "") == task.description,
+                   remote.completed == task.completed,
+                   remote.dueDate == dueString {
+                    try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: task.id, remoteId: existing.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { iso.string(from: $0) },
+                        metadata: nil))
+                    continue
+                }
                 let response = try await apiClient.pushGoogleTask(GoogleTaskPushRequest(
                     linkId: link.id, title: task.title,
                     notes: task.description.isEmpty ? nil : task.description,

@@ -72,3 +72,24 @@ protocol SyncProvider {
     /// the next cursor (Google syncToken / GitHub since-watermark / nil).
     func pull(containerId: String, since cursor: String?) async throws -> (items: [RemoteItem], cursor: String?)
 }
+
+/// Resolve an optimistic temp task id (from the Outbox-authoritative
+/// `createTask`) to its real server id. `ExternalTaskLink.astridTaskId` has a
+/// foreign key to the real Task row, so a link written with a temp id is
+/// silently rejected — which made every sync pass re-create pulled tasks.
+/// Draining the Outbox runs the createTask handler (sync only runs online),
+/// after which the temp→real map has the answer.
+@MainActor
+func resolveRealSyncTaskId(_ id: String) async -> String? {
+    guard id.hasPrefix("temp_") else { return id }
+    for attempt in 0..<6 {
+        await OutboxManager.shared.drain()
+        if let real = TaskService.shared.mappedRealTaskId(for: id), !real.hasPrefix("temp_") {
+            return real
+        }
+        if attempt < 5 {
+            try? await _Concurrency.Task.sleep(nanoseconds: 500_000_000)
+        }
+    }
+    return nil
+}
