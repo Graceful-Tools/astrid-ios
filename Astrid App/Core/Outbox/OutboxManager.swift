@@ -7,6 +7,9 @@ enum OutboxKind {
     static let createComment = "createComment"
     static let sendChatMessage = "sendChatMessage"
     static let updateTask = "updateTask"
+    static let deleteTask = "deleteTask"
+    static let updateComment = "updateComment"
+    static let deleteComment = "deleteComment"
 }
 
 /// Feature flags for the Outbox rollout. Dual-write is now ON by default for the
@@ -62,7 +65,10 @@ final class OutboxManager {
                 OutboxKind.uploadAttachment: { entry, _ in await UploadAttachmentOutboxHandler.handle(entry) },
                 OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) },
                 OutboxKind.sendChatMessage: { entry, _ in await SendChatMessageOutboxHandler.handle(entry) },
-                OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) }
+                OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) },
+                OutboxKind.deleteTask: { entry, _ in await DeleteTaskOutboxHandler.handle(entry) },
+                OutboxKind.updateComment: { entry, _ in await UpdateCommentOutboxHandler.handle(entry) },
+                OutboxKind.deleteComment: { entry, _ in await DeleteCommentOutboxHandler.handle(entry) }
             ]
         )
         self.runner = runner
@@ -154,6 +160,18 @@ final class OutboxManager {
     /// Enqueue a task update. No-op unless dual-write is enabled.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
         enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    func enqueueUpdateComment(_ payload: UpdateCommentOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.updateComment, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    func enqueueDeleteComment(_ payload: DeleteCommentOutboxPayload, clientRequestId: String) {
+        enqueue(kind: OutboxKind.deleteComment, payload: payload, clientRequestId: clientRequestId)
     }
 
     /// Enqueue a comment, optionally with an attachment that must upload first.

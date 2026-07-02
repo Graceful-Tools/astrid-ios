@@ -101,6 +101,18 @@ class TaskService: ObservableObject {
         pendingCreates.remove(tempId)
     }
 
+    /// Finalize a task deletion once the Outbox `deleteTask` handler succeeds:
+    /// remove the pending_delete CoreData row and clear the recently-deleted
+    /// guard. Idempotent with the legacy path.
+    func finalizeOutboxDeletedTask(id: String, resolvedId: String) async {
+        try? await deleteTaskFromCoreData(id)
+        if resolvedId != id { try? await deleteTaskFromCoreData(resolvedId) }
+        recentlyDeletedIds.remove(id)
+        recentlyDeletedIds.remove(resolvedId)
+        updatePendingOperationsCount()
+        await badgeManager.updateBadge(with: self.tasks)
+    }
+
     /// Mark a task's CoreData row synced once the Outbox `updateTask` handler
     /// succeeds (the Outbox-authoritative equivalent of the post-PUT block in
     /// `updateTask`). Uses the current in-memory task, so a newer optimistic edit
@@ -941,6 +953,19 @@ class TaskService: ObservableObject {
         // Update app badge after task deletion
         await badgeManager.updateBadge(with: self.tasks)
 
+        // Unified Outbox delete (dual-write shadow, or authoritative when the
+        // cutover flag is on). Deletes are idempotent server-side (404 = done).
+        OutboxManager.shared.enqueueDeleteTask(
+            DeleteTaskOutboxPayload(taskId: resolvedId),
+            clientRequestId: UUID().uuidString
+        )
+
+        // CUTOVER (flag-gated): the Outbox handler owns the server delete and the
+        // CoreData finalization when it drains.
+        if OutboxConfig.sourceOfTruthEnabled {
+            return
+        }
+
         // Make server call in background
         do {
             do {
@@ -1483,7 +1508,10 @@ class TaskService: ObservableObject {
             }
 
             do {
-                if cdTask.syncStatus == "pending_delete"
+                if OutboxConfig.sourceOfTruthEnabled {
+                    // CUTOVER: every op (incl. deletes) is Outbox-owned now.
+                    continue
+                } else if cdTask.syncStatus == "pending_delete"
                     || (cdTask.syncStatus == "failed" && recentlyDeletedIds.contains(cdTask.id)) {
                     // Handle pending deletions (including legacy "failed" records that were deletes)
                     do {

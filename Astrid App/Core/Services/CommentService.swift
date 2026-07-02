@@ -634,8 +634,15 @@ class CommentService: ObservableObject {
             }
         }
 
-        // 4. Trigger background sync (fire-and-forget)
-        if networkMonitor.isConnected {
+        // 4. Unified Outbox update (shadow, or authoritative when the flag is on).
+        OutboxManager.shared.enqueueUpdateComment(
+            UpdateCommentOutboxPayload(commentId: id, content: content),
+            clientRequestId: UUID().uuidString
+        )
+
+        // Trigger background sync (fire-and-forget). CUTOVER: skipped when the
+        // Outbox is authoritative — the handler owns the update + reconcile.
+        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
             _Concurrency.Task.detached { [weak self] in
                 try? await self?.syncPendingComments()
             }
@@ -670,8 +677,15 @@ class CommentService: ObservableObject {
             }
         }
 
-        // 3. Trigger background sync (fire-and-forget)
-        if networkMonitor.isConnected {
+        // 3. Unified Outbox delete (shadow, or authoritative when the flag is on).
+        OutboxManager.shared.enqueueDeleteComment(
+            DeleteCommentOutboxPayload(commentId: id),
+            clientRequestId: UUID().uuidString
+        )
+
+        // Trigger background sync (fire-and-forget). CUTOVER: skipped when the
+        // Outbox is authoritative — the handler owns the delete + finalize.
+        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
             _Concurrency.Task.detached { [weak self] in
                 try? await self?.syncPendingComments()
             }
@@ -736,8 +750,10 @@ class CommentService: ObservableObject {
                     guard !OutboxConfig.sourceOfTruthEnabled else { continue }
                     try await syncPendingCreate(data)
                 case "update":
+                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
                     try await syncPendingUpdate(data)
                 case "delete":
+                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
                     try await syncPendingDelete(data)
                 default:
                     try await markAsFailed(id: data.id, error: "Unknown operation type")
@@ -775,6 +791,43 @@ class CommentService: ObservableObject {
     }
 
     /// Sync a pending create operation
+    /// Temp→real comment-id map (in-memory; comments are shorter-lived than
+    /// tasks, so no durable store needed — an unresolved id simply stays
+    /// .blocked until the create's reconcile records it after relaunch replay).
+    private var tempCommentIdMapping: [String: String] = [:]
+
+    func mappedRealCommentId(for tempId: String) -> String? {
+        tempCommentIdMapping[tempId]
+    }
+
+    /// Mark a comment's row updated+synced once the Outbox `updateComment`
+    /// handler succeeds. Idempotent with the legacy safety-net sync.
+    func reconcileOutboxUpdatedComment(commentId: String, content: String) async {
+        try? await coreDataManager.saveInBackground { context in
+            guard let comment = try CDComment.fetchById(commentId, context: context) else { return }
+            comment.content = content
+            comment.pendingContent = nil
+            comment.pendingOperation = nil
+            comment.syncStatus = "synced"
+            comment.lastSyncedAt = Date()
+            comment.syncAttempts = 0
+            comment.syncError = nil
+        }
+        await updatePendingOperationsCount()
+    }
+
+    /// Remove a comment's row once the Outbox `deleteComment` handler succeeds.
+    func finalizeOutboxDeletedComment(commentId: String, resolvedId: String) async {
+        try? await coreDataManager.saveInBackground { context in
+            for cid in Set([commentId, resolvedId]) {
+                if let comment = try CDComment.fetchById(cid, context: context) {
+                    context.delete(comment)
+                }
+            }
+        }
+        await updatePendingOperationsCount()
+    }
+
     /// Reconcile a pending comment once the Outbox `createComment` handler
     /// succeeds — the Outbox-authoritative equivalent of the post-POST block in
     /// `syncPendingCreate`: swap temp comment id → server id, migrate to the real
@@ -786,6 +839,9 @@ class CommentService: ObservableObject {
         serverComment: Comment,
         resolvedTaskId: String
     ) async {
+        // Record temp→real so queued update/delete entries against the temp id
+        // resolve (they wait .blocked until this lands).
+        tempCommentIdMapping[tempCommentId] = serverComment.id
         try? await coreDataManager.saveInBackground { context in
             guard let comment = try CDComment.fetchById(tempCommentId, context: context) else { return }
             comment.id = serverComment.id
