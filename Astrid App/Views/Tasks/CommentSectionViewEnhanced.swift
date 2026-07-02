@@ -398,6 +398,23 @@ struct CommentSectionViewEnhanced: View {
                         onDelete: {
                             // Remove comment from UI immediately
                             comments.removeAll { $0.id == comment.id }
+                        },
+                        onEdit: { commentId, newContent in
+                            // Update comment in UI immediately (top-level or reply)
+                            if let idx = comments.firstIndex(where: { $0.id == commentId }) {
+                                comments[idx].content = newContent
+                                comments[idx].updatedAt = Date()
+                            } else {
+                                for i in comments.indices {
+                                    if var replies = comments[i].replies,
+                                       let j = replies.firstIndex(where: { $0.id == commentId }) {
+                                        replies[j].content = newContent
+                                        replies[j].updatedAt = Date()
+                                        comments[i].replies = replies
+                                        break
+                                    }
+                                }
+                            }
                         }
                     )
                 }
@@ -1331,6 +1348,7 @@ struct CommentRowViewEnhanced: View {
     let isOffline: Bool  // When offline, treat all cached comments as user comments
     let onReply: () -> Void
     let onDelete: () -> Void
+    let onEdit: (String, String) -> Void  // (commentId, newContent) — optimistic UI update
 
     @State private var showingDeleteAlert = false
     @State private var isEditingComment = false
@@ -1528,7 +1546,8 @@ struct CommentRowViewEnhanced: View {
                                 useMarkdown: useMarkdown,
                                 isOffline: isOffline,
                                 onReply: onReply,
-                                onDelete: onDelete
+                                onDelete: onDelete,
+                                onEdit: onEdit
                             )
                         }
                     }
@@ -1571,6 +1590,7 @@ struct CommentRowViewEnhanced: View {
                                 let trimmed = editedCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
                                 guard !trimmed.isEmpty else { return }
                                 isEditingComment = false
+                                onEdit(comment.id, trimmed)
                                 _Concurrency.Task {
                                     _ = try? await CommentService.shared.updateComment(id: comment.id, content: trimmed)
                                 }
