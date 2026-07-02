@@ -1333,6 +1333,8 @@ struct CommentRowViewEnhanced: View {
     let onDelete: () -> Void
 
     @State private var showingDeleteAlert = false
+    @State private var isEditingComment = false
+    @State private var editedCommentText = ""
 
     // Effective theme
     private var effectiveTheme: String {
@@ -1400,6 +1402,12 @@ struct CommentRowViewEnhanced: View {
 
             if isCurrentUser {
                 Divider()
+                Button {
+                    editedCommentText = comment.content
+                    isEditingComment = true
+                } label: {
+                    Label(NSLocalizedString("actions.edit", comment: "Edit"), systemImage: "pencil")
+                }
                 Button(role: .destructive) {
                     showingDeleteAlert = true
                 } label: {
@@ -1541,6 +1549,37 @@ struct CommentRowViewEnhanced: View {
                 }
             } message: {
                 Text("Are you sure you want to delete this comment?")
+            }
+            .sheet(isPresented: $isEditingComment) {
+                NavigationStack {
+                    VStack(spacing: 0) {
+                        TextEditor(text: $editedCommentText)
+                            .font(Theme.Typography.body())
+                            .padding(Theme.spacing12)
+                        Spacer(minLength: 0)
+                    }
+                    .navigationTitle(NSLocalizedString("actions.edit", comment: "Edit"))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(NSLocalizedString("actions.cancel", comment: "Cancel")) {
+                                isEditingComment = false
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(NSLocalizedString("actions.save", comment: "Save")) {
+                                let trimmed = editedCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !trimmed.isEmpty else { return }
+                                isEditingComment = false
+                                _Concurrency.Task {
+                                    _ = try? await CommentService.shared.updateComment(id: comment.id, content: trimmed)
+                                }
+                            }
+                            .disabled(editedCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
             }
         }
     }
