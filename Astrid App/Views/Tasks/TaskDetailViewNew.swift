@@ -494,34 +494,17 @@ struct TaskDetailViewNew: View {
 
                 TaskAttachmentSectionView(task: task)
 
-                // 9. Timer Button (moved above comments)
-                VStack(spacing: Theme.spacing8) {
-                    Button(action: { showTimer = true }) {
-                        HStack {
-                            Image(systemName: "timer")
-                            Text("Timer")
-                                .font(.system(size: 17, weight: .medium))
-                        }
+                // 9. Timer moved into the comment footer (send slot while empty);
+                // only the last-timer caption remains inline.
+                if let lastTimerValue = task.lastTimerValue {
+                    Text(String(format: NSLocalizedString("task_edit.last_timer", comment: "Last timer value"), lastTimerValue))
+                        .font(.system(size: 14))
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, Theme.spacing16)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
-                        )
-                    }
-
-                    if let lastTimerValue = task.lastTimerValue {
-                        Text(String(format: NSLocalizedString("task_edit.last_timer", comment: "Last timer value"), lastTimerValue))
-                            .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                            .multilineTextAlignment(.center)
-                    }
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, Theme.spacing16)
+                        .padding(.top, Theme.spacing4)
                 }
-                .padding(.horizontal, Theme.spacing16)
-                .padding(.top, Theme.spacing4)
 
                 // 9a. Parent task link (shown on subtasks, under the description)
                 if let parentId = task.parentTaskId,
@@ -598,7 +581,8 @@ struct TaskDetailViewNew: View {
                         uploadContext: task.listIds?.first != nil ? ["listId": task.listIds!.first!] : ["taskId": task.id],
                         onSend: { content, type, fileId in
                             _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileId: fileId) }
-                        }
+                        },
+                        onTimerTap: { showTimer = true }
                     )
                         .background(
                             // Extend background to cover home indicator area

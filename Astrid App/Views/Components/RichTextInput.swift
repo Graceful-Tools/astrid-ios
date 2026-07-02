@@ -19,6 +19,7 @@ struct RichTextInput: View {
 
     // Callbacks
     var onSend: ((_ content: String, _ type: Comment.CommentType, _ fileId: String?) -> Void)?
+    var onTimerTap: (() -> Void)? = nil    // Task detail only: timer in the send slot while input is empty
 
     // Text state (can be bound externally or managed internally)
     @State private var text = ""
@@ -143,17 +144,30 @@ struct RichTextInput: View {
                 .buttonStyle(.plain)
                 .disabled(isUploadingFile || isSubmitting)
 
-                // Send
-                Button { send() } label: {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(canSend ? Theme.accent : mutedTextColor)
-                        .padding(10)
-                        .background(isOceanTheme ? Color.white : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                // Send — or timer while the input is empty (task detail)
+                if let onTimerTap, !canSend {
+                    Button { onTimerTap() } label: {
+                        Image(systemName: "timer")
+                            .font(.system(size: 16))
+                            .foregroundColor(Theme.accent)
+                            .padding(10)
+                            .background(isOceanTheme ? Color.white : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSubmitting)
+                } else {
+                    Button { send() } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(canSend ? Theme.accent : mutedTextColor)
+                            .padding(10)
+                            .background(isOceanTheme ? Color.white : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSend || isSubmitting)
                 }
-                .buttonStyle(.plain)
-                .disabled(!canSend || isSubmitting)
             }
         }
         .padding(.horizontal, Theme.spacing16)
