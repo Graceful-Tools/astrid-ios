@@ -107,6 +107,45 @@ final class OutboxManager {
         enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
     }
 
+    /// Enqueue a chat message, optionally with an attachment that must upload
+    /// first — builds the dependency chain (upload → sendChatMessage) atomically so
+    /// the message sends with the real fileId by construction. Mirrors
+    /// `enqueueComment`. No-op unless dual-write or authoritative mode is on.
+    func enqueueChatMessage(
+        _ message: SendChatMessageOutboxPayload,
+        clientRequestId: String,
+        attachment: UploadAttachmentOutboxPayload?,
+        attachmentClientRequestId: String?
+    ) {
+        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
+        let now = Date()
+        var toEnqueue: [OutboxEntry] = []
+        var dependsOn: [String] = []
+
+        if let attachment,
+           let attachmentClientRequestId,
+           let attachmentData = try? JSONEncoder().encode(attachment) {
+            let uploadId = UUID().uuidString
+            toEnqueue.append(OutboxEntry(
+                id: uploadId, kind: OutboxKind.uploadAttachment, payload: attachmentData,
+                clientRequestId: attachmentClientRequestId, dependsOn: [], status: .pending,
+                attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
+            ))
+            dependsOn.append(uploadId)
+        }
+
+        guard let messageData = try? JSONEncoder().encode(message) else { return }
+        toEnqueue.append(OutboxEntry(
+            id: UUID().uuidString, kind: OutboxKind.sendChatMessage, payload: messageData,
+            clientRequestId: clientRequestId, dependsOn: dependsOn, status: .pending,
+            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
+        ))
+
+        let runner = self.runner
+        let batch = toEnqueue
+        _Concurrency.Task { await runner.enqueueBatch(batch) }
+    }
+
     /// Enqueue a task update. No-op unless dual-write is enabled.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
         enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId)

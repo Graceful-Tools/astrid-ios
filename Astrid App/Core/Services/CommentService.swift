@@ -539,17 +539,35 @@ class CommentService: ObservableObject {
         // attachment is still uploaded once by the legacy path, and the Outbox
         // handler resolves that real fileId (and a temp task id) at run time — it
         // does NOT re-upload, so no duplicate SecureFile.
-        OutboxManager.shared.enqueueComment(
-            CreateCommentOutboxPayload(
-                taskId: taskId,
-                content: content,
-                type: type.rawValue,
-                parentCommentId: parentCommentId,
-                createdAt: optimisticComment.createdAt,
-                fileId: fileId
-            ),
-            clientRequestId: tempId
+        let commentPayload = CreateCommentOutboxPayload(
+            taskId: taskId,
+            content: content,
+            type: type.rawValue,
+            parentCommentId: parentCommentId,
+            createdAt: optimisticComment.createdAt,
+            fileId: fileId
         )
+        // CUTOVER (flag-gated): when authoritative AND this comment has a staged
+        // attachment, build the upload→comment dependency chain so the Outbox owns
+        // the upload (the legacy upload was skipped in saveLocallyAndUploadAsync).
+        // Otherwise keep the shadow enqueue (legacy still uploads).
+        if OutboxConfig.sourceOfTruthEnabled,
+           let temp = fileId, temp.hasPrefix("temp_"),
+           let pending = AttachmentService.shared.pendingUploads[temp] {
+            OutboxManager.shared.enqueueComment(
+                commentPayload,
+                clientRequestId: tempId,
+                attachment: UploadAttachmentOutboxPayload(
+                    localPath: pending.localPath,
+                    fileName: pending.fileName,
+                    mimeType: pending.mimeType,
+                    context: pending.uploadContext
+                ),
+                attachmentClientRequestId: temp
+            )
+        } else {
+            OutboxManager.shared.enqueueComment(commentPayload, clientRequestId: tempId)
+        }
 
         // 5. Trigger background sync (fire-and-forget) - AFTER save completes.
         // CUTOVER (flag-gated): when the Outbox is authoritative, skip this legacy

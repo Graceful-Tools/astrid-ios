@@ -173,12 +173,31 @@ class AttachmentService: ObservableObject {
         pendingUploads[tempFileId] = pending
         savePendingUploads()
 
-        // Start background upload
-        _Concurrency.Task {
-            await uploadPendingAttachment(tempFileId: tempFileId)
+        // CUTOVER (flag-gated): when the Outbox is authoritative, DON'T start the
+        // legacy upload — the comment/chat compose path builds an Outbox
+        // upload→comment dependency chain from this pending record, so the Outbox
+        // owns the upload (no double-upload). The local save + pending record above
+        // still happen so the optimistic thumbnail shows and the chain can read
+        // localPath/fileName/mimeType/context.
+        if !OutboxConfig.sourceOfTruthEnabled {
+            _Concurrency.Task {
+                await uploadPendingAttachment(tempFileId: tempFileId)
+            }
         }
 
         return tempFileId
+    }
+
+    /// Record a temp→real fileId mapping produced by the Outbox upload handler so
+    /// thumbnail display (getRealFileId) and any legacy resolver path see it.
+    func recordOutboxUpload(tempFileId: String, realFileId: String) {
+        fileIdMapping[tempFileId] = realFileId
+        if var pending = pendingUploads[tempFileId] {
+            pending.realFileId = realFileId
+            pending.uploadStatus = .completed
+            pendingUploads[tempFileId] = pending
+            savePendingUploads()
+        }
     }
 
     /// Convenience wrapper: save file with taskId context (existing callers)

@@ -33,6 +33,10 @@ enum UploadAttachmentOutboxHandler {
                 mimeType: payload.mimeType,
                 context: context
             )
+            // Record temp→real so thumbnail display (getRealFileId) resolves. The
+            // temp id is the local file's name (cacheDirectory/<tempFileId>).
+            let tempFileId = URL(fileURLWithPath: payload.localPath).lastPathComponent
+            await AttachmentService.shared.recordOutboxUpload(tempFileId: tempFileId, realFileId: fileId)
             return .success(["fileId": fileId])
         } catch {
             return OutboxResultMapper.classify(error)

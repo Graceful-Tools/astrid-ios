@@ -524,16 +524,33 @@ class ChatService: ObservableObject {
         // Reuses the SAME clientRequestId as the legacy sync, so the server
         // dedupes (ChatMessage.clientRequestId is unique). The handler resolves a
         // temp attachment fileId from the legacy upload at run time — no re-upload.
-        OutboxManager.shared.enqueueChatMessage(
-            SendChatMessageOutboxPayload(
-                channelId: channelId,
-                content: content,
-                type: type.rawValue,
-                fileId: fileId,
-                replyToId: replyToId
-            ),
-            clientRequestId: clientRequestId
+        let chatPayload = SendChatMessageOutboxPayload(
+            channelId: channelId,
+            content: content,
+            type: type.rawValue,
+            fileId: fileId,
+            replyToId: replyToId
         )
+        // CUTOVER (flag-gated): when authoritative AND this message has a staged
+        // attachment, build the upload→send chain so the Outbox owns the upload
+        // (the legacy upload was skipped in saveLocallyAndUploadAsync).
+        if OutboxConfig.sourceOfTruthEnabled,
+           let temp = fileId, temp.hasPrefix("temp_"),
+           let pending = AttachmentService.shared.pendingUploads[temp] {
+            OutboxManager.shared.enqueueChatMessage(
+                chatPayload,
+                clientRequestId: clientRequestId,
+                attachment: UploadAttachmentOutboxPayload(
+                    localPath: pending.localPath,
+                    fileName: pending.fileName,
+                    mimeType: pending.mimeType,
+                    context: pending.uploadContext
+                ),
+                attachmentClientRequestId: temp
+            )
+        } else {
+            OutboxManager.shared.enqueueChatMessage(chatPayload, clientRequestId: clientRequestId)
+        }
 
         // Trigger background sync. CUTOVER (flag-gated): when the Outbox is
         // authoritative, skip this legacy trigger — the Outbox handler sends and

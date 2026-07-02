@@ -117,10 +117,10 @@ struct SettingsView: View {
 
                     Toggle(isOn: $outboxSourceOfTruth) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Outbox authoritative — tasks, comments & chat (canary)")
+                            Text("Outbox authoritative — all writes (canary)")
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Cutover canary: task create/update + comments + chat sync via the Outbox only (legacy inline path skipped). Watch dropped = 0.")
+                            Text("Cutover canary: tasks + comments + chat + attachment uploads all sync via the Outbox only (legacy inline path skipped). Watch dropped = 0.")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }
