@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3 kolommen";
 "settings.appearance.two_columns" = "2 kolommen";
 "settings.appearance.single_column" = "Eén kolom";
+
+// Subtasks
+"task_detail.subtasks" = "Subtaken";
+"task_detail.add_subtask" = "Subtaak toevoegen";
+"task_detail.complete_subtasks_title" = "Subtaken voltooien?";
+"task_detail.complete_all_subtasks" = "Alle subtaken voltooien";
+"task_detail.complete_only_this" = "Alleen deze taak";

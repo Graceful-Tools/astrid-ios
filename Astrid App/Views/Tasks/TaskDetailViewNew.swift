@@ -35,6 +35,7 @@ struct TaskDetailViewNew: View {
     @State private var editedListIds: [String]
     @State private var editedAssigneeId: String?
     @State private var isCompleted: Bool
+    @State private var showingCompleteSubtasksPrompt = false
     @State private var isAllDay: Bool  // Track all-day state independently
     @State private var showTimer: Bool = false // New state for timer
     @FocusState private var isTitleFocused: Bool  // Focus state for title field
@@ -261,6 +262,19 @@ struct TaskDetailViewNew: View {
                             checkboxImage
                         }
                         .buttonStyle(.plain)
+                        .confirmationDialog(
+                            NSLocalizedString("task_detail.complete_subtasks_title", comment: "Complete sub-tasks?"),
+                            isPresented: $showingCompleteSubtasksPrompt,
+                            titleVisibility: .visible
+                        ) {
+                            Button(NSLocalizedString("task_detail.complete_all_subtasks", comment: "Mark all sub-tasks complete")) {
+                                performCompletion(alsoCompleteSubtasks: true)
+                            }
+                            Button(NSLocalizedString("task_detail.complete_only_this", comment: "Only this task")) {
+                                performCompletion(alsoCompleteSubtasks: false)
+                            }
+                            Button(NSLocalizedString("actions.cancel", comment: "Cancel"), role: .cancel) {}
+                        }
                     }
 
                     // Title display
@@ -508,6 +522,11 @@ struct TaskDetailViewNew: View {
                 }
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.top, Theme.spacing4)
+
+                // 9b. Sub tasks
+                SubtasksSectionView(parentTask: task, isReadOnly: isReadOnly)
+                    .padding(.horizontal, Theme.spacing16)
+                    .padding(.top, Theme.spacing8)
 
                 // 10. Comments Section (input is handled separately in fixed position)
                 CommentSectionViewEnhanced(taskId: task.id, hideInput: true)
@@ -1291,6 +1310,31 @@ struct TaskDetailViewNew: View {
     }
 
     private func toggleCompletion() {
+        // Completing a parent with open subtasks? Offer bulk completion first
+        // (feature request 26170974: "mark all sub-tasks as complete").
+        if !isCompleted && !openSubtasks.isEmpty {
+            showingCompleteSubtasksPrompt = true
+            return
+        }
+        performCompletion(alsoCompleteSubtasks: false)
+    }
+
+    private var openSubtasks: [Task] {
+        TaskService.shared.tasks.filter { $0.parentTaskId == task.id && !$0.completed }
+    }
+
+    private func performCompletion(alsoCompleteSubtasks: Bool) {
+        // Complete subtasks FIRST, each through completeTask (canonical control
+        // point — repeating subtasks roll forward instead of just closing).
+        if alsoCompleteSubtasks {
+            let toComplete = openSubtasks
+            _Concurrency.Task {
+                for sub in toComplete {
+                    _ = try? await taskService.completeTask(id: sub.id, completed: true, task: sub)
+                }
+            }
+        }
+
         // Optimistic UI update
         isCompleted.toggle()
 

@@ -879,3 +879,10 @@
 "settings.appearance.three_columns" = "3 欄";
 "settings.appearance.two_columns" = "2 欄";
 "settings.appearance.single_column" = "單欄";
+
+// Subtasks
+"task_detail.subtasks" = "子任務";
+"task_detail.add_subtask" = "新增子任務";
+"task_detail.complete_subtasks_title" = "同時完成子任務？";
+"task_detail.complete_all_subtasks" = "完成所有子任務";
+"task_detail.complete_only_this" = "僅此任務";

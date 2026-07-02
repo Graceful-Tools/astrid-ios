@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3 colonne";
 "settings.appearance.two_columns" = "2 colonne";
 "settings.appearance.single_column" = "Una colonna";
+
+// Subtasks
+"task_detail.subtasks" = "Sottoattività";
+"task_detail.add_subtask" = "Aggiungi una sottoattività";
+"task_detail.complete_subtasks_title" = "Completare le sottoattività?";
+"task_detail.complete_all_subtasks" = "Completa tutte le sottoattività";
+"task_detail.complete_only_this" = "Solo questa attività";

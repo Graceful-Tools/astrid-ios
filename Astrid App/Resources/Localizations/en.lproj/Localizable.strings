@@ -885,3 +885,10 @@
 "settings.appearance.three_columns" = "3 Columns";
 "settings.appearance.two_columns" = "2 Columns";
 "settings.appearance.single_column" = "Single Column";
+
+// Subtasks
+"task_detail.subtasks" = "Sub tasks";
+"task_detail.add_subtask" = "Add a sub task";
+"task_detail.complete_subtasks_title" = "Complete sub-tasks?";
+"task_detail.complete_all_subtasks" = "Mark all sub-tasks complete";
+"task_detail.complete_only_this" = "Only this task";

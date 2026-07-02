@@ -30,6 +30,7 @@
         <attribute name="timerDuration" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="lastTimerValue" optional="YES" attributeType="String"/>
         <attribute name="originalTaskId" optional="YES" attributeType="String"/>
+        <attribute name="parentTaskId" optional="YES" attributeType="String"/>
         <attribute name="sourceListId" optional="YES" attributeType="String"/>
         <attribute name="clientRequestId" optional="YES" attributeType="String"/>
     </entity>

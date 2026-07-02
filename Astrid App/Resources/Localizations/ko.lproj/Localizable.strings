@@ -879,3 +879,10 @@
 "settings.appearance.three_columns" = "3개 열";
 "settings.appearance.two_columns" = "2개 열";
 "settings.appearance.single_column" = "단일 열";
+
+// Subtasks
+"task_detail.subtasks" = "하위 작업";
+"task_detail.add_subtask" = "하위 작업 추가";
+"task_detail.complete_subtasks_title" = "하위 작업도 완료할까요?";
+"task_detail.complete_all_subtasks" = "모든 하위 작업 완료";
+"task_detail.complete_only_this" = "이 작업만";

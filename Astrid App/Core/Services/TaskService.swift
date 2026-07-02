@@ -231,7 +231,8 @@ class TaskService: ObservableObject {
         assigneeId: String? = nil,
         isPrivate: Bool? = nil,
         repeating: String? = nil,
-        repeatingData: CustomRepeatingPattern? = nil
+        repeatingData: CustomRepeatingPattern? = nil,
+        parentTaskId: String? = nil
     ) async throws -> Task {
         // OPTIMISTIC UPDATE: Create temporary task immediately
         let tempId = "temp_\(UUID().uuidString)"
@@ -287,7 +288,8 @@ class TaskService: ObservableObject {
             updatedAt: Date(),
             originalTaskId: nil,
             sourceListId: nil,
-            clientRequestId: clientRequestId
+            clientRequestId: clientRequestId,
+            parentTaskId: parentTaskId
         )
 
         // Update UI immediately
@@ -335,7 +337,8 @@ class TaskService: ObservableObject {
                     isPrivate: isPrivate,
                     repeating: repeating,
                     repeatingData: repeatingData,
-                    tempId: tempId
+                    tempId: tempId,
+                    parentTaskId: parentTaskId
                 ),
                 clientRequestId: clientRequestId
             )
@@ -362,7 +365,8 @@ class TaskService: ObservableObject {
                 isPrivate: isPrivate,
                 repeating: repeating,
                 repeatingData: repeatingData,
-                clientRequestId: clientRequestId  // Idempotency key for server dedup
+                clientRequestId: clientRequestId,  // Idempotency key for server dedup
+                parentTaskId: parentTaskId
             )
 
             // NOTE: pendingCreates.remove(tempId) is deferred until AFTER CoreData is updated

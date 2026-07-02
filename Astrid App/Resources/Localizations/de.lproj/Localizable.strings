@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3 Spalten";
 "settings.appearance.two_columns" = "2 Spalten";
 "settings.appearance.single_column" = "Eine Spalte";
+
+// Subtasks
+"task_detail.subtasks" = "Unteraufgaben";
+"task_detail.add_subtask" = "Unteraufgabe hinzufügen";
+"task_detail.complete_subtasks_title" = "Unteraufgaben abschließen?";
+"task_detail.complete_all_subtasks" = "Alle Unteraufgaben abschließen";
+"task_detail.complete_only_this" = "Nur diese Aufgabe";

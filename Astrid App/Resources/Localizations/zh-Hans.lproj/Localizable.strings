@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3 列";
 "settings.appearance.two_columns" = "2 列";
 "settings.appearance.single_column" = "单列";
+
+// Subtasks
+"task_detail.subtasks" = "子任务";
+"task_detail.add_subtask" = "添加子任务";
+"task_detail.complete_subtasks_title" = "同时完成子任务？";
+"task_detail.complete_all_subtasks" = "完成所有子任务";
+"task_detail.complete_only_this" = "仅此任务";

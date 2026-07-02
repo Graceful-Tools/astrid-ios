@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3 столбца";
 "settings.appearance.two_columns" = "2 столбца";
 "settings.appearance.single_column" = "Один столбец";
+
+// Subtasks
+"task_detail.subtasks" = "Подзадачи";
+"task_detail.add_subtask" = "Добавить подзадачу";
+"task_detail.complete_subtasks_title" = "Завершить подзадачи?";
+"task_detail.complete_all_subtasks" = "Отметить все подзадачи выполненными";
+"task_detail.complete_only_this" = "Только эта задача";

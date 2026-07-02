@@ -808,6 +808,9 @@ struct TaskListView: View {
 
         var tasks = taskService.tasks
 
+        // Subtasks render inside their parent's detail, not as top-level rows.
+        tasks = tasks.filter { $0.parentTaskId == nil }
+
         // If search is active, show ALL matching tasks across all lists (ignore list selection)
         if !searchText.isEmpty {
             tasks = applySearchFilter(tasks, query: searchText)

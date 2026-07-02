@@ -64,7 +64,9 @@ struct ProjectStatusBoardView: View {
     }
 
     private var domainTasks: [Task] {
+        // Subtasks render inside their parent's detail, not as board cards.
         getProjectDomainTasks(taskService.tasks, lists: listService.lists, projectId: projectId)
+            .filter { $0.parentTaskId == nil }
     }
 
     private func tasksFor(_ column: ProjectBoardColumn) -> [Task] {

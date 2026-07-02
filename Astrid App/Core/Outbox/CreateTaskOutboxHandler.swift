@@ -18,6 +18,9 @@ struct CreateTaskOutboxPayload: Codable, Equatable {
     /// authoritative (handler swaps temp→real + marks synced). Optional so older
     /// journaled payloads still decode.
     var tempId: String?
+    /// Subtasks: parent task id — may be a temp id when the parent was created
+    /// offline; the handler resolves it (or waits) before the server call.
+    var parentTaskId: String?
 }
 
 /// Outbox handler for `createTask`. Performs the server create with the entry's
@@ -28,6 +31,17 @@ enum CreateTaskOutboxHandler {
         guard let payload = try? JSONDecoder().decode(CreateTaskOutboxPayload.self, from: entry.payload) else {
             return .permanent("createTask: undecodable payload")
         }
+        // Resolve a temp parent id (subtask of an offline-created parent) against
+        // the live temp→real map; wait (no attempts burned) until the parent syncs.
+        var parentTaskId = payload.parentTaskId
+        if let temp = parentTaskId, temp.hasPrefix("temp_") {
+            if let real = await TaskService.shared.mappedRealTaskId(for: temp) {
+                parentTaskId = real
+            } else {
+                return .blocked("createTask: parent task not yet synced")
+            }
+        }
+
         do {
             let task = try await AstridAPIClient.shared.createTask(
                 title: payload.title,
@@ -40,7 +54,8 @@ enum CreateTaskOutboxHandler {
                 isPrivate: payload.isPrivate,
                 repeating: payload.repeating,
                 repeatingData: payload.repeatingData,
-                clientRequestId: entry.clientRequestId
+                clientRequestId: entry.clientRequestId,
+                parentTaskId: parentTaskId
             )
             // Reconcile the optimistic temp task with the server task. Idempotent:
             // during dual-write the legacy path usually reconciles first and this

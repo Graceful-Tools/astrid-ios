@@ -346,7 +346,8 @@ class AstridAPIClient {
         isPrivate: Bool? = nil,
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,  // Custom recurrence pattern (e.g. weekly Mon/Wed/Fri)
-        clientRequestId: String? = nil  // Idempotency key for dedup
+        clientRequestId: String? = nil,  // Idempotency key for dedup
+        parentTaskId: String? = nil  // Subtasks: parent task id
     ) async throws -> Task {
         // Convert Date to ISO8601 string for API
         // Backend expects:
@@ -383,6 +384,7 @@ class AstridAPIClient {
             clientRequestId: clientRequestId
         )
         body.listIds = listIds
+        body.parentTaskId = parentTaskId
 
         let response: TaskResponse = try await request(
             method: "POST",

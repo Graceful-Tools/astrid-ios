@@ -893,3 +893,10 @@
 "settings.appearance.three_columns" = "3 colonnes";
 "settings.appearance.two_columns" = "2 colonnes";
 "settings.appearance.single_column" = "Une colonne";
+
+// Subtasks
+"task_detail.subtasks" = "Sous-tâches";
+"task_detail.add_subtask" = "Ajouter une sous-tâche";
+"task_detail.complete_subtasks_title" = "Terminer les sous-tâches ?";
+"task_detail.complete_all_subtasks" = "Marquer toutes les sous-tâches comme terminées";
+"task_detail.complete_only_this" = "Seulement cette tâche";

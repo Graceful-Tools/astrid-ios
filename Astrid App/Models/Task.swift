@@ -32,6 +32,9 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
     var originalTaskId: String?
     var sourceListId: String?
     var clientRequestId: String?
+    /// Subtasks: id of the parent task (nil = top-level). Self-relation on the
+    /// server (SetNull on parent delete). Not copy-lineage — see originalTaskId.
+    var parentTaskId: String?
 
     enum Priority: Int, Codable, CaseIterable {
         case none = 0
@@ -114,7 +117,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
         case priority, lists, listIds
         case isPrivate, completed, attachments, secureFiles, comments
-        case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId
+        case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
     // Custom initializer with default values to avoid breaking existing code
@@ -149,7 +152,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         updatedAt: Date? = nil,
         originalTaskId: String? = nil,
         sourceListId: String? = nil,
-        clientRequestId: String? = nil
+        clientRequestId: String? = nil,
+        parentTaskId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -182,6 +186,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         self.originalTaskId = originalTaskId
         self.sourceListId = sourceListId
         self.clientRequestId = clientRequestId
+        self.parentTaskId = parentTaskId
     }
 }
 

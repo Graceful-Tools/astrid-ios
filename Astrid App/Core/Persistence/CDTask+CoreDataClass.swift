@@ -42,6 +42,7 @@ public class CDTask: NSManagedObject {
 
     // Task copy tracking
     @NSManaged public var originalTaskId: String? // ID of task this was copied from
+    @NSManaged public var parentTaskId: String? // Subtasks: parent task id (nil = top-level)
     @NSManaged public var sourceListId: String? // Which public list this was copied from
 
     // Idempotency key for dedup on server retry
@@ -80,7 +81,8 @@ public class CDTask: NSManagedObject {
             updatedAt: updatedAt,
             originalTaskId: originalTaskId,
             sourceListId: sourceListId,
-            clientRequestId: clientRequestId
+            clientRequestId: clientRequestId,
+            parentTaskId: parentTaskId
         )
     }
     
@@ -121,6 +123,7 @@ public class CDTask: NSManagedObject {
 
         // Task copy tracking
         self.originalTaskId = task.originalTaskId
+        self.parentTaskId = task.parentTaskId
         self.sourceListId = task.sourceListId
 
         // Persist clientRequestId (idempotency key for dedup).

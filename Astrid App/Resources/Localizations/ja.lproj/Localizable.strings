@@ -877,3 +877,10 @@
 "settings.appearance.three_columns" = "3カラム";
 "settings.appearance.two_columns" = "2カラム";
 "settings.appearance.single_column" = "1カラム";
+
+// Subtasks
+"task_detail.subtasks" = "サブタスク";
+"task_detail.add_subtask" = "サブタスクを追加";
+"task_detail.complete_subtasks_title" = "サブタスクも完了しますか？";
+"task_detail.complete_all_subtasks" = "すべてのサブタスクを完了";
+"task_detail.complete_only_this" = "このタスクのみ";
