@@ -91,6 +91,14 @@ struct SettingsView: View {
                             Text(NSLocalizedString("apple_reminders", comment: ""))
                         }
                     }
+
+                    NavigationLink(destination: LazyView { GitHubSyncSettingsView() }) {
+                        HStack {
+                            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                                .foregroundColor(.purple)
+                            Text("GitHub Issues")
+                        }
+                    }
                 }
 
                 // Preferences section

@@ -55,6 +55,13 @@ struct AstridApp: App {
         // empty — the common case while dual-write is off).
         _Concurrency.Task { @MainActor in OutboxManager.shared.start() }
 
+        // Start the GitHub sync worker (observers + status). No-op until the
+        // user connects GitHub and links a list.
+        _Concurrency.Task { @MainActor in
+            await GitHubSyncService.shared.refreshStatus()
+            GitHubSyncService.shared.scheduleSync()
+        }
+
         // Touch singletons to trigger their initialization
         // These load from UserDefaults (synchronous) and fetch from server (background)
         _Concurrency.Task.detached(priority: .userInitiated) {
