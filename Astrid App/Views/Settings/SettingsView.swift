@@ -99,6 +99,14 @@ struct SettingsView: View {
                             Text("GitHub Issues")
                         }
                     }
+
+                    NavigationLink(destination: LazyView { GoogleTasksSettingsView() }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.badge.questionmark")
+                                .foregroundColor(.green)
+                            Text("Google Tasks")
+                        }
+                    }
                 }
 
                 // Preferences section

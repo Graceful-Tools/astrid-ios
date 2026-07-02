@@ -60,6 +60,8 @@ struct AstridApp: App {
         _Concurrency.Task { @MainActor in
             await GitHubSyncService.shared.refreshStatus()
             GitHubSyncService.shared.scheduleSync()
+            await GoogleTasksSyncService.shared.refreshStatus()
+            GoogleTasksSyncService.shared.scheduleSync()
         }
 
         // Touch singletons to trigger their initialization
