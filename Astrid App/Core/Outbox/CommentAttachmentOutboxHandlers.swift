@@ -108,7 +108,7 @@ enum CreateCommentOutboxHandler {
         }
 
         do {
-            _ = try await AstridAPIClient.shared.createComment(
+            let response = try await AstridAPIClient.shared.createComment(
                 taskId: taskId,
                 content: payload.content,
                 type: Comment.CommentType(rawValue: payload.type) ?? .TEXT,
@@ -116,6 +116,15 @@ enum CreateCommentOutboxHandler {
                 parentCommentId: payload.parentCommentId,
                 createdAt: payload.createdAt,
                 clientRequestId: entry.clientRequestId
+            )
+            // Reconcile the pending comment (swap temp→real id, migrate task id,
+            // mark synced). Idempotent with the legacy safety-net sync; required
+            // once legacy is removed. entry.clientRequestId is the temp comment id.
+            await CommentService.shared.reconcileOutboxCreatedComment(
+                tempCommentId: entry.clientRequestId,
+                tempTaskId: payload.taskId,
+                serverComment: response.comment,
+                resolvedTaskId: taskId
             )
             return .success([:])
         } catch {

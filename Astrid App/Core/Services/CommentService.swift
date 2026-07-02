@@ -551,8 +551,11 @@ class CommentService: ObservableObject {
             clientRequestId: tempId
         )
 
-        // 5. Trigger background sync (fire-and-forget) - AFTER save completes
-        if networkMonitor.isConnected {
+        // 5. Trigger background sync (fire-and-forget) - AFTER save completes.
+        // CUTOVER (flag-gated): when the Outbox is authoritative, skip this legacy
+        // trigger — the Outbox handler creates the comment and reconciles it. The
+        // legacy observers (network/attachment/temp-id) remain as a safety net.
+        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
             _Concurrency.Task.detached { [weak self] in
                 try? await self?.syncPendingComments()
             }
@@ -749,6 +752,41 @@ class CommentService: ObservableObject {
     }
 
     /// Sync a pending create operation
+    /// Reconcile a pending comment once the Outbox `createComment` handler
+    /// succeeds — the Outbox-authoritative equivalent of the post-POST block in
+    /// `syncPendingCreate`: swap temp comment id → server id, migrate to the real
+    /// task id, mark synced, and move the in-memory cache bucket. Idempotent — if
+    /// the legacy safety-net sync already reconciled (temp row gone), it no-ops.
+    func reconcileOutboxCreatedComment(
+        tempCommentId: String,
+        tempTaskId: String,
+        serverComment: Comment,
+        resolvedTaskId: String
+    ) async {
+        try? await coreDataManager.saveInBackground { context in
+            guard let comment = try CDComment.fetchById(tempCommentId, context: context) else { return }
+            comment.id = serverComment.id
+            comment.taskId = resolvedTaskId
+            comment.syncStatus = "synced"
+            comment.lastSyncedAt = Date()
+            comment.pendingOperation = nil
+            comment.pendingContent = nil
+            comment.syncAttempts = 0
+            comment.syncError = nil
+        }
+        // Move the comment from the temp-task bucket to the real-task bucket.
+        if var oldBucket = cachedComments[tempTaskId],
+           let index = oldBucket.firstIndex(where: { $0.id == tempCommentId }) {
+            oldBucket.remove(at: index)
+            cachedComments[tempTaskId] = oldBucket
+        }
+        var newBucket = cachedComments[resolvedTaskId] ?? []
+        if !newBucket.contains(where: { $0.id == serverComment.id }) {
+            newBucket.append(serverComment)
+        }
+        cachedComments[resolvedTaskId] = newBucket
+    }
+
     private func syncPendingCreate(_ data: PendingCommentData) async throws {
         // Resolve a temp task id (offline-created task) to its real server id.
         // The task syncs before comments do, so the mapping is available; if it
