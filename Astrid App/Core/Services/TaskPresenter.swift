@@ -56,7 +56,12 @@ struct TaskPresentationModifier: ViewModifier {
         content
             .navigationDestination(isPresented: $presenter.isShowingTask) {
                 if let task = presenter.taskToShow {
+                    // .id ties the pushed view's identity to the task: presenting a
+                    // second task while one is already shown (parent-link taps in
+                    // nested subtasks) swaps the content instead of silently
+                    // keeping the old @State task.
                     TaskDetailViewNew(task: task)
+                        .id(task.id)
                 }
             }
     }

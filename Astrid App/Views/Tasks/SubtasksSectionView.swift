@@ -31,6 +31,24 @@ struct SubtasksSectionView: View {
             .sorted { $0.createdAt ?? .distantPast < $1.createdAt ?? .distantPast }
     }
 
+    /// All descendants (direct + nested), breadth-first with a depth cap as a
+    /// cycle guard (mirrors the display cap in TaskListView).
+    private var allSubtasks: [Task] {
+        var result: [Task] = []
+        var frontier = [parentTask.id]
+        var depth = 0
+        while !frontier.isEmpty && depth < 10 {
+            let children = taskService.tasks.filter { t in
+                guard let pid = t.parentTaskId else { return false }
+                return frontier.contains(pid)
+            }
+            result.append(contentsOf: children)
+            frontier = children.map(\.id)
+            depth += 1
+        }
+        return result
+    }
+
     var body: some View {
         // Hidden entirely for read-only viewers with no subtasks.
         if !(isReadOnly && subtasks.isEmpty) {
@@ -43,6 +61,13 @@ struct SubtasksSectionView: View {
                         Text("\(subtasks.filter(\.completed).count)/\(subtasks.count)")
                             .font(Theme.Typography.caption2())
                             .foregroundColor(textMuted)
+                        // Nested subtasks exist: also show the recursive tally.
+                        if allSubtasks.count > subtasks.count {
+                            Text(String(format: NSLocalizedString("task_detail.subtasks_total", comment: "Recursive subtask count"),
+                                        allSubtasks.filter(\.completed).count, allSubtasks.count))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(textMuted)
+                        }
                     }
                 }
 

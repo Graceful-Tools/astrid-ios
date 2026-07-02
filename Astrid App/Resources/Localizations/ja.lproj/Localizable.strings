@@ -880,6 +880,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "サブタスク";
+"task_detail.subtasks_total" = "合計 %d/%d";
 "task_detail.add_subtask" = "サブタスクを追加";
 "task_detail.complete_subtasks_title" = "サブタスクも完了しますか？";
 "task_detail.complete_all_subtasks" = "すべてのサブタスクを完了";

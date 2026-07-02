@@ -896,6 +896,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "Subtareas";
+"task_detail.subtasks_total" = "%d/%d en total";
 "task_detail.add_subtask" = "Añadir una subtarea";
 "task_detail.complete_subtasks_title" = "¿Completar las subtareas?";
 "task_detail.complete_all_subtasks" = "Marcar todas las subtareas como completadas";

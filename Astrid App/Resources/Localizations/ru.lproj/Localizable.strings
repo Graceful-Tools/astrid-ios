@@ -880,6 +880,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "Подзадачи";
+"task_detail.subtasks_total" = "%d/%d всего";
 "task_detail.add_subtask" = "Добавить подзадачу";
 "task_detail.complete_subtasks_title" = "Завершить подзадачи?";
 "task_detail.complete_all_subtasks" = "Отметить все подзадачи выполненными";

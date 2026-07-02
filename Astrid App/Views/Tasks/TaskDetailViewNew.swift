@@ -520,6 +520,7 @@ struct TaskDetailViewNew: View {
                                 .lineLimit(1)
                         }
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, Theme.spacing16)

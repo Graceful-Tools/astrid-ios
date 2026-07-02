@@ -880,6 +880,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "子任务";
+"task_detail.subtasks_total" = "共 %d/%d";
 "task_detail.add_subtask" = "添加子任务";
 "task_detail.complete_subtasks_title" = "同时完成子任务？";
 "task_detail.complete_all_subtasks" = "完成所有子任务";

@@ -880,6 +880,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "Sottoattività";
+"task_detail.subtasks_total" = "%d/%d in totale";
 "task_detail.add_subtask" = "Aggiungi una sottoattività";
 "task_detail.complete_subtasks_title" = "Completare le sottoattività?";
 "task_detail.complete_all_subtasks" = "Completa tutte le sottoattività";

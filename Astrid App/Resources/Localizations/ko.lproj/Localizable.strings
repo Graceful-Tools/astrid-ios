@@ -882,6 +882,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "하위 작업";
+"task_detail.subtasks_total" = "전체 %d/%d";
 "task_detail.add_subtask" = "하위 작업 추가";
 "task_detail.complete_subtasks_title" = "하위 작업도 완료할까요?";
 "task_detail.complete_all_subtasks" = "모든 하위 작업 완료";

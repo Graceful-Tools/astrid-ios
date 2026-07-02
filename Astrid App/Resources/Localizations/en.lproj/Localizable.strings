@@ -888,6 +888,7 @@
 
 // Subtasks
 "task_detail.subtasks" = "Sub tasks";
+"task_detail.subtasks_total" = "%d/%d total";
 "task_detail.add_subtask" = "Add a sub task";
 "task_detail.complete_subtasks_title" = "Complete sub-tasks?";
 "task_detail.complete_all_subtasks" = "Mark all sub-tasks complete";
