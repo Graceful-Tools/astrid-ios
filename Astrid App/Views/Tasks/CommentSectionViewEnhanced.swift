@@ -950,15 +950,16 @@ struct CommentSectionViewEnhanced: View {
             if let realFileId = attachmentService.getRealFileId(for: tempFileId) {
                 // Upload already complete, use real ID
                 fileIdToSend = realFileId
-            } else if !isOnline {
-                // OFFLINE: Keep temp fileId - will be resolved when syncing
-                print("📵 [CommentSection] Offline - using temp fileId: \(tempFileId)")
+            } else if !isOnline || OutboxConfig.sourceOfTruthEnabled {
+                // OFFLINE — or Outbox-authoritative, where the upload only STARTS
+                // when the comment is enqueued (upload→comment chain), so waiting
+                // here would deadlock: keep the temp fileId, the chain resolves it.
                 // fileIdToSend stays as tempFileId
             } else if isPending {
-                // Online but upload still in progress - wait for it (max 60s)
-                print("⏳ [CommentSection] Waiting for attachment upload to complete...")
-                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId)
-                print("⏳ [CommentSection] Wait complete, fileIdToSend: \(fileIdToSend ?? "nil")")
+                // Online (legacy) - upload in progress, wait for it (max 60s).
+                // On timeout fall back to the temp id — NEVER nil, which would
+                // post an attachment comment with no attachment (HTTP 400).
+                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
         }
         print("✅ [CommentSection] Final fileIdToSend: \(fileIdToSend ?? "nil")")

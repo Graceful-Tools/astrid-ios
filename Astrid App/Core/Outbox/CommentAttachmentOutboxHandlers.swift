@@ -111,6 +111,14 @@ enum CreateCommentOutboxHandler {
             }
         }
 
+        // Never POST a guaranteed 400: an attachment-only comment whose upload is
+        // unrecoverable has nothing to send. Dead-letter with a clear reason
+        // instead of burning a request (this was the "Content or file attachment
+        // is required" dead-letter from the soak).
+        if payload.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && fileId == nil {
+            return .permanent("createComment: attachment lost and no content — nothing to post")
+        }
+
         do {
             let response = try await AstridAPIClient.shared.createComment(
                 taskId: taskId,

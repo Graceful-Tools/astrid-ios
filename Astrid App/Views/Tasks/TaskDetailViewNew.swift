@@ -918,10 +918,12 @@ struct TaskDetailViewNew: View {
         if let tempFileId = fileId, tempFileId.hasPrefix("temp_") {
             if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
                 resolvedFileId = realFileId
-            } else if !NetworkMonitor.shared.isConnected {
-                // OFFLINE: Keep temp fileId
+            } else if !NetworkMonitor.shared.isConnected || OutboxConfig.sourceOfTruthEnabled {
+                // OFFLINE — or Outbox-authoritative (upload starts with the enqueued
+                // chain; waiting here would deadlock): keep temp fileId.
             } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                resolvedFileId = await waitForUploadCompletion(tempFileId: tempFileId)
+                // Timeout falls back to the temp id — never nil (400s the comment).
+                resolvedFileId = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
         }
 
@@ -957,16 +959,17 @@ struct TaskDetailViewNew: View {
         // Determine comment type
         let commentType: Comment.CommentType = attachedFile != nil ? .ATTACHMENT : .MARKDOWN
 
-        // Get file ID (wait for upload if needed, unless offline)
+        // Get file ID (wait for upload if needed, unless offline/authoritative)
         var fileIdToSend = attachedFile?.fileId
         if let tempFileId = fileIdToSend, tempFileId.hasPrefix("temp_") {
             if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
                 fileIdToSend = realFileId
-            } else if !NetworkMonitor.shared.isConnected {
-                // OFFLINE: Keep temp fileId - will be resolved when syncing
+            } else if !NetworkMonitor.shared.isConnected || OutboxConfig.sourceOfTruthEnabled {
+                // OFFLINE — or Outbox-authoritative (upload starts with the enqueued
+                // chain; waiting here would deadlock): keep temp fileId.
             } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                // Wait for upload to complete (online only)
-                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId)
+                // Timeout falls back to the temp id — never nil (400s the comment).
+                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
         }
 

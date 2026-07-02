@@ -190,6 +190,8 @@ class AttachmentService: ObservableObject {
 
     /// Record a temp→real fileId mapping produced by the Outbox upload handler so
     /// thumbnail display (getRealFileId) and any legacy resolver path see it.
+    /// Mirrors the legacy completion side effects: thumbnail alias + the
+    /// `.attachmentUploadCompleted` notification (any waiter resolves).
     func recordOutboxUpload(tempFileId: String, realFileId: String) {
         fileIdMapping[tempFileId] = realFileId
         if var pending = pendingUploads[tempFileId] {
@@ -198,6 +200,12 @@ class AttachmentService: ObservableObject {
             pendingUploads[tempFileId] = pending
             savePendingUploads()
         }
+        ThumbnailCache.shared.alias(from: tempFileId, to: realFileId)
+        NotificationCenter.default.post(
+            name: .attachmentUploadCompleted,
+            object: nil,
+            userInfo: ["tempFileId": tempFileId, "realFileId": realFileId]
+        )
     }
 
     /// Convenience wrapper: save file with taskId context (existing callers)
