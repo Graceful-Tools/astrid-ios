@@ -398,10 +398,13 @@ class AppleRemindersService: ObservableObject {
                     let reminderUpdatedAt = reminder.lastModifiedDate ?? Date.distantPast
                     let astridUpdatedAt = existingTask.updatedAt ?? Date.distantPast
 
-                    // Sync completion state if Reminders was updated more recently
+                    // Sync completion state if Reminders was updated more recently.
+                    // MUST go through completeTask (canonical control point) so a
+                    // repeating task rolls forward instead of just closing —
+                    // updateTask(completed:) skips rollover (CLAUDE.md rule).
                     if reminderUpdatedAt > astridUpdatedAt && existingTask.completed != reminder.isCompleted {
                         do {
-                            _ = try await taskService.updateTask(taskId: astridTaskId, completed: reminder.isCompleted)
+                            _ = try await taskService.completeTask(id: astridTaskId, completed: reminder.isCompleted, task: existingTask, source: .apple)
                             print("🔄 [AppleRemindersService] Updated completion state for '\(existingTask.title)' to \(reminder.isCompleted)")
                             updatedCount += 1
 
@@ -441,13 +444,14 @@ class AppleRemindersService: ObservableObject {
                     whenTime: isAllDay ? nil : dueDate,
                     assigneeId: nil,
                     isPrivate: nil,
-                    repeating: nil
+                    repeating: nil,
+                    source: .apple
                 )
 
                 // If the reminder is completed, mark the new task as completed too
                 // Use completeTask() to properly handle repeating task logic
                 if reminder.isCompleted {
-                    _ = try await taskService.completeTask(id: newTask.id, completed: true, task: newTask)
+                    _ = try await taskService.completeTask(id: newTask.id, completed: true, task: newTask, source: .apple)
                 }
 
                 saveMapping(

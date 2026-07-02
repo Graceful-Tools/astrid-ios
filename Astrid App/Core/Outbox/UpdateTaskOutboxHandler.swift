@@ -6,6 +6,10 @@ import Foundation
 struct UpdateTaskOutboxPayload: Codable, Equatable {
     var taskId: String
     var updates: UpdateTaskRequest
+    /// Origin of this mutation (SyncSource.rawValue) — persisted so provider
+    /// fan-out can suppress echo even across a relaunch. Optional so older
+    /// journaled payloads still decode.
+    var source: String?
 }
 
 /// Outbox handler for a task update. PUT is value-idempotent and iOS doesn't send

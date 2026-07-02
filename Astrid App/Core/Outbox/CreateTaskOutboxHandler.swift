@@ -21,6 +21,9 @@ struct CreateTaskOutboxPayload: Codable, Equatable {
     /// Subtasks: parent task id — may be a temp id when the parent was created
     /// offline; the handler resolves it (or waits) before the server call.
     var parentTaskId: String?
+    /// Origin of this mutation (SyncSource.rawValue) for provider echo
+    /// suppression. Optional so older journaled payloads still decode.
+    var source: String?
 }
 
 /// Outbox handler for `createTask`. Performs the server create with the entry's

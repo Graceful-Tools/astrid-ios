@@ -232,7 +232,8 @@ class TaskService: ObservableObject {
         isPrivate: Bool? = nil,
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,
-        parentTaskId: String? = nil
+        parentTaskId: String? = nil,
+        source: SyncSource? = nil  // Origin tag for provider echo suppression
     ) async throws -> Task {
         // OPTIMISTIC UPDATE: Create temporary task immediately
         let tempId = "temp_\(UUID().uuidString)"
@@ -338,7 +339,8 @@ class TaskService: ObservableObject {
                     repeating: repeating,
                     repeatingData: repeatingData,
                     tempId: tempId,
-                    parentTaskId: parentTaskId
+                    parentTaskId: parentTaskId,
+                    source: source?.rawValue
                 ),
                 clientRequestId: clientRequestId
             )
@@ -493,7 +495,8 @@ class TaskService: ObservableObject {
         timerDuration: Int? = nil,
         lastTimerValue: String? = nil,
         listIds: [String]? = nil,
-        task: Task? = nil  // Optional: provide task if not in cache (e.g., from featured lists)
+        task: Task? = nil,  // Optional: provide task if not in cache (e.g., from featured lists)
+        source: SyncSource? = nil  // Origin tag for provider echo suppression (persisted on the Outbox payload)
     ) async throws -> Task {
         // Resolve stale temp ID → real server ID.
         // When a user opens a task detail view for a newly created task, the view
@@ -662,7 +665,7 @@ class TaskService: ObservableObject {
             // PUT is value-idempotent and carries no If-Unmodified-Since, so the
             // Outbox replaying the same body alongside the legacy PUT is safe.
             OutboxManager.shared.enqueueUpdateTask(
-                UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates),
+                UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates, source: source?.rawValue),
                 clientRequestId: UUID().uuidString
             )
 
@@ -771,7 +774,7 @@ class TaskService: ObservableObject {
         try await apiClient.getAllTasks(listId: listId)
     }
 
-    func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil) async throws -> Task {
+    func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil, source: SyncSource? = nil) async throws -> Task {
         // Get the current task - prefer the passed task (what user sees on screen) over cache
         // The cache might be stale if the task was updated on web
         guard let currentTask = task ?? cachedTasks[id] ?? tasks.first(where: { $0.id == id }) else {
@@ -801,7 +804,8 @@ class TaskService: ObservableObject {
                     repeatingData: nil,
                     timerDuration: timerDuration,
                     lastTimerValue: lastTimerValue,
-                    task: task
+                    task: task,
+                    source: source
                 )
             } else if let nextDue = nextDueDate {
                 print("📅 [TaskService] Next occurrence: \(nextDue)")
@@ -812,13 +816,14 @@ class TaskService: ObservableObject {
                     isAllDay: currentTask.isAllDay,
                     timerDuration: timerDuration,
                     lastTimerValue: lastTimerValue,
-                    task: task
+                    task: task,
+                    source: source
                 )
             }
         }
 
         // Non-repeating task or un-completing - use normal update
-        return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task)
+        return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task, source: source)
     }
 
     /// Calculate the next occurrence date for a repeating task.
