@@ -892,3 +892,8 @@
 "task_detail.complete_subtasks_title" = "Complete sub-tasks?";
 "task_detail.complete_all_subtasks" = "Mark all sub-tasks complete";
 "task_detail.complete_only_this" = "Only this task";
+"settings.subtasks.title" = "Sub tasks";
+"settings.subtasks.display" = "Show sub tasks";
+"settings.subtasks.indented" = "In lists, indented";
+"settings.subtasks.under_parent" = "Inside parent task only";
+"task_detail.parent_task" = "Parent task:";

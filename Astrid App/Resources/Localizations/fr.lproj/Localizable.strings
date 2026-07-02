@@ -900,3 +900,8 @@
 "task_detail.complete_subtasks_title" = "Terminer les sous-tâches ?";
 "task_detail.complete_all_subtasks" = "Marquer toutes les sous-tâches comme terminées";
 "task_detail.complete_only_this" = "Seulement cette tâche";
+"settings.subtasks.title" = "Sous-tâches";
+"settings.subtasks.display" = "Afficher les sous-tâches";
+"settings.subtasks.indented" = "Dans les listes, en retrait";
+"settings.subtasks.under_parent" = "Uniquement dans la tâche parente";
+"task_detail.parent_task" = "Tâche parente :";

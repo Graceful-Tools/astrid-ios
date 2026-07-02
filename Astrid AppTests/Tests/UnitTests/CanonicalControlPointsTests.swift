@@ -70,7 +70,8 @@ final class CanonicalControlPointsTests: XCTestCase {
             smartTaskCreationEnabled: false,
             emailToTaskEnabled: true,
             defaultTaskDueOffset: "2_weeks",
-            defaultDueTime: "09:00"
+            defaultDueTime: "09:00",
+            subtaskDisplay: "under_parent"
         )
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
@@ -78,6 +79,7 @@ final class CanonicalControlPointsTests: XCTestCase {
         XCTAssertEqual(decoded.emailToTaskEnabled, true)
         XCTAssertEqual(decoded.defaultTaskDueOffset, "2_weeks")
         XCTAssertEqual(decoded.defaultDueTime, "09:00")
+        XCTAssertEqual(decoded.subtaskDisplay, "under_parent")
     }
 
     func testUserSettings_WireFieldNames() throws {
@@ -85,7 +87,8 @@ final class CanonicalControlPointsTests: XCTestCase {
             smartTaskCreationEnabled: true,
             emailToTaskEnabled: false,
             defaultTaskDueOffset: "1_day",
-            defaultDueTime: "17:00"
+            defaultDueTime: "17:00",
+            subtaskDisplay: "indented"
         )
         let data = try JSONEncoder().encode(settings)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -94,6 +97,7 @@ final class CanonicalControlPointsTests: XCTestCase {
         XCTAssertEqual(json["emailToTaskEnabled"] as? Bool, false)
         XCTAssertEqual(json["defaultTaskDueOffset"] as? String, "1_day")
         XCTAssertEqual(json["defaultDueTime"] as? String, "17:00")
+        XCTAssertEqual(json["subtaskDisplay"] as? String, "indented")
     }
 
     // MARK: - ListMemberService method contract

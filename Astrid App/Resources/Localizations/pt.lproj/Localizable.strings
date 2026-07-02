@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "Concluir as subtarefas?";
 "task_detail.complete_all_subtasks" = "Marcar todas as subtarefas como concluídas";
 "task_detail.complete_only_this" = "Apenas esta tarefa";
+"settings.subtasks.title" = "Subtarefas";
+"settings.subtasks.display" = "Mostrar subtarefas";
+"settings.subtasks.indented" = "Nas listas, com recuo";
+"settings.subtasks.under_parent" = "Apenas dentro da tarefa principal";
+"task_detail.parent_task" = "Tarefa principal:";

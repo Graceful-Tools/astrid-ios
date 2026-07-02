@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "Завершить подзадачи?";
 "task_detail.complete_all_subtasks" = "Отметить все подзадачи выполненными";
 "task_detail.complete_only_this" = "Только эта задача";
+"settings.subtasks.title" = "Подзадачи";
+"settings.subtasks.display" = "Показывать подзадачи";
+"settings.subtasks.indented" = "В списках, с отступом";
+"settings.subtasks.under_parent" = "Только внутри родительской задачи";
+"task_detail.parent_task" = "Родительская задача:";

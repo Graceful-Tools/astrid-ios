@@ -523,6 +523,26 @@ struct TaskDetailViewNew: View {
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.top, Theme.spacing4)
 
+                // 9a. Parent task link (shown on subtasks, under the description)
+                if let parentId = task.parentTaskId,
+                   let parent = TaskService.shared.tasks.first(where: { $0.id == parentId }) {
+                    Button { TaskPresenter.shared.showTask(parent) } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.turn.up.left")
+                                .font(.system(size: 13))
+                            Text(NSLocalizedString("task_detail.parent_task", comment: "Parent task"))
+                                .font(Theme.Typography.caption1())
+                            Text(parent.title)
+                                .font(Theme.Typography.caption1().weight(.medium))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, Theme.spacing16)
+                    .padding(.top, Theme.spacing8)
+                }
+
                 // 9b. Sub tasks
                 SubtasksSectionView(parentTask: task, isReadOnly: isReadOnly)
                     .padding(.horizontal, Theme.spacing16)

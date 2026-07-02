@@ -773,7 +773,7 @@ struct TaskListView: View {
                 .listRowSeparator(.hidden)  // Hide separator for card effect
                 .listRowInsets(EdgeInsets(
                     top: index == 0 ? 8 : 4,  // First task has 2x top margin
-                    leading: 8,  // Horizontal margin
+                    leading: task.parentTaskId != nil ? 24 : 8,  // Subtasks indent under their parent
                     bottom: 4,
                     trailing: 8  // Horizontal margin
                 ))
@@ -800,7 +800,28 @@ struct TaskListView: View {
         .animation(nil, value: selectedTaskForPanel?.id)
     }
 
+    /// Rows to render: top-level pipeline, plus (in the default "indented"
+    /// display mode) each visible parent's subtasks spliced directly after it.
+    /// "under_parent" mode hides subtasks from lists entirely (detail only).
     private var filteredTasks: [Task] {
+        let top = topLevelFilteredTasks
+        guard UserSettingsService.shared.settings.subtaskDisplay != "under_parent" else { return top }
+        var byParent: [String: [Task]] = [:]
+        for t in taskService.tasks {
+            if let parentId = t.parentTaskId { byParent[parentId, default: []].append(t) }
+        }
+        guard !byParent.isEmpty else { return top }
+        var out: [Task] = []
+        for t in top {
+            out.append(t)
+            if let subs = byParent[t.id] {
+                out.append(contentsOf: subs.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) })
+            }
+        }
+        return out
+    }
+
+    private var topLevelFilteredTasks: [Task] {
         // Search mode with no query — show empty state
         if selectedListId == "search" && searchText.isEmpty {
             return []

@@ -102,6 +102,24 @@ struct SettingsView: View {
                 // Debug settings (matching web app)
                 // Outbox soak controls — visible in TestFlight (Release) too, so
                 // the dual-write can be verified by testers, not just DEBUG builds.
+                Section(NSLocalizedString("settings.subtasks.title", comment: "Sub tasks")) {
+                    Picker(NSLocalizedString("settings.subtasks.display", comment: "Show sub tasks"),
+                           selection: Binding(
+                               get: { UserSettingsService.shared.settings.subtaskDisplay ?? "indented" },
+                               set: { newValue in
+                                   var s = UserSettingsService.shared.settings
+                                   s.subtaskDisplay = newValue
+                                   UserSettingsService.shared.updateSettings(s)
+                               }
+                           )) {
+                        Text(NSLocalizedString("settings.subtasks.indented", comment: "In lists, indented"))
+                            .tag("indented")
+                        Text(NSLocalizedString("settings.subtasks.under_parent", comment: "Inside parent task only"))
+                            .tag("under_parent")
+                    }
+                    .tint(Theme.accent)
+                }
+
                 Section("Outbox (beta)") {
                     Toggle(isOn: $outboxDualWriteEnabled) {
                         VStack(alignment: .leading, spacing: 4) {

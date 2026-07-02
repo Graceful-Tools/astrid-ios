@@ -886,3 +886,8 @@
 "task_detail.complete_subtasks_title" = "하위 작업도 완료할까요?";
 "task_detail.complete_all_subtasks" = "모든 하위 작업 완료";
 "task_detail.complete_only_this" = "이 작업만";
+"settings.subtasks.title" = "하위 작업";
+"settings.subtasks.display" = "하위 작업 표시";
+"settings.subtasks.indented" = "목록에 들여쓰기로 표시";
+"settings.subtasks.under_parent" = "상위 작업 안에만 표시";
+"task_detail.parent_task" = "상위 작업:";

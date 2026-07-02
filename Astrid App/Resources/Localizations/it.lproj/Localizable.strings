@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "Completare le sottoattività?";
 "task_detail.complete_all_subtasks" = "Completa tutte le sottoattività";
 "task_detail.complete_only_this" = "Solo questa attività";
+"settings.subtasks.title" = "Sottoattività";
+"settings.subtasks.display" = "Mostra sottoattività";
+"settings.subtasks.indented" = "Negli elenchi, rientrate";
+"settings.subtasks.under_parent" = "Solo nell’attività principale";
+"task_detail.parent_task" = "Attività principale:";

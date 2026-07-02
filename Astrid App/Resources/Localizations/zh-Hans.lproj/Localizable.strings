@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "同时完成子任务？";
 "task_detail.complete_all_subtasks" = "完成所有子任务";
 "task_detail.complete_only_this" = "仅此任务";
+"settings.subtasks.title" = "子任务";
+"settings.subtasks.display" = "显示子任务";
+"settings.subtasks.indented" = "在列表中缩进显示";
+"settings.subtasks.under_parent" = "仅在父任务中显示";
+"task_detail.parent_task" = "父任务：";

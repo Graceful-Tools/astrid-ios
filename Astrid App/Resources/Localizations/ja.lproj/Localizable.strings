@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "サブタスクも完了しますか？";
 "task_detail.complete_all_subtasks" = "すべてのサブタスクを完了";
 "task_detail.complete_only_this" = "このタスクのみ";
+"settings.subtasks.title" = "サブタスク";
+"settings.subtasks.display" = "サブタスクの表示";
+"settings.subtasks.indented" = "リスト内にインデント表示";
+"settings.subtasks.under_parent" = "親タスク内のみ";
+"task_detail.parent_task" = "親タスク：";

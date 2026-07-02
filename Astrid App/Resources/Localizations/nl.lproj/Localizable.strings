@@ -884,3 +884,8 @@
 "task_detail.complete_subtasks_title" = "Subtaken voltooien?";
 "task_detail.complete_all_subtasks" = "Alle subtaken voltooien";
 "task_detail.complete_only_this" = "Alleen deze taak";
+"settings.subtasks.title" = "Subtaken";
+"settings.subtasks.display" = "Subtaken tonen";
+"settings.subtasks.indented" = "In lijsten, ingesprongen";
+"settings.subtasks.under_parent" = "Alleen in de hoofdtaak";
+"task_detail.parent_task" = "Hoofdtaak:";

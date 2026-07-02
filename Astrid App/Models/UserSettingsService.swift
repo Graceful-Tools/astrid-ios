@@ -7,17 +7,22 @@ struct UserSettings: Codable {
     var emailToTaskEnabled: Bool?
     var defaultTaskDueOffset: String?
     var defaultDueTime: String?
+    /// How subtasks display: "indented" (in lists, indented under their parent —
+    /// default) | "under_parent" (only inside the parent task's detail).
+    var subtaskDisplay: String?
 
     init(
         smartTaskCreationEnabled: Bool? = true,
         emailToTaskEnabled: Bool? = true,
         defaultTaskDueOffset: String? = "1_week",
-        defaultDueTime: String? = "17:00"
+        defaultDueTime: String? = "17:00",
+        subtaskDisplay: String? = "indented"
     ) {
         self.smartTaskCreationEnabled = smartTaskCreationEnabled
         self.emailToTaskEnabled = emailToTaskEnabled
         self.defaultTaskDueOffset = defaultTaskDueOffset
         self.defaultDueTime = defaultDueTime
+        self.subtaskDisplay = subtaskDisplay
     }
 }
 

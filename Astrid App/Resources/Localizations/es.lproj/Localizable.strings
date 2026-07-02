@@ -900,3 +900,8 @@
 "task_detail.complete_subtasks_title" = "¿Completar las subtareas?";
 "task_detail.complete_all_subtasks" = "Marcar todas las subtareas como completadas";
 "task_detail.complete_only_this" = "Solo esta tarea";
+"settings.subtasks.title" = "Subtareas";
+"settings.subtasks.display" = "Mostrar subtareas";
+"settings.subtasks.indented" = "En listas, con sangría";
+"settings.subtasks.under_parent" = "Solo dentro de la tarea principal";
+"task_detail.parent_task" = "Tarea principal:";
