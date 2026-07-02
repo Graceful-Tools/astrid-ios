@@ -29,6 +29,9 @@ enum UpdateTaskOutboxHandler {
 
         do {
             _ = try await AstridAPIClient.shared.updateTask(id: taskId, updates: payload.updates)
+            // Mark the row synced. Idempotent with the legacy path / safety-net
+            // sync; required once legacy is removed.
+            await TaskService.shared.reconcileOutboxUpdatedTask(taskId: taskId)
             return .success([:])
         } catch {
             return OutboxResultMapper.classify(error)

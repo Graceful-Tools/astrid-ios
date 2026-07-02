@@ -101,6 +101,16 @@ class TaskService: ObservableObject {
         pendingCreates.remove(tempId)
     }
 
+    /// Mark a task's CoreData row synced once the Outbox `updateTask` handler
+    /// succeeds (the Outbox-authoritative equivalent of the post-PUT block in
+    /// `updateTask`). Uses the current in-memory task, so a newer optimistic edit
+    /// simply stays queued as its own Outbox entry and re-reconciles on success.
+    func reconcileOutboxUpdatedTask(taskId: String) async {
+        guard let task = cachedTasks[taskId] ?? tasks.first(where: { $0.id == taskId }) else { return }
+        try? await saveTaskToCoreData(task, syncStatus: "synced")
+        updatePendingOperationsCount()
+    }
+
     /// Tracks temp IDs with an in-flight createTask API call to prevent
     /// syncPendingOperations from creating a duplicate on the server.
     private var pendingCreates: Set<String> = []
@@ -651,6 +661,16 @@ class TaskService: ObservableObject {
                 UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates),
                 clientRequestId: UUID().uuidString
             )
+
+            // CUTOVER (flag-gated): when the Outbox is authoritative, skip the
+            // legacy inline PUT — the Outbox handler performs the update and marks
+            // the row synced when it drains (online now, or on reconnect). The
+            // optimistic in-memory/CoreData update already happened above.
+            if OutboxConfig.sourceOfTruthEnabled {
+                updatePendingOperationsCount()
+                await badgeManager.updateBadge(with: self.tasks)
+                return optimisticTask
+            }
 
             let task = try await apiClient.updateTask(id: resolvedId, updates: updates)
 
