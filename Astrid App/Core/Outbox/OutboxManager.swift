@@ -29,13 +29,18 @@ enum OutboxConfig {
         set { UserDefaults.standard.set(newValue, forKey: dualWriteKey) }
     }
 
-    /// Cutover flag (default OFF). When ON, the enqueued ops are AUTHORITATIVE:
-    /// the calling service skips its legacy inline server call and the Outbox
-    /// handler owns the full reconciliation (temp→real mapping, cache/CoreData
-    /// swap, mark-synced). Rolled out op-by-op as a canary. While OFF we stay in
-    /// dual-write soak mode (legacy authoritative, Outbox shadows).
+    /// Cutover flag — now ON by default (canary passed 2026-07-02: full matrix of
+    /// online/offline × with/without attachments × task created offline/online).
+    /// When ON, the Outbox is AUTHORITATIVE for createTask/updateTask/comments/
+    /// chat/attachment uploads, and the legacy per-service sync only handles the
+    /// ops the Outbox doesn't own yet (task deletes, comment update/delete, chat
+    /// delete). The Settings toggle remains as a kill-switch: turning it OFF
+    /// reverts fully to legacy sync.
     static var sourceOfTruthEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: sourceOfTruthKey) }
+        get {
+            if UserDefaults.standard.object(forKey: sourceOfTruthKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: sourceOfTruthKey)
+        }
         set { UserDefaults.standard.set(newValue, forKey: sourceOfTruthKey) }
     }
 }

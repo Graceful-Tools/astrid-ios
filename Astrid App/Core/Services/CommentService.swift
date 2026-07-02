@@ -729,6 +729,11 @@ class CommentService: ObservableObject {
             do {
                 switch data.operation {
                 case "create":
+                    // CUTOVER: creates are Outbox-owned when authoritative — the
+                    // legacy path re-posting them here was the contention source
+                    // behind three canary bugs. Updates/deletes stay legacy until
+                    // they get Outbox kinds.
+                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
                     try await syncPendingCreate(data)
                 case "update":
                     try await syncPendingUpdate(data)

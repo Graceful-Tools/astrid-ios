@@ -15,9 +15,9 @@ struct SettingsView: View {
     // Bound to the same UserDefaults key OutboxConfig reads. Default ON for the
     // production soak (matches OutboxConfig.dualWriteEnabled).
     @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = true
-    // Cutover canary: when ON, the Outbox is AUTHORITATIVE for createTask (legacy
-    // inline server call is skipped). Default OFF. Matches OutboxConfig.sourceOfTruthEnabled.
-    @AppStorage("outboxSourceOfTruth") private var outboxSourceOfTruth = false
+    // Cutover complete: the Outbox is AUTHORITATIVE by default. This toggle is the
+    // kill-switch — OFF reverts fully to legacy sync. Matches OutboxConfig.sourceOfTruthEnabled.
+    @AppStorage("outboxSourceOfTruth") private var outboxSourceOfTruth = true
     @State private var outboxStats: OutboxStats?
 
 
@@ -117,10 +117,10 @@ struct SettingsView: View {
 
                     Toggle(isOn: $outboxSourceOfTruth) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Outbox authoritative — all writes (canary)")
+                            Text("Outbox sync (default)")
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Cutover canary: tasks + comments + chat + attachment uploads all sync via the Outbox only (legacy inline path skipped). Watch dropped = 0.")
+                            Text("Tasks, comments, chat & attachments sync via the unified Outbox. Turn OFF only to revert to the legacy sync (kill-switch).")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

@@ -783,6 +783,9 @@ class ChatService: ObservableObject {
             do {
                 switch data.operation {
                 case "create":
+                    // CUTOVER: creates are Outbox-owned when authoritative;
+                    // deletes stay legacy until they get an Outbox kind.
+                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
                     try await syncPendingCreate(data)
                 case "delete":
                     try await syncPendingDelete(data)

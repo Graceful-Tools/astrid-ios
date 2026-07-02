@@ -1491,6 +1491,12 @@ class TaskService: ObservableObject {
                     }
                     try await deleteTaskFromCoreData(cdTask.id)
                     print("✅ [TaskService] Synced deletion: \(cdTask.id)")
+                } else if OutboxConfig.sourceOfTruthEnabled {
+                    // CUTOVER: pending creates/updates are Outbox-owned when
+                    // authoritative — replaying them here was the legacy-vs-Outbox
+                    // contention source. Deletes (above) stay legacy until they
+                    // get an Outbox kind.
+                    continue
                 } else {
                     // Handle pending creates/updates
                     let task = cdTask.toDomainModel()
