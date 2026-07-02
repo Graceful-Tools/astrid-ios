@@ -4,6 +4,23 @@ import UniformTypeIdentifiers
 import Combine
 
 /// Info about a locally cached attachment pending upload
+/// Which pending uploads the LEGACY sync paths may process. With the Outbox
+/// authoritative, the answer is none: the upload→comment dependency chain owns
+/// every staged attachment, and the legacy uploader deletes the local file after
+/// upload — which starves the chain's upload entry ("local file missing" →
+/// permanent → the dependent comment strands). Pure for tests.
+enum AttachmentUploadPolicy {
+    static func legacyUploadCandidates(
+        statuses: [String: PendingAttachment.UploadStatus],
+        outboxAuthoritative: Bool
+    ) -> [String] {
+        guard !outboxAuthoritative else { return [] }
+        return statuses
+            .filter { $0.value == .pending || $0.value == .failed }
+            .map { $0.key }
+    }
+}
+
 struct PendingAttachment: Codable {
     let tempFileId: String
     let localPath: String
@@ -383,6 +400,11 @@ class AttachmentService: ObservableObject {
 
     /// Upload a pending attachment
     private func uploadPendingAttachment(tempFileId: String) async {
+        // Hard guard (belt to the policy's suspenders): with the Outbox
+        // authoritative, the upload→comment chain owns every staged attachment.
+        // The legacy uploader deletes the local file on success, which would
+        // starve the chain's upload entry — never run it in that mode.
+        guard !OutboxConfig.sourceOfTruthEnabled else { return }
         guard var pending = pendingUploads[tempFileId] else {
             print("⚠️ [AttachmentService] Pending attachment not found: \(tempFileId)")
             return
@@ -470,7 +492,11 @@ class AttachmentService: ObservableObject {
 
         print("🔄 [AttachmentService] Syncing \(pendingCount) pending uploads...")
 
-        for (tempFileId, pending) in pendingUploads where pending.uploadStatus == .pending || pending.uploadStatus == .failed {
+        let candidates = AttachmentUploadPolicy.legacyUploadCandidates(
+            statuses: pendingUploads.mapValues { $0.uploadStatus },
+            outboxAuthoritative: OutboxConfig.sourceOfTruthEnabled
+        )
+        for tempFileId in candidates {
             await uploadPendingAttachment(tempFileId: tempFileId)
         }
 
@@ -479,6 +505,7 @@ class AttachmentService: ObservableObject {
 
     /// Retry all failed uploads
     func retryFailedUploads() {
+        guard !OutboxConfig.sourceOfTruthEnabled else { return }  // chain-owned
         for (tempFileId, pending) in pendingUploads where pending.uploadStatus == .failed {
             _Concurrency.Task {
                 await uploadPendingAttachment(tempFileId: tempFileId)
@@ -508,8 +535,14 @@ class AttachmentService: ObservableObject {
                 }
             }
 
-            // Retry any pending/failed uploads
-            for (tempFileId, pending) in loaded where pending.uploadStatus == .pending || pending.uploadStatus == .failed {
+            // Retry any pending/failed uploads (legacy mode only — with the Outbox
+            // authoritative, the journal owns retries and this launch auto-retry
+            // would steal the file out from under the upload→comment chain).
+            let retryIds = AttachmentUploadPolicy.legacyUploadCandidates(
+                statuses: loaded.mapValues { $0.uploadStatus },
+                outboxAuthoritative: OutboxConfig.sourceOfTruthEnabled
+            )
+            for tempFileId in retryIds {
                 _Concurrency.Task {
                     await uploadPendingAttachment(tempFileId: tempFileId)
                 }
