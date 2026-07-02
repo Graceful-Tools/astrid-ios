@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import UIKit
 import Combine
 import CoreData
 
@@ -47,6 +48,49 @@ class AppleRemindersService: ObservableObject {
     private init() {
         loadPersistedState()
         checkAuthorizationStatus()
+        setupAutoSync()
+    }
+
+    // MARK: - Auto-sync (Phase 1 of the sync-provider plan)
+    //
+    // Closes the historical "manual sync only" gap. Two triggers:
+    // - EKEventStoreChanged: a reminder changed in Apple Reminders.
+    // - App became active: catch changes made while backgrounded.
+    // Debounced (EventKit fires bursts of change notifications), and inert
+    // unless permission is granted and at least one list is linked. Sync is
+    // fully local (EventKit + TaskService, whose writes flow through the
+    // Outbox), so it needs no network and no Outbox kind of its own.
+
+    private var autoSyncObservers: [NSObjectProtocol] = []
+    private var autoSyncDebounce: _Concurrency.Task<Void, Never>?
+
+    private func setupAutoSync() {
+        let center = NotificationCenter.default
+        autoSyncObservers.append(center.addObserver(
+            forName: .EKEventStoreChanged, object: eventStore, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.scheduleAutoSync() }
+        })
+        autoSyncObservers.append(center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.scheduleAutoSync() }
+        })
+    }
+
+    private func scheduleAutoSync() {
+        guard hasPermission, !linkedLists.isEmpty, !isSyncing else { return }
+        autoSyncDebounce?.cancel()
+        autoSyncDebounce = _Concurrency.Task { @MainActor [weak self] in
+            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)  // 2s debounce
+            guard !_Concurrency.Task.isCancelled, let self, !self.isSyncing else { return }
+            do {
+                try await self.syncAllLinkedLists()
+                print("🔄 [AppleRemindersService] Auto-sync completed")
+            } catch {
+                print("⚠️ [AppleRemindersService] Auto-sync failed: \(error)")
+            }
+        }
     }
 
     private func loadPersistedState() {
