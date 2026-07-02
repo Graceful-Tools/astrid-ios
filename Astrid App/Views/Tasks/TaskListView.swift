@@ -773,7 +773,7 @@ struct TaskListView: View {
                 .listRowSeparator(.hidden)  // Hide separator for card effect
                 .listRowInsets(EdgeInsets(
                     top: index == 0 ? 8 : 4,  // First task has 2x top margin
-                    leading: task.parentTaskId != nil ? 24 : 8,  // Subtasks indent under their parent
+                    leading: 8 + CGFloat(min(subtaskDepth(task), 4)) * 16,  // Per-level indent, capped at 4 levels (deeper still shows)
                     bottom: 4,
                     trailing: 8  // Horizontal margin
                 ))
@@ -811,18 +811,31 @@ struct TaskListView: View {
             if let parentId = t.parentTaskId { byParent[parentId, default: []].append(t) }
         }
         guard !byParent.isEmpty else { return top }
+        // Depth-first: nested subtasks (subtasks of subtasks, any depth) all
+        // render, each following the SAME completion settings as the list.
+        // Depth cap of 10 guards against bad-data cycles.
         var out: [Task] = []
-        for t in top {
-            out.append(t)
-            if let subs = byParent[t.id] {
-                // Subtasks follow the SAME completion settings as the surrounding
-                // list (per-list filterCompletion + recentlyCompletedWindow, My
-                // Tasks prefs, or the default) — hidden completed tasks hide here too.
-                let visible = applyContextCompletionFilter(subs)
-                out.append(contentsOf: visible.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) })
-            }
+        func appendSubtree(_ task: Task, depth: Int) {
+            out.append(task)
+            guard depth < 10, let subs = byParent[task.id] else { return }
+            let visible = applyContextCompletionFilter(subs)
+                .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            for sub in visible { appendSubtree(sub, depth: depth + 1) }
         }
+        for t in top { appendSubtree(t, depth: 0) }
         return out
+    }
+
+    /// Nesting depth of a task (0 = top-level), walking parentTaskId with a
+    /// cycle-safe cap. Used for the per-level row indent.
+    private func subtaskDepth(_ task: Task) -> Int {
+        var depth = 0
+        var parentId = task.parentTaskId
+        while let pid = parentId, depth < 8 {
+            depth += 1
+            parentId = taskService.tasks.first(where: { $0.id == pid })?.parentTaskId
+        }
+        return depth
     }
 
     /// The completion filter the CURRENT view context applies to its rows —
