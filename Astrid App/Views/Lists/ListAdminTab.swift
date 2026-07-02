@@ -40,6 +40,14 @@ struct ListAdminTab: View {
     @State private var hasAIProviders = false
     @State private var loadingAIStatus = false
 
+    // External sync (GitHub Issues / Google Tasks mirroring for THIS list)
+    @StateObject private var githubSync = GitHubSyncService.shared
+    @StateObject private var googleSync = GoogleTasksSyncService.shared
+    @State private var syncRepos: [GitHubRepoDTO] = []
+    @State private var syncTasklists: [GoogleTasklistDTO] = []
+    @State private var selectedSyncRepo: String?
+    @State private var selectedSyncTasklist: String?
+
     @ObservedObject private var memberService = ListMemberService.shared
 
     init(list: TaskList, onUpdate: @escaping (TaskList) -> Void, onDelete: @escaping () -> Void) {
@@ -264,6 +272,83 @@ struct ListAdminTab: View {
                 }
             }
 
+            // External sync — mirror THIS list to GitHub Issues / Google Tasks.
+            // Links are per-user (each member mirrors to their own account);
+            // account connect lives in Settings → GitHub Issues / Google Tasks.
+            Section {
+                // GitHub Issues
+                if githubSync.isConnected {
+                    if let link = githubSync.links.first(where: { $0.astridListId == list.id }) {
+                        HStack {
+                            Label(link.remoteContainerId, systemImage: "arrow.triangle.2.circlepath")
+                                .font(Theme.Typography.body())
+                                .lineLimit(1)
+                            Spacer()
+                            Button("Unlink", role: .destructive) {
+                                _Concurrency.Task { await githubSync.unlink(link.id) }
+                            }
+                            .font(Theme.Typography.caption1())
+                        }
+                    } else {
+                        Picker("GitHub Issues", selection: $selectedSyncRepo) {
+                            Text("Not linked").tag(nil as String?)
+                            ForEach(syncRepos) { repo in
+                                Text(repo.name).tag(String?.some(repo.id))
+                            }
+                        }
+                        .onChange(of: selectedSyncRepo) { _, repo in
+                            guard let repo else { return }
+                            _Concurrency.Task {
+                                try? await githubSync.linkList(list.id, repo: repo)
+                                selectedSyncRepo = nil
+                            }
+                        }
+                    }
+                } else {
+                    Text("Connect GitHub in Settings → GitHub Issues to mirror this list to a repository.")
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(.secondary)
+                }
+
+                // Google Tasks
+                if googleSync.isConnected {
+                    if let link = googleSync.links.first(where: { $0.astridListId == list.id }) {
+                        HStack {
+                            Label(link.remoteContainerName ?? link.remoteContainerId, systemImage: "arrow.triangle.2.circlepath")
+                                .font(Theme.Typography.body())
+                                .lineLimit(1)
+                            Spacer()
+                            Button("Unlink", role: .destructive) {
+                                _Concurrency.Task { await googleSync.unlink(link.id) }
+                            }
+                            .font(Theme.Typography.caption1())
+                        }
+                    } else {
+                        Picker("Google Tasks", selection: $selectedSyncTasklist) {
+                            Text("Not linked").tag(nil as String?)
+                            ForEach(syncTasklists) { tasklist in
+                                Text(tasklist.name).tag(String?.some(tasklist.id))
+                            }
+                        }
+                        .onChange(of: selectedSyncTasklist) { _, tasklist in
+                            guard let tasklist else { return }
+                            _Concurrency.Task {
+                                try? await googleSync.linkList(list.id, tasklistId: tasklist)
+                                selectedSyncTasklist = nil
+                            }
+                        }
+                    }
+                } else {
+                    Text("Connect Google in Settings → Google Tasks to mirror this list to a task list.")
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(.secondary)
+                }
+            } header: {
+                Text("External sync")
+            } footer: {
+                Text("Issues or tasks in the linked service mirror into this list and back, synced through your connected account.")
+            }
+
             // Project status board
             Section {
                 if list.projectId != nil {
@@ -350,6 +435,15 @@ struct ListAdminTab: View {
             // Only load repositories if user has AI providers configured
             if hasAIProviders {
                 await loadRepositories()
+            }
+            // External sync state (connect status + linkable containers)
+            await githubSync.refreshStatus()
+            await googleSync.refreshStatus()
+            if githubSync.isConnected {
+                syncRepos = (try? await AstridAPIClient.shared.getGitHubRepos().repos) ?? []
+            }
+            if googleSync.isConnected {
+                syncTasklists = (try? await AstridAPIClient.shared.getGoogleTasklists().tasklists) ?? []
             }
         }
         .fullScreenCover(isPresented: $showingImagePicker) {
