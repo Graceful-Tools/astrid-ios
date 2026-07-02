@@ -247,7 +247,7 @@ struct QuickAddTaskView: View {
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(Color(hex: "3b82f6") ?? Theme.accent)
                     Text(assignee.name?.prefix(1).uppercased() ?? assignee.email?.prefix(1).uppercased() ?? "?")
                         .font(.system(size: 14, weight: .semibold))
@@ -255,9 +255,11 @@ struct QuickAddTaskView: View {
                 }
             }
             .frame(width: 30, height: 30)
-            .clipShape(Circle())
+            // Rounded rectangle with a priority-colored border — matches the
+            // web's assigned-task avatar (rounded-lg square, border-2).
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
-                Circle()
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(priorityColor, lineWidth: 2)
             )
         } else {

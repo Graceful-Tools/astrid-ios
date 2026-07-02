@@ -96,7 +96,7 @@ struct TaskRowView: View {
                 } placeholder: {
                     // Show initials placeholder for loading or failed states
                     ZStack {
-                        Circle()
+                        RoundedRectangle(cornerRadius: 8)
                             .fill(Theme.accent)
                         Text(assignee.initials)
                             .font(.system(size: 14, weight: .semibold))
@@ -104,9 +104,11 @@ struct TaskRowView: View {
                     }
                 }
                 .frame(width: 34, height: 34)
-                .clipShape(Circle())
+                // Rounded rectangle with a priority-colored border — matches the
+                // web's assigned-task avatar (rounded-lg square, border-2).
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    Circle()
+                    RoundedRectangle(cornerRadius: 8)
                         .stroke(priorityColor, lineWidth: 2)
                 )
             } else {
