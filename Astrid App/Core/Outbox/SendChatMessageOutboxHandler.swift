@@ -25,7 +25,7 @@ enum SendChatMessageOutboxHandler {
             if let real = await AttachmentService.shared.getRealFileId(for: temp) {
                 fileId = real
             } else if await AttachmentService.shared.isPendingUpload(temp) {
-                return .retryable("sendChatMessage: attachment still uploading")
+                return .blocked("sendChatMessage: attachment still uploading")
             } else {
                 fileId = nil
             }

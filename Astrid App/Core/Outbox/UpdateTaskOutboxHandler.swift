@@ -23,7 +23,7 @@ enum UpdateTaskOutboxHandler {
             if let real = await TaskService.shared.mappedRealTaskId(for: taskId) {
                 taskId = real
             } else {
-                return .retryable("updateTask: task not yet synced")
+                return .blocked("updateTask: task not yet synced")
             }
         }
 

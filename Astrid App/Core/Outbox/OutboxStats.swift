@@ -18,6 +18,11 @@ struct OutboxStats: Equatable {
     var lifetimeCompleted: Int = 0
     var lifetimeDeadLettered: Int = 0
 
+    /// Details of dead-lettered entries still in the journal (failedPermanent is
+    /// never pruned), newest first — "kind: lastError". This is the debugging
+    /// readout for a non-zero dropped count.
+    var deadLetterDetails: [String] = []
+
     var total: Int { pending + running + completed + failedPermanent }
 
     /// No dead-lettered (dropped) entries, ever. Pending/running are transient
@@ -43,5 +48,10 @@ struct OutboxStats: Equatable {
             case .failedPermanent: failedPermanent += 1
             }
         }
+        deadLetterDetails = entries
+            .filter { $0.status == .failedPermanent }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(5)
+            .map { "\($0.kind): \($0.lastError ?? "unknown error")" }
     }
 }

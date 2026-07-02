@@ -7,6 +7,12 @@ enum OutboxResult: Equatable {
     case success([String: String])
     case retryable(String)   // transient (network/5xx) — back off and retry
     case permanent(String)   // auth/validation/not-found — dead-letter, don't retry
+    /// Waiting on LOCAL state (a temp task id not yet resolved, an attachment
+    /// still uploading). Unlike `retryable`, this does NOT consume an attempt —
+    /// local blocks can outlast the whole backoff window (e.g. a long offline
+    /// stretch) and must never dead-letter. Re-checked on every drain and on a
+    /// fixed short timer.
+    case blocked(String)
 }
 
 /// Resolved outputs of an entry's dependencies, handed to its handler so it can
@@ -195,6 +201,14 @@ actor OutboxRunner {
                         }
                     }
                     if deadLettered { Self.bumpLifetime(Self.lifetimeDeadLetteredKey) }
+                case .blocked(let message):
+                    // Waiting on local state — no attempt consumed, can never
+                    // dead-letter. Re-check in 60s (plus on every event-driven drain).
+                    update(entry.id) { e in
+                        e.lastError = message
+                        e.status = .pending
+                        e.nextAttemptAt = now().addingTimeInterval(60)
+                    }
                 }
                 progressed = true
             }

@@ -142,6 +142,16 @@ struct SettingsView: View {
                                 .foregroundColor(Theme.accent)
                         }
                         .task { outboxStats = await OutboxManager.shared.stats() }
+
+                        // Why did entries drop? The journal never prunes dead-letters,
+                        // so their kind + lastError are readable right here.
+                        ForEach(s.deadLetterDetails, id: \.self) { detail in
+                            Text(detail)
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(.orange)
+                                .lineLimit(3)
+                                .textSelection(.enabled)
+                        }
                     } else {
                         Button("Load Outbox stats") {
                             _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }

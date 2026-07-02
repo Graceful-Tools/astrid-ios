@@ -95,7 +95,7 @@ enum CreateCommentOutboxHandler {
             if let real = await TaskService.shared.mappedRealTaskId(for: taskId) {
                 taskId = real
             } else {
-                return .retryable("createComment: task not yet synced")
+                return .blocked("createComment: task not yet synced")
             }
         }
 
@@ -105,7 +105,7 @@ enum CreateCommentOutboxHandler {
             if let real = await AttachmentService.shared.getRealFileId(for: temp) {
                 fileId = real
             } else if await AttachmentService.shared.isPendingUpload(temp) {
-                return .retryable("createComment: attachment still uploading")
+                return .blocked("createComment: attachment still uploading")
             } else {
                 fileId = nil  // upload gone — post the comment without it (matches legacy)
             }
