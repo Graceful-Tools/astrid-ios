@@ -57,7 +57,7 @@ class AstridAPIClient {
 
     // MARK: - Generic Request Method
 
-    private func request<T: Codable>(
+    func request<T: Codable>(
         method: String,
         path: String,
         body: Encodable? = nil,
