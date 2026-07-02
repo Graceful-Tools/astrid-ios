@@ -116,6 +116,18 @@ struct iPadTaskManagerView: View {
             }
         }
         .withReminderPresentation()
+        // Route presenter-driven task opens (subtask rows, parent-task links,
+        // deep links) into the side detail panel instead of the list column's
+        // navigation stack.
+        .onAppear {
+            TaskPresenter.shared.panelHandler = { task in
+                selectedTask = task
+                showChatPanel = false
+            }
+        }
+        .onDisappear {
+            TaskPresenter.shared.panelHandler = nil
+        }
         // Close task details when list changes. Bare assignment — the container's
         // panelAnimation drives the slide-out (a nested withAnimation here fought it).
         .onChange(of: selectedListId) { _, _ in

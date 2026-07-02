@@ -9,6 +9,13 @@ class TaskPresenter: ObservableObject {
     @Published var taskToShow: Task?
     @Published var isShowingTask = false
 
+    /// iPad: the split container registers this to show tasks in its side
+    /// detail panel. When set, presenter-driven opens (subtask rows, parent
+    /// links, deep links) route there instead of pushing onto whatever
+    /// NavigationStack hosts `withTaskPresentation()` — on iPad that stack is
+    /// the LIST column, which is the wrong place for a task detail.
+    var panelHandler: ((Task) -> Void)?
+
     private let taskService = TaskService.shared
 
     private init() {
@@ -23,9 +30,7 @@ class TaskPresenter: ObservableObject {
                 let task = try await taskService.fetchTask(id: taskId)
                 print("✅ [TaskPresenter] Task fetched: \(task.title)")
                 await MainActor.run {
-                    self.taskToShow = task
-                    self.isShowingTask = true
-                    print("🎉 [TaskPresenter] isShowingTask set to true - navigation should occur!")
+                    self.showTask(task)
                 }
             } catch {
                 print("❌ [TaskPresenter] Failed to fetch task for navigation: \(error)")
@@ -36,9 +41,12 @@ class TaskPresenter: ObservableObject {
     /// Show task detail view with an existing task object
     func showTask(_ task: Task) {
         print("🎯 [TaskPresenter] Showing task: \(task.title)")
+        if let panelHandler {
+            panelHandler(task)
+            return
+        }
         self.taskToShow = task
         self.isShowingTask = true
-        print("🎉 [TaskPresenter] isShowingTask set to true - navigation should occur!")
     }
 
     /// Dismiss the task detail view
