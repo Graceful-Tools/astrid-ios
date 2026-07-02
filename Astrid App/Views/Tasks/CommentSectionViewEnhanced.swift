@@ -967,17 +967,10 @@ struct CommentSectionViewEnhanced: View {
             if let realFileId = attachmentService.getRealFileId(for: tempFileId) {
                 // Upload already complete, use real ID
                 fileIdToSend = realFileId
-            } else if !isOnline || OutboxConfig.sourceOfTruthEnabled {
-                // OFFLINE — or Outbox-authoritative, where the upload only STARTS
-                // when the comment is enqueued (upload→comment chain), so waiting
-                // here would deadlock: keep the temp fileId, the chain resolves it.
-                // fileIdToSend stays as tempFileId
-            } else if isPending {
-                // Online (legacy) - upload in progress, wait for it (max 60s).
-                // On timeout fall back to the temp id — NEVER nil, which would
-                // post an attachment comment with no attachment (HTTP 400).
-                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
+            // Otherwise keep the temp fileId: the upload only STARTS when the
+            // comment is enqueued (upload→comment chain), so waiting here would
+            // deadlock — the chain resolves the real id itself.
         }
         print("✅ [CommentSection] Final fileIdToSend: \(fileIdToSend ?? "nil")")
 
@@ -1029,13 +1022,9 @@ struct CommentSectionViewEnhanced: View {
         print("🔄 [CommentSection] Retrying pending uploads and comments...")
 
         do {
-            // First sync any pending attachments (comments may depend on them)
-            await attachmentService.syncPendingUploads()
-
-            // Retry any failed comment operations
+            // Retry any failed comment operations, then drain the Outbox
+            // (uploads and their dependent comments live in one journal).
             await commentService.retryFailedOperations()
-
-            // Then sync all pending comments
             try await commentService.syncPendingComments()
 
             // Reload to get updated IDs
@@ -1280,63 +1269,6 @@ struct CommentSectionViewEnhanced: View {
     }
 
     /// Wait for a pending attachment upload to complete
-    private func waitForUploadCompletion(tempFileId: String) async -> String? {
-        // Use class-based state to safely share mutable state across closures
-        final class State: @unchecked Sendable {
-            var observer: NSObjectProtocol?
-            var hasResumed = false
-        }
-        let state = State()
-
-        return await withCheckedContinuation { continuation in
-            // Set a timeout of 60 seconds
-            let timeoutTask = _Concurrency.Task {
-                try? await _Concurrency.Task.sleep(nanoseconds: 60_000_000_000)
-
-                // Check if cancelled or already resumed before proceeding
-                guard !_Concurrency.Task.isCancelled && !state.hasResumed else {
-                    return
-                }
-
-                state.hasResumed = true
-                if let obs = state.observer {
-                    NotificationCenter.default.removeObserver(obs)
-                }
-                print("⏰ [CommentSection] Upload timeout for: \(tempFileId)")
-                continuation.resume(returning: nil)
-            }
-
-            state.observer = NotificationCenter.default.addObserver(
-                forName: .attachmentUploadCompleted,
-                object: nil,
-                queue: .main
-            ) { notification in
-                guard let userInfo = notification.userInfo,
-                      let notificationTempId = userInfo["tempFileId"] as? String,
-                      notificationTempId == tempFileId,
-                      let realFileId = userInfo["realFileId"] as? String else {
-                    return
-                }
-
-                // Guard against double-resume
-                guard !state.hasResumed else {
-                    return
-                }
-                state.hasResumed = true
-
-                // Cancel timeout
-                timeoutTask.cancel()
-
-                // Remove observer
-                if let obs = state.observer {
-                    NotificationCenter.default.removeObserver(obs)
-                }
-
-                print("✅ [CommentSection] Upload completed, got fileId: \(realFileId)")
-                continuation.resume(returning: realFileId)
-            }
-        }
-    }
 }
 
 struct CommentRowViewEnhanced: View {

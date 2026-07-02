@@ -12,42 +12,6 @@ enum OutboxKind {
     static let deleteComment = "deleteComment"
 }
 
-/// Feature flags for the Outbox rollout. Dual-write is now ON by default for the
-/// production soak: the Outbox runs alongside the legacy per-service sync so we
-/// can verify it catches every write before cutting over (per the task's
-/// dual-write mitigation). Legacy remains the source of truth, and both paths use
-/// the same `clientRequestId`, so the server dedupes — dual-write can't create
-/// duplicates, and an Outbox bug can at worst dead-letter a shadow entry
-/// (surfaced in the soak stats) without affecting the user.
-enum OutboxConfig {
-    private static let dualWriteKey = "outboxDualWriteEnabled"
-    private static let sourceOfTruthKey = "outboxSourceOfTruth"
-
-    static var dualWriteEnabled: Bool {
-        // Default ON when the user hasn't explicitly set the toggle.
-        get {
-            if UserDefaults.standard.object(forKey: dualWriteKey) == nil { return true }
-            return UserDefaults.standard.bool(forKey: dualWriteKey)
-        }
-        set { UserDefaults.standard.set(newValue, forKey: dualWriteKey) }
-    }
-
-    /// Cutover flag — now ON by default (canary passed 2026-07-02: full matrix of
-    /// online/offline × with/without attachments × task created offline/online).
-    /// When ON, the Outbox is AUTHORITATIVE for createTask/updateTask/comments/
-    /// chat/attachment uploads, and the legacy per-service sync only handles the
-    /// ops the Outbox doesn't own yet (task deletes, comment update/delete, chat
-    /// delete). The Settings toggle remains as a kill-switch: turning it OFF
-    /// reverts fully to legacy sync.
-    static var sourceOfTruthEnabled: Bool {
-        get {
-            if UserDefaults.standard.object(forKey: sourceOfTruthKey) == nil { return true }
-            return UserDefaults.standard.bool(forKey: sourceOfTruthKey)
-        }
-        set { UserDefaults.standard.set(newValue, forKey: sourceOfTruthKey) }
-    }
-}
-
 /// App-facing entry point to the Outbox: owns the single `OutboxRunner`, wires
 /// it to launch + network-restore drains, and exposes typed enqueue helpers.
 @MainActor
@@ -93,10 +57,13 @@ final class OutboxManager {
         await runner.stats()
     }
 
+    /// Drain the journal now (manual "sync now" / pull-to-refresh entry point).
+    func drain() async {
+        await runner.drain()
+    }
+
     /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
-    /// No-op unless dual-write is enabled.
     private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String) {
-        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
@@ -128,7 +95,6 @@ final class OutboxManager {
         attachment: UploadAttachmentOutboxPayload?,
         attachmentClientRequestId: String?
     ) {
-        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []
@@ -183,7 +149,6 @@ final class OutboxManager {
         attachment: UploadAttachmentOutboxPayload? = nil,
         attachmentClientRequestId: String? = nil
     ) {
-        guard OutboxConfig.dualWriteEnabled || OutboxConfig.sourceOfTruthEnabled else { return }
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []

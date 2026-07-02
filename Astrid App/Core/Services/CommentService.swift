@@ -6,33 +6,6 @@ import os.log
 private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "CommentService")
 
 /// Errors that can occur during comment sync
-enum CommentSyncError: Error {
-    case attachmentPending  // Attachment upload not complete yet - will retry later
-    case taskPending        // Parent task created offline hasn't synced yet - will retry later
-}
-
-/// Resolves a pending comment's task id before it's sent to the server.
-///
-/// A comment created against an offline-created task carries that task's
-/// temporary id (`temp_<uuid>`). It must be mapped to the real server id once
-/// the task syncs; until then the comment must wait — sending it to `temp_…`
-/// 404s, and a 404 is treated as a permanent failure (so the photo would be
-/// dropped forever). Pure so it's unit-testable.
-enum PendingCommentResolver {
-    enum TaskIdResolution: Equatable {
-        case ready(String)
-        case taskNotSyncedYet
-    }
-
-    static func resolveTaskId(_ taskId: String, realIdProvider: (String) -> String?) -> TaskIdResolution {
-        guard taskId.hasPrefix("temp_") else { return .ready(taskId) }
-        if let real = realIdProvider(taskId), !real.hasPrefix("temp_") {
-            return .ready(real)
-        }
-        return .taskNotSyncedYet
-    }
-}
-
 @MainActor
 class CommentService: ObservableObject {
     static let shared = CommentService()
@@ -305,7 +278,7 @@ class CommentService: ObservableObject {
 
                 // Update memory cache, preserving pending comments (temp_ IDs not on server yet).
                 // Drop any temp whose id matches a clientRequestId in the response — that means
-                // the server already accepted the sync and the syncPendingCreate cache swap is
+                // the server already accepted the sync and the Outbox reconcile cache swap is
                 // racing this fetch.
                 await MainActor.run {
                     let acknowledgedTempIds = Set(response.comments.compactMap { $0.clientRequestId })
@@ -428,7 +401,7 @@ class CommentService: ObservableObject {
                 await MainActor.run {
                     // Preserve pending comments (temp_ IDs not on server yet); drop any whose
                     // id matches a clientRequestId echoed by the server — those are already
-                    // synced and racing the cache swap in syncPendingCreate.
+                    // synced and racing the cache swap in the Outbox reconcile.
                     let acknowledgedTempIds = Set(response.comments.compactMap { $0.clientRequestId })
                     let pendingComments = (self.cachedComments[taskId] ?? []).filter {
                         $0.id.hasPrefix("temp_") && !acknowledgedTempIds.contains($0.id)
@@ -533,12 +506,8 @@ class CommentService: ObservableObject {
         }
         cachedComments[taskId]?.append(optimisticComment)
 
-        // 4b. Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
-        // Reuses the SAME idempotency key (tempId) as the legacy sync, so the
-        // server dedupes to one comment. Safe for attachment comments too: the
-        // attachment is still uploaded once by the legacy path, and the Outbox
-        // handler resolves that real fileId (and a temp task id) at run time — it
-        // does NOT re-upload, so no duplicate SecureFile.
+        // 4b. Hand the create to the Outbox (authoritative). The idempotency key
+        // is the comment's tempId, so retries dedupe server-side.
         let commentPayload = CreateCommentOutboxPayload(
             taskId: taskId,
             content: content,
@@ -547,12 +516,10 @@ class CommentService: ObservableObject {
             createdAt: optimisticComment.createdAt,
             fileId: fileId
         )
-        // CUTOVER (flag-gated): when authoritative AND this comment has a staged
-        // attachment, build the upload→comment dependency chain so the Outbox owns
-        // the upload (the legacy upload was skipped in saveLocallyAndUploadAsync).
-        // Otherwise keep the shadow enqueue (legacy still uploads).
-        if OutboxConfig.sourceOfTruthEnabled,
-           let temp = fileId, temp.hasPrefix("temp_"),
+        // A comment with a staged attachment becomes an upload→comment dependency
+        // chain so the Outbox owns the upload and the comment waits for the real
+        // fileId from its dependency's result.
+        if let temp = fileId, temp.hasPrefix("temp_"),
            let pending = AttachmentService.shared.pendingUploads[temp] {
             OutboxManager.shared.enqueueComment(
                 commentPayload,
@@ -569,17 +536,8 @@ class CommentService: ObservableObject {
             OutboxManager.shared.enqueueComment(commentPayload, clientRequestId: tempId)
         }
 
-        // 5. Trigger background sync (fire-and-forget) - AFTER save completes.
-        // CUTOVER (flag-gated): when the Outbox is authoritative, skip this legacy
-        // trigger — the Outbox handler creates the comment and reconciles it. The
-        // legacy observers (network/attachment/temp-id) remain as a safety net.
-        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingComments()
-            }
-        }
-
-        // 6. Return optimistic comment immediately
+        // 5. Return optimistic comment immediately — the Outbox handler creates
+        // the comment on the server and reconciles it when it drains.
         return optimisticComment
     }
 
@@ -634,19 +592,12 @@ class CommentService: ObservableObject {
             }
         }
 
-        // 4. Unified Outbox update (shadow, or authoritative when the flag is on).
+        // 4. Hand the update to the Outbox — the handler owns the server PUT
+        // and the reconcile when it drains.
         OutboxManager.shared.enqueueUpdateComment(
             UpdateCommentOutboxPayload(commentId: id, content: content),
             clientRequestId: UUID().uuidString
         )
-
-        // Trigger background sync (fire-and-forget). CUTOVER: skipped when the
-        // Outbox is authoritative — the handler owns the update + reconcile.
-        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingComments()
-            }
-        }
 
         return updatedComment
     }
@@ -677,120 +628,25 @@ class CommentService: ObservableObject {
             }
         }
 
-        // 3. Unified Outbox delete (shadow, or authoritative when the flag is on).
+        // 3. Hand the delete to the Outbox — the handler owns the server DELETE
+        // and the CoreData finalize when it drains.
         OutboxManager.shared.enqueueDeleteComment(
             DeleteCommentOutboxPayload(commentId: id),
             clientRequestId: UUID().uuidString
         )
-
-        // Trigger background sync (fire-and-forget). CUTOVER: skipped when the
-        // Outbox is authoritative — the handler owns the delete + finalize.
-        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingComments()
-            }
-        }
     }
 
     // MARK: - Background Sync
 
-    /// Data extracted from CDComment for sync operations (to avoid CoreData context faulting)
-    private struct PendingCommentData {
-        let id: String
-        let taskId: String
-        let content: String
-        let type: String
-        let operation: String
-        let pendingContent: String?
-        let pendingFileId: String?  // For attachment uploads
-        let createdAt: Date?  // Client timestamp for correct ordering
-    }
-
-    /// Sync all pending comment operations (create, update, delete) with the server
+    /// Sync pending comment operations. Every comment write is Outbox-owned now,
+    /// so this simply drains the Outbox journal (create/update/delete replay
+    /// lives in the kind handlers, with retry/backoff and dead-lettering).
     func syncPendingComments() async throws {
         guard networkMonitor.isConnected else { return }
-
-        // Fetch all pending comments from Core Data - extract data INSIDE context to avoid faulting
-        let pendingData: [PendingCommentData] = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let comments = try CDComment.fetchPending(context: context)
-
-                    // CRITICAL: Extract all data INSIDE context before objects become faulted
-                    let extracted = comments.map { cdComment in
-                        PendingCommentData(
-                            id: cdComment.id,
-                            taskId: cdComment.taskId,
-                            content: cdComment.content,
-                            type: cdComment.type,
-                            operation: cdComment.pendingOperation ?? "unknown",
-                            pendingContent: cdComment.pendingContent,
-                            pendingFileId: cdComment.pendingFileId,
-                            createdAt: cdComment.createdAt
-                        )
-                    }
-                    continuation.resume(returning: extracted)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        guard !pendingData.isEmpty else { return }
-
-        // Process each pending operation using extracted data
-        for data in pendingData {
-            do {
-                switch data.operation {
-                case "create":
-                    // CUTOVER: creates are Outbox-owned when authoritative — the
-                    // legacy path re-posting them here was the contention source
-                    // behind three canary bugs. Updates/deletes stay legacy until
-                    // they get Outbox kinds.
-                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
-                    try await syncPendingCreate(data)
-                case "update":
-                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
-                    try await syncPendingUpdate(data)
-                case "delete":
-                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
-                    try await syncPendingDelete(data)
-                default:
-                    try await markAsFailed(id: data.id, error: "Unknown operation type")
-                }
-            } catch CommentSyncError.attachmentPending {
-                // Attachment still uploading - will retry automatically
-            } catch CommentSyncError.taskPending {
-                // Parent task (created offline) hasn't synced yet - will retry automatically
-            } catch {
-                logger.error("Failed to sync \(data.operation, privacy: .public): \(error.localizedDescription, privacy: .public)")
-
-                // Detect permanent HTTP errors (403/404/410) — no point retrying these
-                let isPermanent: Bool
-                if case APIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
-                    isPermanent = true
-                } else if case AstridAPIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
-                    isPermanent = true
-                } else {
-                    isPermanent = false
-                }
-
-                if isPermanent {
-                    logger.notice("🚫 Permanently failed comment \(data.id.prefix(8), privacy: .public) — will not retry")
-                    try await markAsFailed(id: data.id, error: error.localizedDescription)
-                } else {
-                    try await markAsRetryable(id: data.id, error: error.localizedDescription)
-                }
-            }
-        }
-
+        await OutboxManager.shared.drain()
         await updatePendingOperationsCount()
-
-        // Notify views to reload comments (updates UI after sync replaces temp IDs)
-        NotificationCenter.default.post(name: .commentDidSync, object: nil)
     }
 
-    /// Sync a pending create operation
     /// Temp→real comment-id map (in-memory; comments are shorter-lived than
     /// tasks, so no durable store needed — an unresolved id simply stays
     /// .blocked until the create's reconcile records it after relaunch replay).
@@ -829,10 +685,9 @@ class CommentService: ObservableObject {
     }
 
     /// Reconcile a pending comment once the Outbox `createComment` handler
-    /// succeeds — the Outbox-authoritative equivalent of the post-POST block in
-    /// `syncPendingCreate`: swap temp comment id → server id, migrate to the real
-    /// task id, mark synced, and move the in-memory cache bucket. Idempotent — if
-    /// the legacy safety-net sync already reconciled (temp row gone), it no-ops.
+    /// succeeds: swap temp comment id → server id, migrate to the real task id,
+    /// mark synced, and move the in-memory cache bucket. Idempotent — a second
+    /// call (temp row gone) no-ops.
     func reconcileOutboxCreatedComment(
         tempCommentId: String,
         tempTaskId: String,
@@ -864,131 +719,6 @@ class CommentService: ObservableObject {
             newBucket.append(serverComment)
         }
         cachedComments[resolvedTaskId] = newBucket
-    }
-
-    private func syncPendingCreate(_ data: PendingCommentData) async throws {
-        // Resolve a temp task id (offline-created task) to its real server id.
-        // The task syncs before comments do, so the mapping is available; if it
-        // isn't yet, wait and retry rather than POSTing to a temp_ id (which
-        // 404s → permanent failure → the photo/comment is dropped forever).
-        let resolvedTaskId: String
-        switch PendingCommentResolver.resolveTaskId(data.taskId, realIdProvider: { TaskService.shared.mappedRealTaskId(for: $0) }) {
-        case .ready(let id):
-            resolvedTaskId = id
-        case .taskNotSyncedYet:
-            throw CommentSyncError.taskPending
-        }
-
-        // Resolve temp fileId to real fileId if needed
-        var resolvedFileId = data.pendingFileId
-        if let tempFileId = data.pendingFileId, tempFileId.hasPrefix("temp_") {
-            if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
-                resolvedFileId = realFileId
-            } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                throw CommentSyncError.attachmentPending
-            } else {
-                // Attachment not found - sync without it
-                resolvedFileId = nil
-            }
-        }
-
-        // Call API to create comment (pass client createdAt for correct ordering).
-        // The temp ID (data.id, "temp_<UUID>") doubles as the idempotency key — it's
-        // already persisted on CDComment.id, so any retry of this same pending row
-        // sends the same key, and the server returns the existing comment instead of
-        // creating a duplicate. This is the airplane-mode fix for the Bam-x4 bug.
-        let response = try await apiClient.createComment(
-            taskId: resolvedTaskId,
-            content: data.content,
-            type: Comment.CommentType(rawValue: data.type) ?? .TEXT,
-            fileId: resolvedFileId,
-            parentCommentId: nil,
-            createdAt: data.createdAt,
-            clientRequestId: data.id
-        )
-
-        // Update Core Data with server ID and mark as synced. Also migrate the
-        // row to the real task id so it's correctly associated after an
-        // offline-created task syncs.
-        let oldId = data.id
-        let newTaskId = resolvedTaskId
-        try await coreDataManager.saveInBackground { context in
-            guard let comment = try CDComment.fetchById(oldId, context: context) else { return }
-            comment.id = response.comment.id
-            comment.taskId = newTaskId
-            comment.syncStatus = "synced"
-            comment.lastSyncedAt = Date()
-            comment.pendingOperation = nil
-            comment.pendingContent = nil
-            comment.syncAttempts = 0
-            comment.syncError = nil
-        }
-
-        // Update in-memory cache: replace the temp comment, moving it from the
-        // temp-task bucket to the real-task bucket if the id changed.
-        if var oldBucket = cachedComments[data.taskId],
-           let index = oldBucket.firstIndex(where: { $0.id == oldId }) {
-            oldBucket.remove(at: index)
-            cachedComments[data.taskId] = oldBucket
-        }
-        if resolvedTaskId != data.taskId || cachedComments[resolvedTaskId] != nil {
-            var newBucket = cachedComments[resolvedTaskId] ?? []
-            if !newBucket.contains(where: { $0.id == response.comment.id }) {
-                newBucket.append(response.comment)
-            }
-            cachedComments[resolvedTaskId] = newBucket
-        }
-    }
-
-    /// Sync a pending update operation
-    private func syncPendingUpdate(_ data: PendingCommentData) async throws {
-        guard let updatedContent = data.pendingContent else { return }
-
-        _ = try await apiClient.updateComment(
-            commentId: data.id,
-            content: updatedContent
-        )
-
-        let commentId = data.id
-        try await coreDataManager.saveInBackground { context in
-            guard let comment = try CDComment.fetchById(commentId, context: context) else { return }
-            comment.content = updatedContent
-            comment.syncStatus = "synced"
-            comment.lastSyncedAt = Date()
-            comment.pendingOperation = nil
-            comment.pendingContent = nil
-            comment.syncAttempts = 0
-            comment.syncError = nil
-        }
-    }
-
-    /// Sync a pending delete operation
-    private func syncPendingDelete(_ data: PendingCommentData) async throws {
-        let _ = try await apiClient.deleteComment(commentId: data.id)
-
-        let commentId = data.id
-        try await coreDataManager.saveInBackground { context in
-            guard let comment = try CDComment.fetchById(commentId, context: context) else { return }
-            context.delete(comment)
-        }
-    }
-
-    /// Mark a comment as failed after sync error
-    private func markAsFailed(id: String, error: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            guard let comment = try CDComment.fetchById(id, context: context) else { return }
-            comment.syncStatus = "failed"
-            comment.syncAttempts = CDComment.maxSyncAttempts
-            comment.syncError = error
-        }
-    }
-
-    /// Record a transient sync failure with exponential backoff
-    private func markAsRetryable(id: String, error: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            guard let comment = try CDComment.fetchById(id, context: context) else { return }
-            comment.recordSyncFailure(error: error)
-        }
     }
 }
 
@@ -1031,7 +761,7 @@ extension CommentService {
         try await coreDataManager.saveInBackground { context in
             // Fetch all existing comments for this task in ONE batch query.
             // Also include temp_ ids the server echoes back as clientRequestId — those
-            // identify the still-renaming pending row from a racing syncPendingCreate.
+            // identify the still-renaming pending row from a racing Outbox reconcile.
             let commentIds = comments.map { $0.id }
             let acknowledgedTempIds = comments.compactMap { $0.clientRequestId }
                 .filter { $0.hasPrefix("temp_") }
@@ -1058,7 +788,7 @@ extension CommentService {
             for comment in comments {
                 // Prefer the row indexed by server id; fall back to the temp_ row that
                 // matches this comment's clientRequestId. Renaming the temp row in place
-                // prevents leaving a duplicate after syncPendingCreate later swaps its id.
+                // prevents leaving a duplicate after the Outbox reconcile later swaps its id.
                 let existing = existingCommentsDict[comment.id]
                     ?? (comment.clientRequestId.flatMap { existingCommentsDict[$0] })
 

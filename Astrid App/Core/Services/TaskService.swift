@@ -64,8 +64,7 @@ class TaskService: ObservableObject {
     /// Reconcile the optimistic temp task with the server task once the Outbox
     /// `createTask` handler succeeds — the Outbox-authoritative equivalent of the
     /// post-server block in `createTask`. Owns: temp→real mapping, cache/`tasks`
-    /// swap, CoreData temp-delete + real-save (marked synced), and clearing the
-    /// `pendingCreates` guard.
+    /// swap, CoreData temp-delete + real-save (marked synced).
     ///
     /// Idempotent by design: during dual-write the legacy path usually reconciles
     /// first (temp already gone), so this only ensures the mapping and returns.
@@ -97,8 +96,6 @@ class TaskService: ObservableObject {
         let hasTempListIds = mergedListIds.contains { $0.hasPrefix("temp_") }
         try? await deleteTaskFromCoreData(tempId)
         try? await saveTaskToCoreData(reconciled, syncStatus: hasTempListIds ? "pending_list_sync" : "synced")
-
-        pendingCreates.remove(tempId)
     }
 
     /// Finalize a task deletion once the Outbox `deleteTask` handler succeeds:
@@ -122,10 +119,6 @@ class TaskService: ObservableObject {
         try? await saveTaskToCoreData(task, syncStatus: "synced")
         updatePendingOperationsCount()
     }
-
-    /// Tracks temp IDs with an in-flight createTask API call to prevent
-    /// syncPendingOperations from creating a duplicate on the server.
-    private var pendingCreates: Set<String> = []
 
     /// IDs of tasks deleted locally. Persisted to UserDefaults so it survives app restarts.
     /// Without persistence, closing the app after deleting tasks loses the delete tracking:
@@ -320,174 +313,33 @@ class TaskService: ObservableObject {
             print("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(error)")
         }
 
-        // Track this create so syncPendingOperations won't duplicate it
-        pendingCreates.insert(tempId)
+        // CRITICAL: Filter out temp_ list IDs - server doesn't know about them.
+        // Tasks with temp list IDs will be synced later when lists get real IDs.
+        let serverListIds = listIds.filter { !$0.hasPrefix("temp_") }
 
-        // Make server call in background
-        do {
-            // CRITICAL: Filter out temp_ list IDs - server doesn't know about them
-            // Tasks with temp list IDs will be synced later when lists get real IDs
-            let serverListIds = listIds.filter { !$0.hasPrefix("temp_") }
-            let hasTempListIds = listIds.count != serverListIds.count
-
-            if hasTempListIds {
-                print("⚠️ [TaskService] Filtering out temp_ list IDs for API call. Original: \(listIds), Filtered: \(serverListIds)")
-            }
-
-            // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
-            // Sends the same create through the Outbox with the SAME clientRequestId
-            // so the server dedupes — lets us verify the Outbox path in production
-            // before cutting over, with zero risk of duplicates.
-            OutboxManager.shared.enqueueCreateTask(
-                CreateTaskOutboxPayload(
-                    title: title,
-                    listIds: serverListIds.isEmpty ? nil : serverListIds,
-                    description: description,
-                    priority: priority,
-                    assigneeId: assigneeId,
-                    dueDateTime: dueDateTime,
-                    isAllDay: isAllDay,
-                    isPrivate: isPrivate,
-                    repeating: repeating,
-                    repeatingData: repeatingData,
-                    tempId: tempId,
-                    parentTaskId: parentTaskId,
-                    source: source?.rawValue
-                ),
-                clientRequestId: clientRequestId
-            )
-
-            // CUTOVER (flag-gated): when the Outbox is authoritative for
-            // createTask, skip the legacy inline server call entirely. The Outbox
-            // handler does the server create + reconciliation (temp→real swap,
-            // mark synced) when it drains — online now, or on reconnect if offline.
-            if OutboxConfig.sourceOfTruthEnabled {
-                return optimisticTask
-            }
-
-            // Send dueDateTime and isAllDay to backend
-            // For all-day tasks: dueDateTime=date at UTC midnight, isAllDay=true
-            // For timed tasks: dueDateTime=date+time, isAllDay=false
-            let task = try await apiClient.createTask(
+        // The Outbox is authoritative for creates: its handler does the server
+        // create + reconciliation (temp→real swap, mark synced) when it drains —
+        // online now, or on reconnect if offline.
+        OutboxManager.shared.enqueueCreateTask(
+            CreateTaskOutboxPayload(
                 title: title,
-                listIds: serverListIds.isEmpty ? nil : serverListIds,  // Use filtered list IDs
+                listIds: serverListIds.isEmpty ? nil : serverListIds,
                 description: description,
                 priority: priority,
                 assigneeId: assigneeId,
-                dueDateTime: dueDateTime,  // Already computed above based on whenDate/whenTime
-                isAllDay: isAllDay,        // Already computed above
+                dueDateTime: dueDateTime,
+                isAllDay: isAllDay,
                 isPrivate: isPrivate,
                 repeating: repeating,
                 repeatingData: repeatingData,
-                clientRequestId: clientRequestId,  // Idempotency key for server dedup
-                parentTaskId: parentTaskId
-            )
+                tempId: tempId,
+                parentTaskId: parentTaskId,
+                source: source?.rawValue
+            ),
+            clientRequestId: clientRequestId
+        )
 
-            // NOTE: pendingCreates.remove(tempId) is deferred until AFTER CoreData is updated
-            // to prevent syncPendingOperations() from re-creating the task at an await suspension point.
-
-            // Part C: Check if the user edited the temp task while the API call was in flight.
-            // If so, overlay local editable fields onto the server response so edits aren't lost.
-            let currentLocal = cachedTasks[tempId]
-            let wasEditedDuringFlight = currentLocal != nil
-                && currentLocal!.updatedAt != optimisticTask.updatedAt
-
-            // Replace temporary task with server response
-            cachedTasks.removeValue(forKey: tempId)
-
-            // CRITICAL: Preserve clientRequestId so that if this task is re-saved to
-            // CoreData as "pending" (e.g. user edited during flight), the idempotency
-            // key survives for sync retries. The server response typically doesn't echo
-            // clientRequestId back, so we must carry it forward from the original create.
-            var taskWithListIds = task
-            taskWithListIds.clientRequestId = clientRequestId
-
-            // CRITICAL: Preserve listIds from the original request
-            // The server response may not include listIds (or may have them in a different format)
-            // So we merge our original listIds with whatever the server returns
-            var mergedListIds = task.listIds ?? []
-            for originalListId in listIds {
-                if !mergedListIds.contains(originalListId) {
-                    mergedListIds.append(originalListId)
-                }
-            }
-            taskWithListIds.listIds = mergedListIds
-
-            // Overlay local edits onto server response if user edited during flight
-            if wasEditedDuringFlight, let editedLocal = currentLocal {
-                taskWithListIds.title = editedLocal.title
-                taskWithListIds.description = editedLocal.description
-                taskWithListIds.priority = editedLocal.priority
-                taskWithListIds.dueDateTime = editedLocal.dueDateTime
-                taskWithListIds.isAllDay = editedLocal.isAllDay
-                taskWithListIds.assigneeId = editedLocal.assigneeId
-                taskWithListIds.repeating = editedLocal.repeating
-                taskWithListIds.repeatingData = editedLocal.repeatingData
-                taskWithListIds.completed = editedLocal.completed
-                taskWithListIds.isPrivate = editedLocal.isPrivate
-                if let editedListIds = editedLocal.listIds {
-                    taskWithListIds.listIds = editedListIds
-                }
-                print("🔀 [TaskService] Preserved local edits made during create flight")
-            }
-
-            cachedTasks[task.id] = taskWithListIds
-
-            // Map temp ID → real ID so stale detail views can route edits correctly
-            recordTempTaskMapping(tempId: tempId, realId: task.id)
-
-            if let index = tasks.firstIndex(where: { $0.id == tempId }) {
-                tasks[index] = taskWithListIds
-            }
-
-            // Update CoreData with server response (CRITICAL: await to ensure persistence)
-            // If task has temp list IDs, mark as "pending_list_sync" so we can update later
-            // If user edited during flight, mark as "pending" so edits sync on next cycle
-            let syncStatus = wasEditedDuringFlight ? "pending" : (hasTempListIds ? "pending_list_sync" : "synced")
-            do {
-                try await deleteTaskFromCoreData(tempId)  // Remove temp task
-                try await saveTaskToCoreData(taskWithListIds, syncStatus: syncStatus)
-                print("✅ [TaskService] Updated CoreData with server response")
-            } catch {
-                print("⚠️ [TaskService] Failed to update CoreData after task creation: \(error)")
-            }
-
-            // Create is done AND CoreData is updated — now safe to stop guarding against duplicate syncs.
-            // This MUST happen after CoreData update to prevent syncPendingOperations() from finding
-            // the temp task with "pending" status while pendingCreates no longer guards it.
-            pendingCreates.remove(tempId)
-
-            print("✅ [TaskService] Server confirmed task: \(task.title)")
-
-            // Schedule notification if task has due date
-            if task.dueDateTime != nil {
-                do {
-                    try await notificationManager.scheduleNotification(for: task)
-                } catch {
-                    print("⚠️ [TaskService] Failed to schedule notification: \(error)")
-                }
-            }
-
-            updatePendingOperationsCount()
-
-            // Update app badge with new task count
-            await badgeManager.updateBadge(with: self.tasks)
-
-            return task
-        } catch {
-            // Create failed — allow syncPendingOperations to retry later
-            pendingCreates.remove(tempId)
-
-            // DON'T ROLLBACK: Keep task as "pending" for offline support
-            print("⚠️ [TaskService] Failed to sync task to server, keeping as pending: \(error)")
-            updatePendingOperationsCount()
-
-            // Update badge even for pending tasks
-            await badgeManager.updateBadge(with: self.tasks)
-
-            // Return the optimistic task so UI shows it
-            return optimisticTask
-        }
+        return optimisticTask
     }
 
     func updateTask(
@@ -592,7 +444,7 @@ class TaskService: ObservableObject {
             return optimisticTask
         }
 
-        // Make server call in background
+        // Build the update request and hand it to the Outbox
         do {
             // Convert date/time to ISO8601 string for API
             // Backend expects:
@@ -673,78 +525,17 @@ class TaskService: ObservableObject {
                 lastTimerValue: lastTimerValue
             )
 
-            // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
-            // PUT is value-idempotent and carries no If-Unmodified-Since, so the
-            // Outbox replaying the same body alongside the legacy PUT is safe.
+            // The Outbox is authoritative for updates: its handler performs the
+            // PUT and marks the row synced when it drains (online now, or on
+            // reconnect). The optimistic in-memory/CoreData update already
+            // happened above.
             OutboxManager.shared.enqueueUpdateTask(
                 UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates, source: source?.rawValue),
                 clientRequestId: UUID().uuidString
             )
 
-            // CUTOVER (flag-gated): when the Outbox is authoritative, skip the
-            // legacy inline PUT — the Outbox handler performs the update and marks
-            // the row synced when it drains (online now, or on reconnect). The
-            // optimistic in-memory/CoreData update already happened above.
-            if OutboxConfig.sourceOfTruthEnabled {
-                updatePendingOperationsCount()
-                await badgeManager.updateBadge(with: self.tasks)
-                return optimisticTask
-            }
-
-            let task = try await apiClient.updateTask(id: resolvedId, updates: updates)
-
-            // Only replace in-memory if server response is newer than current version.
-            // A concurrent edit may have written a newer optimistic version while our
-            // API call was in flight — don't overwrite it.
-            let currentLocal = cachedTasks[resolvedId]
-            let localUpdated = currentLocal?.updatedAt ?? Date.distantPast
-            let serverUpdated = task.updatedAt ?? Date.distantPast
-            if serverUpdated >= localUpdated {
-                cachedTasks[resolvedId] = task
-                if let index = tasks.firstIndex(where: { $0.id == resolvedId }) {
-                    tasks[index] = task
-                } else {
-                    tasks.append(task)
-                }
-
-                // Persist to CoreData
-                do {
-                    try await saveTaskToCoreData(task, syncStatus: "synced")
-                } catch {
-                    print("⚠️ [TaskService] Failed to update CoreData after task update: \(error)")
-                }
-            }
-
-            print("✅ [TaskService] Server confirmed update: \(task.title)")
-
-            // Handle notification updates
-            if let completed = completed, completed {
-                // Cancel notification if task is completed
-                await notificationManager.cancelNotification(for: resolvedId)
-            } else if when != nil || whenTime != nil || task.dueDateTime != nil {
-                // Reschedule notification if date or time changed or still exists
-                do {
-                    try await notificationManager.rescheduleNotification(for: task)
-                } catch {
-                    print("⚠️ [TaskService] Failed to reschedule notification: \(error)")
-                }
-            }
-
             updatePendingOperationsCount()
-
-            // Update app badge after task update
             await badgeManager.updateBadge(with: self.tasks)
-
-            return task
-        } catch {
-            // DON'T ROLLBACK: Keep task as "pending" for offline support
-            print("⚠️ [TaskService] Failed to sync update to server, keeping as pending: \(error)")
-            updatePendingOperationsCount()
-
-            // Update badge even for pending updates
-            await badgeManager.updateBadge(with: self.tasks)
-
-            // Return the optimistic task so UI shows it
             return optimisticTask
         }
     }
@@ -953,51 +744,13 @@ class TaskService: ObservableObject {
         // Update app badge after task deletion
         await badgeManager.updateBadge(with: self.tasks)
 
-        // Unified Outbox delete (dual-write shadow, or authoritative when the
-        // cutover flag is on). Deletes are idempotent server-side (404 = done).
+        // The Outbox is authoritative for deletes: its handler owns the server
+        // delete (404/410 = already gone = success) and the CoreData
+        // finalization when it drains.
         OutboxManager.shared.enqueueDeleteTask(
             DeleteTaskOutboxPayload(taskId: resolvedId),
             clientRequestId: UUID().uuidString
         )
-
-        // CUTOVER (flag-gated): the Outbox handler owns the server delete and the
-        // CoreData finalization when it drains.
-        if OutboxConfig.sourceOfTruthEnabled {
-            return
-        }
-
-        // Make server call in background
-        do {
-            do {
-                try await apiClient.deleteTask(id: resolvedId)
-                print("✅ [TaskService] Server confirmed deletion: \(resolvedId)")
-            } catch {
-                // 404/410 means already deleted on server — treat as success
-                let nsError = error as NSError
-                let isAlreadyDeleted = nsError.code == 404 || nsError.code == 410
-                    || "\(error)".contains("404") || "\(error)".contains("not found")
-                if isAlreadyDeleted {
-                    print("✅ [TaskService] Task already deleted on server: \(resolvedId)")
-                } else {
-                    throw error
-                }
-            }
-
-            // Remove from CoreData after successful deletion (CRITICAL: await to ensure persistence)
-            do {
-                try await deleteTaskFromCoreData(resolvedId)
-                updatePendingOperationsCount()
-                print("✅ [TaskService] Removed from CoreData after successful deletion")
-            } catch {
-                print("⚠️ [TaskService] Failed to remove from CoreData after deletion: \(error)")
-            }
-        } catch {
-            // DON'T ROLLBACK: Keep task as "pending_delete" for offline support
-            print("⚠️ [TaskService] Failed to sync deletion to server, keeping as pending: \(error)")
-            updatePendingOperationsCount()
-            // Badge already updated above after optimistic delete
-            // Don't re-add to UI, let it stay deleted locally
-        }
     }
 
     func copyTask(
@@ -1475,214 +1228,15 @@ class TaskService: ObservableObject {
 
     // MARK: - Offline Sync
 
-    /// Sync all pending operations to server
+    /// Sync pending operations. Every task write is Outbox-owned now, so this
+    /// simply drains the Outbox journal (create/update/delete replay lives in
+    /// the kind handlers, with retry/backoff and dead-lettering).
     func syncPendingOperations() async throws {
-        guard !isSyncingPendingOperations else {
-            print("⏳ [TaskService] Sync already in progress")
-            return
-        }
-
+        guard !isSyncingPendingOperations else { return }
         isSyncingPendingOperations = true
         defer { isSyncingPendingOperations = false }
-
-        print("🔄 [TaskService] Starting sync of pending operations...")
-        print("📊 [TaskService] Before sync: \(tasks.count) tasks in memory, \(cachedTasks.count) in cache")
-
-        let context = coreDataManager.viewContext
-
-        // Fetch pending tasks (excludes "failed" — those are permanently abandoned)
-        let request = CDTask.fetchRequest()
-        request.predicate = NSPredicate(format: "syncStatus == %@ OR syncStatus == %@", "pending", "pending_delete")
-        let pendingTasks = try context.fetch(request)
-
-        print("📤 [TaskService] Found \(pendingTasks.count) pending operations")
-
-        var syncedCount = 0
-        var failedCount = 0
-
-        for cdTask in pendingTasks {
-            // Skip tasks that have an in-flight createTask() call — Part A guard
-            if pendingCreates.contains(cdTask.id) {
-                print("⏭️ [TaskService] Skipping \(cdTask.id) — createTask() in flight")
-                continue
-            }
-
-            do {
-                if OutboxConfig.sourceOfTruthEnabled {
-                    // CUTOVER: every op (incl. deletes) is Outbox-owned now.
-                    continue
-                } else if cdTask.syncStatus == "pending_delete"
-                    || (cdTask.syncStatus == "failed" && recentlyDeletedIds.contains(cdTask.id)) {
-                    // Handle pending deletions (including legacy "failed" records that were deletes)
-                    do {
-                        try await apiClient.deleteTask(id: cdTask.id)
-                    } catch {
-                        // If server returns 404/410, the task is already gone — that's success
-                        let nsError = error as NSError
-                        let isAlreadyDeleted = nsError.code == 404 || nsError.code == 410
-                            || "\(error)".contains("404") || "\(error)".contains("not found")
-                        if !isAlreadyDeleted {
-                            throw error  // Real error — let outer catch handle it
-                        }
-                        print("✅ [TaskService] Task already deleted on server: \(cdTask.id)")
-                    }
-                    try await deleteTaskFromCoreData(cdTask.id)
-                    print("✅ [TaskService] Synced deletion: \(cdTask.id)")
-                } else if OutboxConfig.sourceOfTruthEnabled {
-                    // CUTOVER: pending creates/updates are Outbox-owned when
-                    // authoritative — replaying them here was the legacy-vs-Outbox
-                    // contention source. Deletes (above) stay legacy until they
-                    // get an Outbox kind.
-                    continue
-                } else {
-                    // Handle pending creates/updates
-                    let task = cdTask.toDomainModel()
-
-                    // Check if task exists on server by attempting update first
-                    // If it fails with 404, create it instead
-                    do {
-                        // Convert dueDateTime to ISO8601 string for API
-                        let dueDateTimeString: String? = task.dueDateTime.map { date in
-                            ISO8601DateFormatter().string(from: date)
-                        }
-
-                        let updates = Self.makeSyncUpdateRequest(
-                            task: task,
-                            dueDateTimeString: dueDateTimeString,
-                            listIds: task.listIds
-                        )
-
-                        let updatedTask = try await apiClient.updateTask(id: task.id, updates: updates)
-
-                        // Update with server response
-                        try await saveTaskToCoreData(updatedTask, syncStatus: "synced")
-
-                        // Only replace in-memory if server response is newer than current version.
-                        // A concurrent updateTask() call may have written a newer optimistic version
-                        // while our API call was in flight — don't overwrite it.
-                        let currentLocal = cachedTasks[updatedTask.id]
-                        let localUpdated = currentLocal?.updatedAt ?? Date.distantPast
-                        let serverUpdated = updatedTask.updatedAt ?? Date.distantPast
-                        if serverUpdated >= localUpdated {
-                            cachedTasks[updatedTask.id] = updatedTask
-                            if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
-                                tasks[index] = updatedTask
-                            } else {
-                                tasks.insert(updatedTask, at: 0)
-                            }
-                        }
-
-                        print("✅ [TaskService] Synced update: \(updatedTask.title)")
-                    } catch {
-                        // If update failed (likely 404), try creating instead
-                        if task.id.hasPrefix("temp_") {
-                            // CRITICAL: Filter out temp_ list IDs and resolve any mapped IDs
-                            let resolvedListIds = resolveListIds(task.listIds ?? [])
-                            let serverListIds = resolvedListIds.filter { !$0.hasPrefix("temp_") }
-
-                            // Read stored clientRequestId from CoreData for idempotent retry
-                            let storedClientRequestId = cdTask.clientRequestId
-
-                            var createdTask = try await apiClient.createTask(
-                                title: task.title,
-                                listIds: serverListIds.isEmpty ? nil : serverListIds,  // Filter temp_ IDs
-                                description: task.description.isEmpty ? nil : task.description,
-                                priority: task.priority.rawValue,
-                                assigneeId: task.assigneeId,
-                                dueDateTime: task.dueDateTime,
-                                isAllDay: task.isAllDay,
-                                isPrivate: task.isPrivate,
-                                repeating: task.repeating?.rawValue,
-                                repeatingData: task.repeatingData,  // Don't drop custom recurrence on offline replay
-                                clientRequestId: storedClientRequestId  // Reuse same key for dedup
-                            )
-
-                            // CRITICAL: If server returned an idempotent response (task already existed),
-                            // it may have stale data (e.g. missing priority/date/recurrence edits the user
-                            // made locally). Compare and push an UPDATE if they differ.
-                            let localDiffersFromServer = Self.taskDiffersForSync(local: task, server: createdTask)
-
-                            if localDiffersFromServer {
-                                print("🔀 [TaskService] Local edits differ from server response — pushing UPDATE")
-                                let syncDueDateTimeString: String? = task.dueDateTime.map { date in
-                                    if task.isAllDay {
-                                        var utcCalendar = Calendar.current
-                                        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-                                        let startOfDay = utcCalendar.startOfDay(for: date)
-                                        return ISO8601DateFormatter().string(from: startOfDay)
-                                    } else {
-                                        return ISO8601DateFormatter().string(from: date)
-                                    }
-                                }
-                                let syncUpdates = Self.makeSyncUpdateRequest(
-                                    task: task,
-                                    dueDateTimeString: syncDueDateTimeString,
-                                    listIds: serverListIds.isEmpty ? nil : serverListIds
-                                )
-                                let updatedFromServer = try await apiClient.updateTask(id: createdTask.id, updates: syncUpdates)
-                                createdTask = updatedFromServer
-                                print("✅ [TaskService] Pushed local edits to server for task \(createdTask.id)")
-                            }
-
-                            // Replace temp task with server task
-                            try await deleteTaskFromCoreData(task.id)
-                            try await saveTaskToCoreData(createdTask, syncStatus: "synced")
-
-                            // Update in-memory arrays
-                            cachedTasks.removeValue(forKey: task.id)
-                            cachedTasks[createdTask.id] = createdTask
-                            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-                                tasks[index] = createdTask
-                            }
-
-                            // Record temp→real so pending children created offline
-                            // (e.g. a photo-comment) can re-target the real task on
-                            // sync instead of 404'ing against the temp id and being
-                            // dropped.
-                            recordTempTaskMapping(tempId: task.id, realId: createdTask.id)
-
-                            print("✅ [TaskService] Synced creation: \(createdTask.title)")
-                        } else {
-                            throw error
-                        }
-                    }
-                }
-
-                syncedCount += 1
-            } catch {
-                print("❌ [TaskService] Failed to sync task \(cdTask.id): \(error)")
-                failedCount += 1
-
-                // Detect permanent HTTP errors (403/404/410) — no point retrying these
-                let isPermanent: Bool
-                if case APIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
-                    isPermanent = true
-                } else if case AstridAPIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
-                    isPermanent = true
-                } else {
-                    isPermanent = false
-                }
-
-                if cdTask.syncStatus == "pending_delete" {
-                    // pending_delete must NOT become "failed" — that breaks delete filtering
-                    // and lets deleted tasks reappear. Will retry on next sync cycle.
-                } else if isPermanent {
-                    cdTask.syncStatus = "failed"
-                    cdTask.syncAttempts = CDTask.maxSyncAttempts
-                    cdTask.lastSyncError = "\(error)"
-                    print("🚫 [TaskService] Permanently failed task \(cdTask.id) — will not retry")
-                } else {
-                    cdTask.recordSyncFailure(error: "\(error)")
-                }
-            }
-        }
-
+        await OutboxManager.shared.drain()
         updatePendingOperationsCount()
-        print("✅ [TaskService] Sync complete: \(syncedCount) synced, \(failedCount) failed")
-        print("📊 [TaskService] After sync: \(tasks.count) tasks in memory, \(cachedTasks.count) in cache")
-
-        // NOTE: Don't call fetchAllTasks() here - sync loop already updated in-memory tasks
-        // Calling fetchAllTasks() would replace local tasks with server tasks and could lose data
     }
 
     // MARK: - Temp List ID Resolution
@@ -1728,55 +1282,6 @@ class TaskService: ObservableObject {
                 // Task stays with the updated local listIds, will retry on next sync
             }
         }
-    }
-
-    /// Compare two optional dates, treating them as equal if within 1 second
-    /// (handles minor serialization/timezone rounding differences)
-    nonisolated static func datesMatch(_ a: Date?, _ b: Date?) -> Bool {
-        switch (a, b) {
-        case (nil, nil): return true
-        case (nil, _), (_, nil): return false
-        case let (a?, b?): return abs(a.timeIntervalSince(b)) < 1.0
-        }
-    }
-
-    /// Builds the wire payload for replaying an offline task edit. Centralized so
-    /// recurrence fields (repeating/repeatingData/repeatFrom) are ALWAYS carried —
-    /// a prior inline version sent repeatingData: nil and erased custom patterns
-    /// after offline replay.
-    nonisolated static func makeSyncUpdateRequest(task: Task, dueDateTimeString: String?, listIds: [String]?) -> UpdateTaskRequest {
-        UpdateTaskRequest(
-            title: task.title,
-            description: task.description,
-            priority: task.priority.rawValue,
-            repeating: task.repeating?.rawValue,
-            repeatingData: task.repeatingData,
-            repeatFrom: task.repeatFrom?.rawValue,
-            isPrivate: task.isPrivate,
-            completed: task.completed,
-            dueDateTime: dueDateTimeString,
-            isAllDay: task.isAllDay,
-            reminderTime: nil,
-            reminderType: nil,
-            listIds: listIds,
-            assigneeId: task.assigneeId
-        )
-    }
-
-    /// Whether a locally-edited task differs from the server's response enough to
-    /// warrant a follow-up update push. Includes recurrence so a recurrence-only
-    /// edit (or an idempotent create that returned a stale/plain task) isn't lost.
-    nonisolated static func taskDiffersForSync(local: Task, server: Task) -> Bool {
-        local.priority != server.priority
-        || local.title != server.title
-        || local.isAllDay != server.isAllDay
-        || local.isPrivate != server.isPrivate
-        || local.completed != server.completed
-        || !datesMatch(local.dueDateTime, server.dueDateTime)
-        || local.description != server.description
-        || local.assigneeId != server.assigneeId
-        || local.repeating != server.repeating
-        || local.repeatingData != server.repeatingData
     }
 
     private func resolveListIds(_ listIds: [String]) -> [String] {

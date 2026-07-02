@@ -12,12 +12,6 @@ struct SettingsView: View {
     // Debug mode toggles (stored in UserDefaults like web app)
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
-    // Bound to the same UserDefaults key OutboxConfig reads. Default ON for the
-    // production soak (matches OutboxConfig.dualWriteEnabled).
-    @AppStorage("outboxDualWriteEnabled") private var outboxDualWriteEnabled = true
-    // Cutover complete: the Outbox is AUTHORITATIVE by default. This toggle is the
-    // kill-switch — OFF reverts fully to legacy sync. Matches OutboxConfig.sourceOfTruthEnabled.
-    @AppStorage("outboxSourceOfTruth") private var outboxSourceOfTruth = true
     @State private var outboxStats: OutboxStats?
 
 
@@ -136,38 +130,14 @@ struct SettingsView: View {
                     .tint(Theme.accent)
                 }
 
-                Section("Outbox (beta)") {
-                    Toggle(isOn: $outboxDualWriteEnabled) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Outbox dual-write")
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Mirror task, comment & chat writes through the unified Outbox to verify it (no duplicates).")
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-                    .tint(Theme.accent)
-
-                    Toggle(isOn: $outboxSourceOfTruth) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Outbox sync (default)")
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Tasks, comments, chat & attachments sync via the unified Outbox. Turn OFF only to revert to the legacy sync (kill-switch).")
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-                    }
-                    .tint(Theme.accent)
-
-                    // Soak readout: dead-lettered > 0 = a dropped write (don't deprecate
-                    // legacy yet); all-completed = the Outbox kept up.
+                Section("Outbox") {
+                    // Health readout: dead-lettered > 0 = a dropped write;
+                    // all-completed = the Outbox kept up.
                     if let s = outboxStats {
                         HStack {
                             Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .foregroundColor(s.isHealthy ? .green : .orange)
-                            Text("Soak: \(s.lifetimeCompleted) synced · \(s.pending + s.running) in-flight · \(s.lifetimeDeadLettered) dropped")
+                            Text("\(s.lifetimeCompleted) synced · \(s.pending + s.running) in-flight · \(s.lifetimeDeadLettered) dropped")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             Spacer()

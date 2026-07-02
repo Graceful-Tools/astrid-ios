@@ -4,23 +4,6 @@ import UniformTypeIdentifiers
 import Combine
 
 /// Info about a locally cached attachment pending upload
-/// Which pending uploads the LEGACY sync paths may process. With the Outbox
-/// authoritative, the answer is none: the upload→comment dependency chain owns
-/// every staged attachment, and the legacy uploader deletes the local file after
-/// upload — which starves the chain's upload entry ("local file missing" →
-/// permanent → the dependent comment strands). Pure for tests.
-enum AttachmentUploadPolicy {
-    static func legacyUploadCandidates(
-        statuses: [String: PendingAttachment.UploadStatus],
-        outboxAuthoritative: Bool
-    ) -> [String] {
-        guard !outboxAuthoritative else { return [] }
-        return statuses
-            .filter { $0.value == .pending || $0.value == .failed }
-            .map { $0.key }
-    }
-}
-
 struct PendingAttachment: Codable {
     let tempFileId: String
     let localPath: String
@@ -138,16 +121,17 @@ class AttachmentService: ObservableObject {
         }
     }
 
-    /// Setup network observer to sync pending uploads when connection is restored
+    /// Setup network observer: on reconnect, drain the Outbox so queued
+    /// upload→comment/send chains run.
     private func setupNetworkObserver() {
         networkObserver = NotificationCenter.default.addObserver(
             forName: .networkDidBecomeAvailable,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { _ in
             _Concurrency.Task { @MainActor in
-                print("🔄 [AttachmentService] Network restored - syncing pending uploads")
-                await self?.syncPendingUploads()
+                print("🔄 [AttachmentService] Network restored - draining outbox")
+                await OutboxManager.shared.drain()
             }
         }
     }
@@ -190,18 +174,11 @@ class AttachmentService: ObservableObject {
         pendingUploads[tempFileId] = pending
         savePendingUploads()
 
-        // CUTOVER (flag-gated): when the Outbox is authoritative, DON'T start the
-        // legacy upload — the comment/chat compose path builds an Outbox
+        // No upload starts here: the comment/chat compose path builds an Outbox
         // upload→comment dependency chain from this pending record, so the Outbox
-        // owns the upload (no double-upload). The local save + pending record above
-        // still happen so the optimistic thumbnail shows and the chain can read
+        // owns the upload. The local save + pending record above still happen so
+        // the optimistic thumbnail shows and the chain can read
         // localPath/fileName/mimeType/context.
-        if !OutboxConfig.sourceOfTruthEnabled {
-            _Concurrency.Task {
-                await uploadPendingAttachment(tempFileId: tempFileId)
-            }
-        }
-
         return tempFileId
     }
 
@@ -398,121 +375,6 @@ class AttachmentService: ObservableObject {
         print("✅ [AttachmentService] Upload cancelled and cleaned up: \(tempFileId)")
     }
 
-    /// Upload a pending attachment
-    private func uploadPendingAttachment(tempFileId: String) async {
-        // Hard guard (belt to the policy's suspenders): with the Outbox
-        // authoritative, the upload→comment chain owns every staged attachment.
-        // The legacy uploader deletes the local file on success, which would
-        // starve the chain's upload entry — never run it in that mode.
-        guard !OutboxConfig.sourceOfTruthEnabled else { return }
-        guard var pending = pendingUploads[tempFileId] else {
-            print("⚠️ [AttachmentService] Pending attachment not found: \(tempFileId)")
-            return
-        }
-
-        // Check if online before attempting upload
-        guard networkMonitor.isConnected else {
-            print("📵 [AttachmentService] Offline - keeping attachment as pending: \(tempFileId)")
-            // Keep as pending (don't mark as failed when offline)
-            if pending.uploadStatus == .uploading {
-                pending.uploadStatus = .pending
-                pendingUploads[tempFileId] = pending
-                savePendingUploads()
-            }
-            return
-        }
-
-        // Update status
-        pending.uploadStatus = .uploading
-        pendingUploads[tempFileId] = pending
-        savePendingUploads()
-
-        print("📤 [AttachmentService] Starting upload for: \(tempFileId)")
-
-        do {
-            // Load file data
-            let fileData = try Data(contentsOf: URL(fileURLWithPath: pending.localPath))
-
-            // Upload to server
-            let realFileId = try await uploadToSecureEndpoint(
-                fileData: fileData,
-                fileName: pending.fileName,
-                mimeType: pending.mimeType,
-                context: pending.uploadContext
-            )
-
-            // Update mapping and status
-            fileIdMapping[tempFileId] = realFileId
-            pending.realFileId = realFileId
-            pending.uploadStatus = .completed
-            pendingUploads[tempFileId] = pending
-            savePendingUploads()
-
-            print("✅ [AttachmentService] Upload completed: \(tempFileId) -> \(realFileId)")
-
-            // Alias thumbnail cache so image can be found by real ID
-            ThumbnailCache.shared.alias(from: tempFileId, to: realFileId)
-
-            // Notify that upload completed
-            NotificationCenter.default.post(
-                name: .attachmentUploadCompleted,
-                object: nil,
-                userInfo: ["tempFileId": tempFileId, "realFileId": realFileId]
-            )
-
-            // Clean up local file after successful upload
-            try? fileManager.removeItem(atPath: pending.localPath)
-
-        } catch {
-            print("❌ [AttachmentService] Upload failed: \(error)")
-            // Check if we're still online - if not, keep as pending
-            if networkMonitor.isConnected {
-                pending.uploadStatus = .failed
-            } else {
-                pending.uploadStatus = .pending
-                print("📵 [AttachmentService] Network lost during upload - keeping as pending")
-            }
-            pendingUploads[tempFileId] = pending
-            savePendingUploads()
-        }
-    }
-
-    /// Sync all pending uploads (call when coming back online or on pull to refresh)
-    func syncPendingUploads() async {
-        guard networkMonitor.isConnected else {
-            print("📵 [AttachmentService] Cannot sync - no network connection")
-            return
-        }
-
-        let pendingCount = pendingUploads.values.filter { $0.uploadStatus == .pending || $0.uploadStatus == .failed }.count
-        guard pendingCount > 0 else {
-            print("✅ [AttachmentService] No pending uploads to sync")
-            return
-        }
-
-        print("🔄 [AttachmentService] Syncing \(pendingCount) pending uploads...")
-
-        let candidates = AttachmentUploadPolicy.legacyUploadCandidates(
-            statuses: pendingUploads.mapValues { $0.uploadStatus },
-            outboxAuthoritative: OutboxConfig.sourceOfTruthEnabled
-        )
-        for tempFileId in candidates {
-            await uploadPendingAttachment(tempFileId: tempFileId)
-        }
-
-        print("✅ [AttachmentService] Sync completed")
-    }
-
-    /// Retry all failed uploads
-    func retryFailedUploads() {
-        guard !OutboxConfig.sourceOfTruthEnabled else { return }  // chain-owned
-        for (tempFileId, pending) in pendingUploads where pending.uploadStatus == .failed {
-            _Concurrency.Task {
-                await uploadPendingAttachment(tempFileId: tempFileId)
-            }
-        }
-    }
-
     // MARK: - Persistence
 
     private func savePendingUploads() {
@@ -535,19 +397,9 @@ class AttachmentService: ObservableObject {
                 }
             }
 
-            // Retry any pending/failed uploads (legacy mode only — with the Outbox
-            // authoritative, the journal owns retries and this launch auto-retry
-            // would steal the file out from under the upload→comment chain).
-            let retryIds = AttachmentUploadPolicy.legacyUploadCandidates(
-                statuses: loaded.mapValues { $0.uploadStatus },
-                outboxAuthoritative: OutboxConfig.sourceOfTruthEnabled
-            )
-            for tempFileId in retryIds {
-                _Concurrency.Task {
-                    await uploadPendingAttachment(tempFileId: tempFileId)
-                }
-            }
-
+            // No launch auto-retry: the Outbox journal owns upload retries, and a
+            // side-channel upload here would steal the file out from under the
+            // upload→comment chain.
             print("📦 [AttachmentService] Loaded \(loaded.count) pending uploads")
         }
     }

@@ -520,10 +520,8 @@ class ChatService: ObservableObject {
         }
         cachedMessages[channelId]?.append(optimisticMessage)
 
-        // Unified Outbox dual-write (no-op unless OutboxConfig.dualWriteEnabled).
-        // Reuses the SAME clientRequestId as the legacy sync, so the server
-        // dedupes (ChatMessage.clientRequestId is unique). The handler resolves a
-        // temp attachment fileId from the legacy upload at run time — no re-upload.
+        // Hand the send to the Outbox (authoritative). The clientRequestId
+        // dedupes server-side (ChatMessage.clientRequestId is unique).
         let chatPayload = SendChatMessageOutboxPayload(
             channelId: channelId,
             content: content,
@@ -531,11 +529,10 @@ class ChatService: ObservableObject {
             fileId: fileId,
             replyToId: replyToId
         )
-        // CUTOVER (flag-gated): when authoritative AND this message has a staged
-        // attachment, build the upload→send chain so the Outbox owns the upload
-        // (the legacy upload was skipped in saveLocallyAndUploadAsync).
-        if OutboxConfig.sourceOfTruthEnabled,
-           let temp = fileId, temp.hasPrefix("temp_"),
+        // A message with a staged attachment becomes an upload→send dependency
+        // chain so the Outbox owns the upload and the send waits for the real
+        // fileId from its dependency's result.
+        if let temp = fileId, temp.hasPrefix("temp_"),
            let pending = AttachmentService.shared.pendingUploads[temp] {
             OutboxManager.shared.enqueueChatMessage(
                 chatPayload,
@@ -550,15 +547,6 @@ class ChatService: ObservableObject {
             )
         } else {
             OutboxManager.shared.enqueueChatMessage(chatPayload, clientRequestId: clientRequestId)
-        }
-
-        // Trigger background sync. CUTOVER (flag-gated): when the Outbox is
-        // authoritative, skip this legacy trigger — the Outbox handler sends and
-        // reconciles the message. Legacy observers remain as a safety net.
-        if networkMonitor.isConnected && !OutboxConfig.sourceOfTruthEnabled {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingMessages()
-            }
         }
 
         return optimisticMessage
@@ -783,10 +771,9 @@ class ChatService: ObservableObject {
             do {
                 switch data.operation {
                 case "create":
-                    // CUTOVER: creates are Outbox-owned when authoritative;
-                    // deletes stay legacy until they get an Outbox kind.
-                    guard !OutboxConfig.sourceOfTruthEnabled else { continue }
-                    try await syncPendingCreate(data)
+                    // Creates are Outbox-owned; deletes stay legacy until they
+                    // get an Outbox kind.
+                    continue
                 case "delete":
                     try await syncPendingDelete(data)
                 default:
@@ -817,10 +804,9 @@ class ChatService: ObservableObject {
     }
 
     /// Reconcile a pending chat message once the Outbox `sendChatMessage` handler
-    /// succeeds — the Outbox-authoritative equivalent of the post-send block in
-    /// `syncPendingCreate`. Looked up by clientRequestId (the temp message id and
-    /// the idempotency key differ for chat). Idempotent with the legacy safety-net
-    /// sync (resetSyncState leaves clientRequestId intact, so a second call no-ops).
+    /// succeeds. Looked up by clientRequestId (the temp message id and the
+    /// idempotency key differ for chat). Idempotent (resetSyncState leaves
+    /// clientRequestId intact, so a second call no-ops).
     func reconcileOutboxSentMessage(clientRequestId: String, serverMessage: ChatMessage, channelId: String) async {
         try? await coreDataManager.saveInBackground { context in
             guard let cdMessage = try CDChatMessage.fetchByClientRequestId(clientRequestId, context: context) else { return }
@@ -831,64 +817,6 @@ class ChatService: ObservableObject {
            let index = channelMessages.firstIndex(where: { $0.clientRequestId == clientRequestId }) {
             channelMessages[index] = serverMessage
             cachedMessages[channelId] = channelMessages
-        }
-    }
-
-    private func syncPendingCreate(_ data: PendingMessageData) async throws {
-        // Resolve temp fileId and get attachment metadata
-        var resolvedFileId = data.pendingFileId
-        var attachmentUrl: String? = nil
-        var attachmentName: String? = nil
-        var attachmentType: String? = nil
-        var attachmentSize: Int? = nil
-
-        if let tempFileId = data.pendingFileId, tempFileId.hasPrefix("temp_") {
-            if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
-                resolvedFileId = realFileId
-                // Build secure file URL for the attachment
-                attachmentUrl = "/api/v1/secure-files/\(realFileId)"
-            } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                throw ChatSyncError.attachmentPending
-            } else {
-                resolvedFileId = nil
-            }
-
-            // Get file metadata from pending upload info
-            if let pending = AttachmentService.shared.pendingUploads[tempFileId] {
-                attachmentName = pending.fileName
-                attachmentType = pending.mimeType
-                attachmentSize = pending.fileSize
-            }
-        }
-
-        let serverMessage = try await apiClient.sendChatMessage(
-            channelId: data.channelId,
-            content: data.content,
-            type: Comment.CommentType(rawValue: data.type) ?? .TEXT,
-            fileId: resolvedFileId,
-            attachmentUrl: attachmentUrl,
-            attachmentName: attachmentName,
-            attachmentType: attachmentType,
-            attachmentSize: attachmentSize,
-            replyToId: data.replyToId,
-            clientRequestId: data.clientRequestId
-        )
-
-        // Update CoreData
-        let oldId = data.id
-        try await coreDataManager.saveInBackground { context in
-            guard let cdMessage = try CDChatMessage.fetchById(oldId, context: context) else { return }
-            cdMessage.id = serverMessage.id
-            cdMessage.resetSyncState()
-        }
-
-        // Update memory cache
-        let channelId = data.channelId
-        if var channelMessages = cachedMessages[channelId] {
-            if let index = channelMessages.firstIndex(where: { $0.id == oldId }) {
-                channelMessages[index] = serverMessage
-                cachedMessages[channelId] = channelMessages
-            }
         }
     }
 

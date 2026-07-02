@@ -941,13 +941,10 @@ struct TaskDetailViewNew: View {
         if let tempFileId = fileId, tempFileId.hasPrefix("temp_") {
             if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
                 resolvedFileId = realFileId
-            } else if !NetworkMonitor.shared.isConnected || OutboxConfig.sourceOfTruthEnabled {
-                // OFFLINE — or Outbox-authoritative (upload starts with the enqueued
-                // chain; waiting here would deadlock): keep temp fileId.
-            } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                // Timeout falls back to the temp id — never nil (400s the comment).
-                resolvedFileId = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
+            // Otherwise keep the temp fileId: the upload only starts with the
+            // enqueued upload→comment chain, which resolves the real id itself —
+            // waiting here would deadlock.
         }
 
         do {
@@ -987,13 +984,10 @@ struct TaskDetailViewNew: View {
         if let tempFileId = fileIdToSend, tempFileId.hasPrefix("temp_") {
             if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
                 fileIdToSend = realFileId
-            } else if !NetworkMonitor.shared.isConnected || OutboxConfig.sourceOfTruthEnabled {
-                // OFFLINE — or Outbox-authoritative (upload starts with the enqueued
-                // chain; waiting here would deadlock): keep temp fileId.
-            } else if AttachmentService.shared.isPendingUpload(tempFileId) {
-                // Timeout falls back to the temp id — never nil (400s the comment).
-                fileIdToSend = await waitForUploadCompletion(tempFileId: tempFileId) ?? tempFileId
             }
+            // Otherwise keep the temp fileId: the upload only starts with the
+            // enqueued upload→comment chain, which resolves the real id itself —
+            // waiting here would deadlock.
         }
 
         do {
@@ -1167,41 +1161,6 @@ struct TaskDetailViewNew: View {
         }
     }
 
-    private func waitForUploadCompletion(tempFileId: String) async -> String? {
-        final class State: @unchecked Sendable {
-            var observer: NSObjectProtocol?
-            var hasResumed = false
-        }
-        let state = State()
-
-        return await withCheckedContinuation { continuation in
-            let timeoutTask = _Concurrency.Task {
-                try? await _Concurrency.Task.sleep(nanoseconds: 60_000_000_000)
-                guard !_Concurrency.Task.isCancelled && !state.hasResumed else { return }
-                state.hasResumed = true
-                if let obs = state.observer { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(returning: nil)
-            }
-
-            state.observer = NotificationCenter.default.addObserver(
-                forName: .attachmentUploadCompleted,
-                object: nil,
-                queue: .main
-            ) { notification in
-                guard let userInfo = notification.userInfo,
-                      let notificationTempId = userInfo["tempFileId"] as? String,
-                      notificationTempId == tempFileId,
-                      let realFileId = userInfo["realFileId"] as? String,
-                      !state.hasResumed else { return }
-
-                state.hasResumed = true
-                timeoutTask.cancel()
-                if let obs = state.observer { NotificationCenter.default.removeObserver(obs) }
-                continuation.resume(returning: realFileId)
-            }
-        }
-    }
-
     private var titleTextField: some View {
         TextField("Task title", text: $editedTitle, axis: .vertical)
             .font(.system(size: 19, weight: .medium))
@@ -1226,17 +1185,8 @@ struct TaskDetailViewNew: View {
     private func refreshTaskDetails() async {
         // First, sync any pending attachments and comments (if online)
         if NetworkMonitor.shared.isConnected {
-            print("🔄 [TaskDetailViewNew] Pull to refresh - syncing pending items first...")
-
-            // Sync pending attachments first (comments may depend on them)
-            await AttachmentService.shared.syncPendingUploads()
-
-            // Sync pending comments
-            do {
-                try await CommentService.shared.syncPendingComments()
-            } catch {
-                print("⚠️ [TaskDetailViewNew] Failed to sync pending comments: \(error)")
-            }
+            print("🔄 [TaskDetailViewNew] Pull to refresh - draining outbox first...")
+            await OutboxManager.shared.drain()
         }
 
         do {
