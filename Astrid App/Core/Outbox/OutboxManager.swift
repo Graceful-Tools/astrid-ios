@@ -62,6 +62,14 @@ final class OutboxManager {
         await runner.drain()
     }
 
+    /// Local mutations nudge the external sync providers (debounced there) so
+    /// edits push without waiting for foreground/pull-to-refresh.
+    static let didEnqueueMutation = Notification.Name("outboxDidEnqueueMutation")
+
+    private func noteMutation() {
+        NotificationCenter.default.post(name: Self.didEnqueueMutation, object: nil)
+    }
+
     /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
     private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String) {
         guard let data = try? JSONEncoder().encode(payload) else { return }
@@ -73,6 +81,7 @@ final class OutboxManager {
         )
         let runner = self.runner
         _Concurrency.Task { await runner.enqueue(entry) }
+        noteMutation()
     }
 
     /// Enqueue a task creation. No-op unless dual-write is enabled.
@@ -121,6 +130,7 @@ final class OutboxManager {
         let runner = self.runner
         let batch = toEnqueue
         _Concurrency.Task { await runner.enqueueBatch(batch) }
+        noteMutation()
     }
 
     /// Enqueue a task update. No-op unless dual-write is enabled.
@@ -177,5 +187,6 @@ final class OutboxManager {
         let runner = self.runner
         let batch = toEnqueue
         _Concurrency.Task { await runner.enqueueBatch(batch) }
+        noteMutation()
     }
 }

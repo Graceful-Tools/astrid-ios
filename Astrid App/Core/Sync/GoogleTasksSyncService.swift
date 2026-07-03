@@ -48,6 +48,13 @@ final class GoogleTasksSyncService: ObservableObject {
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         })
+        // Local writes nudge a debounced sync pass so pushes don't wait for
+        // foreground/refresh.
+        observers.append(center.addObserver(
+            forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+        })
     }
 
     // MARK: - Connection / links

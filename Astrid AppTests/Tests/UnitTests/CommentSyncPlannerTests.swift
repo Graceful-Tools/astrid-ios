@@ -51,6 +51,32 @@ final class CommentSyncPlannerTests: XCTestCase {
         XCTAssertEqual(CommentSyncPlanner.decodeMapping(""), [:])
     }
 
+    // MARK: - Attachments (red-green: attachment-only comments must push)
+
+    func testPushBody_textOnlyIsVerbatim() {
+        XCTAssertEqual(CommentSyncPlanner.pushBody(content: "hello", attachmentNames: []), "hello")
+    }
+
+    func testPushBody_attachmentOnlyNamesTheFile() {
+        let body = CommentSyncPlanner.pushBody(content: "", attachmentNames: ["photo.jpg"])
+        XCTAssertTrue(body.contains("photo.jpg"))
+        XCTAssertFalse(body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    func testPushBody_textAndAttachmentsCompose() {
+        let body = CommentSyncPlanner.pushBody(content: "see file", attachmentNames: ["a.pdf", "b.png"])
+        XCTAssertTrue(body.contains("see file"))
+        XCTAssertTrue(body.contains("a.pdf"))
+        XCTAssertTrue(body.contains("b.png"))
+    }
+
+    func testPlan_attachmentOnlyCommentPushes_emptyCommentDoesNot() {
+        let attachOnly = Local(id: "c1", content: "", isSystem: false, attachmentNames: ["f.jpg"])
+        let empty = Local(id: "c2", content: "  ", isSystem: false, attachmentNames: [])
+        let plan = CommentSyncPlanner.plan(remote: [], local: [attachOnly, empty], mapping: [:])
+        XCTAssertEqual(plan.pushCreates, [attachOnly])
+    }
+
     func testPulledContent_carriesAttribution() {
         let content = CommentSyncPlanner.pulledContent(author: "jonparis", body: "hello")
         XCTAssertTrue(content.contains("jonparis"))

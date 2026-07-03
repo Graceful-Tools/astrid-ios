@@ -26,6 +26,7 @@ final class GitHubSyncService: ObservableObject {
     private let apiClient = AstridAPIClient.shared
     private var refreshObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
+    private var mutationObserver: NSObjectProtocol?
     private var syncDebounce: _Concurrency.Task<Void, Never>?
 
     private init() {
@@ -37,6 +38,13 @@ final class GitHubSyncService: ObservableObject {
         }
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+        }
+        // Local writes (title/description edits, completions, comments) nudge a
+        // debounced sync pass so pushes don't wait for foreground/refresh.
+        mutationObserver = NotificationCenter.default.addObserver(
+            forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         }
@@ -324,7 +332,9 @@ final class GitHubSyncService: ObservableObject {
             let local = (try? await CommentService.shared.fetchComments(taskId: taskId, useCache: false)) ?? []
             let plan = CommentSyncPlanner.plan(
                 remote: remote.map { .init(id: $0.id, body: $0.body, author: $0.author) },
-                local: local.map { .init(id: $0.id, content: $0.content, isSystem: $0.authorId == nil) },
+                local: local.map { .init(
+                    id: $0.id, content: $0.content, isSystem: $0.authorId == nil,
+                    attachmentNames: ($0.secureFiles ?? []).map { file in file.name }) },
                 mapping: mapping)
 
             // GitHub → Astrid (attributed; resolve the Outbox temp id so the
@@ -344,7 +354,10 @@ final class GitHubSyncService: ObservableObject {
             // Astrid → GitHub
             for localComment in plan.pushCreates {
                 let ghId = try await apiClient.createGitHubIssueComment(
-                    linkId: link.id, remoteId: remoteId, body: localComment.content)
+                    linkId: link.id, remoteId: remoteId,
+                    body: CommentSyncPlanner.pushBody(
+                        content: localComment.content,
+                        attachmentNames: localComment.attachmentNames))
                 mapping[ghId] = localComment.id
             }
         } catch {

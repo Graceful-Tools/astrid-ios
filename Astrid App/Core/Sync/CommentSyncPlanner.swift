@@ -19,6 +19,7 @@ enum CommentSyncPlanner {
         let id: String
         let content: String
         let isSystem: Bool
+        var attachmentNames: [String] = []
     }
 
     static func plan(
@@ -32,6 +33,7 @@ enum CommentSyncPlanner {
             !$0.isSystem
                 && !$0.id.hasPrefix("temp_")   // offline comment — wait for reconcile
                 && !mirroredLocalIds.contains($0.id)
+                && isPushable($0)              // attachment-only OK; truly empty isn't
         }
         return (pullCreates, pushCreates)
     }
@@ -49,6 +51,19 @@ enum CommentSyncPlanner {
             if kv.count == 2 { out[String(kv[0])] = String(kv[1]) }
         }
         return out
+    }
+
+    /// Outbound body: comment text plus a line per attachment (GitHub can't
+    /// host the file — name it so the mirror isn't silently empty).
+    static func pushBody(content: String, attachmentNames: [String]) -> String {
+        let attachmentLines = attachmentNames.map { "📎 \($0) *(attachment in Astrid)*" }
+        let parts = ([content.trimmingCharacters(in: .whitespacesAndNewlines)] + attachmentLines)
+            .filter { !$0.isEmpty }
+        return parts.joined(separator: "\n\n")
+    }
+
+    static func isPushable(_ c: LocalComment) -> Bool {
+        !pushBody(content: c.content, attachmentNames: c.attachmentNames).isEmpty
     }
 
     /// Attribution wrapper for comments mirrored INTO Astrid.
