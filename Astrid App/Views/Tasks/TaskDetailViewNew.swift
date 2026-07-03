@@ -40,9 +40,22 @@ struct TaskDetailViewNew: View {
     @State private var showTimer: Bool = false // New state for timer
     // Comment bar visibility: the bar lives in a bottom safeAreaInset, so it
     // rides up with the keyboard. When the keyboard belongs to ANOTHER input
-    // (subtask field, description editor), the bar must hide.
+    // (subtask field, description editor), the bar collapses (not unmounted —
+    // that would drop the draft and, mid-race, dismiss its own keyboard).
     @State private var keyboardVisible = false
     @State private var commentInputFocused = false
+    @State private var hideCommentBar = false
+
+    /// Decide (slightly debounced) whether the comment bar should collapse:
+    /// keyboard up + focus not on the comment input = some other editor owns
+    /// it. The delay outlasts the keyboardWillShow ↔ focus-report race.
+    private func reevaluateCommentBar(after delay: Double = 0.15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                hideCommentBar = keyboardVisible && !commentInputFocused
+            }
+        }
+    }
     @FocusState private var isTitleFocused: Bool  // Focus state for title field
 
     // Action menu state (moved from TaskActionsView)
@@ -552,13 +565,17 @@ struct TaskDetailViewNew: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.2)) { keyboardVisible = true }
+                keyboardVisible = true
+                reevaluateCommentBar()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.2)) {
-                    keyboardVisible = false
-                    commentInputFocused = false
-                }
+                keyboardVisible = false
+                reevaluateCommentBar(after: 0)
+            }
+            .onChange(of: commentInputFocused) { _, _ in
+                // Covers focus moving directly between fields with the keyboard
+                // staying up (no willShow/willHide fires).
+                reevaluateCommentBar()
             }
             .onChange(of: isCommentFocused) { _, focused in
                 // Scroll to bottom when comment input is focused (like messaging apps)
@@ -589,8 +606,8 @@ struct TaskDetailViewNew: View {
             }
             .safeAreaInset(edge: .bottom) {
                 // Fixed comment input above keyboard (like messaging apps).
-                // Hidden while the keyboard belongs to another input.
-                if !isReadOnly && (!keyboardVisible || commentInputFocused) {
+                // Collapsed (state kept) while another input owns the keyboard.
+                if !isReadOnly {
                     RichTextInput(
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
@@ -601,6 +618,10 @@ struct TaskDetailViewNew: View {
                         onTimerTap: { showTimer = true },
                         focusReport: $commentInputFocused
                     )
+                        .frame(height: hideCommentBar ? 0 : nil)
+                        .clipped()
+                        .opacity(hideCommentBar ? 0 : 1)
+                        .allowsHitTesting(!hideCommentBar)
                         .background(
                             // Extend background to cover home indicator area
                             taskDetailsBackground
