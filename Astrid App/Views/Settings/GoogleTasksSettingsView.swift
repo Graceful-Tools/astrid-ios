@@ -22,9 +22,9 @@ struct GoogleTasksSettingsView: View {
                 if sync.isConnected {
                     HStack {
                         Image(systemName: "checkmark.seal.fill").foregroundColor(.green)
-                        Text(sync.accountEmail.map { "Connected as \($0)" } ?? "Connected")
+                        Text(sync.accountEmail.map { String(format: NSLocalizedString("sync.connected_as", comment: "Connected as X"), $0) } ?? NSLocalizedString("sync.connected", comment: "Connected"))
                         Spacer()
-                        Button("Disconnect", role: .destructive) {
+                        Button(NSLocalizedString("sync.disconnect", comment: "Disconnect"), role: .destructive) {
                             _Concurrency.Task { await sync.disconnect() }
                         }
                         .font(Theme.Typography.caption1())
@@ -35,11 +35,11 @@ struct GoogleTasksSettingsView: View {
                             if let url = await sync.authorizeURL() {
                                 openURL(url)
                             } else {
-                                loadError = "Google Tasks sync isn't configured on the server yet."
+                                loadError = NSLocalizedString("sync.google_not_configured", comment: "Google sync not configured")
                             }
                         }
                     } label: {
-                        Label("Connect Google", systemImage: "link")
+                        Label(NSLocalizedString("sync.connect_google", comment: "Connect Google"), systemImage: "link")
                     }
                     if let loadError {
                         Text(loadError)
@@ -48,30 +48,30 @@ struct GoogleTasksSettingsView: View {
                     }
                 }
             } header: {
-                Text("Account")
+                Text(NSLocalizedString("sync.account", comment: "Account"))
             } footer: {
-                Text("Tasks in linked Google lists mirror to Astrid tasks (and back), including sub tasks. Google due dates are date-only; times stay in Astrid. Your Google token never leaves the server.")
+                Text(NSLocalizedString("sync.google_footer", comment: "Google sync footer"))
             }
 
             if sync.isConnected {
                 Section {
-                    Picker("Mode", selection: Binding(
+                    Picker(NSLocalizedString("sync.mode", comment: "Mode"), selection: Binding(
                         get: { sync.syncMode },
                         set: { mode in
                             _Concurrency.Task { await sync.setSyncMode(mode, suffix: suffixDraft) }
                         }
                     )) {
-                        Text("Linked lists only").tag(GoogleSyncMode.manual)
-                        Text("All Google lists → Astrid").tag(GoogleSyncMode.allGoogleToAstrid)
-                        Text("All Astrid lists → Google").tag(GoogleSyncMode.allAstridToGoogle)
+                        Text(NSLocalizedString("sync.mode_manual", comment: "Linked lists only")).tag(GoogleSyncMode.manual)
+                        Text(NSLocalizedString("sync.mode_google_to_astrid", comment: "All Google lists to Astrid")).tag(GoogleSyncMode.allGoogleToAstrid)
+                        Text(NSLocalizedString("sync.mode_astrid_to_google", comment: "All Astrid lists to Google")).tag(GoogleSyncMode.allAstridToGoogle)
                     }
                     if sync.syncMode == .allGoogleToAstrid {
                         HStack {
-                            TextField("List name suffix, e.g. [GT]", text: $suffixDraft)
+                            TextField(NSLocalizedString("sync.suffix_placeholder", comment: "List name suffix"), text: $suffixDraft)
                                 .font(Theme.Typography.body())
                                 .autocorrectionDisabled()
                             if suffixDraft != sync.listSuffix {
-                                Button("Save") {
+                                Button(NSLocalizedString("actions.save", comment: "Save")) {
                                     _Concurrency.Task { await sync.setSyncMode(sync.syncMode, suffix: suffixDraft) }
                                 }
                                 .font(Theme.Typography.caption1())
@@ -79,19 +79,19 @@ struct GoogleTasksSettingsView: View {
                         }
                     }
                 } header: {
-                    Text("Sync mode")
+                    Text(NSLocalizedString("sync.sync_mode", comment: "Sync mode"))
                 } footer: {
                     switch sync.syncMode {
                     case .manual:
-                        Text("Only the lists you link below stay in sync.")
+                        Text(NSLocalizedString("sync.mode_footer_manual", comment: "Manual mode footer"))
                     case .allGoogleToAstrid:
-                        Text("Every Google Tasks list mirrors into Astrid — new Google lists are picked up automatically and named with the suffix. Existing same-name Astrid lists are adopted, not duplicated.")
+                        Text(NSLocalizedString("sync.mode_footer_google_to_astrid", comment: "Google to Astrid mode footer"))
                     case .allAstridToGoogle:
-                        Text("Every Astrid list mirrors to Google Tasks as a backup — new Astrid lists are picked up automatically.")
+                        Text(NSLocalizedString("sync.mode_footer_astrid_to_google", comment: "Astrid to Google mode footer"))
                     }
                 }
 
-                Section("Linked lists") {
+                Section(NSLocalizedString("sync.linked_lists", comment: "Linked lists")) {
                     ForEach(sync.links) { link in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -102,33 +102,33 @@ struct GoogleTasksSettingsView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Button("Unlink", role: .destructive) {
+                            Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await sync.unlink(link.id) }
                             }
                             .font(Theme.Typography.caption1())
                         }
                     }
                     if sync.links.isEmpty {
-                        Text("No lists linked yet.")
+                        Text(NSLocalizedString("sync.no_lists_linked", comment: "No lists linked yet"))
                             .font(Theme.Typography.caption1())
                             .foregroundColor(.secondary)
                     }
                 }
 
-                Section("Link a list to a Google Tasks list") {
-                    Picker("List", selection: $selectedListId) {
-                        Text("Choose a list").tag(String?.none)
+                Section(NSLocalizedString("sync.link_list_tasklist", comment: "Link a list to a Google Tasks list")) {
+                    Picker(NSLocalizedString("sync.list", comment: "List"), selection: $selectedListId) {
+                        Text(NSLocalizedString("sync.choose_list", comment: "Choose a list")).tag(String?.none)
                         ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.listType != "status" }) { list in
                             Text(list.name).tag(String?.some(list.id))
                         }
                     }
-                    Picker("Google list", selection: $selectedTasklist) {
-                        Text("Choose a Google list").tag(String?.none)
+                    Picker(NSLocalizedString("sync.google_list", comment: "Google list"), selection: $selectedTasklist) {
+                        Text(NSLocalizedString("sync.choose_google_list", comment: "Choose a Google list")).tag(String?.none)
                         ForEach(tasklists) { repo in
                             Text(repo.name).tag(String?.some(repo.id))
                         }
                     }
-                    Button(isLinking ? "Linking…" : "Link") {
+                    Button(isLinking ? NSLocalizedString("sync.linking", comment: "Linking") : NSLocalizedString("sync.link", comment: "Link")) {
                         guard let listId = selectedListId, let repo = selectedTasklist else { return }
                         isLinking = true
                         _Concurrency.Task {
@@ -152,7 +152,7 @@ struct GoogleTasksSettingsView: View {
                     }
                     .disabled(sync.isSyncing || sync.links.isEmpty)
                     if let at = sync.lastSyncedAt {
-                        Text("Last synced \(at.formatted(date: .omitted, time: .shortened))")
+                        Text(String(format: NSLocalizedString("sync.last_synced", comment: "Last synced X"), at.formatted(date: .omitted, time: .shortened)))
                             .font(Theme.Typography.caption2())
                             .foregroundColor(.secondary)
                     }

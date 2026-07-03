@@ -284,14 +284,14 @@ struct ListAdminTab: View {
                                 .font(Theme.Typography.body())
                                 .lineLimit(1)
                             Spacer()
-                            Button("Unlink", role: .destructive) {
+                            Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await githubSync.unlink(link.id) }
                             }
                             .font(Theme.Typography.caption1())
                         }
                     } else {
                         Picker("GitHub Issues", selection: $selectedSyncRepo) {
-                            Text("Not linked").tag(nil as String?)
+                            Text(NSLocalizedString("sync.not_linked", comment: "Not linked")).tag(nil as String?)
                             ForEach(syncRepos) { repo in
                                 Text(repo.name).tag(String?.some(repo.id))
                             }
@@ -305,7 +305,7 @@ struct ListAdminTab: View {
                         }
                     }
                 } else {
-                    Text("Connect GitHub in Settings → GitHub Issues to mirror this list to a repository.")
+                    Text(NSLocalizedString("sync.connect_github_hint", comment: "Connect GitHub hint"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(.secondary)
                 }
@@ -318,14 +318,14 @@ struct ListAdminTab: View {
                                 .font(Theme.Typography.body())
                                 .lineLimit(1)
                             Spacer()
-                            Button("Unlink", role: .destructive) {
+                            Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await googleSync.unlink(link.id) }
                             }
                             .font(Theme.Typography.caption1())
                         }
                     } else {
                         Picker("Google Tasks", selection: $selectedSyncTasklist) {
-                            Text("Not linked").tag(nil as String?)
+                            Text(NSLocalizedString("sync.not_linked", comment: "Not linked")).tag(nil as String?)
                             ForEach(syncTasklists) { tasklist in
                                 Text(tasklist.name).tag(String?.some(tasklist.id))
                             }
@@ -339,14 +339,14 @@ struct ListAdminTab: View {
                         }
                     }
                 } else {
-                    Text("Connect Google in Settings → Google Tasks to mirror this list to a task list.")
+                    Text(NSLocalizedString("sync.connect_google_hint", comment: "Connect Google hint"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(.secondary)
                 }
             } header: {
-                Text("External sync")
+                Text(NSLocalizedString("sync.external_sync", comment: "External sync"))
             } footer: {
-                Text("Issues or tasks in the linked service mirror into this list and back, synced through your connected account.")
+                Text(NSLocalizedString("sync.external_footer", comment: "External sync footer"))
             }
 
             // Project status board

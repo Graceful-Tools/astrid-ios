@@ -20,9 +20,9 @@ struct GitHubSyncSettingsView: View {
                 if sync.isConnected {
                     HStack {
                         Image(systemName: "checkmark.seal.fill").foregroundColor(.green)
-                        Text(sync.accountLogin.map { "Connected as \($0)" } ?? "Connected")
+                        Text(sync.accountLogin.map { String(format: NSLocalizedString("sync.connected_as", comment: "Connected as X"), $0) } ?? NSLocalizedString("sync.connected", comment: "Connected"))
                         Spacer()
-                        Button("Disconnect", role: .destructive) {
+                        Button(NSLocalizedString("sync.disconnect", comment: "Disconnect"), role: .destructive) {
                             _Concurrency.Task { await sync.disconnect() }
                         }
                         .font(Theme.Typography.caption1())
@@ -33,11 +33,11 @@ struct GitHubSyncSettingsView: View {
                             if let url = await sync.authorizeURL() {
                                 openURL(url)
                             } else {
-                                loadError = "GitHub sync isn't configured on the server yet."
+                                loadError = NSLocalizedString("sync.github_not_configured", comment: "GitHub sync not configured")
                             }
                         }
                     } label: {
-                        Label("Connect GitHub", systemImage: "link")
+                        Label(NSLocalizedString("sync.connect_github", comment: "Connect GitHub"), systemImage: "link")
                     }
                     if let loadError {
                         Text(loadError)
@@ -46,13 +46,13 @@ struct GitHubSyncSettingsView: View {
                     }
                 }
             } header: {
-                Text("Account")
+                Text(NSLocalizedString("sync.account", comment: "Account"))
             } footer: {
-                Text("Issues in linked repos mirror to tasks (and back). Astrid stays the source of truth; your GitHub token never leaves the server.")
+                Text(NSLocalizedString("sync.github_footer", comment: "GitHub sync footer"))
             }
 
             if sync.isConnected {
-                Section("Linked lists") {
+                Section(NSLocalizedString("sync.linked_lists", comment: "Linked lists")) {
                     ForEach(sync.links) { link in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -63,33 +63,33 @@ struct GitHubSyncSettingsView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Button("Unlink", role: .destructive) {
+                            Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await sync.unlink(link.id) }
                             }
                             .font(Theme.Typography.caption1())
                         }
                     }
                     if sync.links.isEmpty {
-                        Text("No lists linked yet.")
+                        Text(NSLocalizedString("sync.no_lists_linked", comment: "No lists linked yet"))
                             .font(Theme.Typography.caption1())
                             .foregroundColor(.secondary)
                     }
                 }
 
-                Section("Link a list to a repo") {
-                    Picker("List", selection: $selectedListId) {
-                        Text("Choose a list").tag(String?.none)
+                Section(NSLocalizedString("sync.link_list_repo", comment: "Link a list to a repo")) {
+                    Picker(NSLocalizedString("sync.list", comment: "List"), selection: $selectedListId) {
+                        Text(NSLocalizedString("sync.choose_list", comment: "Choose a list")).tag(String?.none)
                         ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.listType != "status" }) { list in
                             Text(list.name).tag(String?.some(list.id))
                         }
                     }
-                    Picker("Repository", selection: $selectedRepo) {
-                        Text("Choose a repo").tag(String?.none)
+                    Picker(NSLocalizedString("sync.repository", comment: "Repository"), selection: $selectedRepo) {
+                        Text(NSLocalizedString("sync.choose_repo", comment: "Choose a repo")).tag(String?.none)
                         ForEach(repos) { repo in
                             Text(repo.name).tag(String?.some(repo.id))
                         }
                     }
-                    Button(isLinking ? "Linking…" : "Link") {
+                    Button(isLinking ? NSLocalizedString("sync.linking", comment: "Linking") : NSLocalizedString("sync.link", comment: "Link")) {
                         guard let listId = selectedListId, let repo = selectedRepo else { return }
                         isLinking = true
                         _Concurrency.Task {
@@ -107,13 +107,13 @@ struct GitHubSyncSettingsView: View {
                         _Concurrency.Task { await sync.syncAll() }
                     } label: {
                         HStack {
-                            Label("Sync now", systemImage: "arrow.triangle.2.circlepath")
+                            Label(NSLocalizedString("sync.sync_now", comment: "Sync now"), systemImage: "arrow.triangle.2.circlepath")
                             if sync.isSyncing { Spacer(); ProgressView() }
                         }
                     }
                     .disabled(sync.isSyncing || sync.links.isEmpty)
                     if let at = sync.lastSyncedAt {
-                        Text("Last synced \(at.formatted(date: .omitted, time: .shortened))")
+                        Text(String(format: NSLocalizedString("sync.last_synced", comment: "Last synced X"), at.formatted(date: .omitted, time: .shortened)))
                             .font(Theme.Typography.caption2())
                             .foregroundColor(.secondary)
                     }
