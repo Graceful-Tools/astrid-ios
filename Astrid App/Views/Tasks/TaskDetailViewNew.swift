@@ -564,6 +564,15 @@ struct TaskDetailViewNew: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .onReceive(NotificationCenter.default.publisher(for: .astridTaskDeleted)) { notification in
+                // The open task was deleted (locally or by external sync) —
+                // close the pane instead of showing a dead task.
+                let ids = [notification.userInfo?["taskId"] as? String,
+                           notification.userInfo?["resolvedTaskId"] as? String].compactMap { $0 }
+                if ids.contains(task.id) {
+                    if let onClose { onClose() } else { dismiss() }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                 keyboardVisible = true
                 reevaluateCommentBar()

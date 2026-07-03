@@ -718,6 +718,12 @@ class TaskService: ObservableObject {
     }
 
     func deleteTask(id: String, task: Task? = nil) async throws {
+        // Any open detail view for this task must close (deletes can also
+        // arrive from external sync, not just the view's own delete button).
+        NotificationCenter.default.post(
+            name: .astridTaskDeleted, object: nil,
+            userInfo: ["taskId": id, "resolvedTaskId": tempTaskIdMapping[id] ?? id])
+
         // Capture external sync links BEFORE the delete: the server cascades
         // ExternalTaskLink rows away with the task, so providers must record
         // the remote twin now (delete/close it next pass, tombstone forever).
@@ -1306,4 +1312,9 @@ class TaskService: ObservableObject {
             return listId
         }
     }
+}
+
+extension Notification.Name {
+    /// Posted by TaskService.deleteTask so open detail views can close.
+    static let astridTaskDeleted = Notification.Name("astridTaskDeleted")
 }
