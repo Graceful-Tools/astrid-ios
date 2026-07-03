@@ -20,6 +20,7 @@ struct RichTextInput: View {
     // Callbacks
     var onSend: ((_ content: String, _ type: Comment.CommentType, _ fileId: String?) -> Void)?
     var onTimerTap: (() -> Void)? = nil    // Task detail only: timer in the send slot while input is empty
+    var focusReport: Binding<Bool>? = nil  // Reports the text field's focus to the host view
 
     // Text state (can be bound externally or managed internally)
     @State private var text = ""
@@ -175,6 +176,9 @@ struct RichTextInput: View {
         .background {
             RoundedRectangle(cornerRadius: Theme.radiusLarge)
                 .fill(containerBackgroundColor)
+        }
+        .onChange(of: isFocused) { _, focused in
+            focusReport?.wrappedValue = focused
         }
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: -2)
         .overlay(alignment: .topLeading) {

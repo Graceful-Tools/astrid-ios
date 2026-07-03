@@ -38,6 +38,11 @@ struct TaskDetailViewNew: View {
     @State private var showingCompleteSubtasksPrompt = false
     @State private var isAllDay: Bool  // Track all-day state independently
     @State private var showTimer: Bool = false // New state for timer
+    // Comment bar visibility: the bar lives in a bottom safeAreaInset, so it
+    // rides up with the keyboard. When the keyboard belongs to ANOTHER input
+    // (subtask field, description editor), the bar must hide.
+    @State private var keyboardVisible = false
+    @State private var commentInputFocused = false
     @FocusState private var isTitleFocused: Bool  // Focus state for title field
 
     // Action menu state (moved from TaskActionsView)
@@ -546,6 +551,15 @@ struct TaskDetailViewNew: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                withAnimation(.easeOut(duration: 0.2)) { keyboardVisible = true }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                withAnimation(.easeOut(duration: 0.2)) {
+                    keyboardVisible = false
+                    commentInputFocused = false
+                }
+            }
             .onChange(of: isCommentFocused) { _, focused in
                 // Scroll to bottom when comment input is focused (like messaging apps)
                 if focused {
@@ -574,8 +588,9 @@ struct TaskDetailViewNew: View {
                 await refreshTaskDetails()
             }
             .safeAreaInset(edge: .bottom) {
-                // Fixed comment input above keyboard (like messaging apps)
-                if !isReadOnly {
+                // Fixed comment input above keyboard (like messaging apps).
+                // Hidden while the keyboard belongs to another input.
+                if !isReadOnly && (!keyboardVisible || commentInputFocused) {
                     RichTextInput(
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
@@ -583,7 +598,8 @@ struct TaskDetailViewNew: View {
                         onSend: { content, type, fileId in
                             _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileId: fileId) }
                         },
-                        onTimerTap: { showTimer = true }
+                        onTimerTap: { showTimer = true },
+                        focusReport: $commentInputFocused
                     )
                         .background(
                             // Extend background to cover home indicator area
