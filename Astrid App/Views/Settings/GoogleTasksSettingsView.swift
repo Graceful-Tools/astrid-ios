@@ -12,6 +12,8 @@ struct GoogleTasksSettingsView: View {
     @State private var selectedListId: String?
     @State private var selectedTasklist: String?
     @State private var isLinking = false
+    @State private var suffixDraft = ""
+
     @State private var loadError: String?
 
     var body: some View {
@@ -52,6 +54,43 @@ struct GoogleTasksSettingsView: View {
             }
 
             if sync.isConnected {
+                Section {
+                    Picker("Mode", selection: Binding(
+                        get: { sync.syncMode },
+                        set: { mode in
+                            _Concurrency.Task { await sync.setSyncMode(mode, suffix: suffixDraft) }
+                        }
+                    )) {
+                        Text("Linked lists only").tag(GoogleSyncMode.manual)
+                        Text("All Google lists → Astrid").tag(GoogleSyncMode.allGoogleToAstrid)
+                        Text("All Astrid lists → Google").tag(GoogleSyncMode.allAstridToGoogle)
+                    }
+                    if sync.syncMode == .allGoogleToAstrid {
+                        HStack {
+                            TextField("List name suffix, e.g. [GT]", text: $suffixDraft)
+                                .font(Theme.Typography.body())
+                                .autocorrectionDisabled()
+                            if suffixDraft != sync.listSuffix {
+                                Button("Save") {
+                                    _Concurrency.Task { await sync.setSyncMode(sync.syncMode, suffix: suffixDraft) }
+                                }
+                                .font(Theme.Typography.caption1())
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Sync mode")
+                } footer: {
+                    switch sync.syncMode {
+                    case .manual:
+                        Text("Only the lists you link below stay in sync.")
+                    case .allGoogleToAstrid:
+                        Text("Every Google Tasks list mirrors into Astrid — new Google lists are picked up automatically and named with the suffix. Existing same-name Astrid lists are adopted, not duplicated.")
+                    case .allAstridToGoogle:
+                        Text("Every Astrid list mirrors to Google Tasks as a backup — new Astrid lists are picked up automatically.")
+                    }
+                }
+
                 Section("Linked lists") {
                     ForEach(sync.links) { link in
                         HStack {
@@ -128,6 +167,7 @@ struct GoogleTasksSettingsView: View {
         .navigationTitle("Google Tasks")
         .task {
             await sync.refreshStatus()
+            suffixDraft = sync.listSuffix
             if sync.isConnected {
                 tasklists = (try? await AstridAPIClient.shared.getGoogleTasklists().tasklists) ?? []
             }

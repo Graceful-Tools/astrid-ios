@@ -17,6 +17,9 @@ final class GoogleTasksSyncService: ObservableObject {
     @Published var isSyncing = false
     @Published var lastSyncedAt: Date?
     @Published var lastError: String?
+    @Published var syncMode: GoogleSyncMode = .manual
+    @Published var listSuffix: String = ""
+
 
     private let apiClient = AstridAPIClient.shared
     private var observers: [NSObjectProtocol] = []
@@ -52,6 +55,8 @@ final class GoogleTasksSyncService: ObservableObject {
             let google = integrations.first { $0.provider == "GOOGLE_TASKS" }
             isConnected = google != nil
             accountEmail = google?.externalAccountId
+            syncMode = google?.metadata?.googleSyncMode.flatMap(GoogleSyncMode.init(rawValue:)) ?? .manual
+            listSuffix = google?.metadata?.listSuffix ?? ""
             links = isConnected ? try await apiClient.getGoogleLinks().links : []
         } catch {
             isConnected = false
@@ -79,10 +84,23 @@ final class GoogleTasksSyncService: ObservableObject {
         await refreshStatus()
     }
 
+    /// Persist the sync mode + suffix server-side (Integration.metadata) so the
+    /// choice follows the account across devices, then sync (auto-link runs at
+    /// the start of the pass).
+    func setSyncMode(_ mode: GoogleSyncMode, suffix: String) async {
+        syncMode = mode
+        listSuffix = suffix
+        try? await apiClient.updateIntegrationMetadata(
+            provider: "GOOGLE_TASKS",
+            metadata: ["googleSyncMode": mode.rawValue, "listSuffix": suffix])
+        scheduleSync()
+    }
+
     // MARK: - Sync
 
     func scheduleSync() {
-        guard isConnected, !links.isEmpty, !isSyncing else { return }
+        guard isConnected, !isSyncing else { return }
+        guard !links.isEmpty || syncMode != .manual else { return }
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
             try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
@@ -96,6 +114,7 @@ final class GoogleTasksSyncService: ObservableObject {
         isSyncing = true
         lastError = nil
         defer { isSyncing = false }
+        await autoLinkIfNeeded()
         for link in links {
             do {
                 try await sync(link: link)
@@ -104,6 +123,64 @@ final class GoogleTasksSyncService: ObservableObject {
             }
         }
         lastSyncedAt = Date()
+    }
+
+    /// Auto-link phase for the all-lists modes: create/adopt counterparts for
+    /// anything unlinked, so new lists on either side flow in without manual
+    /// linking. No-op in manual mode.
+    private func autoLinkIfNeeded() async {
+        guard syncMode != .manual else { return }
+        guard let tasklists = try? await apiClient.getGoogleTasklists().tasklists else { return }
+        let linkedTasklistIds = Set(links.map(\.remoteContainerId))
+        let linkedListIds = Set(links.map(\.astridListId))
+        let realLists = ListService.shared.lists
+            .filter { !($0.isVirtual ?? false) && $0.listType != "status" && !$0.id.hasPrefix("temp_") }
+        var didLink = false
+
+        switch syncMode {
+        case .manual:
+            return
+        case .allGoogleToAstrid:
+            let actions = GoogleAutoLink.googleToAstridActions(
+                tasklists: tasklists.map { .init(id: $0.id, name: $0.name) },
+                linkedTasklistIds: linkedTasklistIds,
+                unlinkedLists: realLists.filter { !linkedListIds.contains($0.id) }
+                    .map { .init(id: $0.id, name: $0.name) },
+                suffix: listSuffix)
+            for action in actions {
+                let listId: String
+                if let adopt = action.adoptListId {
+                    listId = adopt
+                } else {
+                    guard let created = try? await ListService.shared.createList(name: action.newListName),
+                          !created.id.hasPrefix("temp_") else { continue }
+                    listId = created.id
+                }
+                _ = try? await apiClient.createGoogleLink(astridListId: listId, tasklistId: action.tasklistId)
+                didLink = true
+            }
+        case .allAstridToGoogle:
+            let actions = GoogleAutoLink.astridToGoogleActions(
+                lists: realLists.map { .init(id: $0.id, name: $0.name) },
+                linkedListIds: linkedListIds,
+                unlinkedTasklists: tasklists.filter { !linkedTasklistIds.contains($0.id) }
+                    .map { .init(id: $0.id, name: $0.name) })
+            for action in actions {
+                let tasklistId: String
+                if let adopt = action.adoptTasklistId {
+                    tasklistId = adopt
+                } else {
+                    guard let created = try? await apiClient.createGoogleTasklist(title: action.newTasklistName) else { continue }
+                    tasklistId = created.id
+                }
+                _ = try? await apiClient.createGoogleLink(astridListId: action.listId, tasklistId: tasklistId)
+                didLink = true
+            }
+        }
+
+        if didLink {
+            links = (try? await apiClient.getGoogleLinks().links) ?? links
+        }
     }
 
     private func sync(link: ExternalListLinkDTO) async throws {

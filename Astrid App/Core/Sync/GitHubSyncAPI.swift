@@ -5,6 +5,14 @@ import Foundation
 struct SyncIntegrationDTO: Codable {
     let provider: String
     let externalAccountId: String?
+    let metadata: Metadata?
+
+    /// Known per-provider settings stored server-side (cross-device); unknown
+    /// keys in the JSON are ignored.
+    struct Metadata: Codable {
+        let googleSyncMode: String?
+        let listSuffix: String?
+    }
 }
 
 struct SyncIntegrationsResponse: Codable {
@@ -105,6 +113,16 @@ private struct SyncSuccessResponse: Codable { let success: Bool? }
 extension AstridAPIClient {
     func getSyncIntegrations() async throws -> SyncIntegrationsResponse {
         try await request(method: "GET", path: "/api/v1/integrations")
+    }
+
+    /// Merge per-provider sync settings into Integration.metadata (server-side,
+    /// so they follow the account across devices).
+    func updateIntegrationMetadata(provider: String, metadata: [String: String]) async throws {
+        struct Body: Codable { let provider: String; let metadata: [String: String] }
+        struct Success: Codable { let success: Bool? }
+        let _: Success = try await request(
+            method: "PATCH", path: "/api/v1/integrations",
+            body: Body(provider: provider, metadata: metadata))
     }
 
     func getGitHubAuthorizeURL() async throws -> GitHubAuthorizeResponse {

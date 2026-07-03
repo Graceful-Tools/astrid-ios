@@ -61,6 +61,14 @@ extension AstridAPIClient {
         try await request(method: "GET", path: "/api/v1/sync/google/tasklists")
     }
 
+    func createGoogleTasklist(title: String) async throws -> GoogleTasklistDTO {
+        struct Body: Codable { let title: String }
+        struct Envelope: Codable { let tasklist: GoogleTasklistDTO }
+        let envelope: Envelope = try await request(
+            method: "POST", path: "/api/v1/sync/google/tasklists", body: Body(title: title))
+        return envelope.tasklist
+    }
+
     func getGoogleLinks(listId: String? = nil) async throws -> GitHubLinksResponse {
         try await request(method: "GET", path: "/api/v1/sync/google/links",
                           queryItems: listId.map { [URLQueryItem(name: "listId", value: $0)] })
