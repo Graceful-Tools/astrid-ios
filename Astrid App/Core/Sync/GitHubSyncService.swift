@@ -190,7 +190,9 @@ final class GitHubSyncService: ObservableObject {
                 && !$0.id.hasPrefix("temp_")         // wait for the Outbox to sync the create
         }
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
+        var pushErrors = 0
         for task in listTasks {
+          do {
             if let existing = byTaskId[task.id] {
                 // Push only if the local task changed since our last recorded push.
                 guard SyncSuppression.shouldPushLocal(
@@ -258,6 +260,15 @@ final class GitHubSyncService: ObservableObject {
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
             }
+          } catch {
+            // One task's push failing (e.g. its issue was deleted remotely)
+            // must not abort the rest of the pass.
+            pushErrors += 1
+            print("⚠️ [GitHubSync] push failed for \(task.id): \(error)")
+          }
+        }
+        if pushErrors > 0 {
+            lastError = "\(link.remoteContainerId): \(pushErrors) task(s) failed to push"
         }
     }
 }

@@ -648,6 +648,10 @@ struct TaskListView: View {
             } catch {
                 // Errors on refresh are less critical, don't show to user
             }
+            // Pull-to-refresh also nudges the external sync providers
+            // (debounced no-ops when not connected / nothing linked).
+            GitHubSyncService.shared.scheduleSync()
+            GoogleTasksSyncService.shared.scheduleSync()
         })
         .onChange(of: isViewingFromFeatured) { _, newValue in
             if newValue, let listId = selectedListId {
@@ -1419,6 +1423,8 @@ struct TaskListView: View {
         }
         .refreshable {
             try? await loadData()
+            GitHubSyncService.shared.scheduleSync()
+            GoogleTasksSyncService.shared.scheduleSync()
         }
     }
 

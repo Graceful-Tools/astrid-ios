@@ -278,7 +278,9 @@ final class GoogleTasksSyncService: ObservableObject {
             .filter { ($0.listIds ?? []).contains(link.astridListId) && !$0.id.hasPrefix("temp_") }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GoogleTaskItemDTO]?  // lazy, one cursor-free fetch per pass
+        var pushErrors = 0
         for task in listTasks {
+          do {
             let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0) }
             if let existing = byTaskId[task.id] {
                 guard SyncSuppression.shouldPushLocal(
@@ -351,6 +353,15 @@ final class GoogleTasksSyncService: ObservableObject {
                 byTaskId[task.id] = dto
                 byRemoteId[response.remoteId] = dto
             }
+          } catch {
+            // One task's push failing (e.g. its remote task was deleted)
+            // must not abort the rest of the pass.
+            pushErrors += 1
+            print("⚠️ [GoogleSync] push failed for \(task.id): \(error)")
+          }
+        }
+        if pushErrors > 0 {
+            lastError = "\(link.remoteContainerName ?? link.remoteContainerId): \(pushErrors) task(s) failed to push"
         }
     }
 }
