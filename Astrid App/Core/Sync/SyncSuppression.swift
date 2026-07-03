@@ -49,3 +49,35 @@ enum GoogleDueMapping {
         return remoteDue
     }
 }
+
+/// Orders pulled remote items so parents are processed before their children —
+/// a child created in the same pass can then resolve its parent's fresh link.
+/// Kahn-style: repeatedly emit items whose parent isn't among the remaining
+/// items; anything cyclic/unresolvable is appended at the end (created
+/// top-level rather than dropped).
+enum SyncPullOrdering {
+    static func parentsFirst<T>(
+        _ items: [T],
+        id: (T) -> String,
+        parentId: (T) -> String?
+    ) -> [T] {
+        var remaining = items
+        var remainingIds = Set(items.map(id))
+        var ordered: [T] = []
+        while !remaining.isEmpty {
+            let ready = remaining.filter { item in
+                guard let parent = parentId(item), !parent.isEmpty else { return true }
+                return !remainingIds.contains(parent)
+            }
+            if ready.isEmpty {
+                ordered.append(contentsOf: remaining)  // cycle — emit as-is
+                break
+            }
+            ordered.append(contentsOf: ready)
+            let readyIds = Set(ready.map(id))
+            remaining.removeAll { readyIds.contains(id($0)) }
+            remainingIds.subtract(readyIds)
+        }
+        return ordered
+    }
+}

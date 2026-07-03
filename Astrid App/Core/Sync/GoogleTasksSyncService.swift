@@ -225,7 +225,15 @@ final class GoogleTasksSyncService: ObservableObject {
         // ── PULL ────────────────────────────────────────────────────────────
         let pulled = try await apiClient.pullGoogleTasks(linkId: link.id)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
-        for item in pulled.items {
+        // Parents before children so a subtask created in the same pass can
+        // resolve its parent's fresh link.
+        let orderedItems = SyncPullOrdering.parentsFirst(
+            pulled.items,
+            id: { $0.remoteId },
+            parentId: { item in
+                (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(link.remoteContainerId):\($0)" }
+            })
+        for item in orderedItems {
             if item.metadata?["deleted"] == "1" { continue }  // v1: don't mirror deletions
             let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
             let dueDate = item.dueDate.flatMap { Self.dueFormatter.date(from: $0) }

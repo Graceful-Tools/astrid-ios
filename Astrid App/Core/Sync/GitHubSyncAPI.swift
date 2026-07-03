@@ -60,6 +60,17 @@ struct GitHubIssueItemDTO: Codable, Equatable {
     let metadata: [String: String]?
 }
 
+struct GitHubCommentDTO: Codable, Equatable {
+    let id: String
+    let body: String
+    let author: String
+    let createdAt: String
+}
+
+struct GitHubCommentsResponse: Codable {
+    let comments: [GitHubCommentDTO]
+}
+
 struct GitHubIssuesPullResponse: Codable {
     let items: [GitHubIssueItemDTO]
     let cursor: String?
@@ -94,8 +105,9 @@ struct GitHubIssuePushRequest: Codable {
     let linkId: String
     let title: String?
     let body: String?
-    let state: String?      // "open" | "closed"
-    let remoteId: String?   // nil = create
+    let state: String?              // "open" | "closed"
+    let remoteId: String?           // nil = create
+    var parentRemoteId: String? = nil  // create as a sub-issue of this issue
 }
 
 struct ExternalTaskLinkUpsertRequest: Codable {
@@ -164,6 +176,21 @@ extension AstridAPIClient {
 
     func pushGitHubIssue(_ body: GitHubIssuePushRequest) async throws -> GitHubIssuePushResponse {
         try await request(method: "POST", path: "/api/v1/sync/github/issues", body: body)
+    }
+
+    func getGitHubIssueComments(linkId: String, remoteId: String) async throws -> GitHubCommentsResponse {
+        try await request(method: "GET", path: "/api/v1/sync/github/comments",
+                          queryItems: [URLQueryItem(name: "linkId", value: linkId),
+                                       URLQueryItem(name: "remoteId", value: remoteId)])
+    }
+
+    func createGitHubIssueComment(linkId: String, remoteId: String, body: String) async throws -> String {
+        struct Body: Codable { let linkId: String; let remoteId: String; let body: String }
+        struct Response: Codable { let id: String }
+        let response: Response = try await request(
+            method: "POST", path: "/api/v1/sync/github/comments",
+            body: Body(linkId: linkId, remoteId: remoteId, body: body))
+        return response.id
     }
 
     func getGitHubTaskLinks(listId: String) async throws -> GitHubTaskLinksResponse {

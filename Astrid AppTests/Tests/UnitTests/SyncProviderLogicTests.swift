@@ -99,6 +99,40 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertEqual(GoogleDueMapping.formatter.date(from: s), utcMidnight)
     }
 
+    // MARK: - Pull ordering (parents before children)
+
+    private struct Item { let id: String; let parent: String? }
+
+    private func order(_ items: [Item]) -> [String] {
+        SyncPullOrdering.parentsFirst(items, id: \.id, parentId: \.parent).map(\.id)
+    }
+
+    func testOrdering_parentBeforeChild_regardlessOfInputOrder() {
+        let ordered = order([Item(id: "child", parent: "parent"), Item(id: "parent", parent: nil)])
+        XCTAssertEqual(ordered, ["parent", "child"])
+    }
+
+    func testOrdering_threeLevels() {
+        let ordered = order([
+            Item(id: "grandchild", parent: "child"),
+            Item(id: "child", parent: "parent"),
+            Item(id: "parent", parent: nil),
+        ])
+        XCTAssertEqual(ordered, ["parent", "child", "grandchild"])
+    }
+
+    func testOrdering_parentOutsideWindowTreatedAsReady() {
+        // The parent isn't in this pull (already linked earlier) — the child
+        // must not be starved waiting for it.
+        let ordered = order([Item(id: "child", parent: "already-linked-elsewhere")])
+        XCTAssertEqual(ordered, ["child"])
+    }
+
+    func testOrdering_cycleEmitsEverything() {
+        let ordered = order([Item(id: "a", parent: "b"), Item(id: "b", parent: "a")])
+        XCTAssertEqual(Set(ordered), ["a", "b"])
+    }
+
     func testDue_pushAndAdoptRoundTripIsStable() {
         // Push a local all-day due to Google, parse it back, and re-adopt:
         // must be a no-op (the loop-avoidance property for Google's due field).

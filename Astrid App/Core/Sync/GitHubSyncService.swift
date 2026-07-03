@@ -116,7 +116,15 @@ final class GitHubSyncService: ObservableObject {
         let pulled = try await apiClient.pullGitHubIssues(linkId: link.id)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
-        for item in pulled.items {
+        // Parents before children so a sub-issue created in the same pass can
+        // resolve its parent's fresh link. metadata.parent = parent issue number.
+        let orderedItems = SyncPullOrdering.parentsFirst(
+            pulled.items,
+            id: { $0.remoteId },
+            parentId: { item in
+                (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(link.remoteContainerId)#\($0)" }
+            })
+        for item in orderedItems {
             let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
             if let existing = byRemoteId[item.remoteId] {
                 // Echo/staleness guard: only apply if remote is newer than the
@@ -149,13 +157,21 @@ final class GitHubSyncService: ObservableObject {
                         && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
                         && $0.title == item.title
                 }
+                // Sub-issue → Astrid subtask: resolve the parent issue's task
+                // via the link map (parents ordered first, so same-pass parents
+                // are already there).
+                var parentTaskId: String?
+                if let parentNumber = item.metadata?["parent"], !parentNumber.isEmpty {
+                    parentTaskId = byRemoteId["\(link.remoteContainerId)#\(parentNumber)"]?.astridTaskId
+                }
                 let newTask: Task
                 if let adopted {
                     newTask = adopted
                 } else {
                     newTask = try await taskService.createTask(
                         listIds: [link.astridListId], title: item.title,
-                        description: item.notes, source: .github)
+                        description: item.notes,
+                        parentTaskId: parentTaskId, source: .github)
                 }
                 if item.completed, !newTask.completed {
                     _ = try? await taskService.completeTask(
@@ -184,11 +200,14 @@ final class GitHubSyncService: ObservableObject {
 
         // ── PUSH: local tasks in the linked list not yet mirrored, or edited
         //          since the last push ─────────────────────────────────────
-        let listTasks = taskService.tasks.filter {
-            ($0.listIds ?? []).contains(link.astridListId)
-                && $0.parentTaskId == nil            // subtasks are lossy on GitHub — v1 skips
-                && !$0.id.hasPrefix("temp_")         // wait for the Outbox to sync the create
-        }
+        // Parents before children so a subtask's parentRemoteId resolves
+        // within one pass (sub-issues sync as real GitHub sub-issues).
+        let listTasks = taskService.tasks
+            .filter {
+                ($0.listIds ?? []).contains(link.astridListId)
+                    && !$0.id.hasPrefix("temp_")     // wait for the Outbox to sync the create
+            }
+            .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
         var pushErrors = 0
         for task in listTasks {
@@ -248,7 +267,8 @@ final class GitHubSyncService: ObservableObject {
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,
-                    state: nil, remoteId: nil))
+                    state: nil, remoteId: nil,
+                    parentRemoteId: task.parentTaskId.flatMap { byTaskId[$0]?.remoteId }))
                 if task.completed {
                     _ = try? await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                         linkId: link.id, title: nil, body: nil,
@@ -269,6 +289,74 @@ final class GitHubSyncService: ObservableObject {
         }
         if pushErrors > 0 {
             lastError = "\(link.remoteContainerId): \(pushErrors) task(s) failed to push"
+        }
+
+        // ── COMMENTS: two-way per linked task ──────────────────────────────
+        // Original taskLinks carry the persisted commentMap (fresh pull upserts
+        // send issue metadata; the server merges, but local DTO copies don't).
+        let commentMaps = Dictionary(
+            (try? await apiClient.getGitHubTaskLinks(listId: link.astridListId).links.map {
+                ($0.remoteId, CommentSyncPlanner.decodeMapping($0.metadata?["commentMap"]))
+            }) ?? [], uniquingKeysWith: { a, _ in a })
+        for (remoteId, dto) in byRemoteId {
+            let mapping = commentMaps[remoteId] ?? [:]
+            let remoteCommentCount = Int(pulledByRemoteId[remoteId]?.metadata?["commentCount"] ?? "") ?? 0
+            let localComments = CommentService.shared.cachedComments[dto.astridTaskId] ?? []
+            let hasUnmappedLocal = localComments.contains {
+                $0.authorId != nil && !$0.id.hasPrefix("temp_") && !Set(mapping.values).contains($0.id)
+            }
+            // Only touch the comments API when something could have changed.
+            guard remoteCommentCount > mapping.count || hasUnmappedLocal else { continue }
+            await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, mapping: mapping)
+        }
+    }
+
+    /// Two-way comment sync for one linked task. Planning is pure
+    /// (CommentSyncPlanner, red-green tested); the mapping persists in the task
+    /// link's metadata (server merges, so other keys survive).
+    private func syncComments(
+        taskId: String, remoteId: String,
+        link: ExternalListLinkDTO, mapping initial: [String: String]
+    ) async {
+        var mapping = initial
+        do {
+            let remote = try await apiClient.getGitHubIssueComments(linkId: link.id, remoteId: remoteId).comments
+            let local = (try? await CommentService.shared.fetchComments(taskId: taskId, useCache: false)) ?? []
+            let plan = CommentSyncPlanner.plan(
+                remote: remote.map { .init(id: $0.id, body: $0.body, author: $0.author) },
+                local: local.map { .init(id: $0.id, content: $0.content, isSystem: $0.authorId == nil) },
+                mapping: mapping)
+
+            // GitHub → Astrid (attributed; resolve the Outbox temp id so the
+            // mapping survives — a temp id in the map would push back later).
+            for remoteComment in plan.pullCreates {
+                let created = try await CommentService.shared.createComment(
+                    taskId: taskId,
+                    content: CommentSyncPlanner.pulledContent(author: remoteComment.author, body: remoteComment.body),
+                    type: .MARKDOWN,
+                    authorId: AuthManager.shared.userId)
+                await OutboxManager.shared.drain()
+                let realId = CommentService.shared.mappedRealCommentId(for: created.id) ?? created.id
+                guard !realId.hasPrefix("temp_") else { continue }
+                mapping[remoteComment.id] = realId
+            }
+
+            // Astrid → GitHub
+            for localComment in plan.pushCreates {
+                let ghId = try await apiClient.createGitHubIssueComment(
+                    linkId: link.id, remoteId: remoteId, body: localComment.content)
+                mapping[ghId] = localComment.id
+            }
+        } catch {
+            lastError = "Comment sync failed: \(error.localizedDescription)"
+        }
+
+        if mapping != initial {
+            try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                astridTaskId: taskId, remoteId: remoteId,
+                remoteContainerId: link.remoteContainerId,
+                astridUpdatedAt: nil, remoteUpdatedAt: nil,
+                metadata: ["commentMap": CommentSyncPlanner.encodeMapping(mapping)]))
         }
     }
 }
