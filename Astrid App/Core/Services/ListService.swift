@@ -508,11 +508,25 @@ class ListService: ObservableObject {
         lists.removeAll { $0.id == listId }
         print("⚡️ [ListService] Optimistically deleted list: \(deletedList.name)")
 
+        // Capture a Google sync link BEFORE the delete (the server cascades it
+        // away) so the all-lists auto-link can record the opt-out.
+        let googleLink = GoogleTasksSyncService.shared.links.first { $0.astridListId == listId }
+
         // Make server call in background
         do {
             try await apiClient.deleteList(id: listId)
             print("✅ [ListService] Server confirmed list deletion: \(listId)")
 
+            // Remove from CoreData so the list doesn't resurrect from the
+            // offline cache on next launch.
+            try? await deleteListFromCoreData(listId)
+
+            // If this list mirrored a Google tasklist, remember the opt-out so
+            // the all-lists sync mode doesn't immediately re-create it.
+            if let googleLink {
+                await GoogleTasksSyncService.shared.noteMirroredListDeleted(tasklistId: googleLink.remoteContainerId)
+                await GoogleTasksSyncService.shared.refreshStatus()
+            }
         } catch {
             // ROLLBACK: Restore list on error
             cachedLists[listId] = deletedList

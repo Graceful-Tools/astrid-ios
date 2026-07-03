@@ -19,6 +19,9 @@ final class GoogleTasksSyncService: ObservableObject {
     @Published var lastError: String?
     @Published var syncMode: GoogleSyncMode = .manual
     @Published var listSuffix: String = ""
+    /// Tasklists the user opted OUT of (deleted their mirrored Astrid list
+    /// while an all-lists mode was on) — auto-link must not resurrect them.
+    @Published var excludedTasklistIds: Set<String> = []
 
 
     private let apiClient = AstridAPIClient.shared
@@ -57,6 +60,7 @@ final class GoogleTasksSyncService: ObservableObject {
             accountEmail = google?.externalAccountId
             syncMode = google?.metadata?.googleSyncMode.flatMap(GoogleSyncMode.init(rawValue:)) ?? .manual
             listSuffix = google?.metadata?.listSuffix ?? ""
+            excludedTasklistIds = Set((google?.metadata?.excludedTasklists ?? "").split(separator: ",").map(String.init))
             links = isConnected ? try await apiClient.getGoogleLinks().links : []
         } catch {
             isConnected = false
@@ -75,8 +79,25 @@ final class GoogleTasksSyncService: ObservableObject {
 
     func linkList(_ listId: String, tasklistId: String) async throws {
         _ = try await apiClient.createGoogleLink(astridListId: listId, tasklistId: tasklistId)
+        // Manually linking clears any earlier opt-out for this tasklist.
+        if excludedTasklistIds.contains(tasklistId) {
+            excludedTasklistIds.remove(tasklistId)
+            try? await apiClient.updateIntegrationMetadata(
+                provider: "GOOGLE_TASKS",
+                metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
+        }
         await refreshStatus()
         scheduleSync()
+    }
+
+    /// Called when the user deletes an Astrid list that was linked to a Google
+    /// tasklist: remember the tasklist as opted-out so the all-lists auto-link
+    /// doesn't immediately resurrect the deleted list.
+    func noteMirroredListDeleted(tasklistId: String) async {
+        excludedTasklistIds.insert(tasklistId)
+        try? await apiClient.updateIntegrationMetadata(
+            provider: "GOOGLE_TASKS",
+            metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
     }
 
     func unlink(_ linkId: String) async {
@@ -142,22 +163,30 @@ final class GoogleTasksSyncService: ObservableObject {
             return
         case .allGoogleToAstrid:
             let actions = GoogleAutoLink.googleToAstridActions(
-                tasklists: tasklists.map { .init(id: $0.id, name: $0.name) },
+                tasklists: tasklists.filter { !excludedTasklistIds.contains($0.id) }
+                    .map { .init(id: $0.id, name: $0.name) },
                 linkedTasklistIds: linkedTasklistIds,
                 unlinkedLists: realLists.filter { !linkedListIds.contains($0.id) }
                     .map { .init(id: $0.id, name: $0.name) },
                 suffix: listSuffix)
             for action in actions {
-                let listId: String
-                if let adopt = action.adoptListId {
-                    listId = adopt
-                } else {
-                    guard let created = try? await ListService.shared.createList(name: action.newListName),
-                          !created.id.hasPrefix("temp_") else { continue }
-                    listId = created.id
+                do {
+                    let listId: String
+                    if let adopt = action.adoptListId {
+                        listId = adopt
+                    } else {
+                        let created = try await ListService.shared.createList(name: action.newListName)
+                        guard !created.id.hasPrefix("temp_") else {
+                            lastError = "Couldn't create list \"\(action.newListName)\" (offline?)"
+                            continue
+                        }
+                        listId = created.id
+                    }
+                    _ = try await apiClient.createGoogleLink(astridListId: listId, tasklistId: action.tasklistId)
+                    didLink = true
+                } catch {
+                    lastError = "Auto-link failed: \(error.localizedDescription)"
                 }
-                _ = try? await apiClient.createGoogleLink(astridListId: listId, tasklistId: action.tasklistId)
-                didLink = true
             }
         case .allAstridToGoogle:
             let actions = GoogleAutoLink.astridToGoogleActions(
@@ -166,15 +195,18 @@ final class GoogleTasksSyncService: ObservableObject {
                 unlinkedTasklists: tasklists.filter { !linkedTasklistIds.contains($0.id) }
                     .map { .init(id: $0.id, name: $0.name) })
             for action in actions {
-                let tasklistId: String
-                if let adopt = action.adoptTasklistId {
-                    tasklistId = adopt
-                } else {
-                    guard let created = try? await apiClient.createGoogleTasklist(title: action.newTasklistName) else { continue }
-                    tasklistId = created.id
+                do {
+                    let tasklistId: String
+                    if let adopt = action.adoptTasklistId {
+                        tasklistId = adopt
+                    } else {
+                        tasklistId = try await apiClient.createGoogleTasklist(title: action.newTasklistName).id
+                    }
+                    _ = try await apiClient.createGoogleLink(astridListId: action.listId, tasklistId: tasklistId)
+                    didLink = true
+                } catch {
+                    lastError = "Auto-link failed: \(error.localizedDescription)"
                 }
-                _ = try? await apiClient.createGoogleLink(astridListId: action.listId, tasklistId: tasklistId)
-                didLink = true
             }
         }
 
