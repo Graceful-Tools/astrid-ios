@@ -14,6 +14,14 @@ enum SyncSuppression {
         return remoteUpdatedAt > watermark
     }
 
+    /// The astrid-side watermark to record after processing a task in a pull
+    /// pass: the task's OWN updatedAt — never wall-clock now(). A now() stamp
+    /// swallows edits made while the pass runs (their timestamp lands before
+    /// the watermark) and is exposed to device/server clock skew.
+    static func pullWatermark(taskUpdatedAt: Date?) -> Date? {
+        taskUpdatedAt
+    }
+
     /// PUSH: push a local change only if it's strictly newer than the
     /// astrid-side watermark recorded when we last pushed/pulled this task.
     static func shouldPushLocal(localUpdatedAt: Date?, watermark: Date?) -> Bool {

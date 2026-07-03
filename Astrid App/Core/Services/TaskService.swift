@@ -557,8 +557,14 @@ class TaskService: ObservableObject {
             )
         }
 
-        let updatedTask = try await apiClient.updateTask(id: resolvedId, updates: updates)
+        var updatedTask = try await apiClient.updateTask(id: resolvedId, updates: updates)
+        // Device-monotonic stamp: the server clock can trail the device, and a
+        // server timestamp <= the sync watermark would suppress this edit's
+        // push to external providers.
+        updatedTask.updatedAt = Date()
         updateTaskInCache(updatedTask)
+        // Server-first path skips the Outbox, so nudge the providers directly.
+        NotificationCenter.default.post(name: OutboxManager.didEnqueueMutation, object: nil)
 
         do {
             try await saveTaskToCoreData(updatedTask, syncStatus: "synced")

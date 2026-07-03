@@ -268,7 +268,8 @@ final class GoogleTasksSyncService: ObservableObject {
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
-                    astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
+                    astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: task.updatedAt),
+                    remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
             } else {
                 // Real subtask nesting: Google `parent` (a google task id) →

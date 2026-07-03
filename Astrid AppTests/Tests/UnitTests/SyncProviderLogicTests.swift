@@ -50,6 +50,20 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertTrue(SyncSuppression.shouldPushLocal(localUpdatedAt: t0, watermark: nil))
     }
 
+    // MARK: - Pull watermark policy
+
+    func testPullWatermark_isTheTasksOwnStamp_notWallClock() {
+        // A now() watermark swallows edits made during the sync pass; the
+        // watermark must be the task's own updatedAt so a later edit always
+        // exceeds it.
+        XCTAssertEqual(SyncSuppression.pullWatermark(taskUpdatedAt: t0), t0)
+        XCTAssertNil(SyncSuppression.pullWatermark(taskUpdatedAt: nil))
+        let editAfterPass = t0.addingTimeInterval(0.5)
+        XCTAssertTrue(SyncSuppression.shouldPushLocal(
+            localUpdatedAt: editAfterPass,
+            watermark: SyncSuppression.pullWatermark(taskUpdatedAt: t0)))
+    }
+
     // MARK: - Google date-only due mapping
 
     private var utcMidnight: Date {

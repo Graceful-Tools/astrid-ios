@@ -193,6 +193,14 @@ extension AstridAPIClient {
         return response.id
     }
 
+    func updateGitHubIssueComment(linkId: String, commentId: String, body: String) async throws {
+        struct Body: Codable { let linkId: String; let commentId: String; let body: String }
+        struct Response: Codable { let id: String? }
+        let _: Response = try await request(
+            method: "PATCH", path: "/api/v1/sync/github/comments",
+            body: Body(linkId: linkId, commentId: commentId, body: body))
+    }
+
     func getGitHubTaskLinks(listId: String) async throws -> GitHubTaskLinksResponse {
         try await request(method: "GET", path: "/api/v1/sync/github/task-links",
                           queryItems: [URLQueryItem(name: "listId", value: listId)])

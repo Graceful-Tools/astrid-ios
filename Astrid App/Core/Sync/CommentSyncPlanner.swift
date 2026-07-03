@@ -22,6 +22,15 @@ enum CommentSyncPlanner {
         var attachmentNames: [String] = []
     }
 
+    /// A synced comment pair with the direction that created it: pushed
+    /// ('p', Astrid canonical) or pulled ('l', GitHub canonical). Direction
+    /// decides which side wins when a mapped comment is EDITED.
+    struct MapEntry: Equatable {
+        let remoteId: String
+        let localId: String
+        let pushed: Bool
+    }
+
     static func plan(
         remote: [RemoteComment],
         local: [LocalComment],
@@ -38,7 +47,55 @@ enum CommentSyncPlanner {
         return (pullCreates, pushCreates)
     }
 
-    /// Flat codec so the mapping fits the [String: String] link metadata.
+    /// Edits on mapped pairs: converge the non-canonical side.
+    static func editPlan(
+        remote: [RemoteComment],
+        local: [LocalComment],
+        entries: [MapEntry]
+    ) -> (pullUpdates: [(localId: String, content: String)], pushUpdates: [(remoteId: String, body: String)]) {
+        let remoteById = Dictionary(remote.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let localById = Dictionary(local.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var pullUpdates: [(localId: String, content: String)] = []
+        var pushUpdates: [(remoteId: String, body: String)] = []
+        for entry in entries {
+            guard let r = remoteById[entry.remoteId], let l = localById[entry.localId] else { continue }
+            if entry.pushed {
+                // Astrid canonical: converge GitHub to the local content.
+                let expected = pushBody(content: l.content, attachmentNames: l.attachmentNames)
+                if r.body != expected, !expected.isEmpty {
+                    pushUpdates.append((entry.remoteId, expected))
+                }
+            } else {
+                // GitHub canonical: converge the local twin to the remote body.
+                let expected = pulledContent(author: r.author, body: r.body)
+                if l.content != expected {
+                    pullUpdates.append((entry.localId, expected))
+                }
+            }
+        }
+        return (pullUpdates, pushUpdates)
+    }
+
+    /// Flat directional codec for the link metadata. Legacy direction-less
+    /// entries ("gh=local") decode as pushed.
+    static func encodeEntries(_ e: [MapEntry]) -> String {
+        e.sorted { $0.remoteId < $1.remoteId }
+            .map { "\($0.remoteId)=\($0.localId):\($0.pushed ? "p" : "l")" }
+            .joined(separator: ",")
+    }
+
+    static func decodeEntries(_ s: String?) -> [MapEntry] {
+        guard let s, !s.isEmpty else { return [] }
+        return s.split(separator: ",").compactMap { pair in
+            let kv = pair.split(separator: "=", maxSplits: 1)
+            guard kv.count == 2 else { return nil }
+            let vd = kv[1].split(separator: ":", maxSplits: 1)
+            let pushed = vd.count < 2 || vd[1] == "p"
+            return MapEntry(remoteId: String(kv[0]), localId: String(vd[0]), pushed: pushed)
+        }
+    }
+
+    /// Legacy codec kept for the create-plan mapping input.
     static func encodeMapping(_ m: [String: String]) -> String {
         m.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
     }
@@ -48,7 +105,7 @@ enum CommentSyncPlanner {
         var out: [String: String] = [:]
         for pair in s.split(separator: ",") {
             let kv = pair.split(separator: "=", maxSplits: 1)
-            if kv.count == 2 { out[String(kv[0])] = String(kv[1]) }
+            if kv.count == 2 { out[String(kv[0])] = String(kv[1].split(separator: ":", maxSplits: 1)[0]) }
         }
         return out
     }

@@ -154,7 +154,8 @@ final class GitHubSyncService: ObservableObject {
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
-                    astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
+                    astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: task.updatedAt),
+                    remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
             } else {
                 // New issue → adopt an existing UNLINKED same-title task in the
@@ -304,18 +305,21 @@ final class GitHubSyncService: ObservableObject {
         // send issue metadata; the server merges, but local DTO copies don't).
         let commentMaps = Dictionary(
             (try? await apiClient.getGitHubTaskLinks(listId: link.astridListId).links.map {
-                ($0.remoteId, CommentSyncPlanner.decodeMapping($0.metadata?["commentMap"]))
+                ($0.remoteId, CommentSyncPlanner.decodeEntries($0.metadata?["commentMap"]))
             }) ?? [], uniquingKeysWith: { a, _ in a })
         for (remoteId, dto) in byRemoteId {
-            let mapping = commentMaps[remoteId] ?? [:]
+            let entries = commentMaps[remoteId] ?? []
+            let mappedLocalIds = Set(entries.map(\.localId))
             let remoteCommentCount = Int(pulledByRemoteId[remoteId]?.metadata?["commentCount"] ?? "") ?? 0
             let localComments = CommentService.shared.cachedComments[dto.astridTaskId] ?? []
             let hasUnmappedLocal = localComments.contains {
-                $0.authorId != nil && !$0.id.hasPrefix("temp_") && !Set(mapping.values).contains($0.id)
+                $0.authorId != nil && !$0.id.hasPrefix("temp_") && !mappedLocalIds.contains($0.id)
             }
-            // Only touch the comments API when something could have changed.
-            guard remoteCommentCount > mapping.count || hasUnmappedLocal else { continue }
-            await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, mapping: mapping)
+            // Sync when: new remote comments, unmapped local comments, or the
+            // issue changed at all (a comment EDIT bumps the issue too).
+            let issueChanged = pulledByRemoteId[remoteId] != nil
+            guard remoteCommentCount > entries.count || hasUnmappedLocal || (issueChanged && !entries.isEmpty) else { continue }
+            await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
         }
     }
 
@@ -324,21 +328,21 @@ final class GitHubSyncService: ObservableObject {
     /// link's metadata (server merges, so other keys survive).
     private func syncComments(
         taskId: String, remoteId: String,
-        link: ExternalListLinkDTO, mapping initial: [String: String]
+        link: ExternalListLinkDTO, entries initial: [CommentSyncPlanner.MapEntry]
     ) async {
-        var mapping = initial
+        var entries = initial
         do {
-            let remote = try await apiClient.getGitHubIssueComments(linkId: link.id, remoteId: remoteId).comments
-            let local = (try? await CommentService.shared.fetchComments(taskId: taskId, useCache: false)) ?? []
-            let plan = CommentSyncPlanner.plan(
-                remote: remote.map { .init(id: $0.id, body: $0.body, author: $0.author) },
-                local: local.map { .init(
-                    id: $0.id, content: $0.content, isSystem: $0.authorId == nil,
-                    attachmentNames: ($0.secureFiles ?? []).map { file in file.name }) },
-                mapping: mapping)
+            let remoteDTOs = try await apiClient.getGitHubIssueComments(linkId: link.id, remoteId: remoteId).comments
+            let localModels = (try? await CommentService.shared.fetchComments(taskId: taskId, useCache: false)) ?? []
+            let remote = remoteDTOs.map { CommentSyncPlanner.RemoteComment(id: $0.id, body: $0.body, author: $0.author) }
+            let local = localModels.map { CommentSyncPlanner.LocalComment(
+                id: $0.id, content: $0.content, isSystem: $0.authorId == nil,
+                attachmentNames: ($0.secureFiles ?? []).map { file in file.name }) }
+            let mapping = Dictionary(entries.map { ($0.remoteId, $0.localId) }, uniquingKeysWith: { a, _ in a })
+            let plan = CommentSyncPlanner.plan(remote: remote, local: local, mapping: mapping)
 
-            // GitHub → Astrid (attributed; resolve the Outbox temp id so the
-            // mapping survives — a temp id in the map would push back later).
+            // GitHub → Astrid creates (attributed; resolve the Outbox temp id so
+            // the mapping survives — a temp id would push back later).
             for remoteComment in plan.pullCreates {
                 let created = try await CommentService.shared.createComment(
                     taskId: taskId,
@@ -348,28 +352,38 @@ final class GitHubSyncService: ObservableObject {
                 await OutboxManager.shared.drain()
                 let realId = CommentService.shared.mappedRealCommentId(for: created.id) ?? created.id
                 guard !realId.hasPrefix("temp_") else { continue }
-                mapping[remoteComment.id] = realId
+                entries.append(.init(remoteId: remoteComment.id, localId: realId, pushed: false))
             }
 
-            // Astrid → GitHub
+            // Astrid → GitHub creates
             for localComment in plan.pushCreates {
                 let ghId = try await apiClient.createGitHubIssueComment(
                     linkId: link.id, remoteId: remoteId,
                     body: CommentSyncPlanner.pushBody(
                         content: localComment.content,
                         attachmentNames: localComment.attachmentNames))
-                mapping[ghId] = localComment.id
+                entries.append(.init(remoteId: ghId, localId: localComment.id, pushed: true))
+            }
+
+            // Edits on mapped pairs: converge the non-canonical side.
+            let edits = CommentSyncPlanner.editPlan(remote: remote, local: local, entries: entries)
+            for update in edits.pullUpdates {
+                _ = try? await CommentService.shared.updateComment(id: update.localId, content: update.content)
+            }
+            for update in edits.pushUpdates {
+                try await apiClient.updateGitHubIssueComment(
+                    linkId: link.id, commentId: update.remoteId, body: update.body)
             }
         } catch {
             lastError = "Comment sync failed: \(error.localizedDescription)"
         }
 
-        if mapping != initial {
+        if entries != initial {
             try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                 astridTaskId: taskId, remoteId: remoteId,
                 remoteContainerId: link.remoteContainerId,
                 astridUpdatedAt: nil, remoteUpdatedAt: nil,
-                metadata: ["commentMap": CommentSyncPlanner.encodeMapping(mapping)]))
+                metadata: ["commentMap": CommentSyncPlanner.encodeEntries(entries)]))
         }
     }
 }

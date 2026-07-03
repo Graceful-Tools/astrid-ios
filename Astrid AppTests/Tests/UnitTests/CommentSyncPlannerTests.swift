@@ -77,6 +77,71 @@ final class CommentSyncPlannerTests: XCTestCase {
         XCTAssertEqual(plan.pushCreates, [attachOnly])
     }
 
+    // MARK: - Edit sync (red-green: converge the non-canonical side)
+
+    private typealias Entry = CommentSyncPlanner.MapEntry
+
+    func testEdit_astridEditOnPushedPair_pushesToGitHub() {
+        let local = Local(id: "cA", content: "edited in astrid", isSystem: false)
+        let remote = Remote(id: "ghA", body: "old astrid text", author: "jonparis")
+        let plan = CommentSyncPlanner.editPlan(
+            remote: [remote], local: [local],
+            entries: [Entry(remoteId: "ghA", localId: "cA", pushed: true)])
+        XCTAssertEqual(plan.pushUpdates.count, 1)
+        XCTAssertEqual(plan.pushUpdates.first?.remoteId, "ghA")
+        XCTAssertEqual(plan.pushUpdates.first?.body, "edited in astrid")
+        XCTAssertTrue(plan.pullUpdates.isEmpty)
+    }
+
+    func testEdit_githubEditOnPulledPair_updatesLocalTwin() {
+        let remote = Remote(id: "ghB", body: "edited on github", author: "jonparis")
+        let local = Local(
+            id: "cB",
+            content: CommentSyncPlanner.pulledContent(author: "jonparis", body: "old github text"),
+            isSystem: false)
+        let plan = CommentSyncPlanner.editPlan(
+            remote: [remote], local: [local],
+            entries: [Entry(remoteId: "ghB", localId: "cB", pushed: false)])
+        XCTAssertEqual(plan.pullUpdates.count, 1)
+        XCTAssertEqual(plan.pullUpdates.first?.localId, "cB")
+        XCTAssertEqual(
+            plan.pullUpdates.first?.content,
+            CommentSyncPlanner.pulledContent(author: "jonparis", body: "edited on github"))
+        XCTAssertTrue(plan.pushUpdates.isEmpty)
+    }
+
+    func testEdit_inSyncPairsAreNoOps() {
+        let pushed = CommentSyncPlanner.editPlan(
+            remote: [Remote(id: "ghA", body: "same", author: "j")],
+            local: [Local(id: "cA", content: "same", isSystem: false)],
+            entries: [Entry(remoteId: "ghA", localId: "cA", pushed: true)])
+        XCTAssertTrue(pushed.pushUpdates.isEmpty && pushed.pullUpdates.isEmpty)
+        let twin = CommentSyncPlanner.pulledContent(author: "j", body: "same")
+        let pulled = CommentSyncPlanner.editPlan(
+            remote: [Remote(id: "ghB", body: "same", author: "j")],
+            local: [Local(id: "cB", content: twin, isSystem: false)],
+            entries: [Entry(remoteId: "ghB", localId: "cB", pushed: false)])
+        XCTAssertTrue(pulled.pushUpdates.isEmpty && pulled.pullUpdates.isEmpty)
+    }
+
+    func testEdit_missingCounterpartIsSkipped() {
+        let plan = CommentSyncPlanner.editPlan(
+            remote: [], local: [Local(id: "cA", content: "x", isSystem: false)],
+            entries: [Entry(remoteId: "ghA", localId: "cA", pushed: true)])
+        XCTAssertTrue(plan.pushUpdates.isEmpty && plan.pullUpdates.isEmpty)
+    }
+
+    func testEntriesCodec_roundTripsWithDirection_legacyDecodesAsPushed() {
+        let entries = [
+            Entry(remoteId: "ghA", localId: "cA", pushed: true),
+            Entry(remoteId: "ghB", localId: "cB", pushed: false),
+        ]
+        XCTAssertEqual(CommentSyncPlanner.decodeEntries(CommentSyncPlanner.encodeEntries(entries)), entries)
+        XCTAssertEqual(
+            CommentSyncPlanner.decodeEntries("gh1=c1"),
+            [Entry(remoteId: "gh1", localId: "c1", pushed: true)])
+    }
+
     func testPulledContent_carriesAttribution() {
         let content = CommentSyncPlanner.pulledContent(author: "jonparis", body: "hello")
         XCTAssertTrue(content.contains("jonparis"))
