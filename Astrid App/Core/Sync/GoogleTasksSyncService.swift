@@ -277,6 +277,7 @@ final class GoogleTasksSyncService: ObservableObject {
         let listTasks = taskService.tasks
             .filter { ($0.listIds ?? []).contains(link.astridListId) && !$0.id.hasPrefix("temp_") }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
+        var fullRemoteItems: [GoogleTaskItemDTO]?  // lazy, one cursor-free fetch per pass
         for task in listTasks {
             let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0) }
             if let existing = byTaskId[task.id] {
@@ -308,6 +309,28 @@ final class GoogleTasksSyncService: ObservableObject {
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
             } else {
+                // Push-side adopt guard: before CREATING a remote task for an
+                // unlinked local one, scan the FULL remote list (cursor-free,
+                // fetched once per pass) for an unlinked same-title item and
+                // link to it instead of duplicating.
+                if fullRemoteItems == nil {
+                    fullRemoteItems = (try? await apiClient.pullGoogleTasks(linkId: link.id, full: true).items) ?? []
+                }
+                if let candidate = fullRemoteItems?.first(where: {
+                    byRemoteId[$0.remoteId] == nil && $0.title == task.title
+                }) {
+                    try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: task.id, remoteId: candidate.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: candidate.remoteUpdatedAt,
+                        metadata: candidate.metadata))
+                    byRemoteId[candidate.remoteId] = ExternalTaskLinkDTO(
+                        astridTaskId: task.id, remoteId: candidate.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt,
+                        remoteUpdatedAt: iso.date(from: candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                    continue
+                }
                 let parentRemoteId = task.parentTaskId.flatMap { byTaskId[$0]?.remoteId }
                 let response = try await apiClient.pushGoogleTask(GoogleTaskPushRequest(
                     linkId: link.id, title: task.title,

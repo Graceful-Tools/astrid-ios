@@ -155,9 +155,10 @@ extension AstridAPIClient {
             queryItems: [URLQueryItem(name: "linkId", value: linkId)])
     }
 
-    func pullGitHubIssues(linkId: String) async throws -> GitHubIssuesPullResponse {
-        try await request(method: "GET", path: "/api/v1/sync/github/issues",
-                          queryItems: [URLQueryItem(name: "linkId", value: linkId)])
+    func pullGitHubIssues(linkId: String, full: Bool = false) async throws -> GitHubIssuesPullResponse {
+        var query = [URLQueryItem(name: "linkId", value: linkId)]
+        if full { query.append(URLQueryItem(name: "full", value: "1")) }  // ignore + don't advance the cursor
+        return try await request(method: "GET", path: "/api/v1/sync/github/issues", queryItems: query)
     }
 
     func pushGitHubIssue(_ body: GitHubIssuePushRequest) async throws -> GitHubIssuePushResponse {

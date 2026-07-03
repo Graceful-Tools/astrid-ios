@@ -86,9 +86,10 @@ extension AstridAPIClient {
             queryItems: [URLQueryItem(name: "linkId", value: linkId)])
     }
 
-    func pullGoogleTasks(linkId: String) async throws -> GoogleTasksPullResponse {
-        try await request(method: "GET", path: "/api/v1/sync/google/tasks",
-                          queryItems: [URLQueryItem(name: "linkId", value: linkId)])
+    func pullGoogleTasks(linkId: String, full: Bool = false) async throws -> GoogleTasksPullResponse {
+        var query = [URLQueryItem(name: "linkId", value: linkId)]
+        if full { query.append(URLQueryItem(name: "full", value: "1")) }  // ignore + don't advance the cursor
+        return try await request(method: "GET", path: "/api/v1/sync/google/tasks", queryItems: query)
     }
 
     func pushGoogleTask(_ body: GoogleTaskPushRequest) async throws -> GoogleTaskPushResponse {

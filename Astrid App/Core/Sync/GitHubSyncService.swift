@@ -189,6 +189,7 @@ final class GitHubSyncService: ObservableObject {
                 && $0.parentTaskId == nil            // subtasks are lossy on GitHub — v1 skips
                 && !$0.id.hasPrefix("temp_")         // wait for the Outbox to sync the create
         }
+        var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
         for task in listTasks {
             if let existing = byTaskId[task.id] {
                 // Push only if the local task changed since our last recorded push.
@@ -219,6 +220,29 @@ final class GitHubSyncService: ObservableObject {
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
             } else {
+                // Push-side adopt guard: before CREATING a remote issue for an
+                // unlinked task, scan the FULL remote list (cursor-free, fetched
+                // once per pass) for an unlinked same-title issue and link to it
+                // instead. Without this, a task whose link row was lost gets
+                // re-pushed as a duplicate issue.
+                if fullRemoteItems == nil {
+                    fullRemoteItems = (try? await apiClient.pullGitHubIssues(linkId: link.id, full: true).items) ?? []
+                }
+                if let candidate = fullRemoteItems?.first(where: {
+                    byRemoteId[$0.remoteId] == nil && $0.title == task.title
+                }) {
+                    try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: task.id, remoteId: candidate.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: candidate.remoteUpdatedAt,
+                        metadata: candidate.metadata))
+                    byRemoteId[candidate.remoteId] = ExternalTaskLinkDTO(
+                        astridTaskId: task.id, remoteId: candidate.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: task.updatedAt,
+                        remoteUpdatedAt: iso.date(from: candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                    continue
+                }
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,
