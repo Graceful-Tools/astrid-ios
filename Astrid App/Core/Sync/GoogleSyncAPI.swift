@@ -96,6 +96,14 @@ extension AstridAPIClient {
         try await request(method: "POST", path: "/api/v1/sync/google/tasks", body: body)
     }
 
+    func deleteGoogleTask(linkId: String, remoteId: String) async throws {
+        struct Success: Codable { let success: Bool? }
+        let _: Success = try await request(
+            method: "DELETE", path: "/api/v1/sync/google/tasks",
+            queryItems: [URLQueryItem(name: "linkId", value: linkId),
+                         URLQueryItem(name: "remoteId", value: remoteId)])
+    }
+
     func getGoogleTaskLinks(listId: String) async throws -> GitHubTaskLinksResponse {
         try await request(method: "GET", path: "/api/v1/sync/google/task-links",
                           queryItems: [URLQueryItem(name: "listId", value: listId)])

@@ -201,6 +201,14 @@ extension AstridAPIClient {
             body: Body(linkId: linkId, commentId: commentId, body: body))
     }
 
+    func deleteGitHubIssueComment(linkId: String, commentId: String) async throws {
+        struct Success: Codable { let success: Bool? }
+        let _: Success = try await request(
+            method: "DELETE", path: "/api/v1/sync/github/comments",
+            queryItems: [URLQueryItem(name: "linkId", value: linkId),
+                         URLQueryItem(name: "commentId", value: commentId)])
+    }
+
     func getGitHubTaskLinks(listId: String) async throws -> GitHubTaskLinksResponse {
         try await request(method: "GET", path: "/api/v1/sync/github/task-links",
                           queryItems: [URLQueryItem(name: "listId", value: listId)])

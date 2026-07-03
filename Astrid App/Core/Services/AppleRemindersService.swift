@@ -417,6 +417,10 @@ class AppleRemindersService: ObservableObject {
 
         var reminders = try await fetchReminders(in: calendar)
 
+        // Complete id set BEFORE any filtering — absence-based deletion below
+        // must never be judged against a filtered list.
+        let allReminderIds = Set(reminders.map { $0.calendarItemIdentifier })
+
         // Filter out completed reminders if option is disabled
         if !includeCompleted {
             reminders = reminders.filter { !$0.isCompleted }
@@ -461,6 +465,32 @@ class AppleRemindersService: ObservableObject {
                         } catch {
                             print("❌ [AppleRemindersService] Failed to update completion state: \(error)")
                         }
+                    }
+
+                    // Pull FIELD edits (title/notes/due) when the reminder changed
+                    // since the stamp we recorded at the last sync — previously
+                    // only completion flowed Apple→Astrid for mapped reminders.
+                    if AppleEditPull.shouldPullFields(
+                        reminderModified: reminder.lastModifiedDate,
+                        lastSyncedReminderStamp: mapping.reminderUpdatedAt) {
+                        let newTitle = reminder.title ?? existingTask.title
+                        let newNotes = reminder.notes ?? ""
+                        let (newDue, newIsAllDay) = mapDueDateFromApple(reminder.dueDateComponents)
+                        let dueChanged = existingTask.dueDateTime != newDue || existingTask.isAllDay != newIsAllDay
+                        if newTitle != existingTask.title || newNotes != existingTask.description || dueChanged {
+                            _ = try? await taskService.updateTask(
+                                taskId: astridTaskId,
+                                title: newTitle == existingTask.title ? nil : newTitle,
+                                description: newNotes == existingTask.description ? nil : newNotes,
+                                dueDateTime: dueChanged ? (newDue ?? Date.distantPast) : nil,
+                                isAllDay: dueChanged ? newIsAllDay : nil,
+                                source: .apple)
+                            updatedCount += 1
+                        }
+                        updateMappingTimestamps(
+                            astridTaskId: astridTaskId,
+                            astridUpdatedAt: Date(),
+                            reminderUpdatedAt: reminder.lastModifiedDate)
                     }
                 }
                 continue
@@ -512,6 +542,25 @@ class AppleRemindersService: ObservableObject {
             }
         }
 
+        // Reminder deleted in Apple → delete the mapped Astrid task. Judged
+        // against the COMPLETE unfiltered reminder set (SyncDeletionPolicy
+        // invariant: never infer deletion from a filtered/partial listing).
+        let deletionLinks = mappings.compactMap { mapping -> SyncDeletionPolicy.Link? in
+            guard let taskId = mapping.astridTaskId, let reminderId = mapping.reminderIdentifier else { return nil }
+            return SyncDeletionPolicy.Link(taskId: taskId, remoteId: reminderId)
+        }
+        let toDelete = SyncDeletionPolicy.localDeletions(
+            links: deletionLinks, fullRemoteIds: allReminderIds,
+            truncated: false, explicitlyDeletedRemoteIds: [])
+        for link in toDelete {
+            if taskService.tasks.contains(where: { $0.id == link.taskId }) {
+                try? await taskService.deleteTask(id: link.taskId)
+            }
+            if let mapping = mappingByReminderId[link.remoteId] {
+                deleteMapping(mapping)
+            }
+        }
+
         syncedTaskCount = importedCount + updatedCount
         print("✅ [AppleRemindersService] Imported \(importedCount) new reminders, updated \(updatedCount) existing tasks")
     }
@@ -536,6 +585,25 @@ class AppleRemindersService: ObservableObject {
     }
 
     /// Fetch all reminders in a calendar
+    /// The user deleted an Astrid task: remove its mapped reminder (and the
+    /// mapping) so Reminders mirrors the deletion and import can't resurrect it.
+    func noteTaskDeleted(taskId: String) async {
+        let request = CDReminderMapping.fetchRequest()
+        request.predicate = NSPredicate(format: "astridTaskId == %@", taskId)
+        guard let mapping = try? coreDataManager.viewContext.fetch(request).first else { return }
+        if let reminderId = mapping.reminderIdentifier,
+           let reminder = eventStore.calendarItem(withIdentifier: reminderId) as? EKReminder {
+            try? eventStore.remove(reminder, commit: true)
+        }
+        coreDataManager.viewContext.delete(mapping)
+        try? coreDataManager.viewContext.save()
+    }
+
+    private func deleteMapping(_ mapping: CDReminderMapping) {
+        coreDataManager.viewContext.delete(mapping)
+        try? coreDataManager.viewContext.save()
+    }
+
     func fetchReminders(in calendar: EKCalendar) async throws -> [EKReminder] {
         let predicate = eventStore.predicateForReminders(in: [calendar])
 

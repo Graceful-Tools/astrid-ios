@@ -142,6 +142,45 @@ final class CommentSyncPlannerTests: XCTestCase {
             [Entry(remoteId: "gh1", localId: "c1", pushed: true)])
     }
 
+    // MARK: - Delete sync (canonical side's absence deletes the mirror)
+
+    func testDelete_localGoneOnPushedPair_deletesRemoteMirror() {
+        let plan = CommentSyncPlanner.deletePlan(
+            remoteIds: ["gA", "gB"], localIds: ["cB"],
+            entries: [Entry(remoteId: "gA", localId: "cA", pushed: true),
+                      Entry(remoteId: "gB", localId: "cB", pushed: false)])
+        XCTAssertEqual(plan.deleteRemoteIds, ["gA"])
+        XCTAssertTrue(plan.deleteLocalIds.isEmpty)
+        XCTAssertEqual(plan.survivingEntries, [Entry(remoteId: "gB", localId: "cB", pushed: false)])
+    }
+
+    func testDelete_remoteGoneOnPulledPair_deletesLocalTwin() {
+        let plan = CommentSyncPlanner.deletePlan(
+            remoteIds: ["gA"], localIds: ["cA", "cB"],
+            entries: [Entry(remoteId: "gA", localId: "cA", pushed: true),
+                      Entry(remoteId: "gB", localId: "cB", pushed: false)])
+        XCTAssertEqual(plan.deleteLocalIds, ["cB"])
+        XCTAssertTrue(plan.deleteRemoteIds.isEmpty)
+    }
+
+    func testDelete_intactPairsUntouched() {
+        let entries = [Entry(remoteId: "gA", localId: "cA", pushed: true),
+                       Entry(remoteId: "gB", localId: "cB", pushed: false)]
+        let plan = CommentSyncPlanner.deletePlan(
+            remoteIds: ["gA", "gB"], localIds: ["cA", "cB"], entries: entries)
+        XCTAssertTrue(plan.deleteLocalIds.isEmpty && plan.deleteRemoteIds.isEmpty)
+        XCTAssertEqual(plan.survivingEntries, entries)
+    }
+
+    func testDelete_mirrorAbsenceNeverDeletesTheOriginal() {
+        // Remote mirror of a pushed pair vanished: the local original stays
+        // (a future pass may re-push; deleting the original would lose data).
+        let plan = CommentSyncPlanner.deletePlan(
+            remoteIds: [], localIds: ["cA"],
+            entries: [Entry(remoteId: "gA", localId: "cA", pushed: true)])
+        XCTAssertTrue(plan.deleteLocalIds.isEmpty)
+    }
+
     func testPulledContent_carriesAttribution() {
         let content = CommentSyncPlanner.pulledContent(author: "jonparis", body: "hello")
         XCTAssertTrue(content.contains("jonparis"))

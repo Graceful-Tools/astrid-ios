@@ -76,6 +76,33 @@ enum CommentSyncPlanner {
         return (pullUpdates, pushUpdates)
     }
 
+    /// Deletions on mapped pairs: the canonical side's absence deletes the
+    /// mirror; the mirror's absence alone never deletes the original (a re-push
+    /// or re-pull recreates it instead). Dead entries drop from the map.
+    static func deletePlan(
+        remoteIds: Set<String>,
+        localIds: Set<String>,
+        entries: [MapEntry]
+    ) -> (deleteLocalIds: [String], deleteRemoteIds: [String], survivingEntries: [MapEntry]) {
+        var deleteLocal: [String] = []
+        var deleteRemote: [String] = []
+        var surviving: [MapEntry] = []
+        for entry in entries {
+            let remoteGone = !remoteIds.contains(entry.remoteId)
+            let localGone = !localIds.contains(entry.localId)
+            if entry.pushed, localGone {
+                if !remoteGone { deleteRemote.append(entry.remoteId) }
+                continue
+            }
+            if !entry.pushed, remoteGone {
+                if !localGone { deleteLocal.append(entry.localId) }
+                continue
+            }
+            surviving.append(entry)
+        }
+        return (deleteLocal, deleteRemote, surviving)
+    }
+
     /// Flat directional codec for the link metadata. Legacy direction-less
     /// entries ("gh=local") decode as pushed.
     static func encodeEntries(_ e: [MapEntry]) -> String {

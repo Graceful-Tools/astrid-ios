@@ -27,6 +27,11 @@ final class GoogleTasksSyncService: ObservableObject {
     private let apiClient = AstridAPIClient.shared
     private var observers: [NSObjectProtocol] = []
     private var syncDebounce: _Concurrency.Task<Void, Never>?
+    private let deletionLedger = SyncDeletionLedger(provider: "google")
+    private var taskLinkCache: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: "googleTaskLinkCache") as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "googleTaskLinkCache") }
+    }
 
     /// RFC3339 date-only at UTC midnight (Google Tasks `due` convention —
     /// matches Astrid's all-day UTC-midnight convention).
@@ -105,6 +110,21 @@ final class GoogleTasksSyncService: ObservableObject {
         try? await apiClient.updateIntegrationMetadata(
             provider: "GOOGLE_TASKS",
             metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
+    }
+
+    /// The user deleted a mirrored task: record the remote twin for deletion +
+    /// permanent tombstone (the server-side link row cascades away with the task).
+    func noteTaskDeleted(taskId: String) async {
+        guard let cached = taskLinkCache[taskId] else { return }
+        let parts = cached.split(separator: "|", maxSplits: 1)
+        guard parts.count == 2 else { return }
+        let remoteId = String(parts[0])
+        guard !deletionLedger.tombstonedRemoteIds.contains(remoteId) else { return }
+        deletionLedger.recordPending(remoteId: remoteId, containerId: String(parts[1]))
+        var cache = taskLinkCache
+        cache.removeValue(forKey: taskId)
+        taskLinkCache = cache
+        scheduleSync()
     }
 
     func unlink(_ linkId: String) async {
@@ -229,6 +249,25 @@ final class GoogleTasksSyncService: ObservableObject {
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
 
+        // Refresh the delete-capture cache for this container's tasks.
+        var cache = taskLinkCache
+        for tl in taskLinks where tl.remoteContainerId == link.remoteContainerId {
+            cache[tl.astridTaskId] = "\(tl.remoteId)|\(tl.remoteContainerId)"
+        }
+        taskLinkCache = cache
+
+        // Execute pending remote deletions (tasks deleted in Astrid).
+        for (remoteId, containerId) in deletionLedger.pending where containerId == link.remoteContainerId {
+            do {
+                try await apiClient.deleteGoogleTask(linkId: link.id, remoteId: remoteId)
+                deletionLedger.clearPending(remoteId: remoteId)
+            } catch {
+                if "\(error)".contains("404") || "\(error)".contains("410") {
+                    deletionLedger.clearPending(remoteId: remoteId)
+                }
+            }
+        }
+
         // ── PULL ────────────────────────────────────────────────────────────
         let pulled = try await apiClient.pullGoogleTasks(linkId: link.id)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
@@ -241,7 +280,18 @@ final class GoogleTasksSyncService: ObservableObject {
                 (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(link.remoteContainerId):\($0)" }
             })
         for item in orderedItems {
-            if item.metadata?["deleted"] == "1" { continue }  // v1: don't mirror deletions
+            if item.metadata?["deleted"] == "1" {
+                // Explicitly deleted in Google → delete the linked local twin.
+                if let existing = byRemoteId[item.remoteId],
+                   taskService.tasks.contains(where: { $0.id == existing.astridTaskId }) {
+                    deletionLedger.tombstonedRemoteIds.insert(item.remoteId)  // no echo back
+                    try? await taskService.deleteTask(id: existing.astridTaskId)
+                }
+                continue
+            }
+            if deletionLedger.tombstonedRemoteIds.contains(item.remoteId), byRemoteId[item.remoteId] == nil {
+                continue  // never re-import a twin we deleted for a local deletion
+            }
             let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
             let dueDate = item.dueDate.flatMap { Self.dueFormatter.date(from: $0) }
 
@@ -410,6 +460,28 @@ final class GoogleTasksSyncService: ObservableObject {
         }
         if pushErrors > 0 {
             lastError = "\(link.remoteContainerName ?? link.remoteContainerId): \(pushErrors) task(s) failed to push"
+        }
+
+        // ── DELETIONS: task gone remotely → delete the local twin ──────────
+        // Complete-listing guard: skipped when the fetch failed or hit the
+        // page limit (SyncDeletionPolicy invariant).
+        if fullRemoteItems == nil {
+            fullRemoteItems = try? await apiClient.pullGoogleTasks(linkId: link.id, full: true).items
+        }
+        if let fullItems = fullRemoteItems {
+            let present = Set(fullItems.filter { $0.metadata?["deleted"] != "1" }.map(\.remoteId))
+            let deletionLinks = taskLinks
+                .filter { $0.remoteContainerId == link.remoteContainerId }
+                .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
+            let toDelete = SyncDeletionPolicy.localDeletions(
+                links: deletionLinks,
+                fullRemoteIds: present,
+                truncated: fullItems.count >= 100,
+                explicitlyDeletedRemoteIds: [])
+            for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
+                deletionLedger.tombstonedRemoteIds.insert(del.remoteId)  // no echo back
+                try? await taskService.deleteTask(id: del.taskId)
+            }
         }
     }
 }

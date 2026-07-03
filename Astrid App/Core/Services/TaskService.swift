@@ -718,6 +718,14 @@ class TaskService: ObservableObject {
     }
 
     func deleteTask(id: String, task: Task? = nil) async throws {
+        // Capture external sync links BEFORE the delete: the server cascades
+        // ExternalTaskLink rows away with the task, so providers must record
+        // the remote twin now (delete/close it next pass, tombstone forever).
+        let resolvedForSync = tempTaskIdMapping[id] ?? id
+        await GitHubSyncService.shared.noteTaskDeleted(taskId: resolvedForSync)
+        await GoogleTasksSyncService.shared.noteTaskDeleted(taskId: resolvedForSync)
+        await AppleRemindersService.shared.noteTaskDeleted(taskId: resolvedForSync)
+
         // Resolve stale temp ID → real server ID (same reason as updateTask)
         let resolvedId = tempTaskIdMapping[id] ?? id
 

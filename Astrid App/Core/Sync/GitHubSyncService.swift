@@ -28,6 +28,13 @@ final class GitHubSyncService: ObservableObject {
     private var foregroundObserver: NSObjectProtocol?
     private var mutationObserver: NSObjectProtocol?
     private var syncDebounce: _Concurrency.Task<Void, Never>?
+    private let deletionLedger = SyncDeletionLedger(provider: "github")
+    /// taskId → "remoteId|containerId", persisted so a delete can capture its
+    /// link even before the first sync pass after relaunch.
+    private var taskLinkCache: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: "githubTaskLinkCache") as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "githubTaskLinkCache") }
+    }
 
     private init() {
         // Nudge from the server (GitHub webhook → SSE external_sync_refresh)
@@ -81,6 +88,22 @@ final class GitHubSyncService: ObservableObject {
         scheduleSync()
     }
 
+    /// The user deleted a mirrored task: record the remote twin for close +
+    /// permanent tombstone (the server-side link row cascades away with the
+    /// task, so this must be captured now).
+    func noteTaskDeleted(taskId: String) async {
+        guard let cached = taskLinkCache[taskId] else { return }
+        let parts = cached.split(separator: "|", maxSplits: 1)
+        guard parts.count == 2 else { return }
+        let remoteId = String(parts[0])
+        guard !deletionLedger.tombstonedRemoteIds.contains(remoteId) else { return }
+        deletionLedger.recordPending(remoteId: remoteId, containerId: String(parts[1]))
+        var cache = taskLinkCache
+        cache.removeValue(forKey: taskId)
+        taskLinkCache = cache
+        scheduleSync()
+    }
+
     func unlink(_ linkId: String) async {
         try? await apiClient.deleteGitHubLink(linkId: linkId)
         await refreshStatus()
@@ -120,6 +143,29 @@ final class GitHubSyncService: ObservableObject {
         var byRemoteId = Dictionary(taskLinks.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
 
+        // Refresh the delete-capture cache for this container's tasks.
+        var cache = taskLinkCache
+        for tl in taskLinks where tl.remoteContainerId == link.remoteContainerId {
+            cache[tl.astridTaskId] = "\(tl.remoteId)|\(tl.remoteContainerId)"
+        }
+        taskLinkCache = cache
+
+        // Execute pending remote deletions (tasks deleted in Astrid): GitHub
+        // can't delete issues via REST, so the twin is CLOSED; the tombstone
+        // keeps the pull from ever re-importing it.
+        for (remoteId, containerId) in deletionLedger.pending where containerId == link.remoteContainerId {
+            do {
+                _ = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
+                    linkId: link.id, title: nil, body: nil, state: "closed", remoteId: remoteId))
+                deletionLedger.clearPending(remoteId: remoteId)
+            } catch {
+                // 404/410 = already gone — done; anything else retries next pass.
+                if "\(error)".contains("404") || "\(error)".contains("410") {
+                    deletionLedger.clearPending(remoteId: remoteId)
+                }
+            }
+        }
+
         // ── PULL: apply remote changes newer than our watermark ────────────
         let pulled = try await apiClient.pullGitHubIssues(linkId: link.id)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
@@ -158,6 +204,8 @@ final class GitHubSyncService: ObservableObject {
                     remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
             } else {
+                // Never re-import a remote twin we closed for a local deletion.
+                if deletionLedger.tombstonedRemoteIds.contains(item.remoteId) { continue }
                 // New issue → adopt an existing UNLINKED same-title task in the
                 // list if one exists (self-heals passes that created the task
                 // but couldn't persist the link), else create one.
@@ -300,6 +348,27 @@ final class GitHubSyncService: ObservableObject {
             lastError = "\(link.remoteContainerId): \(pushErrors) task(s) failed to push"
         }
 
+        // ── DELETIONS: issue gone remotely → delete the local twin ─────────
+        // Requires a COMPLETE listing (cursor-free); skipped when the fetch
+        // failed or hit the page limit (SyncDeletionPolicy invariant).
+        if fullRemoteItems == nil {
+            fullRemoteItems = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true).items
+        }
+        if let fullItems = fullRemoteItems {
+            let deletionLinks = taskLinks
+                .filter { $0.remoteContainerId == link.remoteContainerId }
+                .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
+            let toDelete = SyncDeletionPolicy.localDeletions(
+                links: deletionLinks,
+                fullRemoteIds: Set(fullItems.map(\.remoteId)),
+                truncated: fullItems.count >= 100,
+                explicitlyDeletedRemoteIds: [])
+            for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
+                deletionLedger.tombstonedRemoteIds.insert(del.remoteId)  // no echo back
+                try? await taskService.deleteTask(id: del.taskId)
+            }
+        }
+
         // ── COMMENTS: two-way per linked task ──────────────────────────────
         // Original taskLinks carry the persisted commentMap (fresh pull upserts
         // send issue metadata; the server merges, but local DTO copies don't).
@@ -338,6 +407,20 @@ final class GitHubSyncService: ObservableObject {
             let local = localModels.map { CommentSyncPlanner.LocalComment(
                 id: $0.id, content: $0.content, isSystem: $0.authorId == nil,
                 attachmentNames: ($0.secureFiles ?? []).map { file in file.name }) }
+            // Deletes first: the canonical side's absence removes the mirror,
+            // and dead entries drop before create/edit planning.
+            let deletePlan = CommentSyncPlanner.deletePlan(
+                remoteIds: Set(remote.map(\.id)),
+                localIds: Set(local.map(\.id)),
+                entries: entries)
+            for localId in deletePlan.deleteLocalIds {
+                try? await CommentService.shared.deleteComment(id: localId)
+            }
+            for ghId in deletePlan.deleteRemoteIds {
+                try? await apiClient.deleteGitHubIssueComment(linkId: link.id, commentId: ghId)
+            }
+            entries = deletePlan.survivingEntries
+
             let mapping = Dictionary(entries.map { ($0.remoteId, $0.localId) }, uniquingKeysWith: { a, _ in a })
             let plan = CommentSyncPlanner.plan(remote: remote, local: local, mapping: mapping)
 
