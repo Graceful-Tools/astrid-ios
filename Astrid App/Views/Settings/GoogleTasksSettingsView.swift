@@ -168,15 +168,25 @@ struct GoogleTasksSettingsView: View {
         .task {
             await sync.refreshStatus()
             suffixDraft = sync.listSuffix
-            if sync.isConnected {
-                tasklists = (try? await AstridAPIClient.shared.getGoogleTasklists().tasklists) ?? []
-            }
+            await loadTasklists()
         }
         .refreshable {
             await sync.refreshStatus()
-            if sync.isConnected {
-                tasklists = (try? await AstridAPIClient.shared.getGoogleTasklists().tasklists) ?? []
+            await loadTasklists()
+        }
+    }
+
+    /// Load the account's tasklists, surfacing failures (a silent empty picker
+    /// hid Tasks-API-disabled / expired-token errors).
+    private func loadTasklists() async {
+        guard sync.isConnected else { return }
+        do {
+            tasklists = try await AstridAPIClient.shared.getGoogleTasklists().tasklists
+            if tasklists.isEmpty {
+                sync.lastError = "Google returned no task lists for this account."
             }
+        } catch {
+            sync.lastError = "Couldn't load Google task lists: \(error.localizedDescription)"
         }
     }
 }
