@@ -94,7 +94,7 @@ func applyCompletionFilterWithWindow(
         return tasks.filter { task in
             shouldShowCompletedByFilter(
                 filterMode: task.completed ? "default" : "show",
-                completedAt: task.updatedAt,
+                completedAt: task.completedAt ?? task.updatedAt,
                 updatedAt: task.updatedAt,
                 window: window,
                 now: now

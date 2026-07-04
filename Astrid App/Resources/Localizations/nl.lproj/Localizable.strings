@@ -931,3 +931,4 @@
 "sync.sync_mode" = "Synchronisatiemodus";
 "sync.sync_now" = "Nu synchroniseren";
 "sync.unlink" = "Ontkoppelen";
+"task_detail.completed_via" = "Voltooid via %@";

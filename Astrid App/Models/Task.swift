@@ -24,6 +24,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
     var listIds: [String]?
     var isPrivate: Bool
     var completed: Bool
+    var completedAt: Date?        // real completion time (backdatable by sync)
+    var completedSource: String?  // astrid | google | github | apple
     var attachments: [Attachment]?
     var secureFiles: [SecureFile]?
     var comments: [Comment]?
@@ -116,7 +118,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
@@ -145,6 +147,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         listIds: [String]? = nil,
         isPrivate: Bool = false,
         completed: Bool = false,
+        completedAt: Date? = nil,
+        completedSource: String? = nil,
         attachments: [Attachment]? = nil,
         secureFiles: [SecureFile]? = nil,
         comments: [Comment]? = nil,
@@ -178,6 +182,8 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         self.listIds = listIds
         self.isPrivate = isPrivate
         self.completed = completed
+        self.completedAt = completedAt
+        self.completedSource = completedSource
         self.attachments = attachments
         self.secureFiles = secureFiles
         self.comments = comments

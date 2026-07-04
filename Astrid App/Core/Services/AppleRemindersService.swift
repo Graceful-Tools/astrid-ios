@@ -484,7 +484,7 @@ class AppleRemindersService: ObservableObject {
                     // updateTask(completed:) skips rollover (CLAUDE.md rule).
                     if reminderUpdatedAt > astridUpdatedAt && existingTask.completed != reminder.isCompleted {
                         do {
-                            _ = try await taskService.completeTask(id: astridTaskId, completed: reminder.isCompleted, task: existingTask, source: .apple)
+                            _ = try await taskService.completeTask(id: astridTaskId, completed: reminder.isCompleted, task: existingTask, source: .apple, completedAt: reminder.completionDate)
                             print("🔄 [AppleRemindersService] Updated completion state for '\(existingTask.title)' to \(reminder.isCompleted)")
                             updatedCount += 1
 
@@ -559,7 +559,7 @@ class AppleRemindersService: ObservableObject {
                 // If the reminder is completed, mark the new task as completed too
                 // Use completeTask() to properly handle repeating task logic
                 if reminder.isCompleted {
-                    _ = try await taskService.completeTask(id: newTask.id, completed: true, task: newTask, source: .apple)
+                    _ = try await taskService.completeTask(id: newTask.id, completed: true, task: newTask, source: .apple, completedAt: reminder.completionDate)
                 }
 
                 saveMapping(

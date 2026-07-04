@@ -931,3 +931,4 @@
 "sync.sync_mode" = "Modo de sincronização";
 "sync.sync_now" = "Sincronizar agora";
 "sync.unlink" = "Desvincular";
+"task_detail.completed_via" = "Concluída via %@";

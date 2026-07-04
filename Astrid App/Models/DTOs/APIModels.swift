@@ -71,6 +71,8 @@ struct UpdateTaskRequest: Codable {
     var assigneeId: String?
     var timerDuration: Int?
     var lastTimerValue: String?
+    var completedAt: String?      // ISO8601 — backdates completion (sync)
+    var completedSource: String?  // astrid | google | github | apple
 
     // Track which fields were explicitly set (including to nil)
     private var explicitlySetFields: Set<String> = []
@@ -81,6 +83,7 @@ struct UpdateTaskRequest: Codable {
         case repeatFrom, isPrivate, completed
         case dueDateTime, isAllDay, reminderTime, reminderType
         case listIds, assigneeId, timerDuration, lastTimerValue
+        case completedAt, completedSource
     }
 
     init(
@@ -99,7 +102,9 @@ struct UpdateTaskRequest: Codable {
         listIds: [String]? = nil,
         assigneeId: String? = nil,
         timerDuration: Int? = nil,
-        lastTimerValue: String? = nil
+        lastTimerValue: String? = nil,
+        completedAt: String? = nil,
+        completedSource: String? = nil
     ) {
         self.title = title
         self.description = description
@@ -117,6 +122,8 @@ struct UpdateTaskRequest: Codable {
         self.assigneeId = assigneeId
         self.timerDuration = timerDuration
         self.lastTimerValue = lastTimerValue
+        self.completedAt = completedAt
+        self.completedSource = completedSource
     }
 
     // Custom encode to include explicit nil values

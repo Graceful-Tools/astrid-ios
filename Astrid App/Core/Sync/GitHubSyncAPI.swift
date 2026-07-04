@@ -57,6 +57,7 @@ struct GitHubIssueItemDTO: Codable, Equatable {
     let title: String
     let notes: String?
     let completed: Bool
+    var completedAt: String? = nil   // GitHub closed_at
     let remoteUpdatedAt: String
     let metadata: [String: String]?
 }

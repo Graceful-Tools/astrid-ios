@@ -933,3 +933,4 @@
 "sync.sync_mode" = "동기화 모드";
 "sync.sync_now" = "지금 동기화";
 "sync.unlink" = "연결 해제";
+"task_detail.completed_via" = "%@에서 완료됨";

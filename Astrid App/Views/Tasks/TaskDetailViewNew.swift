@@ -524,6 +524,17 @@ struct TaskDetailViewNew: View {
                         .padding(.top, Theme.spacing4)
                 }
 
+                // Provenance: where a completed task was completed, when not Astrid.
+                if task.completed, let src = task.completedSource, src != "astrid" {
+                    let providerName = ["google": "Google Tasks", "github": "GitHub", "apple": "Apple Reminders"][src] ?? src
+                    Text(String(format: NSLocalizedString("task_detail.completed_via", comment: "Completed via provider"), providerName))
+                        .font(Theme.Typography.caption2())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Theme.spacing16)
+                        .padding(.top, Theme.spacing4)
+                }
+
                 // 9a. Parent task link (shown on subtasks, under the description)
                 if let parentId = task.parentTaskId,
                    let parent = TaskService.shared.tasks.first(where: { $0.id == parentId }) {

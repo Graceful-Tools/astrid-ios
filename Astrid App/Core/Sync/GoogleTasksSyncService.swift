@@ -321,7 +321,8 @@ final class GoogleTasksSyncService: ObservableObject {
                     remoteUpdatedAt: remoteUpdated, localUpdatedAt: task.updatedAt) || localUnchanged else { continue }
                 if task.completed != item.completed {
                     _ = try? await taskService.completeTask(
-                        id: task.id, completed: item.completed, task: task, source: .google)
+                        id: task.id, completed: item.completed, task: task, source: .google,
+                        completedAt: RFC3339.parse(item.completedAt))
                 }
                 if task.title != item.title || (item.notes ?? "") != task.description {
                     _ = try? await taskService.updateTask(
@@ -505,7 +506,8 @@ final class GoogleTasksSyncService: ObservableObject {
                           localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                 else { continue }
                 _ = try? await taskService.completeTask(
-                    id: task.id, completed: item.completed, task: task, source: .google)
+                    id: task.id, completed: item.completed, task: task, source: .google,
+                    completedAt: RFC3339.parse(item.completedAt))
             }
         }
 
@@ -557,7 +559,8 @@ final class GoogleTasksSyncService: ObservableObject {
                     assigneeId: AuthManager.shared.userId,
                     source: .google) else { continue }
                 _ = try? await taskService.completeTask(
-                    id: newTask.id, completed: true, task: newTask, source: .google)
+                    id: newTask.id, completed: true, task: newTask, source: .google,
+                    completedAt: RFC3339.parse(item.completedAt))
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,

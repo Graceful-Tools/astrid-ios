@@ -939,3 +939,4 @@
 "sync.sync_mode" = "Sync mode";
 "sync.sync_now" = "Sync now";
 "sync.unlink" = "Unlink";
+"task_detail.completed_via" = "Completed via %@";

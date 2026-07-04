@@ -933,3 +933,4 @@
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";
 "sync.unlink" = "取消關聯";
+"task_detail.completed_via" = "透過 %@ 完成";

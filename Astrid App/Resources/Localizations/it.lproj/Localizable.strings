@@ -931,3 +931,4 @@
 "sync.sync_mode" = "Modalità di sincronizzazione";
 "sync.sync_now" = "Sincronizza ora";
 "sync.unlink" = "Scollega";
+"task_detail.completed_via" = "Completata tramite %@";

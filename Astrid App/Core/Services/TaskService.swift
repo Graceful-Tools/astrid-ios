@@ -379,7 +379,8 @@ class TaskService: ObservableObject {
         lastTimerValue: String? = nil,
         listIds: [String]? = nil,
         task: Task? = nil,  // Optional: provide task if not in cache (e.g., from featured lists)
-        source: SyncSource? = nil  // Origin tag for provider echo suppression (persisted on the Outbox payload)
+        source: SyncSource? = nil,
+        completedAt: Date? = nil  // Origin tag for provider echo suppression (persisted on the Outbox payload)
     ) async throws -> Task {
         // Resolve stale temp ID → real server ID.
         // When a user opens a task detail view for a newly created task, the view
@@ -400,7 +401,11 @@ class TaskService: ObservableObject {
         if let title = title { optimisticTask.title = title }
         if let description = description { optimisticTask.description = description }
         if let priority = priority { optimisticTask.priority = Task.Priority(rawValue: priority) ?? .none }
-        if let completed = completed { optimisticTask.completed = completed }
+        if let completed = completed {
+            optimisticTask.completed = completed
+            optimisticTask.completedAt = completed ? (completedAt ?? Date()) : nil
+            optimisticTask.completedSource = completed ? (source?.rawValue ?? "astrid") : nil
+        }
 
         // Handle new dueDateTime + isAllDay OR legacy when/whenTime parameters
         if let dueDateTime = dueDateTime {
@@ -541,7 +546,10 @@ class TaskService: ObservableObject {
                 listIds: listIds,
                 assigneeId: assigneeId,
                 timerDuration: timerDuration,
-                lastTimerValue: lastTimerValue
+                lastTimerValue: lastTimerValue,
+                completedAt: (completed == true)
+                    ? ISO8601DateFormatter().string(from: completedAt ?? Date()) : nil,
+                completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil
             )
 
             // The Outbox is authoritative for updates: its handler performs the
@@ -602,7 +610,7 @@ class TaskService: ObservableObject {
         try await apiClient.getAllTasks(listId: listId)
     }
 
-    func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil, source: SyncSource? = nil) async throws -> Task {
+    func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil, source: SyncSource? = nil, completedAt: Date? = nil) async throws -> Task {
         // Get the current task - prefer the passed task (what user sees on screen) over cache
         // The cache might be stale if the task was updated on web
         guard let currentTask = task ?? cachedTasks[id] ?? tasks.first(where: { $0.id == id }) else {
@@ -651,7 +659,7 @@ class TaskService: ObservableObject {
         }
 
         // Non-repeating task or un-completing - use normal update
-        return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task, source: source)
+        return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task, source: source, completedAt: completedAt)
     }
 
     /// Calculate the next occurrence date for a repeating task.

@@ -18,6 +18,7 @@ struct GoogleTaskItemDTO: Codable, Equatable {
     let title: String
     let notes: String?
     let completed: Bool
+    var completedAt: String? = nil   // Google's completion timestamp
     let dueDate: String?
     let remoteUpdatedAt: String
     let metadata: [String: String]?

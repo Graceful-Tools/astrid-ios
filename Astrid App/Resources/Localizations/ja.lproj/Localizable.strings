@@ -931,3 +931,4 @@
 "sync.sync_mode" = "同期モード";
 "sync.sync_now" = "今すぐ同期";
 "sync.unlink" = "リンク解除";
+"task_detail.completed_via" = "%@ で完了";

@@ -931,3 +931,4 @@
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";
 "sync.unlink" = "取消关联";
+"task_detail.completed_via" = "通过 %@ 完成";
