@@ -36,9 +36,9 @@ These files are in the repository root:
 
 | File | Description |
 |------|-------------|
-| [README_XCODE_SETUP.md](../README_XCODE_SETUP.md) | Complete Xcode setup |
-| [GOOGLE_OAUTH_SETUP.md](../GOOGLE_OAUTH_SETUP.md) | Google OAuth configuration |
-| [SHARE_EXTENSION_SETUP.md](../SHARE_EXTENSION_SETUP.md) | Share extension setup |
+| [README_XCODE_SETUP.md](./XCODE_SETUP.md) | Complete Xcode setup |
+| [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md) | Google OAuth configuration |
+| [SHARE_EXTENSION_SETUP.md](./SHARE_EXTENSION_SETUP.md) | Share extension setup |
 
 ## Related
 

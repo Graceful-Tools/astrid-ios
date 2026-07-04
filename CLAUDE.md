@@ -188,15 +188,15 @@ Every write to a backend-backed resource must flow through a service layer — n
 
 | Domain | Canonical service | Entry point | Notes |
 |--------|-------------------|-------------|-------|
-| Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | Offline queue via CDTask. |
+| Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | Writes journal through the unified Outbox; CDTask is the cache/reconcile store. |
 | Task completion (incl. repeat rollover) | `TaskService.completeTask` | See "Repeating Tasks" below for all six entry points. | MUST go through this — never `updateTask(completed: true)`. |
 | Lists | `ListService` | `createList`, `updateList`, `deleteList`, `toggleFavorite`, `fetchLists` | |
 | List members (add / role / remove) | `ListMemberService` | `addMember`, `updateMemberRole`, `removeMember`, `cancelInvitation` | Offline queue via CDMember. |
-| Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | |
+| Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | Outbox-backed (create/update/delete kinds). |
 | Chat | `ChatService` | `sendMessage`, `getAIAssistantSettings`, `postAgentResponse` | AI-assistant helpers are cached (60s TTL). |
 | Attachments | `AttachmentService` | `saveLocallyAndUploadAsync`, etc. | |
-| User smart-task settings | `UserSettingsService` ↔ `AstridAPIClient.getSmartTaskSettings` / `updateSmartTaskSettings` | `/api/user/settings` | UserDefaults-first, 300ms debounce to server. |
-| My Tasks preferences | `MyTasksPreferencesService` ↔ `AstridAPIClient.getMyTasksPreferences` / `updateMyTasksPreferences` | `/api/user/my-tasks-preferences` | UserDefaults-first, 300ms debounce to server. |
+| User smart-task settings | `UserSettingsService` ↔ `AstridAPIClient.getSmartTaskSettings` / `updateSmartTaskSettings` | `/api/v1/users/me/settings` | UserDefaults-first, 300ms debounce to server. |
+| My Tasks preferences | `MyTasksPreferencesService` ↔ `AstridAPIClient.getMyTasksPreferences` / `updateMyTasksPreferences` | `/api/v1/users/me/my-tasks-preferences` | UserDefaults-first, 300ms debounce to server. |
 | Reminder/notification completion | `ReminderPresenter` → `TaskService.completeTask(task:)` | Must pass `task:` so rollover doesn't depend on cache state. |
 | Apple Reminders sync | `AppleRemindersService` → `TaskService.completeTask(task:)` | |
 | On-device AI complete action | `AppleFoundationModelService` → `TaskService.completeTask` | Must NOT use `updateTask(completed: true)`. |
@@ -213,9 +213,22 @@ Every write to a backend-backed resource must flow through a service layer — n
 | All-day task date handling (UTC midnight, Google Calendar / RFC 5545) | `astrid-web/lib/date-comparison.ts`, `date-filter-utils.ts` | `Task.isDueToday` / `Task.isOverdue` in `BadgeManager.swift` + filter in `TaskListView.applyDateFilter` | `AllDayTimezoneTests` |
 | List role / permission (listMembers is source of truth — legacy `admins[]`/`members[]` arrays are not populated by server endpoints iOS consumes and must NOT be branched on) | `astrid-web/lib/list-permissions.ts` (`getUserRoleInList`) | `TaskList.role(for:)`, `TaskList.isMember(userId:)`, `TaskList.canUserSaveServerSettings()` | |
 | My Tasks empty-state message (single string per list type, no completed-task threshold) | `astrid-web/components/ui/astrid-empty-state.tsx` | `TaskListView.getMyTasksEmptyMessage` | `EmptyStateMessageTests` |
-| Preferences + settings wire shape (`/api/user/my-tasks-preferences`, `/api/user/settings`) | web endpoints under `app/api/user/` | `MyTasksPreferences`, `UserSettings` structs | `CanonicalControlPointsTests` |
+| Preferences + settings wire shape (`/api/v1/users/me/my-tasks-preferences`, `/api/v1/users/me/settings`) | web endpoints under `app/api/user/` | `MyTasksPreferences`, `UserSettings` structs | `CanonicalControlPointsTests` |
 
 ---
+
+## Unified Outbox (the only write path)
+
+All backend writes for tasks, comments, chat sends, and attachment uploads journal through `Astrid App/Core/Outbox/` (journal + runner + per-kind handlers). Eight kinds: `createTask`, `updateTask`, `deleteTask`, `createComment`, `updateComment`, `deleteComment`, `sendChatMessage`, `uploadAttachment`. Entries carry a `clientRequestId` (server-side idempotency), retry with backoff, dead-letter on permanent errors (surfaced in Settings → Outbox), and support `dependsOn` chains (upload→comment/send). Local-state waits return `.blocked` (no attempt burn). The legacy per-service sync was deleted; `syncPendingOperations`/`syncPendingComments` are thin drain wrappers. Lists/ListMembers and chat deletes remain legacy (no kinds yet). Sign-out wipes the journal. See `docs/LOCAL_FIRST_PATTERN.md`.
+
+## External sync providers
+
+`Astrid App/Core/Sync/` mirrors content two-way with Apple Reminders, Google Tasks, and GitHub Issues (client-side workers; server stores links/tokens and proxies via `astrid-web /api/v1/sync/*`; GitHub webhook → SSE `external_sync_refresh` nudge). All decision logic is pure and unit-tested: `SyncSuppression` (dual watermarks + `remoteWins` last-write-wins), `GoogleDueMapping`, `SyncPullOrdering` (sub-issue/subtask parents first), `GoogleAutoLink` (modes: manual / all-Google→Astrid with suffix / all-Astrid→Google / bidirectional; server-side `Integration.metadata`), `CommentSyncPlanner` (GitHub comments create/edit/delete, directional canonicality), `SyncDeletionPolicy` + `SyncDeletionLedger` (tombstone-driven remote deletes; complete-listing-guarded local deletes), `CompletionDriftPolicy`, `CompletedBackfill` (completed history 20/pass, backdated, never delays live sync), `RFC3339`. Inbound completion ALWAYS routes through `TaskService.completeTask(task:source:completedAt:)`. Sign-out resets all provider state (`SyncStateReset`, tested).
+
+## Completion metadata & subtasks
+
+- Tasks carry `completedAt` (real completion time, backdatable by sync) and `completedSource` (`astrid|google|github|apple`). The recently-completed window prefers `completedAt` on both platforms; task detail shows "Completed via …" for non-Astrid completions.
+- Subtasks: `parentTaskId` self-relation (SetNull on parent delete), inherit the parent's lists, complete via `TaskService.completeTask` per subtask, display per the synced `subtaskDisplay` setting with depth-capped indentation. Maps to Google Tasks `parent` and GitHub sub-issues 1:1.
 
 ## Repeating Tasks
 
@@ -287,24 +300,24 @@ Every list (including My Tasks) has a chat channel accessible via the chat toggl
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/chat/channels` | POST | Get or create channel for list/virtual key |
-| `/api/chat/channels/{id}/messages` | GET | Paginated messages (cursor-based) |
-| `/api/chat/channels/{id}/messages` | POST | Send message (with optional fileId + attachment fields) |
-| `/api/user/available-agents` | GET | List AI agents for @mention |
-| `/api/user/ai-assistant-settings` | GET/PATCH | Default agent preferences |
+| `/api/v1/chat/channels` | POST | Get or create channel for list/virtual key |
+| `/api/v1/chat/channels/{id}/messages` | GET | Paginated messages (cursor-based) |
+| `/api/v1/chat/channels/{id}/messages` | POST | Send message (with optional fileId + attachment fields) |
+| `/api/v1/users/me/available-agents` | GET | List AI agents for @mention |
+| `/api/v1/users/me/ai-preferences` | GET/PATCH | Default agent preferences |
 
 ### Attachment Upload Flow
 1. User picks photo/document → `AttachmentService.saveLocallyAndUploadAsync(context:)` saves locally + starts background upload
 2. Context is `{"listId": "..."}` for list channels or `{"channelId": "..."}` for virtual channels
-3. Upload goes to `/api/secure-upload/request-upload` (<4MB) or `/api/secure-upload/get-upload-url` + direct blob (≥4MB)
-4. On send, `ChatService.syncPendingCreate` resolves temp fileId → real fileId and sends with attachment metadata
+3. Upload goes to `/api/v1/secure-upload/request-upload` (<4MB) or `/api/v1/secure-upload/get-upload-url` + direct blob (≥4MB)
+4. Sends go through the Outbox `sendChatMessage` handler with a `dependsOn` edge on the `uploadAttachment` entry (real fileId read from the dependency's result); reconcile via `ChatService.reconcileOutboxSentMessage`
 5. Server associates `SecureFile` with `ChatMessage` via `chatMessageId`
 6. Response includes `secureFiles` array for rendering
 
 ### Offline Support
 - Messages saved to CoreData with `syncStatus: "pending"` and `clientRequestId` for deduplication
 - Attachments cached locally with temp IDs, uploaded when online
-- `ChatService.syncPendingMessages()` triggered on network restoration
+- Queued sends replay via the Outbox drain on relaunch/reconnect (`syncPendingMessages()` only handles legacy chat deletes)
 
 ---
 

@@ -8,6 +8,10 @@ Native iOS app for Astrid task management with AI assistance.
 
 ## Features
 
+- Two-way sync with Google Tasks (all-lists modes, bidirectional) and Apple Reminders
+- Sub-tasks with nested display and progress counts
+- Per-list chat with AI agents and attachments
+
 - **Sign in with Apple** (required for App Store)
 - **Google Sign In** (OAuth 2.0 with PKCE)
 - **Email/password** authentication
@@ -17,7 +21,7 @@ Native iOS app for Astrid task management with AI assistance.
 - Offline storage with Core Data
 - iPad optimized layouts
 - **Share Extension** - Create tasks from Photos, Files, Safari
-- **GitHub Integration** - Link repositories to lists for AI coding agents
+- **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents for AI coding agents
 
 ## Quick Start
 
@@ -106,7 +110,7 @@ The app connects to `https://astrid.cc`. To change this, edit `Astrid App/Utilit
 
 ```swift
 enum API {
-    static let baseURL = "https://astrid.cc"
+    // Environment-derived: DEBUG → localhost/LAN (debug_server_url override), RELEASE → https://astrid.cc — see Utilities/Constants.swift
 }
 ```
 
@@ -132,12 +136,12 @@ Localization files are in `Astrid App/Resources/Localizations/`.
 
 The app integrates with the Astrid backend:
 
-- **Authentication**: `/api/auth/apple`, `/api/auth/google`, `/api/auth/mobile-*`
-- **Tasks**: `/api/tasks` (CRUD operations)
-- **Lists**: `/api/lists` (CRUD operations)
-- **Comments**: `/api/tasks/{id}/comments`
+- **Authentication**: `/api/v1/auth/apple`, `/api/v1/auth/google`, `/api/v1/auth/mobile-*`
+- **Tasks**: `/api/v1/tasks` (CRUD operations)
+- **Lists**: `/api/v1/lists` (CRUD operations)
+- **Comments**: `/api/v1/tasks/{id}/comments`
 - **Real-time**: `/api/sse` (Server-Sent Events)
-- **GitHub**: `/api/github/repositories`
+- **GitHub**: `/api/v1/github/repositories`
 
 See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) for the full API specification.
 
@@ -180,6 +184,8 @@ TestFlight builds are distributed via Xcode Cloud.
 - [SECURITY.md](./SECURITY.md) - Security vulnerability reporting
 
 ## Architecture
+
+Writes journal through the unified Outbox (`Core/Outbox/` — idempotent, retrying, dependency-ordered); reads are cache-first with a 60s SyncManager pull + SSE. External sync providers live in `Core/Sync/`. See `docs/LOCAL_FIRST_PATTERN.md`.
 
 The app follows a local-first architecture pattern:
 

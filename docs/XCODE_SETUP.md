@@ -296,7 +296,7 @@ ios/AstridApp/
 │   └── Services/
 │       ├── TaskService.swift    # Task business logic
 │       ├── ListService.swift    # List business logic
-│       └── SyncEngine.swift     # Sync coordination
+│       └── SyncManager.swift (+ Core/Outbox/, Core/Sync/)     # Sync coordination
 ├── Models/
 │   ├── User.swift               # User model
 │   ├── Task.swift               # Task model
