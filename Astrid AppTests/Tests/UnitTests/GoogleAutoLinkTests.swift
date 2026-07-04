@@ -134,6 +134,52 @@ final class GoogleAutoLinkTests: XCTestCase {
         XCTAssertTrue(plan.googleToAstrid.isEmpty && plan.astridToGoogle.isEmpty)
     }
 
+    // MARK: - My Tasks ↔ Google default tasklist phase
+
+    func testMyTasksPhase_activeInAllListsModes() {
+        for mode: GoogleSyncMode in [.allGoogleToAstrid, .allAstridToGoogle, .allBidirectional] {
+            XCTAssertTrue(GoogleAutoLink.myTasksPhaseActive(
+                mode: mode, defaultTasklistId: "gdef", linkedTasklistIds: []), "\(mode)")
+        }
+    }
+
+    func testMyTasksPhase_inactiveInManualMode() {
+        XCTAssertFalse(GoogleAutoLink.myTasksPhaseActive(
+            mode: .manual, defaultTasklistId: "gdef", linkedTasklistIds: []))
+    }
+
+    func testMyTasksPhase_inactiveWithoutDefaultId() {
+        XCTAssertFalse(GoogleAutoLink.myTasksPhaseActive(
+            mode: .allBidirectional, defaultTasklistId: nil, linkedTasklistIds: []))
+    }
+
+    func testMyTasksPhase_skippedWhenDefaultAlreadyListLinked() {
+        // Legacy setups list-linked the default tasklist — the list link stays
+        // authoritative; the phase must not double-sync.
+        XCTAssertFalse(GoogleAutoLink.myTasksPhaseActive(
+            mode: .allBidirectional, defaultTasklistId: "gdef", linkedTasklistIds: ["gdef"]))
+    }
+
+    func testAutoLinkCandidates_excludesUnlinkedDefaultTasklist() {
+        let out = GoogleAutoLink.autoLinkCandidates(
+            tasklists: [ref("gdef", "My Tasks"), ref("g1", "Work")],
+            defaultTasklistId: "gdef", linkedTasklistIds: [])
+        XCTAssertEqual(out.map(\.id), ["g1"])
+    }
+
+    func testAutoLinkCandidates_keepsLegacyLinkedDefaultTasklist() {
+        let out = GoogleAutoLink.autoLinkCandidates(
+            tasklists: [ref("gdef", "My Tasks"), ref("g1", "Work")],
+            defaultTasklistId: "gdef", linkedTasklistIds: ["gdef"])
+        XCTAssertEqual(out.map(\.id), ["gdef", "g1"])
+    }
+
+    func testAutoLinkCandidates_noDefaultIdPassesThrough() {
+        let out = GoogleAutoLink.autoLinkCandidates(
+            tasklists: [ref("g1", "Work")], defaultTasklistId: nil, linkedTasklistIds: [])
+        XCTAssertEqual(out.map(\.id), ["g1"])
+    }
+
     func testFullyLinkedStateProducesNoActions() {
         XCTAssertTrue(GoogleAutoLink.googleToAstridActions(
             tasklists: [ref("g1", "A")], linkedTasklistIds: ["g1"],

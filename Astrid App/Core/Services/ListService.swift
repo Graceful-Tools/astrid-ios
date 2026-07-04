@@ -109,6 +109,27 @@ class ListService: ObservableObject {
     // MARK: - Initial Sync
 
     /// Fetch all accessible lists
+    /// Deleted-list guard: retained for the session (same stale-in-flight-fetch
+    /// race as tasks — a fetch that started before the delete can deliver the
+    /// list after it and resurrect it in the sidebar). Cleared on sign-out.
+    private static let recentlyDeletedListIdsKey = "recentlyDeletedListIds"
+    private var recentlyDeletedListIds: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? [])
+    }
+
+    private func recordRecentlyDeletedList(_ id: String) {
+        let arr = TaskService.appendingDeletedIds(
+            UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? [],
+            [id], cap: 200)
+        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedListIdsKey)
+    }
+
+    private func unrecordRecentlyDeletedList(_ id: String) {
+        var arr = UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? []
+        arr.removeAll { $0 == id }
+        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedListIdsKey)
+    }
+
     func fetchLists() async throws -> [TaskList] {
         isLoading = true
         errorMessage = nil
@@ -122,7 +143,10 @@ class ListService: ObservableObject {
 
             // Merge with pending lists (temp_ IDs not synced yet)
             let pendingLists = self.lists.filter { $0.id.hasPrefix("temp_") }
-            var mergedLists = fetchedLists.sorted { list1, list2 in
+            // Never resurrect a deleted list from a stale in-flight response.
+            let deletedIds = recentlyDeletedListIds
+            let liveLists = deletedIds.isEmpty ? fetchedLists : fetchedLists.filter { !deletedIds.contains($0.id) }
+            var mergedLists = liveLists.sorted { list1, list2 in
                 // Favorites first, then alphabetical
                 let fav1 = list1.isFavorite ?? false
                 let fav2 = list2.isFavorite ?? false
@@ -503,7 +527,8 @@ class ListService: ObservableObject {
             throw NSError(domain: "ListService", code: 404, userInfo: [NSLocalizedDescriptionKey: "List not found"])
         }
 
-        // Remove from UI immediately
+        // Remove from UI immediately + guard against stale-fetch resurrection
+        recordRecentlyDeletedList(listId)
         cachedLists.removeValue(forKey: listId)
         lists.removeAll { $0.id == listId }
         print("⚡️ [ListService] Optimistically deleted list: \(deletedList.name)")
@@ -529,6 +554,7 @@ class ListService: ObservableObject {
             }
         } catch {
             // ROLLBACK: Restore list on error
+            unrecordRecentlyDeletedList(listId)
             cachedLists[listId] = deletedList
             lists.insert(deletedList, at: 0)
             print("❌ [ListService] Failed to delete list, rolled back: \(error)")

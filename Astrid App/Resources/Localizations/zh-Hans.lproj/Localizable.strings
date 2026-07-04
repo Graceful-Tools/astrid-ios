@@ -918,12 +918,12 @@
 "sync.linking" = "正在关联…";
 "sync.list" = "列表";
 "sync.mode" = "模式";
-"sync.mode_astrid_to_google" = "所有 Astrid 列表 → Google";
+"sync.mode_astrid_to_google" = "将 Astrid 列表备份到 Google";
 "sync.mode_footer_astrid_to_google" = "每个 Astrid 列表都会作为备份镜像到 Google Tasks——新的 Astrid 列表会自动加入。";
 "sync.mode_footer_google_to_astrid" = "每个 Google Tasks 列表都会镜像到 Astrid——新的 Google 列表会自动加入并使用后缀命名。同名的 Astrid 列表会被复用而不会重复创建。";
 "sync.mode_footer_manual" = "仅下方关联的列表保持同步。";
-"sync.mode_google_to_astrid" = "所有 Google 列表 → Astrid";
-"sync.mode_manual" = "仅已关联列表";
+"sync.mode_google_to_astrid" = "将 Google 列表导入 Astrid";
+"sync.mode_manual" = "仅我关联的列表";
 "sync.no_lists_linked" = "尚未关联任何列表。";
 "sync.not_linked" = "未关联";
 "sync.repository" = "仓库";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "立即同步";
 "sync.unlink" = "取消关联";
 "task_detail.completed_via" = "通过 %@ 完成";
+"sync.mode_bidirectional" = "保持全部双向同步";
+"sync.mode_footer_bidirectional" = "您的 Google Tasks 列表会出现在 Astrid 中，Astrid 列表也会出现在 Google Tasks 中。双方的新列表会自动加入，同名列表会配对而不会重复。";

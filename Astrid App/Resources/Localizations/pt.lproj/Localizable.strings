@@ -918,12 +918,12 @@
 "sync.linking" = "Vinculando…";
 "sync.list" = "Lista";
 "sync.mode" = "Modo";
-"sync.mode_astrid_to_google" = "Todas as listas do Astrid → Google";
+"sync.mode_astrid_to_google" = "Fazer backup das listas do Astrid no Google";
 "sync.mode_footer_astrid_to_google" = "Cada lista do Astrid é espelhada no Google Tasks como backup — novas listas são detectadas automaticamente.";
 "sync.mode_footer_google_to_astrid" = "Cada lista do Google Tasks é espelhada no Astrid — novas listas são detectadas automaticamente e nomeadas com o sufixo. Listas do Astrid com o mesmo nome são reutilizadas, não duplicadas.";
 "sync.mode_footer_manual" = "Apenas as listas vinculadas abaixo permanecem sincronizadas.";
-"sync.mode_google_to_astrid" = "Todas as listas do Google → Astrid";
-"sync.mode_manual" = "Apenas listas vinculadas";
+"sync.mode_google_to_astrid" = "Trazer as listas do Google para o Astrid";
+"sync.mode_manual" = "Apenas listas que eu vincular";
 "sync.no_lists_linked" = "Nenhuma lista vinculada ainda.";
 "sync.not_linked" = "Não vinculada";
 "sync.repository" = "Repositório";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "Sincronizar agora";
 "sync.unlink" = "Desvincular";
 "task_detail.completed_via" = "Concluída via %@";
+"sync.mode_bidirectional" = "Manter tudo sincronizado (bidirecional)";
+"sync.mode_footer_bidirectional" = "Suas listas do Google Tasks aparecem no Astrid, e suas listas do Astrid aparecem no Google Tasks. Listas novas de ambos os lados entram automaticamente, e listas com o mesmo nome formam pares em vez de duplicar.";

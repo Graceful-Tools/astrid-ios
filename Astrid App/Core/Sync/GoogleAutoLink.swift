@@ -42,6 +42,25 @@ enum GoogleAutoLink {
         let newTasklistName: String
     }
 
+    /// My Tasks ↔ Google default tasklist phase: active in any all-lists mode
+    /// unless a legacy setup already list-linked the default tasklist (then the
+    /// list link stays authoritative and the phase must not double-sync).
+    static func myTasksPhaseActive(
+        mode: GoogleSyncMode, defaultTasklistId: String?, linkedTasklistIds: Set<String>
+    ) -> Bool {
+        guard mode != .manual, let id = defaultTasklistId else { return false }
+        return !linkedTasklistIds.contains(id)
+    }
+
+    /// Auto-link candidate filter: the default tasklist belongs to the My Tasks
+    /// phase, so it's excluded from list auto-linking — unless it's already
+    /// linked (legacy), in which case the existing link keeps flowing.
+    static func autoLinkCandidates(
+        tasklists: [ListRef], defaultTasklistId: String?, linkedTasklistIds: Set<String>
+    ) -> [ListRef] {
+        tasklists.filter { $0.id != defaultTasklistId || linkedTasklistIds.contains($0.id) }
+    }
+
     static func astridName(for tasklistName: String, suffix: String) -> String {
         let trimmed = suffix.trimmingCharacters(in: .whitespaces)
         return trimmed.isEmpty ? tasklistName : "\(tasklistName) \(trimmed)"

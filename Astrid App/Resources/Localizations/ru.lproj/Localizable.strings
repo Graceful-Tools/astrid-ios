@@ -918,12 +918,12 @@
 "sync.linking" = "Связывание…";
 "sync.list" = "Список";
 "sync.mode" = "Режим";
-"sync.mode_astrid_to_google" = "Все списки Astrid → Google";
+"sync.mode_astrid_to_google" = "Резервное копирование списков Astrid в Google";
 "sync.mode_footer_astrid_to_google" = "Каждый список Astrid зеркалируется в Google Tasks как резервная копия — новые списки подхватываются автоматически.";
 "sync.mode_footer_google_to_astrid" = "Каждый список Google Tasks зеркалируется в Astrid — новые списки подхватываются автоматически и получают суффикс. Одноимённые списки Astrid переиспользуются, а не дублируются.";
 "sync.mode_footer_manual" = "Синхронизируются только списки, связанные ниже.";
-"sync.mode_google_to_astrid" = "Все списки Google → Astrid";
-"sync.mode_manual" = "Только связанные списки";
+"sync.mode_google_to_astrid" = "Перенести списки Google в Astrid";
+"sync.mode_manual" = "Только связанные мной списки";
 "sync.no_lists_linked" = "Списки пока не связаны.";
 "sync.not_linked" = "Не связано";
 "sync.repository" = "Репозиторий";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "Синхронизировать сейчас";
 "sync.unlink" = "Отвязать";
 "task_detail.completed_via" = "Завершено через %@";
+"sync.mode_bidirectional" = "Синхронизировать всё (в обе стороны)";
+"sync.mode_footer_bidirectional" = "Ваши списки Google Tasks появляются в Astrid, а списки Astrid — в Google Tasks. Новые списки с обеих сторон добавляются автоматически, а одноимённые объединяются в пары, а не дублируются.";

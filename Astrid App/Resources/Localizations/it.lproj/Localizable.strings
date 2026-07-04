@@ -918,12 +918,12 @@
 "sync.linking" = "Collegamento…";
 "sync.list" = "Lista";
 "sync.mode" = "Modalità";
-"sync.mode_astrid_to_google" = "Tutte le liste Astrid → Google";
+"sync.mode_astrid_to_google" = "Esegui il backup delle liste Astrid su Google";
 "sync.mode_footer_astrid_to_google" = "Ogni lista Astrid si riflette in Google Tasks come backup: le nuove liste vengono rilevate automaticamente.";
 "sync.mode_footer_google_to_astrid" = "Ogni elenco Google Tasks si riflette in Astrid: i nuovi elenchi vengono rilevati automaticamente e nominati con il suffisso. Le liste Astrid omonime vengono riutilizzate, non duplicate.";
 "sync.mode_footer_manual" = "Restano sincronizzate solo le liste collegate qui sotto.";
-"sync.mode_google_to_astrid" = "Tutti gli elenchi Google → Astrid";
-"sync.mode_manual" = "Solo liste collegate";
+"sync.mode_google_to_astrid" = "Porta le liste Google in Astrid";
+"sync.mode_manual" = "Solo le liste che collego io";
 "sync.no_lists_linked" = "Nessuna lista ancora collegata.";
 "sync.not_linked" = "Non collegata";
 "sync.repository" = "Repository";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "Sincronizza ora";
 "sync.unlink" = "Scollega";
 "task_detail.completed_via" = "Completata tramite %@";
+"sync.mode_bidirectional" = "Mantieni tutto sincronizzato (bidirezionale)";
+"sync.mode_footer_bidirectional" = "Le tue liste di Google Tasks appaiono in Astrid e le tue liste Astrid appaiono in Google Tasks. Le nuove liste di entrambi i lati si aggiungono automaticamente e quelle con lo stesso nome si abbinano invece di duplicarsi.";

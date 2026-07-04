@@ -918,12 +918,12 @@
 "sync.linking" = "リンク中…";
 "sync.list" = "リスト";
 "sync.mode" = "モード";
-"sync.mode_astrid_to_google" = "すべての Astrid リスト → Google";
+"sync.mode_astrid_to_google" = "Astrid のリストを Google にバックアップ";
 "sync.mode_footer_astrid_to_google" = "すべての Astrid リストがバックアップとして Google Tasks にミラーリングされます。新しい Astrid リストは自動的に取り込まれます。";
 "sync.mode_footer_google_to_astrid" = "すべての Google Tasks リストが Astrid にミラーリングされます。新しい Google リストは自動的に取り込まれ、接尾辞付きで命名されます。同名の Astrid リストは再利用され、重複しません。";
 "sync.mode_footer_manual" = "下でリンクしたリストのみが同期されます。";
-"sync.mode_google_to_astrid" = "すべての Google リスト → Astrid";
-"sync.mode_manual" = "リンク済みリストのみ";
+"sync.mode_google_to_astrid" = "Google のリストを Astrid に取り込む";
+"sync.mode_manual" = "自分でリンクしたリストのみ";
 "sync.no_lists_linked" = "まだリンクされたリストはありません。";
 "sync.not_linked" = "未リンク";
 "sync.repository" = "リポジトリ";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "今すぐ同期";
 "sync.unlink" = "リンク解除";
 "task_detail.completed_via" = "%@ で完了";
+"sync.mode_bidirectional" = "すべてを双方向で同期";
+"sync.mode_footer_bidirectional" = "Google Tasks のリストが Astrid に、Astrid のリストが Google Tasks に表示されます。どちら側の新しいリストも自動的に追加され、同名のリストは重複せずペアになります。";

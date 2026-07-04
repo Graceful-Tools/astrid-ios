@@ -918,12 +918,12 @@
 "sync.linking" = "Koppelen…";
 "sync.list" = "Lijst";
 "sync.mode" = "Modus";
-"sync.mode_astrid_to_google" = "Alle Astrid-lijsten → Google";
+"sync.mode_astrid_to_google" = "Astrid-lijsten back-uppen naar Google";
 "sync.mode_footer_astrid_to_google" = "Elke Astrid-lijst wordt als back-up gespiegeld naar Google Tasks — nieuwe Astrid-lijsten worden automatisch opgepikt.";
 "sync.mode_footer_google_to_astrid" = "Elke Google Tasks-lijst wordt gespiegeld in Astrid — nieuwe Google-lijsten worden automatisch opgepikt en benoemd met het achtervoegsel. Bestaande gelijknamige Astrid-lijsten worden hergebruikt, niet gedupliceerd.";
 "sync.mode_footer_manual" = "Alleen de hieronder gekoppelde lijsten blijven gesynchroniseerd.";
-"sync.mode_google_to_astrid" = "Alle Google-lijsten → Astrid";
-"sync.mode_manual" = "Alleen gekoppelde lijsten";
+"sync.mode_google_to_astrid" = "Google-lijsten naar Astrid halen";
+"sync.mode_manual" = "Alleen lijsten die ik koppel";
 "sync.no_lists_linked" = "Nog geen lijsten gekoppeld.";
 "sync.not_linked" = "Niet gekoppeld";
 "sync.repository" = "Repository";
@@ -932,3 +932,5 @@
 "sync.sync_now" = "Nu synchroniseren";
 "sync.unlink" = "Ontkoppelen";
 "task_detail.completed_via" = "Voltooid via %@";
+"sync.mode_bidirectional" = "Alles synchroon houden (twee richtingen)";
+"sync.mode_footer_bidirectional" = "Je Google Tasks-lijsten verschijnen in Astrid en je Astrid-lijsten in Google Tasks. Nieuwe lijsten aan beide kanten doen automatisch mee, en lijsten met dezelfde naam worden gekoppeld in plaats van gedupliceerd.";

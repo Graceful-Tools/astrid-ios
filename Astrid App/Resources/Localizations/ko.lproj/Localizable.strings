@@ -920,12 +920,12 @@
 "sync.linking" = "연결 중…";
 "sync.list" = "목록";
 "sync.mode" = "모드";
-"sync.mode_astrid_to_google" = "모든 Astrid 목록 → Google";
+"sync.mode_astrid_to_google" = "Astrid 목록을 Google에 백업";
 "sync.mode_footer_astrid_to_google" = "모든 Astrid 목록이 백업으로 Google Tasks에 미러링됩니다. 새 Astrid 목록은 자동으로 추가됩니다.";
 "sync.mode_footer_google_to_astrid" = "모든 Google Tasks 목록이 Astrid에 미러링됩니다. 새 Google 목록은 자동으로 추가되며 접미사가 붙습니다. 같은 이름의 Astrid 목록은 재사용되며 중복되지 않습니다.";
 "sync.mode_footer_manual" = "아래에서 연결한 목록만 동기화됩니다.";
-"sync.mode_google_to_astrid" = "모든 Google 목록 → Astrid";
-"sync.mode_manual" = "연결된 목록만";
+"sync.mode_google_to_astrid" = "Google 목록을 Astrid로 가져오기";
+"sync.mode_manual" = "내가 연결한 목록만";
 "sync.no_lists_linked" = "아직 연결된 목록이 없습니다.";
 "sync.not_linked" = "연결 안 됨";
 "sync.repository" = "저장소";
@@ -934,3 +934,5 @@
 "sync.sync_now" = "지금 동기화";
 "sync.unlink" = "연결 해제";
 "task_detail.completed_via" = "%@에서 완료됨";
+"sync.mode_bidirectional" = "모두 양방향으로 동기화 유지";
+"sync.mode_footer_bidirectional" = "Google Tasks 목록이 Astrid에 나타나고 Astrid 목록이 Google Tasks에 나타납니다. 양쪽의 새 목록은 자동으로 추가되며, 이름이 같은 목록은 중복되지 않고 짝을 이룹니다.";

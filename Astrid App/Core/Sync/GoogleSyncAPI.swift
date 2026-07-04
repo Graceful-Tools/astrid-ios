@@ -9,6 +9,8 @@ struct GoogleTasklistDTO: Codable, Identifiable, Equatable {
 
 struct GoogleTasklistsResponse: Codable {
     let tasklists: [GoogleTasklistDTO]
+    /// The default list's real id — maps to Astrid's My Tasks (unlisted).
+    var defaultId: String? = nil
 }
 
 /// Provider-neutral remote item from the Google proxy. `dueDate` is RFC3339
@@ -31,7 +33,8 @@ struct GoogleTasksPullResponse: Codable {
 }
 
 struct GoogleTaskPushRequest: Codable {
-    let linkId: String
+    var linkId: String? = nil
+    var tasklistId: String? = nil   // direct mode (My Tasks ↔ default list)
     let title: String?
     let notes: String?
     let dueDate: String?        // RFC3339 date-only, null clears
@@ -92,6 +95,25 @@ extension AstridAPIClient {
         var query = [URLQueryItem(name: "linkId", value: linkId)]
         if full { query.append(URLQueryItem(name: "full", value: "1")) }  // ignore + don't advance the cursor
         return try await request(method: "GET", path: "/api/v1/sync/google/tasks", queryItems: query)
+    }
+
+    /// Direct-tasklist pull (My Tasks ↔ Google default list — no list link row).
+    func pullGoogleTasksDirect(tasklistId: String) async throws -> GoogleTasksPullResponse {
+        try await request(method: "GET", path: "/api/v1/sync/google/tasks",
+                          queryItems: [URLQueryItem(name: "tasklistId", value: tasklistId)])
+    }
+
+    func deleteGoogleTaskDirect(tasklistId: String, remoteId: String) async throws {
+        struct Success: Codable { let success: Bool? }
+        let _: Success = try await request(
+            method: "DELETE", path: "/api/v1/sync/google/tasks",
+            queryItems: [URLQueryItem(name: "tasklistId", value: tasklistId),
+                         URLQueryItem(name: "remoteId", value: remoteId)])
+    }
+
+    func getGoogleTaskLinksByContainer(containerId: String) async throws -> GitHubTaskLinksResponse {
+        try await request(method: "GET", path: "/api/v1/sync/google/task-links",
+                          queryItems: [URLQueryItem(name: "containerId", value: containerId)])
     }
 
     func pushGoogleTask(_ body: GoogleTaskPushRequest) async throws -> GoogleTaskPushResponse {

@@ -129,7 +129,7 @@ enum SyncStateReset {
         SyncDeletionLedger(provider: "github").storageKeys
             + SyncDeletionLedger(provider: "google").storageKeys
             + ["githubTaskLinkCache", "googleTaskLinkCache",
-               "recentlyDeletedTaskIds", "pendingAttachments",
+               "recentlyDeletedTaskIds", "recentlyDeletedListIds", "pendingAttachments",
                "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"]
     }
 
