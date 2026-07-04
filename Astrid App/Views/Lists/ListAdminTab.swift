@@ -268,7 +268,7 @@ struct ListAdminTab: View {
                     }
                     .padding(.vertical, Theme.spacing8)
                 } header: {
-                    Text(NSLocalizedString("lists.github_integration", comment: ""))
+                    Text(NSLocalizedString("lists.ai_coding_agent", comment: "AI Coding Agent"))
                 }
             }
 
