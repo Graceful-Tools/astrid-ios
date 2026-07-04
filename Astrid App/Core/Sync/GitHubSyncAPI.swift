@@ -12,7 +12,8 @@ struct SyncIntegrationDTO: Codable {
     struct Metadata: Codable {
         let googleSyncMode: String?
         let listSuffix: String?
-        let excludedTasklists: String?  // comma-joined tasklist ids
+        let excludedTasklists: String?     // comma-joined tasklist ids
+        let tombstonedRemoteIds: String?   // comma-joined remote ids deleted server-side
     }
 }
 

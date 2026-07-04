@@ -65,6 +65,11 @@ final class GitHubSyncService: ObservableObject {
             let github = integrations.first { $0.provider == "GITHUB_ISSUES" }
             isConnected = github != nil
             accountLogin = github?.externalAccountId
+            // Server-recorded tombstones (tasks deleted on web/other clients)
+            // merge into the local ledger so pulls never resurrect them.
+            for remoteId in (github?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",") {
+                deletionLedger.tombstonedRemoteIds.insert(String(remoteId))
+            }
             links = isConnected ? try await apiClient.getGitHubLinks().links : []
         } catch {
             // 503 = server not configured yet; 401 = not connected. Both fine.
