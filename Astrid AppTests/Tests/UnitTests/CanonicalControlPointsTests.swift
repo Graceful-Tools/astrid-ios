@@ -277,4 +277,23 @@ final class CanonicalControlPointsTests: XCTestCase {
         // In-memory published state reflects the same value.
         XCTAssertEqual(service.preferences.filterAssignee, [sentinel])
     }
+
+    // MARK: - UpdateTaskRequest wire shape (hand-written encode)
+
+    /// `UpdateTaskRequest.encode(to:)` is hand-written, so a newly added field
+    /// silently drops from every PUT unless it's listed there. This locks the
+    /// completion-metadata pair — their omission made backdated sync
+    /// completions lose their real timestamp (server stamped "now", flooding
+    /// the recently-completed window).
+    func testUpdateTaskRequest_wireShape_completionMetadata() throws {
+        let req = UpdateTaskRequest(
+            completed: true,
+            completedAt: "2010-10-26T01:23:55Z",
+            completedSource: "google")
+        let json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(req)) as? [String: Any])
+        XCTAssertEqual(json["completed"] as? Bool, true)
+        XCTAssertEqual(json["completedAt"] as? String, "2010-10-26T01:23:55Z")
+        XCTAssertEqual(json["completedSource"] as? String, "google")
+    }
 }

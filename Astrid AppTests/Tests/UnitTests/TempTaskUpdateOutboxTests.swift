@@ -50,7 +50,9 @@ final class TempTaskUpdateOutboxTests: XCTestCase {
             "backfill 'completed tasks arrive open' bug)")
         XCTAssertEqual(payload.updates.completed, true)
         XCTAssertEqual(payload.source, "google")
-        XCTAssertNotNil(payload.updates.completedAt, "backdated completedAt must survive onto the wire payload")
+        XCTAssertEqual(payload.updates.completedAt, ISO8601DateFormatter().string(from: backdated),
+                       "backdated completedAt must survive onto the wire payload")
+        XCTAssertEqual(payload.updates.completedSource, "google")
     }
 
     func testEditingTempTaskEnqueuesUpdateOutboxEntry() async throws {

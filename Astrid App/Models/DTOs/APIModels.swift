@@ -156,6 +156,12 @@ struct UpdateTaskRequest: Codable {
         try container.encodeIfPresent(assigneeId, forKey: .assigneeId)
         try container.encodeIfPresent(timerDuration, forKey: .timerDuration)
         try container.encodeIfPresent(lastTimerValue, forKey: .lastTimerValue)
+        // Added with the completion-metadata feature — a hand-written encode
+        // MUST list every field or it silently drops from the wire (this pair
+        // was missing: backdated sync completions lost their real timestamp
+        // and the server stamped "now" instead).
+        try container.encodeIfPresent(completedAt, forKey: .completedAt)
+        try container.encodeIfPresent(completedSource, forKey: .completedSource)
     }
 }
 
