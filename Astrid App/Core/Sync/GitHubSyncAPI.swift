@@ -109,6 +109,7 @@ struct GitHubIssuePushRequest: Codable {
     let state: String?              // "open" | "closed"
     let remoteId: String?           // nil = create
     var parentRemoteId: String? = nil  // create as a sub-issue of this issue
+    var assigneeUserId: String? = nil  // Astrid assignee → GitHub login (server resolves)
 }
 
 struct ExternalTaskLinkUpsertRequest: Codable {

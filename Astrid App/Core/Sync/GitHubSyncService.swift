@@ -202,6 +202,15 @@ final class GitHubSyncService: ObservableObject {
                         taskId: task.id, title: item.title,
                         description: item.notes ?? "", source: .github)
                 }
+                // Assignee: GitHub assignees resolve server-side to an Astrid
+                // user (via each user's connected login). Empty = unassigned.
+                if let mapped = item.metadata?["assigneeUserId"] {
+                    let newAssignee = mapped.isEmpty ? "" : mapped
+                    if (task.assigneeId ?? "") != newAssignee {
+                        _ = try? await taskService.updateTask(
+                            taskId: task.id, assigneeId: newAssignee, source: .github)
+                    }
+                }
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
@@ -230,9 +239,11 @@ final class GitHubSyncService: ObservableObject {
                 if let adopted {
                     newTask = adopted
                 } else {
+                    let mappedAssignee = (item.metadata?["assigneeUserId"]).flatMap { $0.isEmpty ? nil : $0 }
                     newTask = try await taskService.createTask(
                         listIds: [link.astridListId], title: item.title,
                         description: item.notes,
+                        assigneeId: mappedAssignee,
                         parentTaskId: parentTaskId, source: .github)
                 }
                 if item.completed, !newTask.completed {
@@ -284,7 +295,8 @@ final class GitHubSyncService: ObservableObject {
                 if let remote = pulledByRemoteId[existing.remoteId],
                    remote.title == task.title,
                    (remote.notes ?? "") == task.description,
-                   remote.completed == task.completed {
+                   remote.completed == task.completed,
+                   (remote.metadata?["assigneeUserId"] ?? "") == (task.assigneeId ?? "") {
                     try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: existing.remoteId,
                         remoteContainerId: link.remoteContainerId,
@@ -296,7 +308,8 @@ final class GitHubSyncService: ObservableObject {
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,
                     state: task.completed ? "closed" : "open",
-                    remoteId: existing.remoteId))
+                    remoteId: existing.remoteId,
+                    assigneeUserId: task.assigneeId ?? ""))
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: task.id, remoteId: existing.remoteId,
                     remoteContainerId: link.remoteContainerId,
@@ -330,7 +343,8 @@ final class GitHubSyncService: ObservableObject {
                     linkId: link.id, title: task.title,
                     body: task.description.isEmpty ? nil : task.description,
                     state: nil, remoteId: nil,
-                    parentRemoteId: task.parentTaskId.flatMap { byTaskId[$0]?.remoteId }))
+                    parentRemoteId: task.parentTaskId.flatMap { byTaskId[$0]?.remoteId },
+                    assigneeUserId: task.assigneeId))
                 if task.completed {
                     _ = try? await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
                         linkId: link.id, title: nil, body: nil,

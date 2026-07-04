@@ -509,6 +509,8 @@ class AppleRemindersService: ObservableObject {
 
             do {
                 // Create new Astrid task using TaskService
+                // Reminders are personal — imported tasks belong to the
+                // syncing user (unassigned tasks vanish from My Tasks).
                 let newTask = try await taskService.createTask(
                     listIds: [listId],
                     title: title,
@@ -516,7 +518,7 @@ class AppleRemindersService: ObservableObject {
                     priority: priority,
                     whenDate: isAllDay ? dueDate : nil,
                     whenTime: isAllDay ? nil : dueDate,
-                    assigneeId: nil,
+                    assigneeId: AuthManager.shared.userId,
                     isPrivate: nil,
                     repeating: nil,
                     source: .apple
