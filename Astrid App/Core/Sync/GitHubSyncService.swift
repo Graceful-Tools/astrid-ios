@@ -455,14 +455,15 @@ final class GitHubSyncService: ObservableObject {
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
                 let mappedAssignee = (item.metadata?["assigneeUserId"]).flatMap { $0.isEmpty ? nil : $0 }
+                let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
                 guard let newTask = try? await taskService.createTask(
                     listIds: [link.astridListId], title: item.title,
                     description: item.notes,
                     assigneeId: mappedAssignee,
-                    source: .github) else { continue }
+                    source: .github, presumeCompletedAt: backdated) else { continue }
                 _ = try? await taskService.completeTask(
                     id: newTask.id, completed: true, task: newTask, source: .github,
-                    completedAt: RFC3339.parse(item.completedAt))
+                    completedAt: backdated)
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,

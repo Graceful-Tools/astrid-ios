@@ -51,6 +51,21 @@ final class TaskListStabilityTests: XCTestCase {
         XCTAssertEqual(sorted.map(\.id), ["z-early", "a-late", "undated-new", "undated-old"])
     }
 
+    /// Backfill imports must be born completed+backdated: the old
+    /// create-then-complete sequence made each history import flash as an
+    /// OPEN row (sorted above the viewport by its ancient due date) for the
+    /// gap between the two writes — one viewport jump per import, 20 per
+    /// sync pass while the backfill drained.
+    func testHistoryImportIsBornCompletedAndBackdated() async throws {
+        let backdated = Date(timeIntervalSince1970: 1_288_000_000)
+        let task = try await TaskService.shared.createTask(
+            listIds: [], title: "history import \(UUID().uuidString)",
+            source: .google, presumeCompletedAt: backdated)
+        XCTAssertTrue(task.completed, "must never exist as an open row")
+        XCTAssertEqual(task.completedAt, backdated)
+        XCTAssertEqual(task.completedSource, "google")
+    }
+
     func testNoOpServerRefreshDoesNotRepublishTasks() async {
         let service = TaskService.shared
         let due = Date(timeIntervalSince1970: 1_800_000_000)

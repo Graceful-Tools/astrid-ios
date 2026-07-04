@@ -114,6 +114,25 @@ final class RecentlyCompletedPresetsTests: XCTestCase {
         XCTAssertEqual(result.count, 1)
     }
 
+    /// Regression lock for the "My Tasks flickers during Google backfill" bug:
+    /// a backfilled import is completed YEARS ago (backdated completedAt) but
+    /// its row was written just now (updatedAt = now). The default window must
+    /// key on completedAt so history imports stay invisible — the old
+    /// updatedAt-based copy in TaskListView made hundreds of them insert above
+    /// the viewport while the backfill drained.
+    func test_default_backfilledImport_oldCompletedAt_freshUpdatedAt_isHidden() {
+        let now = ISO8601DateFormatter().date(from: "2026-07-04T12:00:00Z")!
+        var backfilled = makeTask(id: "backfill", completed: true, updatedAt: now)
+        backfilled.completedAt = ISO8601DateFormatter().date(from: "2010-10-26T01:23:55Z")!
+        var justDone = makeTask(id: "fresh", completed: true, updatedAt: now)
+        justDone.completedAt = now.addingTimeInterval(-3600)
+
+        let visible = applyCompletionFilterWithWindow(
+            [backfilled, justDone], filter: "default", window: nil, now: now)
+        XCTAssertEqual(visible.map { $0.id }, ["fresh"],
+                       "backdated history must be hidden; a task completed an hour ago must show")
+    }
+
     func test_completed_andIncomplete_useStrictFilter() {
         let now = Date()
         let c = makeTask(id: "c", completed: true, updatedAt: now)

@@ -627,15 +627,16 @@ final class GoogleTasksSyncService: ObservableObject {
             let byId = Dictionary(fullItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
+                let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
                 guard let newTask = try? await taskService.createTask(
                     listIds: [link.astridListId], title: item.title,
                     description: item.notes,
                     whenDate: RFC3339.parse(item.dueDate),
                     assigneeId: AuthManager.shared.userId,
-                    source: .google) else { continue }
+                    source: .google, presumeCompletedAt: backdated) else { continue }
                 _ = try? await taskService.completeTask(
                     id: newTask.id, completed: true, task: newTask, source: .google,
-                    completedAt: RFC3339.parse(item.completedAt))
+                    completedAt: backdated)
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
@@ -909,15 +910,16 @@ final class GoogleTasksSyncService: ObservableObject {
             let byId = Dictionary(fullRemoteItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
+                let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
                 guard let newTask = try? await taskService.createTask(
                     listIds: [], title: item.title,
                     description: item.notes,
                     whenDate: RFC3339.parse(item.dueDate),
                     assigneeId: myUserId,
-                    source: .google) else { continue }
+                    source: .google, presumeCompletedAt: backdated) else { continue }
                 _ = try? await taskService.completeTask(
                     id: newTask.id, completed: true, task: newTask, source: .google,
-                    completedAt: RFC3339.parse(item.completedAt))
+                    completedAt: backdated)
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,

@@ -1179,35 +1179,14 @@ struct TaskListView: View {
     }
 
     private func applyCompletionFilter(_ tasks: [Task], filterCompletion: String) -> [Task] {
-        let filtered: [Task]
-        switch filterCompletion {
-        case "all":
-            filtered = tasks
-        case "completed":
-            filtered = tasks.filter { $0.completed }
-        case "incomplete":
-            filtered = tasks.filter { !$0.completed }
-        case "default":
-            // Show incomplete + recently completed (last 24 hours)
-            let now = Date()
-            let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: now)!
-            filtered = tasks.filter { task in
-                if !task.completed {
-                    return true
-                } else {
-                    // Show completed tasks if they were updated in the last 24 hours
-                    if let updatedAt = task.updatedAt {
-                        return updatedAt >= twentyFourHoursAgo
-                    }
-                    return false
-                }
-            }
-        default:
-            // Default to "default" behavior if unknown value
-            filtered = applyCompletionFilter(tasks, filterCompletion: "default")
-        }
-
-        return filtered
+        // Delegate to the shared pure helper (nil window = legacy 24h default).
+        // It keys the recently-completed window on completedAt — the real
+        // completion time, backdatable by sync — falling back to updatedAt.
+        // A private updatedAt-based copy here once made every Google-backfill
+        // import (completed 2010, row written just now) visible in My Tasks:
+        // hundreds of rows inserting above the viewport as the backfill
+        // drained — the "list flickers up and down" bug.
+        applyCompletionFilterWithWindow(tasks, filter: filterCompletion, window: nil)
     }
 
     private func applyDueDateFilter(_ tasks: [Task], filter: String) -> [Task] {

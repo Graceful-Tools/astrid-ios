@@ -277,7 +277,8 @@ class TaskService: ObservableObject {
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,
         parentTaskId: String? = nil,
-        source: SyncSource? = nil  // Origin tag for provider echo suppression
+        source: SyncSource? = nil,  // Origin tag for provider echo suppression
+        presumeCompletedAt: Date? = nil  // Sync history imports: born completed+backdated so the optimistic temp never flashes as an open row (the caller still calls completeTask to enqueue the server-side completion)
     ) async throws -> Task {
         // OPTIMISTIC UPDATE: Create temporary task immediately
         let tempId = "temp_\(UUID().uuidString)"
@@ -326,7 +327,9 @@ class TaskService: ObservableObject {
             lists: resolvedLists,
             listIds: listIds,
             isPrivate: isPrivate ?? true,
-            completed: false,
+            completed: presumeCompletedAt != nil,
+            completedAt: presumeCompletedAt,
+            completedSource: presumeCompletedAt != nil ? (source?.rawValue ?? "astrid") : nil,
             attachments: nil,
             comments: nil,
             createdAt: Date(),
