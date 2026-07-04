@@ -130,11 +130,28 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertNil(GoogleDueMapping.adoptedDue(remoteDue: nil, localDue: nil, localIsAllDay: true))
     }
 
-    func testDue_pushStringIsUTCStartOfDay() {
-        let nineAM = utcMidnight.addingTimeInterval(9 * 3600)
-        let s = GoogleDueMapping.pushDueString(for: nineAM)
-        XCTAssertTrue(s.hasSuffix("T00:00:00Z"), "expected UTC midnight, got \(s)")
+    func testDue_allDayPushKeepsItsUTCDay_regardlessOfLocalZone() {
+        // All-day dues are stored AT UTC midnight — the wire string must be
+        // that same instant even when the device sits west of UTC (where the
+        // local day is the previous date).
+        let s = GoogleDueMapping.pushDueString(
+            for: utcMidnight, isAllDay: true, localTimeZone: TimeZone(secondsFromGMT: -7 * 3600)!)
         XCTAssertEqual(GoogleDueMapping.formatter.date(from: s), utcMidnight)
+    }
+
+    func testDue_timedPushUsesTheLocalDay() {
+        // 03:00Z on day N = 20:00 the PREVIOUS day at UTC-7 — the user sees
+        // the earlier date, so that's the date-only value Google must get.
+        let threeAMUTC = utcMidnight.addingTimeInterval(3 * 3600)
+        let s = GoogleDueMapping.pushDueString(
+            for: threeAMUTC, isAllDay: false, localTimeZone: TimeZone(secondsFromGMT: -7 * 3600)!)
+        XCTAssertEqual(
+            GoogleDueMapping.formatter.date(from: s),
+            utcMidnight.addingTimeInterval(-86_400))
+        // And in a UTC household the same instant keeps day N.
+        let sUTC = GoogleDueMapping.pushDueString(
+            for: threeAMUTC, isAllDay: false, localTimeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertEqual(GoogleDueMapping.formatter.date(from: sUTC), utcMidnight)
     }
 
     // MARK: - Pull ordering (parents before children)
@@ -173,11 +190,16 @@ final class SyncProviderLogicTests: XCTestCase {
 
     func testDue_pushAndAdoptRoundTripIsStable() {
         // Push a local all-day due to Google, parse it back, and re-adopt:
-        // must be a no-op (the loop-avoidance property for Google's due field).
-        let s = GoogleDueMapping.pushDueString(for: utcMidnight)
-        let parsedBack = GoogleDueMapping.formatter.date(from: s)
-        XCTAssertNil(
-            GoogleDueMapping.adoptedDue(remoteDue: parsedBack, localDue: utcMidnight, localIsAllDay: true)
-        )
+        // must be a no-op in ANY timezone (the loop-avoidance property).
+        for offset in [-7, 0, 9] {
+            let s = GoogleDueMapping.pushDueString(
+                for: utcMidnight, isAllDay: true,
+                localTimeZone: TimeZone(secondsFromGMT: offset * 3600)!)
+            let parsedBack = GoogleDueMapping.formatter.date(from: s)
+            XCTAssertNil(
+                GoogleDueMapping.adoptedDue(remoteDue: parsedBack, localDue: utcMidnight, localIsAllDay: true),
+                "round-trip drifted at UTC\(offset >= 0 ? "+" : "")\(offset)"
+            )
+        }
     }
 }

@@ -400,7 +400,7 @@ final class GoogleTasksSyncService: ObservableObject {
         var pushErrors = 0
         for task in listTasks {
           do {
-            let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0) }
+            let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0, isAllDay: task.isAllDay) }
             if let existing = byTaskId[task.id] {
                 guard SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }

@@ -51,15 +51,21 @@ enum GoogleDueMapping {
         return f
     }()
 
-    /// Wire string for pushing a local due to Google: UTC midnight of the
-    /// user's LOCAL calendar day. Taking UTC's day of a timed instant shifts
-    /// evening dues to the next date for anyone west of UTC.
-    static func pushDueString(for due: Date) -> String {
-        let local = Calendar.current.dateComponents([.year, .month, .day], from: due)
+    /// Wire string for pushing a local due to Google (date-only).
+    /// - All-day dues are STORED at UTC midnight — their UTC day is the day.
+    /// - Timed dues are instants — the user's LOCAL day is the day (an 8pm due
+    ///   west of UTC is "tomorrow" in UTC terms but must not shift a date).
+    static func pushDueString(for due: Date, isAllDay: Bool, localTimeZone: TimeZone = .current) -> String {
         var utc = Calendar.current
         utc.timeZone = TimeZone(identifier: "UTC")!
+        if isAllDay {
+            return formatter.string(from: utc.startOfDay(for: due))
+        }
+        var local = Calendar.current
+        local.timeZone = localTimeZone
+        let day = local.dateComponents([.year, .month, .day], from: due)
         var comps = DateComponents()
-        comps.year = local.year; comps.month = local.month; comps.day = local.day
+        comps.year = day.year; comps.month = day.month; comps.day = day.day
         return formatter.string(from: utc.date(from: comps) ?? due)
     }
 
