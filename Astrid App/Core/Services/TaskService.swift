@@ -1151,6 +1151,14 @@ class TaskService: ObservableObject {
         // the deleted task until restart. Ids are never reused; storage is
         // capped with oldest-first eviction.
 
+        // No-op refresh guard: reassigning the @Published array re-renders
+        // every observer even when the content is identical — on a large list
+        // each background sync pass showed as a flicker. Skip the publish (and
+        // the badge/CoreData churn) when nothing actually changed.
+        if sortedTasks == self.tasks {
+            return
+        }
+
         // Update UI on main actor
         self.tasks = sortedTasks
         self.cachedTasks = Dictionary(uniqueKeysWithValues: sortedTasks.map { ($0.id, $0) })
@@ -1273,18 +1281,24 @@ class TaskService: ObservableObject {
                     mergedDict[task.id] = task // Truly pending, keep it
                 }
 
-                // Sort by due date, then by creation date
+                // Sort by due date, then creation date, then id. The id
+                // tie-break makes the order a TOTAL order: dictionary values
+                // come out in arbitrary order and sort ties keep that order,
+                // so without it, rows with equal keys (a batch of all-day
+                // tasks due the same day) shuffled on every background
+                // refresh — visible flicker on large lists.
                 let sorted = Array(mergedDict.values).sorted { task1, task2 in
-                    if let date1 = task1.dueDateTime, let date2 = task2.dueDateTime {
+                    if task1.dueDateTime != task2.dueDateTime {
+                        guard let date1 = task1.dueDateTime else { return false }
+                        guard let date2 = task2.dueDateTime else { return true }
                         return date1 < date2
                     }
-                    if task1.dueDateTime != nil {
-                        return true
+                    let created1 = task1.createdAt ?? .distantPast
+                    let created2 = task2.createdAt ?? .distantPast
+                    if created1 != created2 {
+                        return created1 > created2
                     }
-                    if task2.dueDateTime != nil {
-                        return false
-                    }
-                    return (task1.createdAt ?? Date()) > (task2.createdAt ?? Date())
+                    return task1.id < task2.id
                 }
 
                 continuation.resume(returning: sorted)
