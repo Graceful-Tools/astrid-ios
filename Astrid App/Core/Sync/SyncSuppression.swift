@@ -134,3 +134,29 @@ enum SyncPullOrdering {
         return ordered
     }
 }
+
+/// Gradual import of completed remote history. Incomplete items sync first
+/// and fast; completed ones trickle in newest-first under a per-pass budget —
+/// useful for search/review, never allowed to delay the live sync.
+enum CompletedBackfill {
+    struct Candidate: Equatable {
+        let remoteId: String
+        let completed: Bool
+        let deleted: Bool
+        let updatedAt: String   // RFC3339 sorts lexically
+    }
+
+    static func select(
+        _ items: [Candidate],
+        linkedRemoteIds: Set<String>,
+        tombstoned: Set<String>,
+        budget: Int
+    ) -> [Candidate] {
+        Array(items
+            .filter { $0.completed && !$0.deleted
+                && !linkedRemoteIds.contains($0.remoteId)
+                && !tombstoned.contains($0.remoteId) }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(budget))
+    }
+}

@@ -424,6 +424,42 @@ final class GitHubSyncService: ObservableObject {
             }
         }
 
+        // ── COMPLETED BACKFILL (lowest priority): import closed-issue history
+        // gradually — searchable/reviewable, never delaying live items.
+        if let fullItems = fullRemoteItems {
+            let batch = CompletedBackfill.select(
+                fullItems.map { .init(
+                    remoteId: $0.remoteId, completed: $0.completed,
+                    deleted: false,
+                    updatedAt: $0.remoteUpdatedAt) },
+                linkedRemoteIds: Set(byRemoteId.keys),
+                tombstoned: deletionLedger.tombstonedRemoteIds,
+                budget: 20)
+            let byId = Dictionary(fullItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
+            for candidate in batch {
+                guard let item = byId[candidate.remoteId] else { continue }
+                let mappedAssignee = (item.metadata?["assigneeUserId"]).flatMap { $0.isEmpty ? nil : $0 }
+                guard let newTask = try? await taskService.createTask(
+                    listIds: [link.astridListId], title: item.title,
+                    description: item.notes,
+                    assigneeId: mappedAssignee,
+                    source: .github) else { continue }
+                _ = try? await taskService.completeTask(
+                    id: newTask.id, completed: true, task: newTask, source: .github)
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
+                try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                    astridTaskId: realId, remoteId: item.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
+                    metadata: item.metadata))
+                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                    astridTaskId: realId, remoteId: item.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: Date(),
+                    remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+            }
+        }
+
         // ── COMMENTS: two-way per linked task ──────────────────────────────
         // Original taskLinks carry the persisted commentMap (fresh pull upserts
         // send issue metadata; the server merges, but local DTO copies don't).

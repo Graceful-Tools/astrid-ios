@@ -154,6 +154,34 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertEqual(GoogleDueMapping.formatter.date(from: sUTC), utcMidnight)
     }
 
+    // MARK: - Completed backfill (history trickles in, never delays live sync)
+
+    private func cand(_ id: String, completed: Bool = true, deleted: Bool = false, at: String) -> CompletedBackfill.Candidate {
+        .init(remoteId: id, completed: completed, deleted: deleted, updatedAt: at)
+    }
+
+    func testBackfill_selectsOnlyCompletedExisting_newestFirst() {
+        let batch = CompletedBackfill.select(
+            [cand("a", at: "2026-01-03"), cand("b", at: "2026-01-01"), cand("c", at: "2026-01-02"),
+             cand("open", completed: false, at: "2026-01-04"), cand("gone", deleted: true, at: "2026-01-05")],
+            linkedRemoteIds: [], tombstoned: [], budget: 10)
+        XCTAssertEqual(batch.map(\.remoteId), ["a", "c", "b"])
+    }
+
+    func testBackfill_skipsLinkedAndTombstoned() {
+        let batch = CompletedBackfill.select(
+            [cand("a", at: "3"), cand("b", at: "1"), cand("c", at: "2")],
+            linkedRemoteIds: ["a"], tombstoned: ["c"], budget: 10)
+        XCTAssertEqual(batch.map(\.remoteId), ["b"])
+    }
+
+    func testBackfill_budgetKeepsNewest() {
+        let batch = CompletedBackfill.select(
+            [cand("a", at: "3"), cand("b", at: "1"), cand("c", at: "2")],
+            linkedRemoteIds: [], tombstoned: [], budget: 2)
+        XCTAssertEqual(batch.map(\.remoteId), ["a", "c"])
+    }
+
     // MARK: - Pull ordering (parents before children)
 
     private struct Item { let id: String; let parent: String? }

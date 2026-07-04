@@ -533,5 +533,43 @@ final class GoogleTasksSyncService: ObservableObject {
                 try? await taskService.deleteTask(id: del.taskId)
             }
         }
+
+        // ── COMPLETED BACKFILL (lowest priority, runs last): import completed
+        // history gradually so it's searchable/reviewable without ever
+        // delaying live items. Budgeted per pass; the full listing re-offers
+        // the remainder next pass.
+        if let fullItems = fullRemoteItems {
+            let batch = CompletedBackfill.select(
+                fullItems.map { .init(
+                    remoteId: $0.remoteId, completed: $0.completed,
+                    deleted: $0.metadata?["deleted"] == "1",
+                    updatedAt: $0.remoteUpdatedAt) },
+                linkedRemoteIds: Set(byRemoteId.keys),
+                tombstoned: deletionLedger.tombstonedRemoteIds,
+                budget: 20)
+            let byId = Dictionary(fullItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
+            for candidate in batch {
+                guard let item = byId[candidate.remoteId] else { continue }
+                guard let newTask = try? await taskService.createTask(
+                    listIds: [link.astridListId], title: item.title,
+                    description: item.notes,
+                    whenDate: RFC3339.parse(item.dueDate),
+                    assigneeId: AuthManager.shared.userId,
+                    source: .google) else { continue }
+                _ = try? await taskService.completeTask(
+                    id: newTask.id, completed: true, task: newTask, source: .google)
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
+                try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
+                    astridTaskId: realId, remoteId: item.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
+                    metadata: item.metadata))
+                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                    astridTaskId: realId, remoteId: item.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: Date(),
+                    remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+            }
+        }
     }
 }
