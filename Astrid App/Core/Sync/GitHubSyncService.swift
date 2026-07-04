@@ -109,6 +109,17 @@ final class GitHubSyncService: ObservableObject {
         scheduleSync()
     }
 
+    /// Sign-out: drop all in-memory state for the departing account.
+    func resetForSignOut() {
+        isConnected = false
+        accountLogin = nil
+        links = []
+        isSyncing = false
+        lastSyncedAt = nil
+        lastError = nil
+        syncDebounce?.cancel()
+    }
+
     func unlink(_ linkId: String) async {
         try? await apiClient.deleteGitHubLink(linkId: linkId)
         await refreshStatus()

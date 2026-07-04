@@ -570,6 +570,14 @@ class AuthManager: ObservableObject {
         // Clear Apple Reminders integration data
         AppleRemindersService.shared.clearAllData()
 
+        // External sync: wipe the Outbox journal (queued writes belong to the
+        // departing user — replaying under a new session would cross-post),
+        // all persisted sync ledgers/caches, and the services' in-memory state.
+        await OutboxManager.shared.clearAllForSignOut()
+        SyncStateReset.clearAll()
+        GitHubSyncService.shared.resetForSignOut()
+        GoogleTasksSyncService.shared.resetForSignOut()
+
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()
         UserSettingsService.shared.clearData()

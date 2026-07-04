@@ -62,6 +62,11 @@ final class OutboxManager {
         await runner.drain()
     }
 
+    /// Sign-out: wipe the journal (queued writes belong to the departing user).
+    func clearAllForSignOut() async {
+        await runner.clearAll()
+    }
+
     /// Local mutations nudge the external sync providers (debounced there) so
     /// edits push without waiting for foreground/pull-to-refresh.
     static let didEnqueueMutation = Notification.Name("outboxDidEnqueueMutation")

@@ -261,6 +261,13 @@ actor OutboxRunner {
         entries[idx] = entry
     }
 
+    /// Sign-out: drop every queued entry — replaying the previous account's
+    /// writes under the next account's session would cross-post their data.
+    func clearAll() {
+        entries.removeAll()
+        persist()
+    }
+
     private func persist() {
         try? store.save(entries)
     }

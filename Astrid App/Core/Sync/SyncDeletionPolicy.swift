@@ -61,6 +61,10 @@ struct SyncDeletionLedger {
         tombstoneKey = "syncDeletedRemoteIds.\(provider)"
     }
 
+    /// Every UserDefaults key this ledger owns — consumed by the sign-out
+    /// reset so per-user state can't leak to the next account on the device.
+    var storageKeys: [String] { [key, tombstoneKey] }
+
     /// remoteId → remoteContainerId (pending remote deletions)
     var pending: [String: String] {
         get { UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:] }
@@ -113,5 +117,23 @@ enum CompletionDriftPolicy {
             return localUnchanged || localCompletedAt == nil
         }
         return localUnchanged
+    }
+}
+
+/// Sign-out reset for per-user sync state persisted OUTSIDE CoreData (which
+/// the sign-out flow wipes separately). A stale entry here would leak the
+/// previous account's links/tombstones — or replay their queued writes —
+/// into the next account on a shared device.
+enum SyncStateReset {
+    static var userDefaultsKeys: [String] {
+        SyncDeletionLedger(provider: "github").storageKeys
+            + SyncDeletionLedger(provider: "google").storageKeys
+            + ["githubTaskLinkCache", "googleTaskLinkCache",
+               "recentlyDeletedTaskIds", "pendingAttachments",
+               "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"]
+    }
+
+    static func clearAll(defaults: UserDefaults = .standard) {
+        for key in userDefaultsKeys { defaults.removeObject(forKey: key) }
     }
 }
