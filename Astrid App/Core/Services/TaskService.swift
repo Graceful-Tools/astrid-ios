@@ -118,13 +118,14 @@ class TaskService: ObservableObject {
     }
 
     /// Finalize a task deletion once the Outbox `deleteTask` handler succeeds:
-    /// remove the pending_delete CoreData row and clear the recently-deleted
-    /// guard. Idempotent with the legacy path.
+    /// remove the pending_delete CoreData row. The recently-deleted guard is
+    /// intentionally RETAINED — a fetch that started before the server delete
+    /// can still deliver the task after confirmation, and clearing the guard
+    /// here let that stale response resurrect the task until restart. Task ids
+    /// are never reused, so retaining them (capped) is safe.
     func finalizeOutboxDeletedTask(id: String, resolvedId: String) async {
         try? await deleteTaskFromCoreData(id)
         if resolvedId != id { try? await deleteTaskFromCoreData(resolvedId) }
-        recentlyDeletedIds.remove(id)
-        recentlyDeletedIds.remove(resolvedId)
         updatePendingOperationsCount()
         await badgeManager.updateBadge(with: self.tasks)
     }
@@ -144,9 +145,28 @@ class TaskService: ObservableObject {
     /// syncPendingOperations pushes the delete and clears CoreData, but if the server still
     /// returns the task briefly, there's nothing left to filter it → deleted tasks reappear.
     private static let recentlyDeletedIdsKey = "recentlyDeletedTaskIds"
+    private static let recentlyDeletedCap = 500
+    /// Read-only view. Mutations go through recordRecentlyDeleted — ordered,
+    /// capped storage so eviction drops the OLDEST ids (a Set round-trip
+    /// evicts arbitrarily and could drop the id just recorded).
     private var recentlyDeletedIds: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: Self.recentlyDeletedIdsKey) }
+        Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? [])
+    }
+
+    private func recordRecentlyDeleted(_ ids: [String]) {
+        let arr = Self.appendingDeletedIds(
+            UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? [],
+            ids, cap: Self.recentlyDeletedCap)
+        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedIdsKey)
+    }
+
+    /// Pure ledger append: idempotent, ordered, oldest-first eviction at cap —
+    /// eviction must never drop the id just recorded (a Set round-trip would).
+    nonisolated static func appendingDeletedIds(_ existing: [String], _ ids: [String], cap: Int) -> [String] {
+        var arr = existing
+        for id in ids where !arr.contains(id) { arr.append(id) }
+        if arr.count > cap { arr.removeFirst(arr.count - cap) }
+        return arr
     }
 
     private init() {
@@ -443,8 +463,9 @@ class TaskService: ObservableObject {
         cachedTasks[resolvedId] = optimisticTask
         if let index = tasks.firstIndex(where: { $0.id == resolvedId }) {
             tasks[index] = optimisticTask
-        } else {
-            // Add to tasks array if not already there (e.g., featured list tasks)
+        } else if !recentlyDeletedIds.contains(resolvedId) {
+            // Add to tasks array if not already there (e.g., featured list tasks) —
+            // but never resurrect a deleted task (late queued updates / SSE echoes).
             tasks.append(optimisticTask)
             print("➕ [TaskService] Added task to tasks array: \(optimisticTask.title)")
         }
@@ -771,7 +792,7 @@ class TaskService: ObservableObject {
         // Remove from UI immediately and track for sync filtering
         cachedTasks.removeValue(forKey: resolvedId)
         tasks.removeAll { $0.id == resolvedId }
-        recentlyDeletedIds.insert(resolvedId)
+        recordRecentlyDeleted([resolvedId])
         print("⚡️ [TaskService] Optimistically deleted task: \(deletedTask.title)")
 
         // Mark as deleted in CoreData for offline support (CRITICAL: await to ensure persistence)
@@ -1091,7 +1112,7 @@ class TaskService: ObservableObject {
     func clearCache() {
         tasks = []
         cachedTasks = [:]
-        recentlyDeletedIds = []
+        UserDefaults.standard.removeObject(forKey: Self.recentlyDeletedIdsKey)
         pendingOperationsCount = 0
         print("🗑️ [TaskService] In-memory task cache cleared")
     }
@@ -1126,11 +1147,11 @@ class TaskService: ObservableObject {
             pendingTasks: localTasks
         )
 
-        // Only clear recentlyDeletedIds for tasks whose delete has actually been confirmed
-        // (no longer pending in CoreData). Keep IDs that are still pending_delete — they haven't
-        // been deleted from the server yet and must remain filtered on subsequent syncs.
-        let stillPendingDeleteIds = getPendingDeleteIds()
-        recentlyDeletedIds = recentlyDeletedIds.intersection(stillPendingDeleteIds)
+        // recentlyDeletedIds is intentionally NOT pruned on confirmation: a
+        // fetch that started before the server delete can still deliver the
+        // task after it, and pruning here let that stale response resurrect
+        // the deleted task until restart. Ids are never reused; storage is
+        // capped with oldest-first eviction.
 
         // Update UI on main actor
         self.tasks = sortedTasks
