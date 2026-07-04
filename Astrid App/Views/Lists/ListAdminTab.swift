@@ -246,6 +246,21 @@ struct ListAdminTab: View {
                                 saveGitHubSettings()
                             }
 
+                            // One tap: reuse the issues-sync repo when the coding
+                            // agent's installation can also reach it.
+                            if githubRepositoryId == nil,
+                               let syncLink = githubSync.links.first(where: { $0.astridListId == list.id }),
+                               availableRepositories.contains(where: { $0.fullName == syncLink.remoteContainerId }) {
+                                Button {
+                                    githubRepositoryId = syncLink.remoteContainerId
+                                    saveGitHubSettings()
+                                } label: {
+                                    Label(String(format: NSLocalizedString("sync.use_repo", comment: "Use repo X"), syncLink.remoteContainerId),
+                                          systemImage: "link")
+                                        .font(Theme.Typography.caption1())
+                                }
+                            }
+
                             if availableRepositories.isEmpty {
                                 Text(NSLocalizedString("lists.no_repositories_found", comment: ""))
                                     .font(Theme.Typography.caption2())
