@@ -73,6 +73,9 @@ struct GitHubCommentsResponse: Codable {
 }
 
 struct GitHubIssuesPullResponse: Codable {
+    /// Server flags an incomplete (page-capped) listing — absence-based
+    /// deletion must be skipped. Missing (old server) = treat as truncated.
+    var truncated: Bool? = nil
     let items: [GitHubIssueItemDTO]
     let cursor: String?
 }

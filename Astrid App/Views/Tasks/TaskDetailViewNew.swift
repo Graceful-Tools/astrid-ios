@@ -569,7 +569,8 @@ struct TaskDetailViewNew: View {
                 // close the pane instead of showing a dead task.
                 let ids = [notification.userInfo?["taskId"] as? String,
                            notification.userInfo?["resolvedTaskId"] as? String].compactMap { $0 }
-                if ids.contains(task.id) {
+                let myIds = [task.id, TaskService.shared.mappedRealTaskId(for: task.id)].compactMap { $0 }
+                if !Set(ids).isDisjoint(with: myIds) {
                     if let onClose { onClose() } else { dismiss() }
                 }
             }

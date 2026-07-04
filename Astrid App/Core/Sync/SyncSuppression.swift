@@ -40,11 +40,16 @@ enum GoogleDueMapping {
         return f
     }()
 
-    /// Wire string for pushing a local due to Google: UTC start-of-day.
+    /// Wire string for pushing a local due to Google: UTC midnight of the
+    /// user's LOCAL calendar day. Taking UTC's day of a timed instant shifts
+    /// evening dues to the next date for anyone west of UTC.
     static func pushDueString(for due: Date) -> String {
+        let local = Calendar.current.dateComponents([.year, .month, .day], from: due)
         var utc = Calendar.current
         utc.timeZone = TimeZone(identifier: "UTC")!
-        return formatter.string(from: utc.startOfDay(for: due))
+        var comps = DateComponents()
+        comps.year = local.year; comps.month = local.month; comps.day = local.day
+        return formatter.string(from: utc.date(from: comps) ?? due)
     }
 
     /// The due date to adopt locally from Google's date-only `due`, or nil to
@@ -55,6 +60,29 @@ enum GoogleDueMapping {
         guard localIsAllDay || localDue == nil else { return nil }
         guard localDue != remoteDue else { return nil }
         return remoteDue
+    }
+}
+
+/// RFC3339 parsing tolerant of fractional seconds — Google Tasks emits
+/// `2026-07-03T00:00:00.000Z`, which a plain ISO8601DateFormatter rejects
+/// (silently killing due-date import and the pull watermark).
+enum RFC3339 {
+    static let plain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    static let fractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    static func parse(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        return plain.date(from: s) ?? fractional.date(from: s)
     }
 }
 

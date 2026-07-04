@@ -68,7 +68,7 @@ final class GitHubSyncService: ObservableObject {
             // Server-recorded tombstones (tasks deleted on web/other clients)
             // merge into the local ledger so pulls never resurrect them.
             for remoteId in (github?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",") {
-                deletionLedger.tombstonedRemoteIds.insert(String(remoteId))
+                deletionLedger.recordTombstone(String(remoteId))
             }
             links = isConnected ? try await apiClient.getGitHubLinks().links : []
         } catch {
@@ -116,8 +116,11 @@ final class GitHubSyncService: ObservableObject {
 
     // MARK: - Sync
 
+    private var rerunAfterPass = false
+
     func scheduleSync() {
-        guard isConnected, !links.isEmpty, !isSyncing else { return }
+        guard isConnected, !links.isEmpty else { return }
+        if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
             try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
@@ -184,7 +187,7 @@ final class GitHubSyncService: ObservableObject {
                 (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(link.remoteContainerId)#\($0)" }
             })
         for item in orderedItems {
-            let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
+            let remoteUpdated = RFC3339.parse(item.remoteUpdatedAt)
             if let existing = byRemoteId[item.remoteId] {
                 // Echo/staleness guard: only apply if remote is newer than the
                 // watermark we wrote at the last push/pull.
@@ -282,6 +285,7 @@ final class GitHubSyncService: ObservableObject {
             }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
+        var fullListingTruncated = true             // trust only an explicit server flag
         var pushErrors = 0
         for task in listTasks {
           do {
@@ -322,7 +326,12 @@ final class GitHubSyncService: ObservableObject {
                 // instead. Without this, a task whose link row was lost gets
                 // re-pushed as a duplicate issue.
                 if fullRemoteItems == nil {
-                    fullRemoteItems = (try? await apiClient.pullGitHubIssues(linkId: link.id, full: true).items) ?? []
+                    if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
+                        fullRemoteItems = fullPull.items
+                        fullListingTruncated = fullPull.truncated ?? true
+                    } else {
+                        fullRemoteItems = []
+                    }
                 }
                 if let candidate = fullRemoteItems?.first(where: {
                     byRemoteId[$0.remoteId] == nil && $0.title == task.title
@@ -336,7 +345,7 @@ final class GitHubSyncService: ObservableObject {
                         astridTaskId: task.id, remoteId: candidate.remoteId,
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt,
-                        remoteUpdatedAt: iso.date(from: candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                        remoteUpdatedAt: RFC3339.parse(candidate.remoteUpdatedAt), metadata: candidate.metadata)
                     continue
                 }
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
@@ -371,7 +380,10 @@ final class GitHubSyncService: ObservableObject {
         // Requires a COMPLETE listing (cursor-free); skipped when the fetch
         // failed or hit the page limit (SyncDeletionPolicy invariant).
         if fullRemoteItems == nil {
-            fullRemoteItems = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true).items
+            if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
+                fullRemoteItems = fullPull.items
+                fullListingTruncated = fullPull.truncated ?? true  // old server = can't trust completeness
+            }
         }
         if let fullItems = fullRemoteItems {
             let deletionLinks = taskLinks
@@ -380,10 +392,10 @@ final class GitHubSyncService: ObservableObject {
             let toDelete = SyncDeletionPolicy.localDeletions(
                 links: deletionLinks,
                 fullRemoteIds: Set(fullItems.map(\.remoteId)),
-                truncated: fullItems.count >= 100,
+                truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
             for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
-                deletionLedger.tombstonedRemoteIds.insert(del.remoteId)  // no echo back
+                deletionLedger.recordTombstone(del.remoteId)  // no echo back
                 try? await taskService.deleteTask(id: del.taskId)
             }
         }
@@ -403,10 +415,16 @@ final class GitHubSyncService: ObservableObject {
             let hasUnmappedLocal = localComments.contains {
                 $0.authorId != nil && !$0.id.hasPrefix("temp_") && !mappedLocalIds.contains($0.id)
             }
-            // Sync when: new remote comments, unmapped local comments, or the
-            // issue changed at all (a comment EDIT bumps the issue too).
+            // Sync when: new remote comments, unmapped local comments, a local
+            // deletion of a mapped comment (cache present = authoritative view),
+            // or the issue changed at all (a comment EDIT bumps the issue too).
             let issueChanged = pulledByRemoteId[remoteId] != nil
-            guard remoteCommentCount > entries.count || hasUnmappedLocal || (issueChanged && !entries.isEmpty) else { continue }
+            let cachePresent = CommentService.shared.cachedComments[dto.astridTaskId] != nil
+            let mappedLocalMissing = cachePresent && entries.contains { entry in
+                !localComments.contains(where: { $0.id == entry.localId })
+            }
+            guard remoteCommentCount > entries.count || hasUnmappedLocal || mappedLocalMissing
+                || (issueChanged && !entries.isEmpty) else { continue }
             await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
         }
     }
@@ -440,8 +458,16 @@ final class GitHubSyncService: ObservableObject {
             }
             entries = deletePlan.survivingEntries
 
+            // The snapshots predate the deletions just executed — filter them,
+            // or the create planner resurrects what was just deleted (a locally
+            // deleted comment re-pulls; a remotely deleted one re-pushes).
+            let deletedRemote = Set(deletePlan.deleteRemoteIds)
+            let deletedLocal = Set(deletePlan.deleteLocalIds)
+            let liveRemote = remote.filter { !deletedRemote.contains($0.id) }
+            let liveLocal = local.filter { !deletedLocal.contains($0.id) }
+
             let mapping = Dictionary(entries.map { ($0.remoteId, $0.localId) }, uniquingKeysWith: { a, _ in a })
-            let plan = CommentSyncPlanner.plan(remote: remote, local: local, mapping: mapping)
+            let plan = CommentSyncPlanner.plan(remote: liveRemote, local: liveLocal, mapping: mapping)
 
             // GitHub → Astrid creates (attributed; resolve the Outbox temp id so
             // the mapping survives — a temp id would push back later).
@@ -468,7 +494,7 @@ final class GitHubSyncService: ObservableObject {
             }
 
             // Edits on mapped pairs: converge the non-canonical side.
-            let edits = CommentSyncPlanner.editPlan(remote: remote, local: local, entries: entries)
+            let edits = CommentSyncPlanner.editPlan(remote: liveRemote, local: liveLocal, entries: entries)
             for update in edits.pullUpdates {
                 _ = try? await CommentService.shared.updateComment(id: update.localId, content: update.content)
             }

@@ -76,7 +76,7 @@ final class GoogleTasksSyncService: ObservableObject {
             // Server-recorded tombstones (tasks deleted on web/other clients)
             // merge into the local ledger so pulls never resurrect them.
             for remoteId in (google?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",") {
-                deletionLedger.tombstonedRemoteIds.insert(String(remoteId))
+                deletionLedger.recordTombstone(String(remoteId))
             }
             links = isConnected ? try await apiClient.getGoogleLinks().links : []
         } catch {
@@ -151,9 +151,12 @@ final class GoogleTasksSyncService: ObservableObject {
 
     // MARK: - Sync
 
+    private var rerunAfterPass = false
+
     func scheduleSync() {
-        guard isConnected, !isSyncing else { return }
+        guard isConnected else { return }
         guard !links.isEmpty || syncMode != .manual else { return }
+        if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
             try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
@@ -166,7 +169,10 @@ final class GoogleTasksSyncService: ObservableObject {
         guard isConnected, !isSyncing else { return }
         isSyncing = true
         lastError = nil
-        defer { isSyncing = false }
+        defer {
+            isSyncing = false
+            if rerunAfterPass { rerunAfterPass = false; scheduleSync() }
+        }
         await autoLinkIfNeeded()
         for link in links {
             do {
@@ -289,7 +295,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 // Explicitly deleted in Google → delete the linked local twin.
                 if let existing = byRemoteId[item.remoteId],
                    taskService.tasks.contains(where: { $0.id == existing.astridTaskId }) {
-                    deletionLedger.tombstonedRemoteIds.insert(item.remoteId)  // no echo back
+                    deletionLedger.recordTombstone(item.remoteId)  // no echo back
                     try? await taskService.deleteTask(id: existing.astridTaskId)
                 }
                 continue
@@ -297,8 +303,8 @@ final class GoogleTasksSyncService: ObservableObject {
             if deletionLedger.tombstonedRemoteIds.contains(item.remoteId), byRemoteId[item.remoteId] == nil {
                 continue  // never re-import a twin we deleted for a local deletion
             }
-            let remoteUpdated = iso.date(from: item.remoteUpdatedAt)
-            let dueDate = item.dueDate.flatMap { Self.dueFormatter.date(from: $0) }
+            let remoteUpdated = RFC3339.parse(item.remoteUpdatedAt)
+            let dueDate = RFC3339.parse(item.dueDate)
 
             if let existing = byRemoteId[item.remoteId] {
                 guard SyncSuppression.shouldApplyRemote(
@@ -385,6 +391,7 @@ final class GoogleTasksSyncService: ObservableObject {
             .filter { ($0.listIds ?? []).contains(link.astridListId) && !$0.id.hasPrefix("temp_") }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GoogleTaskItemDTO]?  // lazy, one cursor-free fetch per pass
+        var fullListingTruncated = true             // trust only an explicit server flag
         var pushErrors = 0
         for task in listTasks {
           do {
@@ -399,7 +406,7 @@ final class GoogleTasksSyncService: ObservableObject {
                    remote.title == task.title,
                    (remote.notes ?? "") == task.description,
                    remote.completed == task.completed,
-                   remote.dueDate == dueString {
+                   RFC3339.parse(remote.dueDate) == RFC3339.parse(dueString) {
                     try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: existing.remoteId,
                         remoteContainerId: link.remoteContainerId,
@@ -423,7 +430,12 @@ final class GoogleTasksSyncService: ObservableObject {
                 // fetched once per pass) for an unlinked same-title item and
                 // link to it instead of duplicating.
                 if fullRemoteItems == nil {
-                    fullRemoteItems = (try? await apiClient.pullGoogleTasks(linkId: link.id, full: true).items) ?? []
+                    if let fullPull = try? await apiClient.pullGoogleTasks(linkId: link.id, full: true) {
+                        fullRemoteItems = fullPull.items
+                        fullListingTruncated = fullPull.truncated ?? true
+                    } else {
+                        fullRemoteItems = []
+                    }
                 }
                 if let candidate = fullRemoteItems?.first(where: {
                     byRemoteId[$0.remoteId] == nil && $0.title == task.title
@@ -437,7 +449,7 @@ final class GoogleTasksSyncService: ObservableObject {
                         astridTaskId: task.id, remoteId: candidate.remoteId,
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt,
-                        remoteUpdatedAt: iso.date(from: candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                        remoteUpdatedAt: RFC3339.parse(candidate.remoteUpdatedAt), metadata: candidate.metadata)
                     continue
                 }
                 let parentRemoteId = task.parentTaskId.flatMap { byTaskId[$0]?.remoteId }
@@ -455,7 +467,7 @@ final class GoogleTasksSyncService: ObservableObject {
                     astridTaskId: task.id, remoteId: response.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: task.updatedAt,
-                    remoteUpdatedAt: response.remoteUpdatedAt.flatMap { iso.date(from: $0) },
+                    remoteUpdatedAt: RFC3339.parse(response.remoteUpdatedAt),
                     metadata: nil)
                 byTaskId[task.id] = dto
                 byRemoteId[response.remoteId] = dto
@@ -475,7 +487,10 @@ final class GoogleTasksSyncService: ObservableObject {
         // Complete-listing guard: skipped when the fetch failed or hit the
         // page limit (SyncDeletionPolicy invariant).
         if fullRemoteItems == nil {
-            fullRemoteItems = try? await apiClient.pullGoogleTasks(linkId: link.id, full: true).items
+            if let fullPull = try? await apiClient.pullGoogleTasks(linkId: link.id, full: true) {
+                fullRemoteItems = fullPull.items
+                fullListingTruncated = fullPull.truncated ?? true
+            }
         }
         if let fullItems = fullRemoteItems {
             let present = Set(fullItems.filter { $0.metadata?["deleted"] != "1" }.map(\.remoteId))
@@ -485,10 +500,10 @@ final class GoogleTasksSyncService: ObservableObject {
             let toDelete = SyncDeletionPolicy.localDeletions(
                 links: deletionLinks,
                 fullRemoteIds: present,
-                truncated: fullItems.count >= 100,
+                truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
             for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
-                deletionLedger.tombstonedRemoteIds.insert(del.remoteId)  // no echo back
+                deletionLedger.recordTombstone(del.remoteId)  // no echo back
                 try? await taskService.deleteTask(id: del.taskId)
             }
         }

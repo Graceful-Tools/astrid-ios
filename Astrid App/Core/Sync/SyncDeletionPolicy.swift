@@ -68,19 +68,26 @@ struct SyncDeletionLedger {
     }
 
     /// Remote ids we deleted/closed because the local task was deleted —
-    /// pull-create must never re-import these.
+    /// pull-create must never re-import these. Stored as an ORDERED array so
+    /// the cap evicts oldest-first (a Set's suffix is hash-ordered and could
+    /// evict the id just added).
     var tombstonedRemoteIds: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? []) }
-        nonmutating set {
-            UserDefaults.standard.set(Array(newValue.suffix(cap)), forKey: tombstoneKey)
-        }
+        Set(UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? [])
+    }
+
+    func recordTombstone(_ remoteId: String) {
+        var arr = UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? []
+        guard !arr.contains(remoteId) else { return }
+        arr.append(remoteId)
+        if arr.count > cap { arr.removeFirst(arr.count - cap) }
+        UserDefaults.standard.set(arr, forKey: tombstoneKey)
     }
 
     func recordPending(remoteId: String, containerId: String) {
         var p = pending
         p[remoteId] = containerId
         pending = p
-        tombstonedRemoteIds.insert(remoteId)
+        recordTombstone(remoteId)
     }
 
     func clearPending(remoteId: String) {

@@ -49,6 +49,7 @@ class AppleRemindersService: ObservableObject {
         loadPersistedState()
         checkAuthorizationStatus()
         setupAutoSync()
+        setupTempIdFixup()
     }
 
     // MARK: - Auto-sync (Phase 1 of the sync-provider plan)
@@ -63,6 +64,28 @@ class AppleRemindersService: ObservableObject {
 
     private var autoSyncObservers: [NSObjectProtocol] = []
     private var autoSyncDebounce: _Concurrency.Task<Void, Never>?
+
+    /// Import saves mappings against the Outbox's optimistic temp task id
+    /// (works offline; the reminder-id key still prevents re-import). When the
+    /// create reconciles, rewrite the mapping to the real id — otherwise export
+    /// sees the real-id task as unmapped and creates a duplicate reminder.
+    private func setupTempIdFixup() {
+        NotificationCenter.default.addObserver(
+            forName: .taskTempIdResolved, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let tempId = notification.userInfo?["tempId"] as? String,
+                  let realId = notification.userInfo?["realId"] as? String else { return }
+            _Concurrency.Task { @MainActor in
+                guard let self else { return }
+                let request = CDReminderMapping.fetchRequest()
+                request.predicate = NSPredicate(format: "astridTaskId == %@", tempId)
+                if let mapping = try? self.coreDataManager.viewContext.fetch(request).first {
+                    mapping.astridTaskId = realId
+                    try? self.coreDataManager.viewContext.save()
+                }
+            }
+        }
+    }
 
     private func setupAutoSync() {
         let center = NotificationCenter.default
@@ -304,8 +327,16 @@ class AppleRemindersService: ObservableObject {
 
     // MARK: - Sync Operations
 
-    /// Sync a specific linked list
+    /// Sync a specific linked list. Reentrancy-guarded: two interleaved
+    /// imports for the same list would double-import unmapped reminders.
     func syncList(_ astridListId: String) async throws {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        try await syncListUnguarded(astridListId)
+    }
+
+    private func syncListUnguarded(_ astridListId: String) async throws {
         guard let link = linkedLists[astridListId] else {
             throw AppleRemindersError.listNotLinked
         }
@@ -313,9 +344,6 @@ class AppleRemindersService: ObservableObject {
         guard let calendar = eventStore.calendar(withIdentifier: link.reminderCalendarId) else {
             throw AppleRemindersError.calendarNotFound
         }
-
-        isSyncing = true
-        defer { isSyncing = false }
 
         switch link.syncDirection {
         case .export:
@@ -336,10 +364,14 @@ class AppleRemindersService: ObservableObject {
         UserDefaults.standard.set(lastSyncDate, forKey: lastSyncKey)
     }
 
-    /// Sync all linked lists
+    /// Sync all linked lists — one guard for the whole pass (the flag must not
+    /// flicker false between lists, where a debounced auto-sync could slip in).
     func syncAllLinkedLists() async throws {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
         for listId in linkedLists.keys {
-            try await syncList(listId)
+            try await syncListUnguarded(listId)
         }
     }
 
@@ -595,7 +627,14 @@ class AppleRemindersService: ObservableObject {
         guard let mapping = try? coreDataManager.viewContext.fetch(request).first else { return }
         if let reminderId = mapping.reminderIdentifier,
            let reminder = eventStore.calendarItem(withIdentifier: reminderId) as? EKReminder {
-            try? eventStore.remove(reminder, commit: true)
+            do {
+                try eventStore.remove(reminder, commit: true)
+            } catch {
+                // Keep the mapping: a live-but-unmapped reminder would be
+                // re-imported as a brand-new task on the next pass.
+                print("⚠️ [AppleRemindersService] Failed to remove reminder for deleted task: \(error)")
+                return
+            }
         }
         coreDataManager.viewContext.delete(mapping)
         try? coreDataManager.viewContext.save()
@@ -611,7 +650,16 @@ class AppleRemindersService: ObservableObject {
 
         return try await withCheckedThrowingContinuation { continuation in
             eventStore.fetchReminders(matching: predicate) { reminders in
-                continuation.resume(returning: reminders ?? [])
+                if let reminders {
+                    continuation.resume(returning: reminders)
+                } else {
+                    // nil = EventKit failure (permission revoked / store error) —
+                    // MUST throw, or the empty set feeds absence-based deletion
+                    // and mass-deletes every mapped task.
+                    continuation.resume(throwing: AppleRemindersError.syncFailed(
+                        NSError(domain: "AppleReminders", code: 1,
+                                userInfo: [NSLocalizedDescriptionKey: "Reminder fetch returned no result"])))
+                }
             }
         }
     }
@@ -631,14 +679,20 @@ class AppleRemindersService: ObservableObject {
         reminder.isCompleted = task.completed
         reminder.priority = mapPriorityToApple(task.priority)
 
-        // Due date
+        // Due date. All-day dues are stored at UTC midnight — read their
+        // calendar day in UTC, or the reminder lands on the previous local day
+        // for anyone west of UTC.
         if let dueDateTime = task.dueDateTime {
-            var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: dueDateTime)
             if task.isAllDay {
-                components.hour = nil
-                components.minute = nil
+                var utc = Calendar.current
+                utc.timeZone = TimeZone(identifier: "UTC")!
+                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
+                components.calendar = nil
+                reminder.dueDateComponents = components
+            } else {
+                reminder.dueDateComponents = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
             }
-            reminder.dueDateComponents = components
         } else {
             reminder.dueDateComponents = nil
         }
@@ -799,10 +853,15 @@ class AppleRemindersService: ObservableObject {
     func mapDueDateFromApple(_ components: DateComponents?) -> (Date?, Bool) {
         guard let components = components else { return (nil, true) }
 
-        let date = Calendar.current.date(from: components)
         let isAllDay = components.hour == nil && components.minute == nil
-
-        return (date, isAllDay)
+        if isAllDay {
+            // All-day dues live at UTC midnight (CLAUDE.md contract) — building
+            // with the local calendar shifts the visible date for non-UTC users.
+            var utc = Calendar.current
+            utc.timeZone = TimeZone(identifier: "UTC")!
+            return (utc.date(from: components), true)
+        }
+        return (Calendar.current.date(from: components), false)
     }
 
     // MARK: - Mapping Persistence (CoreData)

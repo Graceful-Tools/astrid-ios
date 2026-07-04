@@ -24,6 +24,7 @@ struct GoogleTaskItemDTO: Codable, Equatable {
 }
 
 struct GoogleTasksPullResponse: Codable {
+    var truncated: Bool? = nil
     let items: [GoogleTaskItemDTO]
     let cursor: String?
 }
