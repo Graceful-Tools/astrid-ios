@@ -57,6 +57,11 @@ final class OutboxManager {
         await runner.stats()
     }
 
+    /// Full journal snapshot — Settings → Outbox debugging and tests.
+    func journalSnapshot() async -> [OutboxEntry] {
+        await runner.snapshot()
+    }
+
     /// Drain the journal now (manual "sync now" / pull-to-refresh entry point).
     func drain() async {
         await runner.drain()

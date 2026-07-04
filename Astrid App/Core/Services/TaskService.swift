@@ -480,14 +480,12 @@ class TaskService: ObservableObject {
             print("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(error)")
         }
 
-        // Part B: Don't fire a doomed API call for temp tasks — the server
-        // doesn't know this ID yet.  Edits are already saved in CoreData and
-        // will be picked up when createTask() finishes or syncPendingOperations runs.
-        if resolvedId.hasPrefix("temp_") {
-            print("⏭️ [TaskService] Skipping API update for temp task \(resolvedId) — edits saved locally")
-            updatePendingOperationsCount()
-            return optimisticTask
-        }
+        // Temp ids enqueue like any other update: UpdateTaskOutboxHandler
+        // resolves temp→real via the mapping and returns .blocked (no attempt
+        // burn) until the createTask entry drains. The old early return here
+        // dropped the server write entirely once legacy replay was deleted —
+        // completions of just-imported tasks (Google backfill) stayed open on
+        // the server and reverted locally on the next fetch.
 
         // Build the update request and hand it to the Outbox
         do {
