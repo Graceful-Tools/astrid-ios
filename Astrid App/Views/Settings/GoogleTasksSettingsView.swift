@@ -100,7 +100,7 @@ struct GoogleTasksSettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(listService.lists.first { $0.id == link.astridListId }?.name ?? link.astridListId)
                                     .font(Theme.Typography.body())
-                                Text(link.remoteContainerId)
+                                Text(googleTasklistDisplayName(for: link))
                                     .font(Theme.Typography.caption2())
                                     .foregroundColor(.secondary)
                             }
@@ -177,6 +177,17 @@ struct GoogleTasksSettingsView: View {
             await sync.refreshStatus()
             await loadTasklists()
         }
+    }
+
+    /// Human name for a linked tasklist — never the opaque id.
+    private func googleTasklistDisplayName(for link: ExternalListLinkDTO) -> String {
+        if let live = tasklists.first(where: { $0.id == link.remoteContainerId })?.name {
+            return live
+        }
+        if let stored = link.remoteContainerName, stored != link.remoteContainerId {
+            return stored
+        }
+        return NSLocalizedString("sync.google_list", comment: "Google list")
     }
 
     /// Load the account's tasklists, surfacing failures (a silent empty picker

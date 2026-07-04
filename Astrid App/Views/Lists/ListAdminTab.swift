@@ -280,10 +280,13 @@ struct ListAdminTab: View {
                 if githubSync.isConnected {
                     if let link = githubSync.links.first(where: { $0.astridListId == list.id }) {
                         HStack {
-                            Label(link.remoteContainerId, systemImage: "arrow.triangle.2.circlepath")
+                            Text("GitHub Issues")
                                 .font(Theme.Typography.body())
-                                .lineLimit(1)
                             Spacer()
+                            Text(link.remoteContainerId)  // owner/repo — human-readable
+                                .font(Theme.Typography.caption1())
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
                             Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await githubSync.unlink(link.id) }
                             }
@@ -314,10 +317,13 @@ struct ListAdminTab: View {
                 if googleSync.isConnected {
                     if let link = googleSync.links.first(where: { $0.astridListId == list.id }) {
                         HStack {
-                            Label(link.remoteContainerName ?? link.remoteContainerId, systemImage: "arrow.triangle.2.circlepath")
+                            Text("Google Tasks")
                                 .font(Theme.Typography.body())
-                                .lineLimit(1)
                             Spacer()
+                            Text(googleTasklistDisplayName(for: link))
+                                .font(Theme.Typography.caption1())
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
                             Button(NSLocalizedString("sync.unlink", comment: "Unlink"), role: .destructive) {
                                 _Concurrency.Task { await googleSync.unlink(link.id) }
                             }
@@ -498,6 +504,19 @@ struct ListAdminTab: View {
         } catch {
             print("❌ Failed to load members: \(error)")
         }
+    }
+
+    /// Human name for a linked Google tasklist — NEVER the opaque id. Resolves
+    /// from the live tasklist fetch (self-corrects links whose stored name is
+    /// the id from the pre-fix server), then the stored name, then a generic.
+    private func googleTasklistDisplayName(for link: ExternalListLinkDTO) -> String {
+        if let live = syncTasklists.first(where: { $0.id == link.remoteContainerId })?.name {
+            return live
+        }
+        if let stored = link.remoteContainerName, stored != link.remoteContainerId {
+            return stored
+        }
+        return NSLocalizedString("sync.google_list", comment: "Google list")
     }
 
     private func loadAIProviderStatus() async {
