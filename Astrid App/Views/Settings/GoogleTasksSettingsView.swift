@@ -64,8 +64,9 @@ struct GoogleTasksSettingsView: View {
                         Text(NSLocalizedString("sync.mode_manual", comment: "Linked lists only")).tag(GoogleSyncMode.manual)
                         Text(NSLocalizedString("sync.mode_google_to_astrid", comment: "All Google lists to Astrid")).tag(GoogleSyncMode.allGoogleToAstrid)
                         Text(NSLocalizedString("sync.mode_astrid_to_google", comment: "All Astrid lists to Google")).tag(GoogleSyncMode.allAstridToGoogle)
+                        Text(NSLocalizedString("sync.mode_bidirectional", comment: "All lists, both directions")).tag(GoogleSyncMode.allBidirectional)
                     }
-                    if sync.syncMode == .allGoogleToAstrid {
+                    if sync.syncMode == .allGoogleToAstrid || sync.syncMode == .allBidirectional {
                         HStack {
                             TextField(NSLocalizedString("sync.suffix_placeholder", comment: "List name suffix"), text: $suffixDraft)
                                 .font(Theme.Typography.body())
@@ -88,6 +89,8 @@ struct GoogleTasksSettingsView: View {
                         Text(NSLocalizedString("sync.mode_footer_google_to_astrid", comment: "Google to Astrid mode footer"))
                     case .allAstridToGoogle:
                         Text(NSLocalizedString("sync.mode_footer_astrid_to_google", comment: "Astrid to Google mode footer"))
+                    case .allBidirectional:
+                        Text(NSLocalizedString("sync.mode_footer_bidirectional", comment: "Bidirectional mode footer"))
                     }
                 }
 

@@ -12,6 +12,9 @@ enum GoogleSyncMode: String, CaseIterable {
     /// Every Astrid list mirrors out to Google Tasks (backup); new Astrid
     /// lists are picked up on each sync and get a Google tasklist.
     case allAstridToGoogle = "all_astrid_to_google"
+    /// Both directions: every Google tasklist mirrors in AND every Astrid
+    /// list mirrors out — same-name pairs adopt each other, never duplicate.
+    case allBidirectional = "all_bidirectional"
 }
 
 /// Pure planning for the auto-link modes: which containers still need a
@@ -68,6 +71,29 @@ enum GoogleAutoLink {
                     newListName: target
                 )
             }
+    }
+
+    /// Both directions in one pass. Phase 1 (google→astrid) runs first; phase 2
+    /// (astrid→google) sees its consumption — adopted lists count as linked,
+    /// and every unlinked tasklist was consumed by phase 1, so nothing is
+    /// created twice for a same-name pair.
+    static func bidirectionalActions(
+        tasklists: [ListRef],
+        lists: [ListRef],
+        linkedTasklistIds: Set<String>,
+        linkedListIds: Set<String>,
+        suffix: String
+    ) -> (googleToAstrid: [GoogleToAstridAction], astridToGoogle: [AstridToGoogleAction]) {
+        let unlinkedLists = lists.filter { !linkedListIds.contains($0.id) }
+        let g2a = googleToAstridActions(
+            tasklists: tasklists, linkedTasklistIds: linkedTasklistIds,
+            unlinkedLists: unlinkedLists, suffix: suffix)
+        let consumed = Set(g2a.compactMap { $0.adoptListId })
+        let a2g = astridToGoogleActions(
+            lists: lists,
+            linkedListIds: linkedListIds.union(consumed),
+            unlinkedTasklists: [])
+        return (g2a, a2g)
     }
 
     /// Mode 2: every unlinked Astrid list needs a Google counterpart.

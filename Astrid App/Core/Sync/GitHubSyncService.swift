@@ -391,10 +391,13 @@ final class GitHubSyncService: ObservableObject {
         if let fullItems = fullRemoteItems {
             for item in fullItems {
                 guard let existing = byRemoteId[item.remoteId],
-                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }),
-                      task.completed != item.completed,
-                      !SyncSuppression.shouldPushLocal(
-                          localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
+                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
+                else { continue }
+                let localUnchanged = !SyncSuppression.shouldPushLocal(
+                    localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
+                guard CompletionDriftPolicy.shouldAdoptRemote(
+                    remoteCompleted: item.completed, localCompleted: task.completed,
+                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged)
                 else { continue }
                 _ = try? await taskService.completeTask(
                     id: task.id, completed: item.completed, task: task, source: .github,

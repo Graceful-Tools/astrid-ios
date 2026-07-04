@@ -59,6 +59,44 @@ final class SyncDeletionPolicyTests: XCTestCase {
             explicitlyDeletedRemoteIds: []).isEmpty)
     }
 
+    // MARK: - Completion drift policy (flood repair + safe uncomplete)
+
+    func testDrift_remoteCompletedAdoptsWhenLocalNeverCompleted() {
+        XCTAssertTrue(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: nil, localUnchanged: false))
+    }
+
+    func testDrift_remoteCompletedAdoptsWhenLocalUntouched() {
+        XCTAssertTrue(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: nil, localUnchanged: true))
+    }
+
+    func testDrift_userReopenedTask_remoteCompletedDoesNotOverride() {
+        XCTAssertFalse(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: Date(timeIntervalSince1970: 1_700_000_000), localUnchanged: false))
+    }
+
+    func testDrift_remoteOpenNeverUncompletesEditedTask() {
+        XCTAssertFalse(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: false, localCompleted: true,
+            localCompletedAt: Date(timeIntervalSince1970: 1_700_000_000), localUnchanged: false))
+    }
+
+    func testDrift_remoteOpenUncompletesOnlyUntouchedTask() {
+        XCTAssertTrue(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: false, localCompleted: true,
+            localCompletedAt: Date(timeIntervalSince1970: 1_700_000_000), localUnchanged: true))
+    }
+
+    func testDrift_agreementIsNoOp() {
+        XCTAssertFalse(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: true,
+            localCompletedAt: nil, localUnchanged: true))
+    }
+
     // MARK: - Apple field-edit pull rule
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)

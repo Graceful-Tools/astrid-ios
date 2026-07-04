@@ -104,6 +104,36 @@ final class GoogleAutoLinkTests: XCTestCase {
         XCTAssertEqual(actions.map(\.listId), ["a1"])
     }
 
+    // MARK: - Bidirectional (a + b)
+
+    func testBidirectional_sameNamePairAdoptsOnce_neverDuplicates() {
+        let plan = GoogleAutoLink.bidirectionalActions(
+            tasklists: [ref("g1", "Groceries"), ref("g2", "Work")],
+            lists: [ref("a1", "Groceries"), ref("a2", "Personal")],
+            linkedTasklistIds: [], linkedListIds: [], suffix: "")
+        XCTAssertEqual(plan.googleToAstrid.count, 2)
+        XCTAssertEqual(plan.googleToAstrid.first { $0.tasklistId == "g1" }?.adoptListId, "a1")
+        // The adopted pair must NOT also flow out as a new tasklist.
+        XCTAssertEqual(plan.astridToGoogle.map(\.listId), ["a2"])
+        XCTAssertNil(plan.astridToGoogle.first?.adoptTasklistId)
+    }
+
+    func testBidirectional_fullyLinkedGoogleSide_leavesOnlyAstridOnlyLists() {
+        let plan = GoogleAutoLink.bidirectionalActions(
+            tasklists: [ref("g1", "Groceries")],
+            lists: [ref("a1", "Groceries"), ref("a2", "Personal")],
+            linkedTasklistIds: ["g1"], linkedListIds: ["a1"], suffix: "")
+        XCTAssertTrue(plan.googleToAstrid.isEmpty)
+        XCTAssertEqual(plan.astridToGoogle.map(\.listId), ["a2"])
+    }
+
+    func testBidirectional_fullyLinkedBothSides_isNoOp() {
+        let plan = GoogleAutoLink.bidirectionalActions(
+            tasklists: [ref("g1", "A")], lists: [ref("a1", "A")],
+            linkedTasklistIds: ["g1"], linkedListIds: ["a1"], suffix: "")
+        XCTAssertTrue(plan.googleToAstrid.isEmpty && plan.astridToGoogle.isEmpty)
+    }
+
     func testFullyLinkedStateProducesNoActions() {
         XCTAssertTrue(GoogleAutoLink.googleToAstridActions(
             tasklists: [ref("g1", "A")], linkedTasklistIds: ["g1"],

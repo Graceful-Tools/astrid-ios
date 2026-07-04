@@ -199,6 +199,39 @@ final class GoogleTasksSyncService: ObservableObject {
         switch syncMode {
         case .manual:
             return
+        case .allBidirectional:
+            let plan = GoogleAutoLink.bidirectionalActions(
+                tasklists: tasklists.filter { !excludedTasklistIds.contains($0.id) }
+                    .map { .init(id: $0.id, name: $0.name) },
+                lists: realLists.map { .init(id: $0.id, name: $0.name) },
+                linkedTasklistIds: linkedTasklistIds,
+                linkedListIds: linkedListIds,
+                suffix: listSuffix)
+            for action in plan.googleToAstrid {
+                do {
+                    let listId: String
+                    if let adopt = action.adoptListId {
+                        listId = adopt
+                    } else {
+                        let created = try await ListService.shared.createList(name: action.newListName)
+                        guard !created.id.hasPrefix("temp_") else { continue }
+                        listId = created.id
+                    }
+                    _ = try await apiClient.createGoogleLink(astridListId: listId, tasklistId: action.tasklistId)
+                    didLink = true
+                } catch {
+                    lastError = "Auto-link failed: \(error.localizedDescription)"
+                }
+            }
+            for action in plan.astridToGoogle {
+                do {
+                    let tasklistId = try await apiClient.createGoogleTasklist(title: action.newTasklistName).id
+                    _ = try await apiClient.createGoogleLink(astridListId: action.listId, tasklistId: tasklistId)
+                    didLink = true
+                } catch {
+                    lastError = "Auto-link failed: \(error.localizedDescription)"
+                }
+            }
         case .allGoogleToAstrid:
             let actions = GoogleAutoLink.googleToAstridActions(
                 tasklists: tasklists.filter { !excludedTasklistIds.contains($0.id) }
@@ -500,10 +533,13 @@ final class GoogleTasksSyncService: ObservableObject {
         if let fullItems = fullRemoteItems {
             for item in fullItems where item.metadata?["deleted"] != "1" {
                 guard let existing = byRemoteId[item.remoteId],
-                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }),
-                      task.completed != item.completed,
-                      !SyncSuppression.shouldPushLocal(
-                          localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
+                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
+                else { continue }
+                let localUnchanged = !SyncSuppression.shouldPushLocal(
+                    localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
+                guard CompletionDriftPolicy.shouldAdoptRemote(
+                    remoteCompleted: item.completed, localCompleted: task.completed,
+                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged)
                 else { continue }
                 _ = try? await taskService.completeTask(
                     id: task.id, completed: item.completed, task: task, source: .google,

@@ -96,3 +96,22 @@ struct SyncDeletionLedger {
         pending = p
     }
 }
+
+/// Completion drift between a linked pair. Completing locally is safe when
+/// the local task never recorded a completion (a sync-created row that
+/// drifted — the Google flood repair) or is untouched since last sync;
+/// UN-completing is destructive and only applies to untouched tasks.
+enum CompletionDriftPolicy {
+    static func shouldAdoptRemote(
+        remoteCompleted: Bool,
+        localCompleted: Bool,
+        localCompletedAt: Date?,
+        localUnchanged: Bool
+    ) -> Bool {
+        guard remoteCompleted != localCompleted else { return false }
+        if remoteCompleted {
+            return localUnchanged || localCompletedAt == nil
+        }
+        return localUnchanged
+    }
+}
