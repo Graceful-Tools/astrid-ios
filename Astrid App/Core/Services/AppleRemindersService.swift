@@ -400,26 +400,37 @@ class AppleRemindersService: ObservableObject {
         })
 
         var syncedCount = 0
+        var wroteAny = false
 
         for task in astridTasks {
             do {
                 if let mapping = mappingByTaskId[task.id],
                    let reminderIdentifier = mapping.reminderIdentifier,
                    let existingReminder = fetchReminder(withIdentifier: reminderIdentifier) {
-                    // Update existing reminder (including completion state)
-                    updateReminder(existingReminder, from: task)
-                    try eventStore.save(existingReminder, commit: false)
+                    // Dirty check: writing an unchanged reminder bumps its
+                    // lastModifiedDate (re-opens the import gate) and the
+                    // commit fires EKEventStoreChanged for our OWN write,
+                    // rescheduling auto-sync forever — the My Tasks flicker
+                    // loop. A quiescent pair must be a no-op.
+                    if AppleExportPlanner.needsWrite(
+                        current: currentSnapshot(of: existingReminder),
+                        desired: desiredSnapshot(for: task)) {
+                        updateReminder(existingReminder, from: task)
+                        try eventStore.save(existingReminder, commit: false)
+                        wroteAny = true
 
-                    // Update mapping timestamps
-                    updateMappingTimestamps(
-                        astridTaskId: task.id,
-                        astridUpdatedAt: task.updatedAt,
-                        reminderUpdatedAt: existingReminder.lastModifiedDate
-                    )
+                        // Update mapping timestamps
+                        updateMappingTimestamps(
+                            astridTaskId: task.id,
+                            astridUpdatedAt: task.updatedAt,
+                            reminderUpdatedAt: existingReminder.lastModifiedDate
+                        )
+                    }
                 } else {
                     // Create new reminder
                     let reminder = try createReminder(from: task, in: calendar)
                     try eventStore.save(reminder, commit: false)
+                    wroteAny = true
                     saveMapping(
                         astridTaskId: task.id,
                         listId: listId,
@@ -435,9 +446,11 @@ class AppleRemindersService: ObservableObject {
             }
         }
 
-        try eventStore.commit()
+        if wroteAny {
+            try eventStore.commit()
+        }
         syncedTaskCount = syncedCount
-        print("✅ [AppleRemindersService] Exported \(syncedCount) tasks to Reminders")
+        print("✅ [AppleRemindersService] Exported \(syncedCount) tasks to Reminders (\(wroteAny ? "wrote changes" : "no changes"))")
     }
 
     // MARK: - Import (Reminders -> Astrid)
@@ -673,6 +686,44 @@ class AppleRemindersService: ObservableObject {
     }
 
     /// Update an EKReminder with data from an Astrid Task
+    /// Desired export state for a task — MUST mirror `updateReminder`'s
+    /// transformations field-for-field (the dirty check compares these).
+    func desiredSnapshot(for task: Task) -> AppleReminderSnapshot {
+        var dueComponents: DateComponents?
+        if let dueDateTime = task.dueDateTime {
+            if task.isAllDay {
+                var utc = Calendar.current
+                utc.timeZone = TimeZone(identifier: "UTC")!
+                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
+                components.calendar = nil
+                dueComponents = components
+            } else {
+                dueComponents = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
+            }
+        }
+        return AppleReminderSnapshot(
+            title: task.title,
+            notes: task.description.isEmpty ? nil : task.description,
+            isCompleted: task.completed,
+            priority: mapPriorityToApple(task.priority),
+            dueKey: AppleExportPlanner.dueKey(dueComponents),
+            recurrenceKey: AppleExportPlanner.recurrenceKey(
+                mapRecurrenceToApple(task.repeating, data: task.repeatingData)),
+            alarmKey: AppleExportPlanner.alarmKey(reminderTime: task.reminderTime))
+    }
+
+    func currentSnapshot(of reminder: EKReminder) -> AppleReminderSnapshot {
+        AppleReminderSnapshot(
+            title: reminder.title ?? "",
+            notes: (reminder.notes?.isEmpty ?? true) ? nil : reminder.notes,
+            isCompleted: reminder.isCompleted,
+            priority: reminder.priority,
+            dueKey: AppleExportPlanner.dueKey(reminder.dueDateComponents),
+            recurrenceKey: AppleExportPlanner.recurrenceKey(reminder.recurrenceRules?.first),
+            alarmKey: AppleExportPlanner.alarmKey(reminder.alarms))
+    }
+
     func updateReminder(_ reminder: EKReminder, from task: Task) {
         reminder.title = task.title
         reminder.notes = task.description.isEmpty ? nil : task.description
