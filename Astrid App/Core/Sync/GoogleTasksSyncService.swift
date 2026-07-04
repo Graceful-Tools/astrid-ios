@@ -313,8 +313,12 @@ final class GoogleTasksSyncService: ObservableObject {
                 // Last-write-wins: a remote change that lost the race to a
                 // fresher local edit must not clobber it — the push side will
                 // carry the local state out instead.
+                // Remote applies when provably newer than local — or when local
+                // hasn't changed since our last sync point (nothing to lose).
+                let localUnchanged = !SyncSuppression.shouldPushLocal(
+                    localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                 guard SyncSuppression.remoteWins(
-                    remoteUpdatedAt: remoteUpdated, localUpdatedAt: task.updatedAt) else { continue }
+                    remoteUpdatedAt: remoteUpdated, localUpdatedAt: task.updatedAt) || localUnchanged else { continue }
                 if task.completed != item.completed {
                     _ = try? await taskService.completeTask(
                         id: task.id, completed: item.completed, task: task, source: .google)
@@ -344,6 +348,10 @@ final class GoogleTasksSyncService: ObservableObject {
                 if let parent = item.metadata?["parent"], !parent.isEmpty {
                     parentTaskId = byRemoteId["\(link.remoteContainerId):\(parent)"]?.astridTaskId
                 }
+                // Never IMPORT an already-completed item as a new task: an
+                // all-lists link would flood Astrid with years of old completed
+                // tasks (completion still syncs for linked pairs).
+                if item.completed { continue }
                 // Adopt an existing UNLINKED same-title task in the list if one
                 // exists (self-heals passes that created the task but couldn't
                 // persist the link), else create one.
@@ -365,10 +373,6 @@ final class GoogleTasksSyncService: ObservableObject {
                         whenDate: dueDate,
                         assigneeId: AuthManager.shared.userId,
                         parentTaskId: parentTaskId, source: .google)
-                }
-                if item.completed, !newTask.completed {
-                    _ = try? await taskService.completeTask(
-                        id: newTask.id, completed: true, task: newTask, source: .google)
                 }
                 // The link row has an FK to the real Task id — resolve the
                 // optimistic temp id before writing it, or the upsert silently
@@ -486,6 +490,23 @@ final class GoogleTasksSyncService: ObservableObject {
         }
         if pushErrors > 0 {
             lastError = "\(link.remoteContainerName ?? link.remoteContainerId): \(pushErrors) task(s) failed to push"
+        }
+
+        // ── DRIFT REPAIR: linked pairs whose completion disagrees, where the
+        // local task hasn't changed since our last sync point, adopt remote
+        // truth. Old items never re-enter the cursor window, so without this a
+        // botched pass leaves permanent drift (the imported-open flood).
+        if let fullItems = fullRemoteItems {
+            for item in fullItems where item.metadata?["deleted"] != "1" {
+                guard let existing = byRemoteId[item.remoteId],
+                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }),
+                      task.completed != item.completed,
+                      !SyncSuppression.shouldPushLocal(
+                          localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
+                else { continue }
+                _ = try? await taskService.completeTask(
+                    id: task.id, completed: item.completed, task: task, source: .google)
+            }
         }
 
         // ── DELETIONS: task gone remotely → delete the local twin ──────────

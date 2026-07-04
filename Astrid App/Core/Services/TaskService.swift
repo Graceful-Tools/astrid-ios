@@ -84,6 +84,25 @@ class TaskService: ObservableObject {
         for id in temp?.listIds ?? [] where !mergedListIds.contains(id) { mergedListIds.append(id) }
         reconciled.listIds = mergedListIds
 
+        // Overlay editable fields from the temp task: the create response only
+        // echoes what was enqueued — anything changed DURING the flight
+        // (completing a just-imported task, a quick title edit) lives on the
+        // temp task and has its own queued update. Without this overlay the
+        // reconcile visually reverts those changes (the Google "hundreds of
+        // completed tasks arrive open" bug).
+        if let temp {
+            reconciled.title = temp.title
+            reconciled.description = temp.description
+            reconciled.priority = temp.priority
+            reconciled.completed = temp.completed
+            reconciled.dueDateTime = temp.dueDateTime
+            reconciled.isAllDay = temp.isAllDay
+            reconciled.assigneeId = temp.assigneeId
+            reconciled.repeating = temp.repeating
+            reconciled.repeatingData = temp.repeatingData
+            reconciled.isPrivate = temp.isPrivate
+        }
+
         // Swap temp → real in the in-memory caches.
         cachedTasks.removeValue(forKey: tempId)
         cachedTasks[serverTask.id] = reconciled
