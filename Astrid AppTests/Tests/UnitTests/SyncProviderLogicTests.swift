@@ -50,6 +50,30 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertTrue(SyncSuppression.shouldPushLocal(localUpdatedAt: t0, watermark: nil))
     }
 
+    // MARK: - Conflict rule (last-write-wins on pull-apply)
+
+    func testConflict_newerRemoteWins() {
+        XCTAssertTrue(SyncSuppression.remoteWins(remoteUpdatedAt: t1, localUpdatedAt: t0))
+    }
+
+    func testConflict_newerLocalWins_staleRemoteMustNotClobber() {
+        // The Google completion-revert bug: a pull carrying pre-completion
+        // remote state raced a completion made locally seconds earlier.
+        XCTAssertFalse(SyncSuppression.remoteWins(remoteUpdatedAt: t0, localUpdatedAt: t1))
+    }
+
+    func testConflict_tieKeepsLocal() {
+        XCTAssertFalse(SyncSuppression.remoteWins(remoteUpdatedAt: t0, localUpdatedAt: t0))
+    }
+
+    func testConflict_unprovableRemoteNeverClobbers() {
+        XCTAssertFalse(SyncSuppression.remoteWins(remoteUpdatedAt: nil, localUpdatedAt: t0))
+    }
+
+    func testConflict_noLocalStampAppliesRemote() {
+        XCTAssertTrue(SyncSuppression.remoteWins(remoteUpdatedAt: t0, localUpdatedAt: nil))
+    }
+
     // MARK: - Pull watermark policy
 
     func testPullWatermark_isTheTasksOwnStamp_notWallClock() {

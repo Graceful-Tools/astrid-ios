@@ -22,6 +22,17 @@ enum SyncSuppression {
         taskUpdatedAt
     }
 
+    /// CONFLICT: when a pulled remote change passes the echo watermark, it may
+    /// still race a fresher LOCAL edit (completed in Astrid seconds ago, pull
+    /// carrying the pre-completion remote state). Last-write-wins: remote
+    /// applies only when provably newer than the local task; an unprovable
+    /// remote stamp never clobbers local state.
+    static func remoteWins(remoteUpdatedAt: Date?, localUpdatedAt: Date?) -> Bool {
+        guard let remoteUpdatedAt else { return false }
+        guard let localUpdatedAt else { return true }
+        return remoteUpdatedAt > localUpdatedAt
+    }
+
     /// PUSH: push a local change only if it's strictly newer than the
     /// astrid-side watermark recorded when we last pushed/pulled this task.
     static func shouldPushLocal(localUpdatedAt: Date?, watermark: Date?) -> Bool {

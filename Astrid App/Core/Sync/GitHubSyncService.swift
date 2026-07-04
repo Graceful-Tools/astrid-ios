@@ -194,6 +194,11 @@ final class GitHubSyncService: ObservableObject {
                 guard SyncSuppression.shouldApplyRemote(
                     remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
                 guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
+                // Last-write-wins: a remote change that lost the race to a
+                // fresher local edit must not clobber it — the push side will
+                // carry the local state out instead.
+                guard SyncSuppression.remoteWins(
+                    remoteUpdatedAt: remoteUpdated, localUpdatedAt: task.updatedAt) else { continue }
                 if task.completed != item.completed {
                     // Canonical completion — repeating tasks roll forward; the
                     // next push reopens/reschedules the issue.
