@@ -345,10 +345,14 @@ final class GoogleTasksSyncService: ObservableObject {
                 if let adopted {
                     newTask = adopted
                 } else {
+                    // Google Tasks has no assignees — a pulled task belongs to
+                    // the syncing user, so assign it to them (unassigned tasks
+                    // otherwise vanish from My Tasks).
                     newTask = try await taskService.createTask(
                         listIds: [link.astridListId], title: item.title,
                         description: item.notes,
                         whenDate: dueDate,
+                        assigneeId: AuthManager.shared.userId,
                         parentTaskId: parentTaskId, source: .google)
                 }
                 if item.completed, !newTask.completed {
