@@ -47,7 +47,7 @@ final class OutboxManager {
     }
 
     /// Drain any journal persisted from a previous session. Safe to call when
-    /// the journal is empty (the common case while dual-write is off).
+    /// the journal is empty, such as after sign-out or a clean launch.
     func start() {
         _Concurrency.Task { await runner.drain() }
     }
@@ -104,13 +104,13 @@ final class OutboxManager {
         noteMutation()
     }
 
-    /// Enqueue a task creation. No-op unless dual-write is enabled.
+    /// Enqueue an authoritative task creation entry.
     func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
         enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
                 tempId: payload.tempId)
     }
 
-    /// Enqueue a chat message send. No-op unless dual-write is enabled.
+    /// Enqueue an authoritative chat message send entry.
     func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) {
         enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
     }
@@ -118,7 +118,7 @@ final class OutboxManager {
     /// Enqueue a chat message, optionally with an attachment that must upload
     /// first — builds the dependency chain (upload → sendChatMessage) atomically so
     /// the message sends with the real fileId by construction. Mirrors
-    /// `enqueueComment`. No-op unless dual-write or authoritative mode is on.
+    /// `enqueueComment`.
     func enqueueChatMessage(
         _ message: SendChatMessageOutboxPayload,
         clientRequestId: String,
@@ -154,7 +154,7 @@ final class OutboxManager {
         noteMutation()
     }
 
-    /// Enqueue a task update. No-op unless dual-write is enabled.
+    /// Enqueue an authoritative task update entry.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
         enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
                 tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
@@ -175,7 +175,7 @@ final class OutboxManager {
 
     /// Enqueue a comment, optionally with an attachment that must upload first.
     /// Builds the dependency chain (upload → comment) so the comment is created
-    /// with the real fileId by construction. No-op unless dual-write is enabled.
+    /// with the real fileId by construction.
     func enqueueComment(
         _ comment: CreateCommentOutboxPayload,
         clientRequestId: String,

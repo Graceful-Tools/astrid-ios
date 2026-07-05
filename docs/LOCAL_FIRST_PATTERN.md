@@ -34,6 +34,7 @@ Key behaviors:
 2. In the service: apply optimistically (memory + CoreData `syncStatus: "pending"`), then `enqueue`.
 3. Handler: perform the server call with the entry's `clientRequestId`, then call the service's `reconcileOutbox*` helper (temp→real swap, mark `synced`).
 4. Never give views direct `AstridAPIClient` access — the service layer is the canonical control point (see CLAUDE.md).
+5. If the operation adds any new per-user persisted sync key, add it to `SyncStateReset.userDefaultsKeys` in the same change and cover it in `SyncStateResetTests`.
 
 ### Still on the legacy per-service pattern
 
@@ -64,6 +65,14 @@ Pure, unit-tested planners drive every decision:
 | `RFC3339` | Fractional-second-tolerant timestamp parsing (Google emits `.000Z`) |
 
 Sync triggers: app foreground, SSE nudge, Outbox mutation nudge, pull-to-refresh, Sync now. Google sync mode + exclusions + tombstones persist server-side in `Integration.metadata` (cross-device); per-device ledgers (`SyncDeletionLedger`) are wiped on sign-out via `SyncStateReset`.
+
+### External sync orchestration checklist
+
+- **SSE vs mutation nudges**: `.externalSyncRefresh` is the server/webhook nudge; `OutboxManager.didEnqueueMutation` is the local write nudge. Both wake the provider workers, but neither replaces planner checks or echo suppression.
+- **Name collision**: `Core/Sync/SyncManager` coordinates external providers. It is unrelated to the Astrid backend's polling service.
+- **Google My Tasks phase**: `GoogleTasksSyncService` uses `tasklistsResponse.defaultId` and `GoogleAutoLink.myTasksPhaseActive`. The default tasklist syncs through `syncMyTasks` in all-lists modes unless a legacy list link already owns that default id.
+- **Deletion ledgers**: provider ledgers persist `syncPendingRemoteDeletes.<provider>` and `syncDeletedRemoteIds.<provider>` in `UserDefaults`. Tombstones are capped at 500 and evict oldest-first; sign-out must clear them through `SyncStateReset`.
+- **Born-completed imports**: completed-history backfill creates rows with `presumeCompletedAt`, then routes through completion reconciliation so imported history never flashes as an open task.
 
 ## Completion metadata
 
