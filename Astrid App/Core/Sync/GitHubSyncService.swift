@@ -186,7 +186,8 @@ final class GitHubSyncService: ObservableObject {
         }
 
         // ── PULL: apply remote changes newer than our watermark ────────────
-        let pulled = try await apiClient.pullGitHubIssues(linkId: link.id)
+        // Defer the cursor: commit only after the pass applies (see Google).
+        let pulled = try await apiClient.pullGitHubIssues(linkId: link.id, deferCursor: true)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
         // Parents before children so a sub-issue created in the same pass can
@@ -523,6 +524,11 @@ final class GitHubSyncService: ObservableObject {
             guard remoteCommentCount > entries.count || hasUnmappedLocal || mappedLocalMissing
                 || (issueChanged && !entries.isEmpty) else { continue }
             await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
+        }
+
+        // Pass fully applied — commit the pulled cursor (client-acknowledged).
+        if let cursor = pulled.cursor, !cursor.isEmpty {
+            try? await apiClient.commitGitHubCursor(linkId: link.id, cursor: cursor)
         }
     }
 

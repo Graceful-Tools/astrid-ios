@@ -352,7 +352,9 @@ final class GoogleTasksSyncService: ObservableObject {
         }
 
         // ── PULL ────────────────────────────────────────────────────────────
-        let pulled = try await apiClient.pullGoogleTasks(linkId: link.id)
+        // Defer the cursor: commit it only after the whole pass applies, so a
+        // kill mid-pass re-pulls this window instead of skipping remote edits.
+        let pulled = try await apiClient.pullGoogleTasks(linkId: link.id, deferCursor: true)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         // Parents before children so a subtask created in the same pass can
         // resolve its parent's fresh link.
@@ -673,6 +675,11 @@ final class GoogleTasksSyncService: ObservableObject {
                     astridUpdatedAt: Date(),
                     remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
             }
+        }
+
+        // Pass fully applied — commit the pulled cursor (client-acknowledged).
+        if let cursor = pulled.cursor, !cursor.isEmpty {
+            try? await apiClient.commitGoogleCursor(linkId: link.id, cursor: cursor)
         }
     }
 
