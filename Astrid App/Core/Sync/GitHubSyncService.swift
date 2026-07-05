@@ -308,9 +308,18 @@ final class GitHubSyncService: ObservableObject {
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
         var fullListingTruncated = true             // trust only an explicit server flag
         var pushErrors = 0
+        // Remote ids pushed this pass — drift repair must skip their stale snapshot.
+        var pushedRemoteIds: Set<String> = []
         for task in listTasks {
           do {
             if let existing = byTaskId[task.id] {
+                // Cross-container guard: this link may belong to another repo
+                // (task shared across / moved between linked lists). Pushing it
+                // here would PATCH the wrong repo's issue #. Its own repo's pass
+                // handles it.
+                guard SyncContainerGuard.mayPush(
+                    linkContainerId: existing.remoteContainerId,
+                    passContainerId: link.remoteContainerId) else { continue }
                 // Push only if the local task changed since our last recorded push.
                 guard SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
@@ -340,6 +349,14 @@ final class GitHubSyncService: ObservableObject {
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
+                pushedRemoteIds.insert(existing.remoteId)
+                let refreshed = ExternalTaskLinkDTO(
+                    astridTaskId: task.id, remoteId: existing.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: task.updatedAt,
+                    remoteUpdatedAt: RFC3339.parse(response.remoteUpdatedAt), metadata: nil)
+                byTaskId[task.id] = refreshed
+                byRemoteId[existing.remoteId] = refreshed
             } else {
                 // Push-side adopt guard: before CREATING a remote issue for an
                 // unlinked task, scan the FULL remote list (cursor-free, fetched
@@ -401,6 +418,7 @@ final class GitHubSyncService: ObservableObject {
         // task hasn't changed since our last sync point, adopt remote truth.
         if let fullItems = fullRemoteItems {
             for item in fullItems {
+                guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
                       let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
                 else { continue }
@@ -408,7 +426,8 @@ final class GitHubSyncService: ObservableObject {
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                 guard CompletionDriftPolicy.shouldAdoptRemote(
                     remoteCompleted: item.completed, localCompleted: task.completed,
-                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged)
+                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged,
+                    isRepeating: (task.repeating ?? .never) != .never)
                 else { continue }
                 _ = try? await taskService.completeTask(
                     id: task.id, completed: item.completed, task: task, source: .github,
@@ -517,7 +536,11 @@ final class GitHubSyncService: ObservableObject {
         var entries = initial
         do {
             let remoteDTOs = try await apiClient.getGitHubIssueComments(linkId: link.id, remoteId: remoteId).comments
-            let localModels = (try? await CommentService.shared.fetchComments(taskId: taskId, useCache: false)) ?? []
+            // A FAILED local fetch must abort — coercing it to [] made deletePlan
+            // treat every mapped local comment as gone and delete ALL
+            // Astrid-authored mirrors on the issue (transient-failure mass
+            // delete). Throw so the do/catch below skips this task's pass.
+            let localModels = try await CommentService.shared.fetchComments(taskId: taskId, useCache: false)
             let remote = remoteDTOs.map { CommentSyncPlanner.RemoteComment(id: $0.id, body: $0.body, author: $0.author) }
             let local = localModels.map { CommentSyncPlanner.LocalComment(
                 id: $0.id, content: $0.content, isSystem: $0.authorId == nil,

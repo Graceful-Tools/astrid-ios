@@ -91,6 +91,32 @@ final class SyncDeletionPolicyTests: XCTestCase {
             localCompletedAt: Date(timeIntervalSince1970: 1_700_000_000), localUnchanged: true))
     }
 
+    // MARK: - Repeating tasks (review P1: drift double-rollover)
+
+    /// A repeating task that just rolled forward has completedAt == nil and is
+    /// locally incomplete. Against a STALE "still completed" remote snapshot,
+    /// the completedAt==nil escape would re-complete it → a second rollover
+    /// (due date marches). For repeating tasks the escape must NOT apply.
+    func testDrift_repeatingRolledForward_notReCompletedFromStaleSnapshot() {
+        XCTAssertFalse(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: nil, localUnchanged: false, isRepeating: true))
+    }
+
+    /// But a genuinely untouched repeating task still adopts remote completion.
+    func testDrift_repeatingUntouched_stillAdoptsRemoteCompletion() {
+        XCTAssertTrue(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: nil, localUnchanged: true, isRepeating: true))
+    }
+
+    /// Non-repeating flood repair is unchanged: completedAt==nil still adopts.
+    func testDrift_nonRepeatingFloodRepair_unchanged() {
+        XCTAssertTrue(CompletionDriftPolicy.shouldAdoptRemote(
+            remoteCompleted: true, localCompleted: false,
+            localCompletedAt: nil, localUnchanged: false, isRepeating: false))
+    }
+
     func testDrift_agreementIsNoOp() {
         XCTAssertFalse(CompletionDriftPolicy.shouldAdoptRemote(
             remoteCompleted: true, localCompleted: true,

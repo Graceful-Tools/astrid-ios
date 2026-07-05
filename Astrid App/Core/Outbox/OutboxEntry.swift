@@ -31,4 +31,9 @@ struct OutboxEntry: Identifiable, Codable, Equatable {
     /// Output produced on success, consumed by dependents (e.g. the real
     /// fileId from an attachment upload). nil until completed / when empty.
     var result: [String: String]?
+    /// The optimistic TASK temp id this entry produces (createTask) or consumes
+    /// (updateTask/deleteTask on a not-yet-synced task). Lets the scheduler
+    /// dead-letter a consumer whose producing create has permanently failed,
+    /// instead of leaving it .blocked forever. Optional so old journals decode.
+    var tempId: String?
 }

@@ -110,10 +110,20 @@ enum CompletionDriftPolicy {
         remoteCompleted: Bool,
         localCompleted: Bool,
         localCompletedAt: Date?,
-        localUnchanged: Bool
+        localUnchanged: Bool,
+        isRepeating: Bool = false
     ) -> Bool {
         guard remoteCompleted != localCompleted else { return false }
         if remoteCompleted {
+            // The `localCompletedAt == nil` escape repairs a sync-created row
+            // that never recorded a completion (the Google flood). But a
+            // repeating task that just rolled forward ALSO has completedAt ==
+            // nil and is legitimately incomplete — applying the escape there
+            // re-completes it against a stale "still closed" snapshot, forcing
+            // a second rollover (due date marches) or reverting an
+            // un-completion. For repeating tasks, adopt remote completion ONLY
+            // when the local task is genuinely untouched since last sync.
+            if isRepeating { return localUnchanged }
             return localUnchanged || localCompletedAt == nil
         }
         return localUnchanged
@@ -130,6 +140,7 @@ enum SyncStateReset {
             + SyncDeletionLedger(provider: "google").storageKeys
             + ["githubTaskLinkCache", "googleTaskLinkCache",
                "recentlyDeletedTaskIds", "recentlyDeletedListIds", "pendingAttachments",
+               "tempTaskIdMapping", "tempCommentIdMapping",
                "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"]
     }
 

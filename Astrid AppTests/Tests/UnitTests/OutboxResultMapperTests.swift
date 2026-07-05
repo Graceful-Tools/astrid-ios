@@ -28,8 +28,23 @@ final class OutboxResultMapperTests: XCTestCase {
         XCTAssertTrue(isPermanent(OutboxResultMapper.classify(AstridAPIError.unauthorized)))
     }
 
-    func testNetworkErrorIsRetryable() {
-        XCTAssertTrue(isRetryable(OutboxResultMapper.classify(URLError(.notConnectedToInternet))))
-        XCTAssertTrue(isRetryable(OutboxResultMapper.classify(URLError(.timedOut))))
+    private func isBlocked(_ r: OutboxResult) -> Bool { if case .blocked = r { return true }; return false }
+
+    /// Connectivity failures must be .blocked, not .retryable — 8 retries ×
+    /// backoff is only ~4 min, so a brief offline stretch would otherwise
+    /// permanently dead-letter queued writes in an offline-first app. .blocked
+    /// waits without consuming attempts until the network returns.
+    func testOfflineErrorsAreBlockedNotRetryable() {
+        for code: URLError.Code in [.notConnectedToInternet, .networkConnectionLost,
+                                    .dataNotAllowed, .timedOut, .cannotConnectToHost,
+                                    .cannotFindHost, .dnsLookupFailed, .internationalRoamingOff] {
+            XCTAssertTrue(isBlocked(OutboxResultMapper.classify(URLError(code))),
+                          "URLError \(code) should map to .blocked")
+        }
+    }
+
+    func testNonConnectivityUrlErrorStaysRetryable() {
+        // e.g. a malformed server response shape — worth a retry, not indefinite block.
+        XCTAssertTrue(isRetryable(OutboxResultMapper.classify(URLError(.badServerResponse))))
     }
 }

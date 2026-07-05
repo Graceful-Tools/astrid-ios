@@ -156,6 +156,19 @@ struct SettingsView: View {
                                 .lineLimit(3)
                                 .textSelection(.enabled)
                         }
+
+                        // Recovery: re-arm dropped writes (e.g. after an outage
+                        // that has since resolved).
+                        if s.lifetimeDeadLettered > 0 || s.failedPermanent > 0 {
+                            Button("Retry dropped writes") {
+                                _Concurrency.Task {
+                                    _ = await OutboxManager.shared.retryDeadLetters()
+                                    outboxStats = await OutboxManager.shared.stats()
+                                }
+                            }
+                            .font(Theme.Typography.caption2())
+                            .foregroundColor(Theme.accent)
+                        }
                     } else {
                         Button("Load Outbox stats") {
                             _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }

@@ -74,7 +74,9 @@ actor OutboxRunner {
         self.handlers = handlers
         self.now = now
         self.scheduleWakeup = scheduleWakeup
-        self.entries = store.load()
+        // Normalize any entry left `.running` by a crash mid-handler so it
+        // retries instead of wedging forever.
+        self.entries = OutboxScheduler.recoveredOnLoad(store.load())
     }
 
     /// Production wake-up: a one-shot `Task.sleep` timer.
@@ -220,6 +222,7 @@ actor OutboxRunner {
         // Dead-letter entries stranded by a permanently-failed/missing dependency
         // so they don't hang pending forever.
         let stranded = OutboxScheduler.strandedEntryIds(entries)
+            .union(OutboxScheduler.tempStrandedEntryIds(entries))
         if !stranded.isEmpty {
             for id in stranded {
                 update(id) { entry in
@@ -266,6 +269,28 @@ actor OutboxRunner {
     func clearAll() {
         entries.removeAll()
         persist()
+    }
+
+    /// User-initiated recovery: re-arm every dead-lettered entry (reset to
+    /// pending with a fresh attempt budget) and drain. For writes that
+    /// dead-lettered on a since-resolved condition (an outage, a transiently
+    /// unreachable host). Returns the number re-armed.
+    @discardableResult
+    func retryDeadLetters() async -> Int {
+        var count = 0
+        for idx in entries.indices where entries[idx].status == .failedPermanent {
+            entries[idx].status = .pending
+            entries[idx].attempts = 0
+            entries[idx].nextAttemptAt = now()
+            entries[idx].lastError = nil
+            entries[idx].updatedAt = now()
+            count += 1
+        }
+        if count > 0 {
+            persist()
+            await drain()
+        }
+        return count
     }
 
     private func persist() {

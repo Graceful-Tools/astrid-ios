@@ -62,6 +62,12 @@ final class OutboxManager {
         await runner.snapshot()
     }
 
+    /// User-initiated recovery of dead-lettered writes (Settings → Outbox).
+    @discardableResult
+    func retryDeadLetters() async -> Int {
+        await runner.retryDeadLetters()
+    }
+
     /// Drain the journal now (manual "sync now" / pull-to-refresh entry point).
     func drain() async {
         await runner.drain()
@@ -81,13 +87,17 @@ final class OutboxManager {
     }
 
     /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
-    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String) {
+    /// `tempId` links a task temp-id producer (createTask) or consumer
+    /// (updateTask/deleteTask on a temp task) so the scheduler can dead-letter
+    /// a consumer whose create permanently failed.
+    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String, tempId: String? = nil) {
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
             id: UUID().uuidString, kind: kind, payload: data,
             clientRequestId: clientRequestId, dependsOn: [], status: .pending,
-            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now
+            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now,
+            tempId: tempId
         )
         let runner = self.runner
         _Concurrency.Task { await runner.enqueue(entry) }
@@ -96,7 +106,8 @@ final class OutboxManager {
 
     /// Enqueue a task creation. No-op unless dual-write is enabled.
     func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId)
+        enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
+                tempId: payload.tempId)
     }
 
     /// Enqueue a chat message send. No-op unless dual-write is enabled.
@@ -145,11 +156,13 @@ final class OutboxManager {
 
     /// Enqueue a task update. No-op unless dual-write is enabled.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId)
+        enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
+                tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
     }
 
     func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId)
+        enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId,
+                tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
     }
 
     func enqueueUpdateComment(_ payload: UpdateCommentOutboxPayload, clientRequestId: String) {

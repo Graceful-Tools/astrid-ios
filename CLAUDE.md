@@ -245,8 +245,12 @@ All backend writes for tasks, comments, chat sends, and attachment uploads journ
 | Task detail checkbox | `Views/Tasks/TaskDetailViewNew.swift` (`toggleCompletion`) |
 | Timer finished | `Views/Tasks/TaskTimerView.swift` |
 | Reminder popup "Done" | `Core/Notifications/ReminderPresenter.swift` |
+| Subtask checkbox | `Views/Tasks/SubtasksSectionView.swift` |
+| Board card checkbox | `Views/Board/BoardTaskCardView.swift` |
 | Apple Reminders two-way sync | `Core/Services/AppleRemindersService.swift` |
-| On-device AI "complete" action | `Core/Services/AppleFoundationModelService.swift` |
+| On-device AI "complete" AND "update→completed" actions | `Core/Services/AppleFoundationModelService.swift` (`executeCompleteAction` and `executeUpdateAction`'s `completed` case — never `updateTask(completed:)`) |
+| Google Tasks inbound (pull / drift / backfill) | `Core/Sync/GoogleTasksSyncService.swift` |
+| GitHub Issues inbound (pull / drift / backfill) | `Core/Sync/GitHubSyncService.swift` |
 
 Detail-view completion (and any future caller that supports in-flight edits) must propagate edited fields — at minimum `repeating`, `repeatingData`, `repeatFrom`, `dueDateTime`, `isAllDay` — into the `task:` argument before handing off, so the rollover anchors on what the user sees, not stale state.
 

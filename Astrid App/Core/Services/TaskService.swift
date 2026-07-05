@@ -73,7 +73,12 @@ class TaskService: ObservableObject {
         recordTempTaskMapping(tempId: tempId, realId: serverTask.id)
 
         guard cachedTasks[tempId] != nil || tasks.contains(where: { $0.id == tempId }) else {
-            return  // Legacy path already reconciled (or nothing to swap).
+            // A fetch merge already swapped temp→real in memory. It saved the
+            // real row but does NOT delete the temp CoreData row — left behind
+            // it stays syncStatus=="pending" forever (phantom pending count) and
+            // resurrects as a duplicate on the next launch. Delete it here.
+            try? await deleteTaskFromCoreData(tempId)
+            return
         }
         let temp = cachedTasks[tempId] ?? tasks.first(where: { $0.id == tempId })
 

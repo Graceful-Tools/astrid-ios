@@ -647,10 +647,13 @@ class CommentService: ObservableObject {
         await updatePendingOperationsCount()
     }
 
-    /// Temp→real comment-id map (in-memory; comments are shorter-lived than
-    /// tasks, so no durable store needed — an unresolved id simply stays
-    /// .blocked until the create's reconcile records it after relaunch replay).
-    private var tempCommentIdMapping: [String: String] = [:]
+    /// Temp→real comment-id map. Persisted (like tasks): an offline-created
+    /// comment edited before its create drained enqueues an updateComment on
+    /// the temp id; if the app relaunches AFTER the create completed (so the
+    /// in-memory map would be empty and the create won't replay), the edit
+    /// entry would sit .blocked forever. The durable store resolves it.
+    private var tempCommentIdMapping: [String: String] =
+        TempTaskMappingStore.load(key: TempTaskMappingStore.commentKey)
 
     func mappedRealCommentId(for tempId: String) -> String? {
         tempCommentIdMapping[tempId]
@@ -695,8 +698,11 @@ class CommentService: ObservableObject {
         resolvedTaskId: String
     ) async {
         // Record temp→real so queued update/delete entries against the temp id
-        // resolve (they wait .blocked until this lands).
-        tempCommentIdMapping[tempCommentId] = serverComment.id
+        // resolve (they wait .blocked until this lands). Persist so the mapping
+        // survives a relaunch after the create completed.
+        tempCommentIdMapping = TempTaskMappingStore.recording(
+            tempCommentIdMapping, temp: tempCommentId, real: serverComment.id)
+        TempTaskMappingStore.save(tempCommentIdMapping, key: TempTaskMappingStore.commentKey)
         try? await coreDataManager.saveInBackground { context in
             guard let comment = try CDComment.fetchById(tempCommentId, context: context) else { return }
             comment.id = serverComment.id

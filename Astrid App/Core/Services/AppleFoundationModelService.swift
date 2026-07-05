@@ -236,8 +236,10 @@ extension AppleFoundationModelService {
         let id = taskId.trimmingCharacters(in: .whitespaces)
         do {
             // Use completeTask (not updateTask) so repeating patterns roll
-            // forward via RepeatingTaskCalculator — the canonical path.
-            _ = try await TaskService.shared.completeTask(id: id, completed: true)
+            // forward via RepeatingTaskCalculator — the canonical path. Pass
+            // task: so rollover anchors on real state, not cache freshness.
+            let task = TaskService.shared.tasks.first { $0.id == id }
+            _ = try await TaskService.shared.completeTask(id: id, completed: true, task: task)
             logger.notice("On-device AI completed task: \(id)")
         } catch {
             logger.error("On-device AI failed to complete task \(id): \(error.localizedDescription)")
@@ -262,7 +264,13 @@ extension AppleFoundationModelService {
             case "title":
                 _ = try await TaskService.shared.updateTask(taskId: taskId, title: value)
             case "completed":
-                _ = try await TaskService.shared.updateTask(taskId: taskId, completed: value == "true")
+                // MUST route completion through completeTask, never
+                // updateTask(completed:), or repeating tasks skip rollover
+                // (CLAUDE.md canonical-control-point rule). Pass task: so
+                // rollover anchors on real state.
+                let task = TaskService.shared.tasks.first { $0.id == taskId }
+                _ = try await TaskService.shared.completeTask(
+                    id: taskId, completed: value == "true", task: task)
             default:
                 logger.warning("Unknown update field: \(field)")
                 return

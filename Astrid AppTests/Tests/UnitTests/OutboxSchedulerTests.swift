@@ -18,7 +18,8 @@ final class OutboxSchedulerTests: XCTestCase {
         status: OutboxStatus = .pending,
         attempts: Int = 0,
         nextAttemptOffset: TimeInterval = 0,
-        createdOffset: TimeInterval = 0
+        createdOffset: TimeInterval = 0,
+        tempId: String? = nil
     ) -> OutboxEntry {
         OutboxEntry(
             id: id,
@@ -31,8 +32,56 @@ final class OutboxSchedulerTests: XCTestCase {
             nextAttemptAt: t0.addingTimeInterval(nextAttemptOffset),
             lastError: nil,
             createdAt: t0.addingTimeInterval(createdOffset),
-            updatedAt: t0
+            updatedAt: t0,
+            tempId: tempId
         )
+    }
+
+    // MARK: - Liveness recovery (review P1: Outbox liveness triad)
+
+    func testRecoveredOnLoad_resetsRunningToPending() {
+        // A crash mid-handler can persist an entry as .running; on relaunch it's
+        // neither runnable nor pruned nor stranded → wedged forever.
+        let loaded = OutboxScheduler.recoveredOnLoad([
+            entry(id: "a", status: .running),
+            entry(id: "b", status: .pending),
+            entry(id: "c", status: .completed),
+            entry(id: "d", status: .failedPermanent),
+        ])
+        XCTAssertEqual(loaded.first { $0.id == "a" }?.status, .pending)
+        XCTAssertEqual(loaded.first { $0.id == "b" }?.status, .pending)
+        XCTAssertEqual(loaded.first { $0.id == "c" }?.status, .completed)
+        XCTAssertEqual(loaded.first { $0.id == "d" }?.status, .failedPermanent)
+    }
+
+    func testTempStranded_deadLettersConsumerOfFailedCreate() {
+        // updateTask/deleteTask on a temp task whose createTask dead-lettered
+        // would otherwise return .blocked forever (no explicit dependsOn edge).
+        let entries = [
+            entry(id: "create", kind: "createTask", status: .failedPermanent, tempId: "temp_1"),
+            entry(id: "update", kind: "updateTask", status: .pending, tempId: "temp_1"),
+            entry(id: "delete", kind: "deleteTask", status: .pending, tempId: "temp_1"),
+            entry(id: "other", kind: "updateTask", status: .pending, tempId: "temp_2"),
+        ]
+        let stranded = OutboxScheduler.tempStrandedEntryIds(entries)
+        XCTAssertEqual(stranded, ["update", "delete"])
+    }
+
+    func testTempStranded_keepsConsumerWhenCreateStillPending() {
+        let entries = [
+            entry(id: "create", kind: "createTask", status: .pending, tempId: "temp_1"),
+            entry(id: "update", kind: "updateTask", status: .pending, tempId: "temp_1"),
+        ]
+        XCTAssertTrue(OutboxScheduler.tempStrandedEntryIds(entries).isEmpty)
+    }
+
+    func testTempStranded_keepsConsumerWhenCreateSucceeded() {
+        // Create completed (temp resolved via mapping) → consumer must run, not strand.
+        let entries = [
+            entry(id: "create", kind: "createTask", status: .completed, tempId: "temp_1"),
+            entry(id: "update", kind: "updateTask", status: .pending, tempId: "temp_1"),
+        ]
+        XCTAssertTrue(OutboxScheduler.tempStrandedEntryIds(entries).isEmpty)
     }
 
     // MARK: - Backoff

@@ -18,6 +18,7 @@ final class SyncStateResetTests: XCTestCase {
         let keys = Set(SyncStateReset.userDefaultsKeys)
         for key in ["githubTaskLinkCache", "googleTaskLinkCache",
                     "recentlyDeletedTaskIds", "recentlyDeletedListIds", "pendingAttachments",
+                    "tempTaskIdMapping", "tempCommentIdMapping",
                     "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"] {
             XCTAssertTrue(keys.contains(key), "sign-out reset misses \(key)")
         }

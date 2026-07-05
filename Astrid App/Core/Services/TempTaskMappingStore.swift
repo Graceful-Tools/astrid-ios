@@ -13,11 +13,17 @@ enum TempTaskMappingStore {
     /// Cap so the store can't grow without bound; oldest-inserted are dropped.
     static let maxEntries = 500
 
-    static func load(_ defaults: UserDefaults = .standard) -> [String: String] {
+    /// Durable store key for the comment temp→real map (offline-created comment
+    /// edited before its create drained — the edit's updateComment entry must
+    /// resolve the temp id after a relaunch that happens once the create has
+    /// already completed, so the in-memory map is gone). Same shape as tasks.
+    static let commentKey = "tempCommentIdMapping"
+
+    static func load(_ defaults: UserDefaults = .standard, key: String = key) -> [String: String] {
         (defaults.dictionary(forKey: key) as? [String: String]) ?? [:]
     }
 
-    static func save(_ map: [String: String], to defaults: UserDefaults = .standard) {
+    static func save(_ map: [String: String], to defaults: UserDefaults = .standard, key: String = key) {
         defaults.set(map, forKey: key)
     }
 

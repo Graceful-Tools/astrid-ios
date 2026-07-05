@@ -19,7 +19,27 @@ enum OutboxResultMapper {
                 return .retryable(apiError.localizedDescription)
             }
         }
-        // URLError and anything else: treat as transient and retry.
+        // Connectivity failures must NOT burn attempts — 8 retries × backoff is
+        // only ~4 minutes, so a short offline stretch would permanently
+        // dead-letter queued writes in an offline-first app. Treat these as
+        // .blocked (waits without consuming attempts) until the network
+        // returns. Other URLErrors (and unknown errors) stay retryable.
+        if isOfflineURLError(error) {
+            return .blocked("offline: \((error as NSError).localizedDescription)")
+        }
         return .retryable(error.localizedDescription)
+    }
+
+    /// True for URLError codes that mean "no usable network right now".
+    static func isOfflineURLError(_ error: Error) -> Bool {
+        guard let code = (error as? URLError)?.code else { return false }
+        switch code {
+        case .notConnectedToInternet, .networkConnectionLost,
+             .dataNotAllowed, .timedOut, .cannotConnectToHost,
+             .cannotFindHost, .dnsLookupFailed, .internationalRoamingOff:
+            return true
+        default:
+            return false
+        }
     }
 }

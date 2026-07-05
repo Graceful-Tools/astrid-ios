@@ -475,10 +475,19 @@ final class GoogleTasksSyncService: ObservableObject {
         var fullRemoteItems: [GoogleTaskItemDTO]?  // lazy, one cursor-free fetch per pass
         var fullListingTruncated = true             // trust only an explicit server flag
         var pushErrors = 0
+        // Remote ids we pushed this pass — drift repair must skip them (their
+        // pass-start snapshot is stale by construction).
+        var pushedRemoteIds: Set<String> = []
         for task in listTasks {
           do {
             let dueString: String? = task.dueDateTime.map { GoogleDueMapping.pushDueString(for: $0, isAllDay: task.isAllDay) }
             if let existing = byTaskId[task.id] {
+                // Cross-container guard: a link for a different tasklist (task in
+                // two linked lists, or moved) would PATCH the wrong tasklist and
+                // 404-loop. Its own tasklist's pass handles it.
+                guard SyncContainerGuard.mayPush(
+                    linkContainerId: existing.remoteContainerId,
+                    passContainerId: link.remoteContainerId) else { continue }
                 guard SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt) else { continue }
                 // Content no-op guard: an unchanged PATCH still bumps the remote
@@ -506,6 +515,16 @@ final class GoogleTasksSyncService: ObservableObject {
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
+                // Skip drift for this pair (pushed this pass) and refresh the
+                // in-memory watermark so localUnchanged reads true afterward.
+                pushedRemoteIds.insert(existing.remoteId)
+                let refreshed = ExternalTaskLinkDTO(
+                    astridTaskId: task.id, remoteId: existing.remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: task.updatedAt,
+                    remoteUpdatedAt: RFC3339.parse(response.remoteUpdatedAt), metadata: nil)
+                byTaskId[task.id] = refreshed
+                byRemoteId[existing.remoteId] = refreshed
             } else {
                 // Push-side adopt guard: before CREATING a remote task for an
                 // unlinked local one, scan the FULL remote list (cursor-free,
@@ -571,6 +590,10 @@ final class GoogleTasksSyncService: ObservableObject {
         // botched pass leaves permanent drift (the imported-open flood).
         if let fullItems = fullRemoteItems {
             for item in fullItems where item.metadata?["deleted"] != "1" {
+                // A pair we pushed this pass has a stale snapshot here — skip it,
+                // or a just-reopened repeating task gets re-completed (double
+                // rollover) and an un-completion gets reverted.
+                guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
                       let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
                 else { continue }
@@ -578,7 +601,8 @@ final class GoogleTasksSyncService: ObservableObject {
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                 guard CompletionDriftPolicy.shouldAdoptRemote(
                     remoteCompleted: item.completed, localCompleted: task.completed,
-                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged)
+                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged,
+                    isRepeating: (task.repeating ?? .never) != .never)
                 else { continue }
                 _ = try? await taskService.completeTask(
                     id: task.id, completed: item.completed, task: task, source: .google,
@@ -783,6 +807,8 @@ final class GoogleTasksSyncService: ObservableObject {
             }
         }
 
+        // Remote ids pushed this pass — drift repair (below) must skip them.
+        var pushedRemoteIds: Set<String> = []
         // ── PUSH: unlisted tasks assigned to me ─────────────────────────────
         if pushEnabled {
             let myTasks = taskService.tasks
@@ -817,6 +843,14 @@ final class GoogleTasksSyncService: ObservableObject {
                         remoteContainerId: tasklistId,
                         astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                         metadata: nil))
+                    pushedRemoteIds.insert(existing.remoteId)
+                    let refreshed = ExternalTaskLinkDTO(
+                        astridTaskId: task.id, remoteId: existing.remoteId,
+                        remoteContainerId: tasklistId,
+                        astridUpdatedAt: task.updatedAt,
+                        remoteUpdatedAt: RFC3339.parse(response.remoteUpdatedAt), metadata: nil)
+                    byTaskId[task.id] = refreshed
+                    byRemoteId[existing.remoteId] = refreshed
                 } else {
                     // Never CREATE a remote twin for an already-completed local
                     // task — only live items belong in the mirror going forward.
@@ -869,6 +903,7 @@ final class GoogleTasksSyncService: ObservableObject {
         if pullEnabled {
             // ── DRIFT REPAIR ────────────────────────────────────────────────
             for item in fullRemoteItems where item.metadata?["deleted"] != "1" {
+                guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
                       let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
                 else { continue }
@@ -876,7 +911,8 @@ final class GoogleTasksSyncService: ObservableObject {
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                 guard CompletionDriftPolicy.shouldAdoptRemote(
                     remoteCompleted: item.completed, localCompleted: task.completed,
-                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged)
+                    localCompletedAt: task.completedAt, localUnchanged: localUnchanged,
+                    isRepeating: (task.repeating ?? .never) != .never)
                 else { continue }
                 _ = try? await taskService.completeTask(
                     id: task.id, completed: item.completed, task: task, source: .google,

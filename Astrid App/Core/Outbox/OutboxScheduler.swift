@@ -102,6 +102,44 @@ enum OutboxScheduler {
         return stranded
     }
 
+    /// Ids of pending TASK temp-id consumers (updateTask/deleteTask on a
+    /// not-yet-synced task) whose producing createTask entry has permanently
+    /// failed — they can never resolve their temp id, so they'd sit `.blocked`
+    /// forever (the strandedEntryIds check only sees explicit dependsOn edges,
+    /// which these don't have). Dead-letter them instead.
+    static func tempStrandedEntryIds(_ entries: [OutboxEntry]) -> Set<String> {
+        let failedCreateTempIds = Set(
+            entries
+                .filter { $0.kind == "createTask" && $0.status == .failedPermanent }
+                .compactMap { $0.tempId }
+        )
+        guard !failedCreateTempIds.isEmpty else { return [] }
+        return Set(
+            entries
+                .filter { entry in
+                    entry.status == .pending
+                        && entry.kind != "createTask"
+                        && (entry.tempId.map { failedCreateTempIds.contains($0) } ?? false)
+                }
+                .map { $0.id }
+        )
+    }
+
+    /// Normalizes journal entries loaded from disk. An entry persisted as
+    /// `.running` was in flight when the app was killed (a concurrent
+    /// enqueue can persist the journal mid-handler); on relaunch it's neither
+    /// runnable nor pruned nor stranded, so it wedges forever. Reset it to
+    /// `.pending` so it retries — replay is safe because every kind is
+    /// server-idempotent by clientRequestId.
+    static func recoveredOnLoad(_ entries: [OutboxEntry]) -> [OutboxEntry] {
+        entries.map { entry in
+            guard entry.status == .running else { return entry }
+            var e = entry
+            e.status = .pending
+            return e
+        }
+    }
+
     /// When the runner should next wake itself to retry. Returns the earliest
     /// future `nextAttemptAt` among pending, dependency-satisfied entries — or
     /// nil if something is already runnable (drain handles it now) or nothing is
