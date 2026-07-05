@@ -247,10 +247,16 @@ class AstridAPIClient {
     ///   - limit: Max results per page (default: 1000, API max is 1000)
     ///   - offset: Pagination offset (default: 0)
     /// - Returns: Tuple of (tasks, total count)
-    func getTasks(listId: String? = nil, completed: Bool? = nil, limit: Int = 1000, offset: Int = 0) async throws -> (tasks: [Task], total: Int) {
+    func getTasks(listId: String? = nil, completed: Bool? = nil, limit: Int = 1000, offset: Int = 0, leanListMembers: Bool = true) async throws -> (tasks: [Task], total: Int) {
         var queryItems: [URLQueryItem] = []
         if let listId = listId {
             queryItems.append(URLQueryItem(name: "listId", value: listId))
+        }
+        // Opt out of the per-task embedded listMembers (permission checks resolve
+        // list membership from ListService instead). Server omits the field when
+        // this is set; older servers ignore the param and still send it.
+        if leanListMembers {
+            queryItems.append(URLQueryItem(name: "leanListMembers", value: "1"))
         }
         if let completed = completed {
             queryItems.append(URLQueryItem(name: "completed", value: String(completed)))

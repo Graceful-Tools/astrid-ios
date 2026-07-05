@@ -1577,8 +1577,14 @@ struct TaskListView: View {
             return false
         }
 
-        // Prefer selectedList (has full data) over task.lists?.first (may be incomplete)
-        guard let taskList = selectedList ?? task.lists?.first else {
+        // Resolve the authoritative list for permission checks: prefer the
+        // selectedList, then the full list from ListService (has complete
+        // listMembers from getLists), and only then the task's embedded list.
+        // This lets the tasks endpoint omit per-task listMembers (leanListMembers)
+        // without breaking role checks.
+        guard let taskList = selectedList
+            ?? (task.listIds?.compactMap { id in listService.lists.first { $0.id == id } }.first)
+            ?? task.lists?.first else {
             return false // No list info, allow edit
         }
 
