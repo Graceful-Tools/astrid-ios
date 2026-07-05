@@ -74,10 +74,10 @@ final class GoogleTasksSyncService: ObservableObject {
             listSuffix = google?.metadata?.listSuffix ?? ""
             excludedTasklistIds = Set((google?.metadata?.excludedTasklists ?? "").split(separator: ",").map(String.init))
             // Server-recorded tombstones (tasks deleted on web/other clients)
-            // merge into the local ledger so pulls never resurrect them.
-            for remoteId in (google?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",") {
-                deletionLedger.recordTombstone(String(remoteId))
-            }
+            // merge into the SEPARATE server store (union with local tombstones)
+            // so a large server set can't evict this device's own tombstones.
+            deletionLedger.mergeServerTombstones(
+                (google?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",").map(String.init))
             links = isConnected ? try await apiClient.getGoogleLinks().links : []
         } catch {
             isConnected = false

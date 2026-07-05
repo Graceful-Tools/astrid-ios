@@ -54,16 +54,23 @@ enum AppleEditPull {
 struct SyncDeletionLedger {
     let key: String
     private let tombstoneKey: String
+    private let serverTombstoneKey: String
     private let cap = 500
+    // Server-merged tombstones get their own, larger store: merging up to the
+    // server's cap of them must NOT evict this device's own local tombstones
+    // (which would let a deleted task resurrect via completed-backfill — a
+    // GitHub twin is only closed, not deleted). Kept separate + unioned.
+    private let serverCap = 5000
 
     init(provider: String) {
         key = "syncPendingRemoteDeletes.\(provider)"
         tombstoneKey = "syncDeletedRemoteIds.\(provider)"
+        serverTombstoneKey = "syncServerTombstones.\(provider)"
     }
 
     /// Every UserDefaults key this ledger owns — consumed by the sign-out
     /// reset so per-user state can't leak to the next account on the device.
-    var storageKeys: [String] { [key, tombstoneKey] }
+    var storageKeys: [String] { [key, tombstoneKey, serverTombstoneKey] }
 
     /// remoteId → remoteContainerId (pending remote deletions)
     var pending: [String: String] {
@@ -71,12 +78,15 @@ struct SyncDeletionLedger {
         nonmutating set { UserDefaults.standard.set(newValue, forKey: key) }
     }
 
-    /// Remote ids we deleted/closed because the local task was deleted —
-    /// pull-create must never re-import these. Stored as an ORDERED array so
-    /// the cap evicts oldest-first (a Set's suffix is hash-ordered and could
-    /// evict the id just added).
+    /// Remote ids the sync must never re-import — the UNION of this device's
+    /// own local-delete tombstones and the server-recorded tombstones (deletes
+    /// from web / other devices, merged on refreshStatus). Backfill/pull
+    /// consult this at pass time. Both stores are ORDERED arrays so their caps
+    /// evict oldest-first (a Set's suffix is hash-ordered and could evict a
+    /// just-added id).
     var tombstonedRemoteIds: Set<String> {
         Set(UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? [])
+            .union(UserDefaults.standard.stringArray(forKey: serverTombstoneKey) ?? [])
     }
 
     func recordTombstone(_ remoteId: String) {
@@ -85,6 +95,18 @@ struct SyncDeletionLedger {
         arr.append(remoteId)
         if arr.count > cap { arr.removeFirst(arr.count - cap) }
         UserDefaults.standard.set(arr, forKey: tombstoneKey)
+    }
+
+    /// Merge server-recorded tombstones into the separate server store (does
+    /// NOT touch the local tombstone array, so local deletes are never evicted
+    /// by a large server merge).
+    func mergeServerTombstones(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        var arr = UserDefaults.standard.stringArray(forKey: serverTombstoneKey) ?? []
+        let existing = Set(arr)
+        for id in ids where !existing.contains(id) { arr.append(id) }
+        if arr.count > serverCap { arr.removeFirst(arr.count - serverCap) }
+        UserDefaults.standard.set(arr, forKey: serverTombstoneKey)
     }
 
     func recordPending(remoteId: String, containerId: String) {
