@@ -10,8 +10,8 @@ This project adheres to the [Contributor Covenant Code of Conduct](./CODE_OF_CON
 
 Before you begin, ensure you have:
 
-- **Xcode 15.0+** (download from Mac App Store)
-- **iOS 16.0+** deployment target
+- **Xcode 26.0+** (download from Mac App Store)
+- **iOS 18.6+** deployment target
 - **Apple Developer account** (free account works for simulator testing)
 - **Git** for version control
 
@@ -41,7 +41,7 @@ open "Astrid App.xcodeproj"
 
 ### 4. Build and Run
 
-- Select an iPhone simulator (e.g., iPhone 15)
+- Select an iPhone simulator (e.g., iPhone 17)
 - Press **Cmd+R** to build and run
 - The app should launch in the simulator
 
@@ -92,7 +92,7 @@ refactor(sync): simplify SSE reconnection logic
 xcodebuild test \
   -project "Astrid App.xcodeproj" \
   -scheme "Astrid App" \
-  -destination "platform=iOS Simulator,name=iPhone 15"
+  -destination "platform=iOS Simulator,name=iPhone 17"
 ```
 
 ### Test File Locations
@@ -203,10 +203,10 @@ The iOS app communicates with the Astrid backend API. When making changes:
 All endpoints are defined in `Astrid App/Core/Networking/APIEndpoint.swift`. Key endpoints:
 
 - Authentication: `/api/auth/mobile-*`, `/api/auth/apple`, `/api/auth/google`
-- Tasks: `/api/tasks`, `/api/tasks/{id}`
+- Tasks: `/api/v1/tasks`, `/api/v1/tasks/{id}`
 - Lists: `/api/lists`, `/api/lists/{id}`
-- Comments: `/api/tasks/{id}/comments`
-- Real-time: `/api/sse`
+- Comments: `/api/v1/tasks/{id}/comments`
+- Real-time: `/api/v1/sse`
 
 ## Pull Request Process
 

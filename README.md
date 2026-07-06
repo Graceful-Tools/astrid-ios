@@ -27,8 +27,8 @@ Native iOS app for Astrid task management with AI assistance.
 
 ### Prerequisites
 
-- Xcode 15.0+
-- iOS 16.0+ deployment target
+- Xcode 26.0+
+- iOS 18.6+ deployment target
 - Apple Developer account (for Sign in with Apple)
 - Google Cloud account (for Google Sign In)
 
@@ -76,7 +76,7 @@ astrid-ios/
 │       └── Localizations/     # 12 language translations
 ├── Astrid AppTests/           # Unit tests
 ├── Astrid AppUITests/         # UI tests
-├── ShareExtension/            # iOS share extension
+├── Astrid/                    # Share extension target (built from Astrid/)
 ├── docs/                      # Technical documentation
 └── scripts/                   # Build and test scripts
 ```
@@ -140,7 +140,7 @@ The app integrates with the Astrid backend:
 - **Tasks**: `/api/v1/tasks` (CRUD operations)
 - **Lists**: `/api/v1/lists` (CRUD operations)
 - **Comments**: `/api/v1/tasks/{id}/comments`
-- **Real-time**: `/api/sse` (Server-Sent Events)
+- **Real-time**: `/api/v1/sse` (Server-Sent Events)
 - **GitHub**: `/api/v1/github/repositories`
 
 See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) for the full API specification.
