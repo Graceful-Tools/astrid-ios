@@ -560,6 +560,11 @@ class TaskService: ObservableObject {
                 isAllDayValue = nil
             }
 
+            // An isAllDay-only edit (no date change) must still reach the wire.
+            if isAllDayValue == nil, let isAllDay = isAllDay {
+                isAllDayValue = isAllDay
+            }
+
             let updates = UpdateTaskRequest(
                 title: title,
                 description: description,

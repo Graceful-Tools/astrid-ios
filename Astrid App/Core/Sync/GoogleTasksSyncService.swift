@@ -143,6 +143,7 @@ final class GoogleTasksSyncService: ObservableObject {
         syncMode = .manual
         listSuffix = ""
         excludedTasklistIds = []
+        defaultTasklistId = nil  // else it leaks to the next account after re-login
         syncDebounce?.cancel()
     }
 
@@ -368,7 +369,7 @@ final class GoogleTasksSyncService: ObservableObject {
             if item.metadata?["deleted"] == "1" {
                 // Explicitly deleted in Google → delete the linked local twin.
                 if let existing = byRemoteId[item.remoteId],
-                   taskService.tasks.contains(where: { $0.id == existing.astridTaskId }) {
+                   (taskService.tasksById[existing.astridTaskId] != nil) {
                     deletionLedger.recordTombstone(item.remoteId)  // no echo back
                     try? await taskService.deleteTask(id: existing.astridTaskId)
                 }
@@ -383,7 +384,7 @@ final class GoogleTasksSyncService: ObservableObject {
             if let existing = byRemoteId[item.remoteId] {
                 guard SyncSuppression.shouldApplyRemote(
                     remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
-                guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
+                guard let task = taskService.tasksById[existing.astridTaskId] else { continue }
                 // Last-write-wins: a remote change that lost the race to a
                 // fresher local edit must not clobber it — the push side will
                 // carry the local state out instead.
@@ -597,7 +598,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 // rollover) and an un-completion gets reverted.
                 guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
-                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
+                      let task = taskService.tasksById[existing.astridTaskId]
                 else { continue }
                 let localUnchanged = !SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
@@ -631,7 +632,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 fullRemoteIds: present,
                 truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
-            for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
+            for del in toDelete where (taskService.tasksById[del.taskId] != nil) {
                 deletionLedger.recordTombstone(del.remoteId)  // no echo back
                 try? await taskService.deleteTask(id: del.taskId)
             }
@@ -733,7 +734,7 @@ final class GoogleTasksSyncService: ObservableObject {
             for item in orderedItems {
                 if item.metadata?["deleted"] == "1" {
                     if let existing = byRemoteId[item.remoteId],
-                       taskService.tasks.contains(where: { $0.id == existing.astridTaskId }) {
+                       (taskService.tasksById[existing.astridTaskId] != nil) {
                         deletionLedger.recordTombstone(item.remoteId)
                         try? await taskService.deleteTask(id: existing.astridTaskId)
                     }
@@ -748,7 +749,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 if let existing = byRemoteId[item.remoteId] {
                     guard SyncSuppression.shouldApplyRemote(
                         remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
-                    guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
+                    guard let task = taskService.tasksById[existing.astridTaskId] else { continue }
                     let localUnchanged = !SyncSuppression.shouldPushLocal(
                         localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
                     guard SyncSuppression.remoteWins(
@@ -912,7 +913,7 @@ final class GoogleTasksSyncService: ObservableObject {
             for item in fullRemoteItems where item.metadata?["deleted"] != "1" {
                 guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
-                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
+                      let task = taskService.tasksById[existing.astridTaskId]
                 else { continue }
                 let localUnchanged = !SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
@@ -936,7 +937,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 fullRemoteIds: present,
                 truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
-            for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
+            for del in toDelete where (taskService.tasksById[del.taskId] != nil) {
                 deletionLedger.recordTombstone(del.remoteId)
                 try? await taskService.deleteTask(id: del.taskId)
             }

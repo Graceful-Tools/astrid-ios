@@ -212,19 +212,21 @@ struct ListEditView: View {
                     color: nil
                 )
 
-                // Add invited members to the new list
+                // Add invited members to the new list. Route through the
+                // canonical ListMemberService (offline queue via CDMember) —
+                // NOT AstridAPIClient directly, or invites are silently lost
+                // when offline.
                 if !invitedMembers.isEmpty {
-                    let apiClient = AstridAPIClient.shared
                     var failedMembers: [String] = []
 
                     for member in invitedMembers {
                         do {
-                            let response = try await apiClient.addListMember(
+                            _ = try await ListMemberService.shared.addMember(
                                 listId: newList.id,
                                 email: member.email,
                                 role: member.role
                             )
-                            print("✅ Added member \(member.email): \(response.message)")
+                            print("✅ Added member \(member.email)")
                         } catch {
                             print("⚠️ Failed to add member \(member.email): \(error)")
                             failedMembers.append(member.email)
