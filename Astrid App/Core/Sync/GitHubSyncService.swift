@@ -485,25 +485,46 @@ final class GitHubSyncService: ObservableObject {
                 guard let item = byId[candidate.remoteId] else { continue }
                 let mappedAssignee = (item.metadata?["assigneeUserId"]).flatMap { $0.isEmpty ? nil : $0 }
                 let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
-                guard let newTask = try? await taskService.createTask(
-                    listIds: [link.astridListId], title: item.title,
-                    description: item.notes,
-                    assigneeId: mappedAssignee,
-                    source: .github, presumeCompletedAt: backdated) else { continue }
-                _ = try? await taskService.completeTask(
-                    id: newTask.id, completed: true, task: newTask, source: .github,
-                    completedAt: backdated)
+                // Self-heal a prior backfill pass that created the task but
+                // couldn't persist the link (resolveRealSyncTaskId / upsert
+                // failed): without this, the still-unlinked candidate is
+                // re-selected every pass and duplicated forever. Adopt an
+                // existing unlinked completed same-title task when exactly one
+                // exists; only create when there's none.
+                let backfillTwins = taskService.tasks.filter {
+                    ($0.listIds ?? []).contains(link.astridListId)
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.completed && $0.title == item.title
+                }
+                let newTask: Task
+                if backfillTwins.count == 1 {
+                    newTask = backfillTwins[0]
+                } else {
+                    guard let created = try? await taskService.createTask(
+                        listIds: [link.astridListId], title: item.title,
+                        description: item.notes,
+                        assigneeId: mappedAssignee,
+                        source: .github, presumeCompletedAt: backdated) else { continue }
+                    _ = try? await taskService.completeTask(
+                        id: created.id, completed: true, task: created, source: .github,
+                        completedAt: backdated)
+                    newTask = created
+                }
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
-                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(),
                     remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+                byRemoteId[item.remoteId] = dto
+                // Mark the task linked for the rest of this pass so a later
+                // candidate can't adopt the same twin.
+                byTaskId[realId] = dto
             }
         }
 

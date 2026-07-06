@@ -428,14 +428,16 @@ final class GoogleTasksSyncService: ObservableObject {
                 // all-lists link would flood Astrid with years of old completed
                 // tasks (completion still syncs for linked pairs).
                 if item.completed { continue }
-                // Adopt an existing UNLINKED same-title task in the list if one
-                // exists (self-heals passes that created the task but couldn't
-                // persist the link), else create one.
-                let adopted = taskService.tasks.first {
+                // Adopt an existing UNLINKED same-title task in the list only
+                // when EXACTLY one exists (self-heals passes that created the
+                // task but couldn't persist the link); ambiguous matches create
+                // rather than mislink to an arbitrary twin.
+                let adoptCandidates = taskService.tasks.filter {
                     ($0.listIds ?? []).contains(link.astridListId)
                         && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
                         && $0.title == item.title
                 }
+                let adopted = adoptCandidates.count == 1 ? adoptCandidates.first : nil
                 let newTask: Task
                 if let adopted {
                     newTask = adopted
@@ -655,26 +657,42 @@ final class GoogleTasksSyncService: ObservableObject {
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
                 let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
-                guard let newTask = try? await taskService.createTask(
-                    listIds: [link.astridListId], title: item.title,
-                    description: item.notes,
-                    whenDate: RFC3339.parse(item.dueDate),
-                    assigneeId: AuthManager.shared.userId,
-                    source: .google, presumeCompletedAt: backdated) else { continue }
-                _ = try? await taskService.completeTask(
-                    id: newTask.id, completed: true, task: newTask, source: .google,
-                    completedAt: backdated)
+                // Self-heal a prior backfill pass that created the task but
+                // couldn't persist the link: adopt the still-unlinked completed
+                // twin instead of duplicating it every pass (see GitHub backfill).
+                let backfillTwins = taskService.tasks.filter {
+                    ($0.listIds ?? []).contains(link.astridListId)
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.completed && $0.title == item.title
+                }
+                let newTask: Task
+                if backfillTwins.count == 1 {
+                    newTask = backfillTwins[0]
+                } else {
+                    guard let created = try? await taskService.createTask(
+                        listIds: [link.astridListId], title: item.title,
+                        description: item.notes,
+                        whenDate: RFC3339.parse(item.dueDate),
+                        assigneeId: AuthManager.shared.userId,
+                        source: .google, presumeCompletedAt: backdated) else { continue }
+                    _ = try? await taskService.completeTask(
+                        id: created.id, completed: true, task: created, source: .google,
+                        completedAt: backdated)
+                    newTask = created
+                }
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
-                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(),
                     remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+                byRemoteId[item.remoteId] = dto
+                byTaskId[realId] = dto
             }
         }
 
@@ -781,11 +799,12 @@ final class GoogleTasksSyncService: ObservableObject {
                         parentTaskId = byRemoteId["\(tasklistId):\(parent)"]?.astridTaskId
                     }
                     if item.completed { continue }
-                    let adopted = taskService.tasks.first {
+                    let adoptCandidates = taskService.tasks.filter {
                         ($0.listIds ?? []).isEmpty && $0.assigneeId == myUserId
                             && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
                             && $0.title == item.title
                     }
+                    let adopted = adoptCandidates.count == 1 ? adoptCandidates.first : nil
                     let newTask: Task
                     if let adopted {
                         newTask = adopted
@@ -955,26 +974,42 @@ final class GoogleTasksSyncService: ObservableObject {
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
                 let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
-                guard let newTask = try? await taskService.createTask(
-                    listIds: [], title: item.title,
-                    description: item.notes,
-                    whenDate: RFC3339.parse(item.dueDate),
-                    assigneeId: myUserId,
-                    source: .google, presumeCompletedAt: backdated) else { continue }
-                _ = try? await taskService.completeTask(
-                    id: newTask.id, completed: true, task: newTask, source: .google,
-                    completedAt: backdated)
+                // Self-heal a prior backfill pass that created the task but
+                // couldn't persist the link: adopt the still-unlinked completed
+                // twin (assigned-to-me, no list) instead of duplicating it.
+                let backfillTwins = taskService.tasks.filter {
+                    ($0.listIds ?? []).isEmpty && $0.assigneeId == myUserId
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.completed && $0.title == item.title
+                }
+                let newTask: Task
+                if backfillTwins.count == 1 {
+                    newTask = backfillTwins[0]
+                } else {
+                    guard let created = try? await taskService.createTask(
+                        listIds: [], title: item.title,
+                        description: item.notes,
+                        whenDate: RFC3339.parse(item.dueDate),
+                        assigneeId: myUserId,
+                        source: .google, presumeCompletedAt: backdated) else { continue }
+                    _ = try? await taskService.completeTask(
+                        id: created.id, completed: true, task: created, source: .google,
+                        completedAt: backdated)
+                    newTask = created
+                }
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: tasklistId,
                     astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
-                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: tasklistId,
                     astridUpdatedAt: Date(),
                     remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+                byRemoteId[item.remoteId] = dto
+                byTaskId[realId] = dto
             }
         }
     }
