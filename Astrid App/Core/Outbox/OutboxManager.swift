@@ -28,7 +28,7 @@ final class OutboxManager {
                 OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) },
                 OutboxKind.uploadAttachment: { entry, _ in await UploadAttachmentOutboxHandler.handle(entry) },
                 OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) },
-                OutboxKind.sendChatMessage: { entry, _ in await SendChatMessageOutboxHandler.handle(entry) },
+                OutboxKind.sendChatMessage: { entry, context in await SendChatMessageOutboxHandler.handle(entry, context) },
                 OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) },
                 OutboxKind.deleteTask: { entry, _ in await DeleteTaskOutboxHandler.handle(entry) },
                 OutboxKind.updateComment: { entry, _ in await UpdateCommentOutboxHandler.handle(entry) },

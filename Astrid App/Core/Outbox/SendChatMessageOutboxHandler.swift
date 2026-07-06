@@ -15,12 +15,16 @@ struct SendChatMessageOutboxPayload: Codable, Equatable {
 /// (does NOT re-upload), then sends with the entry's idempotency key so the
 /// server dedupes (ChatMessage.clientRequestId is unique).
 enum SendChatMessageOutboxHandler {
-    static func handle(_ entry: OutboxEntry) async -> OutboxResult {
+    static func handle(_ entry: OutboxEntry, _ context: OutboxContext) async -> OutboxResult {
         guard let payload = try? JSONDecoder().decode(SendChatMessageOutboxPayload.self, from: entry.payload) else {
             return .permanent("sendChatMessage: undecodable payload")
         }
 
-        var fileId = payload.fileId
+        // Prefer the real fileId produced by the upload dependency (the chain is
+        // enqueued atomically, so it's present by construction on the happy
+        // path); fall back to the payload's temp id + legacy lookup. Mirrors the
+        // comment handler.
+        var fileId = context.value("fileId") ?? payload.fileId
         if let temp = fileId, temp.hasPrefix("temp_") {
             if let real = await AttachmentService.shared.getRealFileId(for: temp) {
                 fileId = real
