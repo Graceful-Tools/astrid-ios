@@ -346,7 +346,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 try await apiClient.deleteGoogleTask(linkId: link.id, remoteId: remoteId)
                 deletionLedger.clearPending(remoteId: remoteId)
             } catch {
-                if "\(error)".contains("404") || "\(error)".contains("410") {
+                if error.syncRemoteAlreadyGone {
                     deletionLedger.clearPending(remoteId: remoteId)
                 }
             }
@@ -712,7 +712,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 try await apiClient.deleteGoogleTaskDirect(tasklistId: tasklistId, remoteId: remoteId)
                 deletionLedger.clearPending(remoteId: remoteId)
             } catch {
-                if "\(error)".contains("404") || "\(error)".contains("410") {
+                if error.syncRemoteAlreadyGone {
                     deletionLedger.clearPending(remoteId: remoteId)
                 }
             }

@@ -185,7 +185,7 @@ final class GitHubSyncService: ObservableObject {
                 deletionLedger.clearPending(remoteId: remoteId)
             } catch {
                 // 404/410 = already gone — done; anything else retries next pass.
-                if "\(error)".contains("404") || "\(error)".contains("410") {
+                if error.syncRemoteAlreadyGone {
                     deletionLedger.clearPending(remoteId: remoteId)
                 }
             }
@@ -256,13 +256,16 @@ final class GitHubSyncService: ObservableObject {
                 // (state still syncs for linked pairs).
                 if item.completed { continue }
                 // New issue → adopt an existing UNLINKED same-title task in the
-                // list if one exists (self-heals passes that created the task
-                // but couldn't persist the link), else create one.
-                let adopted = taskService.tasks.first {
+                // list if EXACTLY ONE exists (self-heals passes that created the
+                // task but couldn't persist the link), else create one. Adopting
+                // when several tasks share the title would mislink to an
+                // arbitrary twin, so ambiguity falls through to create.
+                let adoptCandidates = taskService.tasks.filter {
                     ($0.listIds ?? []).contains(link.astridListId)
                         && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
                         && $0.title == item.title
                 }
+                let adopted = adoptCandidates.count == 1 ? adoptCandidates.first : nil
                 // Sub-issue → Astrid subtask: resolve the parent issue's task
                 // via the link map (parents ordered first, so same-pass parents
                 // are already there).
