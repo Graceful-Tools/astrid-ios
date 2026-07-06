@@ -445,27 +445,54 @@ final class GitHubSyncService: ObservableObject {
             }
         }
 
-        // ── DELETIONS: issue gone remotely → delete the local twin ─────────
+        // ── DELETIONS: issue gone remotely → detach the local twin ─────────
         // Requires a COMPLETE listing (cursor-free); skipped when the fetch
         // failed or hit the page limit (SyncDeletionPolicy invariant).
-        if fullRemoteItems == nil {
+        //
+        // Time-gate this full listing: it's a cursor-free fetch of the whole
+        // repo, and a flurry of local edits would otherwise trigger it on every
+        // debounced pass. The incremental cursor pull (live edits / new issues)
+        // and the push-side adopt fetch above are unaffected — only the
+        // non-urgent detach + completed-backfill work is throttled. If adopt
+        // already fetched the full list this pass, reuse it (and stamp the gate).
+        let fullPullKey = "githubLastFullPull:\(link.remoteContainerId)"
+        let lastFullPull = UserDefaults.standard.object(forKey: fullPullKey) as? Date
+        let fullPullDue = lastFullPull.map { Date().timeIntervalSince($0) >= 300 } ?? true
+        if fullRemoteItems == nil, fullPullDue {
             if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
                 fullRemoteItems = fullPull.items
                 fullListingTruncated = fullPull.truncated ?? true  // old server = can't trust completeness
             }
         }
+        // Only throttle after a genuinely COMPLETE listing — a failed/truncated
+        // fetch (sentinel empty list, truncated == true) must retry next pass.
+        if fullRemoteItems != nil, !fullListingTruncated {
+            UserDefaults.standard.set(Date(), forKey: fullPullKey)
+        }
         if let fullItems = fullRemoteItems {
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == link.remoteContainerId }
                 .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
-            let toDelete = SyncDeletionPolicy.localDeletions(
+            let goneRemote = SyncDeletionPolicy.localDeletions(
                 links: deletionLinks,
                 fullRemoteIds: Set(fullItems.map(\.remoteId)),
                 truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
-            for del in toDelete where (taskService.tasksById[del.taskId] != nil) {
-                deletionLedger.recordTombstone(del.remoteId)  // no echo back
-                try? await taskService.deleteTask(id: del.taskId)
+            // DETACH, don't delete. A GitHub issue almost never gets truly
+            // DELETED — the REST API only closes them, and a closed issue stays
+            // in the listing. An issue vanishing from a COMPLETE listing thus
+            // overwhelmingly means it was TRANSFERRED to another repo (its
+            // number changes) or converted, NOT that the user wants their task
+            // gone. Deleting the Astrid task here was silent data loss on
+            // transfer. Instead tombstone the remote id (so it isn't re-adopted
+            // or re-pushed as a fresh issue) and drop the in-pass link, keeping
+            // the task. (Astrid-side deletions still close the remote via the
+            // separate tombstone path above.)
+            for del in goneRemote where taskService.tasksById[del.taskId] != nil
+                && !deletionLedger.tombstonedRemoteIds.contains(del.remoteId) {
+                deletionLedger.recordTombstone(del.remoteId)
+                byRemoteId.removeValue(forKey: del.remoteId)
+                byTaskId.removeValue(forKey: del.taskId)
             }
         }
 

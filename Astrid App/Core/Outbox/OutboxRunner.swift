@@ -163,6 +163,17 @@ actor OutboxRunner {
 
     /// Dispatch every runnable entry, looping while progress is made so newly
     /// completed entries can unblock dependents within the same drain.
+    ///
+    /// Entries are dispatched SEQUENTIALLY (awaited one at a time) on purpose,
+    /// not for lack of throughput awareness: two writes to the SAME entity —
+    /// e.g. createTask(temp) then updateTask(temp), or two edits to one task —
+    /// carry no `dependsOn` edge (implicit ordering), so blanket concurrency
+    /// would let them race and land server-side out of order. The correct way
+    /// to parallelize is per-entity serialization lanes (concurrent ACROSS
+    /// distinct entities, serial WITHIN one), keyed by the entry's target id
+    /// per kind, with a bounded `TaskGroup`. That's a deliberate future change,
+    /// gated on soak coverage — not something to bolt on here. Until then the
+    /// serial loop is the safe choice.
     private func drainOnce() async {
         while true {
             let runnable = OutboxScheduler.runnableEntries(entries, now: now(), inFlightIds: inFlight)
