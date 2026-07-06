@@ -400,7 +400,7 @@ class TaskService: ObservableObject {
         // The Outbox is authoritative for creates: its handler does the server
         // create + reconciliation (temp→real swap, mark synced) when it drains —
         // online now, or on reconnect if offline.
-        OutboxManager.shared.enqueueCreateTask(
+        await OutboxManager.shared.enqueueCreateTask(
             CreateTaskOutboxPayload(
                 title: title,
                 listIds: serverListIds.isEmpty ? nil : serverListIds,
@@ -621,7 +621,7 @@ class TaskService: ObservableObject {
             // PUT and marks the row synced when it drains (online now, or on
             // reconnect). The optimistic in-memory/CoreData update already
             // happened above.
-            OutboxManager.shared.enqueueUpdateTask(
+            await OutboxManager.shared.enqueueUpdateTask(
                 UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates, source: source?.rawValue),
                 clientRequestId: UUID().uuidString
             )
@@ -859,7 +859,7 @@ class TaskService: ObservableObject {
         // The Outbox is authoritative for deletes: its handler owns the server
         // delete (404/410 = already gone = success) and the CoreData
         // finalization when it drains.
-        OutboxManager.shared.enqueueDeleteTask(
+        await OutboxManager.shared.enqueueDeleteTask(
             DeleteTaskOutboxPayload(taskId: resolvedId),
             clientRequestId: UUID().uuidString
         )

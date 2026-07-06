@@ -534,7 +534,7 @@ class ChatService: ObservableObject {
         // fileId from its dependency's result.
         if let temp = fileId, temp.hasPrefix("temp_"),
            let pending = AttachmentService.shared.pendingUploads[temp] {
-            OutboxManager.shared.enqueueChatMessage(
+            await OutboxManager.shared.enqueueChatMessage(
                 chatPayload,
                 clientRequestId: clientRequestId,
                 attachment: UploadAttachmentOutboxPayload(
@@ -546,7 +546,7 @@ class ChatService: ObservableObject {
                 attachmentClientRequestId: temp
             )
         } else {
-            OutboxManager.shared.enqueueChatMessage(chatPayload, clientRequestId: clientRequestId)
+            await OutboxManager.shared.enqueueChatMessage(chatPayload, clientRequestId: clientRequestId)
         }
 
         return optimisticMessage

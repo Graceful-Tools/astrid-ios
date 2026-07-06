@@ -90,7 +90,13 @@ final class OutboxManager {
     /// `tempId` links a task temp-id producer (createTask) or consumer
     /// (updateTask/deleteTask on a temp task) so the scheduler can dead-letter
     /// a consumer whose create permanently failed.
-    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String, tempId: String? = nil) {
+    ///
+    /// `async` so the caller can await the journal reaching disk before it
+    /// treats the write as committed: the entry is persisted durably here, then
+    /// the drain (network I/O) is kicked in a detached Task so the UI never
+    /// blocks. Awaiting the persist closes the crash window between a service's
+    /// optimistic local write and the journal being saved.
+    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String, tempId: String? = nil) async {
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
@@ -100,19 +106,20 @@ final class OutboxManager {
             tempId: tempId
         )
         let runner = self.runner
-        _Concurrency.Task { await runner.enqueue(entry) }
+        await runner.persistEnqueue([entry])
+        _Concurrency.Task { await runner.drain() }
         noteMutation()
     }
 
     /// Enqueue a task creation.
-    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
-                tempId: payload.tempId)
+    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
+                      tempId: payload.tempId)
     }
 
     /// Enqueue a chat message send.
-    func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
+    func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
     }
 
     /// Enqueue a chat message, optionally with an attachment that must upload
@@ -124,7 +131,7 @@ final class OutboxManager {
         clientRequestId: String,
         attachment: UploadAttachmentOutboxPayload?,
         attachmentClientRequestId: String?
-    ) {
+    ) async {
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []
@@ -150,27 +157,28 @@ final class OutboxManager {
 
         let runner = self.runner
         let batch = toEnqueue
-        _Concurrency.Task { await runner.enqueueBatch(batch) }
+        await runner.persistEnqueue(batch)
+        _Concurrency.Task { await runner.drain() }
         noteMutation()
     }
 
     /// Enqueue a task update.
-    func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
-                tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
+    func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
+                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
     }
 
-    func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId,
-                tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
+    func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId,
+                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
     }
 
-    func enqueueUpdateComment(_ payload: UpdateCommentOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.updateComment, payload: payload, clientRequestId: clientRequestId)
+    func enqueueUpdateComment(_ payload: UpdateCommentOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.updateComment, payload: payload, clientRequestId: clientRequestId)
     }
 
-    func enqueueDeleteComment(_ payload: DeleteCommentOutboxPayload, clientRequestId: String) {
-        enqueue(kind: OutboxKind.deleteComment, payload: payload, clientRequestId: clientRequestId)
+    func enqueueDeleteComment(_ payload: DeleteCommentOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.deleteComment, payload: payload, clientRequestId: clientRequestId)
     }
 
     /// Enqueue a comment, optionally with an attachment that must upload first.
@@ -181,7 +189,7 @@ final class OutboxManager {
         clientRequestId: String,
         attachment: UploadAttachmentOutboxPayload? = nil,
         attachmentClientRequestId: String? = nil
-    ) {
+    ) async {
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []
@@ -206,10 +214,13 @@ final class OutboxManager {
         ))
 
         // Enqueue the upload→comment chain atomically so an interruption can't
-        // persist the upload but lose the comment.
+        // persist the upload but lose the comment. Await the persist so the
+        // journal is durable before the caller's optimistic write is committed;
+        // drain in the background.
         let runner = self.runner
         let batch = toEnqueue
-        _Concurrency.Task { await runner.enqueueBatch(batch) }
+        await runner.persistEnqueue(batch)
+        _Concurrency.Task { await runner.drain() }
         noteMutation()
     }
 }
