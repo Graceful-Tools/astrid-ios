@@ -925,6 +925,39 @@ final class GoogleTasksSyncService: ObservableObject {
             if pushErrors > 0 {
                 lastError = "My Tasks: \(pushErrors) task(s) failed to push"
             }
+
+            // ── RETIRE ORPHAN TWINS ─────────────────────────────────────────
+            // A task that LEFT My Tasks — gained a list, or lost the "assigned
+            // to me" that put it here — still holds a link in the default
+            // tasklist, so its Google twin lingers as a SECOND source of truth
+            // (drift repair keeps syncing it, and the deletion pass below would
+            // read the still-present remote as "gone locally" only after the
+            // twin is removed). The task now lives in its list; close out the
+            // default-tasklist twin so it has one home. Deleted tasks are
+            // handled by the pending-deletion path, not here.
+            let qualifyingIds = Set(taskService.tasks
+                .filter { ($0.listIds ?? []).isEmpty && $0.assigneeId == myUserId }
+                .map { $0.id })
+            var retiredRemoteIds: Set<String> = []
+            for existing in taskLinks where existing.remoteContainerId == tasklistId {
+                guard taskService.tasksById[existing.astridTaskId] != nil,   // still exists locally
+                      !qualifyingIds.contains(existing.astridTaskId),         // but no longer My Tasks
+                      !pushedRemoteIds.contains(existing.remoteId) else { continue }
+                do {
+                    try await apiClient.deleteGoogleTaskDirect(tasklistId: tasklistId, remoteId: existing.remoteId)
+                } catch {
+                    guard error.syncRemoteAlreadyGone else { continue }  // real error → retry next pass
+                }
+                deletionLedger.recordTombstone(existing.remoteId)  // never re-import this twin
+                byRemoteId.removeValue(forKey: existing.remoteId)
+                byTaskId.removeValue(forKey: existing.astridTaskId)
+                retiredRemoteIds.insert(existing.remoteId)
+            }
+            // Drop retired links so the deletion pass can't read them as
+            // "remote gone" and delete the (still-valid) local task.
+            if !retiredRemoteIds.isEmpty {
+                taskLinks.removeAll { retiredRemoteIds.contains($0.remoteId) }
+            }
         }
 
         if pullEnabled {
