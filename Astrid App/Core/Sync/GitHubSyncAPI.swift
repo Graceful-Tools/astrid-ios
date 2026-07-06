@@ -174,10 +174,19 @@ extension AstridAPIClient {
             queryItems: [URLQueryItem(name: "linkId", value: linkId)])
     }
 
-    func pullGitHubIssues(linkId: String, full: Bool = false) async throws -> GitHubIssuesPullResponse {
+    func pullGitHubIssues(linkId: String, full: Bool = false, deferCursor: Bool = false) async throws -> GitHubIssuesPullResponse {
         var query = [URLQueryItem(name: "linkId", value: linkId)]
         if full { query.append(URLQueryItem(name: "full", value: "1")) }  // ignore + don't advance the cursor
+        if deferCursor { query.append(URLQueryItem(name: "deferCursor", value: "1")) }
         return try await request(method: "GET", path: "/api/v1/sync/github/issues", queryItems: query)
+    }
+
+    /// Persist the cursor the client just applied (client-acknowledged cursor).
+    func commitGitHubCursor(linkId: String, cursor: String) async throws {
+        struct Req: Codable { let action = "commitCursor"; let linkId: String; let cursor: String }
+        struct Res: Codable { let ok: Bool? }
+        let _: Res = try await request(method: "POST", path: "/api/v1/sync/github/issues",
+                                       body: Req(linkId: linkId, cursor: cursor))
     }
 
     func pushGitHubIssue(_ body: GitHubIssuePushRequest) async throws -> GitHubIssuePushResponse {

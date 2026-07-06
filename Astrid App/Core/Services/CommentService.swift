@@ -521,7 +521,7 @@ class CommentService: ObservableObject {
         // fileId from its dependency's result.
         if let temp = fileId, temp.hasPrefix("temp_"),
            let pending = AttachmentService.shared.pendingUploads[temp] {
-            OutboxManager.shared.enqueueComment(
+            await OutboxManager.shared.enqueueComment(
                 commentPayload,
                 clientRequestId: tempId,
                 attachment: UploadAttachmentOutboxPayload(
@@ -533,7 +533,7 @@ class CommentService: ObservableObject {
                 attachmentClientRequestId: temp
             )
         } else {
-            OutboxManager.shared.enqueueComment(commentPayload, clientRequestId: tempId)
+            await OutboxManager.shared.enqueueComment(commentPayload, clientRequestId: tempId)
         }
 
         // 5. Return optimistic comment immediately — the Outbox handler creates
@@ -594,7 +594,7 @@ class CommentService: ObservableObject {
 
         // 4. Hand the update to the Outbox — the handler owns the server PUT
         // and the reconcile when it drains.
-        OutboxManager.shared.enqueueUpdateComment(
+        await OutboxManager.shared.enqueueUpdateComment(
             UpdateCommentOutboxPayload(commentId: id, content: content),
             clientRequestId: UUID().uuidString
         )
@@ -630,7 +630,7 @@ class CommentService: ObservableObject {
 
         // 3. Hand the delete to the Outbox — the handler owns the server DELETE
         // and the CoreData finalize when it drains.
-        OutboxManager.shared.enqueueDeleteComment(
+        await OutboxManager.shared.enqueueDeleteComment(
             DeleteCommentOutboxPayload(commentId: id),
             clientRequestId: UUID().uuidString
         )

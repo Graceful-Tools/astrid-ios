@@ -19,6 +19,10 @@ class SyncManager: ObservableObject {
     @Published var lastProjectSyncDate: Date?
 
     private let apiClient = AstridAPIClient.shared
+    /// The single auto-sync timer. Held so repeated startAutoSync() calls (each
+    /// pull-to-refresh / view re-appearance) can't stack another 60s full-sync
+    /// timer — which previously multiplied full getAllTasks() downloads.
+    private var autoSyncTimer: Timer?
     private let taskService = TaskService.shared
     private let listService = ListService.shared // Temp: for legacy methods
     private let commentService = CommentService.shared
@@ -380,9 +384,11 @@ class SyncManager: ObservableObject {
 
     // MARK: - Auto Sync
 
-    /// Start automatic background syncing
+    /// Start automatic background syncing. Idempotent: a timer already running
+    /// is left in place instead of stacking another.
     func startAutoSync(interval: TimeInterval = 60) {
-        Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        guard autoSyncTimer == nil else { return }
+        autoSyncTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             _Concurrency.Task { @MainActor in
                 do {
                     try await self?.performIncrementalSync()
@@ -393,9 +399,16 @@ class SyncManager: ObservableObject {
         }
     }
 
+    /// Stop the auto-sync timer (sign-out / teardown).
+    func stopAutoSync() {
+        autoSyncTimer?.invalidate()
+        autoSyncTimer = nil
+    }
+
     /// Reset sync state (useful after sign out or data corruption)
     /// Clears all sync timestamps to ensure fresh data on next login
     func resetSyncState() {
+        stopAutoSync()
         lastSyncDate = nil
         lastTaskSyncDate = nil
         lastListSyncDate = nil

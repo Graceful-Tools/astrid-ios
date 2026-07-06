@@ -66,10 +66,10 @@ final class GitHubSyncService: ObservableObject {
             isConnected = github != nil
             accountLogin = github?.externalAccountId
             // Server-recorded tombstones (tasks deleted on web/other clients)
-            // merge into the local ledger so pulls never resurrect them.
-            for remoteId in (github?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",") {
-                deletionLedger.recordTombstone(String(remoteId))
-            }
+            // merge into the SEPARATE server store (union with local tombstones)
+            // so a large server set can't evict this device's own tombstones.
+            deletionLedger.mergeServerTombstones(
+                (github?.metadata?.tombstonedRemoteIds ?? "").split(separator: ",").map(String.init))
             links = isConnected ? try await apiClient.getGitHubLinks().links : []
         } catch {
             // 503 = server not configured yet; 401 = not connected. Both fine.
@@ -144,7 +144,13 @@ final class GitHubSyncService: ObservableObject {
         guard isConnected, !isSyncing else { return }
         isSyncing = true
         lastError = nil
-        defer { isSyncing = false }
+        // Consume mid-pass nudges: a webhook/mutation that arrived while this
+        // pass ran set rerunAfterPass — schedule another pass instead of
+        // dropping it (Google does the same).
+        defer {
+            isSyncing = false
+            if rerunAfterPass { rerunAfterPass = false; scheduleSync() }
+        }
 
         for link in links {
             do {
@@ -179,14 +185,15 @@ final class GitHubSyncService: ObservableObject {
                 deletionLedger.clearPending(remoteId: remoteId)
             } catch {
                 // 404/410 = already gone — done; anything else retries next pass.
-                if "\(error)".contains("404") || "\(error)".contains("410") {
+                if error.syncRemoteAlreadyGone {
                     deletionLedger.clearPending(remoteId: remoteId)
                 }
             }
         }
 
         // ── PULL: apply remote changes newer than our watermark ────────────
-        let pulled = try await apiClient.pullGitHubIssues(linkId: link.id)
+        // Defer the cursor: commit only after the pass applies (see Google).
+        let pulled = try await apiClient.pullGitHubIssues(linkId: link.id, deferCursor: true)
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
         // Parents before children so a sub-issue created in the same pass can
@@ -204,7 +211,7 @@ final class GitHubSyncService: ObservableObject {
                 // watermark we wrote at the last push/pull.
                 guard SyncSuppression.shouldApplyRemote(
                     remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
-                guard let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId }) else { continue }
+                guard let task = taskService.tasksById[existing.astridTaskId] else { continue }
                 // Last-write-wins: a remote change that lost the race to a
                 // fresher local edit must not clobber it — the push side will
                 // carry the local state out instead.
@@ -249,13 +256,16 @@ final class GitHubSyncService: ObservableObject {
                 // (state still syncs for linked pairs).
                 if item.completed { continue }
                 // New issue → adopt an existing UNLINKED same-title task in the
-                // list if one exists (self-heals passes that created the task
-                // but couldn't persist the link), else create one.
-                let adopted = taskService.tasks.first {
+                // list if EXACTLY ONE exists (self-heals passes that created the
+                // task but couldn't persist the link), else create one. Adopting
+                // when several tasks share the title would mislink to an
+                // arbitrary twin, so ambiguity falls through to create.
+                let adoptCandidates = taskService.tasks.filter {
                     ($0.listIds ?? []).contains(link.astridListId)
                         && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
                         && $0.title == item.title
                 }
+                let adopted = adoptCandidates.count == 1 ? adoptCandidates.first : nil
                 // Sub-issue → Astrid subtask: resolve the parent issue's task
                 // via the link map (parents ordered first, so same-pass parents
                 // are already there).
@@ -420,7 +430,7 @@ final class GitHubSyncService: ObservableObject {
             for item in fullItems {
                 guard !pushedRemoteIds.contains(item.remoteId) else { continue }
                 guard let existing = byRemoteId[item.remoteId],
-                      let task = taskService.tasks.first(where: { $0.id == existing.astridTaskId })
+                      let task = taskService.tasksById[existing.astridTaskId]
                 else { continue }
                 let localUnchanged = !SyncSuppression.shouldPushLocal(
                     localUpdatedAt: task.updatedAt, watermark: existing.astridUpdatedAt)
@@ -435,27 +445,54 @@ final class GitHubSyncService: ObservableObject {
             }
         }
 
-        // ── DELETIONS: issue gone remotely → delete the local twin ─────────
+        // ── DELETIONS: issue gone remotely → detach the local twin ─────────
         // Requires a COMPLETE listing (cursor-free); skipped when the fetch
         // failed or hit the page limit (SyncDeletionPolicy invariant).
-        if fullRemoteItems == nil {
+        //
+        // Time-gate this full listing: it's a cursor-free fetch of the whole
+        // repo, and a flurry of local edits would otherwise trigger it on every
+        // debounced pass. The incremental cursor pull (live edits / new issues)
+        // and the push-side adopt fetch above are unaffected — only the
+        // non-urgent detach + completed-backfill work is throttled. If adopt
+        // already fetched the full list this pass, reuse it (and stamp the gate).
+        let fullPullKey = "githubLastFullPull:\(link.remoteContainerId)"
+        let lastFullPull = UserDefaults.standard.object(forKey: fullPullKey) as? Date
+        let fullPullDue = lastFullPull.map { Date().timeIntervalSince($0) >= 300 } ?? true
+        if fullRemoteItems == nil, fullPullDue {
             if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
                 fullRemoteItems = fullPull.items
                 fullListingTruncated = fullPull.truncated ?? true  // old server = can't trust completeness
             }
         }
+        // Only throttle after a genuinely COMPLETE listing — a failed/truncated
+        // fetch (sentinel empty list, truncated == true) must retry next pass.
+        if fullRemoteItems != nil, !fullListingTruncated {
+            UserDefaults.standard.set(Date(), forKey: fullPullKey)
+        }
         if let fullItems = fullRemoteItems {
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == link.remoteContainerId }
                 .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
-            let toDelete = SyncDeletionPolicy.localDeletions(
+            let goneRemote = SyncDeletionPolicy.localDeletions(
                 links: deletionLinks,
                 fullRemoteIds: Set(fullItems.map(\.remoteId)),
                 truncated: fullListingTruncated,
                 explicitlyDeletedRemoteIds: [])
-            for del in toDelete where taskService.tasks.contains(where: { $0.id == del.taskId }) {
-                deletionLedger.recordTombstone(del.remoteId)  // no echo back
-                try? await taskService.deleteTask(id: del.taskId)
+            // DETACH, don't delete. A GitHub issue almost never gets truly
+            // DELETED — the REST API only closes them, and a closed issue stays
+            // in the listing. An issue vanishing from a COMPLETE listing thus
+            // overwhelmingly means it was TRANSFERRED to another repo (its
+            // number changes) or converted, NOT that the user wants their task
+            // gone. Deleting the Astrid task here was silent data loss on
+            // transfer. Instead tombstone the remote id (so it isn't re-adopted
+            // or re-pushed as a fresh issue) and drop the in-pass link, keeping
+            // the task. (Astrid-side deletions still close the remote via the
+            // separate tombstone path above.)
+            for del in goneRemote where taskService.tasksById[del.taskId] != nil
+                && !deletionLedger.tombstonedRemoteIds.contains(del.remoteId) {
+                deletionLedger.recordTombstone(del.remoteId)
+                byRemoteId.removeValue(forKey: del.remoteId)
+                byTaskId.removeValue(forKey: del.taskId)
             }
         }
 
@@ -475,25 +512,46 @@ final class GitHubSyncService: ObservableObject {
                 guard let item = byId[candidate.remoteId] else { continue }
                 let mappedAssignee = (item.metadata?["assigneeUserId"]).flatMap { $0.isEmpty ? nil : $0 }
                 let backdated = RFC3339.parse(item.completedAt) ?? RFC3339.parse(item.remoteUpdatedAt) ?? Date()
-                guard let newTask = try? await taskService.createTask(
-                    listIds: [link.astridListId], title: item.title,
-                    description: item.notes,
-                    assigneeId: mappedAssignee,
-                    source: .github, presumeCompletedAt: backdated) else { continue }
-                _ = try? await taskService.completeTask(
-                    id: newTask.id, completed: true, task: newTask, source: .github,
-                    completedAt: backdated)
+                // Self-heal a prior backfill pass that created the task but
+                // couldn't persist the link (resolveRealSyncTaskId / upsert
+                // failed): without this, the still-unlinked candidate is
+                // re-selected every pass and duplicated forever. Adopt an
+                // existing unlinked completed same-title task when exactly one
+                // exists; only create when there's none.
+                let backfillTwins = taskService.tasks.filter {
+                    ($0.listIds ?? []).contains(link.astridListId)
+                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
+                        && $0.completed && $0.title == item.title
+                }
+                let newTask: Task
+                if backfillTwins.count == 1 {
+                    newTask = backfillTwins[0]
+                } else {
+                    guard let created = try? await taskService.createTask(
+                        listIds: [link.astridListId], title: item.title,
+                        description: item.notes,
+                        assigneeId: mappedAssignee,
+                        source: .github, presumeCompletedAt: backdated) else { continue }
+                    _ = try? await taskService.completeTask(
+                        id: created.id, completed: true, task: created, source: .github,
+                        completedAt: backdated)
+                    newTask = created
+                }
                 guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
                 try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(), remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata))
-                byRemoteId[item.remoteId] = ExternalTaskLinkDTO(
+                let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: Date(),
                     remoteUpdatedAt: RFC3339.parse(item.remoteUpdatedAt), metadata: item.metadata)
+                byRemoteId[item.remoteId] = dto
+                // Mark the task linked for the rest of this pass so a later
+                // candidate can't adopt the same twin.
+                byTaskId[realId] = dto
             }
         }
 
@@ -523,6 +581,11 @@ final class GitHubSyncService: ObservableObject {
             guard remoteCommentCount > entries.count || hasUnmappedLocal || mappedLocalMissing
                 || (issueChanged && !entries.isEmpty) else { continue }
             await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
+        }
+
+        // Pass fully applied — commit the pulled cursor (client-acknowledged).
+        if let cursor = pulled.cursor, !cursor.isEmpty {
+            try? await apiClient.commitGitHubCursor(linkId: link.id, cursor: cursor)
         }
     }
 

@@ -145,10 +145,11 @@ struct UpdateTaskRequest: Codable {
             try container.encode(dueDateTime, forKey: .dueDateTime)
         }
 
-        // Always encode isAllDay if dueDateTime is set
-        if dueDateTime != nil {
-            try container.encodeIfPresent(isAllDay, forKey: .isAllDay)
-        }
+        // Encode isAllDay whenever it's set — NOT only when dueDateTime is also
+        // present. Toggling all-day without changing the date previously never
+        // reached the wire (local state updated, but the change silently never
+        // synced).
+        try container.encodeIfPresent(isAllDay, forKey: .isAllDay)
 
         try container.encodeIfPresent(reminderTime, forKey: .reminderTime)
         try container.encodeIfPresent(reminderType, forKey: .reminderType)

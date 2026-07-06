@@ -46,6 +46,25 @@ final class OutboxRunnerTests: XCTestCase {
         XCTAssertEqual(order, ["a"])
     }
 
+    func testPersistEnqueuePersistsWithoutDraining() async {
+        // The durability contract behind OutboxManager awaiting the persist
+        // before it treats an optimistic write as committed: the entry must be
+        // on disk (survives a crash) but the handler must NOT have run yet.
+        let rec = Recorder()
+        let runner = makeRunner(["k": { e, _ in await rec.record(e.id); return .success([:]) }])
+        await runner.persistEnqueue([entry("a")])
+
+        let order = await rec.order
+        XCTAssertEqual(order, [], "persistEnqueue must journal only, never drain")
+
+        // A fresh runner over the same store file recovers the entry — proof it
+        // was durably persisted before the call returned.
+        let reloaded = OutboxRunner(store: OutboxStore(fileURL: tempURL), handlers: [:], now: { self.fixedNow })
+        let snap = await reloaded.snapshot()
+        XCTAssertEqual(snap.map(\.id), ["a"], "entry must be persisted before the drain runs")
+        XCTAssertEqual(snap.first?.status, .pending)
+    }
+
     func testRetryableFailureBacksOffAndStaysPending() async {
         let runner = makeRunner(["k": { _, _ in .retryable("network") }])
         await runner.enqueue(entry("a"))

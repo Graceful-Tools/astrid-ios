@@ -12,8 +12,9 @@ Versioning is **path-based**: all current endpoints live under `/api/v1/...`. Th
 
 ## Authentication Endpoints
 
-### POST `/api/v1/auth/mobile-signup`
-Create a new account with passwordless authentication.
+### ~~POST `/api/v1/auth/mobile-signup`~~ (does not exist)
+No such route. iOS auth is via Sign in with Apple / Google
+(`POST /api/v1/auth/apple`, `POST /api/v1/auth/google`).
 
 **Request:**
 ```json
@@ -153,8 +154,9 @@ Mark task as complete/incomplete.
 ### POST `/api/v1/tasks/{id}/copy`
 Copy a single task.
 
-### POST `/api/v1/tasks/copy`
-Batch copy multiple tasks.
+### POST `/api/v1/tasks/{id}/copy` (single only)
+Copies one task. Body: `{ "taskId": "...", "targetListIds": ["..."] }`.
+(There is no batch `/api/v1/tasks/copy`.)
 
 **Request:**
 ```json
@@ -211,7 +213,7 @@ Update an existing list.
 ### DELETE `/api/v1/lists/{id}`
 Delete a list.
 
-### PUT `/api/v1/lists/{id}/invite`
+### POST `/api/v1/lists/{id}/invite`
 Invite users to a list.
 
 **Request:**
@@ -224,7 +226,7 @@ Invite users to a list.
 ### POST `/api/v1/lists/{id}/leave`
 Leave a shared list.
 
-### PUT `/api/v1/lists/{id}/favorite`
+### PATCH `/api/v1/lists/{id}/favorite`
 Toggle list as favorite.
 
 **Request:**
@@ -287,13 +289,13 @@ Delete a comment.
 
 ## Reminder Endpoints
 
-### GET `/api/v1/reminders/status`
-Get pending reminders for the current user.
+### GET `/api/v1/reminders`
+Get pending reminders for the current user. (There is no `/reminders/status`.)
 
-### PUT `/api/v1/reminders/{id}/dismiss`
+### POST `/api/v1/reminders/{id}/dismiss`
 Dismiss a reminder.
 
-### PUT `/api/v1/reminders/{id}/snooze`
+### POST `/api/v1/reminders/{id}/snooze`
 Snooze a reminder.
 
 **Request:**
@@ -397,13 +399,13 @@ Upload a file (multipart/form-data).
 Server-Sent Events endpoint for real-time updates.
 
 **Events:**
-- `task:created` - New task created
-- `task:updated` - Task modified
-- `task:deleted` - Task removed
-- `list:created` - New list created
-- `list:updated` - List modified
-- `list:deleted` - List removed
-- `comment:created` - New comment added
+- `task_created` - New task created
+- `task_updated` - Task modified
+- `task_deleted` - Task removed
+- `list_created` - New list created
+- `list_updated` - List modified
+- `list_deleted` - List removed
+- `comment_created` - New comment added
 
 ---
 

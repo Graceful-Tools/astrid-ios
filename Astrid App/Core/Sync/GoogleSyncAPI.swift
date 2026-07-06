@@ -91,10 +91,21 @@ extension AstridAPIClient {
             queryItems: [URLQueryItem(name: "linkId", value: linkId)])
     }
 
-    func pullGoogleTasks(linkId: String, full: Bool = false) async throws -> GoogleTasksPullResponse {
+    func pullGoogleTasks(linkId: String, full: Bool = false, deferCursor: Bool = false) async throws -> GoogleTasksPullResponse {
         var query = [URLQueryItem(name: "linkId", value: linkId)]
         if full { query.append(URLQueryItem(name: "full", value: "1")) }  // ignore + don't advance the cursor
+        // Client-acknowledged cursor: server returns the cursor but doesn't
+        // persist it; we commit after applying the pass (commitGoogleCursor).
+        if deferCursor { query.append(URLQueryItem(name: "deferCursor", value: "1")) }
         return try await request(method: "GET", path: "/api/v1/sync/google/tasks", queryItems: query)
+    }
+
+    /// Persist the cursor the client just applied (client-acknowledged cursor).
+    func commitGoogleCursor(linkId: String, cursor: String) async throws {
+        struct Req: Codable { let action = "commitCursor"; let linkId: String; let cursor: String }
+        struct Res: Codable { let ok: Bool? }
+        let _: Res = try await request(method: "POST", path: "/api/v1/sync/google/tasks",
+                                       body: Req(linkId: linkId, cursor: cursor))
     }
 
     /// Direct-tasklist pull (My Tasks ↔ Google default list — no list link row).

@@ -532,10 +532,15 @@ struct TaskListView: View {
                                     },
                                     selectedTaskId: selectedTaskForPanel?.id
                                 )
-                            } else if filteredTasks.isEmpty {
-                                emptyState
                             } else {
-                                taskList
+                                // Compute the filtered rows ONCE per body eval
+                                // (was computed twice: here and in taskList).
+                                let rows = filteredTasks
+                                if rows.isEmpty {
+                                    emptyState
+                                } else {
+                                    taskList(rows: rows)
+                                }
                             }
                         }
                     }
@@ -750,9 +755,9 @@ struct TaskListView: View {
 
     // MARK: - Task List
 
-    private var taskList: some View {
+    private func taskList(rows: [Task]) -> some View {
         List {
-            ForEach(Array(filteredTasks.enumerated()), id: \.element.id) { index, task in
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, task in
                 TaskRowView(
                     task: task,
                     onToggle: {
@@ -831,13 +836,15 @@ struct TaskListView: View {
     }
 
     /// Nesting depth of a task (0 = top-level), walking parentTaskId with a
-    /// cycle-safe cap. Used for the per-level row indent.
+    /// cycle-safe cap. O(1) parent lookups via tasksById (was an O(n) scan per
+    /// ancestor step → O(depth×n) per row → O(n²) across the list).
     private func subtaskDepth(_ task: Task) -> Int {
+        let byId = taskService.tasksById
         var depth = 0
         var parentId = task.parentTaskId
         while let pid = parentId, depth < 8 {
             depth += 1
-            parentId = taskService.tasks.first(where: { $0.id == pid })?.parentTaskId
+            parentId = byId[pid]?.parentTaskId
         }
         return depth
     }
@@ -1577,8 +1584,14 @@ struct TaskListView: View {
             return false
         }
 
-        // Prefer selectedList (has full data) over task.lists?.first (may be incomplete)
-        guard let taskList = selectedList ?? task.lists?.first else {
+        // Resolve the authoritative list for permission checks: prefer the
+        // selectedList, then the full list from ListService (has complete
+        // listMembers from getLists), and only then the task's embedded list.
+        // This lets the tasks endpoint omit per-task listMembers (leanListMembers)
+        // without breaking role checks.
+        guard let taskList = selectedList
+            ?? (task.listIds?.compactMap { id in listService.lists.first { $0.id == id } }.first)
+            ?? task.lists?.first else {
             return false // No list info, allow edit
         }
 

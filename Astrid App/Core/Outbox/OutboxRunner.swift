@@ -121,13 +121,27 @@ actor OutboxRunner {
     /// journal write — so an interruption can't leave a dependency chain
     /// half-enqueued (e.g. the upload saved but its dependent comment lost).
     func enqueueBatch(_ newEntries: [OutboxEntry]) async {
+        persistEnqueue(newEntries)
+        await drain()
+    }
+
+    /// Append + persist to the journal durably WITHOUT draining, returning as
+    /// soon as the entries are on disk. Idempotent on id.
+    ///
+    /// The caller awaits this so an entry can't be lost in the window between a
+    /// service's optimistic local write (CDTask) and the journal reaching disk:
+    /// before this, `OutboxManager.enqueue` fired the append into a detached
+    /// Task and returned, so a crash right after the optimistic write left a
+    /// "pending" row with no journal entry — and the legacy per-service sync
+    /// that used to re-drive those rows is gone. The drain (network I/O) is
+    /// kicked separately so the UI still never blocks on it.
+    func persistEnqueue(_ newEntries: [OutboxEntry]) {
         var added = false
         for entry in newEntries where !entries.contains(where: { $0.id == entry.id }) {
             entries.append(entry)
             added = true
         }
         if added { persist() }
-        await drain()
     }
 
     /// Single-drain guard: serialize drain passes. A concurrent caller (a wake-up
@@ -149,6 +163,17 @@ actor OutboxRunner {
 
     /// Dispatch every runnable entry, looping while progress is made so newly
     /// completed entries can unblock dependents within the same drain.
+    ///
+    /// Entries are dispatched SEQUENTIALLY (awaited one at a time) on purpose,
+    /// not for lack of throughput awareness: two writes to the SAME entity —
+    /// e.g. createTask(temp) then updateTask(temp), or two edits to one task —
+    /// carry no `dependsOn` edge (implicit ordering), so blanket concurrency
+    /// would let them race and land server-side out of order. The correct way
+    /// to parallelize is per-entity serialization lanes (concurrent ACROSS
+    /// distinct entities, serial WITHIN one), keyed by the entry's target id
+    /// per kind, with a bounded `TaskGroup`. That's a deliberate future change,
+    /// gated on soak coverage — not something to bolt on here. Until then the
+    /// serial loop is the safe choice.
     private func drainOnce() async {
         while true {
             let runnable = OutboxScheduler.runnableEntries(entries, now: now(), inFlightIds: inFlight)

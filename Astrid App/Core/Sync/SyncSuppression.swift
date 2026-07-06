@@ -27,6 +27,15 @@ enum SyncSuppression {
     /// carrying the pre-completion remote state). Last-write-wins: remote
     /// applies only when provably newer than the local task; an unprovable
     /// remote stamp never clobbers local state.
+    ///
+    /// CLOCK-SKEW CAVEAT: `remoteUpdatedAt` is stamped by the provider's server
+    /// (GitHub/Google), `localUpdatedAt` by Astrid's — two independent clocks.
+    /// Skew between them can, in a genuine simultaneous edit, tip the comparison
+    /// the wrong way (older change "wins" by a few seconds). This is an accepted
+    /// tradeoff: both are NTP-disciplined server clocks (sub-second skew in
+    /// practice), the window is only the moment of a true concurrent edit, and
+    /// the dual watermarks already suppress the common echo case. The strict `>`
+    /// (never `>=`) also biases toward keeping local on an exact tie.
     static func remoteWins(remoteUpdatedAt: Date?, localUpdatedAt: Date?) -> Bool {
         guard let remoteUpdatedAt else { return false }
         guard let localUpdatedAt else { return true }
