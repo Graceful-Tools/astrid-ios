@@ -23,6 +23,9 @@ class TaskService: ObservableObject {
     private let coreDataManager = CoreDataManager.shared
     private let networkMonitor = NetworkMonitor.shared
     private var cachedTasks: [String: Task] = [:]
+    /// O(1) id → task lookup (mirrors `tasks`). Lets callers avoid an O(n)
+    /// `tasks.first(where:)` scan per lookup (e.g. subtask-depth walking).
+    var tasksById: [String: Task] { cachedTasks }
     private var syncTimer: Timer?
     private var networkObserver: NSObjectProtocol?
 
