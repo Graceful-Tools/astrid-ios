@@ -194,9 +194,14 @@ class TaskService: ObservableObject {
     /// Without this, opening the app offline shows no tasks even though they're cached
     private func loadCachedTasks() {
         do {
-            // Load from viewContext synchronously on main thread
-            // This is safe because init() already runs on MainActor and reads are fast
+            // Only the ACTIVE (incomplete) tasks must be in memory before the
+            // first render for offline mode — that's the set the lists show.
+            // A user with a long completed history would otherwise pay to
+            // convert hundreds of finished rows to domain models on the main
+            // thread at launch. Load active tasks synchronously; hydrate the
+            // completed history right after off the critical path.
             let fetchRequest = CDTask.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "completed == NO")
             let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
 
             // Convert to domain models, excluding tasks pending deletion.
@@ -210,13 +215,38 @@ class TaskService: ObservableObject {
                 cachedTasks[task.id] = task
             }
             updatePendingOperationsCount()
-            print("✅ [TaskService] Loaded \(tasks.count) tasks from cache synchronously (\(pendingOperationsCount) pending)")
+            print("✅ [TaskService] Loaded \(tasks.count) active tasks from cache synchronously (\(pendingOperationsCount) pending)")
             // Mark as loaded IMMEDIATELY so UI shows cached data right away
             // This is critical for offline mode - user sees data even before network sync
             self.hasCompletedInitialLoad = true
+
+            // Hydrate the completed history without blocking first render.
+            _Concurrency.Task { @MainActor [weak self] in self?.hydrateCompletedTasksFromCache() }
         } catch {
             print("❌ [TaskService] Failed to load cached tasks: \(error)")
             self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
+        }
+    }
+
+    /// Merge cached COMPLETED tasks into memory after the initial active-task
+    /// load. Runs off the launch critical path (see `loadCachedTasks`). Never
+    /// overwrites a task already in memory (an active-task edit in flight wins).
+    private func hydrateCompletedTasksFromCache() {
+        do {
+            let fetchRequest = CDTask.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "completed == YES")
+            let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
+            let deletedIds = recentlyDeletedIds
+            let completed = cdTasks
+                .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
+                .map { $0.toDomainModel() }
+                .filter { cachedTasks[$0.id] == nil }
+            guard !completed.isEmpty else { return }
+            for task in completed { cachedTasks[task.id] = task }
+            self.tasks.append(contentsOf: completed)
+            print("✅ [TaskService] Hydrated \(completed.count) completed tasks from cache")
+        } catch {
+            print("⚠️ [TaskService] Failed to hydrate completed tasks: \(error)")
         }
     }
 
@@ -978,12 +1008,27 @@ class TaskService: ObservableObject {
 
             // Update or create tasks
             for task in tasks {
-                let cdTask = existingTasksDict[task.id] ?? CDTask(context: context)
-                let existingStatus = existingTasksDict[task.id]?.syncStatus
+                let existing = existingTasksDict[task.id]
+                let cdTask = existing ?? CDTask(context: context)
+                let existingStatus = existing?.syncStatus
 
                 // Don't overwrite tasks with pending local operations — those edits
                 // need to be pushed to the server first via syncPendingOperations()
                 if existingStatus == "pending" || existingStatus == "pending_delete" || existingStatus == "pending_list_sync" {
+                    continue
+                }
+
+                // Skip unchanged rows: a full sync pass re-hands every task here,
+                // but `update(from:)` touches ~30 attributes and marks the managed
+                // object dirty even when nothing changed, so an all-tasks save
+                // rewrites the whole table each pass. When the existing row is
+                // already synced and its server timestamp matches, it's identical
+                // to what we'd write — leave it untouched.
+                if let existing = existing,
+                   existingStatus == "synced",
+                   let incoming = task.updatedAt,
+                   let stored = existing.updatedAt,
+                   incoming == stored {
                     continue
                 }
 
