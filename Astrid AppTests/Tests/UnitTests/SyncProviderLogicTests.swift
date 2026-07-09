@@ -6,8 +6,115 @@ import XCTest
 /// loop (our own push bounces back as an inbound edit) or silently dropped
 /// edits (a real remote change mistaken for an echo).
 final class SyncProviderLogicTests: XCTestCase {
+    private actor CommitRecorder {
+        private(set) var cursors: [String] = []
+        func record(_ cursor: String) { cursors.append(cursor) }
+    }
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
     private var t1: Date { t0.addingTimeInterval(60) }
+
+    // MARK: - Pass acknowledgement safety
+
+    func testAcknowledgement_cleanPullPassCanCommitCursor() {
+        var acknowledgement = SyncPassAcknowledgement()
+        acknowledgement.recordAppliedItem()
+        acknowledgement.recordAppliedItem()
+        XCTAssertTrue(acknowledgement.canCommitCursor)
+        XCTAssertEqual(acknowledgement.appliedItemCount, 2)
+    }
+
+    func testAcknowledgement_anyRequiredApplyFailurePreventsCursorCommit() {
+        var acknowledgement = SyncPassAcknowledgement()
+        acknowledgement.recordAppliedItem()
+        acknowledgement.recordFailure()
+        acknowledgement.recordAppliedItem()
+        XCTAssertFalse(acknowledgement.canCommitCursor)
+    }
+
+    func testCursorCommitter_commitsExactlyOnceForCleanPass() async throws {
+        let recorder = CommitRecorder()
+        let committed = try await ProviderCursorCommitter.commitIfSafe(
+            acknowledgement: SyncPassAcknowledgement(), cursor: "cursor-1"
+        ) { cursor in await recorder.record(cursor) }
+        XCTAssertTrue(committed)
+        let cursors = await recorder.cursors
+        XCTAssertEqual(cursors, ["cursor-1"])
+    }
+
+    func testCursorCommitter_failedApplyNeverCallsCommit() async throws {
+        var acknowledgement = SyncPassAcknowledgement()
+        acknowledgement.recordFailure()
+        let recorder = CommitRecorder()
+        let committed = try await ProviderCursorCommitter.commitIfSafe(
+            acknowledgement: acknowledgement, cursor: "cursor-1"
+        ) { cursor in await recorder.record(cursor) }
+        XCTAssertFalse(committed)
+        let cursors = await recorder.cursors
+        XCTAssertTrue(cursors.isEmpty)
+    }
+
+    // MARK: - Push-side adoption safety
+
+    func testAdoptionSafety_completeListingAllowsCreateWhenNoTwinExists() {
+        XCTAssertTrue(SyncAdoptionSafety.mayCreateRemote(
+            fullListingAvailable: true, listingTruncated: false, matchingTwinExists: false))
+    }
+
+    func testAdoptionSafety_failedListingNeverAllowsCreate() {
+        XCTAssertFalse(SyncAdoptionSafety.mayCreateRemote(
+            fullListingAvailable: false, listingTruncated: false, matchingTwinExists: false))
+    }
+
+    func testAdoptionSafety_truncatedListingNeverAllowsCreate() {
+        XCTAssertFalse(SyncAdoptionSafety.mayCreateRemote(
+            fullListingAvailable: true, listingTruncated: true, matchingTwinExists: false))
+    }
+
+    func testAdoptionSafety_existingTwinNeverAllowsCreate() {
+        XCTAssertFalse(SyncAdoptionSafety.mayCreateRemote(
+            fullListingAvailable: true, listingTruncated: false, matchingTwinExists: true))
+    }
+
+    // MARK: - Provider mutation nudges
+
+    func testMutationNudge_ignoresEchoFromSameProvider() {
+        XCTAssertFalse(SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: "github"))
+        XCTAssertFalse(SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: "google"))
+    }
+
+    func testMutationNudge_userAndOtherProviderChangesStillSchedule() {
+        XCTAssertTrue(SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: nil))
+        XCTAssertTrue(SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: "google"))
+        XCTAssertTrue(SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: "github"))
+    }
+
+    // MARK: - Full pull throttle
+
+    func testFullPullThrottle_firstAndExpiredPullsRun() {
+        XCTAssertTrue(FullPullThrottle.isDue(lastSuccess: nil, now: t1, interval: 300))
+        XCTAssertTrue(FullPullThrottle.isDue(lastSuccess: t0, now: t0.addingTimeInterval(300), interval: 300))
+    }
+
+    func testFullPullThrottle_recentSuccessfulPullIsSkipped() {
+        XCTAssertFalse(FullPullThrottle.isDue(lastSuccess: t0, now: t0.addingTimeInterval(299), interval: 300))
+    }
+
+    // MARK: - Backfill twin index
+
+    func testBackfillIndex_returnsOnlyUnambiguousCandidateAndConsumesIt() {
+        var index = BackfillAdoptionIndex(candidates: [
+            .init(taskId: "a", title: "One"), .init(taskId: "b", title: "Two")
+        ])
+        XCTAssertEqual(index.takeUniqueTaskId(title: "One"), "a")
+        XCTAssertNil(index.takeUniqueTaskId(title: "One"), "consumed candidates cannot be reused")
+    }
+
+    func testBackfillIndex_ambiguousTitleDoesNotAdopt() {
+        var index = BackfillAdoptionIndex(candidates: [
+            .init(taskId: "a", title: "Same"), .init(taskId: "b", title: "Same")
+        ])
+        XCTAssertNil(index.takeUniqueTaskId(title: "Same"))
+    }
 
     // MARK: - PULL suppression (remoteUpdatedAt vs remote watermark)
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lifecycle state of an Outbox journal entry.
-enum OutboxStatus: String, Codable, Equatable {
+enum OutboxStatus: String, Codable, Equatable, Sendable {
     case pending          // waiting to run (or to retry after backoff)
     case running          // a handler is currently executing it
     case completed        // succeeded; kept briefly so dependents can resolve
@@ -16,7 +16,7 @@ enum OutboxStatus: String, Codable, Equatable {
 /// idempotency key so retries never duplicate server-side, and explicit
 /// `dependsOn` edges so e.g. a comment waits for its attachment upload by
 /// construction (instead of the old throw/observe/retry dance).
-struct OutboxEntry: Identifiable, Codable, Equatable {
+struct OutboxEntry: Identifiable, Codable, Equatable, Sendable {
     let id: String                 // UUID
     let kind: String               // handler key, e.g. "createComment"
     var payload: Data              // JSON, fully self-contained for the handler

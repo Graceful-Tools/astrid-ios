@@ -14,6 +14,13 @@ final class OutboxRunnerTests: XCTestCase {
         func record(_ id: String) { order.append(id) }
     }
 
+    private actor ConcurrencyProbe {
+        private var active = 0
+        private(set) var peak = 0
+        func enter() { active += 1; peak = max(peak, active) }
+        func leave() { active -= 1 }
+    }
+
     override func setUpWithError() throws {
         tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("outbox-runner-\(UUID().uuidString).json")
@@ -23,11 +30,14 @@ final class OutboxRunnerTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempURL)
     }
 
-    private func entry(_ id: String, kind: String = "k", dependsOn: [String] = []) -> OutboxEntry {
+    private func entry(
+        _ id: String, kind: String = "k", dependsOn: [String] = [], tempId: String? = nil
+    ) -> OutboxEntry {
         OutboxEntry(
             id: id, kind: kind, payload: Data(), clientRequestId: "crid-\(id)",
             dependsOn: dependsOn, status: .pending, attempts: 0,
-            nextAttemptAt: fixedNow, lastError: nil, createdAt: fixedNow, updatedAt: fixedNow
+            nextAttemptAt: fixedNow, lastError: nil, createdAt: fixedNow, updatedAt: fixedNow,
+            tempId: tempId
         )
     }
 
@@ -126,5 +136,37 @@ final class OutboxRunnerTests: XCTestCase {
         let reloaded = OutboxStore(fileURL: tempURL).load()
         XCTAssertEqual(reloaded.first?.id, "a")
         XCTAssertEqual(reloaded.first?.status, .completed)
+    }
+
+    func testDistinctEntityLanesRunConcurrently() async {
+        let probe = ConcurrencyProbe()
+        let runner = makeRunner(["k": { _, _ in
+            await probe.enter()
+            try? await _Concurrency.Task.sleep(nanoseconds: 50_000_000)
+            await probe.leave()
+            return .success([:])
+        }])
+        await runner.persistEnqueue([
+            entry("a", tempId: "task-a"), entry("b", tempId: "task-b")
+        ])
+        await runner.drain()
+        let peak = await probe.peak
+        XCTAssertEqual(peak, 2)
+    }
+
+    func testSameEntityLaneRemainsSerial() async {
+        let probe = ConcurrencyProbe()
+        let runner = makeRunner(["k": { _, _ in
+            await probe.enter()
+            try? await _Concurrency.Task.sleep(nanoseconds: 20_000_000)
+            await probe.leave()
+            return .success([:])
+        }])
+        await runner.persistEnqueue([
+            entry("a", tempId: "same-task"), entry("b", tempId: "same-task")
+        ])
+        await runner.drain()
+        let peak = await probe.peak
+        XCTAssertEqual(peak, 1)
     }
 }

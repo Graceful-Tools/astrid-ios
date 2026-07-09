@@ -10,8 +10,8 @@ import Foundation
 /// - Local deletions from remote absence require a COMPLETE remote listing:
 ///   a failed fetch (nil) or a truncated page must never mass-delete local
 ///   tasks. Explicit deleted flags (Google's `deleted=1`) work regardless.
-enum SyncDeletionPolicy {
-    struct Link: Equatable {
+nonisolated enum SyncDeletionPolicy {
+    struct Link: Equatable, Sendable {
         let taskId: String
         let remoteId: String
     }
@@ -157,6 +157,7 @@ enum CompletionDriftPolicy {
 /// previous account's links/tombstones — or replay their queued writes —
 /// into the next account on a shared device.
 enum SyncStateReset {
+    static let dynamicKeyPrefixes = ["githubLastFullPull:", "googleLastFullPull:"]
     static var userDefaultsKeys: [String] {
         SyncDeletionLedger(provider: "github").storageKeys
             + SyncDeletionLedger(provider: "google").storageKeys
@@ -168,5 +169,9 @@ enum SyncStateReset {
 
     static func clearAll(defaults: UserDefaults = .standard) {
         for key in userDefaultsKeys { defaults.removeObject(forKey: key) }
+        for key in defaults.dictionaryRepresentation().keys
+            where dynamicKeyPrefixes.contains(where: key.hasPrefix) {
+            defaults.removeObject(forKey: key)
+        }
     }
 }

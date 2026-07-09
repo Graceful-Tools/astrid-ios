@@ -1,7 +1,7 @@
 import Foundation
 
 /// Outcome a handler reports for an Outbox entry.
-enum OutboxResult: Equatable {
+enum OutboxResult: Equatable, Sendable {
     /// Succeeded, optionally producing output for dependents (e.g. the real
     /// fileId an attachment upload yields). Pass `[:]` when there's no output.
     case success([String: String])
@@ -17,7 +17,7 @@ enum OutboxResult: Equatable {
 
 /// Resolved outputs of an entry's dependencies, handed to its handler so it can
 /// fill in values produced upstream (e.g. read the uploaded fileId).
-struct OutboxContext {
+struct OutboxContext: Sendable {
     /// dependency entry id → that entry's `result` output.
     let dependencyOutputs: [String: [String: String]]
 
@@ -51,6 +51,8 @@ typealias OutboxWakeupScheduler = @Sendable (_ at: Date, _ action: @escaping @Se
 /// (this is what makes "comment waits for its attachment" correct by
 /// construction rather than by observer wiring).
 actor OutboxRunner {
+
+    static let maxConcurrentLanes = 4
 
     private var entries: [OutboxEntry]
     private let store: OutboxStore
@@ -161,26 +163,22 @@ actor OutboxRunner {
         scheduleNextWakeupIfNeeded()
     }
 
-    /// Dispatch every runnable entry, looping while progress is made so newly
-    /// completed entries can unblock dependents within the same drain.
-    ///
-    /// Entries are dispatched SEQUENTIALLY (awaited one at a time) on purpose,
-    /// not for lack of throughput awareness: two writes to the SAME entity —
-    /// e.g. createTask(temp) then updateTask(temp), or two edits to one task —
-    /// carry no `dependsOn` edge (implicit ordering), so blanket concurrency
-    /// would let them race and land server-side out of order. The correct way
-    /// to parallelize is per-entity serialization lanes (concurrent ACROSS
-    /// distinct entities, serial WITHIN one), keyed by the entry's target id
-    /// per kind, with a bounded `TaskGroup`. That's a deliberate future change,
-    /// gated on soak coverage — not something to bolt on here. Until then the
-    /// serial loop is the safe choice.
+    /// Dispatch runnable entries in bounded per-entity lanes. Entries for one
+    /// task/comment/channel remain FIFO; unrelated lanes may perform network
+    /// I/O concurrently. The loop repeats so completion outputs immediately
+    /// unblock explicit dependents.
     private func drainOnce() async {
         while true {
             let runnable = OutboxScheduler.runnableEntries(entries, now: now(), inFlightIds: inFlight)
             guard !runnable.isEmpty else { break }
 
             var progressed = false
-            for entry in runnable {
+            let batch = OutboxScheduler.concurrentBatch(
+                runnable, limit: Self.maxConcurrentLanes,
+                serializationKey: OutboxScheduler.serializationKey(for:))
+            var work: [(entry: OutboxEntry, handler: OutboxHandler, context: OutboxContext)] = []
+
+            for entry in batch {
                 guard entries.contains(where: { $0.id == entry.id }) else { continue }
 
                 guard let handler = handlers[entry.kind] else {
@@ -200,7 +198,26 @@ actor OutboxRunner {
 
                 update(entry.id) { $0.status = .running }
                 inFlight.insert(entry.id)
-                let result = await handler(entry, context)
+                work.append((entry, handler, context))
+            }
+
+            // Persist `.running` before launching handlers. A crash at any
+            // point is normalized back to pending by recoveredOnLoad.
+            if !work.isEmpty { persist() }
+
+            var results: [String: OutboxResult] = [:]
+            await withTaskGroup(of: (String, OutboxResult).self) { group in
+                for item in work {
+                    group.addTask {
+                        (item.entry.id, await item.handler(item.entry, item.context))
+                    }
+                }
+                for await (id, result) in group { results[id] = result }
+            }
+
+            for item in work {
+                let entry = item.entry
+                let result = results[entry.id] ?? .retryable("handler ended without a result")
                 inFlight.remove(entry.id)
 
                 switch result {

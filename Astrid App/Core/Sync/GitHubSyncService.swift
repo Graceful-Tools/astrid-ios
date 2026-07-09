@@ -40,7 +40,9 @@ final class GitHubSyncService: ObservableObject {
         // Nudge from the server (GitHub webhook → SSE external_sync_refresh)
         refreshObserver = NotificationCenter.default.addObserver(
             forName: .externalSyncRefresh, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         }
         foregroundObserver = NotificationCenter.default.addObserver(
@@ -194,6 +196,7 @@ final class GitHubSyncService: ObservableObject {
         // ── PULL: apply remote changes newer than our watermark ────────────
         // Defer the cursor: commit only after the pass applies (see Google).
         let pulled = try await apiClient.pullGitHubIssues(linkId: link.id, deferCursor: true)
+        var pullAcknowledgement = SyncPassAcknowledgement()
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
         // Parents before children so a sub-issue created in the same pass can
@@ -211,7 +214,10 @@ final class GitHubSyncService: ObservableObject {
                 // watermark we wrote at the last push/pull.
                 guard SyncSuppression.shouldApplyRemote(
                     remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
-                guard let task = taskService.tasksById[existing.astridTaskId] else { continue }
+                guard let task = taskService.tasksById[existing.astridTaskId] else {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
                 // Last-write-wins: a remote change that lost the race to a
                 // fresher local edit must not clobber it — the push side will
                 // carry the local state out instead.
@@ -224,30 +230,51 @@ final class GitHubSyncService: ObservableObject {
                 if task.completed != item.completed {
                     // Canonical completion — repeating tasks roll forward; the
                     // next push reopens/reschedules the issue.
-                    _ = try? await taskService.completeTask(
-                        id: task.id, completed: item.completed, task: task, source: .github,
-                        completedAt: RFC3339.parse(item.completedAt))
+                    do {
+                        _ = try await taskService.completeTask(
+                            id: task.id, completed: item.completed, task: task, source: .github,
+                            completedAt: RFC3339.parse(item.completedAt))
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                        continue
+                    }
                 }
                 if task.title != item.title || (item.notes ?? "") != task.description {
-                    _ = try? await taskService.updateTask(
-                        taskId: task.id, title: item.title,
-                        description: item.notes ?? "", source: .github)
+                    do {
+                        _ = try await taskService.updateTask(
+                            taskId: task.id, title: item.title,
+                            description: item.notes ?? "", source: .github)
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                        continue
+                    }
                 }
                 // Assignee: GitHub assignees resolve server-side to an Astrid
                 // user (via each user's connected login). Empty = unassigned.
                 if let mapped = item.metadata?["assigneeUserId"] {
                     let newAssignee = mapped.isEmpty ? "" : mapped
                     if (task.assigneeId ?? "") != newAssignee {
-                        _ = try? await taskService.updateTask(
-                            taskId: task.id, assigneeId: newAssignee, source: .github)
+                        do {
+                            _ = try await taskService.updateTask(
+                                taskId: task.id, assigneeId: newAssignee, source: .github)
+                        } catch {
+                            pullAcknowledgement.recordFailure()
+                            continue
+                        }
                     }
                 }
-                try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
-                    astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
-                    remoteContainerId: link.remoteContainerId,
-                    astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: task.updatedAt),
-                    remoteUpdatedAt: item.remoteUpdatedAt,
-                    metadata: item.metadata))
+                do {
+                    let appliedTask = taskService.tasksById[existing.astridTaskId] ?? task
+                    try await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: appliedTask.updatedAt),
+                        remoteUpdatedAt: item.remoteUpdatedAt,
+                        metadata: item.metadata))
+                } catch {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
             } else {
                 // Never re-import a remote twin we closed for a local deletion.
                 if deletionLedger.tombstonedRemoteIds.contains(item.remoteId) { continue }
@@ -287,13 +314,21 @@ final class GitHubSyncService: ObservableObject {
                 // The link row has an FK to the real Task id — resolve the
                 // optimistic temp id before writing it, or the upsert silently
                 // fails and the next pass duplicates the task.
-                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
                 let newLink = ExternalTaskLinkUpsertRequest(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: newTask.updatedAt, remoteUpdatedAt: item.remoteUpdatedAt,
                     metadata: item.metadata)
-                try? await apiClient.upsertGitHubTaskLink(newLink)
+                do {
+                    try await apiClient.upsertGitHubTaskLink(newLink)
+                } catch {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
                 let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
@@ -317,6 +352,7 @@ final class GitHubSyncService: ObservableObject {
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
         var fullListingTruncated = true             // trust only an explicit server flag
+        var fullListingUnavailable = false
         var pushErrors = 0
         // Remote ids pushed this pass — drift repair must skip their stale snapshot.
         var pushedRemoteIds: Set<String> = []
@@ -378,12 +414,13 @@ final class GitHubSyncService: ObservableObject {
                         fullRemoteItems = fullPull.items
                         fullListingTruncated = fullPull.truncated ?? true
                     } else {
-                        fullRemoteItems = []
+                        fullListingUnavailable = true
                     }
                 }
-                if let candidate = fullRemoteItems?.first(where: {
+                let candidate = fullRemoteItems?.first(where: {
                     byRemoteId[$0.remoteId] == nil && $0.title == task.title
-                }) {
+                })
+                if let candidate {
                     try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: candidate.remoteId,
                         remoteContainerId: link.remoteContainerId,
@@ -394,6 +431,14 @@ final class GitHubSyncService: ObservableObject {
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt,
                         remoteUpdatedAt: RFC3339.parse(candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                    continue
+                }
+                guard SyncAdoptionSafety.mayCreateRemote(
+                    fullListingAvailable: !fullListingUnavailable && fullRemoteItems != nil,
+                    listingTruncated: fullListingTruncated,
+                    matchingTwinExists: candidate != nil
+                ) else {
+                    pushErrors += 1
                     continue
                 }
                 let response = try await apiClient.pushGitHubIssue(GitHubIssuePushRequest(
@@ -473,11 +518,13 @@ final class GitHubSyncService: ObservableObject {
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == link.remoteContainerId }
                 .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
-            let goneRemote = SyncDeletionPolicy.localDeletions(
-                links: deletionLinks,
-                fullRemoteIds: Set(fullItems.map(\.remoteId)),
-                truncated: fullListingTruncated,
-                explicitlyDeletedRemoteIds: [])
+            let fullRemoteIds = Set(fullItems.map(\.remoteId))
+            let listingTruncated = fullListingTruncated
+            let goneRemote = await _Concurrency.Task.detached(priority: .utility) {
+                SyncDeletionPolicy.localDeletions(
+                    links: deletionLinks, fullRemoteIds: fullRemoteIds,
+                    truncated: listingTruncated, explicitlyDeletedRemoteIds: [])
+            }.value
             // DETACH, don't delete. A GitHub issue almost never gets truly
             // DELETED — the REST API only closes them, and a closed issue stays
             // in the listing. An issue vanishing from a COMPLETE listing thus
@@ -490,23 +537,43 @@ final class GitHubSyncService: ObservableObject {
             // separate tombstone path above.)
             for del in goneRemote where taskService.tasksById[del.taskId] != nil
                 && !deletionLedger.tombstonedRemoteIds.contains(del.remoteId) {
-                deletionLedger.recordTombstone(del.remoteId)
-                byRemoteId.removeValue(forKey: del.remoteId)
-                byTaskId.removeValue(forKey: del.taskId)
+                do {
+                    // Persist first. A new client talking to a pre-DELETE v1
+                    // server fails closed here and retries on a later pass.
+                    try await apiClient.deleteGitHubTaskLink(
+                        astridTaskId: del.taskId, remoteId: del.remoteId)
+                    deletionLedger.recordTombstone(del.remoteId)
+                    byRemoteId.removeValue(forKey: del.remoteId)
+                    byTaskId.removeValue(forKey: del.taskId)
+                    var cache = taskLinkCache
+                    cache.removeValue(forKey: del.taskId)
+                    taskLinkCache = cache
+                } catch {
+                    lastError = "\(link.remoteContainerId): failed to detach transferred issue"
+                }
             }
         }
 
         // ── COMPLETED BACKFILL (lowest priority): import closed-issue history
         // gradually — searchable/reviewable, never delaying live items.
         if let fullItems = fullRemoteItems {
-            let batch = CompletedBackfill.select(
-                fullItems.map { .init(
+            var adoptionIndex = BackfillAdoptionIndex(candidates: taskService.tasks.compactMap { task in
+                guard (task.listIds ?? []).contains(link.astridListId),
+                      !task.id.hasPrefix("temp_"), byTaskId[task.id] == nil,
+                      task.completed else { return nil }
+                return .init(taskId: task.id, title: task.title)
+            })
+            let backfillCandidates = fullItems.map { CompletedBackfill.Candidate(
                     remoteId: $0.remoteId, completed: $0.completed,
                     deleted: false,
-                    updatedAt: $0.remoteUpdatedAt) },
-                linkedRemoteIds: Set(byRemoteId.keys),
-                tombstoned: deletionLedger.tombstonedRemoteIds,
-                budget: 20)
+                    updatedAt: $0.remoteUpdatedAt) }
+            let linkedRemoteIds = Set(byRemoteId.keys)
+            let tombstonedRemoteIds = deletionLedger.tombstonedRemoteIds
+            let batch = await _Concurrency.Task.detached(priority: .utility) {
+                CompletedBackfill.select(
+                    backfillCandidates, linkedRemoteIds: linkedRemoteIds,
+                    tombstoned: tombstonedRemoteIds, budget: 20)
+            }.value
             let byId = Dictionary(fullItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
@@ -518,14 +585,10 @@ final class GitHubSyncService: ObservableObject {
                 // re-selected every pass and duplicated forever. Adopt an
                 // existing unlinked completed same-title task when exactly one
                 // exists; only create when there's none.
-                let backfillTwins = taskService.tasks.filter {
-                    ($0.listIds ?? []).contains(link.astridListId)
-                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
-                        && $0.completed && $0.title == item.title
-                }
                 let newTask: Task
-                if backfillTwins.count == 1 {
-                    newTask = backfillTwins[0]
+                if let taskId = adoptionIndex.takeUniqueTaskId(title: item.title),
+                   let twin = taskService.tasksById[taskId] {
+                    newTask = twin
                 } else {
                     guard let created = try? await taskService.createTask(
                         listIds: [link.astridListId], title: item.title,
@@ -580,12 +643,16 @@ final class GitHubSyncService: ObservableObject {
             }
             guard remoteCommentCount > entries.count || hasUnmappedLocal || mappedLocalMissing
                 || (issueChanged && !entries.isEmpty) else { continue }
-            await syncComments(taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
+            let commentsApplied = await syncComments(
+                taskId: dto.astridTaskId, remoteId: remoteId, link: link, entries: entries)
+            if !commentsApplied { pullAcknowledgement.recordFailure() }
         }
 
         // Pass fully applied — commit the pulled cursor (client-acknowledged).
-        if let cursor = pulled.cursor, !cursor.isEmpty {
-            try? await apiClient.commitGitHubCursor(linkId: link.id, cursor: cursor)
+        _ = try await ProviderCursorCommitter.commitIfSafe(
+            acknowledgement: pullAcknowledgement, cursor: pulled.cursor
+        ) { cursor in
+            try await apiClient.commitGitHubCursor(linkId: link.id, cursor: cursor)
         }
     }
 
@@ -595,7 +662,7 @@ final class GitHubSyncService: ObservableObject {
     private func syncComments(
         taskId: String, remoteId: String,
         link: ExternalListLinkDTO, entries initial: [CommentSyncPlanner.MapEntry]
-    ) async {
+    ) async -> Bool {
         var entries = initial
         do {
             let remoteDTOs = try await apiClient.getGitHubIssueComments(linkId: link.id, remoteId: remoteId).comments
@@ -615,10 +682,10 @@ final class GitHubSyncService: ObservableObject {
                 localIds: Set(local.map(\.id)),
                 entries: entries)
             for localId in deletePlan.deleteLocalIds {
-                try? await CommentService.shared.deleteComment(id: localId)
+                try await CommentService.shared.deleteComment(id: localId)
             }
             for ghId in deletePlan.deleteRemoteIds {
-                try? await apiClient.deleteGitHubIssueComment(linkId: link.id, commentId: ghId)
+                try await apiClient.deleteGitHubIssueComment(linkId: link.id, commentId: ghId)
             }
             entries = deletePlan.survivingEntries
 
@@ -660,7 +727,7 @@ final class GitHubSyncService: ObservableObject {
             // Edits on mapped pairs: converge the non-canonical side.
             let edits = CommentSyncPlanner.editPlan(remote: liveRemote, local: liveLocal, entries: entries)
             for update in edits.pullUpdates {
-                _ = try? await CommentService.shared.updateComment(id: update.localId, content: update.content)
+                _ = try await CommentService.shared.updateComment(id: update.localId, content: update.content)
             }
             for update in edits.pushUpdates {
                 try await apiClient.updateGitHubIssueComment(
@@ -668,15 +735,22 @@ final class GitHubSyncService: ObservableObject {
             }
         } catch {
             lastError = "Comment sync failed: \(error.localizedDescription)"
+            return false
         }
 
         if entries != initial {
-            try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
-                astridTaskId: taskId, remoteId: remoteId,
-                remoteContainerId: link.remoteContainerId,
-                astridUpdatedAt: nil, remoteUpdatedAt: nil,
-                metadata: ["commentMap": CommentSyncPlanner.encodeEntries(entries)]))
+            do {
+                try await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                    astridTaskId: taskId, remoteId: remoteId,
+                    remoteContainerId: link.remoteContainerId,
+                    astridUpdatedAt: nil, remoteUpdatedAt: nil,
+                    metadata: ["commentMap": CommentSyncPlanner.encodeEntries(entries)]))
+            } catch {
+                lastError = "Comment link update failed: \(error.localizedDescription)"
+                return false
+            }
         }
+        return true
     }
 }
 

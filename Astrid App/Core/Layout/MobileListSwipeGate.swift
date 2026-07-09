@@ -50,6 +50,17 @@ func isRightwardSwipeGesture(
     return isHorizontal && isRight && meetsThreshold
 }
 
+/// Completion gate for the UIKit leading-edge recognizer used by list roots.
+/// Edge origin and horizontal intent are enforced by UIKit; this helper keeps
+/// the distance/velocity policy deterministic and unit-testable.
+func shouldTriggerLeadingEdgeSwipe(
+    translationWidth: CGFloat,
+    velocityWidth: CGFloat
+) -> Bool {
+    guard translationWidth > 0 else { return false }
+    return translationWidth > 80 || velocityWidth > 300
+}
+
 /// On a board the column carousel owns horizontal pans, EXCEPT at the left-most
 /// column: there's nothing further left to scroll to, so a left-to-right swipe
 /// should open the sidebar — matching a regular list.

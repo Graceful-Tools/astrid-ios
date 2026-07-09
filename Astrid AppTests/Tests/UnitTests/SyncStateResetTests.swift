@@ -36,4 +36,19 @@ final class SyncStateResetTests: XCTestCase {
             XCTAssertNil(defaults.object(forKey: key), "\(key) survived sign-out")
         }
     }
+
+    func testClearAllRemovesDynamicPerContainerFullPullGates() {
+        let suite = "SyncStateResetTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(Date(), forKey: "githubLastFullPull:owner/repo")
+        defaults.set(Date(), forKey: "googleLastFullPull:tasklist-1")
+        defaults.set("keep", forKey: "unrelatedPreference")
+
+        SyncStateReset.clearAll(defaults: defaults)
+
+        XCTAssertNil(defaults.object(forKey: "githubLastFullPull:owner/repo"))
+        XCTAssertNil(defaults.object(forKey: "googleLastFullPull:tasklist-1"))
+        XCTAssertEqual(defaults.string(forKey: "unrelatedPreference"), "keep")
+    }
 }

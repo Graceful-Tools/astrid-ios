@@ -233,4 +233,15 @@ extension AstridAPIClient {
         struct LinkEnvelope: Codable { let link: ExternalTaskLinkDTO }
         let _: LinkEnvelope = try await request(method: "PUT", path: "/api/v1/sync/github/task-links", body: body)
     }
+
+    /// Additive v1 operation. GET/PUT remain unchanged for older app builds.
+    func deleteGitHubTaskLink(astridTaskId: String, remoteId: String) async throws {
+        struct Response: Codable { let success: Bool; let detached: Bool }
+        let _: Response = try await request(
+            method: "DELETE", path: "/api/v1/sync/github/task-links",
+            queryItems: [
+                URLQueryItem(name: "astridTaskId", value: astridTaskId),
+                URLQueryItem(name: "remoteId", value: remoteId),
+            ])
+    }
 }

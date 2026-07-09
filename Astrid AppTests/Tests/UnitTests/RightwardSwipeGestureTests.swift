@@ -30,6 +30,16 @@ final class RightwardSwipeGestureTests: XCTestCase {
                                               predictedEndTranslationWidth: 250))
     }
 
+    func testLeadingEdgeSwipeAcceptsDistanceOrVelocity() {
+        XCTAssertTrue(shouldTriggerLeadingEdgeSwipe(translationWidth: 90, velocityWidth: 100))
+        XCTAssertTrue(shouldTriggerLeadingEdgeSwipe(translationWidth: 35, velocityWidth: 350))
+    }
+
+    func testLeadingEdgeSwipeRejectsShortSlowOrReverseMovement() {
+        XCTAssertFalse(shouldTriggerLeadingEdgeSwipe(translationWidth: 35, velocityWidth: 100))
+        XCTAssertFalse(shouldTriggerLeadingEdgeSwipe(translationWidth: -90, velocityWidth: -350))
+    }
+
     /// The board helper still works through the shared gesture.
     func testBoardSwipeUsesSharedGesture() {
         let s = BoardSidebarSwipeState(isMobile: true, isAtLeftmostColumn: true,

@@ -45,7 +45,9 @@ final class GoogleTasksSyncService: ObservableObject {
         let center = NotificationCenter.default
         observers.append(center.addObserver(
             forName: .externalSyncRefresh, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         })
         observers.append(center.addObserver(
@@ -356,6 +358,7 @@ final class GoogleTasksSyncService: ObservableObject {
         // Defer the cursor: commit it only after the whole pass applies, so a
         // kill mid-pass re-pulls this window instead of skipping remote edits.
         let pulled = try await apiClient.pullGoogleTasks(linkId: link.id, deferCursor: true)
+        var pullAcknowledgement = SyncPassAcknowledgement()
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         // Parents before children so a subtask created in the same pass can
         // resolve its parent's fresh link.
@@ -371,7 +374,11 @@ final class GoogleTasksSyncService: ObservableObject {
                 if let existing = byRemoteId[item.remoteId],
                    (taskService.tasksById[existing.astridTaskId] != nil) {
                     deletionLedger.recordTombstone(item.remoteId)  // no echo back
-                    try? await taskService.deleteTask(id: existing.astridTaskId)
+                    do {
+                        try await taskService.deleteTask(id: existing.astridTaskId)
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                    }
                 }
                 continue
             }
@@ -384,7 +391,10 @@ final class GoogleTasksSyncService: ObservableObject {
             if let existing = byRemoteId[item.remoteId] {
                 guard SyncSuppression.shouldApplyRemote(
                     remoteUpdatedAt: remoteUpdated, watermark: existing.remoteUpdatedAt) else { continue }
-                guard let task = taskService.tasksById[existing.astridTaskId] else { continue }
+                guard let task = taskService.tasksById[existing.astridTaskId] else {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
                 // Last-write-wins: a remote change that lost the race to a
                 // fresher local edit must not clobber it — the push side will
                 // carry the local state out instead.
@@ -395,28 +405,49 @@ final class GoogleTasksSyncService: ObservableObject {
                 guard SyncSuppression.remoteWins(
                     remoteUpdatedAt: remoteUpdated, localUpdatedAt: task.updatedAt) || localUnchanged else { continue }
                 if task.completed != item.completed {
-                    _ = try? await taskService.completeTask(
-                        id: task.id, completed: item.completed, task: task, source: .google,
-                        completedAt: RFC3339.parse(item.completedAt))
+                    do {
+                        _ = try await taskService.completeTask(
+                            id: task.id, completed: item.completed, task: task, source: .google,
+                            completedAt: RFC3339.parse(item.completedAt))
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                        continue
+                    }
                 }
                 if task.title != item.title || (item.notes ?? "") != task.description {
-                    _ = try? await taskService.updateTask(
-                        taskId: task.id, title: item.title,
-                        description: item.notes ?? "", source: .google)
+                    do {
+                        _ = try await taskService.updateTask(
+                            taskId: task.id, title: item.title,
+                            description: item.notes ?? "", source: .google)
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                        continue
+                    }
                 }
                 // Only adopt Google's date-only due if the task isn't holding a
                 // TIMED due (Google can't express the time — don't clobber it).
                 if let adopted = GoogleDueMapping.adoptedDue(
                     remoteDue: dueDate, localDue: task.dueDateTime, localIsAllDay: task.isAllDay) {
-                    _ = try? await taskService.updateTask(
-                        taskId: task.id, dueDateTime: adopted, isAllDay: true, source: .google)
+                    do {
+                        _ = try await taskService.updateTask(
+                            taskId: task.id, dueDateTime: adopted, isAllDay: true, source: .google)
+                    } catch {
+                        pullAcknowledgement.recordFailure()
+                        continue
+                    }
                 }
-                try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
-                    astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
-                    remoteContainerId: link.remoteContainerId,
-                    astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: task.updatedAt),
-                    remoteUpdatedAt: item.remoteUpdatedAt,
-                    metadata: item.metadata))
+                do {
+                    let appliedTask = taskService.tasksById[existing.astridTaskId] ?? task
+                    try await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: existing.astridTaskId, remoteId: item.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: SyncSuppression.pullWatermark(taskUpdatedAt: appliedTask.updatedAt),
+                        remoteUpdatedAt: item.remoteUpdatedAt,
+                        metadata: item.metadata))
+                } catch {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
             } else {
                 // Real subtask nesting: Google `parent` (a google task id) →
                 // Astrid parentTaskId via the remoteId map, when already synced.
@@ -455,12 +486,20 @@ final class GoogleTasksSyncService: ObservableObject {
                 // The link row has an FK to the real Task id — resolve the
                 // optimistic temp id before writing it, or the upsert silently
                 // fails and the next pass duplicates the task.
-                guard let realId = await resolveRealSyncTaskId(newTask.id) else { continue }
-                try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
-                    astridTaskId: realId, remoteId: item.remoteId,
-                    remoteContainerId: link.remoteContainerId,
-                    astridUpdatedAt: newTask.updatedAt, remoteUpdatedAt: item.remoteUpdatedAt,
-                    metadata: item.metadata))
+                guard let realId = await resolveRealSyncTaskId(newTask.id) else {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
+                do {
+                    try await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
+                        astridTaskId: realId, remoteId: item.remoteId,
+                        remoteContainerId: link.remoteContainerId,
+                        astridUpdatedAt: newTask.updatedAt, remoteUpdatedAt: item.remoteUpdatedAt,
+                        metadata: item.metadata))
+                } catch {
+                    pullAcknowledgement.recordFailure()
+                    continue
+                }
                 let dto = ExternalTaskLinkDTO(
                     astridTaskId: realId, remoteId: item.remoteId,
                     remoteContainerId: link.remoteContainerId,
@@ -479,6 +518,7 @@ final class GoogleTasksSyncService: ObservableObject {
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
         var fullRemoteItems: [GoogleTaskItemDTO]?  // lazy, one cursor-free fetch per pass
         var fullListingTruncated = true             // trust only an explicit server flag
+        var fullListingUnavailable = false
         var pushErrors = 0
         // Remote ids we pushed this pass — drift repair must skip them (their
         // pass-start snapshot is stale by construction).
@@ -540,12 +580,13 @@ final class GoogleTasksSyncService: ObservableObject {
                         fullRemoteItems = fullPull.items
                         fullListingTruncated = fullPull.truncated ?? true
                     } else {
-                        fullRemoteItems = []
+                        fullListingUnavailable = true
                     }
                 }
-                if let candidate = fullRemoteItems?.first(where: {
+                let candidate = fullRemoteItems?.first(where: {
                     byRemoteId[$0.remoteId] == nil && $0.title == task.title
-                }) {
+                })
+                if let candidate {
                     try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: candidate.remoteId,
                         remoteContainerId: link.remoteContainerId,
@@ -556,6 +597,14 @@ final class GoogleTasksSyncService: ObservableObject {
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt,
                         remoteUpdatedAt: RFC3339.parse(candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                    continue
+                }
+                guard SyncAdoptionSafety.mayCreateRemote(
+                    fullListingAvailable: !fullListingUnavailable && fullRemoteItems != nil,
+                    listingTruncated: fullListingTruncated,
+                    matchingTwinExists: candidate != nil
+                ) else {
+                    pushErrors += 1
                     continue
                 }
                 let parentRemoteId = task.parentTaskId.flatMap { byTaskId[$0]?.remoteId }
@@ -618,22 +667,30 @@ final class GoogleTasksSyncService: ObservableObject {
         // ── DELETIONS: task gone remotely → delete the local twin ──────────
         // Complete-listing guard: skipped when the fetch failed or hit the
         // page limit (SyncDeletionPolicy invariant).
-        if fullRemoteItems == nil {
+        let fullPullKey = "googleLastFullPull:\(link.remoteContainerId)"
+        let lastFullPull = UserDefaults.standard.object(forKey: fullPullKey) as? Date
+        let fullPullDue = FullPullThrottle.isDue(
+            lastSuccess: lastFullPull, now: Date(), interval: 300)
+        if fullRemoteItems == nil, fullPullDue {
             if let fullPull = try? await apiClient.pullGoogleTasks(linkId: link.id, full: true) {
                 fullRemoteItems = fullPull.items
                 fullListingTruncated = fullPull.truncated ?? true
             }
+        }
+        if fullRemoteItems != nil, !fullListingTruncated {
+            UserDefaults.standard.set(Date(), forKey: fullPullKey)
         }
         if let fullItems = fullRemoteItems {
             let present = Set(fullItems.filter { $0.metadata?["deleted"] != "1" }.map(\.remoteId))
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == link.remoteContainerId }
                 .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
-            let toDelete = SyncDeletionPolicy.localDeletions(
-                links: deletionLinks,
-                fullRemoteIds: present,
-                truncated: fullListingTruncated,
-                explicitlyDeletedRemoteIds: [])
+            let listingTruncated = fullListingTruncated
+            let toDelete = await _Concurrency.Task.detached(priority: .utility) {
+                SyncDeletionPolicy.localDeletions(
+                    links: deletionLinks, fullRemoteIds: present,
+                    truncated: listingTruncated, explicitlyDeletedRemoteIds: [])
+            }.value
             for del in toDelete where (taskService.tasksById[del.taskId] != nil) {
                 deletionLedger.recordTombstone(del.remoteId)  // no echo back
                 try? await taskService.deleteTask(id: del.taskId)
@@ -645,14 +702,23 @@ final class GoogleTasksSyncService: ObservableObject {
         // delaying live items. Budgeted per pass; the full listing re-offers
         // the remainder next pass.
         if let fullItems = fullRemoteItems {
-            let batch = CompletedBackfill.select(
-                fullItems.map { .init(
+            var adoptionIndex = BackfillAdoptionIndex(candidates: taskService.tasks.compactMap { task in
+                guard (task.listIds ?? []).contains(link.astridListId),
+                      !task.id.hasPrefix("temp_"), byTaskId[task.id] == nil,
+                      task.completed else { return nil }
+                return .init(taskId: task.id, title: task.title)
+            })
+            let backfillCandidates = fullItems.map { CompletedBackfill.Candidate(
                     remoteId: $0.remoteId, completed: $0.completed,
                     deleted: $0.metadata?["deleted"] == "1",
-                    updatedAt: $0.remoteUpdatedAt) },
-                linkedRemoteIds: Set(byRemoteId.keys),
-                tombstoned: deletionLedger.tombstonedRemoteIds,
-                budget: 20)
+                    updatedAt: $0.remoteUpdatedAt) }
+            let linkedRemoteIds = Set(byRemoteId.keys)
+            let tombstonedRemoteIds = deletionLedger.tombstonedRemoteIds
+            let batch = await _Concurrency.Task.detached(priority: .utility) {
+                CompletedBackfill.select(
+                    backfillCandidates, linkedRemoteIds: linkedRemoteIds,
+                    tombstoned: tombstonedRemoteIds, budget: 20)
+            }.value
             let byId = Dictionary(fullItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
@@ -660,14 +726,10 @@ final class GoogleTasksSyncService: ObservableObject {
                 // Self-heal a prior backfill pass that created the task but
                 // couldn't persist the link: adopt the still-unlinked completed
                 // twin instead of duplicating it every pass (see GitHub backfill).
-                let backfillTwins = taskService.tasks.filter {
-                    ($0.listIds ?? []).contains(link.astridListId)
-                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
-                        && $0.completed && $0.title == item.title
-                }
                 let newTask: Task
-                if backfillTwins.count == 1 {
-                    newTask = backfillTwins[0]
+                if let taskId = adoptionIndex.takeUniqueTaskId(title: item.title),
+                   let twin = taskService.tasksById[taskId] {
+                    newTask = twin
                 } else {
                     guard let created = try? await taskService.createTask(
                         listIds: [link.astridListId], title: item.title,
@@ -697,8 +759,10 @@ final class GoogleTasksSyncService: ObservableObject {
         }
 
         // Pass fully applied — commit the pulled cursor (client-acknowledged).
-        if let cursor = pulled.cursor, !cursor.isEmpty {
-            try? await apiClient.commitGoogleCursor(linkId: link.id, cursor: cursor)
+        _ = try await ProviderCursorCommitter.commitIfSafe(
+            acknowledgement: pullAcknowledgement, cursor: pulled.cursor
+        ) { cursor in
+            try await apiClient.commitGoogleCursor(linkId: link.id, cursor: cursor)
         }
     }
 

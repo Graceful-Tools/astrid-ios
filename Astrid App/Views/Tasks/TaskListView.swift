@@ -590,6 +590,11 @@ struct TaskListView: View {
                         }
                     }
             )
+            .leadingEdgeSwipe(
+                isEnabled: UIDevice.current.userInterfaceIdiom == .phone && taskViewMode != .board
+            ) {
+                onMenuTap?()
+            }
             .navigationTitle("")
             .navigationDestination(item: $taskToNavigateTo) { task in
                 getTaskDetailView(for: task)

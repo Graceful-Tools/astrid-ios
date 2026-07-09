@@ -19,6 +19,91 @@ enum SyncPlacement: Sendable {
     case serverProxied
 }
 
+/// Tracks whether every required mutation from an incremental pull was
+/// durably applied. A cursor is an acknowledgement, not a best-effort
+/// watermark: one failed task mutation or link write must keep the entire
+/// window replayable.
+struct SyncPassAcknowledgement: Sendable {
+    private(set) var canCommitCursor = true
+    private(set) var appliedItemCount = 0
+
+    mutating func recordAppliedItem() { appliedItemCount += 1 }
+    mutating func recordFailure() { canCommitCursor = false }
+}
+
+/// Testable cursor lifecycle boundary shared by provider services. Returning
+/// false means there was nothing safe to acknowledge; commit errors propagate
+/// so the same incremental window is replayed on the next pass.
+enum ProviderCursorCommitter {
+    static func commitIfSafe(
+        acknowledgement: SyncPassAcknowledgement,
+        cursor: String?,
+        commit: (String) async throws -> Void
+    ) async throws -> Bool {
+        guard acknowledgement.canCommitCursor,
+              let cursor, !cursor.isEmpty else { return false }
+        try await commit(cursor)
+        return true
+    }
+}
+
+/// Creation is safe only when a complete remote listing proves that no twin
+/// already exists. Failed and truncated scans mean "unknown", never "empty".
+enum SyncAdoptionSafety {
+    nonisolated static func mayCreateRemote(
+        fullListingAvailable: Bool,
+        listingTruncated: Bool,
+        matchingTwinExists: Bool
+    ) -> Bool {
+        fullListingAvailable && !listingTruncated && !matchingTwinExists
+    }
+}
+
+/// Filters Outbox mutation notifications so a provider does not schedule a
+/// fresh pass for writes produced by its own active pass. Cross-provider and
+/// user edits still fan out normally.
+enum SyncMutationNudge {
+    enum Provider: String, Sendable { case github, google }
+
+    nonisolated static func shouldSchedule(provider: Provider, mutationSource: String?) -> Bool {
+        mutationSource != provider.rawValue
+    }
+}
+
+/// Shared time gate for expensive complete remote listings. Only successful,
+/// non-truncated pulls update the stored timestamp at the call site.
+enum FullPullThrottle {
+    nonisolated static func isDue(
+        lastSuccess: Date?, now: Date, interval: TimeInterval
+    ) -> Bool {
+        guard let lastSuccess else { return true }
+        return now.timeIntervalSince(lastSuccess) >= interval
+    }
+}
+
+/// Per-pass O(1) lookup for completed-history self-healing. Ambiguous titles
+/// are deliberately not adopted; successful candidates are consumed so one
+/// local task can never satisfy two remote items in the same pass.
+struct BackfillAdoptionIndex: Sendable {
+    struct Candidate: Sendable, Equatable {
+        let taskId: String
+        let title: String
+    }
+
+    private var byTitle: [String: [String]]
+
+    init(candidates: [Candidate]) {
+        byTitle = Dictionary(grouping: candidates, by: \.title)
+            .mapValues { $0.map(\.taskId) }
+    }
+
+    mutating func takeUniqueTaskId(title: String) -> String? {
+        guard let ids = byTitle[title], ids.count == 1, let id = ids.first else { return nil }
+        byTitle.removeValue(forKey: title)
+        return id
+    }
+}
+
 /// A remote container of items — an Apple Reminders calendar, a GitHub repo,
 /// a Google Tasks tasklist.
 struct RemoteContainer: Equatable, Sendable {

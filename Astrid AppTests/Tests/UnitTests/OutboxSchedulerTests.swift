@@ -160,4 +160,25 @@ final class OutboxSchedulerTests: XCTestCase {
         XCTAssertEqual(runnable.map { $0.id }, ["b", "d"],
                        "only dependency-satisfied pending entries, oldest first")
     }
+
+    // MARK: - Bounded serialization lanes
+
+    func testConcurrentBatch_takesOldestEntryFromEachDistinctLane() {
+        let runnable = [
+            entry(id: "a1", createdOffset: 0, tempId: "task-a"),
+            entry(id: "a2", createdOffset: 1, tempId: "task-a"),
+            entry(id: "b1", createdOffset: 2, tempId: "task-b"),
+            entry(id: "c1", createdOffset: 3, tempId: "task-c"),
+        ]
+        let batch = OutboxScheduler.concurrentBatch(
+            runnable, limit: 2, serializationKey: { $0.tempId ?? $0.id })
+        XCTAssertEqual(batch.map(\.id), ["a1", "b1"])
+    }
+
+    func testConcurrentBatch_neverRunsTwoEntriesForSameLaneTogether() {
+        let runnable = [entry(id: "a1", tempId: "same"), entry(id: "a2", tempId: "same")]
+        let batch = OutboxScheduler.concurrentBatch(
+            runnable, limit: 4, serializationKey: { $0.tempId ?? $0.id })
+        XCTAssertEqual(batch.map(\.id), ["a1"])
+    }
 }

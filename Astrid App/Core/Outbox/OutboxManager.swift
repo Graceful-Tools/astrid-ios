@@ -82,8 +82,13 @@ final class OutboxManager {
     /// edits push without waiting for foreground/pull-to-refresh.
     static let didEnqueueMutation = Notification.Name("outboxDidEnqueueMutation")
 
-    private func noteMutation() {
-        NotificationCenter.default.post(name: Self.didEnqueueMutation, object: nil)
+    nonisolated static let mutationSourceUserInfoKey = "source"
+
+    private func noteMutation(source: String? = nil) {
+        NotificationCenter.default.post(
+            name: Self.didEnqueueMutation,
+            object: nil,
+            userInfo: source.map { [Self.mutationSourceUserInfoKey: $0] })
     }
 
     /// Enqueue a single dependency-free entry of `kind` carrying `payload`.
@@ -96,7 +101,10 @@ final class OutboxManager {
     /// the drain (network I/O) is kicked in a detached Task so the UI never
     /// blocks. Awaiting the persist closes the crash window between a service's
     /// optimistic local write and the journal being saved.
-    private func enqueue<P: Encodable>(kind: String, payload: P, clientRequestId: String, tempId: String? = nil) async {
+    private func enqueue<P: Encodable>(
+        kind: String, payload: P, clientRequestId: String,
+        tempId: String? = nil, source: String? = nil
+    ) async {
         guard let data = try? JSONEncoder().encode(payload) else { return }
         let now = Date()
         let entry = OutboxEntry(
@@ -108,13 +116,13 @@ final class OutboxManager {
         let runner = self.runner
         await runner.persistEnqueue([entry])
         _Concurrency.Task { await runner.drain() }
-        noteMutation()
+        noteMutation(source: source)
     }
 
     /// Enqueue a task creation.
     func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
-                      tempId: payload.tempId)
+                      tempId: payload.tempId, source: payload.source)
     }
 
     /// Enqueue a chat message send.
@@ -165,7 +173,8 @@ final class OutboxManager {
     /// Enqueue a task update.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
-                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
+                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil,
+                      source: payload.source)
     }
 
     func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) async {

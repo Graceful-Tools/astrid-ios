@@ -199,7 +199,6 @@ struct TaskDetailViewNew: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .enableInteractivePopGesture()
-        .swipeToDismiss()
             .sheet(isPresented: $showingCopySheet) {
                 CopyTaskView(task: task, currentListId: task.listIds?.first ?? task.lists?.first?.id)
             }

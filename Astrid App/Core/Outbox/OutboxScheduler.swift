@@ -4,7 +4,7 @@ import Foundation
 /// classification, dependency gating, and run ordering. No I/O, no state — the
 /// `OutboxRunner` holds the journal and applies these decisions. Kept pure so
 /// the highest-risk logic (a bug breaks every offline write) is fully testable.
-enum OutboxScheduler {
+nonisolated enum OutboxScheduler {
 
     /// Give up (dead-letter) after this many failed attempts.
     static let maxAttempts = 8
@@ -177,5 +177,69 @@ enum OutboxScheduler {
         return entries
             .filter { isRunnable($0, now: now, completedIds: completedIds, inFlightIds: inFlightIds) }
             .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// Selects at most one oldest runnable entry per serialization lane. This
+    /// permits bounded concurrency across unrelated entities while preserving
+    /// implicit FIFO ordering for repeated writes to the same entity.
+    static func concurrentBatch(
+        _ runnable: [OutboxEntry],
+        limit: Int,
+        serializationKey: (OutboxEntry) -> String
+    ) -> [OutboxEntry] {
+        guard limit > 0 else { return [] }
+        var keys: Set<String> = []
+        var batch: [OutboxEntry] = []
+        for entry in runnable.sorted(by: { $0.createdAt < $1.createdAt }) {
+            let key = serializationKey(entry)
+            guard keys.insert(key).inserted else { continue }
+            batch.append(entry)
+            if batch.count == limit { break }
+        }
+        return batch
+    }
+
+    /// Stable implicit-ordering lane for production entries. Explicit
+    /// dependencies still gate execution separately; this key preserves FIFO
+    /// for repeated writes to the same task/comment/channel.
+    static func serializationKey(for entry: OutboxEntry) -> String {
+        if let tempId = entry.tempId { return "task:\(tempId)" }
+        let decoder = JSONDecoder()
+        switch entry.kind {
+        case "createTask":
+            if let payload = try? decoder.decode(CreateTaskOutboxPayload.self, from: entry.payload),
+               let tempId = payload.tempId { return "task:\(tempId)" }
+        case "updateTask":
+            if let payload = try? decoder.decode(UpdateTaskOutboxPayload.self, from: entry.payload) {
+                return "task:\(payload.taskId)"
+            }
+        case "deleteTask":
+            if let payload = try? decoder.decode(DeleteTaskOutboxPayload.self, from: entry.payload) {
+                return "task:\(payload.taskId)"
+            }
+        case "createComment":
+            if let payload = try? decoder.decode(CreateCommentOutboxPayload.self, from: entry.payload) {
+                return "task-comments:\(payload.taskId)"
+            }
+        case "updateComment":
+            if let payload = try? decoder.decode(UpdateCommentOutboxPayload.self, from: entry.payload) {
+                return "comment:\(payload.commentId)"
+            }
+        case "deleteComment":
+            if let payload = try? decoder.decode(DeleteCommentOutboxPayload.self, from: entry.payload) {
+                return "comment:\(payload.commentId)"
+            }
+        case "sendChatMessage":
+            if let payload = try? decoder.decode(SendChatMessageOutboxPayload.self, from: entry.payload) {
+                return "channel:\(payload.channelId)"
+            }
+        case "uploadAttachment":
+            if let payload = try? decoder.decode(UploadAttachmentOutboxPayload.self, from: entry.payload) {
+                return "upload:\(payload.localPath)"
+            }
+        default:
+            break
+        }
+        return "entry:\(entry.id)"
     }
 }

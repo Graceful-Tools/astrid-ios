@@ -147,8 +147,8 @@ enum SyncPullOrdering {
 /// Gradual import of completed remote history. Incomplete items sync first
 /// and fast; completed ones trickle in newest-first under a per-pass budget —
 /// useful for search/review, never allowed to delay the live sync.
-enum CompletedBackfill {
-    struct Candidate: Equatable {
+nonisolated enum CompletedBackfill {
+    struct Candidate: Equatable, Sendable {
         let remoteId: String
         let completed: Bool
         let deleted: Bool
