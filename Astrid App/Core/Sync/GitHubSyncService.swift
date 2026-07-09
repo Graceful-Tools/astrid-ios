@@ -52,9 +52,14 @@ final class GitHubSyncService: ObservableObject {
         }
         // Local writes (title/description edits, completions, comments) nudge a
         // debounced sync pass so pushes don't wait for foreground/refresh.
+        // Suppress our OWN sync-originated mutations (completed-backfill imports,
+        // remote-apply writes tagged source: .github): re-arming a pass on those
+        // creates a self-sustaining ~2s loop until the whole history is imported.
         mutationObserver = NotificationCenter.default.addObserver(
             forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         }
     }
