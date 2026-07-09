@@ -670,6 +670,15 @@ final class GoogleTasksSyncService: ObservableObject {
         }
 
         // ── DELETIONS: task gone remotely → delete the local twin ──────────
+        // DECISION (delete, don't detach — unlike GitHub): a Google task id is
+        // scoped to its tasklist and Google models a "move" as delete+insert, so
+        // a task absent from a COMPLETE, non-truncated listing was genuinely
+        // deleted — there is no same-task-different-location to preserve the way a
+        // transferred GitHub issue has. Detaching instead would silently orphan a
+        // task the user actually deleted. The only mass-delete risk (incomplete
+        // data) is already blocked by the SyncDeletionPolicy truncation/failure
+        // invariant, covered by testFailedFullFetch_neverDeletesLocally and
+        // testTruncatedFetch_noAbsenceBasedDeletions.
         // Complete-listing guard: skipped when the fetch failed or hit the
         // page limit (SyncDeletionPolicy invariant).
         let fullPullKey = "googleLastFullPull:\(link.remoteContainerId)"
@@ -1049,6 +1058,8 @@ final class GoogleTasksSyncService: ObservableObject {
             }
 
             // ── DELETIONS: gone remotely → delete the local twin ────────────
+            // Delete (not detach) — see the decision note on the linked-list
+            // deletion path above; My Tasks (direct mode) follows the same rule.
             let present = Set(fullRemoteItems.filter { $0.metadata?["deleted"] != "1" }.map(\.remoteId))
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == tasklistId }
