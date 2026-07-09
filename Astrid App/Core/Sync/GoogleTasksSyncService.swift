@@ -56,10 +56,15 @@ final class GoogleTasksSyncService: ObservableObject {
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         })
         // Local writes nudge a debounced sync pass so pushes don't wait for
-        // foreground/refresh.
+        // foreground/refresh. Suppress our OWN sync-originated mutations
+        // (completed-backfill imports, remote-apply writes tagged source: .google):
+        // re-arming a pass on those creates a self-sustaining ~2s loop until the
+        // whole history is imported.
         observers.append(center.addObserver(
             forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
+            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor in self?.scheduleSync() }
         })
     }
@@ -1048,25 +1053,39 @@ final class GoogleTasksSyncService: ObservableObject {
             let deletionLinks = taskLinks
                 .filter { $0.remoteContainerId == tasklistId }
                 .map { SyncDeletionPolicy.Link(taskId: $0.astridTaskId, remoteId: $0.remoteId) }
-            let toDelete = SyncDeletionPolicy.localDeletions(
-                links: deletionLinks,
-                fullRemoteIds: present,
-                truncated: fullListingTruncated,
-                explicitlyDeletedRemoteIds: [])
+            let listingTruncated = fullListingTruncated
+            let toDelete = await _Concurrency.Task.detached(priority: .utility) {
+                SyncDeletionPolicy.localDeletions(
+                    links: deletionLinks, fullRemoteIds: present,
+                    truncated: listingTruncated, explicitlyDeletedRemoteIds: [])
+            }.value
             for del in toDelete where (taskService.tasksById[del.taskId] != nil) {
                 deletionLedger.recordTombstone(del.remoteId)
                 try? await taskService.deleteTask(id: del.taskId)
             }
 
             // ── COMPLETED BACKFILL ──────────────────────────────────────────
-            let batch = CompletedBackfill.select(
-                fullRemoteItems.map { .init(
+            // Build the adoption index once (unlisted, assigned-to-me, completed,
+            // unlinked twins) instead of re-scanning all tasks per candidate, and
+            // offload the pure selection off MainActor — mirrors the linked-list
+            // backfill path above.
+            var adoptionIndex = BackfillAdoptionIndex(candidates: taskService.tasks.compactMap { task in
+                guard (task.listIds ?? []).isEmpty, task.assigneeId == myUserId,
+                      !task.id.hasPrefix("temp_"), byTaskId[task.id] == nil,
+                      task.completed else { return nil }
+                return .init(taskId: task.id, title: task.title)
+            })
+            let backfillCandidates = fullRemoteItems.map { CompletedBackfill.Candidate(
                     remoteId: $0.remoteId, completed: $0.completed,
                     deleted: $0.metadata?["deleted"] == "1",
-                    updatedAt: $0.remoteUpdatedAt) },
-                linkedRemoteIds: Set(byRemoteId.keys),
-                tombstoned: deletionLedger.tombstonedRemoteIds,
-                budget: 20)
+                    updatedAt: $0.remoteUpdatedAt) }
+            let linkedRemoteIds = Set(byRemoteId.keys)
+            let tombstonedRemoteIds = deletionLedger.tombstonedRemoteIds
+            let batch = await _Concurrency.Task.detached(priority: .utility) {
+                CompletedBackfill.select(
+                    backfillCandidates, linkedRemoteIds: linkedRemoteIds,
+                    tombstoned: tombstonedRemoteIds, budget: 20)
+            }.value
             let byId = Dictionary(fullRemoteItems.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
             for candidate in batch {
                 guard let item = byId[candidate.remoteId] else { continue }
@@ -1074,14 +1093,10 @@ final class GoogleTasksSyncService: ObservableObject {
                 // Self-heal a prior backfill pass that created the task but
                 // couldn't persist the link: adopt the still-unlinked completed
                 // twin (assigned-to-me, no list) instead of duplicating it.
-                let backfillTwins = taskService.tasks.filter {
-                    ($0.listIds ?? []).isEmpty && $0.assigneeId == myUserId
-                        && !$0.id.hasPrefix("temp_") && byTaskId[$0.id] == nil
-                        && $0.completed && $0.title == item.title
-                }
                 let newTask: Task
-                if backfillTwins.count == 1 {
-                    newTask = backfillTwins[0]
+                if let taskId = adoptionIndex.takeUniqueTaskId(title: item.title),
+                   let twin = taskService.tasksById[taskId] {
+                    newTask = twin
                 } else {
                     guard let created = try? await taskService.createTask(
                         listIds: [], title: item.title,
