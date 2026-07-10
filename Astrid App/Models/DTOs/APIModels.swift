@@ -54,7 +54,7 @@ struct CreateTaskRequest: Codable {
     var parentTaskId: String?  // Subtasks: parent task id (nil = top-level)
 }
 
-struct UpdateTaskRequest: Codable {
+nonisolated struct UpdateTaskRequest: Codable {
     var title: String?
     var description: String?
     var priority: Int?

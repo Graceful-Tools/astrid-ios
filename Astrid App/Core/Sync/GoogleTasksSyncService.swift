@@ -48,12 +48,12 @@ final class GoogleTasksSyncService: ObservableObject {
         ) { [weak self] note in
             let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
         observers.append(center.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
         // Local writes nudge a debounced sync pass so pushes don't wait for
         // foreground/refresh. Suppress our OWN sync-originated mutations
@@ -65,7 +65,7 @@ final class GoogleTasksSyncService: ObservableObject {
         ) { [weak self] note in
             let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
     }
 

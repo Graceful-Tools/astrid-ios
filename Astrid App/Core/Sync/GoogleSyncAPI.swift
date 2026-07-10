@@ -102,7 +102,7 @@ extension AstridAPIClient {
 
     /// Persist the cursor the client just applied (client-acknowledged cursor).
     func commitGoogleCursor(linkId: String, cursor: String) async throws {
-        struct Req: Codable { let action = "commitCursor"; let linkId: String; let cursor: String }
+        struct Req: Codable { var action = "commitCursor"; let linkId: String; let cursor: String }
         struct Res: Codable { let ok: Bool? }
         let _: Res = try await request(method: "POST", path: "/api/v1/sync/google/tasks",
                                        body: Req(linkId: linkId, cursor: cursor))

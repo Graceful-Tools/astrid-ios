@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Delete task
 
 /// Self-contained payload for a `deleteTask` Outbox entry.
-struct DeleteTaskOutboxPayload: Codable, Equatable {
+nonisolated struct DeleteTaskOutboxPayload: Codable, Equatable {
     var taskId: String
 }
 
@@ -17,7 +17,7 @@ enum DeleteTaskOutboxHandler {
         }
         var taskId = payload.taskId
         if taskId.hasPrefix("temp_") {
-            if let real = await TaskService.shared.mappedRealTaskId(for: taskId) {
+            if let real = TaskService.shared.mappedRealTaskId(for: taskId) {
                 taskId = real
             } else {
                 return .blocked("deleteTask: task not yet synced")
@@ -42,7 +42,7 @@ enum DeleteTaskOutboxHandler {
 // MARK: - Update comment
 
 /// Self-contained payload for an `updateComment` Outbox entry.
-struct UpdateCommentOutboxPayload: Codable, Equatable {
+nonisolated struct UpdateCommentOutboxPayload: Codable, Equatable {
     var commentId: String
     var content: String
 }
@@ -54,7 +54,7 @@ enum UpdateCommentOutboxHandler {
         }
         var commentId = payload.commentId
         if commentId.hasPrefix("temp_") {
-            if let real = await CommentService.shared.mappedRealCommentId(for: commentId) {
+            if let real = CommentService.shared.mappedRealCommentId(for: commentId) {
                 commentId = real
             } else {
                 return .blocked("updateComment: comment not yet synced")
@@ -73,7 +73,7 @@ enum UpdateCommentOutboxHandler {
 // MARK: - Delete comment
 
 /// Self-contained payload for a `deleteComment` Outbox entry.
-struct DeleteCommentOutboxPayload: Codable, Equatable {
+nonisolated struct DeleteCommentOutboxPayload: Codable, Equatable {
     var commentId: String
 }
 
@@ -84,7 +84,7 @@ enum DeleteCommentOutboxHandler {
         }
         var commentId = payload.commentId
         if commentId.hasPrefix("temp_") {
-            if let real = await CommentService.shared.mappedRealCommentId(for: commentId) {
+            if let real = CommentService.shared.mappedRealCommentId(for: commentId) {
                 commentId = real
             } else {
                 return .blocked("deleteComment: comment not yet synced")

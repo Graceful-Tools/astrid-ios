@@ -43,12 +43,12 @@ final class GitHubSyncService: ObservableObject {
         ) { [weak self] note in
             let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
         // Local writes (title/description edits, completions, comments) nudge a
         // debounced sync pass so pushes don't wait for foreground/refresh.
@@ -60,7 +60,7 @@ final class GitHubSyncService: ObservableObject {
         ) { [weak self] note in
             let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
-            _Concurrency.Task { @MainActor in self?.scheduleSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
     }
 

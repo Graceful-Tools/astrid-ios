@@ -1110,11 +1110,6 @@ struct CommentSectionViewEnhanced: View {
                 print("📸 [CommentSection] attachedFile set: fileId=\(tempFileId), size=\(imageData.count)")
             }
 
-        } catch {
-            print("❌ [CommentSection] Failed to load photo: \(error)")
-            await MainActor.run {
-                uploadError = "Failed to load photo: \(error.localizedDescription)"
-            }
         }
 
         // Clear selection

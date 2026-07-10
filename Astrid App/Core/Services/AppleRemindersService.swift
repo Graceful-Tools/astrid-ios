@@ -75,7 +75,7 @@ class AppleRemindersService: ObservableObject {
         ) { [weak self] notification in
             guard let tempId = notification.userInfo?["tempId"] as? String,
                   let realId = notification.userInfo?["realId"] as? String else { return }
-            _Concurrency.Task { @MainActor in
+            _Concurrency.Task { @MainActor [weak self] in
                 guard let self else { return }
                 let request = CDReminderMapping.fetchRequest()
                 request.predicate = NSPredicate(format: "astridTaskId == %@", tempId)
@@ -92,12 +92,12 @@ class AppleRemindersService: ObservableObject {
         autoSyncObservers.append(center.addObserver(
             forName: .EKEventStoreChanged, object: eventStore, queue: .main
         ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in self?.scheduleAutoSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleAutoSync() }
         })
         autoSyncObservers.append(center.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in self?.scheduleAutoSync() }
+            _Concurrency.Task { @MainActor [weak self] in self?.scheduleAutoSync() }
         })
     }
 

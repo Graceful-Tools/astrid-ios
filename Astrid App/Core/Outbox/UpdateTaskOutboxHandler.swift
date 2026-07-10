@@ -3,7 +3,7 @@ import Foundation
 /// Self-contained payload for an `updateTask` Outbox entry. `UpdateTaskRequest`
 /// round-trips through JSON (its encoder emits only the non-nil fields), so the
 /// replayed PUT body matches the legacy one exactly.
-struct UpdateTaskOutboxPayload: Codable, Equatable {
+nonisolated struct UpdateTaskOutboxPayload: Codable, Equatable {
     var taskId: String
     var updates: UpdateTaskRequest
     /// Origin of this mutation (SyncSource.rawValue) — persisted so provider
@@ -24,7 +24,7 @@ enum UpdateTaskOutboxHandler {
 
         var taskId = payload.taskId
         if taskId.hasPrefix("temp_") {
-            if let real = await TaskService.shared.mappedRealTaskId(for: taskId) {
+            if let real = TaskService.shared.mappedRealTaskId(for: taskId) {
                 taskId = real
             } else {
                 return .blocked("updateTask: task not yet synced")
@@ -46,7 +46,7 @@ enum UpdateTaskOutboxHandler {
 // `UpdateTaskRequest` is `Codable`; its synthesized `Equatable` isn't available
 // (custom encode), so give the payload value-equality via JSON for tests.
 extension UpdateTaskRequest: Equatable {
-    static func == (lhs: UpdateTaskRequest, rhs: UpdateTaskRequest) -> Bool {
+    nonisolated static func == (lhs: UpdateTaskRequest, rhs: UpdateTaskRequest) -> Bool {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         return (try? encoder.encode(lhs)) == (try? encoder.encode(rhs))

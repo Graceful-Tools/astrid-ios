@@ -2,7 +2,7 @@ import Foundation
 
 /// Self-contained payload for a `sendChatMessage` Outbox entry. `fileId` may be a
 /// temp id resolved at run time from the (legacy) attachment upload.
-struct SendChatMessageOutboxPayload: Codable, Equatable {
+nonisolated struct SendChatMessageOutboxPayload: Codable, Equatable {
     var channelId: String
     var content: String
     var type: String
@@ -26,9 +26,9 @@ enum SendChatMessageOutboxHandler {
         // comment handler.
         var fileId = context.value("fileId") ?? payload.fileId
         if let temp = fileId, temp.hasPrefix("temp_") {
-            if let real = await AttachmentService.shared.getRealFileId(for: temp) {
+            if let real = AttachmentService.shared.getRealFileId(for: temp) {
                 fileId = real
-            } else if await AttachmentService.shared.isPendingUpload(temp) {
+            } else if AttachmentService.shared.isPendingUpload(temp) {
                 return .blocked("sendChatMessage: attachment still uploading")
             } else {
                 fileId = nil

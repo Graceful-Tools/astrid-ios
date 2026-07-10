@@ -1486,9 +1486,9 @@ struct TaskListView: View {
         guard let _ = selectedList else { return }
 
         isCopyingList = true
-        defer { isCopyingList = false }
-
-        // TODO: Implement copy list API v1 endpoint
+        // TODO: Implement copy list API v1 endpoint — restore `defer { isCopyingList = false }`
+        // above the network call once there's async work to bracket.
+        do { isCopyingList = false }
     }
 
     private func loadFeaturedListTasks(listId: String) async {

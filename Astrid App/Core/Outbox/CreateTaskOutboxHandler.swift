@@ -3,7 +3,7 @@ import Foundation
 /// Self-contained payload for a `createTask` Outbox entry. Mirrors the
 /// `AstridAPIClient.createTask` parameters (the idempotency key travels on the
 /// entry, not here).
-struct CreateTaskOutboxPayload: Codable, Equatable {
+nonisolated struct CreateTaskOutboxPayload: Codable, Equatable {
     var title: String
     var listIds: [String]?
     var description: String?
@@ -38,7 +38,7 @@ enum CreateTaskOutboxHandler {
         // the live temp→real map; wait (no attempts burned) until the parent syncs.
         var parentTaskId = payload.parentTaskId
         if let temp = parentTaskId, temp.hasPrefix("temp_") {
-            if let real = await TaskService.shared.mappedRealTaskId(for: temp) {
+            if let real = TaskService.shared.mappedRealTaskId(for: temp) {
                 parentTaskId = real
             } else {
                 return .blocked("createTask: parent task not yet synced")

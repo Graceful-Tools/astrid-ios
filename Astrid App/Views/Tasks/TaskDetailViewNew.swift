@@ -1133,8 +1133,6 @@ struct TaskDetailViewNew: View {
                 }
                 selectedPhotoItem = nil
             }
-        } catch {
-            await MainActor.run { uploadError = "Failed to load photo: \(error.localizedDescription)" }
         }
     }
 

@@ -7,7 +7,7 @@ import Foundation
 /// the high-risk runner off the shared CoreData model — no schema migration to
 /// get wrong. The interface hides the medium, so it can move to CoreData later
 /// without touching the runner.
-final class OutboxStore {
+nonisolated final class OutboxStore: Sendable {
 
     private let fileURL: URL
 

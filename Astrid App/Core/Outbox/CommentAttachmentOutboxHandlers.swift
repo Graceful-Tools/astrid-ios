@@ -4,7 +4,7 @@ import Foundation
 
 /// Self-contained payload for an `uploadAttachment` Outbox entry. The bytes stay
 /// on disk at `localPath` (the journal references them, never embeds them).
-struct UploadAttachmentOutboxPayload: Codable, Equatable {
+nonisolated struct UploadAttachmentOutboxPayload: Codable, Equatable {
     var localPath: String
     var fileName: String
     var mimeType: String
@@ -36,7 +36,7 @@ enum UploadAttachmentOutboxHandler {
             // Record temp→real so thumbnail display (getRealFileId) resolves. The
             // temp id is the local file's name (cacheDirectory/<tempFileId>).
             let tempFileId = URL(fileURLWithPath: payload.localPath).lastPathComponent
-            await AttachmentService.shared.recordOutboxUpload(tempFileId: tempFileId, realFileId: fileId)
+            AttachmentService.shared.recordOutboxUpload(tempFileId: tempFileId, realFileId: fileId)
             return .success(["fileId": fileId])
         } catch {
             return OutboxResultMapper.classify(error)
@@ -49,7 +49,7 @@ enum UploadAttachmentOutboxHandler {
 /// Self-contained payload for a `createComment` Outbox entry. `taskId` may be a
 /// temporary id; a task-create dependency's output overrides it. The attachment
 /// fileId is NOT stored here — it's read from the upload dependency's output.
-struct CreateCommentOutboxPayload: Codable, Equatable {
+nonisolated struct CreateCommentOutboxPayload: Codable, Equatable {
     var taskId: String
     var content: String
     var type: String
@@ -92,7 +92,7 @@ enum CreateCommentOutboxHandler {
         // map; if it isn't synced yet, wait rather than POST to a temp id.
         var taskId = resolved.taskId
         if taskId.hasPrefix("temp_") {
-            if let real = await TaskService.shared.mappedRealTaskId(for: taskId) {
+            if let real = TaskService.shared.mappedRealTaskId(for: taskId) {
                 taskId = real
             } else {
                 return .blocked("createComment: task not yet synced")
@@ -102,9 +102,9 @@ enum CreateCommentOutboxHandler {
         // Resolve a temp attachment file id against the (legacy) upload result.
         var fileId = resolved.fileId
         if let temp = fileId, temp.hasPrefix("temp_") {
-            if let real = await AttachmentService.shared.getRealFileId(for: temp) {
+            if let real = AttachmentService.shared.getRealFileId(for: temp) {
                 fileId = real
-            } else if await AttachmentService.shared.isPendingUpload(temp) {
+            } else if AttachmentService.shared.isPendingUpload(temp) {
                 return .blocked("createComment: attachment still uploading")
             } else {
                 fileId = nil  // upload gone — post the comment without it (matches legacy)

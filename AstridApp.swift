@@ -76,8 +76,9 @@ struct AstridApp: App {
 
             // Warm the autocorrect/spell engine invisibly (no keyboard, runs once).
             // Replaces the old hidden-text-field pre-warm that visibly flashed the
-            // keyboard open/closed on every app open.
-            KeyboardEngineWarmer.warmOnce()
+            // keyboard open/closed on every app open. UITextChecker is MainActor-
+            // isolated, so hop to the main actor for the (cheap, one-shot) warm.
+            await MainActor.run { KeyboardEngineWarmer.warmOnce() }
 
             let elapsed = CFAbsoluteTimeGetCurrent() - start
             print("⚡️ [AstridApp] Service warm-up completed in \(String(format: "%.3f", elapsed))s")

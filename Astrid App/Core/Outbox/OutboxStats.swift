@@ -6,7 +6,7 @@ import Foundation
 /// A drop manifests as a `failedPermanent` (dead-lettered) entry or an entry
 /// stuck `pending`/`running` long after it was created. `isHealthy` is the quick
 /// "safe to deprecate legacy" signal.
-struct OutboxStats: Equatable {
+nonisolated struct OutboxStats: Equatable {
     var pending: Int = 0
     var running: Int = 0
     var completed: Int = 0

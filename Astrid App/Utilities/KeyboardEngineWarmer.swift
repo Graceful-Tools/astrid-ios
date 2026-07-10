@@ -34,8 +34,9 @@ enum KeyboardEngineWarmer {
         return true
     }
 
-    /// Invisibly warms the spell/autocorrect engine. Safe to call off the main
-    /// thread; does not require a window or any first responder.
+    /// Invisibly warms the spell/autocorrect engine. `UITextChecker` is MainActor-
+    /// isolated so this runs on the main actor, but it needs no window or first
+    /// responder, so the keyboard never appears.
     static func warmTextChecker() {
         let checker = UITextChecker()
         let sample = "test"
