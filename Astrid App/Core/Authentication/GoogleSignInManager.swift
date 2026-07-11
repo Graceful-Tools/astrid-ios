@@ -37,6 +37,10 @@ class GoogleSignInManager: NSObject, ObservableObject {
             throw GoogleSignInError.notConfigured
         }
 
+        // Remove the legacy persisted verifier from older builds. The current
+        // verifier lives only in the authentication-session callback closure.
+        UserDefaults.standard.removeObject(forKey: "GoogleOAuthCodeVerifier")
+
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
 
@@ -46,9 +50,6 @@ class GoogleSignInManager: NSObject, ObservableObject {
             // Generate code verifier for PKCE
             let codeVerifier = randomString(length: 128)
             let codeChallenge = sha256Base64URL(codeVerifier)
-
-            // Store code verifier for token exchange
-            UserDefaults.standard.set(codeVerifier, forKey: "GoogleOAuthCodeVerifier")
 
             // Build authorization URL
             var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
@@ -63,7 +64,7 @@ class GoogleSignInManager: NSObject, ObservableObject {
             ]
 
             guard let authURL = components.url else {
-                continuation.resume(throwing: GoogleSignInError.invalidURL)
+                self.complete(with: .failure(GoogleSignInError.invalidURL))
                 return
             }
 
@@ -75,25 +76,25 @@ class GoogleSignInManager: NSObject, ObservableObject {
                 _Concurrency.Task { @MainActor in
                     if let error = error {
                         if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
-                            self?.continuation?.resume(throwing: GoogleSignInError.userCancelled)
+                            self?.complete(with: .failure(GoogleSignInError.userCancelled))
                         } else {
-                            self?.continuation?.resume(throwing: error)
+                            self?.complete(with: .failure(error))
                         }
                         return
                     }
 
                     guard let callbackURL = callbackURL else {
-                        self?.continuation?.resume(throwing: GoogleSignInError.missingCallback)
+                        self?.complete(with: .failure(GoogleSignInError.missingCallback))
                         return
                     }
 
                     do {
                         let result = try await self?.exchangeCodeForTokens(callbackURL: callbackURL, codeVerifier: codeVerifier)
                         if let result = result {
-                            self?.continuation?.resume(returning: result)
+                            self?.complete(with: .success(result))
                         }
                     } catch {
-                        self?.continuation?.resume(throwing: error)
+                        self?.complete(with: .failure(error))
                     }
                 }
             }
@@ -107,6 +108,13 @@ class GoogleSignInManager: NSObject, ObservableObject {
     }
 
     // MARK: - Token Exchange
+
+    private func complete(with result: Result<GoogleSignInResult, Error>) {
+        guard let continuation else { return }
+        self.continuation = nil
+        authSession = nil
+        continuation.resume(with: result)
+    }
 
     private func exchangeCodeForTokens(callbackURL: URL, codeVerifier: String) async throws -> GoogleSignInResult {
         // Parse authorization code from callback URL
