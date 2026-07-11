@@ -49,7 +49,7 @@ class AuthManager: ObservableObject {
             }
         }
 
-        print("✅ [AuthManager] Found local auth state for user: \(userId)")
+        PrivacyLogger.debug("AuthManager", "local_auth_state=found")
 
         // Restore user from UserDefaults
         let email = UserDefaults.standard.string(forKey: Constants.UserDefaults.userEmail)
@@ -100,7 +100,7 @@ class AuthManager: ObservableObject {
                 let response: SessionResponse = try await apiClient.request(.session)
                 self.currentUser = response.user
 
-                print("✅ [AuthManager] Authentication successful - User: \(response.user.email ?? "unknown")")
+                PrivacyLogger.debug("AuthManager", "session_validation=success")
 
                 // Save user to UserDefaults for quick access
                 UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
@@ -210,7 +210,7 @@ class AuthManager: ObservableObject {
 
     /// Create account with just email - no password needed (passkeys/OAuth)
     func signUpPasswordless(email: String, name: String?) async throws {
-        print("📧 [AuthManager] Creating passwordless account: \(email)")
+        PrivacyLogger.debug("AuthManager", "passwordless_sign_up=started")
         isLoading = true
         errorMessage = nil
 
@@ -282,7 +282,7 @@ class AuthManager: ObservableObject {
 
             self.currentUser = response.user
 
-            print("✅ [AuthManager] Apple sign-in successful - User: \(response.user.email ?? "unknown")")
+            PrivacyLogger.debug("AuthManager", "apple_sign_in=success")
 
             // Save user info
             UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
@@ -333,7 +333,7 @@ class AuthManager: ObservableObject {
 
             self.currentUser = response.user
 
-            print("✅ [AuthManager] Google sign-in successful - User: \(response.user.email ?? "unknown")")
+            PrivacyLogger.debug("AuthManager", "google_sign_in=success")
 
             // Save user info
             UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
@@ -385,7 +385,7 @@ class AuthManager: ObservableObject {
 
             self.currentUser = user
 
-            print("✅ [AuthManager] Passkey sign-in successful - User: \(user.email ?? "unknown")")
+            PrivacyLogger.debug("AuthManager", "passkey_sign_in=success")
 
             // Save user info
             UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
@@ -422,7 +422,7 @@ class AuthManager: ObservableObject {
     // MARK: - Sign Up with Passkey
 
     func signUpWithPasskey(email: String) async throws {
-        print("🔑 [AuthManager] Starting Passkey sign-up for: \(email)")
+        PrivacyLogger.debug("AuthManager", "passkey_sign_up=started")
         isLoading = true
         errorMessage = nil
 
@@ -446,7 +446,7 @@ class AuthManager: ObservableObject {
 
             self.currentUser = user
 
-            print("✅ [AuthManager] Passkey sign-up successful - User: \(user.email ?? "unknown")")
+            PrivacyLogger.debug("AuthManager", "passkey_sign_up=success")
 
             // Save user info
             UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)

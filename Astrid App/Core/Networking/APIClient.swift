@@ -53,13 +53,12 @@ class APIClient: APIClientProtocol {
 
         // Add session cookie if available
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            print("🍪 [APIClient] Setting cookie: \(sessionCookie.prefix(50))...")
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
-            print("⚠️ [APIClient] No session cookie available")
+            PrivacyLogger.debug("APIClient", "authentication=missing")
         }
 
-        print("📡 [APIClient] \(endpoint.method.rawValue) \(request.url?.absoluteString ?? "")")
+        PrivacyLogger.request("APIClient", method: endpoint.method.rawValue, url: request.url)
 
         let (data, response) = try await session.data(for: request)
         
@@ -67,7 +66,7 @@ class APIClient: APIClientProtocol {
             throw APIError.invalidResponse
         }
         
-        print("📡 [APIClient] Response: \(httpResponse.statusCode)")
+        PrivacyLogger.response("APIClient", status: httpResponse.statusCode, bytes: data.count)
         
         // Save session cookies - collect ALL auth-related cookies
         // Note: allHeaderFields is [AnyHashable: Any], convert to [String: String] manually
@@ -99,8 +98,7 @@ class APIClient: APIClientProtocol {
         }
         
         guard (200...299).contains(httpResponse.statusCode) else {
-            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode"
-            print("❌ [APIClient] HTTP \(httpResponse.statusCode): \(responseString)")
+            PrivacyLogger.error("APIClient", code: "http_error", status: httpResponse.statusCode)
 
             if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
                 throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorResponse.error)
@@ -119,10 +117,7 @@ class APIClient: APIClientProtocol {
             let decoded = try decoder.decode(T.self, from: data)
             return decoded
         } catch {
-            print("❌ Decoding error: \(error)")
-            if let dataString = String(data: data, encoding: .utf8) {
-                print("❌ Response data: \(dataString)")
-            }
+            PrivacyLogger.error("APIClient", code: "decoding_error", status: httpResponse.statusCode)
             throw APIError.decodingError(error)
         }
     }

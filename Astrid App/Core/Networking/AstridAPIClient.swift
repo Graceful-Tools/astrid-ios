@@ -71,7 +71,7 @@ class AstridAPIClient {
             throw AstridAPIError.invalidURL
         }
 
-        print("📡 [AstridAPI] \(method) \(url.absoluteString)")
+        PrivacyLogger.request("AstridAPI", method: method, url: url)
 
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -89,9 +89,6 @@ class AstridAPIClient {
         // Add body if present
         if let body = body {
             request.httpBody = try encoder.encode(body)
-            if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
-                print("📤 [AstridAPI] Request body: \(bodyString)")
-            }
         }
 
         print("🔄 [AstridAPI] Waiting for response...")
@@ -100,13 +97,11 @@ class AstridAPIClient {
             let result = try await session.data(for: request)
             data = result.0
             response = result.1
-            print("✅ [AstridAPI] Response received, data size: \(data.count) bytes")
         } catch let urlError as URLError {
-            print("❌ [AstridAPI] URL Error: \(urlError.localizedDescription)")
-            print("❌ [AstridAPI] Error code: \(urlError.code.rawValue)")
+            PrivacyLogger.error("AstridAPI", code: "url_\(urlError.code.rawValue)")
             throw urlError
         } catch {
-            print("❌ [AstridAPI] Unknown error during request: \(error)")
+            PrivacyLogger.error("AstridAPI", code: "transport_error")
             throw error
         }
 
@@ -115,12 +110,7 @@ class AstridAPIClient {
             throw AstridAPIError.invalidResponse
         }
 
-        print("📡 [AstridAPI] Response status: \(httpResponse.statusCode)")
-
-        // Log response body for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("📥 [AstridAPI] Response body preview: \(String(responseString.prefix(500)))...")
-        }
+        PrivacyLogger.response("AstridAPI", status: httpResponse.statusCode, bytes: data.count)
 
         // Handle error responses
         if httpResponse.statusCode == 401 {
@@ -130,7 +120,7 @@ class AstridAPIClient {
 
         if httpResponse.statusCode >= 400 {
             let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("❌ [AstridAPI] HTTP error \(httpResponse.statusCode): \(responseString)")
+            PrivacyLogger.error("AstridAPI", code: "http_error", status: httpResponse.statusCode)
             throw AstridAPIError.httpError(statusCode: httpResponse.statusCode, message: responseString)
         }
 
@@ -139,9 +129,7 @@ class AstridAPIClient {
             let result = try decoder.decode(T.self, from: data)
             return result
         } catch {
-            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("❌ [AstridAPI] Decoding error: \(error)")
-            print("📄 [AstridAPI] Response: \(responseString)")
+            PrivacyLogger.error("AstridAPI", code: "decoding_error", status: httpResponse.statusCode)
             throw AstridAPIError.decodingError(error)
         }
     }
@@ -163,7 +151,7 @@ class AstridAPIClient {
             throw AstridAPIError.invalidURL
         }
 
-        print("📡 [AstridAPI] \(method) \(url.absoluteString)")
+        PrivacyLogger.request("AstridAPI", method: method, url: url)
 
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -180,9 +168,6 @@ class AstridAPIClient {
 
         // Encode body using JSONSerialization (properly handles NSNull as null)
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
-        if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
-            print("📤 [AstridAPI] Request body (with nulls): \(bodyString)")
-        }
 
         print("🔄 [AstridAPI] Waiting for response...")
         let (data, response): (Data, URLResponse)
@@ -190,9 +175,8 @@ class AstridAPIClient {
             let result = try await session.data(for: request)
             data = result.0
             response = result.1
-            print("✅ [AstridAPI] Response received, data size: \(data.count) bytes")
         } catch let urlError as URLError {
-            print("❌ [AstridAPI] URL Error: \(urlError.localizedDescription)")
+            PrivacyLogger.error("AstridAPI", code: "url_\(urlError.code.rawValue)")
             throw AstridAPIError.httpError(statusCode: urlError.code.rawValue, message: urlError.localizedDescription)
         }
 
@@ -200,12 +184,12 @@ class AstridAPIClient {
             throw AstridAPIError.invalidResponse
         }
 
-        print("📥 [AstridAPI] HTTP Status: \(httpResponse.statusCode)")
+        PrivacyLogger.response("AstridAPI", status: httpResponse.statusCode, bytes: data.count)
 
         // Handle non-2xx responses
         guard (200...299).contains(httpResponse.statusCode) else {
             let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("❌ [AstridAPI] Error response: \(responseString)")
+            PrivacyLogger.error("AstridAPI", code: "http_error", status: httpResponse.statusCode)
             throw AstridAPIError.httpError(statusCode: httpResponse.statusCode, message: responseString)
         }
 
@@ -214,9 +198,7 @@ class AstridAPIClient {
             let result = try decoder.decode(T.self, from: data)
             return result
         } catch {
-            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            print("❌ [AstridAPI] Decoding error: \(error)")
-            print("📄 [AstridAPI] Response: \(responseString)")
+            PrivacyLogger.error("AstridAPI", code: "decoding_error", status: httpResponse.statusCode)
             throw AstridAPIError.decodingError(error)
         }
     }

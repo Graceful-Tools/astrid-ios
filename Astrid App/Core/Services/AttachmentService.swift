@@ -517,9 +517,7 @@ class AttachmentService: ObservableObject {
 
         guard let httpResponse = urlResponse as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            if let responseString = String(data: urlData, encoding: .utf8) {
-                print("❌ [AttachmentService] Failed to get upload URL: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "upload_url_failed", status: (urlResponse as? HTTPURLResponse)?.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -534,7 +532,7 @@ class AttachmentService: ObservableObject {
         let decoder = JSONDecoder()
         let uploadUrlResponse = try decoder.decode(UploadUrlResponse.self, from: urlData)
 
-        print("✅ [AttachmentService] Got upload URL for file: \(uploadUrlResponse.fileId)")
+        PrivacyLogger.debug("AttachmentService", "upload_url=received")
         uploadProgress = 0.1
 
         // Step 2: Upload file directly to Vercel Blob
@@ -556,7 +554,7 @@ class AttachmentService: ObservableObject {
         })
 
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
-        let (blobData, blobResponse) = try await session.upload(for: blobRequest, from: fileData)
+        let (_, blobResponse) = try await session.upload(for: blobRequest, from: fileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
             print("❌ [AttachmentService] Invalid blob response type")
@@ -566,9 +564,7 @@ class AttachmentService: ObservableObject {
         print("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
 
         guard (200...299).contains(blobHttpResponse.statusCode) else {
-            if let responseString = String(data: blobData, encoding: .utf8) {
-                print("❌ [AttachmentService] Blob upload failed: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "blob_upload_failed", status: blobHttpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -609,14 +605,12 @@ class AttachmentService: ObservableObject {
 
         // Add session cookie
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            print("🍪 [AttachmentService] Using session cookie: \(sessionCookie.prefix(50))...")
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
             print("⚠️ [AttachmentService] WARNING: No session cookie found!")
         }
 
-        print("📡 [AttachmentService] Uploading to: \(url.absoluteString)")
-        print("📡 [AttachmentService] Request headers: \(request.allHTTPHeaderFields ?? [:])")
+        PrivacyLogger.request("AttachmentService", method: "POST", url: url)
 
         // Upload - body is passed here, not set on request.httpBody
         let (data, response) = try await URLSession.shared.upload(for: request, from: body)
@@ -629,11 +623,7 @@ class AttachmentService: ObservableObject {
         print("📡 [AttachmentService] Upload response status: \(httpResponse.statusCode)")
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            // Log response body for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ [AttachmentService] Upload failed with status \(httpResponse.statusCode)")
-                print("❌ [AttachmentService] Response body: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "server_upload_failed", status: httpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -689,7 +679,7 @@ class AttachmentService: ObservableObject {
 
         defer { isUploading = false }
 
-        print("📤 [AttachmentService] Updating file: \(fileId) (\(newFileData.count) bytes)")
+        PrivacyLogger.debug("AttachmentService", "update_started bytes=\(newFileData.count)")
 
         // Get session cookie
         guard let sessionCookie = try? KeychainService.shared.getSessionCookie() else {
@@ -717,10 +707,7 @@ class AttachmentService: ObservableObject {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            if let responseString = String(data: uploadUrlData, encoding: .utf8) {
-                print("❌ [AttachmentService] Failed to get upload URL: \(httpResponse.statusCode)")
-                print("❌ [AttachmentService] Response: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "replacement_url_failed", status: httpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -735,7 +722,7 @@ class AttachmentService: ObservableObject {
         let decoder = JSONDecoder()
         let uploadUrlInfo = try decoder.decode(UploadUrlResponse.self, from: uploadUrlData)
 
-        print("📤 [AttachmentService] Got upload URL: \(uploadUrlInfo.uploadUrl)")
+        PrivacyLogger.debug("AttachmentService", "replacement_url=received")
         uploadProgress = 0.2
 
         // Step 2: Upload directly to Vercel Blob
@@ -761,10 +748,7 @@ class AttachmentService: ObservableObject {
         print("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
 
         guard (200...299).contains(blobHttpResponse.statusCode) else {
-            if let responseString = String(data: blobData, encoding: .utf8) {
-                print("❌ [AttachmentService] Blob upload failed: \(blobHttpResponse.statusCode)")
-                print("❌ [AttachmentService] Response: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "replacement_blob_failed", status: blobHttpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -775,7 +759,7 @@ class AttachmentService: ObservableObject {
         }
 
         let blobResult = try decoder.decode(BlobUploadResponse.self, from: blobData)
-        print("📤 [AttachmentService] Blob URL: \(blobResult.url)")
+        PrivacyLogger.debug("AttachmentService", "replacement_blob=uploaded")
         uploadProgress = 0.8
 
         // Step 3: Confirm upload with our server
@@ -800,10 +784,7 @@ class AttachmentService: ObservableObject {
         }
 
         guard (200...299).contains(confirmHttpResponse.statusCode) else {
-            if let responseString = String(data: confirmData, encoding: .utf8) {
-                print("❌ [AttachmentService] Confirm failed: \(confirmHttpResponse.statusCode)")
-                print("❌ [AttachmentService] Response: \(responseString)")
-            }
+            PrivacyLogger.error("AttachmentService", code: "confirm_failed", status: confirmHttpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
@@ -822,7 +803,7 @@ class AttachmentService: ObservableObject {
         // Invalidate cached download for this file
         invalidateCache(for: fileId)
 
-        print("✅ [AttachmentService] File updated: \(fileId)")
+        PrivacyLogger.debug("AttachmentService", "update=complete")
         uploadProgress = 1.0
 
         // Notify that file was updated
@@ -872,7 +853,7 @@ class AttachmentService: ObservableObject {
     /// Upload file from shared container (created by Share Extension)
     /// Used by main app to process files shared via system share sheet
     func uploadSharedFile(fileURL: URL, fileName: String, mimeType: String, taskId: String) async throws -> Attachment {
-        print("📤 [AttachmentService] Uploading shared file: \(fileName)")
+        PrivacyLogger.debug("AttachmentService", "shared_upload=started")
 
         // Read file data from shared container
         let fileData = try Data(contentsOf: fileURL)
