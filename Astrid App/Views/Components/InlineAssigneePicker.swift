@@ -82,7 +82,7 @@ struct InlineAssigneePicker: View {
 
         // Fetch fresh data from API
         do {
-            let users = try await APIClient.shared.searchUsersWithAIAgents(
+            let users = try await RemoteResourceService.shared.searchUsersWithAIAgents(
                 query: "",
                 taskId: taskId,
                 listIds: taskListIds.isEmpty ? nil : taskListIds

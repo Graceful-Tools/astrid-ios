@@ -27,8 +27,7 @@ class AccountViewModel: ObservableObject {
     // Delete account
     @Published var deleteConfirmationText: String = ""
 
-    private let apiClient = AstridAPIClient.shared
-    private let legacyApiClient = APIClient.shared
+    private let apiClient = AccountService.shared
     private let authManager = AuthManager.shared
     private let profileCache = ProfileCache.shared
     private var uploadedImageUrl: String?
@@ -225,8 +224,10 @@ class AccountViewModel: ObservableObject {
                 return
             }
 
-            let response: UploadResponse = try await legacyApiClient.request(
-                .uploadFile(imageData, fileName: "profile-\(UUID().uuidString).jpg", mimeType: "image/jpeg")
+            let response = try await apiClient.uploadProfileImage(
+                imageData,
+                fileName: "profile-\(UUID().uuidString).jpg",
+                mimeType: "image/jpeg"
             )
 
             uploadedImageUrl = response.url

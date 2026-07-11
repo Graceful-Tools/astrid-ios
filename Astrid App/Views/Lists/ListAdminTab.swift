@@ -461,10 +461,10 @@ struct ListAdminTab: View {
             await githubSync.refreshStatus()
             await googleSync.refreshStatus()
             if githubSync.isConnected {
-                syncRepos = (try? await AstridAPIClient.shared.getGitHubRepos().repos) ?? []
+                syncRepos = (try? await RemoteResourceService.shared.getGitHubRepos().repos) ?? []
             }
             if googleSync.isConnected {
-                syncTasklists = (try? await AstridAPIClient.shared.getGoogleTasklists().tasklists) ?? []
+                syncTasklists = (try? await RemoteResourceService.shared.getGoogleTasklists().tasklists) ?? []
             }
         }
         .fullScreenCover(isPresented: $showingImagePicker) {
@@ -539,7 +539,7 @@ struct ListAdminTab: View {
 
         do {
             print("🤖 [ListAdminTab] Loading AI provider status")
-            let status = try await AstridAPIClient.shared.getGitHubStatus()
+            let status = try await RemoteResourceService.shared.getGitHubStatus()
             hasAIProviders = !status.aiProviders.isEmpty || status.hasAIKeys
             print("✅ [ListAdminTab] AI providers configured: \(hasAIProviders)")
             print("  - AI providers: \(status.aiProviders)")
@@ -558,7 +558,7 @@ struct ListAdminTab: View {
 
         do {
             print("📦 [ListAdminTab] Loading GitHub repositories (refresh: \(refresh))")
-            let response = try await AstridAPIClient.shared.getGitHubRepositories(refresh: refresh)
+            let response = try await RemoteResourceService.shared.getGitHubRepositories(refresh: refresh)
             availableRepositories = response.repositories
             print("✅ [ListAdminTab] Loaded \(availableRepositories.count) repositories")
         } catch {

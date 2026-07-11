@@ -5,7 +5,7 @@ struct PublicListBrowserView: View {
     @StateObject private var listService = ListService.shared
     @State private var publicLists: [TaskList] = []
     @State private var isLoading = false
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
 
     var body: some View {
         Group {
@@ -98,7 +98,7 @@ struct PublicListRow: View {
     @State private var isViewingFromFeatured = false
     @State private var featuredList: TaskList?
     @State private var navigateToList = false
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
 
     private var isCollaborative: Bool {
         list.publicListType == "collaborative"

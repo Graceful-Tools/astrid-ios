@@ -8,7 +8,7 @@ struct ListSidebarView: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var syncManager = SyncManager.shared
     private let profileCache = ProfileCache.shared
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
     @Binding var selectedListId: String?
     @Binding var isViewingFromFeatured: Bool  // Track if viewing from featured section
     @Binding var featuredList: TaskList?  // Store the featured list data

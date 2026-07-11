@@ -129,13 +129,13 @@ struct GitHubSyncSettingsView: View {
         .task {
             await sync.refreshStatus()
             if sync.isConnected {
-                repos = (try? await AstridAPIClient.shared.getGitHubRepos().repos) ?? []
+                repos = (try? await RemoteResourceService.shared.getGitHubRepos().repos) ?? []
             }
         }
         .refreshable {
             await sync.refreshStatus()
             if sync.isConnected {
-                repos = (try? await AstridAPIClient.shared.getGitHubRepos().repos) ?? []
+                repos = (try? await RemoteResourceService.shared.getGitHubRepos().repos) ?? []
             }
         }
     }

@@ -66,7 +66,7 @@ struct UserProfileView: View {
     private func loadAccountDataAndShowEdit() {
         _Concurrency.Task {
             do {
-                let response: AccountResponse = try await APIClient.shared.request(.getAccount)
+                let response: AccountResponse = try await AccountService.shared.fetchAccountResponse()
                 accountDataForEdit = response.user
                 showEditProfile = true
             } catch {

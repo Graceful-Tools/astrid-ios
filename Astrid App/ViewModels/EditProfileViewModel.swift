@@ -17,7 +17,7 @@ class EditProfileViewModel: ObservableObject {
     @Published var updatedUser: User?
 
     private let originalAccountData: AccountData
-    private let apiClient = APIClient.shared
+    private let apiClient = AccountService.shared
     private var uploadedImageUrl: String?
 
     let isOAuthUser: Bool
@@ -66,8 +66,10 @@ class EditProfileViewModel: ObservableObject {
             }
 
             // Upload to server
-            let response: UploadResponse = try await apiClient.request(
-                .uploadFile(imageData, fileName: "profile-\(UUID().uuidString).jpg", mimeType: "image/jpeg")
+            let response: UploadResponse = try await apiClient.uploadProfileImage(
+                imageData,
+                fileName: "profile-\(UUID().uuidString).jpg",
+                mimeType: "image/jpeg"
             )
 
             // Store the uploaded URL
@@ -113,14 +115,12 @@ class EditProfileViewModel: ObservableObject {
             }
 
             // Send update to server
-            let response: UpdateAccountResponse = try await apiClient.request(
-                .updateAccount(updateRequest)
-            )
+            let response: UpdateAccountResponse = try await apiClient.updateAccount(updateRequest)
 
             print("✅ [EditProfileViewModel] Profile updated: \(response.message)")
 
             // Fetch updated account data to get the latest user info
-            let accountResponse: AccountResponse = try await apiClient.request(.getAccount)
+            let accountResponse: AccountResponse = try await apiClient.fetchAccountResponse()
 
             // Create updated User object for AuthManager
             updatedUser = User(

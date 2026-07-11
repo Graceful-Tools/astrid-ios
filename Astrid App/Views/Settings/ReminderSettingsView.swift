@@ -213,7 +213,7 @@ class ReminderSettings: ObservableObject {
     @Published var hasPendingChanges: Bool = false // Track pending sync
     private var lastFetchTime: Date?
 
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
     private let networkMonitor = NetworkMonitor.shared
     private var networkObserver: NSObjectProtocol?
 

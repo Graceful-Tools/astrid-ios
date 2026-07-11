@@ -23,7 +23,7 @@ struct ListMembershipTab: View {
 
     private let listService = ListService.shared
     private let memberService = ListMemberService.shared
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
 
     /// Check if current user can edit settings (is owner or admin).
     /// Mirrors web's `canUserManageList` — only consults `listMembers`.

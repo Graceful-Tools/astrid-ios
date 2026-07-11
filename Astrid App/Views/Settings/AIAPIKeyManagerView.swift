@@ -75,7 +75,7 @@ struct AIAPIKeyManagerView: View {
     @State private var successMessage: String?
     @State private var isLoading = true
 
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
 
     var body: some View {
         Form {

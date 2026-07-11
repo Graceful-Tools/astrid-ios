@@ -213,7 +213,7 @@ struct ShareListView: View {
         errorMessage = nil
 
         do {
-            let response = try await AstridAPIClient.shared.createShortcode(
+            let response = try await RemoteResourceService.shared.createShortcode(
                 targetType: "list",
                 targetId: list.id
             )

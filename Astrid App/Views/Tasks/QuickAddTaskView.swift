@@ -834,7 +834,7 @@ struct QuickAddPickerSheet: View {
 
         // Then try to fetch fresh data from API
         do {
-            let users = try await APIClient.shared.searchUsersWithAIAgents(
+            let users = try await RemoteResourceService.shared.searchUsersWithAIAgents(
                 query: "",
                 taskId: nil,
                 listIds: listIds

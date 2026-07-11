@@ -195,7 +195,7 @@ struct GoogleTasksSettingsView: View {
     private func loadTasklists() async {
         guard sync.isConnected else { return }
         do {
-            tasklists = try await AstridAPIClient.shared.getGoogleTasklists().tasklists
+            tasklists = try await RemoteResourceService.shared.getGoogleTasklists().tasklists
             if tasklists.isEmpty {
                 sync.lastError = "Google returned no task lists for this account."
             }

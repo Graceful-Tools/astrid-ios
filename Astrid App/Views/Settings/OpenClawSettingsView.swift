@@ -25,7 +25,7 @@ struct OpenClawSettingsView: View {
     // Copy feedback
     @State private var copiedField: String?
 
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient = RemoteResourceService.shared
 
     private static let reservedNames: Set<String> = [
         "admin", "system", "test", "api", "support", "root", "openclaw"
