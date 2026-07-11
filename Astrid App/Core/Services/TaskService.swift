@@ -196,18 +196,21 @@ class TaskService: ObservableObject {
         do {
             // Only the ACTIVE (incomplete) tasks must be in memory before the
             // first render for offline mode — that's the set the lists show.
-            // A user with a long completed history would otherwise pay to
-            // convert hundreds of finished rows to domain models on the main
-            // thread at launch. Load active tasks synchronously; hydrate the
-            // completed history right after off the critical path.
+            // But converting a large active backlog to domain models on the
+            // main thread still janks launch. Map only a bounded FIRST PAGE
+            // synchronously (enough to fill the first screen offline); the rest
+            // of the active backlog and the completed history hydrate off the
+            // launch critical path.
+            let deletedIds = recentlyDeletedIds
             let fetchRequest = CDTask.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "completed == NO")
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            fetchRequest.fetchLimit = Self.initialActivePageSize
             let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
 
             // Convert to domain models, excluding tasks pending deletion.
             // Also exclude tasks tracked in recentlyDeletedIds (persisted in UserDefaults)
             // in case CoreData status was lost from a previous bug.
-            let deletedIds = recentlyDeletedIds
             self.tasks = cdTasks
                 .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
                 .map { $0.toDomainModel() }
@@ -215,17 +218,67 @@ class TaskService: ObservableObject {
                 cachedTasks[task.id] = task
             }
             updatePendingOperationsCount()
-            print("✅ [TaskService] Loaded \(tasks.count) active tasks from cache synchronously (\(pendingOperationsCount) pending)")
+            print("✅ [TaskService] Loaded \(tasks.count) active tasks (first page) from cache synchronously (\(pendingOperationsCount) pending)")
             // Mark as loaded IMMEDIATELY so UI shows cached data right away
             // This is critical for offline mode - user sees data even before network sync
             self.hasCompletedInitialLoad = true
 
-            // Hydrate the completed history without blocking first render.
-            _Concurrency.Task { @MainActor [weak self] in self?.hydrateCompletedTasksFromCache() }
+            // Hydrate the rest of the active backlog off the main thread, then
+            // the completed history — both off the launch critical path.
+            _Concurrency.Task { @MainActor [weak self] in
+                await self?.hydrateRemainingActiveTasksFromCache()
+                self?.hydrateCompletedTasksFromCache()
+            }
         } catch {
             print("❌ [TaskService] Failed to load cached tasks: \(error)")
             self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
         }
+    }
+
+    /// Number of active tasks mapped synchronously at launch. Enough to fill the
+    /// first screen offline; the remaining active backlog hydrates off the main
+    /// thread in `hydrateRemainingActiveTasksFromCache`.
+    private static let initialActivePageSize = 100
+
+    /// Convert the active tasks beyond the first page on a background CoreData
+    /// context (keeps the potentially-expensive model mapping off the main
+    /// thread), then merge them into memory. Never overwrites a task already in
+    /// memory — a first-page entry or an in-flight edit wins. Runs off the
+    /// launch critical path (see `loadCachedTasks`).
+    private func hydrateRemainingActiveTasksFromCache() async {
+        let deletedIds = recentlyDeletedIds
+        let pageSize = Self.initialActivePageSize
+        let context = coreDataManager.newBackgroundContext()
+        let remaining: [Task] = await context.perform {
+            let request = CDTask.fetchRequest()
+            request.predicate = NSPredicate(format: "completed == NO")
+            request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            request.fetchOffset = pageSize
+            guard let cdTasks = try? context.fetch(request) else { return [] }
+            return cdTasks
+                .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
+                .map { $0.toDomainModel() }
+        }
+
+        let fresh = Self.freshActiveTasksToAppend(
+            remaining: remaining,
+            alreadyLoadedIds: Set(cachedTasks.keys)
+        )
+        guard !fresh.isEmpty else { return }
+        for task in fresh { cachedTasks[task.id] = task }
+        self.tasks.append(contentsOf: fresh)
+        updatePendingOperationsCount()
+        print("✅ [TaskService] Hydrated \(fresh.count) remaining active tasks from cache")
+    }
+
+    /// Pure dedup for remaining-active hydration: keep only tasks not already in
+    /// memory, so hydrating the backlog never double-inserts a first-page task
+    /// nor clobbers an edit that landed while the background fetch was running.
+    nonisolated static func freshActiveTasksToAppend(
+        remaining: [Task],
+        alreadyLoadedIds: Set<String>
+    ) -> [Task] {
+        remaining.filter { !alreadyLoadedIds.contains($0.id) }
     }
 
     /// Merge cached COMPLETED tasks into memory after the initial active-task
