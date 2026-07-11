@@ -79,6 +79,9 @@ iOSInjectionProject/
 .vscode/
 *.swp
 *.swo
+*.backup
+*.bak
+*.orig
 
 # Claude Code
 .claude/settings.local.json

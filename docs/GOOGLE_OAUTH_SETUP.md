@@ -5,7 +5,7 @@ This guide explains how to configure Google OAuth for the Astrid iOS app.
 ## Prerequisites
 
 - Google Cloud Console access
-- Xcode project set up with AstridApp
+- Xcode project set up with the Astrid app target
 
 ## Step 1: Create Google OAuth Client ID for iOS
 
@@ -15,7 +15,7 @@ This guide explains how to configure Google OAuth for the Astrid iOS app.
 4. Choose **"iOS"** as the application type
 5. Configure the client:
    - **Name**: `Astrid iOS App`
-   - **Bundle ID**: `com.astrid.AstridApp` (or your actual bundle ID from Xcode)
+   - **Bundle ID**: `Graceful-Tools-Inc.Astrid-App` (or the exact bundle ID for the target/environment you are configuring)
 6. Click **"Create"**
 7. **Save the Client ID** - it will look like: `123456789-abcdefg.apps.googleusercontent.com`
 
@@ -28,19 +28,19 @@ Original: 123456789-abcdefg.apps.googleusercontent.com
 Reversed: com.googleusercontent.apps.123456789-abcdefg
 ```
 
-## Step 3: Update GoogleSignInManager.swift
+## Step 3: Verify the public iOS client configuration
 
-Open `Astrid App/Core/Authentication/GoogleSignInManager.swift` and update:
+Open `Astrid App/Core/Authentication/GoogleSignInManager.swift` and verify the public iOS client ID and redirect URI:
 
 ```swift
-// Replace these placeholders:
-private let clientID = "YOUR_GOOGLE_IOS_CLIENT_ID.apps.googleusercontent.com"
-private let redirectURI = "com.googleusercontent.apps.YOUR_REVERSED_CLIENT_ID:/oauth2redirect/google"
-
-// With your actual values:
-private let clientID = "123456789-abcdefg.apps.googleusercontent.com"
-private let redirectURI = "com.googleusercontent.apps.123456789-abcdefg:/oauth2redirect/google"
+private let clientID = "<ios-client-id>.apps.googleusercontent.com"
+private let redirectURI = "com.googleusercontent.apps.<reversed-client-id>:/oauth2redirect/google"
 ```
+
+The iOS OAuth client ID is public configuration, but never commit OAuth client
+secrets, refresh tokens, access tokens, API keys, or private credentials to the
+iOS repository. Runtime secrets belong in Keychain or server-side configuration,
+not in source files.
 
 ## Step 4: Configure Xcode URL Scheme
 
@@ -59,7 +59,7 @@ private let redirectURI = "com.googleusercontent.apps.123456789-abcdefg:/oauth2r
 In Google Cloud Console:
 
 1. Go to **"APIs & Services" > "Library"**
-2. Search for **"Google+ API"** or **"People API"**
+2. Search for **"People API"**
 3. Click **"Enable"**
 
 ## Step 6: Add Required Scopes
@@ -115,7 +115,7 @@ Per App Store guidelines, if you offer third-party sign-in (Google), you must al
 ## Related Files
 
 - iOS Client: `Astrid App/Core/Authentication/GoogleSignInManager.swift`
-- Backend Endpoint: `app/api/auth/google/route.ts` (in astrid-web)
+- Backend Endpoint: `app/api/v1/auth/google/route.ts` (in astrid-web)
 - Login UI: `Astrid App/Views/Authentication/LoginView.swift`
 
 ## Support

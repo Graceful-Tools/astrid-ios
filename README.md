@@ -21,7 +21,7 @@ Native iOS app for Astrid task management with AI assistance.
 - Offline storage with Core Data
 - iPad optimized layouts
 - **Share Extension** - Create tasks from Photos, Files, Safari
-- **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents for AI coding agents
+- **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents
 
 ## Quick Start
 
@@ -39,11 +39,11 @@ Native iOS app for Astrid task management with AI assistance.
    open "Astrid App.xcodeproj"
    ```
 
-2. **Configure Google OAuth** (Required)
+2. **Verify Google OAuth configuration** (Required)
    - Follow instructions in [docs/GOOGLE_OAUTH_SETUP.md](./docs/GOOGLE_OAUTH_SETUP.md)
-   - Create iOS OAuth Client ID in Google Cloud Console
-   - Update `GoogleSignInManager.swift` with your credentials
-   - Add URL scheme to Xcode project
+   - Confirm the checked-in public iOS client ID and URL scheme match the app's bundle ID
+   - For new bundle IDs/environments, create a new iOS OAuth client and update the public client ID + URL scheme together
+   - Do not commit OAuth client secrets, API tokens, or private credentials to the iOS repo
 
 3. **Enable Sign in with Apple**
    - In Xcode: Target > Signing & Capabilities
