@@ -43,6 +43,18 @@ final class KeychainService: @unchecked Sendable {
         try? delete(key: "oauth_client_secret")
     }
 
+    func saveOAuthAccessToken(_ token: String) throws {
+        try save(key: "oauth_access_token", value: token)
+    }
+
+    func getOAuthAccessToken() throws -> String {
+        try get(key: "oauth_access_token")
+    }
+
+    func deleteOAuthAccessToken() throws {
+        try delete(key: "oauth_access_token")
+    }
+
     // MARK: - Generic Keychain Operations
     
     private func save(key: String, value: String) throws {

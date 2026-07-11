@@ -504,6 +504,7 @@ class AuthManager: ObservableObject {
         try? keychainService.deleteSessionCookie()
         keychainService.deleteMCPToken()
         keychainService.deleteOAuthClientSecret()
+        try? keychainService.deleteOAuthAccessToken()
 
         // ===== HTTP COOKIE STORAGE CLEANUP =====
         // CRITICAL: Clear URLSession's cookie storage to prevent session leakage
@@ -548,6 +549,7 @@ class AuthManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "GoogleOAuthCodeVerifier")
         UserDefaults.standard.removeObject(forKey: "pendingAttachments")
         UserDefaults.standard.removeObject(forKey: "oauth_token_cache")
+        UserDefaults.standard.removeObject(forKey: "oauth_token_expires_at")
 
         // ===== CORE DATA =====
         print("🗑️ [AuthManager] Clearing Core Data...")
