@@ -360,6 +360,7 @@ Every list (including My Tasks) has a chat channel accessible via the chat toggl
 
 ## See Also
 
+- **[ASTRID.md](./ASTRID.md)** - Shared agent working agreements (all AI agents read this)
 - **[README.md](./README.md)** - Project overview and setup
 - **[docs/API_CONTRACT.md](./docs/API_CONTRACT.md)** - API specification
 - **[docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md)** - Offline architecture

@@ -350,4 +350,4 @@ Every list (including My Tasks) has a chat channel accessible via the chat toggl
 
 ---
 
-*This file is for Codex CLI.*
+*This file is for Codex CLI. Shared working agreements for all AI agents live in [ASTRID.md](./ASTRID.md).*
