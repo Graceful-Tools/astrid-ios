@@ -114,6 +114,19 @@ cd ../astrid-web && npx tsx scripts/get-astrid-tasks.ts ios
 
 Present tasks to the user and ask which to work on. Run `npm run predeploy` **after** implementation, not before.
 
+### Required Shared Workflow
+
+The canonical, cross-environment process is
+[astrid-web/ASTRID_WORKFLOW.md](https://github.com/Graceful-Tools/astrid-web/blob/main/ASTRID_WORKFLOW.md).
+For each task: post a strategy comment, use RED–GREEN–refactor TDD for bug fixes with a
+task-ID-linked regression test, run required quality gates, then post a
+completion report before marking the task complete.
+
+This file is the iOS adapter and adds mandatory mobile safeguards: backend
+writes go through the service layer; preserve unified-outbox and offline
+behavior; preserve repeating-task contracts; and support the existing API
+version while introducing a new app/API version for breaking changes.
+
 ### Environment Setup
 
 Required variables (in `.env.local`, copied from astrid-web):
