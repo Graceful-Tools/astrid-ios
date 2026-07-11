@@ -47,33 +47,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>192.168.50.161</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-			<key>localhost</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_http._tcp</string>
-		<string>_https._tcp</string>
-	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Astrid needs to connect to your local development server for authentication and sync.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Astrid can suggest collaborators from your contacts when sharing lists. Your contacts are encrypted and never shared with third parties.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>

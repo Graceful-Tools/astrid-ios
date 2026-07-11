@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key><string>Astrid</string>
+	<key>NSPhotoLibraryUsageDescription</key><string>Astrid needs access to your photos to attach them to tasks and comments, and to detect which photos are stored on your device so they can be attached while you're offline.</string>
+	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key><string>Editor</string>
+			<key>CFBundleURLName</key><string>cc.astrid.app</string>
+			<key>CFBundleURLSchemes</key><array><string>astrid</string></array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key><string>Editor</string>
+			<key>CFBundleURLName</key><string>com.googleusercontent.apps</string>
+			<key>CFBundleURLSchemes</key><array><string>com.googleusercontent.apps.195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks</string></array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key><true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key><true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>192.168.50.161</key>
+			<dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/><key>NSIncludesSubdomains</key><true/></dict>
+			<key>localhost</key>
+			<dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict>
+		</dict>
+	</dict>
+	<key>NSBonjourServices</key><array><string>_http._tcp</string><string>_https._tcp</string></array>
+	<key>NSLocalNetworkUsageDescription</key><string>Astrid needs to connect to your local development server for authentication and sync.</string>
+	<key>NSContactsUsageDescription</key><string>Astrid can suggest collaborators from your contacts when sharing lists. Your contacts are encrypted and never shared with third parties.</string>
+	<key>NSRemindersFullAccessUsageDescription</key><string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<key>NSRemindersUsageDescription</key><string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><true/><key>UISceneConfigurations</key><dict/></dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key><true/>
+	<key>UILaunchScreen</key><dict/>
+	<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string></array>
+	<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string></array>
+	<key>ITSAppUsesNonExemptEncryption</key><false/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>cc.astrid.app.sync</string></array>
+</dict>
+</plist>
