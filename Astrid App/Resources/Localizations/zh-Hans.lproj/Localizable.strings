@@ -925,6 +925,7 @@
 "sync.mode_google_to_astrid" = "将 Google 列表导入 Astrid";
 "sync.mode_manual" = "仅我关联的列表";
 "sync.no_lists_linked" = "尚未关联任何列表。";
+"sync.new_list" = "新建列表";
 "sync.not_linked" = "未关联";
 "sync.repository" = "仓库";
 "sync.suffix_placeholder" = "列表名称后缀，如 [GT]";

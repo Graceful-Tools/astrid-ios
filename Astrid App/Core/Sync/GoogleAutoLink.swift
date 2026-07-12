@@ -52,13 +52,18 @@ enum GoogleAutoLink {
         return !linkedTasklistIds.contains(id)
     }
 
-    /// Auto-link candidate filter: the default tasklist belongs to the My Tasks
-    /// phase, so it's excluded from list auto-linking — unless it's already
-    /// linked (legacy), in which case the existing link keeps flowing.
+    /// Auto-link candidate filter: Google-down modes can materialize the
+    /// default tasklist as a visible Astrid list; Google-up-only mode keeps it
+    /// reserved for the My Tasks phase unless a legacy link already exists.
     static func autoLinkCandidates(
-        tasklists: [ListRef], defaultTasklistId: String?, linkedTasklistIds: Set<String>
+        tasklists: [ListRef],
+        defaultTasklistId: String?,
+        linkedTasklistIds: Set<String>,
+        includeUnlinkedDefaultTasklist: Bool
     ) -> [ListRef] {
-        tasklists.filter { $0.id != defaultTasklistId || linkedTasklistIds.contains($0.id) }
+        tasklists.filter {
+            includeUnlinkedDefaultTasklist || $0.id != defaultTasklistId || linkedTasklistIds.contains($0.id)
+        }
     }
 
     static func astridName(for tasklistName: String, suffix: String) -> String {

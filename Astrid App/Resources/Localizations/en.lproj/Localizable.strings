@@ -933,6 +933,7 @@
 "sync.mode_google_to_astrid" = "Bring Google lists into Astrid";
 "sync.mode_manual" = "Only lists I link";
 "sync.no_lists_linked" = "No lists linked yet.";
+"sync.new_list" = "New List";
 "sync.not_linked" = "Not linked";
 "sync.repository" = "Repository";
 "sync.suffix_placeholder" = "List name suffix, e.g. [GT]";

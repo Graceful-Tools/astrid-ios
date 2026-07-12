@@ -160,23 +160,34 @@ final class GoogleAutoLinkTests: XCTestCase {
             mode: .allBidirectional, defaultTasklistId: "gdef", linkedTasklistIds: ["gdef"]))
     }
 
-    func testAutoLinkCandidates_excludesUnlinkedDefaultTasklist() {
+    func testAutoLinkCandidates_googleDownIncludesUnlinkedDefaultTasklist() {
         let out = GoogleAutoLink.autoLinkCandidates(
             tasklists: [ref("gdef", "My Tasks"), ref("g1", "Work")],
-            defaultTasklistId: "gdef", linkedTasklistIds: [])
+            defaultTasklistId: "gdef", linkedTasklistIds: [],
+            includeUnlinkedDefaultTasklist: true)
+        XCTAssertEqual(out.map(\.id), ["gdef", "g1"])
+    }
+
+    func testAutoLinkCandidates_googleUpExcludesUnlinkedDefaultTasklist() {
+        let out = GoogleAutoLink.autoLinkCandidates(
+            tasklists: [ref("gdef", "My Tasks"), ref("g1", "Work")],
+            defaultTasklistId: "gdef", linkedTasklistIds: [],
+            includeUnlinkedDefaultTasklist: false)
         XCTAssertEqual(out.map(\.id), ["g1"])
     }
 
     func testAutoLinkCandidates_keepsLegacyLinkedDefaultTasklist() {
         let out = GoogleAutoLink.autoLinkCandidates(
             tasklists: [ref("gdef", "My Tasks"), ref("g1", "Work")],
-            defaultTasklistId: "gdef", linkedTasklistIds: ["gdef"])
+            defaultTasklistId: "gdef", linkedTasklistIds: ["gdef"],
+            includeUnlinkedDefaultTasklist: false)
         XCTAssertEqual(out.map(\.id), ["gdef", "g1"])
     }
 
     func testAutoLinkCandidates_noDefaultIdPassesThrough() {
         let out = GoogleAutoLink.autoLinkCandidates(
-            tasklists: [ref("g1", "Work")], defaultTasklistId: nil, linkedTasklistIds: [])
+            tasklists: [ref("g1", "Work")], defaultTasklistId: nil, linkedTasklistIds: [],
+            includeUnlinkedDefaultTasklist: false)
         XCTAssertEqual(out.map(\.id), ["g1"])
     }
 

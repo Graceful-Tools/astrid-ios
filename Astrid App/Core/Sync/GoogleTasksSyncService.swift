@@ -130,6 +130,26 @@ final class GoogleTasksSyncService: ObservableObject {
         scheduleSync()
     }
 
+    func createAstridListAndLink(tasklistId: String, tasklistName: String) async throws {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { throw CancellationError() }
+        let created = try await ListService.shared.createList(name: tasklistName)
+        guard !created.id.hasPrefix("temp_") else {
+            throw NSError(
+                domain: "GoogleTasksSyncService",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Couldn't create list \"\(tasklistName)\" while offline."])
+        }
+        try await linkList(created.id, tasklistId: tasklistId)
+    }
+
+    @discardableResult
+    func createGoogleTasklistAndLink(listId: String, listName: String) async throws -> GoogleTasklistDTO {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { throw CancellationError() }
+        let tasklist = try await apiClient.createGoogleTasklist(title: listName)
+        try await linkList(listId, tasklistId: tasklist.id)
+        return tasklist
+    }
+
     /// Called when the user deletes an Astrid list that was linked to a Google
     /// tasklist: remember the tasklist as opted-out so the all-lists auto-link
     /// doesn't immediately resurrect the deleted list.
@@ -261,7 +281,8 @@ final class GoogleTasksSyncService: ObservableObject {
         let tasklists = GoogleAutoLink.autoLinkCandidates(
             tasklists: tasklistsResponse.tasklists.map { .init(id: $0.id, name: $0.name) },
             defaultTasklistId: tasklistsResponse.defaultId,
-            linkedTasklistIds: linkedTasklistIds)
+            linkedTasklistIds: linkedTasklistIds,
+            includeUnlinkedDefaultTasklist: syncMode == .allGoogleToAstrid || syncMode == .allBidirectional)
         let linkedListIds = Set(links.map(\.astridListId))
         let realLists = ListService.shared.lists
             .filter { !($0.isVirtual ?? false) && $0.listType != "status" && !$0.id.hasPrefix("temp_") }

@@ -3,6 +3,9 @@ import SwiftUI
 /// GitHub Issues sync settings: connect the account, link Astrid lists to
 /// Google Tasks lists, and trigger a manual sync. Mirrors the Apple Reminders settings shape.
 struct GoogleTasksSettingsView: View {
+    private static let newAstridListSelection = "__new_astrid_list__"
+    private static let newGoogleTasklistSelection = "__new_google_tasklist__"
+
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) private var openURL
     @StateObject private var sync = GoogleTasksSyncService.shared
@@ -124,27 +127,29 @@ struct GoogleTasksSettingsView: View {
                 Section(NSLocalizedString("sync.link_list_tasklist", comment: "Link a list to a Google Tasks list")) {
                     Picker(NSLocalizedString("sync.list", comment: "List"), selection: $selectedListId) {
                         Text(NSLocalizedString("sync.choose_list", comment: "Choose a list")).tag(String?.none)
+                        Text(NSLocalizedString("sync.new_list", comment: "New List")).tag(String?.some(Self.newAstridListSelection))
                         ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.listType != "status" }) { list in
                             Text(list.name).tag(String?.some(list.id))
                         }
                     }
                     Picker(NSLocalizedString("sync.google_list", comment: "Google list"), selection: $selectedTasklist) {
                         Text(NSLocalizedString("sync.choose_google_list", comment: "Choose a Google list")).tag(String?.none)
-                        ForEach(tasklists) { repo in
-                            Text(repo.name).tag(String?.some(repo.id))
+                        Text(NSLocalizedString("sync.new_list", comment: "New List")).tag(String?.some(Self.newGoogleTasklistSelection))
+                        ForEach(tasklists) { tasklist in
+                            Text(tasklist.name).tag(String?.some(tasklist.id))
                         }
                     }
                     Button(isLinking ? NSLocalizedString("sync.linking", comment: "Linking") : NSLocalizedString("sync.link", comment: "Link")) {
-                        guard let listId = selectedListId, let repo = selectedTasklist else { return }
+                        guard let listId = selectedListId, let tasklistId = selectedTasklist else { return }
                         isLinking = true
                         _Concurrency.Task {
                             defer { isLinking = false }
-                            try? await sync.linkList(listId, tasklistId: repo)
+                            await linkSelectedPair(listId: listId, tasklistId: tasklistId)
                             selectedListId = nil
                             selectedTasklist = nil
                         }
                     }
-                    .disabled(selectedListId == nil || selectedTasklist == nil || isLinking)
+                    .disabled(!canLinkSelectedPair || isLinking)
                 }
 
                 Section {
@@ -156,7 +161,7 @@ struct GoogleTasksSettingsView: View {
                             if sync.isSyncing { Spacer(); ProgressView() }
                         }
                     }
-                    .disabled(sync.isSyncing || sync.links.isEmpty)
+                    .disabled(sync.isSyncing || (sync.links.isEmpty && sync.syncMode == .manual))
                     if let at = sync.lastSyncedAt {
                         Text(String(format: NSLocalizedString("sync.last_synced", comment: "Last synced X"), at.formatted(date: .omitted, time: .shortened)))
                             .font(Theme.Typography.caption2())
@@ -214,6 +219,31 @@ struct GoogleTasksSettingsView: View {
             }
         } catch {
             sync.lastError = "Couldn't load Google task lists: \(error.localizedDescription)"
+        }
+    }
+
+    private var canLinkSelectedPair: Bool {
+        guard let listId = selectedListId, let tasklistId = selectedTasklist else { return false }
+        return !(listId == Self.newAstridListSelection && tasklistId == Self.newGoogleTasklistSelection)
+    }
+
+    private func linkSelectedPair(listId: String, tasklistId: String) async {
+        do {
+            if listId == Self.newAstridListSelection {
+                guard let tasklist = tasklists.first(where: { $0.id == tasklistId }) else { return }
+                try await sync.createAstridListAndLink(tasklistId: tasklist.id, tasklistName: tasklist.name)
+            } else if tasklistId == Self.newGoogleTasklistSelection {
+                guard let list = listService.lists.first(where: { $0.id == listId }) else { return }
+                let created = try await sync.createGoogleTasklistAndLink(listId: list.id, listName: list.name)
+                if !tasklists.contains(where: { $0.id == created.id }) {
+                    tasklists.append(created)
+                }
+            } else {
+                try await sync.linkList(listId, tasklistId: tasklistId)
+            }
+            await loadTasklists()
+        } catch {
+            sync.lastError = "Couldn't link Google list: \(error.localizedDescription)"
         }
     }
 }

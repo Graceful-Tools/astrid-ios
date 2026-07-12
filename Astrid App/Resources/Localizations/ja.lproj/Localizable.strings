@@ -925,6 +925,7 @@
 "sync.mode_google_to_astrid" = "Google のリストを Astrid に取り込む";
 "sync.mode_manual" = "自分でリンクしたリストのみ";
 "sync.no_lists_linked" = "まだリンクされたリストはありません。";
+"sync.new_list" = "新規リスト";
 "sync.not_linked" = "未リンク";
 "sync.repository" = "リポジトリ";
 "sync.suffix_placeholder" = "リスト名の接尾辞（例: [GT]）";

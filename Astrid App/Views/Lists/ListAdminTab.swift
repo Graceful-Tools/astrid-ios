@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Admin settings tab for list settings
 struct ListAdminTab: View {
+    private static let newGoogleTasklistSelection = "__new_google_tasklist__"
+
     @Environment(\.colorScheme) var colorScheme
 
     let list: TaskList
@@ -348,6 +350,7 @@ struct ListAdminTab: View {
                     } else {
                         Picker("Google Tasks", selection: $selectedSyncTasklist) {
                             Text(NSLocalizedString("sync.not_linked", comment: "Not linked")).tag(nil as String?)
+                            Text(NSLocalizedString("sync.new_list", comment: "New List")).tag(String?.some(Self.newGoogleTasklistSelection))
                             ForEach(syncTasklists) { tasklist in
                                 Text(tasklist.name).tag(String?.some(tasklist.id))
                             }
@@ -355,7 +358,15 @@ struct ListAdminTab: View {
                         .onChange(of: selectedSyncTasklist) { _, tasklist in
                             guard let tasklist else { return }
                             _Concurrency.Task {
-                                try? await googleSync.linkList(list.id, tasklistId: tasklist)
+                                if tasklist == Self.newGoogleTasklistSelection {
+                                    if let created = try? await googleSync.createGoogleTasklistAndLink(
+                                        listId: list.id, listName: list.name),
+                                       !syncTasklists.contains(where: { $0.id == created.id }) {
+                                        syncTasklists.append(created)
+                                    }
+                                } else {
+                                    try? await googleSync.linkList(list.id, tasklistId: tasklist)
+                                }
                                 selectedSyncTasklist = nil
                             }
                         }

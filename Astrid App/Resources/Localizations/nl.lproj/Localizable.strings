@@ -925,6 +925,7 @@
 "sync.mode_google_to_astrid" = "Google-lijsten naar Astrid halen";
 "sync.mode_manual" = "Alleen lijsten die ik koppel";
 "sync.no_lists_linked" = "Nog geen lijsten gekoppeld.";
+"sync.new_list" = "Nieuwe lijst";
 "sync.not_linked" = "Niet gekoppeld";
 "sync.repository" = "Repository";
 "sync.suffix_placeholder" = "Naamachtervoegsel, bijv. [GT]";

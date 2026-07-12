@@ -925,6 +925,7 @@
 "sync.mode_google_to_astrid" = "Porta le liste Google in Astrid";
 "sync.mode_manual" = "Solo le liste che collego io";
 "sync.no_lists_linked" = "Nessuna lista ancora collegata.";
+"sync.new_list" = "Nuova lista";
 "sync.not_linked" = "Non collegata";
 "sync.repository" = "Repository";
 "sync.suffix_placeholder" = "Suffisso del nome, es. [GT]";
