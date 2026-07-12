@@ -34,4 +34,12 @@ final class FeatureFlagLifecycleTests: XCTestCase {
     func testUnknownFeaturesDefaultOff() {
         XCTAssertFalse(FeatureFlagSnapshot.defaultValue(for: .googleTasks))
     }
+
+    func testForcedLiveUpdateRefreshesDuringFirstSession() {
+        XCTAssertTrue(FeatureFlagRefreshPolicy.shouldRefresh(refreshEligibleThisLaunch: false, force: true))
+    }
+
+    func testBackgroundRefreshStillWaitsUntilSecondLaunch() {
+        XCTAssertFalse(FeatureFlagRefreshPolicy.shouldRefresh(refreshEligibleThisLaunch: false, force: false))
+    }
 }

@@ -50,6 +50,12 @@ enum FeatureFlagLaunchPolicy {
     }
 }
 
+enum FeatureFlagRefreshPolicy {
+    nonisolated static func shouldRefresh(refreshEligibleThisLaunch: Bool, force: Bool) -> Bool {
+        force || refreshEligibleThisLaunch
+    }
+}
+
 /// Cached, user-scoped remote feature entitlements. Initialization performs
 /// local reads only; networking is scheduled after the first frame and never
 /// occurs on the first-ever app launch.
@@ -91,7 +97,10 @@ final class FeatureFlagService: ObservableObject {
     }
 
     func refreshIfStale(userId explicitUserId: String? = nil, force: Bool = false) async {
-        guard UserDefaults.standard.bool(forKey: Self.refreshEligibleKey) else { return }
+        guard FeatureFlagRefreshPolicy.shouldRefresh(
+            refreshEligibleThisLaunch: UserDefaults.standard.bool(forKey: Self.refreshEligibleKey),
+            force: force
+        ) else { return }
         let userId = explicitUserId
             ?? AuthManager.shared.currentUser?.id
             ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)
