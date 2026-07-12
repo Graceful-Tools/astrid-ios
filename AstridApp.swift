@@ -10,6 +10,7 @@ struct AstridApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        FeatureFlagService.recordAppLaunch()
         print("🚀 [AstridApp] App launching...")
         print("📍 [AstridApp] Init started - about to configure app...")
 
@@ -59,8 +60,6 @@ struct AstridApp: App {
         _Concurrency.Task { @MainActor in
             await GitHubSyncService.shared.refreshStatus()
             GitHubSyncService.shared.scheduleSync()
-            await GoogleTasksSyncService.shared.refreshStatus()
-            GoogleTasksSyncService.shared.scheduleSync()
         }
 
         // Touch singletons to trigger their initialization
@@ -114,6 +113,19 @@ struct AstridApp: App {
                             print("📴 [AstridApp] Offline-only mode - skipping network operations")
                             await updateAppBadge()
                             return
+                        }
+
+                        // Feature configuration is deliberately outside the
+                        // launch path. First-ever launch never fetches; later
+                        // launches refresh after the root view has rendered.
+                        let featureUserId = authManager.currentUser?.id
+                        _Concurrency.Task(priority: .utility) { @MainActor in
+                            try? await _Concurrency.Task.sleep(nanoseconds: 250_000_000)
+                            await FeatureFlagService.shared.refreshIfStale(userId: featureUserId)
+                            if FeatureFlagService.shared.isEnabled(.googleTasks) {
+                                await GoogleTasksSyncService.shared.refreshStatus()
+                                GoogleTasksSyncService.shared.scheduleSync()
+                            }
                         }
 
                         // Process any pending shared tasks from Share Extension (requires network)

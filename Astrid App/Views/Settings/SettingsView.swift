@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
     @State private var outboxStats: OutboxStats?
+    @StateObject private var featureFlags = FeatureFlagService.shared
 
 
     var body: some View {
@@ -94,11 +95,13 @@ struct SettingsView: View {
                         }
                     }
 
-                    NavigationLink(destination: LazyView { GoogleTasksSettingsView() }) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.badge.questionmark")
-                                .foregroundColor(.green)
-                            Text("Google Tasks")
+                    if featureFlags.isEnabled(.googleTasks) {
+                        NavigationLink(destination: LazyView { GoogleTasksSettingsView() }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.badge.questionmark")
+                                    .foregroundColor(.green)
+                                Text("Google Tasks")
+                            }
                         }
                     }
                 }

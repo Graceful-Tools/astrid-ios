@@ -1,5 +1,17 @@
 # Astrid API Contract
 
+## Effective feature configuration
+
+`GET /api/v1/features` is an additive, authenticated endpoint shared by web
+and iOS. It returns only the caller's effective feature values and a global
+configuration version; rollout rules and targeted user identities are never
+exposed. Unknown or absent features default to disabled.
+
+The endpoint is never called during the first-ever client launch. Later
+launches render cached/default values first and refresh after initial render,
+with invalidation delivered over the existing `feature_flags_updated` SSE
+event. Existing API endpoints and wire shapes remain unchanged.
+
 
 > **Versioning note (2026-07):** the iOS app calls path-versioned endpoints under `/api/v1/...` exclusively; there is no version header. Legacy `/api/...` routes remain server-side for old clients only.
 

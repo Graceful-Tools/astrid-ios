@@ -483,6 +483,8 @@ class AuthManager: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() async throws {
+        let departingUserId = currentUser?.id
+            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)
         isLoading = true
         defer { isLoading = false }
 
@@ -579,6 +581,7 @@ class AuthManager: ObservableObject {
         SyncStateReset.clearAll()
         GitHubSyncService.shared.resetForSignOut()
         GoogleTasksSyncService.shared.resetForSignOut()
+        FeatureFlagService.shared.clearCache(userId: departingUserId)
 
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()

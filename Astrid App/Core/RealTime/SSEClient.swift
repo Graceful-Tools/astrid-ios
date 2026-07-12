@@ -375,6 +375,17 @@ actor SSEClient {
                         NotificationCenter.default.post(name: .externalSyncRefresh, object: nil)
                     }
 
+                case "feature_flags_updated":
+                    let json = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+                    let version = json?["version"] as? Int ?? 0
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: .featureFlagsUpdated,
+                            object: nil,
+                            userInfo: ["version": version]
+                        )
+                    }
+
                 case "connected", "ping":
                     // Standard SSE keepalive events - handle silently
                     break

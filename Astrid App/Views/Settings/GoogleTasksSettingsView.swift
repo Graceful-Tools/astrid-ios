@@ -7,6 +7,7 @@ struct GoogleTasksSettingsView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var sync = GoogleTasksSyncService.shared
     @StateObject private var listService = ListService.shared
+    @StateObject private var featureFlags = FeatureFlagService.shared
 
     @State private var tasklists: [GoogleTasklistDTO] = []
     @State private var selectedListId: String?
@@ -17,7 +18,9 @@ struct GoogleTasksSettingsView: View {
     @State private var loadError: String?
 
     var body: some View {
-        List {
+        Group {
+            if featureFlags.isEnabled(.googleTasks) {
+                List {
             Section {
                 if sync.isConnected {
                     HStack {
@@ -165,15 +168,25 @@ struct GoogleTasksSettingsView: View {
                             .foregroundColor(.orange)
                     }
                 }
+                }
+                }
+            } else {
+                ContentUnavailableView(
+                    "Google Tasks unavailable",
+                    systemImage: "lock",
+                    description: Text("This feature is not enabled for your account.")
+                )
             }
         }
         .navigationTitle("Google Tasks")
         .task {
+            guard featureFlags.isEnabled(.googleTasks) else { return }
             await sync.refreshStatus()
             suffixDraft = sync.listSuffix
             await loadTasklists()
         }
         .refreshable {
+            guard featureFlags.isEnabled(.googleTasks) else { return }
             await sync.refreshStatus()
             await loadTasklists()
         }

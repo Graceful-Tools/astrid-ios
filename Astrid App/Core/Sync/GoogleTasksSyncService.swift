@@ -67,11 +67,25 @@ final class GoogleTasksSyncService: ObservableObject {
             guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
+        observers.append(center.addObserver(
+            forName: .featureFlagsDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor [weak self] in
+                guard let self else { return }
+                if FeatureFlagService.shared.isEnabled(.googleTasks) {
+                    await self.refreshStatus()
+                    self.scheduleSync()
+                } else {
+                    self.syncDebounce?.cancel()
+                }
+            }
+        })
     }
 
     // MARK: - Connection / links
 
     func refreshStatus() async {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         do {
             let integrations = try await apiClient.getSyncIntegrations().integrations
             let google = integrations.first { $0.provider == "GOOGLE_TASKS" }
@@ -93,7 +107,8 @@ final class GoogleTasksSyncService: ObservableObject {
     }
 
     func authorizeURL() async -> URL? {
-        (try? await apiClient.getGoogleAuthorizeURL().url).flatMap { URL(string: $0) }
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return nil }
+        return (try? await apiClient.getGoogleAuthorizeURL().url).flatMap { URL(string: $0) }
     }
 
     func disconnect() async {
@@ -102,6 +117,7 @@ final class GoogleTasksSyncService: ObservableObject {
     }
 
     func linkList(_ listId: String, tasklistId: String) async throws {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { throw CancellationError() }
         _ = try await apiClient.createGoogleLink(astridListId: listId, tasklistId: tasklistId)
         // Manually linking clears any earlier opt-out for this tasklist.
         if excludedTasklistIds.contains(tasklistId) {
@@ -119,6 +135,7 @@ final class GoogleTasksSyncService: ObservableObject {
     /// doesn't immediately resurrect the deleted list.
     func noteMirroredListDeleted(tasklistId: String) async {
         excludedTasklistIds.insert(tasklistId)
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         try? await apiClient.updateIntegrationMetadata(
             provider: "GOOGLE_TASKS",
             metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
@@ -155,6 +172,7 @@ final class GoogleTasksSyncService: ObservableObject {
     }
 
     func unlink(_ linkId: String) async {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         try? await apiClient.deleteGoogleLink(linkId: linkId)
         await refreshStatus()
     }
@@ -163,6 +181,7 @@ final class GoogleTasksSyncService: ObservableObject {
     /// choice follows the account across devices, then sync (auto-link runs at
     /// the start of the pass).
     func setSyncMode(_ mode: GoogleSyncMode, suffix: String) async {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         syncMode = mode
         listSuffix = suffix
         try? await apiClient.updateIntegrationMetadata(
@@ -176,6 +195,10 @@ final class GoogleTasksSyncService: ObservableObject {
     private var rerunAfterPass = false
 
     func scheduleSync() {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else {
+            syncDebounce?.cancel()
+            return
+        }
         guard isConnected else { return }
         guard !links.isEmpty || syncMode != .manual else { return }
         if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
@@ -188,6 +211,7 @@ final class GoogleTasksSyncService: ObservableObject {
     }
 
     func syncAll() async {
+        guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         guard isConnected, !isSyncing else { return }
         isSyncing = true
         lastError = nil

@@ -43,6 +43,7 @@ struct ListAdminTab: View {
     // External sync (GitHub Issues / Google Tasks mirroring for THIS list)
     @StateObject private var githubSync = GitHubSyncService.shared
     @StateObject private var googleSync = GoogleTasksSyncService.shared
+    @StateObject private var featureFlags = FeatureFlagService.shared
     @State private var syncRepos: [GitHubRepoDTO] = []
     @State private var syncTasklists: [GoogleTasklistDTO] = []
     @State private var selectedSyncRepo: String?
@@ -329,7 +330,7 @@ struct ListAdminTab: View {
                 }
 
                 // Google Tasks
-                if googleSync.isConnected {
+                if featureFlags.isEnabled(.googleTasks), googleSync.isConnected {
                     if let link = googleSync.links.first(where: { $0.astridListId == list.id }) {
                         HStack {
                             Text("Google Tasks")
@@ -359,7 +360,7 @@ struct ListAdminTab: View {
                             }
                         }
                     }
-                } else {
+                } else if featureFlags.isEnabled(.googleTasks) {
                     Text(NSLocalizedString("sync.connect_google_hint", comment: "Connect Google hint"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(.secondary)
@@ -459,11 +460,13 @@ struct ListAdminTab: View {
             }
             // External sync state (connect status + linkable containers)
             await githubSync.refreshStatus()
-            await googleSync.refreshStatus()
+            if featureFlags.isEnabled(.googleTasks) {
+                await googleSync.refreshStatus()
+            }
             if githubSync.isConnected {
                 syncRepos = (try? await RemoteResourceService.shared.getGitHubRepos().repos) ?? []
             }
-            if googleSync.isConnected {
+            if featureFlags.isEnabled(.googleTasks), googleSync.isConnected {
                 syncTasklists = (try? await RemoteResourceService.shared.getGoogleTasklists().tasklists) ?? []
             }
         }
