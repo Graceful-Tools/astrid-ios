@@ -352,6 +352,13 @@ struct SettingsView: View {
                     }
                 }
         )
+        .task {
+            // Settings is an explicit, post-launch control surface. Refreshing
+            // here makes newly granted exploratory features visible immediately
+            // without adding network work to startup; cached state remains in
+            // place when the device is offline.
+            await featureFlags.refreshIfStale(force: true)
+        }
         .alert(NSLocalizedString("sign_out", comment: ""), isPresented: $showingSignOutAlert) {
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }
             Button(NSLocalizedString("sign_out", comment: ""), role: .destructive) {
