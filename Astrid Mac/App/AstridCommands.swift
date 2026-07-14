@@ -33,6 +33,13 @@ struct AstridCommands: Commands {
                 .keyboardShortcut("k", modifiers: .command)
         }
 
+        // App menu → Check for Updates (Direct/Sparkle build; no-op/hidden on App Store).
+        CommandGroup(after: .appInfo) {
+            if UpdaterController.shared.isAvailable {
+                Button("Check for Updates…") { UpdaterController.shared.checkForUpdates() }
+            }
+        }
+
         // Help → Keyboard Shortcuts (the shared bare-key scheme; web shows this on `?`).
         CommandGroup(after: .help) {
             Button("Keyboard Shortcuts") { /* TODO(M2): show shortcuts help */ }

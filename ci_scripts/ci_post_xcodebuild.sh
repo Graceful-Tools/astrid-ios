@@ -35,6 +35,22 @@ xcodebuild test \
 RC=$?
 echo "xcodebuild test exit code: ${RC}"
 
+# macOS lane: build + unit-test the Astrid Mac target on the same runner.
+# macOS builds on the host (no simulator). Same safety rule: only a genuine
+# test failure (exit 65) blocks the build.
+echo "── ci_post_xcodebuild: macOS build + tests (Astrid Mac) ──"
+xcodebuild test \
+  -scheme "Astrid Mac" \
+  -destination "platform=macOS" \
+  -only-testing:"Astrid MacTests" \
+  CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES
+RC_MAC=$?
+echo "macOS test exit code: ${RC_MAC}"
+if [ "${RC_MAC}" -eq 65 ]; then
+  echo "── macOS tests FAILED — blocking the build ──"
+  exit 1
+fi
+
 if [ "${RC}" -eq 0 ]; then
   echo "── unit tests passed ──"
   exit 0

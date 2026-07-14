@@ -1,0 +1,9 @@
+// Astrid Mac — Direct distribution (Developer ID + notarized + Sparkle auto-update).
+// Apply to a duplicated "Astrid Mac (Direct)" scheme's Release config.
+CODE_SIGN_ENTITLEMENTS = Astrid Mac/Astrid Mac.entitlements
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+ENABLE_APP_SANDBOX = YES
+ASTRID_DISTRIBUTION = direct
+// Requires (external, one-time): add the Sparkle SPM package; set SUFeedURL +
+// SUPublicEDKey in Info.plist; generate an EdDSA key pair; host the appcast.

@@ -1,0 +1,8 @@
+// Astrid Mac — App Store distribution (sandboxed).
+// Apply to the "Astrid Mac" scheme's Release config for App Store submission.
+CODE_SIGN_ENTITLEMENTS = Astrid Mac/Astrid Mac.entitlements
+CODE_SIGN_STYLE = Automatic
+ENABLE_APP_SANDBOX = YES
+// Sparkle is NOT included in the App Store build (the store handles updates).
+ASTRID_DISTRIBUTION = appstore
+OTHER_SWIFT_FLAGS = $(inherited) -D APPSTORE
