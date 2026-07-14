@@ -58,6 +58,15 @@ public enum PlatformApplication {
         }
         #endif
     }
+
+    /// Open a URL in the default handler (browser, mail client, etc.).
+    public static func open(_ url: URL) {
+        #if canImport(UIKit)
+        UIApplication.shared.open(url)
+        #elseif canImport(AppKit)
+        NSWorkspace.shared.open(url)
+        #endif
+    }
 }
 
 /// Haptics: real on iOS, no-op on macOS (or NSHapticFeedbackManager where meaningful).

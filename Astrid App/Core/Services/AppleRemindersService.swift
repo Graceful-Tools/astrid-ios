@@ -1,6 +1,5 @@
 import Foundation
 import EventKit
-import UIKit
 import Combine
 import CoreData
 
@@ -95,7 +94,7 @@ class AppleRemindersService: ObservableObject {
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleAutoSync() }
         })
         autoSyncObservers.append(center.addObserver(
-            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+            forName: PlatformApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleAutoSync() }
         })

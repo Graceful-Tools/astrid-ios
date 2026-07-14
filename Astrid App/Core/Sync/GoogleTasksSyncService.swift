@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 import Combine
 
 /// Google Tasks sync worker (Phase 3). Mirrors GitHubSyncService, with the
@@ -51,7 +50,7 @@ final class GoogleTasksSyncService: ObservableObject {
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
         observers.append(center.addObserver(
-            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+            forName: PlatformApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })

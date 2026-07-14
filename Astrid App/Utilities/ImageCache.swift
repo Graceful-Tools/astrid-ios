@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 import SwiftUI
 import Combine
 
@@ -7,7 +6,7 @@ import Combine
 class ImageCache {
     static let shared = ImageCache()
 
-    private let memoryCache = NSCache<NSURL, UIImage>()
+    private let memoryCache = NSCache<NSURL, PlatformImage>()
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
 
@@ -28,7 +27,7 @@ class ImageCache {
 
     /// Get image from cache (memory first, then disk) - synchronous version for main thread
     /// WARNING: Only call from main thread to avoid "visual style disabled" warnings
-    func get(url: URL) -> UIImage? {
+    func get(url: URL) -> PlatformImage? {
         // Check memory cache first
         if let cached = memoryCache.object(forKey: url as NSURL) {
             print("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
@@ -38,7 +37,7 @@ class ImageCache {
         // Check disk cache
         let fileURL = diskCacheURL(for: url)
         if let data = try? Data(contentsOf: fileURL),
-           let image = UIImage(data: data) {
+           let image = PlatformImage(data: data) {
             // Store in memory cache for next time
             memoryCache.setObject(image, forKey: url as NSURL)
             print("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
@@ -49,8 +48,8 @@ class ImageCache {
     }
 
     /// Get image from cache asynchronously - safe to call from background
-    /// Returns nil if not in cache, otherwise loads from disk on background and creates UIImage on main thread
-    func getAsync(url: URL) async -> UIImage? {
+    /// Returns nil if not in cache, otherwise loads from disk on background and creates PlatformImage on main thread
+    func getAsync(url: URL) async -> PlatformImage? {
         // Check memory cache first (thread-safe)
         if let cached = memoryCache.object(forKey: url as NSURL) {
             print("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
@@ -63,9 +62,9 @@ class ImageCache {
             return nil
         }
 
-        // Create UIImage on main thread to avoid "visual style disabled" warning
+        // Create PlatformImage on main thread to avoid "visual style disabled" warning
         return await MainActor.run {
-            guard let image = UIImage(data: data) else { return nil as UIImage? }
+            guard let image = PlatformImage(data: data) else { return nil as PlatformImage? }
             memoryCache.setObject(image, forKey: url as NSURL)
             print("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
             return image
@@ -74,7 +73,7 @@ class ImageCache {
 
     /// Store image in both memory and disk cache - synchronous version
     /// WARNING: Only call from main thread to avoid "visual style disabled" warnings
-    func set(_ image: UIImage, for url: URL) {
+    func set(_ image: PlatformImage, for url: URL) {
         // Store in memory cache
         memoryCache.setObject(image, forKey: url as NSURL)
 
@@ -88,7 +87,7 @@ class ImageCache {
 
     /// Store image in cache asynchronously - safe to call from background
     /// Encodes image on main thread, writes to disk on background
-    func setAsync(_ image: UIImage, for url: URL) async {
+    func setAsync(_ image: PlatformImage, for url: URL) async {
         // Store in memory cache (thread-safe)
         memoryCache.setObject(image, forKey: url as NSURL)
 
@@ -157,7 +156,7 @@ class ImageCache {
 /// Async image loader with caching
 @MainActor
 class CachedImageLoader: ObservableObject {
-    @Published var image: UIImage?
+    @Published var image: PlatformImage?
     @Published var isLoading = false
 
     private let url: URL
@@ -204,8 +203,8 @@ class CachedImageLoader: ObservableObject {
                     data = responseData
                 }
 
-                // Create UIImage on main thread to avoid "visual style disabled" warning
-                let loadedImage = UIImage(data: data)
+                // Create PlatformImage on main thread to avoid "visual style disabled" warning
+                let loadedImage = PlatformImage(data: data)
                 if let loadedImage {
                     // Cache asynchronously (encodes on main thread, writes on background)
                     await ImageCache.shared.setAsync(loadedImage, for: url)

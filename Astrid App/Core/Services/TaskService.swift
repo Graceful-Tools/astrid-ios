@@ -1,7 +1,9 @@
 import Foundation
 import Combine
 import CoreData
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Task service using API v1 with offline support via CoreData
 /// Handles task operations and syncing across all user's lists

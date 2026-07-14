@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import UIKit
 
 enum AstridFeature: String, Codable, CaseIterable {
     case googleTasks = "google_tasks"
@@ -87,7 +86,7 @@ final class FeatureFlagService: ObservableObject {
                 await self.refreshIfStale(force: true)
             }
         })
-        observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: PlatformApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in await self?.refreshIfStale() }
         })
     }

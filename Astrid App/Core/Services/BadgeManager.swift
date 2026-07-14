@@ -1,6 +1,5 @@
 import Foundation
 import UserNotifications
-import UIKit
 
 /// BadgeManager handles app icon badge updates for tasks due on or before today
 /// Badge count reflects tasks matching these criteria:
@@ -53,7 +52,7 @@ class BadgeManager {
             } else {
                 // iOS 15 and below - use UIApplication (requires main thread)
                 await MainActor.run {
-                    UIApplication.shared.applicationIconBadgeNumber = count
+                    PlatformApplication.setBadgeCount(count)
                 }
             }
 

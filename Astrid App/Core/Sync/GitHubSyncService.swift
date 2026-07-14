@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 import Combine
 
 /// GitHub Issues sync worker (Phase 2 of the multi-provider plan).
@@ -46,7 +45,7 @@ final class GitHubSyncService: ObservableObject {
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
         foregroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+            forName: PlatformApplication.didBecomeActiveNotification, object: nil, queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }

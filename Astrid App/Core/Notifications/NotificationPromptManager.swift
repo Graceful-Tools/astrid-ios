@@ -1,7 +1,6 @@
 import Foundation
 import UserNotifications
 import Combine
-import UIKit
 
 /// Manages prompting users to enable push notifications
 /// Tracks prompt attempts: 3 times initially, then once per month
@@ -115,9 +114,7 @@ class NotificationPromptManager: ObservableObject {
 
     /// Open the app's Settings page where user can enable notifications
     func openSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
-        }
+        PlatformApplication.openAppSettings()
     }
 
     // MARK: - Private Helpers
