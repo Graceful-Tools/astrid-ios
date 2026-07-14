@@ -18,15 +18,26 @@ struct MacRootView: View {
     @State private var selectedTaskIds = Set<String>()
     @State private var contentMode: ContentMode = .list
     @State private var sortKey: SortKey = .due
+    @State private var filter: TaskFilter = .all
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
     enum SortKey: String, CaseIterable { case due = "Due", priority = "Priority", title = "Title" }
+    enum TaskFilter: String, CaseIterable { case all = "All", active = "Active", today = "Today", overdue = "Overdue" }
 
     private var sortedTasks: [Task] {
         switch sortKey {
         case .due: return tasksForSelection.sorted { ($0.dueDateTime ?? .distantFuture) < ($1.dueDateTime ?? .distantFuture) }
         case .priority: return tasksForSelection.sorted { $0.priority.rawValue > $1.priority.rawValue }
         case .title: return tasksForSelection.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
+    }
+
+    private var displayedTasks: [Task] {
+        switch filter {
+        case .all: return sortedTasks
+        case .active: return sortedTasks.filter { !$0.completed }
+        case .today: return sortedTasks.filter { $0.isDueToday }
+        case .overdue: return sortedTasks.filter { $0.isOverdue }
         }
     }
 
@@ -97,7 +108,7 @@ struct MacRootView: View {
         if tasksForSelection.isEmpty {
             ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
         } else {
-            Table(sortedTasks, selection: $selectedTaskIds) {
+            Table(displayedTasks, selection: $selectedTaskIds) {
                 TableColumn("") { task in
                     Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
@@ -163,7 +174,7 @@ struct MacRootView: View {
                 if let listId = selectedListId {
                     switch contentMode {
                     case .list: taskTable
-                    case .board: MacBoardView(tasks: tasksForSelection)
+                    case .board: MacBoardView(tasks: displayedTasks)
                     case .chat: MacChatPanelView(listId: listId)
                     }
                 } else {
@@ -180,6 +191,15 @@ struct MacRootView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil)
+                }
+                ToolbarItem {
+                    Menu {
+                        Picker("Filter", selection: $filter) {
+                            ForEach(TaskFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                    } label: { Image(systemName: "line.3.horizontal.decrease.circle") }
+                    .disabled(selectedListId == nil || contentMode == .chat)
+                    .help("Filter")
                 }
                 ToolbarItem {
                     Menu {
@@ -222,6 +242,9 @@ struct MacRootView: View {
             // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
             guard let id else { return }
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
+        }
+        .onChange(of: taskService.tasks) {
+            _Concurrency.Task { await BadgeManager.shared.updateBadge(with: taskService.tasks) }
         }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
