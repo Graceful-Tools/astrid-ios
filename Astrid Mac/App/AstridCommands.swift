@@ -29,7 +29,7 @@ struct AstridCommands: Commands {
             Button("Delete") { /* TODO: TaskService.deleteTask */ }
                 .keyboardShortcut(.delete, modifiers: .command)
             Divider()
-            Button("Command Palette…") { /* TODO(M2): open ⌘K palette */ }
+            Button("Command Palette…") { MacAppModel.shared.openPalette() }
                 .keyboardShortcut("k", modifiers: .command)
         }
 

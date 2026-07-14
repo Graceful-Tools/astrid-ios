@@ -58,10 +58,12 @@ struct QuickEntryView: View {
     }
 
     private func save() {
-        let title = text.trimmingCharacters(in: .whitespaces)
-        guard !title.isEmpty else { return }
-        // TODO(M2): parse tokens/dates, then TaskService.createTask(...) → Outbox.
-        NSLog("[Astrid][M0] QuickEntry save: %@", title)
+        let parsed = QuickEntryParser.parse(text)
+        guard !parsed.title.isEmpty else { return }
+        // TODO(M2 wiring): hand parsed.{title,listNames,due} to TaskService.createTask → Outbox
+        // once the signed-in service context is injected into the Mac shell.
+        NSLog("[Astrid] QuickEntry: title=%@ lists=%@ due=%@",
+              parsed.title, parsed.listNames.joined(separator: ","), String(describing: parsed.due))
         text = ""
         dismiss()
     }
