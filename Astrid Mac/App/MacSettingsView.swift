@@ -23,29 +23,22 @@ struct MacSettingsView: View {
             .formStyle(.grouped)
             .tabItem { Label("General", systemImage: "gearshape") }
 
-            Form {
-                Section("Reminders") {
-                    Toggle("Push reminders", isOn: $reminders.pushEnabled)
-                    Toggle("Email reminders", isOn: $reminders.emailEnabled)
-                    Toggle("Daily digest", isOn: $reminders.dailyDigestEnabled)
-                    Toggle("Quiet hours", isOn: $reminders.quietHoursEnabled)
-                }
-            }
-            .formStyle(.grouped)
-            .tabItem { Label("Reminders", systemImage: "bell") }
+            MacReminderSettingsView()
+                .tabItem { Label("Reminders", systemImage: "bell") }
+
+            MacSyncSettingsView()
+                .tabItem { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
+
+            MacLanguageSettingsView()
+                .tabItem { Label("Language", systemImage: "globe") }
+
+            MacConnectionSettingsView()
+                .tabItem { Label("Connection", systemImage: "network") }
 
             MacAccountView()
                 .tabItem { Label("Account", systemImage: "person.circle") }
         }
-        .frame(width: 480, height: 340)
-        .onChange(of: reminders.pushEnabled) { persist() }
-        .onChange(of: reminders.emailEnabled) { persist() }
-        .onChange(of: reminders.dailyDigestEnabled) { persist() }
-        .onChange(of: reminders.quietHoursEnabled) { persist() }
-    }
-
-    private func persist() {
-        _Concurrency.Task { await reminders.save() }   // UserDefaults immediately, server in background
+        .frame(width: 500, height: 380)
     }
 }
 #endif
