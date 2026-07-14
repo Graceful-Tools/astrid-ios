@@ -101,6 +101,125 @@
 			);
 			target = CB5DE3882EBDCC150056928E /* Astrid */;
 		};
+		CBFACADE0000000000000001 /* Exceptions for "Astrid App" folder in "Astrid Mac" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Assets.xcassets",
+				"Astrid App.entitlements",
+				"Core/Services/DeepLinkManager.swift",
+				"Core/Services/ReviewPromptManager.swift",
+				"Extensions/Color+Hex.swift",
+				"Extensions/View+DismissKeyboard.swift",
+				"Extensions/View+InteractivePopGesture.swift",
+				"Extensions/View+ReferenceNavigation.swift",
+				"Extensions/View+TextEditorInsets.swift",
+				"PrivacyInfo.xcprivacy",
+				"Utilities/KeyboardEngineWarmer.swift",
+				"Utilities/Theme.swift",
+				"ViewModels/AccountViewModel.swift",
+				"ViewModels/EditProfileViewModel.swift",
+				"Views/Authentication/LoginView.swift",
+				"Views/Authentication/SignInPromptView.swift",
+				"Views/Board/BoardColumnView.swift",
+				"Views/Board/BoardTaskCardView.swift",
+				"Views/Board/ProjectStatusBoardView.swift",
+				"Views/Chat/AgentTypingIndicator.swift",
+				"Views/Chat/ChatInputView.swift",
+				"Views/Chat/ChatMessageBubble.swift",
+				"Views/Chat/ChatMessageListView.swift",
+				"Views/Chat/ChatPanelView.swift",
+				"Views/Chat/ChatToggleView.swift",
+				"Views/Chat/ViewModeRotatorButton.swift",
+				"Views/Components/AstridSpeechBubble.swift",
+				"Views/Components/AttachmentEditorView.swift",
+				"Views/Components/AttachmentThumbnail.swift",
+				"Views/Components/AutocompleteSupport.swift",
+				"Views/Components/CompactTaskRow.swift",
+				"Views/Components/ConnectionStatusBanner.swift",
+				"Views/Components/CustomRepeatingPatternEditor.swift",
+				"Views/Components/EmptyStateView.swift",
+				"Views/Components/FloatingHeader.swift",
+				"Views/Components/HamburgerMenuIcon.swift",
+				"Views/Components/ImagePickerView.swift",
+				"Views/Components/InlineAssigneePicker.swift",
+				"Views/Components/InlineDatePicker.swift",
+				"Views/Components/InlineListsPicker.swift",
+				"Views/Components/InlinePriorityPicker.swift",
+				"Views/Components/InlineRepeatPicker.swift",
+				"Views/Components/InlineTextEditor.swift",
+				"Views/Components/InlineTimePicker.swift",
+				"Views/Components/LazyView.swift",
+				"Views/Components/ListImageView.swift",
+				"Views/Components/PriorityButtonPicker.swift",
+				"Views/Components/QuickLookController.swift",
+				"Views/Components/RichTextInput.swift",
+				"Views/Components/ScrollToTopButton.swift",
+				"Views/Components/SplashView.swift",
+				"Views/Components/SyncStatusView.swift",
+				"Views/Components/TwoColumnRow.swift",
+				"Views/Components/UIKitWheelPicker.swift",
+				"Views/EditProfileView.swift",
+				"Views/Lists/AddMemberSheet.swift",
+				"Views/Lists/ListAdminTab.swift",
+				"Views/Lists/ListAgentSettingsView.swift",
+				"Views/Lists/ListDefaultsView.swift",
+				"Views/Lists/ListDetailView.swift",
+				"Views/Lists/ListEditView.swift",
+				"Views/Lists/ListFiltersView.swift",
+				"Views/Lists/ListMembershipTab.swift",
+				"Views/Lists/ListPickerView.swift",
+				"Views/Lists/ListRowView.swift",
+				"Views/Lists/ListSettingsModal.swift",
+				"Views/Lists/ListSidebarView.swift",
+				"Views/Lists/ListSortFiltersTab.swift",
+				"Views/Lists/ListsView.swift",
+				"Views/Lists/PublicListBrowserView.swift",
+				"Views/Lists/SaveFilterDialog.swift",
+				"Views/Lists/ShareListView.swift",
+				"Views/MainTabView.swift",
+				"Views/Onboarding/WelcomeChoiceView.swift",
+				"Views/Reminders/ReminderView.swift",
+				"Views/Settings/AIAPIKeyManagerView.swift",
+				"Views/Settings/AIAssistantSettingsView.swift",
+				"Views/Settings/AccountSettingsView.swift",
+				"Views/Settings/AppearanceSettingsView.swift",
+				"Views/Settings/AppleRemindersSettingsView.swift",
+				"Views/Settings/DefaultAgentPickerView.swift",
+				"Views/Settings/DeleteAccountView.swift",
+				"Views/Settings/GitHubSyncSettingsView.swift",
+				"Views/Settings/GoogleTasksSettingsView.swift",
+				"Views/Settings/LanguageSettingsView.swift",
+				"Views/Settings/OpenClawSettingsView.swift",
+				"Views/Settings/ReminderSettingsView.swift",
+				"Views/Settings/ServerSettingsView.swift",
+				"Views/Settings/SettingsView.swift",
+				"Views/Tasks/CommentSectionViewEnhanced.swift",
+				"Views/Tasks/MyTasksFilterSheet.swift",
+				"Views/Tasks/QuickAddTaskView.swift",
+				"Views/Tasks/ShareTaskView.swift",
+				"Views/Tasks/SubtasksSectionView.swift",
+				"Views/Tasks/TaskActionsView.swift",
+				"Views/Tasks/TaskAttachmentSectionView.swift",
+				"Views/Tasks/TaskDetailViewNew.swift",
+				"Views/Tasks/TaskDetailViewOnly.swift",
+				"Views/Tasks/TaskEditView.swift",
+				"Views/Tasks/TaskListPickerView.swift",
+				"Views/Tasks/TaskListView.swift",
+				"Views/Tasks/TaskRowView.swift",
+				"Views/Tasks/TaskTimerView.swift",
+				"Views/Tasks/iPadTaskManagerView.swift",
+				"Views/UserProfileView.swift",
+				"Extensions/View+ScrollToTop.swift",
+				"Extensions/View+SwipeToDismiss.swift",
+				"Core/Notifications/NotificationPromptManager.swift",
+				"Core/Notifications/ReminderPresenter.swift",
+				"Core/Services/ListPresenter.swift",
+				"Core/Services/TaskPresenter.swift",
+				"Core/Services/SettingsPresenter.swift",
+				"Core/Services/BackgroundSyncHandler.swift",
+			);
+			target = CB8DEFD03005D591003E5617 /* Astrid Mac */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -129,6 +248,9 @@
 		};
 		CBB135862EAB27CD00D41E86 /* Astrid App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CBFACADE0000000000000001 /* Exceptions for "Astrid App" folder in "Astrid Mac" target */,
+			);
 			path = "Astrid App";
 			sourceTree = "<group>";
 		};
@@ -349,6 +471,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB8DEFD23005D591003E5617 /* Astrid Mac */,
+				CBB135862EAB27CD00D41E86 /* Astrid App */,
 			);
 			name = "Astrid Mac";
 			packageProductDependencies = (

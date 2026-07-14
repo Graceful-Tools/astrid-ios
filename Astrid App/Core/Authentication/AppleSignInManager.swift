@@ -138,11 +138,7 @@ extension AppleSignInManager: ASAuthorizationControllerDelegate {
 extension AppleSignInManager: ASAuthorizationControllerPresentationContextProviding {
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         // Return the main window
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            fatalError("No window available")
-        }
-        return window
+        return PlatformApplication.presentationAnchor()
     }
 }
 

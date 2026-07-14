@@ -6,30 +6,6 @@ import Combine
 
 /// Shared cache for thumbnail images to prevent reloading when views recreate
 @MainActor
-final class ThumbnailCache {
-    static let shared = ThumbnailCache()
-    private var cache: [String: UIImage] = [:]
-
-    func get(_ fileId: String) -> UIImage? {
-        return cache[fileId]
-    }
-
-    func set(_ image: UIImage, for fileId: String) {
-        cache[fileId] = image
-    }
-
-    func has(_ fileId: String) -> Bool {
-        return cache[fileId] != nil
-    }
-
-    /// Copy cache entry when temp ID is replaced with real ID
-    func alias(from tempId: String, to realId: String) {
-        if let image = cache[tempId] {
-            cache[realId] = image
-            print("🖼️ [ThumbnailCache] Aliased \(tempId) -> \(realId)")
-        }
-    }
-}
 
 /// Displays a thumbnail for an attachment/secure file (matches web mobile styling)
 struct AttachmentThumbnail: View {

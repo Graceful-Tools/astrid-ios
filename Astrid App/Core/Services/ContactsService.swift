@@ -86,7 +86,11 @@ class ContactsService: ObservableObject {
 
     /// Check if we have Contacts permission (includes .limited for iOS 18+)
     var hasPermission: Bool {
-        authorizationStatus == .authorized || authorizationStatus == .limited
+        #if os(iOS)
+        return authorizationStatus == .authorized || authorizationStatus == .limited
+        #else
+        return authorizationStatus == .authorized
+        #endif
     }
 
     // MARK: - Fetch Device Contacts

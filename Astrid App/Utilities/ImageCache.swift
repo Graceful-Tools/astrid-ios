@@ -79,7 +79,7 @@ class ImageCache {
 
         // Store in disk cache
         let fileURL = diskCacheURL(for: url)
-        if let data = image.pngData() {
+        if let data = image.pngDataCompat() {
             try? data.write(to: fileURL)
             print("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
         }
@@ -93,7 +93,7 @@ class ImageCache {
 
         // Encode image on main thread to avoid "visual style disabled" warning
         let data = await MainActor.run {
-            image.pngData()
+            image.pngDataCompat()
         }
 
         guard let data else { return }
@@ -249,7 +249,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     var body: some View {
         Group {
             if let image = loader.image {
-                content(Image(uiImage: image))
+                content(Image(platformImage: image))
             } else {
                 placeholder()
             }

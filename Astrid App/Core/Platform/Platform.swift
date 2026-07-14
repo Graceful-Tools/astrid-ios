@@ -12,6 +12,7 @@
 
 import Foundation
 import SwiftUI
+import AuthenticationServices
 
 #if canImport(UIKit)
 import UIKit
@@ -65,6 +66,42 @@ public enum PlatformApplication {
         UIApplication.shared.open(url)
         #elseif canImport(AppKit)
         NSWorkspace.shared.open(url)
+        #endif
+    }
+
+    /// Window to anchor ASAuthorization / ASWebAuthenticationSession UI to.
+    @MainActor public static func presentationAnchor() -> ASPresentationAnchor {
+        #if canImport(UIKit)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            fatalError("No window available")
+        }
+        return window
+        #elseif canImport(AppKit)
+        return NSApplication.shared.windows.first ?? NSWindow()
+        #endif
+    }
+}
+
+public extension PlatformImage {
+    /// PNG data on both platforms (UIImage.pngData / NSImage via bitmap representation).
+    func pngDataCompat() -> Data? {
+        #if canImport(UIKit)
+        return pngData()
+        #elseif canImport(AppKit)
+        guard let tiff = tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
+        #endif
+    }
+}
+
+public extension Image {
+    /// Cross-platform `Image(uiImage:)` / `Image(nsImage:)`.
+    init(platformImage: PlatformImage) {
+        #if canImport(UIKit)
+        self.init(uiImage: platformImage)
+        #elseif canImport(AppKit)
+        self.init(nsImage: platformImage)
         #endif
     }
 }

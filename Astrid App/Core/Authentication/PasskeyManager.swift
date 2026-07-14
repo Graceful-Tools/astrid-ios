@@ -661,11 +661,7 @@ extension PasskeyManager: ASAuthorizationControllerDelegate {
 
 extension PasskeyManager: ASAuthorizationControllerPresentationContextProviding {
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            fatalError("No window available")
-        }
-        return window
+        return PlatformApplication.presentationAnchor()
     }
 }
 
