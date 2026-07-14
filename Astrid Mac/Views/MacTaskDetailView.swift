@@ -19,6 +19,8 @@ struct MacTaskDetailView: View {
     @State private var due = Date()
     @State private var isAllDay = false
     @State private var priority: Task.Priority = .none
+    @State private var repeating: Task.Repeating = .never
+    @State private var members: [ListMember] = []
 
     @State private var subtasks: [Task] = []
     @State private var newSubtask = ""
@@ -46,6 +48,22 @@ struct MacTaskDetailView: View {
                                displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
                         .onChange(of: due) { saveDue() }
                     Toggle("All day", isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
+                }
+                Picker("Repeat", selection: $repeating) {
+                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly], id: \.self) {
+                        Text($0.displayName).tag($0)
+                    }
+                }
+                .onChange(of: repeating) { saveRepeat() }
+            }
+
+            Section("Assignee") {
+                Picker("Assigned to", selection: Binding(
+                    get: { task.assigneeId ?? "" },
+                    set: { setAssignee($0.isEmpty ? nil : $0) }
+                )) {
+                    Text("No one").tag("")
+                    ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
                 }
             }
 
@@ -116,12 +134,29 @@ struct MacTaskDetailView: View {
         notes = task.description
         priority = task.priority
         isAllDay = task.isAllDay
+        repeating = task.repeating ?? .never
         if let d = task.dueDateTime { hasDue = true; due = d } else { hasDue = false }
         subtasks = (task.listIds ?? []).flatMap { taskService.getTasksForList($0) }
             .filter { $0.parentTaskId == task.id }
         _Concurrency.Task {
+            if let listId = task.listIds?.first {
+                try? await ListMemberService.shared.fetchMembers(listId: listId)
+                members = ListMemberService.shared.membersByList[listId] ?? []
+            }
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
+    }
+
+    private func saveRepeat() {
+        guard repeating != (task.repeating ?? .never) else { return }
+        _Concurrency.Task {
+            _ = try? await taskService.updateTask(taskId: task.id, repeating: repeating.rawValue, repeatFrom: "DUE_DATE", task: task)
+        }
+    }
+
+    private func setAssignee(_ id: String?) {
+        guard let id else { return }   // clearing assignee via this path is a follow-up
+        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: id, task: task) }
     }
 
     private func saveTitle() {
