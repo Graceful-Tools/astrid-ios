@@ -35,9 +35,12 @@ struct MacAuthGateView: View {
     }
 }
 
-/// Native sign-in screen — Apple / Google / Passkey / email (passwordless), all via AuthManager.
+/// Native sign-in screen — Passkey-first (primary), with Google/Apple. Passkeys share the
+/// astrid.cc Relying Party with web + iOS (webcredentials associated-domain + AASA). All via
+/// the shared AuthManager; mirrors the iOS LoginView, adapted to native macOS (ASAuthorization).
 struct MacLoginView: View {
     @StateObject private var auth = AuthManager.shared
+    @State private var showSignUp = false
     @State private var email = ""
 
     private var emailValid: Bool {
@@ -46,61 +49,69 @@ struct MacLoginView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 20) {
             VStack(spacing: 6) {
-                Image(systemName: "checklist").font(.system(size: 52)).foregroundStyle(.tint)
-                Text("Astrid").font(.largeTitle.bold())
-                Text("Sign in to your account").foregroundStyle(.secondary)
+                Image(systemName: "checklist").font(.system(size: 52)).foregroundStyle(Theme.accent)
+                Text("Astrid").font(.largeTitle.bold()).foregroundStyle(Theme.textPrimary)
+                Text("Sign in to your account").foregroundStyle(Theme.textSecondary)
             }
-            .padding(.bottom, 6)
+            .padding(.bottom, 4)
 
             VStack(spacing: 10) {
-                signInButton("Sign in with Apple", "apple.logo") { try await auth.signInWithApple() }
-                signInButton("Sign in with Google", "globe") { try await auth.signInWithGoogle() }
-                signInButton("Sign in with Passkey", "key.fill") {
-                    try await auth.signInWithPasskey(email: emailValid ? email : nil)
+                // Passkey — primary sign-in (discoverable credential; no email needed).
+                Button { run { try await auth.signInWithPasskey(email: nil) } } label: {
+                    Label("Sign in with Passkey", systemImage: "person.badge.key.fill")
+                        .frame(maxWidth: .infinity)
                 }
-            }
+                .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
 
-            Divider().frame(width: 260)
-
-            VStack(spacing: 10) {
-                TextField("Email", text: $email)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 260)
-                    .onSubmit { if emailValid { emailContinue() } }
-                Button(action: emailContinue) {
-                    Text("Continue with Email").frame(width: 244)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!emailValid || auth.isLoading)
+                secondaryButton("Continue with Google", "globe") { try await auth.signInWithGoogle() }
+                secondaryButton("Sign in with Apple", "apple.logo") { try await auth.signInWithApple() }
             }
+            .frame(width: 280)
+
+            Button("New here? Create an account with Passkey") { showSignUp = true }
+                .buttonStyle(.link).font(.callout)
 
             if auth.isLoading { ProgressView().controlSize(.small) }
             if let err = auth.errorMessage, !err.isEmpty {
-                Text(err).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
-                    .frame(width: 280)
+                Text(err).font(.caption).foregroundStyle(Theme.error)
+                    .multilineTextAlignment(.center).frame(width: 300)
             }
         }
         .padding(40)
+        .frame(width: 400)
+        .sheet(isPresented: $showSignUp) { signUpSheet }
+    }
+
+    private var signUpSheet: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Create Account").font(.headline).foregroundStyle(Theme.textPrimary)
+            Text("Enter your email, then create a passkey on this Mac (Touch ID / your device).")
+                .font(.callout).foregroundStyle(Theme.textSecondary)
+            TextField("Email", text: $email).textFieldStyle(.roundedBorder).onSubmit(signUp)
+            HStack {
+                Spacer()
+                Button("Cancel") { showSignUp = false }.keyboardShortcut(.escape, modifiers: [])
+                Button("Create Passkey", action: signUp)
+                    .buttonStyle(.borderedProminent).disabled(!emailValid)
+            }
+        }
+        .padding(20)
         .frame(width: 380)
     }
 
-    @ViewBuilder
-    private func signInButton(_ title: String, _ icon: String, _ op: @escaping () async throws -> Void) -> some View {
-        Button {
-            run(op)
-        } label: {
-            Label(title, systemImage: icon).frame(width: 244)
+    private func secondaryButton(_ title: String, _ icon: String, _ op: @escaping () async throws -> Void) -> some View {
+        Button { run(op) } label: {
+            Label(title, systemImage: icon).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .disabled(auth.isLoading)
+        .buttonStyle(.bordered).controlSize(.large).disabled(auth.isLoading)
     }
 
-    private func emailContinue() {
+    private func signUp() {
         guard emailValid else { return }
-        run { try await auth.signUpPasswordless(email: email.trimmingCharacters(in: .whitespaces), name: nil) }
+        showSignUp = false
+        run { try await auth.signUpWithPasskey(email: email.trimmingCharacters(in: .whitespaces)) }
     }
 
     private func run(_ op: @escaping () async throws -> Void) {

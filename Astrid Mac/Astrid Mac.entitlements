@@ -10,5 +10,8 @@
 	<true/>
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
+	<!-- Passkey (webcredentials:astrid.cc) is added via Xcode → Signing & Capabilities →
+	     Associated Domains, so the entitlement + provisioning profile stay in sync.
+	     See docs/MAC_PASSKEY.md. -->
 </dict>
 </plist>
