@@ -92,26 +92,70 @@ struct MacRootView: View {
     }
 }
 
-/// Minimal native task detail (M1). Grows into inline editing in M2.
+/// Native task detail with inline editing (M2) + tear-off (M2/v1.1).
 struct MacTaskDetailView: View {
     let task: Task
+    @State private var editedTitle = ""
+    @Environment(\.openWindow) private var openWindow
+    private var taskService: TaskService { .shared }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(task.title).font(.title2).bold()
+        Form {
+            Section {
+                TextField("Title", text: $editedTitle)
+                    .font(.title3)
+                    .onSubmit(commitTitle)
+                Toggle("Completed", isOn: Binding(
+                    get: { task.completed },
+                    set: { setCompleted($0) }
+                ))
                 if let due = task.dueDateTime {
-                    Label { Text(due, style: .date) } icon: { Image(systemName: "calendar") }
+                    LabeledContent("Due") { Text(due, style: .date) }
                 }
-                Label {
-                    Text(task.completed ? "Completed" : "Open")
-                } icon: {
-                    Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
-                }
-                Spacer()
+                LabeledContent("Priority") { Text(String(describing: task.priority)) }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Section {
+                Button {
+                    openWindow(id: "task", value: task.id)
+                } label: {
+                    Label("Open in New Window", systemImage: "macwindow.on.rectangle")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { editedTitle = task.title }
+        .onChange(of: task.id) { editedTitle = task.title }
+    }
+
+    private func commitTitle() {
+        let t = editedTitle.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, t != task.title else { return }
+        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, title: t) }
+    }
+
+    private func setCompleted(_ value: Bool) {
+        _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: value, task: task) }
+    }
+}
+
+/// A torn-off single-task window (opened by id via openWindow(id: "task", value:)).
+struct MacTaskWindowView: View {
+    let taskId: String?
+    @StateObject private var listService = ListService.shared
+    @StateObject private var taskService = TaskService.shared
+
+    private var task: Task? {
+        guard let id = taskId else { return nil }
+        return listService.lists.lazy.compactMap { list in
+            taskService.getTasksForList(list.id).first { $0.id == id }
+        }.first
+    }
+
+    var body: some View {
+        if let task {
+            MacTaskDetailView(task: task).frame(minWidth: 360, minHeight: 300)
+        } else {
+            ContentUnavailableView("Task not found", systemImage: "questionmark.square.dashed")
         }
     }
 }

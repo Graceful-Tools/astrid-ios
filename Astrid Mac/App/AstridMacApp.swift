@@ -47,7 +47,10 @@ struct AstridMacApp: App {
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
-        // TODO(v1.1): MenuBarExtra { … } and WindowGroup(for: TaskID.self) { … } tear-off windows.
+        // Tear-off: open a single task in its own window (v1.1).
+        WindowGroup(id: "task", for: String.self) { $taskId in
+            MacTaskWindowView(taskId: taskId)
+        }
     }
 }
 #endif
