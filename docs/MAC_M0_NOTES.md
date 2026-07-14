@@ -52,15 +52,36 @@ Bare-key scheme from `astrid-web/hooks/useKeyboardShortcuts.ts` (`KEYBOARD_SHORT
 
 ## Remaining M0 steps (need a Mac + Xcode — for whoever picks this up)
 
-### A. Create the macOS target
-1. Xcode → File → New → Target → **macOS App** ("Astrid Mac"), SwiftUI lifecycle.
-2. Delete its generated `@main`/ContentView; instead add the `Astrid Mac/` folder as a synchronized
-   group of this target (so `AstridMacApp.swift` provides `@main`).
-3. Add the shared source folders to the macOS target's membership: everything the app needs from
-   `Astrid App/` **except** the Bucket-B iOS-only files (below) and `AstridApp.swift` (iOS `@main`).
-4. Add frameworks the shim/hotkey need: `AppKit`, `Carbon` (for `GlobalHotKey`), `StoreKit`, `EventKit`.
-5. Set `MACOSX_DEPLOYMENT_TARGET` to the two-most-recent-majors floor (pin the number).
-6. Build for "My Mac". Fix compile errors by applying the guard table below.
+### A. Create the macOS target (one-time, in Xcode)
+1. **New target:** File → New → Target → **macOS · App**. Product Name **`Astrid Mac`**, SwiftUI
+   lifecycle, Swift. (Xcode derives the module name **`Astrid_Mac`** — this MUST match
+   `@testable import Astrid_Mac` in `KeyboardShortcutsParityTests.swift`. If you name it
+   differently, tell me and I'll update the import.)
+2. **Delete the generated `ContentView.swift` + `<name>App.swift`** — the shell's `@main` comes from
+   `Astrid Mac/App/AstridMacApp.swift`.
+3. **Add `Astrid Mac/` to the target:** drag the `Astrid Mac/` folder in as a *file-system-synchronized
+   group* of the macOS target. This pulls in the shell, Platform shim, GlobalHotKey, QuickEntry, and
+   the KeyboardShortcuts table.
+4. **Share the existing code:** give the macOS target membership in the `Astrid App` synchronized group,
+   then add **membership exceptions** (Xcode 16 synchronized-group feature) to EXCLUDE:
+   - `AstridApp.swift` (that's the iOS `@main`), `Views/MainTabView.swift`, and the **Bucket-B**
+     iOS-only files (see §B). Everything else (Models, Core/*, most Views, Utilities, Extensions) is shared.
+5. **Link frameworks** the shim/hotkey need: `Carbon` (GlobalHotKey), `StoreKit`, `EventKit`
+   (AppKit/SwiftUI are implicit).
+6. **Set `MACOSX_DEPLOYMENT_TARGET`** to the two-most-recent-majors floor (pin the number). Add a
+   dev signing identity so it builds.
+7. **Build "My Mac".** Fix compile errors by applying the Bucket-A guard table (§B) — that's the
+   expected, mechanical work. Ping me and I'll apply the guards as reviewed edits once CI can verify them.
+
+### A′. Create the macOS test target + CI lane
+1. File → New → Target → **macOS · Unit Testing Bundle** named **`Astrid MacTests`**, host app `Astrid Mac`.
+2. Add `Astrid Mac/Keyboard/KeyboardShortcutsParityTests.swift` to it. Run ⌘U — the parity test must pass.
+3. **Xcode Cloud:** add a workflow (or extend the existing one) that builds + tests the **`Astrid Mac`**
+   scheme on a macOS destination, so `KeyboardShortcutsParityTests` (and future Mac tests) gate every push.
+
+> **Note on the App Store build:** folding these into a real build changes the iOS/Mac binaries — bump
+> `CURRENT_PROJECT_VERSION` again (currently 122, reserved for the in-flight 1.8.3 App Store submission)
+> before the next upload. Don't reuse 122.
 
 ### B. Apply the platform guards to the 14 UIKit files
 
