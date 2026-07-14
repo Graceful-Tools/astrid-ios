@@ -104,119 +104,118 @@
 		CBFACADE0000000000000001 /* Exceptions for "Astrid App" folder in "Astrid Mac" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Assets.xcassets",
-				"Astrid App.entitlements",
-				"Core/Services/DeepLinkManager.swift",
-				"Core/Services/ReviewPromptManager.swift",
+				Assets.xcassets,
+				Core/Notifications/NotificationPromptManager.swift,
+				Core/Notifications/ReminderPresenter.swift,
+				Core/Services/BackgroundSyncHandler.swift,
+				Core/Services/DeepLinkManager.swift,
+				Core/Services/ListPresenter.swift,
+				Core/Services/ReviewPromptManager.swift,
+				Core/Services/SettingsPresenter.swift,
+				Core/Services/TaskPresenter.swift,
 				"Extensions/Color+Hex.swift",
 				"Extensions/View+DismissKeyboard.swift",
 				"Extensions/View+InteractivePopGesture.swift",
 				"Extensions/View+ReferenceNavigation.swift",
-				"Extensions/View+TextEditorInsets.swift",
-				"PrivacyInfo.xcprivacy",
-				"Utilities/KeyboardEngineWarmer.swift",
-				"Utilities/Theme.swift",
-				"ViewModels/AccountViewModel.swift",
-				"ViewModels/EditProfileViewModel.swift",
-				"Views/Authentication/LoginView.swift",
-				"Views/Authentication/SignInPromptView.swift",
-				"Views/Board/BoardColumnView.swift",
-				"Views/Board/BoardTaskCardView.swift",
-				"Views/Board/ProjectStatusBoardView.swift",
-				"Views/Chat/AgentTypingIndicator.swift",
-				"Views/Chat/ChatInputView.swift",
-				"Views/Chat/ChatMessageBubble.swift",
-				"Views/Chat/ChatMessageListView.swift",
-				"Views/Chat/ChatPanelView.swift",
-				"Views/Chat/ChatToggleView.swift",
-				"Views/Chat/ViewModeRotatorButton.swift",
-				"Views/Components/AstridSpeechBubble.swift",
-				"Views/Components/AttachmentEditorView.swift",
-				"Views/Components/AttachmentThumbnail.swift",
-				"Views/Components/AutocompleteSupport.swift",
-				"Views/Components/CompactTaskRow.swift",
-				"Views/Components/ConnectionStatusBanner.swift",
-				"Views/Components/CustomRepeatingPatternEditor.swift",
-				"Views/Components/EmptyStateView.swift",
-				"Views/Components/FloatingHeader.swift",
-				"Views/Components/HamburgerMenuIcon.swift",
-				"Views/Components/ImagePickerView.swift",
-				"Views/Components/InlineAssigneePicker.swift",
-				"Views/Components/InlineDatePicker.swift",
-				"Views/Components/InlineListsPicker.swift",
-				"Views/Components/InlinePriorityPicker.swift",
-				"Views/Components/InlineRepeatPicker.swift",
-				"Views/Components/InlineTextEditor.swift",
-				"Views/Components/InlineTimePicker.swift",
-				"Views/Components/LazyView.swift",
-				"Views/Components/ListImageView.swift",
-				"Views/Components/PriorityButtonPicker.swift",
-				"Views/Components/QuickLookController.swift",
-				"Views/Components/RichTextInput.swift",
-				"Views/Components/ScrollToTopButton.swift",
-				"Views/Components/SplashView.swift",
-				"Views/Components/SyncStatusView.swift",
-				"Views/Components/TwoColumnRow.swift",
-				"Views/Components/UIKitWheelPicker.swift",
-				"Views/EditProfileView.swift",
-				"Views/Lists/AddMemberSheet.swift",
-				"Views/Lists/ListAdminTab.swift",
-				"Views/Lists/ListAgentSettingsView.swift",
-				"Views/Lists/ListDefaultsView.swift",
-				"Views/Lists/ListDetailView.swift",
-				"Views/Lists/ListEditView.swift",
-				"Views/Lists/ListFiltersView.swift",
-				"Views/Lists/ListMembershipTab.swift",
-				"Views/Lists/ListPickerView.swift",
-				"Views/Lists/ListRowView.swift",
-				"Views/Lists/ListSettingsModal.swift",
-				"Views/Lists/ListSidebarView.swift",
-				"Views/Lists/ListSortFiltersTab.swift",
-				"Views/Lists/ListsView.swift",
-				"Views/Lists/PublicListBrowserView.swift",
-				"Views/Lists/SaveFilterDialog.swift",
-				"Views/Lists/ShareListView.swift",
-				"Views/MainTabView.swift",
-				"Views/Onboarding/WelcomeChoiceView.swift",
-				"Views/Reminders/ReminderView.swift",
-				"Views/Settings/AIAPIKeyManagerView.swift",
-				"Views/Settings/AIAssistantSettingsView.swift",
-				"Views/Settings/AccountSettingsView.swift",
-				"Views/Settings/AppearanceSettingsView.swift",
-				"Views/Settings/AppleRemindersSettingsView.swift",
-				"Views/Settings/DefaultAgentPickerView.swift",
-				"Views/Settings/DeleteAccountView.swift",
-				"Views/Settings/GitHubSyncSettingsView.swift",
-				"Views/Settings/GoogleTasksSettingsView.swift",
-				"Views/Settings/LanguageSettingsView.swift",
-				"Views/Settings/OpenClawSettingsView.swift",
-				"Views/Settings/ReminderSettingsView.swift",
-				"Views/Settings/ServerSettingsView.swift",
-				"Views/Settings/SettingsView.swift",
-				"Views/Tasks/CommentSectionViewEnhanced.swift",
-				"Views/Tasks/MyTasksFilterSheet.swift",
-				"Views/Tasks/QuickAddTaskView.swift",
-				"Views/Tasks/ShareTaskView.swift",
-				"Views/Tasks/SubtasksSectionView.swift",
-				"Views/Tasks/TaskActionsView.swift",
-				"Views/Tasks/TaskAttachmentSectionView.swift",
-				"Views/Tasks/TaskDetailViewNew.swift",
-				"Views/Tasks/TaskDetailViewOnly.swift",
-				"Views/Tasks/TaskEditView.swift",
-				"Views/Tasks/TaskListPickerView.swift",
-				"Views/Tasks/TaskListView.swift",
-				"Views/Tasks/TaskRowView.swift",
-				"Views/Tasks/TaskTimerView.swift",
-				"Views/Tasks/iPadTaskManagerView.swift",
-				"Views/UserProfileView.swift",
 				"Extensions/View+ScrollToTop.swift",
 				"Extensions/View+SwipeToDismiss.swift",
-				"Core/Notifications/NotificationPromptManager.swift",
-				"Core/Notifications/ReminderPresenter.swift",
-				"Core/Services/ListPresenter.swift",
-				"Core/Services/TaskPresenter.swift",
-				"Core/Services/SettingsPresenter.swift",
-				"Core/Services/BackgroundSyncHandler.swift",
+				"Extensions/View+TextEditorInsets.swift",
+				PrivacyInfo.xcprivacy,
+				Utilities/KeyboardEngineWarmer.swift,
+				Utilities/Theme.swift,
+				ViewModels/AccountViewModel.swift,
+				ViewModels/EditProfileViewModel.swift,
+				Views/Authentication/LoginView.swift,
+				Views/Authentication/SignInPromptView.swift,
+				Views/Board/BoardColumnView.swift,
+				Views/Board/BoardTaskCardView.swift,
+				Views/Board/ProjectStatusBoardView.swift,
+				Views/Chat/AgentTypingIndicator.swift,
+				Views/Chat/ChatInputView.swift,
+				Views/Chat/ChatMessageBubble.swift,
+				Views/Chat/ChatMessageListView.swift,
+				Views/Chat/ChatPanelView.swift,
+				Views/Chat/ChatToggleView.swift,
+				Views/Chat/ViewModeRotatorButton.swift,
+				Views/Components/AstridSpeechBubble.swift,
+				Views/Components/AttachmentEditorView.swift,
+				Views/Components/AttachmentThumbnail.swift,
+				Views/Components/AutocompleteSupport.swift,
+				Views/Components/CompactTaskRow.swift,
+				Views/Components/ConnectionStatusBanner.swift,
+				Views/Components/CustomRepeatingPatternEditor.swift,
+				Views/Components/EmptyStateView.swift,
+				Views/Components/FloatingHeader.swift,
+				Views/Components/HamburgerMenuIcon.swift,
+				Views/Components/ImagePickerView.swift,
+				Views/Components/InlineAssigneePicker.swift,
+				Views/Components/InlineDatePicker.swift,
+				Views/Components/InlineListsPicker.swift,
+				Views/Components/InlinePriorityPicker.swift,
+				Views/Components/InlineRepeatPicker.swift,
+				Views/Components/InlineTextEditor.swift,
+				Views/Components/InlineTimePicker.swift,
+				Views/Components/LazyView.swift,
+				Views/Components/ListImageView.swift,
+				Views/Components/PriorityButtonPicker.swift,
+				Views/Components/QuickLookController.swift,
+				Views/Components/RichTextInput.swift,
+				Views/Components/ScrollToTopButton.swift,
+				Views/Components/SplashView.swift,
+				Views/Components/SyncStatusView.swift,
+				Views/Components/TwoColumnRow.swift,
+				Views/Components/UIKitWheelPicker.swift,
+				Views/EditProfileView.swift,
+				Views/Lists/AddMemberSheet.swift,
+				Views/Lists/ListAdminTab.swift,
+				Views/Lists/ListAgentSettingsView.swift,
+				Views/Lists/ListDefaultsView.swift,
+				Views/Lists/ListDetailView.swift,
+				Views/Lists/ListEditView.swift,
+				Views/Lists/ListFiltersView.swift,
+				Views/Lists/ListMembershipTab.swift,
+				Views/Lists/ListPickerView.swift,
+				Views/Lists/ListRowView.swift,
+				Views/Lists/ListSettingsModal.swift,
+				Views/Lists/ListSidebarView.swift,
+				Views/Lists/ListSortFiltersTab.swift,
+				Views/Lists/ListsView.swift,
+				Views/Lists/PublicListBrowserView.swift,
+				Views/Lists/SaveFilterDialog.swift,
+				Views/Lists/ShareListView.swift,
+				Views/MainTabView.swift,
+				Views/Onboarding/WelcomeChoiceView.swift,
+				Views/Reminders/ReminderView.swift,
+				Views/Settings/AccountSettingsView.swift,
+				Views/Settings/AIAPIKeyManagerView.swift,
+				Views/Settings/AIAssistantSettingsView.swift,
+				Views/Settings/AppearanceSettingsView.swift,
+				Views/Settings/AppleRemindersSettingsView.swift,
+				Views/Settings/DefaultAgentPickerView.swift,
+				Views/Settings/DeleteAccountView.swift,
+				Views/Settings/GitHubSyncSettingsView.swift,
+				Views/Settings/GoogleTasksSettingsView.swift,
+				Views/Settings/LanguageSettingsView.swift,
+				Views/Settings/OpenClawSettingsView.swift,
+				Views/Settings/ReminderSettingsView.swift,
+				Views/Settings/ServerSettingsView.swift,
+				Views/Settings/SettingsView.swift,
+				Views/Tasks/CommentSectionViewEnhanced.swift,
+				Views/Tasks/iPadTaskManagerView.swift,
+				Views/Tasks/MyTasksFilterSheet.swift,
+				Views/Tasks/QuickAddTaskView.swift,
+				Views/Tasks/ShareTaskView.swift,
+				Views/Tasks/SubtasksSectionView.swift,
+				Views/Tasks/TaskActionsView.swift,
+				Views/Tasks/TaskAttachmentSectionView.swift,
+				Views/Tasks/TaskDetailViewNew.swift,
+				Views/Tasks/TaskDetailViewOnly.swift,
+				Views/Tasks/TaskEditView.swift,
+				Views/Tasks/TaskListPickerView.swift,
+				Views/Tasks/TaskListView.swift,
+				Views/Tasks/TaskRowView.swift,
+				Views/Tasks/TaskTimerView.swift,
+				Views/UserProfileView.swift,
 			);
 			target = CB8DEFD03005D591003E5617 /* Astrid Mac */;
 		};
@@ -876,7 +875,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -904,7 +903,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -1077,9 +1076,9 @@
 		CB8DEFF53005D592003E5617 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1110,9 +1109,9 @@
 		CB8DEFF63005D592003E5617 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1352,7 +1351,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1382,7 +1381,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1410,7 +1409,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.8.3;
@@ -1432,7 +1431,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1453,7 +1452,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;
@@ -1473,7 +1472,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 130;
+				CURRENT_PROJECT_VERSION = 131;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;

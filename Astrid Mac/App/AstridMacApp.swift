@@ -15,16 +15,10 @@ import SwiftUI
 @main
 struct AstridMacApp: App {
 
-    // TODO(M1): inject the SAME shared observable app-state / services the iOS app uses
-    // (e.g. @StateObject private var appState = AppState()) — do NOT create Mac-only state.
-    @StateObject private var hotKeyController = QuickEntryHotKeyController()
-
     var body: some Scene {
-        // Main window: sidebar + content + detail (see MacRootView).
+        // Main window: auth gate → sign-in when signed out, shell when signed in.
         WindowGroup(id: "main") {
-            MacRootView()
-                // .environmentObject(appState)
-                .task { hotKeyController.registerIfNeeded() }
+            MacAuthGateView()
         }
         .commands { AstridCommands() }              // full menu bar (M1)
 
