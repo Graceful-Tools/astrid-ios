@@ -15,6 +15,21 @@ struct MacRootView: View {
     @StateObject private var auth = AuthManager.shared
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
+    @State private var showNewList = false
+    @State private var editingList: TaskList?
+    @State private var listToDelete: TaskList?
+
+    private func toggleFavorite(_ list: TaskList) {
+        _Concurrency.Task {
+            _ = try? await listService.toggleFavorite(listId: list.id, isFavorite: !(list.isFavorite ?? false))
+        }
+    }
+    private func deleteList(_ list: TaskList) {
+        _Concurrency.Task {
+            try? await listService.deleteList(listId: list.id)
+            if selectedListId == list.id { selectedListId = nil }
+        }
+    }
 
     private var accountMenu: some View {
         Menu {
@@ -35,6 +50,16 @@ struct MacRootView: View {
         return taskService.getTasksForList(id)
     }
 
+    /// Create a task in the selected list and select it for full editing (C2).
+    private func newTask() {
+        guard let listId = selectedListId else { return }
+        _Concurrency.Task {
+            if let created = try? await taskService.createTask(listIds: [listId], title: "New Task") {
+                await MainActor.run { selectedTaskIds = [created.id] }
+            }
+        }
+    }
+
     /// Complete every selected task through the canonical service (repeat rollover honored).
     private func completeSelected() {
         let toComplete = tasksForSelection.filter { selectedTaskIds.contains($0.id) && !$0.completed }
@@ -47,10 +72,28 @@ struct MacRootView: View {
     var body: some View {
         NavigationSplitView {
             List(listService.lists, selection: $selectedListId) { list in
-                Label(list.name, systemImage: "list.bullet").tag(Optional(list.id))
+                Label {
+                    Text(list.name)
+                } icon: {
+                    Image(systemName: (list.isFavorite ?? false) ? "star.fill" : "list.bullet")
+                        .foregroundStyle((list.isFavorite ?? false) ? Theme.warning : Theme.accent)
+                }
+                .tag(Optional(list.id))
+                .contextMenu {
+                    Button("Rename…") { editingList = list }
+                    Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
+                    Divider()
+                    Button("Delete…", role: .destructive) { listToDelete = list }
+                }
             }
             .navigationTitle("Astrid")
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+            .toolbar {
+                ToolbarItem {
+                    Button { showNewList = true } label: { Image(systemName: "plus") }
+                        .help("New List")
+                }
+            }
         } content: {
             Group {
                 if selectedListId == nil {
@@ -86,6 +129,13 @@ struct MacRootView: View {
                 }
             }
             .navigationTitle(listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { newTask() } label: { Label("New Task", systemImage: "plus") }
+                        .disabled(selectedListId == nil)
+                        .help("New Task")
+                }
+            }
             .navigationSplitViewColumnWidth(min: 360, ideal: 500)
         } detail: {
             if selectedTaskIds.count == 1,
@@ -103,6 +153,15 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
+        }
+        .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
+        .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
+        .confirmationDialog("Delete this list?",
+                            isPresented: Binding(get: { listToDelete != nil },
+                                                 set: { if !$0 { listToDelete = nil } }),
+                            presenting: listToDelete) { list in
+            Button("Delete “\(list.name)”", role: .destructive) { deleteList(list) }
+            Button("Cancel", role: .cancel) {}
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) { accountMenu }
