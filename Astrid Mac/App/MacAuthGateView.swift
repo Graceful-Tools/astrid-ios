@@ -29,9 +29,25 @@ struct MacAuthGateView: View {
         .tint(Theme.accent)   // match the iOS app's accent blue app-wide
         .preferredColorScheme(themeMode.colorScheme)
         .task {
+            OutboxManager.shared.start()          // start the write runner (drains queued writes)
             await auth.checkAuthentication()
             hotKeyController.registerIfNeeded()
+            if auth.isAuthenticated { await startSession() }
         }
+        .onChange(of: auth.isAuthenticated) { _, isAuth in
+            _Concurrency.Task {
+                if isAuth { await startSession() } else { SSEClient.shared.disconnect() }
+            }
+        }
+    }
+
+    /// Post-auth service startup — mirrors AstridApp.swift (SSE real-time + sync workers).
+    private func startSession() async {
+        await SSEClient.shared.connect()                 // live updates
+        await GitHubSyncService.shared.refreshStatus()
+        GitHubSyncService.shared.scheduleSync()
+        await GoogleTasksSyncService.shared.refreshStatus()
+        GoogleTasksSyncService.shared.scheduleSync()
     }
 }
 

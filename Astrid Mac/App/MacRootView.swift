@@ -218,6 +218,11 @@ struct MacRootView: View {
             // Hydrate lists from the shared service (cache-first, offline-safe).
             _ = try? await listService.fetchLists()
         }
+        .onChange(of: selectedListId) { _, id in
+            // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
+            guard let id else { return }
+            _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
+        }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
         }
