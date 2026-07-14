@@ -6,6 +6,8 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct MacTaskDetailView: View {
     let task: Task
@@ -117,6 +119,20 @@ struct MacTaskDetailView: View {
                 }
             }
 
+            Section("Attachments") {
+                ForEach(attachmentRows, id: \.id) { a in
+                    HStack {
+                        Image(systemName: "paperclip").foregroundStyle(Theme.textMuted)
+                        Text(a.name).foregroundStyle(Theme.textPrimary)
+                        Spacer()
+                        if let s = a.url, let u = URL(string: s) {
+                            Button("Open") { PlatformApplication.open(u) }
+                        }
+                    }
+                }
+                Button { addFile() } label: { Label("Add File…", systemImage: "paperclip") }
+            }
+
             Section {
                 Button { openWindow(id: "task", value: task.id) } label: {
                     Label("Open in New Window", systemImage: "macwindow.on.rectangle")
@@ -157,6 +173,25 @@ struct MacTaskDetailView: View {
     private func setAssignee(_ id: String?) {
         guard let id else { return }   // clearing assignee via this path is a follow-up
         _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: id, task: task) }
+    }
+
+    private var attachmentRows: [(id: String, name: String, url: String?)] {
+        (task.attachments ?? []).map { ($0.id, $0.name, Optional($0.url)) }
+            + (task.secureFiles ?? []).map { ($0.id, $0.name, nil as String?) }
+    }
+
+    private func addFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        let name = url.lastPathComponent
+        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        _Concurrency.Task {
+            _ = try? await AttachmentService.shared.uploadAttachment(taskId: task.id, fileData: data, fileName: name, mimeType: mime)
+            if let listId = task.listIds?.first { _ = try? await taskService.fetchTasksForListFromServer(listId) }
+        }
     }
 
     private func saveTitle() {
