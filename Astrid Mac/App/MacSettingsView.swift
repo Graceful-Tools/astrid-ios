@@ -22,13 +22,8 @@ struct MacSettingsView: View {
             .formStyle(.grouped)
             .tabItem { Label("Reminders", systemImage: "bell") }
 
-            Form {
-                Section("Account") {
-                    LabeledContent("Signed in", value: AuthManager.shared.userId == nil ? "No" : "Yes")
-                }
-            }
-            .formStyle(.grouped)
-            .tabItem { Label("Account", systemImage: "person.circle") }
+            MacAccountView()
+                .tabItem { Label("Account", systemImage: "person.circle") }
         }
         .frame(width: 480, height: 300)
         .onChange(of: reminders.pushEnabled) { persist() }
