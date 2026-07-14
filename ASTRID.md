@@ -262,9 +262,32 @@ handles legacy chat deletes — it is NOT the send path.)
 | List role / permission (listMembers is source of truth — legacy `admins[]`/`members[]` arrays are NOT populated by the endpoints iOS consumes and must NOT be branched on) | `astrid-web/lib/list-permissions.ts` (`getUserRoleInList`) | `TaskList.role(for:)`, `TaskList.isMember(userId:)`, `TaskList.canUserSaveServerSettings()` | |
 | My Tasks empty-state message (single string per list type, no completed-task threshold) | `astrid-web/components/ui/astrid-empty-state.tsx` | `TaskListView.getMyTasksEmptyMessage` | `EmptyStateMessageTests` |
 | Preferences + settings wire shape (`/api/v1/users/me/my-tasks-preferences`, `/api/v1/users/me/settings`) | web endpoints under `app/api/` | `MyTasksPreferences`, `UserSettings` structs | `CanonicalControlPointsTests` |
+| Keyboard shortcuts (bare-key scheme + input/modal guard) | `astrid-web/hooks/useKeyboardShortcuts.ts` (`KEYBOARD_SHORTCUTS`) | `Astrid Mac/Keyboard/KeyboardShortcuts.swift` (`KeyboardShortcuts`/`KeyboardShortcutHandler`) | `KeyboardShortcutsParityTests`, `KeyboardShortcutHandlerTests` |
 
 **Cross-repo change order:** make the web API change first, deploy it, then update iOS
 to consume it. For breaking changes, add a new API/app version and keep the old one working.
+
+---
+
+## 9. macOS app (Astrid Mac)
+
+A native macOS target (`Astrid Mac`) shares the iOS **service layer** — it compiles
+`Astrid App/{Core,Models,Extensions,Utilities}` (TaskService, Outbox, Persistence, Sync,
+Networking, Auth, the repeating-task engine) into the Mac target. **Everything in this file
+applies verbatim to Mac**: same Canonical Control Points (§2), same Outbox (§3), same repeating
+contract (§4). Mac adds **no** business logic — Mac-only code is the app shell + presentation.
+
+- **Sharing mechanism:** file-level membership exceptions in `project.pbxproj` (directory
+  exclusions are ignored by `xcodebuild`). UI-heavy `Views`/`ViewModels` and UIKit-only files
+  are excluded; platform differences route through `Astrid App/Core/Platform/Platform.swift`
+  (`PlatformImage`/`PlatformApplication`/`Haptics`/`presentationAnchor`/…).
+- **Keyboard:** the bare-key scheme mirrors web (contract row in §8) — a shared muscle-memory
+  contract, not Mac ⌘-defaults. ⌘-menu items are additive only.
+- **Build/verify:** `xcodebuild -scheme "Astrid Mac" -destination "platform=macOS"` (builds on
+  My Mac; no simulator). iOS still gates via `npm run predeploy`.
+- **Full design + roadmap:** `docs/MAC_APP_SPEC.md`; integration notes: `docs/MAC_M0_NOTES.md`.
+- **Known debt:** the exclusion list is brittle (a new iOS View breaks the Mac build until
+  excluded) — the planned fix is extracting shared code into an `AstridCore` Swift package.
 
 ---
 
