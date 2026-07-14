@@ -8,9 +8,21 @@ import SwiftUI
 
 struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
+    @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
     var body: some View {
         TabView {
+            Form {
+                Section("Appearance") {
+                    Picker("Theme", selection: $themeMode) {
+                        ForEach(ThemeMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                }
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("General", systemImage: "gearshape") }
+
             Form {
                 Section("Reminders") {
                     Toggle("Push reminders", isOn: $reminders.pushEnabled)
@@ -25,7 +37,7 @@ struct MacSettingsView: View {
             MacAccountView()
                 .tabItem { Label("Account", systemImage: "person.circle") }
         }
-        .frame(width: 480, height: 300)
+        .frame(width: 480, height: 340)
         .onChange(of: reminders.pushEnabled) { persist() }
         .onChange(of: reminders.emailEnabled) { persist() }
         .onChange(of: reminders.dailyDigestEnabled) { persist() }

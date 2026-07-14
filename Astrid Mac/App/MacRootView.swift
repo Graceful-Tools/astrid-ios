@@ -13,10 +13,12 @@ struct MacRootView: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var appModel = MacAppModel.shared
     @StateObject private var auth = AuthManager.shared
+    @StateObject private var network = NetworkMonitor.shared
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
     @State private var showNewList = false
     @State private var editingList: TaskList?
+    @State private var sharingList: TaskList?
     @State private var listToDelete: TaskList?
 
     private func toggleFavorite(_ list: TaskList) {
@@ -82,6 +84,7 @@ struct MacRootView: View {
                 .contextMenu {
                     Button("Rename…") { editingList = list }
                     Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
+                    Button("Sharing…") { sharingList = list }
                     Divider()
                     Button("Delete…", role: .destructive) { listToDelete = list }
                 }
@@ -156,6 +159,7 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
+        .sheet(item: $sharingList) { MacListMembersView(list: $0) }
         .confirmationDialog("Delete this list?",
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),
@@ -165,6 +169,19 @@ struct MacRootView: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) { accountMenu }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !network.isConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi.slash")
+                    Text("Offline — changes will sync when reconnected")
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+                .padding(6)
+                .frame(maxWidth: .infinity)
+                .background(Theme.warning.opacity(0.15))
+            }
         }
     }
 }

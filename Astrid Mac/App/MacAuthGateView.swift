@@ -11,6 +11,7 @@ import SwiftUI
 struct MacAuthGateView: View {
     @StateObject private var auth = AuthManager.shared
     @StateObject private var hotKeyController = QuickEntryHotKeyController()
+    @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
     var body: some View {
         Group {
@@ -26,6 +27,7 @@ struct MacAuthGateView: View {
             }
         }
         .tint(Theme.accent)   // match the iOS app's accent blue app-wide
+        .preferredColorScheme(themeMode.colorScheme)
         .task {
             await auth.checkAuthentication()
             hotKeyController.registerIfNeeded()
