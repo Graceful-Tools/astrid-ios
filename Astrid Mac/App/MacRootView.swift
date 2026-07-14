@@ -16,6 +16,9 @@ struct MacRootView: View {
     @StateObject private var network = NetworkMonitor.shared
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
+    @State private var contentMode: ContentMode = .list
+
+    enum ContentMode: String, CaseIterable { case list, board, chat }
     @State private var showNewList = false
     @State private var editingList: TaskList?
     @State private var sharingList: TaskList?
@@ -71,6 +74,29 @@ struct MacRootView: View {
         selectedTaskIds.removeAll()
     }
 
+    @ViewBuilder private var taskTable: some View {
+        if tasksForSelection.isEmpty {
+            ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
+        } else {
+            Table(tasksForSelection, selection: $selectedTaskIds) {
+                TableColumn("") { task in
+                    Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
+                }.width(24)
+                TableColumn("Task") { task in
+                    Text(task.title).strikethrough(task.completed)
+                }
+                TableColumn("Due") { task in
+                    if let due = task.dueDateTime { Text(due, style: .date) }
+                    else { Text("—").foregroundStyle(.secondary) }
+                }.width(min: 90, ideal: 120)
+                TableColumn("Priority") { task in
+                    Text(String(describing: task.priority)).foregroundStyle(.secondary)
+                }.width(min: 70, ideal: 90)
+            }
+        }
+    }
+
     var body: some View {
         NavigationSplitView {
             List(listService.lists, selection: $selectedListId) { list in
@@ -99,47 +125,41 @@ struct MacRootView: View {
             }
         } content: {
             Group {
-                if selectedListId == nil {
-                    ContentUnavailableView("Select a list", systemImage: "sidebar.left")
-                } else if tasksForSelection.isEmpty {
-                    ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
+                if let listId = selectedListId {
+                    switch contentMode {
+                    case .list: taskTable
+                    case .board: MacBoardView(tasks: tasksForSelection)
+                    case .chat: MacChatPanelView(listId: listId)
+                    }
                 } else {
-                    Table(tasksForSelection, selection: $selectedTaskIds) {
-                        TableColumn("") { task in
-                            Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(task.completed ? .green : .secondary)
-                        }.width(24)
-                        TableColumn("Task") { task in
-                            Text(task.title).strikethrough(task.completed)
-                        }
-                        TableColumn("Due") { task in
-                            if let due = task.dueDateTime { Text(due, style: .date) }
-                            else { Text("—").foregroundStyle(.secondary) }
-                        }.width(min: 90, ideal: 120)
-                        TableColumn("Priority") { task in
-                            Text(String(describing: task.priority)).foregroundStyle(.secondary)
-                        }.width(min: 70, ideal: 90)
-                    }
-                    .toolbar {
-                        if selectedTaskIds.count > 1 {
-                            ToolbarItem(placement: .primaryAction) {
-                                Button { completeSelected() } label: {
-                                    Label("Complete \(selectedTaskIds.count)", systemImage: "checkmark.circle")
-                                }
-                            }
-                        }
-                    }
+                    ContentUnavailableView("Select a list", systemImage: "sidebar.left")
                 }
             }
             .navigationTitle(listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks")
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("View", selection: $contentMode) {
+                        Image(systemName: "list.bullet").tag(ContentMode.list)
+                        Image(systemName: "square.grid.2x2").tag(ContentMode.board)
+                        Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(selectedListId == nil)
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
                         .disabled(selectedListId == nil)
                         .help("New Task")
                 }
+                if selectedTaskIds.count > 1 && contentMode == .list {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { completeSelected() } label: {
+                            Label("Complete \(selectedTaskIds.count)", systemImage: "checkmark.circle")
+                        }
+                    }
+                }
             }
-            .navigationSplitViewColumnWidth(min: 360, ideal: 500)
+            .navigationSplitViewColumnWidth(min: 360, ideal: 520)
         } detail: {
             if selectedTaskIds.count == 1,
                let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
