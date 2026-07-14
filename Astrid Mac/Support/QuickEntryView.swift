@@ -8,6 +8,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import Combine
 
 /// Owns the GlobalHotKey and opens the "Quick Add" window when it fires.
 final class QuickEntryHotKeyController: ObservableObject {
