@@ -83,3 +83,32 @@ public enum KeyboardShortcuts {
         all.first { $0.keys.contains(key) }
     }
 }
+
+/// Resolves a pressed bare key to the action to run, mirroring web's guard logic in
+/// `useKeyboardShortcuts.ts`: shortcuts are suppressed while a text field/editor is focused
+/// or a modal/sheet is open, and selection-scoped actions only fire when a task is selected.
+public enum KeyboardShortcutHandler {
+
+    public struct Context: Equatable, Sendable {
+        public var hasSelection: Bool
+        public var isTextFieldFocused: Bool
+        public var isModalPresented: Bool
+        public init(hasSelection: Bool = false,
+                    isTextFieldFocused: Bool = false,
+                    isModalPresented: Bool = false) {
+            self.hasSelection = hasSelection
+            self.isTextFieldFocused = isTextFieldFocused
+            self.isModalPresented = isModalPresented
+        }
+    }
+
+    /// Returns the action to perform for `key`, or nil if the key is unbound or suppressed.
+    public static func action(for key: String, context: Context) -> ShortcutAction? {
+        // Web parity: never hijack keys while the user is typing or inside a modal.
+        guard !context.isTextFieldFocused, !context.isModalPresented else { return nil }
+        guard let binding = KeyboardShortcuts.binding(for: key) else { return nil }
+        // Web parity: selection-scoped actions require a selected task.
+        if binding.requiresSelection && !context.hasSelection { return nil }
+        return binding.action
+    }
+}
