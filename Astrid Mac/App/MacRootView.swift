@@ -17,8 +17,27 @@ struct MacRootView: View {
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
     @State private var contentMode: ContentMode = .list
+    @State private var sortKey: SortKey = .due
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
+    enum SortKey: String, CaseIterable { case due = "Due", priority = "Priority", title = "Title" }
+
+    private var sortedTasks: [Task] {
+        switch sortKey {
+        case .due: return tasksForSelection.sorted { ($0.dueDateTime ?? .distantFuture) < ($1.dueDateTime ?? .distantFuture) }
+        case .priority: return tasksForSelection.sorted { $0.priority.rawValue > $1.priority.rawValue }
+        case .title: return tasksForSelection.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
+    }
+
+    /// Cross-list move (C3): move the given tasks into another list via the canonical service.
+    private func move(_ ids: Set<String>, to listId: String) {
+        let toMove = tasksForSelection.filter { ids.contains($0.id) }
+        for t in toMove {
+            _Concurrency.Task { _ = try? await taskService.updateTask(taskId: t.id, listIds: [listId], task: t) }
+        }
+        selectedTaskIds.removeAll()
+    }
     @State private var showNewList = false
     @State private var editingList: TaskList?
     @State private var sharingList: TaskList?
@@ -78,7 +97,7 @@ struct MacRootView: View {
         if tasksForSelection.isEmpty {
             ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
         } else {
-            Table(tasksForSelection, selection: $selectedTaskIds) {
+            Table(sortedTasks, selection: $selectedTaskIds) {
                 TableColumn("") { task in
                     Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
@@ -94,7 +113,23 @@ struct MacRootView: View {
                     Text(String(describing: task.priority)).foregroundStyle(.secondary)
                 }.width(min: 70, ideal: 90)
             }
+            .contextMenu(forSelectionType: String.self) { ids in
+                if !ids.isEmpty {
+                    Menu("Move to List") {
+                        ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
+                            Button(list.name) { move(ids, to: list.id) }
+                        }
+                    }
+                    Button("Complete") {
+                        for t in tasksForSelection where ids.contains(t.id) && !t.completed { setCompleted(t) }
+                    }
+                }
+            }
         }
+    }
+
+    private func setCompleted(_ t: Task) {
+        _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: true, task: t) }
     }
 
     var body: some View {
@@ -145,6 +180,15 @@ struct MacRootView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil)
+                }
+                ToolbarItem {
+                    Menu {
+                        Picker("Sort by", selection: $sortKey) {
+                            ForEach(SortKey.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                    } label: { Image(systemName: "arrow.up.arrow.down") }
+                    .disabled(selectedListId == nil || contentMode != .list)
+                    .help("Sort")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
