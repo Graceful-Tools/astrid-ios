@@ -32,7 +32,7 @@ extension Color {
     }
     
     func toHex() -> String? {
-        guard let components = UIColor(self).cgColor.components, components.count >= 3 else { return nil }
+        guard let components = PlatformColor(self).cgColor.components, components.count >= 3 else { return nil }
 
         let r = Float(components[0])
         let g = Float(components[1])

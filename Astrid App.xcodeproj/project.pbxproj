@@ -113,7 +113,6 @@
 				Core/Services/ReviewPromptManager.swift,
 				Core/Services/SettingsPresenter.swift,
 				Core/Services/TaskPresenter.swift,
-				"Extensions/Color+Hex.swift",
 				"Extensions/View+DismissKeyboard.swift",
 				"Extensions/View+InteractivePopGesture.swift",
 				"Extensions/View+ReferenceNavigation.swift",
@@ -122,7 +121,6 @@
 				"Extensions/View+TextEditorInsets.swift",
 				PrivacyInfo.xcprivacy,
 				Utilities/KeyboardEngineWarmer.swift,
-				Utilities/Theme.swift,
 				ViewModels/AccountViewModel.swift,
 				ViewModels/EditProfileViewModel.swift,
 				Views/Authentication/LoginView.swift,
@@ -875,7 +873,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -903,7 +901,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -1351,7 +1349,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1381,7 +1379,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1409,7 +1407,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.8.3;
@@ -1431,7 +1429,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1452,7 +1450,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;
@@ -1472,7 +1470,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 131;
+				CURRENT_PROJECT_VERSION = 132;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;

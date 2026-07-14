@@ -25,6 +25,7 @@ struct MacAuthGateView: View {
                 MacLoginView()
             }
         }
+        .tint(Theme.accent)   // match the iOS app's accent blue app-wide
         .task {
             await auth.checkAuthentication()
             hotKeyController.registerIfNeeded()

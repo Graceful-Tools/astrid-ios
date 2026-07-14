@@ -511,6 +511,8 @@ struct ThemedBorderModifier: ViewModifier {
 
 // MARK: - UIColor Extensions
 
+#if canImport(UIKit)
+import UIKit
 extension UIColor {
     convenience init(_ swiftUIColor: Color) {
         // Convert SwiftUI Color to UIColor
@@ -522,6 +524,7 @@ extension UIColor {
         }
     }
 }
+#endif
 
 // MARK: - Liquid Glass Style
 

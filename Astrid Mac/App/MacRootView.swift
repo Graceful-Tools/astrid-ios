@@ -12,8 +12,23 @@ struct MacRootView: View {
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
     @StateObject private var appModel = MacAppModel.shared
+    @StateObject private var auth = AuthManager.shared
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
+
+    private var accountMenu: some View {
+        Menu {
+            if let u = auth.currentUser {
+                Text(u.name ?? u.email ?? "Account")
+                Divider()
+            }
+            Button("Sign Out") {
+                _Concurrency.Task { try? await auth.signOut() }
+            }
+        } label: {
+            Image(systemName: "person.crop.circle")
+        }
+    }
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
@@ -88,6 +103,9 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) { accountMenu }
         }
     }
 }
