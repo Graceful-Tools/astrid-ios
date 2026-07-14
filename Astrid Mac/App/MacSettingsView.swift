@@ -29,6 +29,9 @@ struct MacSettingsView: View {
             MacSyncSettingsView()
                 .tabItem { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
 
+            MacAISettingsView()
+                .tabItem { Label("AI", systemImage: "sparkles") }
+
             MacLanguageSettingsView()
                 .tabItem { Label("Language", systemImage: "globe") }
 

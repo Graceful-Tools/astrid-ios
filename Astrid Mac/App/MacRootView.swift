@@ -53,6 +53,7 @@ struct MacRootView: View {
     @State private var editingList: TaskList?
     @State private var sharingList: TaskList?
     @State private var listToDelete: TaskList?
+    @State private var showPublicLists = false
 
     private func toggleFavorite(_ list: TaskList) {
         _Concurrency.Task {
@@ -168,6 +169,10 @@ struct MacRootView: View {
                     Button { showNewList = true } label: { Image(systemName: "plus") }
                         .help("New List")
                 }
+                ToolbarItem {
+                    Button { showPublicLists = true } label: { Image(systemName: "globe") }
+                        .help("Browse Public Lists")
+                }
             }
         } content: {
             Group {
@@ -252,6 +257,7 @@ struct MacRootView: View {
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
         .sheet(item: $sharingList) { MacListMembersView(list: $0) }
+        .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
         .confirmationDialog("Delete this list?",
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),

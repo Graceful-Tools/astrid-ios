@@ -136,4 +136,58 @@ struct MacSyncSettingsView: View {
         }
     }
 }
+
+// MARK: - AI
+
+struct MacAISettingsView: View {
+    @State private var settings: AIAssistantSettings?
+
+    var body: some View {
+        Form {
+            Section("AI Assistant") {
+                if let s = settings {
+                    LabeledContent("Preferred service", value: s.preferredService ?? "Default")
+                    LabeledContent("Default agent", value: s.defaultAgentId ?? "None")
+                    LabeledContent("On-device model", value: s.isOnDeviceModel ? "Yes" : "No")
+                } else {
+                    Text("Loading…").foregroundStyle(Theme.textMuted)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .task { settings = try? await ChatService.shared.getAIAssistantSettings() }
+    }
+}
+
+// MARK: - Public list browser
+
+struct MacPublicListsView: View {
+    @State private var lists: [PublicListData] = []
+    @State private var query = ""
+    @Environment(\.dismiss) private var dismiss
+
+    private var filtered: [PublicListData] {
+        query.isEmpty ? lists : lists.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Browse Public Lists").font(.headline).foregroundStyle(Theme.textPrimary)
+            TextField("Search", text: $query).textFieldStyle(.roundedBorder)
+            List(filtered, id: \.id) { l in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(l.name).foregroundStyle(Theme.textPrimary)
+                    if let d = l.description, !d.isEmpty {
+                        Text(d).font(.caption).foregroundStyle(Theme.textMuted).lineLimit(2)
+                    }
+                }
+            }
+            .frame(minHeight: 260)
+            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.return, modifiers: []) }
+        }
+        .padding(20)
+        .frame(width: 460)
+        .task { lists = (try? await RemoteResourceService.shared.getPublicLists().lists) ?? [] }
+    }
+}
 #endif

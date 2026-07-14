@@ -23,6 +23,8 @@ struct MacTaskDetailView: View {
     @State private var priority: Task.Priority = .none
     @State private var repeating: Task.Repeating = .never
     @State private var members: [ListMember] = []
+    @State private var timerRunning = false
+    @State private var timerStart: Date?
 
     @State private var subtasks: [Task] = []
     @State private var newSubtask = ""
@@ -119,6 +121,19 @@ struct MacTaskDetailView: View {
                 }
             }
 
+            Section("Timer") {
+                HStack {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text(hms(loggedSeconds)).font(.system(.title3, design: .monospaced))
+                            .foregroundStyle(timerRunning ? Theme.accent : Theme.textPrimary)
+                    }
+                    Spacer()
+                    Button(timerRunning ? "Stop" : "Start", systemImage: timerRunning ? "stop.fill" : "play.fill") {
+                        toggleTimer()
+                    }
+                }
+            }
+
             Section("Attachments") {
                 ForEach(attachmentRows, id: \.id) { a in
                     HStack {
@@ -174,6 +189,24 @@ struct MacTaskDetailView: View {
         guard let id else { return }   // clearing assignee via this path is a follow-up
         _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: id, task: task) }
     }
+
+    private var loggedSeconds: Int {
+        let base = task.timerDuration ?? 0
+        if timerRunning, let s = timerStart { return base + Int(Date().timeIntervalSince(s)) }
+        return base
+    }
+
+    private func toggleTimer() {
+        if timerRunning, let s = timerStart {
+            let total = (task.timerDuration ?? 0) + Int(Date().timeIntervalSince(s))
+            timerRunning = false; timerStart = nil
+            _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
+        } else {
+            timerRunning = true; timerStart = Date()
+        }
+    }
+
+    private func hms(_ s: Int) -> String { String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
 
     private var attachmentRows: [(id: String, name: String, url: String?)] {
         (task.attachments ?? []).map { ($0.id, $0.name, Optional($0.url)) }
