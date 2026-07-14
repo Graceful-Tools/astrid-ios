@@ -13,11 +13,20 @@ struct MacRootView: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var appModel = MacAppModel.shared
     @State private var selectedListId: String?
-    @State private var selectedTaskId: String?
+    @State private var selectedTaskIds = Set<String>()
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
         return taskService.getTasksForList(id)
+    }
+
+    /// Complete every selected task through the canonical service (repeat rollover honored).
+    private func completeSelected() {
+        let toComplete = tasksForSelection.filter { selectedTaskIds.contains($0.id) && !$0.completed }
+        for task in toComplete {
+            _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: true, task: task) }
+        }
+        selectedTaskIds.removeAll()
     }
 
     var body: some View {
@@ -34,25 +43,41 @@ struct MacRootView: View {
                 } else if tasksForSelection.isEmpty {
                     ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
                 } else {
-                    List(tasksForSelection, selection: $selectedTaskId) { task in
-                        HStack(spacing: 8) {
+                    Table(tasksForSelection, selection: $selectedTaskIds) {
+                        TableColumn("") { task in
                             Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
                                 .foregroundStyle(task.completed ? .green : .secondary)
+                        }.width(24)
+                        TableColumn("Task") { task in
                             Text(task.title).strikethrough(task.completed)
-                            Spacer()
-                            if let due = task.dueDateTime {
-                                Text(due, style: .date).font(.caption).foregroundStyle(.secondary)
+                        }
+                        TableColumn("Due") { task in
+                            if let due = task.dueDateTime { Text(due, style: .date) }
+                            else { Text("—").foregroundStyle(.secondary) }
+                        }.width(min: 90, ideal: 120)
+                        TableColumn("Priority") { task in
+                            Text(String(describing: task.priority)).foregroundStyle(.secondary)
+                        }.width(min: 70, ideal: 90)
+                    }
+                    .toolbar {
+                        if selectedTaskIds.count > 1 {
+                            ToolbarItem(placement: .primaryAction) {
+                                Button { completeSelected() } label: {
+                                    Label("Complete \(selectedTaskIds.count)", systemImage: "checkmark.circle")
+                                }
                             }
                         }
-                        .tag(Optional(task.id))
                     }
                 }
             }
             .navigationTitle(listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks")
-            .navigationSplitViewColumnWidth(min: 320, ideal: 440)
+            .navigationSplitViewColumnWidth(min: 360, ideal: 500)
         } detail: {
-            if let id = selectedTaskId, let task = tasksForSelection.first(where: { $0.id == id }) {
+            if selectedTaskIds.count == 1,
+               let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
                 MacTaskDetailView(task: task)
+            } else if selectedTaskIds.count > 1 {
+                ContentUnavailableView("\(selectedTaskIds.count) tasks selected", systemImage: "checklist")
             } else {
                 ContentUnavailableView("Select a task", systemImage: "square.and.pencil")
             }
