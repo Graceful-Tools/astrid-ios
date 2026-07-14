@@ -60,10 +60,25 @@ struct QuickEntryView: View {
     private func save() {
         let parsed = QuickEntryParser.parse(text)
         guard !parsed.title.isEmpty else { return }
-        // TODO(M2 wiring): hand parsed.{title,listNames,due} to TaskService.createTask → Outbox
-        // once the signed-in service context is injected into the Mac shell.
-        NSLog("[Astrid] QuickEntry: title=%@ lists=%@ due=%@",
-              parsed.title, parsed.listNames.joined(separator: ","), String(describing: parsed.due))
+
+        // Resolve target list: a #list token match, else the first available list.
+        let lists = ListService.shared.lists
+        let targetId = parsed.listNames
+            .compactMap { name in lists.first { $0.name.lowercased() == name.lowercased() }?.id }
+            .first ?? lists.first?.id
+        guard let listId = targetId else {
+            NSLog("[Astrid] QuickEntry: no list available to add to")
+            return
+        }
+
+        let cal = Calendar.current
+        let due: Date? = parsed.due == .today ? Date()
+            : parsed.due == .tomorrow ? cal.date(byAdding: .day, value: 1, to: Date()) : nil
+
+        // Offline-first: creates locally + journals through the Outbox, syncs when online.
+        _Concurrency.Task {
+            _ = try? await TaskService.shared.createTask(listIds: [listId], title: parsed.title, whenDate: due)
+        }
         text = ""
         dismiss()
     }

@@ -21,17 +21,22 @@ struct AstridMacApp: App {
 
     var body: some Scene {
         // Main window: sidebar + content + detail (see MacRootView).
-        WindowGroup {
+        WindowGroup(id: "main") {
             MacRootView()
                 // .environmentObject(appState)
                 .task { hotKeyController.registerIfNeeded() }
         }
         .commands { AstridCommands() }              // full menu bar (M1)
 
-        // ⌘, Settings — reuse the existing Settings feature views.
+        // Menu-bar extra: glanceable tasks + quick add (v1.1).
+        MenuBarExtra("Astrid", systemImage: "checklist") {
+            MacMenuBarView()
+        }
+        .menuBarExtraStyle(.window)
+
+        // ⌘, Settings — native Mac settings wired to the shared settings services.
         Settings {
-            Text("Settings — reuse existing Settings feature views (M1).")
-                .frame(width: 480, height: 320)
+            MacSettingsView()
         }
 
         // Global quick-entry target window (M0 de-risk / M2).
