@@ -43,6 +43,8 @@ struct MacAuthGateView: View {
 
     /// Post-auth service startup — mirrors AstridApp.swift (SSE real-time + sync workers).
     private func startSession() async {
+        // Local-only mode has no server session — skip network services.
+        guard ConnectionModeManager.shared.currentMode != .offlineOnly else { return }
         await SSEClient.shared.connect()                 // live updates
         await GitHubSyncService.shared.refreshStatus()
         GitHubSyncService.shared.scheduleSync()
@@ -86,8 +88,14 @@ struct MacLoginView: View {
             }
             .frame(width: 280)
 
-            Button("New here? Create an account with Passkey") { showSignUp = true }
-                .buttonStyle(.link).font(.callout)
+            VStack(spacing: 6) {
+                Button("New here? Create an account with Passkey") { showSignUp = true }
+                    .buttonStyle(.link).font(.callout)
+                Button("Continue without an account") {
+                    _Concurrency.Task { await ConnectionModeManager.shared.createLocalUser() }
+                }
+                .buttonStyle(.link).font(.callout).foregroundStyle(Theme.textSecondary)
+            }
 
             if auth.isLoading { ProgressView().controlSize(.small) }
             if let err = auth.errorMessage, !err.isEmpty {
