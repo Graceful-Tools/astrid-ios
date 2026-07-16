@@ -28,8 +28,12 @@ struct MacTaskDetailView: View {
 
     @State private var subtasks: [Task] = []
     @State private var newSubtask = ""
+    @State private var editingSubtask: Task?
+    @State private var editingSubtaskText = ""
     @State private var comments: [Comment] = []
     @State private var newComment = ""
+    @State private var editingComment: Comment?
+    @State private var editingCommentText = ""
 
     var body: some View {
         Form {
@@ -91,6 +95,12 @@ struct MacTaskDetailView: View {
                         }.buttonStyle(.plain)
                         Text(st.title).strikethrough(st.completed)
                             .foregroundStyle(st.completed ? Theme.textMuted : Theme.textPrimary)
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button("Rename…") { editingSubtask = st; editingSubtaskText = st.title }
+                        Button("Delete", role: .destructive) { deleteSubtask(st) }
                     }
                 }
                 HStack {
@@ -113,6 +123,15 @@ struct MacTaskDetailView: View {
                             }
                         }
                         Text(c.content).foregroundStyle(Theme.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        // Edit/Delete only your own comments (permission-safe).
+                        if let uid = AuthManager.shared.userId, c.authorId == uid {
+                            Button("Edit…") { editingComment = c; editingCommentText = c.content }
+                            Button("Delete", role: .destructive) { deleteComment(c) }
+                        }
                     }
                 }
                 HStack {
@@ -156,6 +175,23 @@ struct MacTaskDetailView: View {
         }
         .formStyle(.grouped)
         .task(id: task.id) { load() }
+        .sheet(item: $editingComment) { _ in editSheet(title: "Edit Comment", text: $editingCommentText, onSave: saveEditedComment) }
+        .sheet(item: $editingSubtask) { _ in editSheet(title: "Rename Subtask", text: $editingSubtaskText, onSave: renameSubtask) }
+    }
+
+    /// Small reusable edit sheet for a single text value.
+    private func editSheet(title: String, text: Binding<String>, onSave: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title).font(.headline)
+            TextField("", text: text, axis: .vertical).lineLimit(2...6).textFieldStyle(.roundedBorder)
+            HStack {
+                Spacer()
+                Button("Cancel") { editingComment = nil; editingSubtask = nil }.keyboardShortcut(.escape, modifiers: [])
+                Button("Save", action: onSave).buttonStyle(.borderedProminent)
+                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20).frame(width: 360)
     }
 
     // MARK: load + save
@@ -279,6 +315,36 @@ struct MacTaskDetailView: View {
         _Concurrency.Task {
             _ = try? await taskService.createTask(listIds: task.listIds ?? [], title: t, parentTaskId: task.id)
             load()
+        }
+    }
+
+    private func deleteSubtask(_ st: Task) {
+        _Concurrency.Task { try? await taskService.deleteTask(id: st.id); load() }
+    }
+
+    private func renameSubtask() {
+        guard let st = editingSubtask else { return }
+        let t = editingSubtaskText.trimmingCharacters(in: .whitespaces)
+        editingSubtask = nil
+        guard !t.isEmpty, t != st.title else { return }
+        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: st.id, title: t, task: st); load() }
+    }
+
+    private func deleteComment(_ c: Comment) {
+        _Concurrency.Task {
+            try? await CommentService.shared.deleteComment(id: c.id)
+            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
+        }
+    }
+
+    private func saveEditedComment() {
+        guard let c = editingComment else { return }
+        let text = editingCommentText.trimmingCharacters(in: .whitespaces)
+        editingComment = nil
+        guard !text.isEmpty, text != c.content else { return }
+        _Concurrency.Task {
+            _ = try? await CommentService.shared.updateComment(id: c.id, content: text)
+            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
     }
 
