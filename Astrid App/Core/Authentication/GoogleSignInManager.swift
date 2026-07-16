@@ -74,6 +74,7 @@ class GoogleSignInManager: NSObject, ObservableObject {
                 callbackURLScheme: redirectURI.components(separatedBy: ":").first
             ) { [weak self] callbackURL, error in
                 _Concurrency.Task { @MainActor in
+                    GAuthDebug.log("ASWebAuth callback: url=\(callbackURL?.absoluteString ?? "nil") err=\(error.map { String(describing: $0) } ?? "nil")")
                     if let error = error {
                         if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
                             self?.complete(with: .failure(GoogleSignInError.userCancelled))
@@ -89,11 +90,16 @@ class GoogleSignInManager: NSObject, ObservableObject {
                     }
 
                     do {
+                        GAuthDebug.log("exchanging code for tokens…")
                         let result = try await self?.exchangeCodeForTokens(callbackURL: callbackURL, codeVerifier: codeVerifier)
                         if let result = result {
+                            GAuthDebug.log("token exchange OK — returning idToken")
                             self?.complete(with: .success(result))
+                        } else {
+                            GAuthDebug.log("token exchange returned nil result")
                         }
                     } catch {
+                        GAuthDebug.log("token exchange FAILED: \(String(describing: error))")
                         self?.complete(with: .failure(error))
                     }
                 }
@@ -103,7 +109,13 @@ class GoogleSignInManager: NSObject, ObservableObject {
             session.prefersEphemeralWebBrowserSession = false // Allow persistent sign-in
 
             self.authSession = session
-            session.start()
+            // start() returns false if the session cannot be presented (e.g. bad anchor).
+            // Ignoring it would leave the continuation suspended forever — the exact hang
+            // users saw on macOS. Fail explicitly instead.
+            if !session.start() {
+                GAuthDebug.log("ASWebAuthenticationSession.start() returned false — cannot present")
+                self.complete(with: .failure(GoogleSignInError.presentationFailed))
+            }
         }
     }
 
@@ -200,11 +212,14 @@ enum GoogleSignInError: LocalizedError {
     case missingCallback
     case missingAuthorizationCode
     case tokenExchangeFailed
+    case presentationFailed
 
     var errorDescription: String? {
         switch self {
         case .notConfigured:
             return "Google Sign In is not configured. Please set up your Google OAuth Client ID."
+        case .presentationFailed:
+            return "Could not present the Google sign-in window. Please try again."
         case .invalidURL:
             return "Invalid authorization URL"
         case .userCancelled:

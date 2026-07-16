@@ -78,7 +78,16 @@ public enum PlatformApplication {
         }
         return window
         #elseif canImport(AppKit)
-        return NSApplication.shared.windows.first ?? NSWindow()
+        // Prefer a real, presentable window. `windows.first` is non-deterministic in a
+        // multi-scene app (can be the menu-bar-extra/hidden window), and a throwaway
+        // NSWindow() is never on screen — ASWebAuthenticationSession then fails to present
+        // and its callback never fires, hanging sign-in. Pick key → main → first visible.
+        return NSApplication.shared.keyWindow
+            ?? NSApplication.shared.mainWindow
+            ?? NSApplication.shared.windows.first(where: { $0.isVisible && $0.canBecomeKey })
+            ?? NSApplication.shared.windows.first(where: { $0.isVisible })
+            ?? NSApplication.shared.windows.first
+            ?? NSWindow()
         #endif
     }
 }
