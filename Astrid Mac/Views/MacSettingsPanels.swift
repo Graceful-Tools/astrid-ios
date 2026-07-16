@@ -93,13 +93,18 @@ struct MacSyncSettingsView: View {
     @StateObject private var github = GitHubSyncService.shared
     @StateObject private var google = GoogleTasksSyncService.shared
     @StateObject private var apple = AppleRemindersService.shared
+    @StateObject private var featureFlags = FeatureFlagService.shared
 
     var body: some View {
         Form {
-            providerSection("Google Tasks", connected: google.isConnected, account: google.accountEmail,
-                            lastSync: google.lastSyncedAt,
-                            connect: { if let u = await google.authorizeURL() { PlatformApplication.open(u) } },
-                            disconnect: { await google.disconnect() })
+            // Google Tasks is behind a remote rollout / kill switch (Task b0048881) —
+            // hide it entirely when the flag is off, matching iOS SettingsView.
+            if featureFlags.isEnabled(.googleTasks) {
+                providerSection("Google Tasks", connected: google.isConnected, account: google.accountEmail,
+                                lastSync: google.lastSyncedAt,
+                                connect: { if let u = await google.authorizeURL() { PlatformApplication.open(u) } },
+                                disconnect: { await google.disconnect() })
+            }
             providerSection("GitHub Issues", connected: github.isConnected, account: github.accountLogin,
                             lastSync: github.lastSyncedAt,
                             connect: { if let u = await github.authorizeURL() { PlatformApplication.open(u) } },
@@ -112,8 +117,9 @@ struct MacSyncSettingsView: View {
         }
         .formStyle(.grouped)
         .task {
+            await featureFlags.refreshIfStale()
             await github.refreshStatus()
-            await google.refreshStatus()
+            if featureFlags.isEnabled(.googleTasks) { await google.refreshStatus() }
         }
     }
 

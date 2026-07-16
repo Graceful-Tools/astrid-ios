@@ -46,10 +46,19 @@ struct MacAuthGateView: View {
         // Local-only mode has no server session — skip network services.
         guard ConnectionModeManager.shared.currentMode != .offlineOnly else { return }
         await SSEClient.shared.connect()                 // live updates
+
+        // Honor remote feature rollouts before scheduling gated providers (Task b0048881).
+        await FeatureFlagService.shared.refreshIfStale()
+
         await GitHubSyncService.shared.refreshStatus()
         GitHubSyncService.shared.scheduleSync()
-        await GoogleTasksSyncService.shared.refreshStatus()
-        GoogleTasksSyncService.shared.scheduleSync()
+
+        // Google Tasks is behind a remote rollout / kill switch — only touch it when enabled.
+        // (The service self-gates too, but skip the work entirely when off.)
+        if FeatureFlagService.shared.isEnabled(.googleTasks) {
+            await GoogleTasksSyncService.shared.refreshStatus()
+            GoogleTasksSyncService.shared.scheduleSync()
+        }
     }
 }
 

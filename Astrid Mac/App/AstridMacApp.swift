@@ -15,6 +15,12 @@ import SwiftUI
 @main
 struct AstridMacApp: App {
 
+    init() {
+        // Make remote feature flags eligible to refresh this launch (mirrors AstridApp.swift).
+        // Without this, refreshIfStale short-circuits and the Mac never honors remote rollouts.
+        FeatureFlagService.recordAppLaunch()
+    }
+
     var body: some Scene {
         // Main window: auth gate → sign-in when signed out, shell when signed in.
         WindowGroup(id: "main") {
