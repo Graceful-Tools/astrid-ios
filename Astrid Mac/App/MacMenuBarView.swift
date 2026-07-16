@@ -10,10 +10,15 @@ struct MacMenuBarView: View {
     @State private var quickText = ""
     @Environment(\.openWindow) private var openWindow
 
-    /// Open, undated-or-soon tasks across the first few lists (cache-backed glance).
+    /// Open tasks across lists, most-relevant first (due date, then priority) — not an arbitrary slice.
     private var openTasks: [Task] {
         listService.lists.flatMap { taskService.getTasksForList($0.id) }
             .filter { !$0.completed }
+            .sorted { a, b in
+                let ad = a.dueDateTime ?? .distantFuture, bd = b.dueDateTime ?? .distantFuture
+                if ad != bd { return ad < bd }
+                return a.priority.rawValue > b.priority.rawValue
+            }
             .prefix(8)
             .map { $0 }
     }
@@ -46,10 +51,17 @@ struct MacMenuBarView: View {
     }
 
     private func add() {
-        let parsed = QuickEntryParser.parse(quickText)
-        guard !parsed.title.isEmpty, let listId = listService.lists.first?.id else { return }
-        _Concurrency.Task { _ = try? await taskService.createTask(listIds: [listId], title: parsed.title) }
+        // Use the shared SmartTaskParser (dates/priority/#lists/repeat), same as the main window,
+        // instead of the naive local QuickEntryParser (Task 8c7e5968).
+        guard let args = MacQuickAdd.makeArgs(rawText: quickText,
+                                              selectedListId: listService.lists.first?.id,
+                                              lists: listService.lists) else { return }
         quickText = ""
+        _Concurrency.Task {
+            _ = try? await taskService.createTask(
+                listIds: args.listIds, title: args.title, priority: args.priority,
+                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
+        }
     }
 }
 #endif
