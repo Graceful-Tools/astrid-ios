@@ -4,6 +4,7 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 import EventKit
 
 // MARK: - Reminders (full)
@@ -121,6 +122,14 @@ struct MacSyncSettingsView: View {
             await github.refreshStatus()
             if featureFlags.isEnabled(.googleTasks) { await google.refreshStatus() }
         }
+        // OAuth completes in the system browser; there's no in-app callback on Mac. Re-poll
+        // connection status whenever the app regains focus so a new connection appears (Task 75b82a1b).
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            _Concurrency.Task {
+                await github.refreshStatus()
+                if featureFlags.isEnabled(.googleTasks) { await google.refreshStatus() }
+            }
+        }
     }
 
     @ViewBuilder
@@ -147,29 +156,70 @@ struct MacSyncSettingsView: View {
 
 struct MacAISettingsView: View {
     @State private var settings: AIAssistantSettings?
+    @State private var agents: [AvailableAgent] = []
+    @State private var loadFailed = false
+    @State private var isSaving = false
 
     var body: some View {
         Form {
             Section("AI Assistant") {
                 if let s = settings {
-                    LabeledContent("Preferred service", value: s.preferredService ?? "Default")
-                    LabeledContent("Default agent", value: s.defaultAgentId ?? "None")
+                    Picker("Default agent", selection: Binding(
+                        get: { s.defaultAgentId ?? "" },
+                        set: { newId in if !newId.isEmpty { save(agentId: newId) } }
+                    )) {
+                        if s.defaultAgentId == nil { Text("None").tag("") }
+                        ForEach(agents) { a in
+                            Text("\(a.name) · \(a.serviceDisplayName)").tag(a.id)
+                        }
+                    }
                     LabeledContent("On-device model", value: s.isOnDeviceModel ? "Yes" : "No")
+                    if isSaving { ProgressView().controlSize(.small) }
+                } else if loadFailed {
+                    HStack {
+                        Text("Couldn’t load AI settings.").foregroundStyle(Theme.error)
+                        Spacer()
+                        Button("Retry") { _Concurrency.Task { await load() } }
+                    }
                 } else {
-                    Text("Loading…").foregroundStyle(Theme.textMuted)
+                    ProgressView().controlSize(.small)
                 }
             }
         }
         .formStyle(.grouped)
-        .task { settings = try? await ChatService.shared.getAIAssistantSettings() }
+        .task { await load() }
+    }
+
+    private func load() async {
+        loadFailed = false
+        do {
+            settings = try await ChatService.shared.getAIAssistantSettings()
+            agents = (try? await ChatService.shared.fetchAvailableAgents()) ?? []
+        } catch {
+            loadFailed = true
+        }
+    }
+
+    private func save(agentId: String) {
+        guard !isSaving else { return }
+        isSaving = true
+        _Concurrency.Task {
+            defer { isSaving = false }
+            if let updated = try? await ChatService.shared.updateAIAssistantSettings(defaultAgentId: agentId) {
+                settings = updated
+            }
+        }
     }
 }
 
 // MARK: - Public list browser
 
 struct MacPublicListsView: View {
+    @StateObject private var listService = ListService.shared
     @State private var lists: [PublicListData] = []
     @State private var query = ""
+    @State private var copyingId: String?
+    @State private var addedIds = Set<String>()
     @Environment(\.dismiss) private var dismiss
 
     private var filtered: [PublicListData] {
@@ -181,10 +231,20 @@ struct MacPublicListsView: View {
             Text("Browse Public Lists").font(.headline).foregroundStyle(Theme.textPrimary)
             TextField("Search", text: $query).textFieldStyle(.roundedBorder)
             List(filtered, id: \.id) { l in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(l.name).foregroundStyle(Theme.textPrimary)
-                    if let d = l.description, !d.isEmpty {
-                        Text(d).font(.caption).foregroundStyle(Theme.textMuted).lineLimit(2)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(l.name).foregroundStyle(Theme.textPrimary)
+                        if let d = l.description, !d.isEmpty {
+                            Text(d).font(.caption).foregroundStyle(Theme.textMuted).lineLimit(2)
+                        }
+                    }
+                    Spacer()
+                    if addedIds.contains(l.id) {
+                        Label("Added", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.success)
+                    } else if copyingId == l.id {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button("Add") { copy(l) }
                     }
                 }
             }
@@ -194,6 +254,19 @@ struct MacPublicListsView: View {
         .padding(20)
         .frame(width: 460)
         .task { lists = (try? await RemoteResourceService.shared.getPublicLists().lists) ?? [] }
+    }
+
+    /// Copy a public list into the user's own lists (through the service layer), then refresh.
+    private func copy(_ l: PublicListData) {
+        guard copyingId == nil else { return }
+        copyingId = l.id
+        _Concurrency.Task {
+            defer { copyingId = nil }
+            if (try? await RemoteResourceService.shared.copyList(listId: l.id, includeTasks: true)) != nil {
+                addedIds.insert(l.id)
+                _ = try? await listService.fetchLists()
+            }
+        }
     }
 }
 #endif
