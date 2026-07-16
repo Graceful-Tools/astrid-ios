@@ -15,19 +15,23 @@
 import SwiftUI
 
 struct AstridCommands: Commands {
+    @ObservedObject private var appModel = MacAppModel.shared
+
     var body: some Commands {
         // File → New Task (⌘N is the additive Mac equivalent of the bare `n`).
         CommandGroup(replacing: .newItem) {
-            Button("New Task") { /* TODO(M1): TaskService.createTask via CommandRegistry */ }
+            Button("New Task") { MacAppModel.shared.perform(.newTask) }
                 .keyboardShortcut("n", modifiers: .command)
         }
 
         // A dedicated Task menu for the additive ⌘-equivalents.
         CommandMenu("Task") {
-            Button("Complete") { /* TODO: TaskService.completeTask */ }
+            Button("Complete") { MacAppModel.shared.perform(.completeTask) }
                 .keyboardShortcut(.return, modifiers: .command)
-            Button("Delete") { /* TODO: TaskService.deleteTask */ }
+                .disabled(appModel.selectedTaskIds.isEmpty)
+            Button("Delete") { MacAppModel.shared.perform(.deleteTask) }
                 .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(appModel.selectedTaskIds.isEmpty)
             Divider()
             Button("Command Palette…") { MacAppModel.shared.openPalette() }
                 .keyboardShortcut("k", modifiers: .command)
@@ -42,7 +46,7 @@ struct AstridCommands: Commands {
 
         // Help → Keyboard Shortcuts (the shared bare-key scheme; web shows this on `?`).
         CommandGroup(after: .help) {
-            Button("Keyboard Shortcuts") { /* TODO(M2): show shortcuts help */ }
+            Button("Keyboard Shortcuts") { MacAppModel.shared.perform(.showShortcuts) }
                 .keyboardShortcut("/", modifiers: .command)
         }
     }

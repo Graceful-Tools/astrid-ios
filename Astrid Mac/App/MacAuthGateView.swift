@@ -7,11 +7,13 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacAuthGateView: View {
     @StateObject private var auth = AuthManager.shared
     @StateObject private var hotKeyController = QuickEntryHotKeyController()
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -38,6 +40,12 @@ struct MacAuthGateView: View {
             _Concurrency.Task {
                 if isAuth { await startSession() } else { SSEClient.shared.disconnect() }
             }
+        }
+        // Global Quick Add hotkey (and menu-bar/command actions) post this; open + focus the
+        // Quick Add window here where openWindow is available (Task e51bec20).
+        .onReceive(NotificationCenter.default.publisher(for: .astridOpenQuickAdd)) { _ in
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: QuickEntryHotKeyController.windowID)
         }
     }
 

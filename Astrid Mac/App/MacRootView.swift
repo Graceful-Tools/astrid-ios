@@ -7,8 +7,10 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacRootView: View {
+    @State private var keyMonitor: Any?
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
     @StateObject private var appModel = MacAppModel.shared
@@ -187,6 +189,40 @@ struct MacRootView: View {
         _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: !t.completed, task: t) }
     }
 
+    // MARK: bare-key shortcuts (web-parity scheme, Task cdfbd79f)
+
+    /// Install a local key monitor so the shared bare-key scheme (n/x/Delete/?) dispatches to the
+    /// same actions as the menus. Guarded: bare keys only, never while editing text or in a modal.
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyDown(event) ? nil : event
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+    }
+
+    /// Returns true if the event was consumed (a shortcut fired).
+    private func handleKeyDown(_ event: NSEvent) -> Bool {
+        // Only bare keys (allow Shift for "?"); modified keys belong to the menus.
+        guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
+        // Never hijack keys while a text field editor is first responder.
+        if let r = NSApp.keyWindow?.firstResponder, r is NSText || r is NSTextView { return false }
+        let key = MacKeyMonitor.normalizedKey(chars: event.charactersIgnoringModifiers, keyCode: event.keyCode)
+        guard let key else { return false }
+        let ctx = KeyboardShortcutHandler.Context(
+            hasSelection: !selectedTaskIds.isEmpty,
+            isTextFieldFocused: false,
+            isModalPresented: appModel.showPalette || appModel.showShortcutsHelp
+                || showNewList || showPublicLists || editingList != nil || sharingList != nil || listToDelete != nil)
+        guard let action = KeyboardShortcutHandler.action(for: key, context: ctx),
+              MacAppModel.handledActions.contains(action) else { return false }
+        appModel.perform(action)
+        return true
+    }
+
     /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
     private func commitDraft() {
         guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
@@ -299,13 +335,18 @@ struct MacRootView: View {
             _ = try? await listService.fetchLists()
         }
         .onChange(of: selectedListId) { _, id in
+            appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
             // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
             guard let id else { return }
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
+        .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
         .onChange(of: taskService.tasks) {
             _Concurrency.Task { await BadgeManager.shared.updateBadge(with: taskService.tasks) }
         }
+        .sheet(isPresented: $appModel.showShortcutsHelp) { MacShortcutsHelpView() }
+        .onAppear { installKeyMonitor() }
+        .onDisappear { removeKeyMonitor() }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
         }
