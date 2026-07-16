@@ -16,6 +16,8 @@ struct MacRootView: View {
     @StateObject private var network = NetworkMonitor.shared
     @State private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
+    @State private var draftTitle = ""
+    @FocusState private var addFieldFocused: Bool
     @State private var contentMode: ContentMode = .list
     @State private var sortKey: SortKey = .due
     @State private var filter: TaskFilter = .all
@@ -86,14 +88,12 @@ struct MacRootView: View {
         return taskService.getTasksForList(id)
     }
 
-    /// Create a task in the selected list and select it for full editing (C2).
+    /// Focus the inline quick-add field instead of eagerly creating a junk "New Task" (C2).
+    /// A task is only created when the user commits non-empty text (see commitDraft).
     private func newTask() {
-        guard let listId = selectedListId else { return }
-        _Concurrency.Task {
-            if let created = try? await taskService.createTask(listIds: [listId], title: "New Task") {
-                await MainActor.run { selectedTaskIds = [created.id] }
-            }
-        }
+        guard selectedListId != nil else { return }
+        if contentMode != .list { contentMode = .list }
+        addFieldFocused = true
     }
 
     /// Complete every selected task through the canonical service (repeat rollover honored).
@@ -106,14 +106,53 @@ struct MacRootView: View {
     }
 
     @ViewBuilder private var taskTable: some View {
-        if tasksForSelection.isEmpty {
-            ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
-        } else {
+        VStack(spacing: 0) {
+            quickAddBar
+            Divider()
+            if displayedTasks.isEmpty {
+                if tasksForSelection.isEmpty {
+                    ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
+                } else {
+                    // The list has tasks but the active filter hides them all — say so and offer a reset.
+                    ContentUnavailableView {
+                        Label("Nothing matches “\(filter.rawValue)”", systemImage: "line.3.horizontal.decrease.circle")
+                    } description: {
+                        Text("No tasks in this list match the current filter.")
+                    } actions: {
+                        Button("Show All") { filter = .all }
+                    }
+                }
+            } else {
+                taskTableBody
+            }
+        }
+    }
+
+    /// Inline draft: a task is created only when the user commits non-empty text — so an
+    /// abandoned draft creates nothing (the old New Task button eagerly created junk).
+    private var quickAddBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.circle").foregroundStyle(Theme.accent)
+            TextField("Add a task…  (try “Report friday #work urgent”)", text: $draftTitle)
+                .textFieldStyle(.plain)
+                .focused($addFieldFocused)
+                .onSubmit(commitDraft)
+                .accessibilityLabel("Add a task")
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+    }
+
+    @ViewBuilder private var taskTableBody: some View {
             Table(displayedTasks, selection: $selectedTaskIds) {
                 TableColumn("") { task in
-                    Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
-                }.width(24)
+                    Button { toggleCompleted(task) } label: {
+                        Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
+                }.width(28)
                 TableColumn("Task") { task in
                     Text(task.title).strikethrough(task.completed)
                 }
@@ -137,11 +176,27 @@ struct MacRootView: View {
                     }
                 }
             }
-        }
     }
 
     private func setCompleted(_ t: Task) {
         _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: true, task: t) }
+    }
+
+    /// Toggle completion from the row glyph (both directions; repeat rollover honored).
+    private func toggleCompleted(_ t: Task) {
+        _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: !t.completed, task: t) }
+    }
+
+    /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
+    private func commitDraft() {
+        guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
+                                              lists: listService.lists) else { return }
+        draftTitle = ""
+        _Concurrency.Task {
+            _ = try? await taskService.createTask(
+                listIds: args.listIds, title: args.title, priority: args.priority,
+                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
+        }
     }
 
     var body: some View {
