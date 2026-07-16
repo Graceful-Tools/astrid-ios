@@ -46,7 +46,7 @@ struct MacTaskDetailView: View {
             }
 
             Section("Schedule") {
-                Toggle("Due date", isOn: $hasDue).onChange(of: hasDue) { if hasDue { saveDue() } }
+                Toggle("Due date", isOn: $hasDue).onChange(of: hasDue) { saveDue() }
                 if hasDue {
                     DatePicker("When", selection: $due,
                                displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
@@ -181,13 +181,14 @@ struct MacTaskDetailView: View {
     private func saveRepeat() {
         guard repeating != (task.repeating ?? .never) else { return }
         _Concurrency.Task {
-            _ = try? await taskService.updateTask(taskId: task.id, repeating: repeating.rawValue, repeatFrom: "DUE_DATE", task: task)
+            _ = try? await taskService.updateTask(taskId: task.id, repeating: repeating.rawValue,
+                                                  repeatFrom: MacTaskDetailUpdate.repeatFromArg(task), task: task)
         }
     }
 
     private func setAssignee(_ id: String?) {
-        guard let id else { return }   // clearing assignee via this path is a follow-up
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: id, task: task) }
+        // Empty string unassigns per the TaskService contract; "No one" (nil) must clear.
+        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
     }
 
     private var loggedSeconds: Int {
@@ -244,8 +245,12 @@ struct MacTaskDetailView: View {
     }
 
     private func saveDue() {
-        guard hasDue else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, dueDateTime: due, isAllDay: isAllDay, task: task) }
+        // hasDue OFF sends Date.distantPast (the shared clear sentinel) so the due date is cleared.
+        _Concurrency.Task {
+            _ = try? await taskService.updateTask(taskId: task.id,
+                                                  dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due),
+                                                  isAllDay: isAllDay, task: task)
+        }
     }
 
     private func setCompleted(_ value: Bool) {
