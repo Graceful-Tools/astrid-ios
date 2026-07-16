@@ -31,6 +31,9 @@ struct MacAuthGateView: View {
         .tint(Theme.accent)   // match the iOS app's accent blue app-wide
         .preferredColorScheme(themeMode.colorScheme)
         .task {
+            // Under XCTest, keep the host inert: these long-lived loops (Outbox/SSE/sync/hotkey)
+            // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).
+            guard !MacRuntime.isRunningTests else { return }
             OutboxManager.shared.start()          // start the write runner (drains queued writes)
             await auth.checkAuthentication()
             hotKeyController.registerIfNeeded()
