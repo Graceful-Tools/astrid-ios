@@ -14,6 +14,8 @@ struct MacAuthGateView: View {
     @StateObject private var auth = AuthManager.shared
     @StateObject private var hotKeyController = QuickEntryHotKeyController()
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
+    @AppStorage("mac.hasSeenOnboarding") private var hasSeenOnboarding = false
+    @State private var showOnboarding = false
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -66,6 +68,13 @@ struct MacAuthGateView: View {
             case .list(let id): MacAppModel.shared.openList(id)
             case .none: break
             }
+        }
+        .onChange(of: auth.isCheckingAuth) { _, checking in
+            // Show onboarding once, after the initial auth check resolves (Task 0eeac7e8).
+            if !checking && !hasSeenOnboarding && !MacRuntime.isRunningTests { showOnboarding = true }
+        }
+        .sheet(isPresented: $showOnboarding, onDismiss: { hasSeenOnboarding = true }) {
+            MacOnboardingView()
         }
     }
 

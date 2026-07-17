@@ -141,6 +141,7 @@ struct MacRootView: View {
                 .focused($addFieldFocused)
                 .onSubmit(commitDraft)
                 .accessibilityLabel("Add a task")
+                .accessibilityIdentifier("tasks.quickAdd")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
@@ -255,6 +256,7 @@ struct MacRootView: View {
                 }
             }
             .navigationTitle("Astrid")
+            .accessibilityIdentifier("sidebar.lists")
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .toolbar {
                 ToolbarItem {
@@ -311,6 +313,7 @@ struct MacRootView: View {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
                         .disabled(selectedListId == nil)
                         .help("New Task")
+                        .accessibilityIdentifier("tasks.newTask")
                 }
                 if selectedTaskIds.count > 1 && contentMode == .list {
                     ToolbarItem(placement: .primaryAction) {
