@@ -8,6 +8,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import UserNotifications
 
 struct MacAuthGateView: View {
     @StateObject private var auth = AuthManager.shared
@@ -35,9 +36,17 @@ struct MacAuthGateView: View {
             // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).
             guard !MacRuntime.isRunningTests else { return }
             OutboxManager.shared.start()          // start the write runner (drains queued writes)
+
+            // Local reminder notifications on Mac (Task 8b81fb9e): register + request permission,
+            // then schedule for current tasks. Works offline too (local tasks have due dates).
+            UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+            NotificationManager.shared.registerNotificationCategories()
+            _ = try? await NotificationManager.shared.requestPermission()
+
             await auth.checkAuthentication()
             hotKeyController.registerIfNeeded()
             if auth.isAuthenticated { await startSession() }
+            await NotificationManager.shared.rescheduleAllNotifications(for: TaskService.shared.tasks)
         }
         .onChange(of: auth.isAuthenticated) { _, isAuth in
             _Concurrency.Task {

@@ -350,7 +350,11 @@ struct MacRootView: View {
             if let tid { selectedTaskIds = [tid]; appModel.requestedTaskId = nil }
         }
         .onChange(of: taskService.tasks) {
-            _Concurrency.Task { await BadgeManager.shared.updateBadge(with: taskService.tasks) }
+            _Concurrency.Task {
+                await BadgeManager.shared.updateBadge(with: taskService.tasks)
+                // Keep local reminder notifications in sync with due dates (Task 8b81fb9e).
+                await NotificationManager.shared.rescheduleAllNotifications(for: taskService.tasks)
+            }
         }
         .sheet(isPresented: $appModel.showShortcutsHelp) { MacShortcutsHelpView() }
         .onAppear { installKeyMonitor() }
