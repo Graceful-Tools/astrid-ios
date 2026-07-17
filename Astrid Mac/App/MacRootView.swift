@@ -16,11 +16,12 @@ struct MacRootView: View {
     @StateObject private var appModel = MacAppModel.shared
     @StateObject private var auth = AuthManager.shared
     @StateObject private var network = NetworkMonitor.shared
-    @State private var selectedListId: String?
+    // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
+    @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
     @State private var draftTitle = ""
     @FocusState private var addFieldFocused: Bool
-    @State private var contentMode: ContentMode = .list
+    @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var sortKey: SortKey = .due
     @State private var filter: TaskFilter = .all
 

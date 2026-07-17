@@ -50,6 +50,14 @@ struct MacAuthGateView: View {
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: QuickEntryHotKeyController.windowID)
         }
+        // Route astrid:// / https://astrid.cc task & list deep links to the main window (Task 84993a68).
+        .onOpenURL { url in
+            switch MacDeepLink.parse(url) {
+            case .task(let id): MacAppModel.shared.openTask(listId: nil, taskId: id)
+            case .list(let id): MacAppModel.shared.openList(id)
+            case .none: break
+            }
+        }
     }
 
     /// Post-auth service startup — mirrors AstridApp.swift (SSE real-time + sync workers).
