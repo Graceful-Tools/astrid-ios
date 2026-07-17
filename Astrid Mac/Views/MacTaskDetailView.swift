@@ -22,6 +22,8 @@ struct MacTaskDetailView: View {
     @State private var isAllDay = false
     @State private var priority: Task.Priority = .none
     @State private var repeating: Task.Repeating = .never
+    @State private var customPattern: CustomRepeatingPattern?
+    @State private var showCustomRepeat = false
     @State private var members: [ListMember] = []
     @State private var timerRunning = false
     @State private var timerStart: Date?
@@ -58,11 +60,19 @@ struct MacTaskDetailView: View {
                     Toggle("All day", isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
                 }
                 Picker("Repeat", selection: $repeating) {
-                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly], id: \.self) {
+                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
                         Text($0.displayName).tag($0)
                     }
                 }
-                .onChange(of: repeating) { saveRepeat() }
+                .onChange(of: repeating) { handleRepeatChange() }
+                if repeating == .custom {
+                    HStack {
+                        Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
+                            .foregroundStyle(Theme.textSecondary).font(.callout)
+                        Spacer()
+                        Button("Edit…") { showCustomRepeat = true }
+                    }
+                }
             }
 
             Section("Assignee") {
@@ -177,6 +187,12 @@ struct MacTaskDetailView: View {
         .task(id: task.id) { load() }
         .sheet(item: $editingComment) { _ in editSheet(title: "Edit Comment", text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: "Rename Subtask", text: $editingSubtaskText, onSave: renameSubtask) }
+        .sheet(isPresented: $showCustomRepeat) {
+            MacCustomRepeatEditor(initial: customPattern) { pattern in
+                customPattern = pattern
+                saveRepeat()
+            }
+        }
     }
 
     /// Small reusable edit sheet for a single text value.
@@ -202,6 +218,7 @@ struct MacTaskDetailView: View {
         priority = task.priority
         isAllDay = task.isAllDay
         repeating = task.repeating ?? .never
+        customPattern = task.repeatingData
         if let d = task.dueDateTime { hasDue = true; due = d } else { hasDue = false }
         subtasks = (task.listIds ?? []).flatMap { taskService.getTasksForList($0) }
             .filter { $0.parentTaskId == task.id }
@@ -214,11 +231,22 @@ struct MacTaskDetailView: View {
         }
     }
 
+    /// Repeat picker changed: for Custom, open the editor (persist happens on Save); otherwise save now.
+    private func handleRepeatChange() {
+        if repeating == .custom {
+            if customPattern == nil { showCustomRepeat = true } else { saveRepeat() }
+        } else {
+            customPattern = nil
+            saveRepeat()
+        }
+    }
+
     private func saveRepeat() {
-        guard repeating != (task.repeating ?? .never) else { return }
         _Concurrency.Task {
-            _ = try? await taskService.updateTask(taskId: task.id, repeating: repeating.rawValue,
-                                                  repeatFrom: MacTaskDetailUpdate.repeatFromArg(task), task: task)
+            _ = try? await taskService.updateTask(
+                taskId: task.id, repeating: repeating.rawValue,
+                repeatingData: repeating == .custom ? customPattern : nil,
+                repeatFrom: MacTaskDetailUpdate.repeatFromArg(task), task: task)
         }
     }
 
