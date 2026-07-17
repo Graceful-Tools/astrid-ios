@@ -5,6 +5,7 @@ enum AIService: String, CaseIterable, Identifiable {
     case claude = "claude"
     case openai = "openai"
     case gemini = "gemini"
+    case copilot = "copilot"
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum AIService: String, CaseIterable, Identifiable {
         case .claude: return "Claude (Anthropic)"
         case .openai: return "OpenAI"
         case .gemini: return "Google Gemini"
+        case .copilot: return "GitHub Copilot"
         }
     }
 
@@ -21,6 +23,7 @@ enum AIService: String, CaseIterable, Identifiable {
         case .claude: return "Claude AI for task assistance and coding"
         case .openai: return "GPT-4 for task assistance and coding"
         case .gemini: return "Gemini for task assistance and coding"
+        case .copilot: return "GitHub Copilot (OpenAI-compatible; requires an active Copilot subscription token)"
         }
     }
 
@@ -29,6 +32,15 @@ enum AIService: String, CaseIterable, Identifiable {
         case .claude: return "ai-claude"
         case .openai: return "ai-openai"
         case .gemini: return "ai-gemini"
+        case .copilot: return "ai-copilot"   // no bundled asset → falls back to fallbackSystemIcon
+        }
+    }
+
+    /// SF Symbol used when `imageAsset` is not a bundled image (keeps the row from showing blank).
+    var fallbackSystemIcon: String {
+        switch self {
+        case .copilot: return "chevron.left.forwardslash.chevron.right"
+        default: return "cpu"
         }
     }
 
@@ -37,6 +49,7 @@ enum AIService: String, CaseIterable, Identifiable {
         case .claude: return "sk-ant-..."
         case .openai: return "sk-..."
         case .gemini: return "AIza..."
+        case .copilot: return "Copilot token"
         }
     }
 
@@ -45,6 +58,7 @@ enum AIService: String, CaseIterable, Identifiable {
         case .claude: return URL(string: "https://console.anthropic.com/settings/keys")
         case .openai: return URL(string: "https://platform.openai.com/api-keys")
         case .gemini: return URL(string: "https://aistudio.google.com/apikey")
+        case .copilot: return URL(string: "https://docs.github.com/en/copilot")
         }
     }
 }
@@ -182,12 +196,17 @@ struct AIAPIKeyManagerView: View {
                 }
             }) {
                 HStack(spacing: Theme.spacing12) {
-                    // Service icon
-                    Image(service.imageAsset)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 36, height: 36)
-                        .clipShape(Circle())
+                    // Service icon (bundled asset, or SF Symbol fallback for services without one)
+                    Group {
+                        if UIImage(named: service.imageAsset) != nil {
+                            Image(service.imageAsset).resizable().aspectRatio(contentMode: .fit)
+                        } else {
+                            Image(systemName: service.fallbackSystemIcon).resizable().aspectRatio(contentMode: .fit)
+                                .padding(7).foregroundStyle(Theme.accent)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
 
                     // Service info
                     VStack(alignment: .leading, spacing: 4) {
