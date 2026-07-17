@@ -1,5 +1,7 @@
 //  MacListMembersView.swift
-//  Astrid for Mac — list sharing: members & roles (D2). Via ListMemberService (offline-queued).
+//  Astrid for Mac — list sharing: members & roles (D2, Task e3413a5b). Via ListMemberService
+//  (offline-queued). Role selection on invite + per-member role changes, permission-gated so
+//  only an owner/admin sees management controls; the list owner is never editable/removable.
 
 #if os(macOS)
 import SwiftUI
@@ -8,10 +10,22 @@ struct MacListMembersView: View {
     let list: TaskList
     @StateObject private var svc = ListMemberService.shared
     @State private var email = ""
+    @State private var inviteRole = "member"
     @Environment(\.dismiss) private var dismiss
+
+    private static let roles = ["member", "admin"]
 
     private var members: [ListMember] { svc.membersByList[list.id] ?? [] }
     private var canInvite: Bool { email.contains("@") && email.contains(".") }
+
+    /// The current user's role on this list ("owner" via ownerId, else their member role).
+    private var myRole: String? {
+        let uid = AuthManager.shared.userId
+        if list.ownerId == uid { return "owner" }
+        return members.first { $0.userId == uid }?.role
+    }
+    private var canManage: Bool { myRole == "owner" || myRole == "admin" }
+    private func isOwner(_ m: ListMember) -> Bool { m.userId == list.ownerId }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -22,12 +36,23 @@ struct MacListMembersView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(m.user?.displayName ?? m.userId).foregroundStyle(Theme.textPrimary)
-                            Text(m.role.capitalized).font(.caption).foregroundStyle(Theme.textMuted)
+                            Text(isOwner(m) ? "Owner" : m.role.capitalized)
+                                .font(.caption).foregroundStyle(Theme.textMuted)
                         }
                         Spacer()
-                        Button(role: .destructive) { remove(m) } label: {
-                            Image(systemName: "minus.circle.fill").foregroundStyle(Theme.error)
-                        }.buttonStyle(.plain)
+                        // Only owner/admin can change roles, and never the list owner's row.
+                        if canManage && !isOwner(m) {
+                            Picker("", selection: Binding(
+                                get: { m.role },
+                                set: { setRole(m, $0) }
+                            )) {
+                                ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
+                            }
+                            .labelsHidden().frame(width: 110)
+                            Button(role: .destructive) { remove(m) } label: {
+                                Image(systemName: "minus.circle.fill").foregroundStyle(Theme.error)
+                            }.buttonStyle(.plain)
+                        }
                     }
                 }
                 if members.isEmpty {
@@ -36,22 +61,40 @@ struct MacListMembersView: View {
             }
             .frame(minHeight: 180)
 
-            HStack {
-                TextField("Invite by email", text: $email).textFieldStyle(.roundedBorder).onSubmit(invite)
-                Button("Invite", action: invite).disabled(!canInvite)
+            if canManage {
+                HStack {
+                    TextField("Invite by email", text: $email).textFieldStyle(.roundedBorder).onSubmit(invite)
+                    Picker("", selection: $inviteRole) {
+                        ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
+                    }.labelsHidden().frame(width: 110)
+                    Button("Invite", action: invite).disabled(!canInvite)
+                }
+            } else {
+                Text("Only the list owner or an admin can manage members.")
+                    .font(.caption).foregroundStyle(Theme.textMuted)
             }
+
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.return, modifiers: []) }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: 440)
         .task { try? await svc.fetchMembers(listId: list.id) }
     }
 
     private func invite() {
         guard canInvite else { return }
         let e = email.trimmingCharacters(in: .whitespaces); email = ""
+        let role = inviteRole
         _Concurrency.Task {
-            _ = try? await svc.addMember(listId: list.id, email: e)
+            _ = try? await svc.addMember(listId: list.id, email: e, role: role)
+            try? await svc.fetchMembers(listId: list.id)
+        }
+    }
+
+    private func setRole(_ m: ListMember, _ role: String) {
+        guard role != m.role else { return }
+        _Concurrency.Task {
+            try? await svc.updateMemberRole(listId: list.id, userId: m.userId, role: role)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
