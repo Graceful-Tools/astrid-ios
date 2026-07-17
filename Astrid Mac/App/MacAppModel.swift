@@ -15,7 +15,18 @@ final class MacAppModel: ObservableObject {
     /// Current content selection, mirrored from MacRootView so menu/shortcut commands can act on it.
     @Published var selectedListId: String?
     @Published var selectedTaskIds: Set<String> = []
+    /// Selection *requested* by the palette; MacRootView applies then clears these (Task 5003c622).
+    @Published var requestedListId: String?
+    @Published var requestedTaskId: String?
     let registry = CommandRegistry()
+
+    /// Navigate the main window to a list (from the command palette).
+    @MainActor func openList(_ id: String) { requestedListId = id }
+    /// Navigate to a task within its list (from the command palette).
+    @MainActor func openTask(listId: String?, taskId: String) {
+        if let listId { requestedListId = listId }
+        requestedTaskId = taskId
+    }
 
     /// Bare-key/menu actions the Mac app actually performs (single source of truth for dispatch).
     static let handledActions: Set<ShortcutAction> = [.newTask, .completeTask, .deleteTask, .showShortcuts]

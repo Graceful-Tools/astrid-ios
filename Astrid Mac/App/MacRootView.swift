@@ -341,6 +341,13 @@ struct MacRootView: View {
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
         .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
+        // Apply selection requested by the command palette, then clear the request (Task 5003c622).
+        .onChange(of: appModel.requestedListId) { _, id in
+            if let id { selectedListId = id; appModel.requestedListId = nil }
+        }
+        .onChange(of: appModel.requestedTaskId) { _, tid in
+            if let tid { selectedTaskIds = [tid]; appModel.requestedTaskId = nil }
+        }
         .onChange(of: taskService.tasks) {
             _Concurrency.Task { await BadgeManager.shared.updateBadge(with: taskService.tasks) }
         }
