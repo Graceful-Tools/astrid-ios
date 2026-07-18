@@ -1,38 +1,32 @@
-//
 //  Astrid_MacTests.swift
-//  Astrid MacTests
-//
-//  Created by Jon Paris on 7/13/26.
-//
+//  Astrid MacTests — shared-layer smoke tests (Task df40c2e9).
+//  Replaces the empty Xcode template tests. Broader coverage lives in the focused suites
+//  (MacTaskDetailUpdate, MacFeatureFlagGating, MacQuickAdd, MacCommandDispatch, MacRuntime,
+//  MacPaletteSearch, MacDeepLink, MacCustomRepeat, MacErrorCenter, MacMyTasks, MacBoardMove,
+//  MacTaskVisuals, MacListTaskFiltering, SharedServiceLayer, …).
 
 import XCTest
 @testable import Astrid_Mac
 
 final class Astrid_MacTests: XCTestCase {
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    /// The shared singletons the Mac app depends on are reachable from the Mac target.
+    func testSharedServicesReachableOnMac() {
+        XCTAssertNotNil(TaskService.shared)
+        XCTAssertNotNil(ListService.shared)
+        XCTAssertNotNil(AuthManager.shared)
+        XCTAssertNotNil(SyncManager.shared)
+        XCTAssertNotNil(FeatureFlagService.shared)
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    /// The shared Task model round-trips through Codable on macOS (wire-shape parity with iOS/web).
+    func testTaskCodableRoundTripsOnMac() throws {
+        var t = Task(id: "t1", title: "Round trip", completed: false)
+        t.priority = .high
+        let data = try JSONEncoder().encode(t)
+        let decoded = try JSONDecoder().decode(Task.self, from: data)
+        XCTAssertEqual(decoded.id, "t1")
+        XCTAssertEqual(decoded.title, "Round trip")
+        XCTAssertEqual(decoded.priority, .high)
     }
-
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
-    }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
 }
