@@ -20,20 +20,6 @@
 			remoteGlobalIDString = CB5DE3882EBDCC150056928E;
 			remoteInfo = Astrid;
 		};
-		CB8DEFB33005CEE6003E5617 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CBB1357C2EAB27CD00D41E86 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CB8DEFA03005CEE6003E5617;
-			remoteInfo = "Astrid Tasks";
-		};
-		CB8DEFBD3005CEE6003E5617 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CBB1357C2EAB27CD00D41E86 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CB8DEFA03005CEE6003E5617;
-			remoteInfo = "Astrid Tasks";
-		};
 		CB8DEFE33005D591003E5617 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = CBB1357C2EAB27CD00D41E86 /* Project object */;
@@ -81,9 +67,6 @@
 /* Begin PBXFileReference section */
 		283B1791C98D43E490D42903 /* AstridApp.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AstridApp.xcdatamodel; sourceTree = "<group>"; };
 		CB5DE3892EBDCC150056928E /* Astrid.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Astrid.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB8DEFA13005CEE6003E5617 /* Astrid Tasks.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Astrid Tasks.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB8DEFB23005CEE6003E5617 /* Astrid TasksTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid TasksTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB8DEFBC3005CEE6003E5617 /* Astrid TasksUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid TasksUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8DEFD13005D591003E5617 /* Astrid Mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Astrid Mac.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8DEFE23005D591003E5617 /* Astrid MacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid MacTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8DEFEC3005D591003E5617 /* Astrid MacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid MacUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -272,27 +255,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		CB8DEF9E3005CEE6003E5617 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFAF3005CEE6003E5617 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFB93005CEE6003E5617 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		CB8DEFCE3005D591003E5617 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -362,9 +324,6 @@
 				CBB135912EAB27CE00D41E86 /* Astrid AppTests.xctest */,
 				CBB1359B2EAB27CE00D41E86 /* Astrid AppUITests.xctest */,
 				CB5DE3892EBDCC150056928E /* Astrid.appex */,
-				CB8DEFA13005CEE6003E5617 /* Astrid Tasks.app */,
-				CB8DEFB23005CEE6003E5617 /* Astrid TasksTests.xctest */,
-				CB8DEFBC3005CEE6003E5617 /* Astrid TasksUITests.xctest */,
 				CB8DEFD13005D591003E5617 /* Astrid Mac.app */,
 				CB8DEFE23005D591003E5617 /* Astrid MacTests.xctest */,
 				CB8DEFEC3005D591003E5617 /* Astrid MacUITests.xctest */,
@@ -396,65 +355,6 @@
 			productName = Astrid;
 			productReference = CB5DE3892EBDCC150056928E /* Astrid.appex */;
 			productType = "com.apple.product-type.app-extension";
-		};
-		CB8DEFA03005CEE6003E5617 /* Astrid Tasks */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CB8DEFCA3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid Tasks" */;
-			buildPhases = (
-				CB8DEF9D3005CEE6003E5617 /* Sources */,
-				CB8DEF9E3005CEE6003E5617 /* Frameworks */,
-				CB8DEF9F3005CEE6003E5617 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "Astrid Tasks";
-			packageProductDependencies = (
-			);
-			productName = "Astrid Tasks";
-			productReference = CB8DEFA13005CEE6003E5617 /* Astrid Tasks.app */;
-			productType = "com.apple.product-type.application";
-		};
-		CB8DEFB13005CEE6003E5617 /* Astrid TasksTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CB8DEFCB3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid TasksTests" */;
-			buildPhases = (
-				CB8DEFAE3005CEE6003E5617 /* Sources */,
-				CB8DEFAF3005CEE6003E5617 /* Frameworks */,
-				CB8DEFB03005CEE6003E5617 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				CB8DEFB43005CEE6003E5617 /* PBXTargetDependency */,
-			);
-			name = "Astrid TasksTests";
-			packageProductDependencies = (
-			);
-			productName = "Astrid TasksTests";
-			productReference = CB8DEFB23005CEE6003E5617 /* Astrid TasksTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		CB8DEFBB3005CEE6003E5617 /* Astrid TasksUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CB8DEFCC3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid TasksUITests" */;
-			buildPhases = (
-				CB8DEFB83005CEE6003E5617 /* Sources */,
-				CB8DEFB93005CEE6003E5617 /* Frameworks */,
-				CB8DEFBA3005CEE6003E5617 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				CB8DEFBE3005CEE6003E5617 /* PBXTargetDependency */,
-			);
-			name = "Astrid TasksUITests";
-			packageProductDependencies = (
-			);
-			productName = "Astrid TasksUITests";
-			productReference = CB8DEFBC3005CEE6003E5617 /* Astrid TasksUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		CB8DEFD03005D591003E5617 /* Astrid Mac */ = {
 			isa = PBXNativeTarget;
@@ -608,17 +508,6 @@
 					CB5DE3882EBDCC150056928E = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
-					CB8DEFA03005CEE6003E5617 = {
-						CreatedOnToolsVersion = 26.6;
-					};
-					CB8DEFB13005CEE6003E5617 = {
-						CreatedOnToolsVersion = 26.6;
-						TestTargetID = CB8DEFA03005CEE6003E5617;
-					};
-					CB8DEFBB3005CEE6003E5617 = {
-						CreatedOnToolsVersion = 26.6;
-						TestTargetID = CB8DEFA03005CEE6003E5617;
-					};
 					CB8DEFD03005D591003E5617 = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -674,9 +563,6 @@
 				CBB135902EAB27CE00D41E86 /* Astrid AppTests */,
 				CBB1359A2EAB27CE00D41E86 /* Astrid AppUITests */,
 				CB5DE3882EBDCC150056928E /* Astrid */,
-				CB8DEFA03005CEE6003E5617 /* Astrid Tasks */,
-				CB8DEFB13005CEE6003E5617 /* Astrid TasksTests */,
-				CB8DEFBB3005CEE6003E5617 /* Astrid TasksUITests */,
 				CB8DEFD03005D591003E5617 /* Astrid Mac */,
 				CB8DEFE13005D591003E5617 /* Astrid MacTests */,
 				CB8DEFEB3005D591003E5617 /* Astrid MacUITests */,
@@ -686,27 +572,6 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		CB5DE3872EBDCC150056928E /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEF9F3005CEE6003E5617 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFB03005CEE6003E5617 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFBA3005CEE6003E5617 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -765,27 +630,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		CB8DEF9D3005CEE6003E5617 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFAE3005CEE6003E5617 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		CB8DEFB83005CEE6003E5617 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		CB8DEFCD3005D591003E5617 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -837,16 +681,6 @@
 			isa = PBXTargetDependency;
 			target = CB5DE3882EBDCC150056928E /* Astrid */;
 			targetProxy = CB5DE3912EBDCC160056928E /* PBXContainerItemProxy */;
-		};
-		CB8DEFB43005CEE6003E5617 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CB8DEFA03005CEE6003E5617 /* Astrid Tasks */;
-			targetProxy = CB8DEFB33005CEE6003E5617 /* PBXContainerItemProxy */;
-		};
-		CB8DEFBE3005CEE6003E5617 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CB8DEFA03005CEE6003E5617 /* Astrid Tasks */;
-			targetProxy = CB8DEFBD3005CEE6003E5617 /* PBXContainerItemProxy */;
 		};
 		CB8DEFE43005D591003E5617 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -924,152 +758,6 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		CB8DEFC43005CEE6003E5617 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-Tasks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		CB8DEFC53005CEE6003E5617 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-Tasks";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		CB8DEFC63005CEE6003E5617 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-TasksTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid Tasks.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid Tasks";
-			};
-			name = Debug;
-		};
-		CB8DEFC73005CEE6003E5617 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-TasksTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid Tasks.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid Tasks";
-			};
-			name = Release;
-		};
-		CB8DEFC83005CEE6003E5617 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-TasksUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = "Astrid Tasks";
-			};
-			name = Debug;
-		};
-		CB8DEFC93005CEE6003E5617 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-TasksUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = "Astrid Tasks";
 			};
 			name = Release;
 		};
@@ -1498,33 +1186,6 @@
 			buildConfigurations = (
 				CB5DE3962EBDCC160056928E /* Debug */,
 				CB5DE3972EBDCC160056928E /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		CB8DEFCA3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid Tasks" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CB8DEFC43005CEE6003E5617 /* Debug */,
-				CB8DEFC53005CEE6003E5617 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		CB8DEFCB3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid TasksTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CB8DEFC63005CEE6003E5617 /* Debug */,
-				CB8DEFC73005CEE6003E5617 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		CB8DEFCC3005CEE6003E5617 /* Build configuration list for PBXNativeTarget "Astrid TasksUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CB8DEFC83005CEE6003E5617 /* Debug */,
-				CB8DEFC93005CEE6003E5617 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
