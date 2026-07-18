@@ -1,6 +1,6 @@
 //  MacMyTasksTests.swift
-//  Regression for task d0306aab — the virtual "My Tasks" entry shows only my incomplete tasks,
-//  de-duplicated across lists.
+//  Regression for task d0306aab — the universal "My Tasks" set: incomplete tasks that are mine
+//  or unassigned (not assigned to other people), de-duplicated across lists.
 
 import XCTest
 @testable import Astrid_Mac
@@ -13,14 +13,15 @@ final class MacMyTasksTests: XCTestCase {
         return t
     }
 
-    func testFiltersToAssigneeAndIncomplete() {
+    func testIncludesMineAndUnassignedExcludesOthersAndCompleted() {
         let tasks = [
-            task("1", assignee: "me"),
-            task("2", assignee: "you"),
-            task("3", assignee: "me", completed: true),
+            task("mine", assignee: "me"),
+            task("unassigned", assignee: nil),
+            task("theirs", assignee: "you"),
+            task("mineDone", assignee: "me", completed: true),
         ]
-        let mine = MacMyTasks.filter(tasks, userId: "me")
-        XCTAssertEqual(mine.map { $0.id }, ["1"])
+        let ids = Set(MacMyTasks.filter(tasks, userId: "me").map { $0.id })
+        XCTAssertEqual(ids, ["mine", "unassigned"])
     }
 
     func testDeduplicatesAcrossLists() {
@@ -28,7 +29,8 @@ final class MacMyTasksTests: XCTestCase {
         XCTAssertEqual(MacMyTasks.filter(tasks, userId: "me").count, 1)
     }
 
-    func testNilUserReturnsEmpty() {
-        XCTAssertTrue(MacMyTasks.filter([task("1", assignee: "me")], userId: nil).isEmpty)
+    func testExcludesTasksAssignedToOthers() {
+        let tasks = [task("a", assignee: "other1"), task("b", assignee: "other2")]
+        XCTAssertTrue(MacMyTasks.filter(tasks, userId: "me").isEmpty)
     }
 }

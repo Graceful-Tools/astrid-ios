@@ -246,14 +246,18 @@ struct MacRootView: View {
         NavigationSplitView {
             List(selection: $selectedListId) {
                 Section {
-                    Label {
-                        Text("My Tasks")
-                    } icon: {
-                        Circle().fill(Theme.accent).frame(width: 12, height: 12)
+                    // Use the SAME ForEach-row pattern as the lists below — a lone tagged Label
+                    // isn't reliably selectable in List(selection:); ForEach gives it row identity.
+                    ForEach([Self.myTasksId], id: \.self) { _ in
+                        Label {
+                            Text("My Tasks")
+                        } icon: {
+                            Circle().fill(Theme.accent).frame(width: 12, height: 12)
+                        }
+                        .badge(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)
+                        .tag(Optional(Self.myTasksId))
+                        .accessibilityIdentifier("sidebar.myTasks")
                     }
-                    .badge(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)
-                    .tag(Optional(Self.myTasksId))
-                    .accessibilityIdentifier("sidebar.myTasks")
                 }
                 if !favoriteLists.isEmpty {
                     Section("Favorites") { ForEach(favoriteLists) { listRow($0) } }
