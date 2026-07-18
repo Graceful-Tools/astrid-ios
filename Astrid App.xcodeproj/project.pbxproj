@@ -708,6 +708,7 @@
 		CB5DE3962EBDCC160056928E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ENABLE_HARDENED_RUNTIME = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 151;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
@@ -798,6 +799,7 @@
 		CB8DEFF63005D592003E5617 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ENABLE_HARDENED_RUNTIME = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
