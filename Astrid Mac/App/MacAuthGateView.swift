@@ -55,7 +55,8 @@ struct MacAuthGateView: View {
         }
         .onChange(of: auth.isAuthenticated) { _, isAuth in
             _Concurrency.Task {
-                if isAuth { await startSession() } else { SSEClient.shared.disconnect() }
+                if isAuth { await startSession() }
+                else { SSEClient.shared.disconnect(); SyncManager.shared.stopAutoSync() }
             }
         }
         // Global Quick Add hotkey (and menu-bar/command actions) post this; open + focus the
@@ -86,6 +87,12 @@ struct MacAuthGateView: View {
         // Local-only mode has no server session — skip network services.
         guard ConnectionModeManager.shared.currentMode != .offlineOnly else { return }
         await SSEClient.shared.connect()                 // live updates
+
+        // Full task+list sync via the SHARED SyncManager (same path as iOS): fetches every list
+        // and every task (paginated) into the global stores, then keeps them fresh on a timer.
+        // This is why lists / My Tasks now show everything instead of only opened lists.
+        try? await SyncManager.shared.performFullSync(includeUserTasks: true)
+        SyncManager.shared.startAutoSync()
 
         // Honor remote feature rollouts before scheduling gated providers (Task b0048881).
         await FeatureFlagService.shared.refreshIfStale()

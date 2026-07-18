@@ -259,15 +259,11 @@ struct MacRootView: View {
             List(selection: $selectedListId) {
                 Section {
                     Label {
-                        HStack {
-                            Text("My Tasks")
-                            Spacer()
-                            Text("\(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)")
-                                .font(.caption).foregroundStyle(Theme.textMuted)
-                        }
+                        Text("My Tasks")
                     } icon: {
                         Circle().fill(Theme.accent).frame(width: 12, height: 12)
                     }
+                    .badge(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)
                     .tag(Optional(Self.myTasksId))
                     .accessibilityIdentifier("sidebar.myTasks")
                 }
@@ -376,15 +372,9 @@ struct MacRootView: View {
         }
         .onChange(of: selectedListId) { _, id in
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
-            guard let id else { return }
-            if id == Self.myTasksId {
-                // My Tasks aggregates across lists — hydrate every list so nothing is missing.
-                _Concurrency.Task {
-                    for l in listService.lists { _ = try? await taskService.fetchTasksForListFromServer(l.id) }
-                }
-                return
-            }
-            // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
+            // The global SyncManager already loaded all lists' tasks; just refresh the opened
+            // real list for immediacy (My Tasks/virtual needs no per-list fetch).
+            guard let id, id != Self.myTasksId else { return }
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
         .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
