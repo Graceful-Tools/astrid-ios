@@ -20,6 +20,8 @@ struct MacRootView: View {
     @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
     @State private var columnCustomization = TableColumnCustomization<Task>()   // configurable columns (67c5e54c)
+    @State private var editingTaskId: String?          // inline title editing (67c5e54c)
+    @State private var editingTaskTitle = ""
     @State private var draftTitle = ""
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
@@ -73,6 +75,9 @@ struct MacRootView: View {
             MacListIcon(list: list, size: 16)     // real list image/color swatch (mirrors iOS)
         }
         .tag(Optional(list.id))
+        .dropDestination(for: String.self) { ids, _ in   // drop dragged tasks here to move them
+            move(Set(ids), to: list.id); return true
+        }
         .contextMenu {
             Button("Rename…") { editingList = list }
             Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
@@ -80,6 +85,15 @@ struct MacRootView: View {
             Divider()
             Button("Delete…", role: .destructive) { listToDelete = list }
         }
+    }
+
+    // MARK: inline task-title editing (67c5e54c)
+    private func beginInlineEdit(_ t: Task) { editingTaskId = t.id; editingTaskTitle = t.title }
+    private func commitInlineEdit(_ t: Task) {
+        let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)
+        editingTaskId = nil
+        guard !new.isEmpty, new != t.title else { return }
+        MacActions.perform("Rename task") { _ = try await taskService.updateTask(taskId: t.id, title: new, task: t) }
     }
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
@@ -164,8 +178,17 @@ struct MacRootView: View {
                     .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
                 }.width(28).customizationID("done").disabledCustomizationBehavior(.all)
                 TableColumn("Task") { task in
-                    Text(task.title).strikethrough(task.completed)
-                        .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                    if editingTaskId == task.id {
+                        TextField("Title", text: $editingTaskTitle)
+                            .textFieldStyle(.plain)
+                            .onSubmit { commitInlineEdit(task) }
+                            .onExitCommand { editingTaskId = nil }
+                    } else {
+                        Text(task.title).strikethrough(task.completed)
+                            .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                            .draggable(task.id)                       // drag onto a sidebar list to move
+                            .onTapGesture(count: 2) { beginInlineEdit(task) }   // double-click to rename
+                    }
                 }.customizationID("title").disabledCustomizationBehavior(.visibility)
                 TableColumn("List") { task in
                     if let l = listService.lists.first(where: { task.listIds?.contains($0.id) == true }) {
