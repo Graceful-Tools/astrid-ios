@@ -74,7 +74,6 @@ class GoogleSignInManager: NSObject, ObservableObject {
                 callbackURLScheme: redirectURI.components(separatedBy: ":").first
             ) { [weak self] callbackURL, error in
                 _Concurrency.Task { @MainActor in
-                    GAuthDebug.log("ASWebAuth callback: url=\(callbackURL?.absoluteString ?? "nil") err=\(error.map { String(describing: $0) } ?? "nil")")
                     if let error = error {
                         if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
                             self?.complete(with: .failure(GoogleSignInError.userCancelled))
@@ -90,16 +89,11 @@ class GoogleSignInManager: NSObject, ObservableObject {
                     }
 
                     do {
-                        GAuthDebug.log("exchanging code for tokens…")
                         let result = try await self?.exchangeCodeForTokens(callbackURL: callbackURL, codeVerifier: codeVerifier)
                         if let result = result {
-                            GAuthDebug.log("token exchange OK — returning idToken")
                             self?.complete(with: .success(result))
-                        } else {
-                            GAuthDebug.log("token exchange returned nil result")
                         }
                     } catch {
-                        GAuthDebug.log("token exchange FAILED: \(String(describing: error))")
                         self?.complete(with: .failure(error))
                     }
                 }
@@ -113,7 +107,6 @@ class GoogleSignInManager: NSObject, ObservableObject {
             // Ignoring it would leave the continuation suspended forever — the exact hang
             // users saw on macOS. Fail explicitly instead.
             if !session.start() {
-                GAuthDebug.log("ASWebAuthenticationSession.start() returned false — cannot present")
                 self.complete(with: .failure(GoogleSignInError.presentationFailed))
             }
         }

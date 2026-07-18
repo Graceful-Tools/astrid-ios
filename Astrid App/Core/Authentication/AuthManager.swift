@@ -314,7 +314,6 @@ class AuthManager: ObservableObject {
     // MARK: - Sign In with Google
 
     func signInWithGoogle() async throws {
-        GAuthDebug.log("AuthManager.signInWithGoogle ENTER")
         print("🔵 [AuthManager] Starting Google sign-in...")
         isLoading = true
         errorMessage = nil
@@ -324,16 +323,13 @@ class AuthManager: ObservableObject {
         do {
             // Get Google credentials
             print("🔵 [AuthManager] Requesting Google credentials...")
-            GAuthDebug.log("AuthManager: requesting Google credentials")
             let googleResult = try await GoogleSignInManager.shared.signIn()
             print("🔵 [AuthManager] Got Google credentials, sending to backend...")
-            GAuthDebug.log("AuthManager: got Google idToken (len=\(googleResult.idToken.count)), calling backend signInWithGoogle")
 
             // Send to backend for validation and session creation
             let response: SessionResponse = try await apiClient.request(.signInWithGoogle(
                 idToken: googleResult.idToken
             ))
-            GAuthDebug.log("AuthManager: backend session created, user=\(response.user.email ?? response.user.id)")
 
             self.currentUser = response.user
 
@@ -351,19 +347,16 @@ class AuthManager: ObservableObject {
 
             // Set authenticated (session-based auth)
             self.isAuthenticated = true
-            GAuthDebug.log("AuthManager: isAuthenticated=true — Google sign-in complete")
 
             // Trigger local data upload if transitioning from offline-only mode
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
         } catch let error as APIError {
             print("❌ [AuthManager] Google sign-in failed: \(error.localizedDescription)")
-            GAuthDebug.log("AuthManager: FAILED (APIError): \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
             print("❌ [AuthManager] Google sign-in failed: \(error)")
-            GAuthDebug.log("AuthManager: FAILED: \(String(describing: error))")
             self.errorMessage = error.localizedDescription
             throw error
         }
