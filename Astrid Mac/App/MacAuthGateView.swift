@@ -40,6 +40,13 @@ struct MacAuthGateView: View {
             // Under XCTest, keep the host inert: these long-lived loops (Outbox/SSE/sync/hotkey)
             // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).
             guard !MacRuntime.isRunningTests else { return }
+            // UI testing: start from a clean signed-out state with no network work, so the sign-in
+            // screen shows deterministically regardless of the machine's saved session (6c30df95).
+            if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+                auth.isCheckingAuth = false
+                auth.isAuthenticated = false
+                return
+            }
             OutboxManager.shared.start()          // start the write runner (drains queued writes)
 
             // Local reminder notifications on Mac (Task 8b81fb9e): register + request permission,
@@ -75,7 +82,9 @@ struct MacAuthGateView: View {
         }
         .onChange(of: auth.isCheckingAuth) { _, checking in
             // Show onboarding once, after the initial auth check resolves (Task 0eeac7e8).
-            if !checking && !hasSeenOnboarding && !MacRuntime.isRunningTests { showOnboarding = true }
+            // Skipped under UI testing (-uiTesting) for a deterministic login screen.
+            let uiTesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+            if !checking && !hasSeenOnboarding && !MacRuntime.isRunningTests && !uiTesting { showOnboarding = true }
         }
         .sheet(isPresented: $showOnboarding, onDismiss: { hasSeenOnboarding = true }) {
             MacOnboardingView()
@@ -143,6 +152,7 @@ struct MacLoginView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
+                .accessibilityIdentifier("login.passkey")
 
                 secondaryButton("Continue with Google", "globe") { try await auth.signInWithGoogle() }
                 secondaryButton("Sign in with Apple", "apple.logo") { try await auth.signInWithApple() }
@@ -156,6 +166,7 @@ struct MacLoginView: View {
                     _Concurrency.Task { await ConnectionModeManager.shared.createLocalUser() }
                 }
                 .buttonStyle(.link).font(.callout).foregroundStyle(Theme.textSecondary)
+                .accessibilityIdentifier("login.offline")
             }
 
             if auth.isLoading { ProgressView().controlSize(.small) }

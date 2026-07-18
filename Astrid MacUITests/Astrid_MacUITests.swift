@@ -1,43 +1,61 @@
-//
 //  Astrid_MacUITests.swift
-//  Astrid MacUITests
-//
-//  Created by Jon Paris on 7/13/26.
-//
+//  Astrid for Mac — smoke UI coverage (Task 6c30df95). Replaces the empty template test with
+//  real product assertions. Launches with -uiTesting for a deterministic login screen (onboarding
+//  skipped) and asserts the sign-in UI and the offline-mode path.
 
 import XCTest
 
 final class Astrid_MacUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    private func launchApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-uiTesting"]
         app.launch()
+        return app
+    }
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+    /// The app launches and reaches the sign-in screen (a window + the Passkey button).
+    @MainActor
+    func testLaunchesToSignInScreen() {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15), "App should launch to foreground")
+        let passkey = app.buttons["login.passkey"]
+        XCTAssertTrue(passkey.waitForExistence(timeout: 15), "Sign-in screen should show the Passkey button")
+    }
+
+    /// The sign-in screen offers the expected entry points (Passkey + offline).
+    @MainActor
+    func testSignInOptionsPresent() {
+        let app = launchApp()
+        XCTAssertTrue(app.buttons["login.passkey"].waitForExistence(timeout: 15))
+        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
+        XCTAssertTrue(offline.waitForExistence(timeout: 10),
+                      "‘Continue without an account’ should be available")
+    }
+
+    /// Choosing “Continue without an account” enters the app shell (local/offline mode).
+    @MainActor
+    func testOfflineModeEntersShell() {
+        let app = launchApp()
+        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
+        XCTAssertTrue(offline.waitForExistence(timeout: 15))
+        offline.click()
+        // The authenticated shell shows the sidebar with the My Tasks row.
+        let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch
+        XCTAssertTrue(myTasks.waitForExistence(timeout: 15),
+                      "Offline mode should enter the shell with the sidebar")
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
+    func testLaunchPerformance() {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            let app = XCUIApplication()
+            app.launchArguments += ["-uiTesting"]
+            app.launch()
         }
     }
 }
