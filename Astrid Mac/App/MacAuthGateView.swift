@@ -22,7 +22,9 @@ struct MacAuthGateView: View {
         Group {
             if auth.isCheckingAuth {
                 VStack(spacing: 12) {
-                    Image(systemName: "checklist").font(.system(size: 44)).foregroundStyle(.tint)
+                    Image("AstridCharacter").resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     ProgressView().controlSize(.small)
                 }
             } else if auth.isAuthenticated {
@@ -115,10 +117,15 @@ struct MacLoginView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            VStack(spacing: 6) {
-                Image(systemName: "checklist").font(.system(size: 52)).foregroundStyle(Theme.accent)
-                Text("Astrid").font(.largeTitle.bold()).foregroundStyle(Theme.textPrimary)
-                Text("Sign in to your account").foregroundStyle(Theme.textSecondary)
+            VStack(spacing: 10) {
+                Image("AstridCharacter").resizable().aspectRatio(contentMode: .fit)
+                    .frame(width: 88, height: 88)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                VStack(spacing: 2) {
+                    Text("astrid").font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                    Text("Get it done!").font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
+                }
+                Text("Sign in to get started!").font(.headline).foregroundStyle(Theme.textPrimary)
             }
             .padding(.bottom, 4)
 

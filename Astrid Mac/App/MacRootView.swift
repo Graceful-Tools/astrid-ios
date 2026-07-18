@@ -77,8 +77,7 @@ struct MacRootView: View {
         Label {
             Text(list.name)
         } icon: {
-            Image(systemName: (list.isFavorite ?? false) ? "star.fill" : "list.bullet")
-                .foregroundStyle((list.isFavorite ?? false) ? Theme.warning : Theme.accent)
+            MacListIcon(list: list, size: 16)     // real list image/color swatch (mirrors iOS)
         }
         .tag(Optional(list.id))
         .contextMenu {
@@ -87,20 +86,6 @@ struct MacRootView: View {
             Button("Sharing…") { sharingList = list }
             Divider()
             Button("Delete…", role: .destructive) { listToDelete = list }
-        }
-    }
-
-    private var accountMenu: some View {
-        Menu {
-            if let u = auth.currentUser {
-                Text(u.name ?? u.email ?? "Account")
-                Divider()
-            }
-            Button("Sign Out") {
-                _Concurrency.Task { try? await auth.signOut() }
-            }
-        } label: {
-            Image(systemName: "person.crop.circle")
         }
     }
 
@@ -115,9 +100,9 @@ struct MacRootView: View {
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
         if id == Self.myTasksId {
-            // Virtual My Tasks: incomplete tasks assigned to me across all lists, de-duplicated.
-            let all = listService.lists.flatMap { taskService.getTasksForList($0.id) }
-            return MacMyTasks.filter(all, userId: auth.userId)
+            // Virtual My Tasks: incomplete tasks assigned to me across ALL lists (from the global
+            // task store, so it's populated even for lists not individually opened).
+            return MacMyTasks.filter(taskService.tasks, userId: auth.userId)
         }
         return taskService.getTasksForList(id)
     }
@@ -274,9 +259,18 @@ struct MacRootView: View {
         NavigationSplitView {
             List(selection: $selectedListId) {
                 Section {
-                    Label("My Tasks", systemImage: "person.crop.circle")
-                        .tag(Optional(Self.myTasksId))
-                        .accessibilityIdentifier("sidebar.myTasks")
+                    Label {
+                        HStack {
+                            Text("My Tasks")
+                            Spacer()
+                            Text("\(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)")
+                                .font(.caption).foregroundStyle(Theme.textMuted)
+                        }
+                    } icon: {
+                        Circle().fill(Theme.accent).frame(width: 12, height: 12)
+                    }
+                    .tag(Optional(Self.myTasksId))
+                    .accessibilityIdentifier("sidebar.myTasks")
                 }
                 if !favoriteLists.isEmpty {
                     Section("Favorites") { ForEach(favoriteLists) { listRow($0) } }
@@ -291,6 +285,10 @@ struct MacRootView: View {
             .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
             .navigationTitle("Astrid")
             .accessibilityIdentifier("sidebar.lists")
+            .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
+                Divider()
+                MacSidebarAccountBar()
+            }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .toolbar {
                 ToolbarItem {
@@ -379,8 +377,15 @@ struct MacRootView: View {
         }
         .onChange(of: selectedListId) { _, id in
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
+            guard let id else { return }
+            if id == Self.myTasksId {
+                // My Tasks aggregates across lists — hydrate every list so nothing is missing.
+                _Concurrency.Task {
+                    for l in listService.lists { _ = try? await taskService.fetchTasksForListFromServer(l.id) }
+                }
+                return
+            }
             // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
-            guard let id, id != Self.myTasksId else { return }  // My Tasks is virtual — no server list
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
         .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
@@ -414,9 +419,6 @@ struct MacRootView: View {
                             presenting: listToDelete) { list in
             Button("Delete “\(list.name)”", role: .destructive) { deleteList(list) }
             Button("Cancel", role: .cancel) {}
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) { accountMenu }
         }
         .safeAreaInset(edge: .bottom) {
             if !network.isConnected {
