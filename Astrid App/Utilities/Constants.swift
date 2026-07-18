@@ -23,9 +23,16 @@ import Foundation
             return _cachedBaseURL
         }
 
-        // Default environment (can be overridden in DEBUG with user preference)
+        // Default environment (can be overridden in DEBUG with the debug_server_url preference).
         #if DEBUG
+        #if os(macOS)
+        // The Mac app has no local dev-server workflow (it isn't a simulator and defaults to a
+        // LAN IP that isn't reachable), so hit production by default even in Debug. A local URL
+        // can still be set via the debug_server_url preference / Connection settings.
+        static let environment: Environment = .production
+        #else
         static let environment: Environment = .development
+        #endif
         #else
         static let environment: Environment = .production
         #endif
