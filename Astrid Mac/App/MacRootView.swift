@@ -310,7 +310,7 @@ struct MacRootView: View {
                     } else {
                         switch contentMode {
                         case .list: taskTable
-                        case .board: MacBoardView(tasks: displayedTasks)
+                        case .board: MacBoardView(listId: listId)
                         case .chat: MacChatPanelView(listId: listId)
                         }
                     }
