@@ -12,6 +12,11 @@ struct MacChatPanelView: View {
     @State private var channelId: String?
     @State private var text = ""
     @State private var loadingMore = false
+    @State private var members: [ListMember] = []
+    @State private var suggestions: [MacChatSuggestion] = []
+    @State private var activeHit: MacAutocompleteHit?
+
+    struct MacChatSuggestion: Identifiable { let id: String; let label: String; let icon: String }
 
     /// Live messages from the observable service cache (SSE + polling keep this fresh).
     private var messages: [ChatMessage] {
@@ -41,13 +46,63 @@ struct MacChatPanelView: View {
                 }
             }
             Divider()
-            HStack {
-                TextField("Message…", text: $text).textFieldStyle(.roundedBorder).onSubmit(send)
-                Button("Send", action: send).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+            VStack(spacing: 0) {
+                if !suggestions.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(suggestions) { s in
+                            Button { apply(s) } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: s.icon).foregroundStyle(Theme.accent)
+                                    Text(s.label).lineLimit(1); Spacer()
+                                }
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                    .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 8).padding(.top, 6)
+                }
+                HStack {
+                    TextField("Message…  (@ mention, # list, ! task)", text: $text)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(send)
+                        .onChange(of: text) { updateSuggestions() }
+                    Button("Send", action: send).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(8)
             }
-            .padding(8)
         }
         .task(id: listId) { await load() }
+
+    }
+
+    // MARK: autocomplete (@ mention / # list / ! task) — Task cc67a3a5
+
+    private func updateSuggestions() {
+        guard let hit = MacAutocomplete.detectTrigger(in: text) else { suggestions = []; activeHit = nil; return }
+        activeHit = hit
+        let q = hit.search.lowercased()
+        switch hit.kind {
+        case .list:
+            suggestions = ListService.shared.lists
+                .filter { q.isEmpty || $0.name.lowercased().contains(q) }
+                .prefix(6).map { MacChatSuggestion(id: $0.id, label: $0.name, icon: "list.bullet") }
+        case .task:
+            suggestions = TaskService.shared.tasks
+                .filter { !$0.completed && (q.isEmpty || $0.title.lowercased().contains(q)) }
+                .prefix(6).map { MacChatSuggestion(id: $0.id, label: $0.title, icon: "circle") }
+        case .mention:
+            suggestions = members
+                .filter { q.isEmpty || ($0.user?.displayName ?? $0.userId).lowercased().contains(q) }
+                .prefix(6).map { MacChatSuggestion(id: $0.userId, label: $0.user?.displayName ?? $0.userId, icon: "person.crop.circle") }
+        }
+    }
+
+    private func apply(_ s: MacChatSuggestion) {
+        guard let hit = activeHit else { return }
+        text = MacAutocomplete.insert(label: s.label, into: text, hit: hit)
+        suggestions = []; activeHit = nil
     }
 
     private func isPending(_ m: ChatMessage) -> Bool { m.id.hasPrefix("temp_") }
@@ -70,6 +125,8 @@ struct MacChatPanelView: View {
 
     private func load() async {
         channelId = try? await chat.resolveChannel(forListId: listId)
+        try? await ListMemberService.shared.fetchMembers(listId: listId)
+        members = ListMemberService.shared.membersByList[listId] ?? []
         guard let cid = channelId else { return }
         _ = try? await chat.fetchMessages(channelId: cid)   // populates the observable cache
     }
