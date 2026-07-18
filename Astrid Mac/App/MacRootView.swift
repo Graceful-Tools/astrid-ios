@@ -24,6 +24,7 @@ struct MacRootView: View {
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var sortKey: SortKey = .due
     @State private var filter: TaskFilter = .all
+    @State private var listSearch = ""
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
     enum SortKey: String, CaseIterable { case due = "Due", priority = "Priority", title = "Title" }
@@ -72,6 +73,23 @@ struct MacRootView: View {
         }
     }
 
+    private func listRow(_ list: TaskList) -> some View {
+        Label {
+            Text(list.name)
+        } icon: {
+            Image(systemName: (list.isFavorite ?? false) ? "star.fill" : "list.bullet")
+                .foregroundStyle((list.isFavorite ?? false) ? Theme.warning : Theme.accent)
+        }
+        .tag(Optional(list.id))
+        .contextMenu {
+            Button("Rename…") { editingList = list }
+            Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
+            Button("Sharing…") { sharingList = list }
+            Divider()
+            Button("Delete…", role: .destructive) { listToDelete = list }
+        }
+    }
+
     private var accountMenu: some View {
         Menu {
             if let u = auth.currentUser {
@@ -86,8 +104,21 @@ struct MacRootView: View {
         }
     }
 
+    static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
+
+    private func matchesSearch(_ l: TaskList) -> Bool {
+        listSearch.isEmpty || l.name.localizedCaseInsensitiveContains(listSearch)
+    }
+    private var favoriteLists: [TaskList] { listService.lists.filter { ($0.isFavorite ?? false) && matchesSearch($0) } }
+    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) && matchesSearch($0) } }
+
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
+        if id == Self.myTasksId {
+            // Virtual My Tasks: incomplete tasks assigned to me across all lists, de-duplicated.
+            let all = listService.lists.flatMap { taskService.getTasksForList($0.id) }
+            return MacMyTasks.filter(all, userId: auth.userId)
+        }
         return taskService.getTasksForList(id)
     }
 
@@ -110,8 +141,10 @@ struct MacRootView: View {
 
     @ViewBuilder private var taskTable: some View {
         VStack(spacing: 0) {
-            quickAddBar
-            Divider()
+            if selectedListId != Self.myTasksId {   // can't quick-add into the virtual My Tasks
+                quickAddBar
+                Divider()
+            }
             if displayedTasks.isEmpty {
                 if tasksForSelection.isEmpty {
                     ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
@@ -239,22 +272,23 @@ struct MacRootView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(listService.lists, selection: $selectedListId) { list in
-                Label {
-                    Text(list.name)
-                } icon: {
-                    Image(systemName: (list.isFavorite ?? false) ? "star.fill" : "list.bullet")
-                        .foregroundStyle((list.isFavorite ?? false) ? Theme.warning : Theme.accent)
+            List(selection: $selectedListId) {
+                Section {
+                    Label("My Tasks", systemImage: "person.crop.circle")
+                        .tag(Optional(Self.myTasksId))
+                        .accessibilityIdentifier("sidebar.myTasks")
                 }
-                .tag(Optional(list.id))
-                .contextMenu {
-                    Button("Rename…") { editingList = list }
-                    Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
-                    Button("Sharing…") { sharingList = list }
-                    Divider()
-                    Button("Delete…", role: .destructive) { listToDelete = list }
+                if !favoriteLists.isEmpty {
+                    Section("Favorites") { ForEach(favoriteLists) { listRow($0) } }
+                }
+                Section("Lists") {
+                    ForEach(regularLists) { listRow($0) }
+                    if regularLists.isEmpty && !listSearch.isEmpty {
+                        Text("No lists match “\(listSearch)”").foregroundStyle(Theme.textMuted).font(.callout)
+                    }
                 }
             }
+            .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
             .navigationTitle("Astrid")
             .accessibilityIdentifier("sidebar.lists")
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
@@ -271,16 +305,21 @@ struct MacRootView: View {
         } content: {
             Group {
                 if let listId = selectedListId {
-                    switch contentMode {
-                    case .list: taskTable
-                    case .board: MacBoardView(tasks: displayedTasks)
-                    case .chat: MacChatPanelView(listId: listId)
+                    if listId == Self.myTasksId {
+                        taskTable                          // virtual My Tasks is list-only
+                    } else {
+                        switch contentMode {
+                        case .list: taskTable
+                        case .board: MacBoardView(tasks: displayedTasks)
+                        case .chat: MacChatPanelView(listId: listId)
+                        }
                     }
                 } else {
                     ContentUnavailableView("Select a list", systemImage: "sidebar.left")
                 }
             }
-            .navigationTitle(listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks")
+            .navigationTitle(selectedListId == Self.myTasksId ? "My Tasks"
+                             : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Picker("View", selection: $contentMode) {
@@ -289,7 +328,7 @@ struct MacRootView: View {
                         Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
                     }
                     .pickerStyle(.segmented)
-                    .disabled(selectedListId == nil)
+                    .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
                 }
                 ToolbarItem {
                     Menu {
@@ -311,7 +350,7 @@ struct MacRootView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
-                        .disabled(selectedListId == nil)
+                        .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
                         .help("New Task")
                         .accessibilityIdentifier("tasks.newTask")
                 }
@@ -341,7 +380,7 @@ struct MacRootView: View {
         .onChange(of: selectedListId) { _, id in
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
             // Fetch the selected list's tasks from the server (SSE keeps them fresh after).
-            guard let id else { return }
+            guard let id, id != Self.myTasksId else { return }  // My Tasks is virtual — no server list
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
         .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
