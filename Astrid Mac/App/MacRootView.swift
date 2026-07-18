@@ -19,6 +19,7 @@ struct MacRootView: View {
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
+    @State private var columnCustomization = TableColumnCustomization<Task>()   // configurable columns (67c5e54c)
     @State private var draftTitle = ""
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
@@ -153,7 +154,7 @@ struct MacRootView: View {
     }
 
     @ViewBuilder private var taskTableBody: some View {
-            Table(displayedTasks, selection: $selectedTaskIds) {
+            Table(displayedTasks, selection: $selectedTaskIds, columnCustomization: $columnCustomization) {
                 TableColumn("") { task in
                     Button { toggleCompleted(task) } label: {
                         MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 18)
@@ -161,30 +162,68 @@ struct MacRootView: View {
                     .buttonStyle(.plain)
                     .help(task.completed ? "Mark incomplete" : "Mark complete")
                     .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
-                }.width(28)
+                }.width(28).customizationID("done").disabledCustomizationBehavior(.all)
                 TableColumn("Task") { task in
                     Text(task.title).strikethrough(task.completed)
-                }
+                        .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                }.customizationID("title").disabledCustomizationBehavior(.visibility)
+                TableColumn("List") { task in
+                    if let l = listService.lists.first(where: { task.listIds?.contains($0.id) == true }) {
+                        HStack(spacing: 5) { MacListIcon(list: l, size: 12); Text(l.name).lineLimit(1) }
+                    } else { Text("—").foregroundStyle(.secondary) }
+                }.width(min: 90, ideal: 140).customizationID("list").defaultVisibility(.hidden)
                 TableColumn("Due") { task in
                     if let due = task.dueDateTime { Text(due, style: .date) }
                     else { Text("—").foregroundStyle(.secondary) }
-                }.width(min: 90, ideal: 120)
+                }.width(min: 90, ideal: 120).customizationID("due")
                 TableColumn("Priority") { task in
-                    Text(String(describing: task.priority)).foregroundStyle(.secondary)
-                }.width(min: 70, ideal: 90)
+                    if task.priority != .none {
+                        Text(MacTaskVisuals.prioritySymbol(task.priority))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(MacTaskVisuals.priorityColor(task.priority))
+                    } else { Text("—").foregroundStyle(.secondary) }
+                }.width(min: 60, ideal: 80).customizationID("priority")
+                TableColumn("Assignee") { task in
+                    Image(systemName: task.assigneeId == nil ? "person.crop.circle.dashed" : "person.crop.circle.fill")
+                        .foregroundStyle(task.assigneeId == nil ? Theme.textMuted : Theme.accent)
+                        .help(task.assigneeId == nil ? "Unassigned" : "Assigned")
+                }.width(70).customizationID("assignee").defaultVisibility(.hidden)
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 if !ids.isEmpty {
+                    Button("Complete") { bulkComplete(ids) }
+                    Menu("Set Priority") {
+                        ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
+                            Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(ids, p) }
+                        }
+                    }
                     Menu("Move to List") {
                         ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
                             Button(list.name) { move(ids, to: list.id) }
                         }
                     }
-                    Button("Complete") {
-                        for t in tasksForSelection where ids.contains(t.id) && !t.completed { setCompleted(t) }
-                    }
+                    Divider()
+                    Button("Delete", role: .destructive) { bulkDelete(ids) }
                 }
             }
+    }
+
+    private func bulkComplete(_ ids: Set<String>) {
+        for t in tasksForSelection where ids.contains(t.id) && !t.completed { setCompleted(t) }
+        selectedTaskIds.removeAll()
+    }
+    private func bulkSetPriority(_ ids: Set<String>, _ p: Task.Priority) {
+        let targets = tasksForSelection.filter { ids.contains($0.id) }
+        MacActions.perform("Set priority") {
+            for t in targets { _ = try await taskService.updateTask(taskId: t.id, priority: p.rawValue, task: t) }
+        }
+    }
+    private func bulkDelete(_ ids: Set<String>) {
+        let targets = tasksForSelection.filter { ids.contains($0.id) }
+        selectedTaskIds.removeAll()
+        MacActions.perform("Delete tasks") {
+            for t in targets { try await taskService.deleteTask(id: t.id, task: t) }
+        }
     }
 
     private func setCompleted(_ t: Task) {
