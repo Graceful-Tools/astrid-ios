@@ -70,12 +70,12 @@ struct MacListEditSheet: View {
         guard !n.isEmpty else { return }
         let desc = listDescription.trimmingCharacters(in: .whitespaces)
         let chosenColor = color
-        _Concurrency.Task {
+        MacActions.perform(existing == nil ? "Create list" : "Save list") {
             if let e = existing {
-                _ = try? await ListService.shared.updateListAdvanced(
+                _ = try await ListService.shared.updateListAdvanced(
                     listId: e.id, updates: ["name": n, "description": desc, "color": chosenColor])
             } else {
-                _ = try? await ListService.shared.createList(
+                _ = try await ListService.shared.createList(
                     name: n, description: desc.isEmpty ? nil : desc, color: chosenColor)
             }
             _ = try? await ListService.shared.fetchLists()

@@ -83,25 +83,27 @@ struct MacListMembersView: View {
 
     private func invite() {
         guard canInvite else { return }
-        let e = email.trimmingCharacters(in: .whitespaces); email = ""
+        let e = email.trimmingCharacters(in: .whitespaces)
         let role = inviteRole
-        _Concurrency.Task {
-            _ = try? await svc.addMember(listId: list.id, email: e, role: role)
+        // Surface failures and keep the email in the field until it actually succeeds.
+        MacActions.perform("Invite \(e)") {
+            _ = try await svc.addMember(listId: list.id, email: e, role: role)
+            email = ""
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
     private func setRole(_ m: ListMember, _ role: String) {
         guard role != m.role else { return }
-        _Concurrency.Task {
-            try? await svc.updateMemberRole(listId: list.id, userId: m.userId, role: role)
+        MacActions.perform("Change role") {
+            try await svc.updateMemberRole(listId: list.id, userId: m.userId, role: role)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
     private func remove(_ m: ListMember) {
-        _Concurrency.Task {
-            try? await svc.removeMember(listId: list.id, userId: m.userId)
+        MacActions.perform("Remove member") {
+            try await svc.removeMember(listId: list.id, userId: m.userId)
             try? await svc.fetchMembers(listId: list.id)
         }
     }

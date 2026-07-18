@@ -54,9 +54,9 @@ struct MacAccountView: View {
     private func saveName() {
         let n = name.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty, n != auth.currentUser?.name else { return }
-        _Concurrency.Task {
-            _ = try? await AccountService.shared.updateAccount(name: n, email: nil, image: nil)
-            await MainActor.run { savedFlash = true }
+        MacActions.perform("Update name") {
+            _ = try await AccountService.shared.updateAccount(name: n, email: nil, image: nil)
+            savedFlash = true
         }
     }
 }
@@ -87,10 +87,11 @@ struct MacDeleteAccountSheet: View {
 
     private func delete() {
         working = true
-        _Concurrency.Task {
-            _ = try? await AccountService.shared.deleteAccount(confirmationText: confirm)
+        MacActions.perform("Delete account") {
+            defer { working = false }
+            try await AccountService.shared.deleteAccount(confirmationText: confirm)
             try? await AuthManager.shared.signOut()
-            await MainActor.run { dismiss() }
+            dismiss()
         }
     }
 }

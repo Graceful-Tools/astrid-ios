@@ -58,9 +58,10 @@ struct MacChatPanelView: View {
     private func send() {
         let t = text.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty, let cid = channelId else { return }
-        text = ""
-        _Concurrency.Task {
-            _ = try? await chat.sendMessage(channelId: cid, content: t)
+        // Keep the draft until the send succeeds; surface failures instead of dropping the message.
+        MacActions.perform("Send message") {
+            _ = try await chat.sendMessage(channelId: cid, content: t)
+            text = ""
             await refresh()
         }
     }

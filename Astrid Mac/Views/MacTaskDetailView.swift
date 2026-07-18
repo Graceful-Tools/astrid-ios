@@ -359,8 +359,8 @@ struct MacTaskDetailView: View {
     }
 
     private func deleteComment(_ c: Comment) {
-        _Concurrency.Task {
-            try? await CommentService.shared.deleteComment(id: c.id)
+        MacActions.perform("Delete comment") {
+            try await CommentService.shared.deleteComment(id: c.id)
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
     }
@@ -370,8 +370,8 @@ struct MacTaskDetailView: View {
         let text = editingCommentText.trimmingCharacters(in: .whitespaces)
         editingComment = nil
         guard !text.isEmpty, text != c.content else { return }
-        _Concurrency.Task {
-            _ = try? await CommentService.shared.updateComment(id: c.id, content: text)
+        MacActions.perform("Edit comment") {
+            _ = try await CommentService.shared.updateComment(id: c.id, content: text)
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
     }
@@ -379,9 +379,10 @@ struct MacTaskDetailView: View {
     private func addComment() {
         let c = newComment.trimmingCharacters(in: .whitespaces)
         guard !c.isEmpty else { return }
-        newComment = ""
-        _Concurrency.Task {
-            _ = try? await CommentService.shared.createComment(taskId: task.id, content: c)
+        // Keep the draft until the post succeeds; surface failures instead of losing the text.
+        MacActions.perform("Post comment") {
+            _ = try await CommentService.shared.createComment(taskId: task.id, content: c)
+            newComment = ""
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
     }

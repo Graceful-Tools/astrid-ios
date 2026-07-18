@@ -66,8 +66,8 @@ struct MacRootView: View {
         }
     }
     private func deleteList(_ list: TaskList) {
-        _Concurrency.Task {
-            try? await listService.deleteList(listId: list.id)
+        MacActions.perform("Delete list") {
+            try await listService.deleteList(listId: list.id)
             if selectedListId == list.id { selectedListId = nil }
         }
     }
