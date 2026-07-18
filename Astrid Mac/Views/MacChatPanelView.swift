@@ -5,6 +5,8 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct MacChatPanelView: View {
     let listId: String
@@ -15,6 +17,7 @@ struct MacChatPanelView: View {
     @State private var members: [ListMember] = []
     @State private var suggestions: [MacChatSuggestion] = []
     @State private var activeHit: MacAutocompleteHit?
+    @State private var attaching = false
 
     struct MacChatSuggestion: Identifiable { let id: String; let label: String; let icon: String }
 
@@ -64,6 +67,10 @@ struct MacChatPanelView: View {
                     .padding(.horizontal, 8).padding(.top, 6)
                 }
                 HStack {
+                    Button { attachFile() } label: { Image(systemName: "paperclip") }
+                        .buttonStyle(.borderless).disabled(channelId == nil || attaching)
+                        .help("Attach a file")
+                    if attaching { ProgressView().controlSize(.small) }
                     TextField("Message…  (@ mention, # list, ! task)", text: $text)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit(send)
@@ -103,6 +110,28 @@ struct MacChatPanelView: View {
         guard let hit = activeHit else { return }
         text = MacAutocomplete.insert(label: s.label, into: text, hit: hit)
         suggestions = []; activeHit = nil
+    }
+
+    /// Attach a file to the channel: read off-main, persist locally + queue upload via the Outbox
+    /// (offline-first, same context keys as iOS chat), then send a message referencing it.
+    private func attachFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url, let cid = channelId else { return }
+        let name = url.lastPathComponent
+        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        attaching = true
+        _Concurrency.Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url) else { await MainActor.run { attaching = false }; return }
+            await MainActor.run {
+                let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
+                    fileData: data, fileName: name, mimeType: mime, context: ["listId": listId])
+                attaching = false
+                MacActions.perform("Attach file") {
+                    _ = try await chat.sendMessage(channelId: cid, content: name, fileId: fileId)
+                }
+            }
+        }
     }
 
     private func isPending(_ m: ChatMessage) -> Bool { m.id.hasPrefix("temp_") }
