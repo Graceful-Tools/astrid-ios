@@ -91,6 +91,7 @@
 		CBB135912EAB27CE00D41E86 /* Astrid AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB1359B2EAB27CE00D41E86 /* Astrid AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB1360A2EAB284400D41E86 /* AstridApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstridApp.swift; sourceTree = "<group>"; };
+		CBDACF70300BC34E00B0B298 /* Astrid App.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Astrid App.xctestplan"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -340,6 +341,7 @@
 		CBB1357B2EAB27CD00D41E86 = {
 			isa = PBXGroup;
 			children = (
+				CBDACF70300BC34E00B0B298 /* Astrid App.xctestplan */,
 				234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */,
 				CBB135862EAB27CD00D41E86 /* Astrid App */,
 				CBB135942EAB27CE00D41E86 /* Astrid AppTests */,
@@ -1080,6 +1082,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -1113,6 +1116,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;

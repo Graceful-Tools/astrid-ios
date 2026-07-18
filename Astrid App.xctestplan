@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "87964F53-A4F1-44A0-ABA1-8FEA5F7C441C",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Astrid App.xcodeproj",
+      "identifier" : "CBB135832EAB27CD00D41E86",
+      "name" : "Astrid App"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Astrid App.xcodeproj",
+        "identifier" : "CBB135902EAB27CE00D41E86",
+        "name" : "Astrid AppTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Astrid App.xcodeproj",
+        "identifier" : "CBB1359A2EAB27CE00D41E86",
+        "name" : "Astrid AppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
