@@ -16,40 +16,46 @@ import SwiftUI
 struct AstridMacApp: App {
 
     init() {
+        // Under XCTest the app is the unit-test host; skip launch side-effects entirely (Task 90fa7975).
+        guard !MacRuntime.isRunningTests else { return }
         // Make remote feature flags eligible to refresh this launch (mirrors AstridApp.swift).
         // Without this, refreshIfStale short-circuits and the Mac never honors remote rollouts.
         FeatureFlagService.recordAppLaunch()
     }
 
+    // Under XCTest, keep every scene's CONTENT inert (SceneBuilder can't take control flow, so we
+    // gate at the view level). This makes the unit-test host launch fast + reliable instead of
+    // spinning up the auth gate / menu-bar / quick-add UI, which made the CLI/CI suite hang (90fa7975).
+    private var underTest: Bool { MacRuntime.isRunningTests }
+
     var body: some Scene {
         // Main window: auth gate → sign-in when signed out, shell when signed in.
         WindowGroup(id: "main") {
-            MacAuthGateView()
+            if underTest { Color.clear.frame(width: 1, height: 1) } else { MacAuthGateView() }
         }
         .commands { AstridCommands() }              // full menu bar (M1)
 
         // Menu-bar extra: glanceable tasks + quick add (v1.1).
         MenuBarExtra("Astrid", systemImage: "checklist") {
-            MacMenuBarView()
+            if !underTest { MacMenuBarView() }
         }
         .menuBarExtraStyle(.window)
 
         // ⌘, Settings — native Mac settings wired to the shared settings services.
         Settings {
-            MacSettingsView()
+            if !underTest { MacSettingsView() }
         }
 
         // Global quick-entry target window (M0 de-risk / M2).
         Window("Quick Add", id: QuickEntryHotKeyController.windowID) {
-            QuickEntryView()
-                // .environmentObject(appState)
+            if !underTest { QuickEntryView() }
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
         // Tear-off: open a single task in its own window (v1.1).
         WindowGroup(id: "task", for: String.self) { $taskId in
-            MacTaskWindowView(taskId: taskId)
+            if !underTest { MacTaskWindowView(taskId: taskId) }
         }
     }
 }
