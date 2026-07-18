@@ -22,29 +22,21 @@ struct MacRootView: View {
     @State private var draftTitle = ""
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
-    @State private var sortKey: SortKey = .due
-    @State private var filter: TaskFilter = .all
     @State private var listSearch = ""
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
-    enum SortKey: String, CaseIterable { case due = "Due", priority = "Priority", title = "Title" }
-    enum TaskFilter: String, CaseIterable { case all = "All", active = "Active", today = "Today", overdue = "Overdue" }
 
-    private var sortedTasks: [Task] {
-        switch sortKey {
-        case .due: return tasksForSelection.sorted { ($0.dueDateTime ?? .distantFuture) < ($1.dueDateTime ?? .distantFuture) }
-        case .priority: return tasksForSelection.sorted { $0.priority.rawValue > $1.priority.rawValue }
-        case .title: return tasksForSelection.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-        }
-    }
-
+    /// Tasks shown for the current selection — applies the SAME shared filter + sort business
+    /// logic as iOS/web (Core/Filters). For a real list it honors that list's saved filters and
+    /// sortBy; My Tasks / no-list get the assignee filter (in tasksForSelection) + auto sort.
     private var displayedTasks: [Task] {
-        switch filter {
-        case .all: return sortedTasks
-        case .active: return sortedTasks.filter { !$0.completed }
-        case .today: return sortedTasks.filter { $0.isDueToday }
-        case .overdue: return sortedTasks.filter { $0.isOverdue }
+        let base = tasksForSelection
+        if let id = selectedListId, id != Self.myTasksId,
+           let list = listService.lists.first(where: { $0.id == id }) {
+            let filtered = filterTasksForList(base, list: list, currentUserId: auth.userId)
+            return sortTasksByListSetting(filtered, sortBy: list.sortBy ?? "auto", manualOrder: list.manualSortOrder)
         }
+        return sortTasksByListSetting(base, sortBy: "auto", manualOrder: nil)
     }
 
     /// Cross-list move (C3): move the given tasks into another list via the canonical service.
@@ -134,14 +126,10 @@ struct MacRootView: View {
                 if tasksForSelection.isEmpty {
                     ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
                 } else {
-                    // The list has tasks but the active filter hides them all — say so and offer a reset.
-                    ContentUnavailableView {
-                        Label("Nothing matches “\(filter.rawValue)”", systemImage: "line.3.horizontal.decrease.circle")
-                    } description: {
-                        Text("No tasks in this list match the current filter.")
-                    } actions: {
-                        Button("Show All") { filter = .all }
-                    }
+                    // The list has tasks but its saved filters hide them all (same filters as iOS/web).
+                    ContentUnavailableView("Nothing matches this list’s filters",
+                                           systemImage: "line.3.horizontal.decrease.circle",
+                                           description: Text("Adjust the list’s filters on iOS or the web to see more."))
                 }
             } else {
                 taskTableBody
@@ -322,24 +310,6 @@ struct MacRootView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
-                }
-                ToolbarItem {
-                    Menu {
-                        Picker("Filter", selection: $filter) {
-                            ForEach(TaskFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }
-                    } label: { Image(systemName: "line.3.horizontal.decrease.circle") }
-                    .disabled(selectedListId == nil || contentMode == .chat)
-                    .help("Filter")
-                }
-                ToolbarItem {
-                    Menu {
-                        Picker("Sort by", selection: $sortKey) {
-                            ForEach(SortKey.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }
-                    } label: { Image(systemName: "arrow.up.arrow.down") }
-                    .disabled(selectedListId == nil || contentMode != .list)
-                    .help("Sort")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
