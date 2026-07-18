@@ -168,8 +168,7 @@ struct MacRootView: View {
             Table(displayedTasks, selection: $selectedTaskIds) {
                 TableColumn("") { task in
                     Button { toggleCompleted(task) } label: {
-                        Image(systemName: task.completed ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(task.completed ? Theme.success : Theme.textMuted)
+                        MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 18)
                     }
                     .buttonStyle(.plain)
                     .help(task.completed ? "Mark incomplete" : "Mark complete")

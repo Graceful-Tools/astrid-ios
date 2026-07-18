@@ -56,8 +56,7 @@ struct MacBoardView: View {
     private func card(_ t: Task) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Button { toggleComplete(t) } label: {
-                Image(systemName: t.completed ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(t.completed ? Theme.success : Theme.textMuted)
+                MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18)
             }.buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)

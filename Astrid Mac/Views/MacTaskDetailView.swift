@@ -40,8 +40,18 @@ struct MacTaskDetailView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Title", text: $title).font(.title3).onSubmit(saveTitle)
-                Toggle("Completed", isOn: Binding(get: { task.completed }, set: setCompleted))
+                HStack(spacing: 10) {
+                    Button { setCompleted(!task.completed) } label: {
+                        MacTaskCheckbox(completed: task.completed, priority: priority, size: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    TextField("Title", text: $title)
+                        .font(.title3)
+                        .strikethrough(task.completed)
+                        .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                        .onSubmit(saveTitle)
+                }
             }
 
             Section("Notes") {
@@ -86,14 +96,8 @@ struct MacTaskDetailView: View {
             }
 
             Section("Priority") {
-                Picker("Priority", selection: $priority) {
-                    Text("None").tag(Task.Priority.none)
-                    Text("Low").tag(Task.Priority.low)
-                    Text("Medium").tag(Task.Priority.medium)
-                    Text("High").tag(Task.Priority.high)
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: priority) { savePriority() }
+                MacPriorityPicker(selection: $priority)
+                    .onChange(of: priority) { savePriority() }
             }
 
             Section("Subtasks") {
