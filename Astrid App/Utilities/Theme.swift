@@ -3,6 +3,43 @@ import SwiftUI
 /// Theme system matching the web app's design tokens
 /// Based on styles/themes/light-theme.css and dark-theme.css
 struct Theme {
+#if os(macOS)
+    // On macOS the base surface/text/border tokens resolve to the SELECTED theme (ocean/light/dark/
+    // auto), so the Mac app renders every theme — not just the light palette (Task: Mac themes).
+    // iOS keeps the fixed light values below (#else) and does its own per-view effectiveTheme.
+    static func themed(light: Color, dark: Color, ocean: Color) -> Color {
+        switch UserDefaults.standard.string(forKey: "themeMode") ?? "ocean" {
+        case "dark":  return dark
+        case "ocean": return ocean
+        case "light": return light
+        default:      // auto → follow the system appearance
+            let isDark = NSApp?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark ? dark : light
+        }
+    }
+
+    // MARK: - Background Colors
+    static var bgPrimary: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.bgPrimary, ocean: Ocean.bgPrimary) }
+    static var bgSecondary: Color { themed(light: .init(red: 249/255, green: 250/255, blue: 251/255), dark: Dark.bgSecondary, ocean: Ocean.bgSecondary) }
+    static var bgTertiary: Color { themed(light: .init(red: 243/255, green: 244/255, blue: 246/255), dark: Dark.bgTertiary, ocean: Ocean.bgTertiary) }
+    static var bgHover: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.bgHover, ocean: Ocean.bgHover) }
+    static var bgActive: Color { themed(light: .init(red: 229/255, green: 231/255, blue: 235/255), dark: Dark.bgActive, ocean: Ocean.bgActive) }
+    static var bgSelected: Color { themed(light: .init(red: 239/255, green: 246/255, blue: 255/255), dark: Dark.bgSelected, ocean: Ocean.bgSelected) }
+    static let bgSelectedBorder = Color(red: 191/255, green: 219/255, blue: 254/255)
+
+    // MARK: - Border Colors
+    static var border: Color { themed(light: .init(red: 229/255, green: 231/255, blue: 235/255), dark: Dark.border, ocean: Ocean.border) }
+    static var borderHover: Color { themed(light: .init(red: 209/255, green: 213/255, blue: 219/255), dark: Dark.borderHover, ocean: Ocean.borderHover) }
+    static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
+    static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
+
+    // MARK: - Text Colors
+    static var textPrimary: Color { themed(light: .init(red: 17/255, green: 24/255, blue: 39/255), dark: Dark.textPrimary, ocean: Ocean.textPrimary) }
+    static var textSecondary: Color { themed(light: .init(red: 75/255, green: 85/255, blue: 99/255), dark: Dark.textSecondary, ocean: Ocean.textSecondary) }
+    static var textMuted: Color { themed(light: .init(red: 107/255, green: 114/255, blue: 128/255), dark: Dark.textMuted, ocean: Ocean.textMuted) }
+    static let textInverted = Color(red: 255/255, green: 255/255, blue: 255/255)
+    static var textSelected: Color { themed(light: .init(red: 17/255, green: 24/255, blue: 39/255), dark: Dark.textSelected, ocean: Ocean.textSelected) }
+#else
     // MARK: - Background Colors
 
     static let bgPrimary = Color(red: 255/255, green: 255/255, blue: 255/255)
@@ -27,6 +64,7 @@ struct Theme {
     static let textMuted = Color(red: 107/255, green: 114/255, blue: 128/255)
     static let textInverted = Color(red: 255/255, green: 255/255, blue: 255/255)
     static let textSelected = Color(red: 17/255, green: 24/255, blue: 39/255)
+#endif
 
     // MARK: - Interactive Colors
 
