@@ -11,6 +11,8 @@ struct MacListMembersView: View {
     @StateObject private var svc = ListMemberService.shared
     @State private var email = ""
     @State private var inviteRole = "member"
+    @State private var privacy = "PRIVATE"
+    @State private var publicType = "collaborative"
     @Environment(\.dismiss) private var dismiss
 
     private static let roles = ["member", "admin"]
@@ -30,6 +32,20 @@ struct MacListMembersView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Share “\(list.name)”").font(.headline).foregroundStyle(Theme.textPrimary)
+
+            // Privacy + public type (owner/admin only) — Task 7d77a054.
+            if canManage {
+                HStack {
+                    Picker("Privacy", selection: $privacy) {
+                        ForEach(MacListPrivacy.privacy) { Text($0.label).tag($0.value) }
+                    }.onChange(of: privacy) { savePrivacy() }
+                    if privacy == "PUBLIC" {
+                        Picker("Type", selection: $publicType) {
+                            ForEach(MacListPrivacy.publicType) { Text($0.label).tag($0.value) }
+                        }.onChange(of: publicType) { savePrivacy() }
+                    }
+                }
+            }
 
             List {
                 ForEach(members) { m in
@@ -79,6 +95,18 @@ struct MacListMembersView: View {
         .padding(20)
         .frame(width: 440)
         .task { try? await svc.fetchMembers(listId: list.id) }
+        .onAppear {
+            privacy = list.privacy?.rawValue ?? "PRIVATE"
+            publicType = list.publicListType ?? "collaborative"
+        }
+    }
+
+    private func savePrivacy() {
+        MacActions.perform("Update list privacy") {
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: list.id, updates: MacListPrivacy.updates(privacy: privacy, publicType: publicType))
+            _ = try? await ListService.shared.fetchLists()
+        }
     }
 
     private func invite() {

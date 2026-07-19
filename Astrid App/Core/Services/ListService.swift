@@ -429,6 +429,7 @@ class ListService: ObservableObject {
         if let privacy = updates["privacy"] as? String, let privacyEnum = TaskList.Privacy(rawValue: privacy) {
             optimisticList.privacy = privacyEnum
         }
+        if let publicListType = updates["publicListType"] as? String { optimisticList.publicListType = publicListType }
         if let isFavorite = updates["isFavorite"] as? Bool { optimisticList.isFavorite = isFavorite }
 
         // List defaults
