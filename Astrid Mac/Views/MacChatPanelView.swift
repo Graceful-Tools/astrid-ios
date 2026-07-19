@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 struct MacChatPanelView: View {
     let listId: String
     @StateObject private var chat = ChatService.shared
+    @StateObject private var auth = AuthManager.shared
     @State private var channelId: String?
     @State private var text = ""
     @State private var loadingMore = false
@@ -18,6 +19,7 @@ struct MacChatPanelView: View {
     @State private var suggestions: [MacChatSuggestion] = []
     @State private var activeHit: MacAutocompleteHit?
     @State private var attaching = false
+    @State private var replyingTo: ChatMessage?
 
     struct MacChatSuggestion: Identifiable { let id: String; let label: String; let icon: String }
 
@@ -65,6 +67,17 @@ struct MacChatPanelView: View {
                     }
                     .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 8))
                     .padding(.horizontal, 8).padding(.top, 6)
+                }
+                if let r = replyingTo {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrowshape.turn.up.left").foregroundStyle(Theme.accent).font(.caption)
+                        Text("Replying to \(r.author?.displayName ?? "message"): \(r.content)")
+                            .font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                        Spacer()
+                        Button { replyingTo = nil } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 4)
                 }
                 HStack {
                     Button { attachFile() } label: { Image(systemName: "paperclip") }
@@ -150,6 +163,22 @@ struct MacChatPanelView: View {
                 .padding(8).background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 8))
                 .opacity(isPending(m) ? 0.6 : 1)
         }
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Copy") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(m.content, forType: .string)
+            }
+            Button("Reply") { replyingTo = m }
+            if MacChatActions.canDelete(authorId: m.authorId, currentUserId: auth.userId, isPending: isPending(m)) {
+                Divider()
+                Button("Delete", role: .destructive) { deleteMessage(m) }
+            }
+        }
+    }
+
+    private func deleteMessage(_ m: ChatMessage) {
+        guard let cid = channelId else { return }
+        MacActions.perform("Delete message") { try await chat.deleteMessage(id: m.id, channelId: cid) }
     }
 
     private func load() async {
@@ -173,9 +202,11 @@ struct MacChatPanelView: View {
         let t = text.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty, let cid = channelId else { return }
         // Optimistic/offline-first: the temp message appears immediately; keep the draft until it's accepted.
+        let replyId = replyingTo?.id
         MacActions.perform("Send message") {
-            _ = try await chat.sendMessage(channelId: cid, content: t)
+            _ = try await chat.sendMessage(channelId: cid, content: t, replyToId: replyId)
             text = ""
+            replyingTo = nil
         }
     }
 }
