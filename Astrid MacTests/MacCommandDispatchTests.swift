@@ -15,10 +15,13 @@ final class MacCommandDispatchTests: XCTestCase {
         }
     }
 
-    // ...and actions with no Mac handler yet must NOT be silently claimed.
-    func testUnhandledActionsAreNotClaimed() {
-        for action in [ShortcutAction.dueDateLater, .postpone, .editTitle] {
-            XCTAssertFalse(MacAppModel.handledActions.contains(action))
+    // As of 9a60b697 the ENTIRE shared table is wired (no dead keys); actions that were previously
+    // unclaimed (due shifts, postpone, edit-title, …) are now dispatched. See MacKeyboardDispatchTests.
+    func testFullShortcutTableIsWired() {
+        for action in [ShortcutAction.dueDateLater, .postpone, .editTitle,
+                       .assignNoOne, .selectNext, .cycleFilters, .togglePanel, .jumpToDate] {
+            XCTAssertTrue(MacAppModel.handledActions.contains(action),
+                          "\(action) should be wired now that the full table is handled.")
         }
     }
 

@@ -12,11 +12,14 @@ import UniformTypeIdentifiers
 struct MacTaskDetailView: View {
     let task: Task
     @StateObject private var taskService = TaskService.shared
+    @ObservedObject private var appModel = MacAppModel.shared
     @Environment(\.openWindow) private var openWindow
 
     @State private var title = ""
     @State private var notes = ""
+    @FocusState private var titleFocused: Bool
     @FocusState private var notesFocused: Bool
+    @FocusState private var commentFocused: Bool
     @State private var hasDue = false
     @State private var due = Date()
     @State private var isAllDay = false
@@ -50,6 +53,7 @@ struct MacTaskDetailView: View {
                         .font(.title3)
                         .strikethrough(task.completed)
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                        .focused($titleFocused)
                         .onSubmit(saveTitle)
                 }
             }
@@ -149,7 +153,9 @@ struct MacTaskDetailView: View {
                     }
                 }
                 HStack {
-                    TextField("Add a comment…", text: $newComment).onSubmit(addComment)
+                    TextField("Add a comment…", text: $newComment)
+                        .focused($commentFocused)
+                        .onSubmit(addComment)
                     Button("Post", action: addComment).disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -188,6 +194,17 @@ struct MacTaskDetailView: View {
             }
         }
         .formStyle(.grouped)
+        // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Mac task detail has no
+        // dedicated lists editor yet, so `lists` reveals the schedule/date area as the closest control.
+        .onChange(of: appModel.shortcutRequest) { _, req in
+            guard let req, case .focus(let field) = req.kind else { return }
+            switch field {
+            case .description: notesFocused = true
+            case .comment:     commentFocused = true
+            case .date:        if !hasDue { hasDue = true; saveDue() }
+            case .lists:       titleFocused = true
+            }
+        }
         .task(id: task.id) { load() }
         .sheet(item: $editingComment) { _ in editSheet(title: "Edit Comment", text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: "Rename Subtask", text: $editingSubtaskText, onSave: renameSubtask) }

@@ -28,6 +28,7 @@ struct MacRootView: View {
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var listSearch = ""
+    @Environment(\.openWindow) private var openWindow
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
 
@@ -92,6 +93,29 @@ struct MacRootView: View {
     }
 
     // MARK: inline task-title editing (67c5e54c)
+    /// j/k / ↑↓ — move the single selection up or down within the currently displayed order.
+    private func moveSelection(by dir: Int) {
+        let ordered = displayedTasks.map(\.id)
+        guard !ordered.isEmpty else { return }
+        if let cur = selectedTaskIds.first, let idx = ordered.firstIndex(of: cur) {
+            let next = max(0, min(ordered.count - 1, idx + dir))
+            selectedTaskIds = [ordered[next]]
+        } else {
+            selectedTaskIds = [dir >= 0 ? ordered[0] : ordered[ordered.count - 1]]
+        }
+    }
+
+    /// l — cycle the sidebar selection through My Tasks + favorites + regular lists.
+    private func cycleList() {
+        let ids = [Self.myTasksId] + favoriteLists.map(\.id) + regularLists.map(\.id)
+        guard !ids.isEmpty else { return }
+        if let cur = selectedListId, let idx = ids.firstIndex(of: cur) {
+            selectedListId = ids[(idx + 1) % ids.count]
+        } else {
+            selectedListId = ids[0]
+        }
+    }
+
     private func beginInlineEdit(_ t: Task) { editingTaskId = t.id; editingTaskTitle = t.title }
     private func commitInlineEdit(_ t: Task) {
         let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)
@@ -427,6 +451,22 @@ struct MacRootView: View {
         }
         .onChange(of: appModel.requestedTaskId) { _, tid in
             if let tid { selectedTaskIds = [tid]; appModel.requestedTaskId = nil }
+        }
+        // Bare-key shortcut requests that need view state (9a60b697). Data mutations are applied in
+        // MacAppModel; field-focus is handled by MacTaskDetailView — here we do selection/navigation.
+        .onChange(of: appModel.shortcutRequest) { _, req in
+            guard let req else { return }
+            switch req.kind {
+            case .selectAdjacent(let dir): moveSelection(by: dir)
+            case .cycleList:               cycleList()
+            case .beginRename:
+                if let id = selectedTaskIds.first, let t = displayedTasks.first(where: { $0.id == id }) {
+                    beginInlineEdit(t)
+                }
+            case .openWindow:
+                if let id = selectedTaskIds.first { openWindow(id: "task", value: id) }
+            case .focus: break   // handled by MacTaskDetailView
+            }
         }
         .onChange(of: taskService.tasks) {
             _Concurrency.Task {
