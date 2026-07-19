@@ -14,6 +14,7 @@ struct MacTaskRow: View {
     var hiddenListIds: Set<String> = []
     let isEditing: Bool
     @Binding var editingTitle: String
+    var indent: Int = 0                  // subtask nesting depth (0 = top level)
     let onToggle: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
@@ -101,6 +102,7 @@ struct MacTaskRow: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
+        .padding(.leading, CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4 (deeper still shows)
         .contentShape(Rectangle())
     }
 }

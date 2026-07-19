@@ -225,6 +225,20 @@ struct MacRootView: View {
         (selectedTaskIds.contains(task.id) && selectedTaskIds.count > 1) ? selectedTaskIds : [task.id]
     }
 
+    /// The rows to render — top-level tasks with subtasks spliced/indented under them via the SHARED
+    /// splice helper (same as iOS), honoring the Sub-tasks display setting (3c945236).
+    private var renderedTasks: [Task] {
+        let indented = UserSettingsService.shared.settings.subtaskDisplay != "under_parent"
+        let showCompletedSubs = ["all", "completed"].contains(currentRealList?.filterCompletion ?? "default")
+        return spliceSubtasks(topLevel: displayedTasks.filter { $0.parentTaskId == nil },
+                              allTasks: taskService.tasks, indented: indented,
+                              subtaskVisible: { showCompletedSubs || !$0.completed })
+    }
+
+    private func indentLevel(_ task: Task) -> Int {
+        subtaskDepth(task, byId: taskService.tasksById)
+    }
+
     @ViewBuilder private var taskTableBody: some View {
         // iOS-style rows (not a flat table): List(selection:) gives reliable single-click selection
         // + the shared filter/sort still drives ordering. Priority shows via the checkbox ring, so
@@ -233,9 +247,9 @@ struct MacRootView: View {
             // Within-list drag-reorder is only meaningful under Manual sort (7b7a17d3), like iOS —
             // otherwise the shared sort would immediately re-order any manual arrangement.
             if isManualSort, currentRealList != nil {
-                ForEach(displayedTasks) { taskRow($0) }.onMove(perform: moveTasks)
+                ForEach(renderedTasks) { taskRow($0) }.onMove(perform: moveTasks)
             } else {
-                ForEach(displayedTasks) { taskRow($0) }
+                ForEach(renderedTasks) { taskRow($0) }
             }
         }
         .listStyle(.inset)
@@ -247,6 +261,7 @@ struct MacRootView: View {
             hiddenListIds: selectedListId.map { $0 == Self.myTasksId ? [] : [$0] } ?? [],
             isEditing: editingTaskId == task.id,
             editingTitle: $editingTaskTitle,
+            indent: indentLevel(task),
             onToggle: { toggleCompleted(task) },
             onCommitEdit: { commitInlineEdit(task) },
             onCancelEdit: { editingTaskId = nil }
@@ -283,7 +298,7 @@ struct MacRootView: View {
     /// Persist a manual within-list reorder via the canonical service (writes manualSortOrder).
     private func moveTasks(from source: IndexSet, to destination: Int) {
         guard let listId = currentRealList?.id else { return }
-        let ids = MacReorder.reordered(displayedTasks.map(\.id), from: source, to: destination)
+        let ids = MacReorder.reordered(renderedTasks.map(\.id), from: source, to: destination)
         MacActions.perform("Reorder tasks") {
             try await listService.updateManualOrder(listId: listId, order: ids)
         }
