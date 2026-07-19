@@ -45,5 +45,27 @@ enum MacAutocomplete {
         let start = text.index(text.startIndex, offsetBy: hit.triggerOffset)
         return String(text[..<start]) + String(hit.kind.trigger) + label + " "
     }
+
+    struct Suggestion: Identifiable, Equatable {
+        let id: String; let label: String; let icon: String
+    }
+
+    /// Build the suggestion list for an active trigger — SHARED by chat and task-detail comments
+    /// so both inputs behave identically (Task eda86d23). Pure over the passed-in data.
+    static func suggestions(for hit: MacAutocompleteHit, members: [ListMember],
+                            lists: [TaskList], tasks: [Task], limit: Int = 6) -> [Suggestion] {
+        let q = hit.search.lowercased()
+        switch hit.kind {
+        case .list:
+            return lists.filter { q.isEmpty || $0.name.lowercased().contains(q) }
+                .prefix(limit).map { Suggestion(id: $0.id, label: $0.name, icon: "list.bullet") }
+        case .task:
+            return tasks.filter { !$0.completed && (q.isEmpty || $0.title.lowercased().contains(q)) }
+                .prefix(limit).map { Suggestion(id: $0.id, label: $0.title, icon: "circle") }
+        case .mention:
+            return members.filter { q.isEmpty || ($0.user?.displayName ?? $0.userId).lowercased().contains(q) }
+                .prefix(limit).map { Suggestion(id: $0.userId, label: $0.user?.displayName ?? $0.userId, icon: "person.crop.circle") }
+        }
+    }
 }
 #endif

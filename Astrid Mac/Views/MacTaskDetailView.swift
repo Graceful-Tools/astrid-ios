@@ -45,6 +45,8 @@ struct MacTaskDetailView: View {
     @State private var editingCommentText = ""
     @State private var previewURL: URL?           // QuickLook target (local temp copy)
     @State private var previewLoadingId: String?  // attachment being downloaded for preview
+    @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
+    @State private var commentHit: MacAutocompleteHit?
 
     var body: some View {
         Form {
@@ -158,9 +160,24 @@ struct MacTaskDetailView: View {
                         }
                     }
                 }
+                // @/#/! autocomplete suggestions (shared with chat via MacAutocomplete) — eda86d23.
+                if !commentSuggestions.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(commentSuggestions) { s in
+                            Button { applyCommentSuggestion(s) } label: {
+                                Label(s.label, systemImage: s.icon).frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 8).padding(.vertical, 4).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                    .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
+                }
                 HStack {
-                    TextField("Add a comment…", text: $newComment)
+                    Button { attachComment() } label: { Image(systemName: "paperclip") }
+                        .buttonStyle(.borderless).help("Attach a file")
+                    TextField("Add a comment…  (@ mention, # list, ! task)", text: $newComment)
                         .focused($commentFocused)
+                        .onChange(of: newComment) { updateCommentSuggestions() }
                         .onSubmit(addComment)
                     Button("Post", action: addComment).disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -489,9 +506,46 @@ struct MacTaskDetailView: View {
         }
     }
 
+    // MARK: comment autocomplete + attachments (eda86d23)
+
+    private func updateCommentSuggestions() {
+        guard let hit = MacAutocomplete.detectTrigger(in: newComment) else { commentSuggestions = []; commentHit = nil; return }
+        commentHit = hit
+        commentSuggestions = MacAutocomplete.suggestions(for: hit, members: members,
+                                                         lists: listService.lists, tasks: taskService.tasks)
+    }
+
+    private func applyCommentSuggestion(_ s: MacAutocomplete.Suggestion) {
+        guard let hit = commentHit else { return }
+        newComment = MacAutocomplete.insert(label: s.label, into: newComment, hit: hit)
+        commentSuggestions = []; commentHit = nil
+    }
+
+    /// Attach a file to a comment: offline-first upload, then post a comment referencing it.
+    private func attachComment() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let name = url.lastPathComponent
+        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        let taskId = task.id
+        _Concurrency.Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url) else { return }
+            await MainActor.run {
+                let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
+                    fileData: data, fileName: name, mimeType: mime, taskId: taskId)
+                MacActions.perform("Attach to comment") {
+                    _ = try await CommentService.shared.createComment(taskId: taskId, content: name, fileId: fileId)
+                    comments = (try? await CommentService.shared.fetchComments(taskId: taskId)) ?? []
+                }
+            }
+        }
+    }
+
     private func addComment() {
         let c = newComment.trimmingCharacters(in: .whitespaces)
         guard !c.isEmpty else { return }
+        commentSuggestions = []; commentHit = nil
         // Keep the draft until the post succeeds; surface failures instead of losing the text.
         MacActions.perform("Post comment") {
             _ = try await CommentService.shared.createComment(taskId: task.id, content: c)

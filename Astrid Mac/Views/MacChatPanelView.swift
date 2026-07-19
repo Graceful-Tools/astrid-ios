@@ -16,12 +16,10 @@ struct MacChatPanelView: View {
     @State private var text = ""
     @State private var loadingMore = false
     @State private var members: [ListMember] = []
-    @State private var suggestions: [MacChatSuggestion] = []
+    @State private var suggestions: [MacAutocomplete.Suggestion] = []
     @State private var activeHit: MacAutocompleteHit?
     @State private var attaching = false
     @State private var replyingTo: ChatMessage?
-
-    struct MacChatSuggestion: Identifiable { let id: String; let label: String; let icon: String }
 
     /// Live messages from the observable service cache (SSE + polling keep this fresh).
     private var messages: [ChatMessage] {
@@ -102,24 +100,12 @@ struct MacChatPanelView: View {
     private func updateSuggestions() {
         guard let hit = MacAutocomplete.detectTrigger(in: text) else { suggestions = []; activeHit = nil; return }
         activeHit = hit
-        let q = hit.search.lowercased()
-        switch hit.kind {
-        case .list:
-            suggestions = ListService.shared.lists
-                .filter { q.isEmpty || $0.name.lowercased().contains(q) }
-                .prefix(6).map { MacChatSuggestion(id: $0.id, label: $0.name, icon: "list.bullet") }
-        case .task:
-            suggestions = TaskService.shared.tasks
-                .filter { !$0.completed && (q.isEmpty || $0.title.lowercased().contains(q)) }
-                .prefix(6).map { MacChatSuggestion(id: $0.id, label: $0.title, icon: "circle") }
-        case .mention:
-            suggestions = members
-                .filter { q.isEmpty || ($0.user?.displayName ?? $0.userId).lowercased().contains(q) }
-                .prefix(6).map { MacChatSuggestion(id: $0.userId, label: $0.user?.displayName ?? $0.userId, icon: "person.crop.circle") }
-        }
+        // Shared builder (same as task-detail comments) so both inputs behave identically.
+        suggestions = MacAutocomplete.suggestions(for: hit, members: members,
+                                                  lists: ListService.shared.lists, tasks: TaskService.shared.tasks)
     }
 
-    private func apply(_ s: MacChatSuggestion) {
+    private func apply(_ s: MacAutocomplete.Suggestion) {
         guard let hit = activeHit else { return }
         text = MacAutocomplete.insert(label: s.label, into: text, hit: hit)
         suggestions = []; activeHit = nil
