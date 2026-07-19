@@ -28,7 +28,9 @@ struct MacRootView: View {
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var listSearch = ""
+    @State private var taskSearchQuery = ""
     @Environment(\.openWindow) private var openWindow
+    static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
 
@@ -162,8 +164,33 @@ struct MacRootView: View {
 
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
     private var selectionIsVirtual: Bool {
-        selectedListId == Self.myTasksId
+        selectedListId == Self.myTasksId || selectedListId == Self.searchId
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
+    }
+
+    /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
+    @ViewBuilder private var searchView: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
+                TextField("Search all tasks…", text: $taskSearchQuery).textFieldStyle(.plain)
+                    .accessibilityIdentifier("search.field")
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            Divider()
+            let results = MacTaskSearch.matches(taskService.tasks, query: taskSearchQuery)
+            if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+                ContentUnavailableView("Search your tasks", systemImage: "magnifyingglass",
+                                       description: Text("Find any task across every list, including completed."))
+            } else if results.isEmpty {
+                ContentUnavailableView.search(text: taskSearchQuery)
+            } else {
+                List(selection: $selectedTaskIds) {
+                    ForEach(results) { taskRow($0) }
+                }
+                .listStyle(.inset)
+            }
+        }
     }
 
     /// Focus the inline quick-add field instead of eagerly creating a junk "New Task" (C2).
@@ -412,6 +439,12 @@ struct MacRootView: View {
                         .tag(Optional(Self.myTasksId))
                         .accessibilityIdentifier("sidebar.myTasks")
                     }
+                    // Global search across ALL tasks incl. completed (Task 36587d3d).
+                    ForEach([Self.searchId], id: \.self) { _ in
+                        Label("Search", systemImage: "magnifyingglass")
+                            .tag(Optional(Self.searchId))
+                            .accessibilityIdentifier("sidebar.search")
+                    }
                 }
                 if !favoriteLists.isEmpty {
                     Section("Favorites") { ForEach(favoriteLists) { listRow($0) } }
@@ -444,7 +477,9 @@ struct MacRootView: View {
         } content: {
             Group {
                 if let listId = selectedListId {
-                    if listId == Self.myTasksId {
+                    if listId == Self.searchId {
+                        searchView
+                    } else if listId == Self.myTasksId {
                         taskTable                          // virtual My Tasks is list-only
                     } else {
                         switch contentMode {
@@ -457,7 +492,8 @@ struct MacRootView: View {
                     ContentUnavailableView("Select a list", systemImage: "sidebar.left")
                 }
             }
-            .navigationTitle(selectedListId == Self.myTasksId ? "My Tasks"
+            .navigationTitle(selectedListId == Self.searchId ? "Search"
+                             : selectedListId == Self.myTasksId ? "My Tasks"
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
