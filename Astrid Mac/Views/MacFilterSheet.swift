@@ -17,6 +17,8 @@ struct MacFilterSheet: View {
     @State private var priority: String
     @State private var dueDate: String
     @State private var assignee: String
+    @State private var showingSave = false
+    @State private var smartListName = ""
 
     init(list: TaskList) {
         self.list = list
@@ -39,6 +41,23 @@ struct MacFilterSheet: View {
             .formStyle(.grouped)
             .frame(height: 190)
 
+            // Save the current filters as a reusable Smart List (virtual list), like iOS/web.
+            if showingSave {
+                HStack {
+                    TextField("Smart List name", text: $smartListName).textFieldStyle(.roundedBorder)
+                    Button("Create") { saveSmartList() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(smartListName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } else {
+                Button {
+                    smartListName = list.name; showingSave = true
+                } label: { Label("Save as Smart List…", systemImage: "star") }
+                .buttonStyle(.link)
+                .disabled(MacListFilter.activeCount(completion: completion, priority: priority,
+                                                    dueDate: dueDate, assignee: assignee) == 0)
+            }
+
             HStack {
                 Button("Clear filters") {
                     completion = "default"; priority = "all"; dueDate = "all"; assignee = "all"
@@ -52,6 +71,21 @@ struct MacFilterSheet: View {
         }
         .padding(20)
         .frame(width: 340)
+    }
+
+    /// Create a saved-filter (Smart) list from the current filters — mirrors iOS SaveFilterDialog.
+    private func saveSmartList() {
+        let name = smartListName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let updates = MacListFilter.smartListUpdates(completion: completion, priority: priority,
+                                                     dueDate: dueDate, assignee: assignee,
+                                                     sortBy: list.sortBy ?? "auto")
+        dismiss()
+        MacActions.perform("Save Smart List") {
+            let newList = try await ListService.shared.createList(name: name, description: "Smart List", privacy: "PRIVATE")
+            _ = try await ListService.shared.updateListAdvanced(listId: newList.id, updates: updates)
+            _ = try? await ListService.shared.fetchLists()
+        }
     }
 
     private func filterPicker(_ title: String, selection: Binding<String>, options: [MacListFilter.Option]) -> some View {

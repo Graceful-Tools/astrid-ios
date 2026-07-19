@@ -33,5 +33,18 @@ final class MacListFilterTests: XCTestCase {
         XCTAssertEqual(MacListFilter.activeCount(completion: "all", priority: "2",
                                                  dueDate: "overdue", assignee: "unassigned"), 4)
     }
+
+    /// Saved-filter (Smart List) payload marks the list virtual and carries the current filters
+    /// under the exact keys updateListAdvanced applies (Task efd05e56).
+    func testSmartListUpdatesPayload() {
+        let u = MacListFilter.smartListUpdates(completion: "incomplete", priority: "3",
+                                               dueDate: "today", assignee: "current_user", sortBy: "priority")
+        XCTAssertEqual(u["isVirtual"] as? Bool, true)
+        XCTAssertEqual(u["sortBy"] as? String, "priority")
+        XCTAssertEqual(u["filterCompletion"] as? String, "incomplete")
+        XCTAssertEqual(u["filterPriority"] as? String, "3")
+        XCTAssertEqual(u["filterDueDate"] as? String, "today")
+        XCTAssertEqual(u["filterAssignee"] as? String, "current_user")
+    }
 }
 #endif

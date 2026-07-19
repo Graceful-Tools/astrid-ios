@@ -62,10 +62,10 @@ struct MacRootView: View {
     @State private var showPublicLists = false
     @State private var showFilterSheet = false
 
-    /// The currently-selected real list (nil for My Tasks / no selection) — drives the filter editor.
+    /// The currently-selected real (non-virtual) list — drives the filter editor + Save-as-Smart-List.
     private var currentRealList: TaskList? {
         guard let id = selectedListId, id != Self.myTasksId else { return nil }
-        return listService.lists.first { $0.id == id }
+        return listService.lists.first { $0.id == id && $0.isVirtual != true }
     }
 
     private func toggleFavorite(_ list: TaskList) {
@@ -84,7 +84,12 @@ struct MacRootView: View {
         Label {
             Text(list.name)
         } icon: {
-            MacListIcon(list: list, size: 16)     // real list image/color swatch (mirrors iOS)
+            if list.isVirtual == true {
+                // Saved-filter (Smart) list — a funnel glyph distinguishes it from a real list.
+                Image(systemName: "line.3.horizontal.decrease.circle").foregroundStyle(Theme.accent)
+            } else {
+                MacListIcon(list: list, size: 16)     // real list image/color swatch (mirrors iOS)
+            }
         }
         .tag(Optional(list.id))
         .dropDestination(for: String.self) { ids, _ in   // drop dragged tasks here to move them
@@ -146,7 +151,19 @@ struct MacRootView: View {
             // task store, so it's populated even for lists not individually opened).
             return MacMyTasks.filter(taskService.tasks, userId: auth.userId)
         }
+        // Saved-filter / virtual lists (isVirtual) filter across ALL tasks — the shared
+        // filterTasksForList in displayedTasks then applies their saved filters (efd05e56),
+        // exactly like iOS. A real list uses just its own tasks.
+        if listService.lists.first(where: { $0.id == id })?.isVirtual == true {
+            return taskService.tasks
+        }
         return taskService.getTasksForList(id)
+    }
+
+    /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
+    private var selectionIsVirtual: Bool {
+        selectedListId == Self.myTasksId
+            || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
     /// Focus the inline quick-add field instead of eagerly creating a junk "New Task" (C2).
@@ -168,7 +185,7 @@ struct MacRootView: View {
 
     @ViewBuilder private var taskTable: some View {
         VStack(spacing: 0) {
-            if selectedListId != Self.myTasksId {   // can't quick-add into the virtual My Tasks
+            if !selectionIsVirtual {   // can't quick-add into My Tasks or a saved-filter list
                 quickAddBar
                 Divider()
             }
@@ -431,7 +448,7 @@ struct MacRootView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
-                        .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
+                        .disabled(selectedListId == nil || selectionIsVirtual)
                         .help("New Task")
                         .accessibilityIdentifier("tasks.newTask")
                 }

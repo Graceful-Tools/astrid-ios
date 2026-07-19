@@ -56,5 +56,19 @@ enum MacListFilter {
         if !isDefault(assignee, dimension: .assignee) { n += 1 }
         return n
     }
+
+    /// The `updateListAdvanced` payload that turns a freshly-created list into a saved-filter (Smart)
+    /// list carrying the current filters — mirrors iOS SaveFilterDialog (Task efd05e56).
+    static func smartListUpdates(completion: String, priority: String, dueDate: String,
+                                 assignee: String, sortBy: String) -> [String: Any] {
+        [
+            "isVirtual": true,
+            "sortBy": sortBy,
+            "filterCompletion": completion,
+            "filterPriority": priority,
+            "filterDueDate": dueDate,
+            "filterAssignee": assignee,
+        ]
+    }
 }
 #endif
