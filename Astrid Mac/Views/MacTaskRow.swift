@@ -15,6 +15,7 @@ struct MacTaskRow: View {
     let isEditing: Bool
     @Binding var editingTitle: String
     var indent: Int = 0                  // subtask nesting depth (0 = top level)
+    var isSelected: Bool = false
     let onToggle: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
@@ -104,9 +105,11 @@ struct MacTaskRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
-        // card on dark), with margin/indent so the theme background shows around each card.
-        .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5))
+        // card on dark). Selection is a SUBTLE thin accent (b8d1ec16), not a heavy border.
+        .background(MacSelectionStyle.fill(isSelected: isSelected), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .stroke(MacSelectionStyle.borderColor(isSelected: isSelected),
+                    lineWidth: MacSelectionStyle.borderWidth(isSelected: isSelected)))
         .padding(.leading, 8 + CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4
         .padding(.trailing, 8)
         .padding(.vertical, 3)

@@ -10,6 +10,7 @@ struct MacBoardView: View {
     let listId: String
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
     @State private var draftByColumn: [String: String] = [:]
     @State private var boardBusy = false
@@ -138,9 +139,12 @@ struct MacBoardView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.bgPrimary)
+        .background(MacSelectionStyle.fill(isSelected: appModel.selectedTaskIds.contains(t.id)))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 1))
+        // Subtle selection border (b8d1ec16) — thin accent when open, faint hairline otherwise.
+        .overlay(RoundedRectangle(cornerRadius: 6)
+            .stroke(MacSelectionStyle.borderColor(isSelected: appModel.selectedTaskIds.contains(t.id)),
+                    lineWidth: MacSelectionStyle.borderWidth(isSelected: appModel.selectedTaskIds.contains(t.id))))
         .contentShape(Rectangle())
         .onTapGesture { MacAppModel.shared.openTask(listId: listId, taskId: t.id) }
         .draggable(t.id)

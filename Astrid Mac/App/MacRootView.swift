@@ -309,6 +309,7 @@ struct MacRootView: View {
             isEditing: editingTaskId == task.id,
             editingTitle: $editingTaskTitle,
             indent: indentLevel(task),
+            isSelected: selectedTaskIds.contains(task.id),
             onToggle: { toggleCompleted(task) },
             onCommitEdit: { commitInlineEdit(task) },
             onCancelEdit: { editingTaskId = nil }
