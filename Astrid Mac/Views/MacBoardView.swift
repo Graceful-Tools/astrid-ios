@@ -78,8 +78,8 @@ struct MacBoardView: View {
             }
             .help(col.description)
             ForEach(items) { t in card(t) }
-            addCardField(col)
             Spacer(minLength: 40)
+            addCardField(col)          // floats at the bottom of the column (iPad/web placement)
         }
         .padding(10)
         .frame(width: 250, alignment: .leading)

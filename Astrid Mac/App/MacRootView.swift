@@ -224,23 +224,27 @@ struct MacRootView: View {
 
     @ViewBuilder private var taskTable: some View {
         VStack(spacing: 0) {
-            if !selectionIsVirtual {   // can't quick-add into My Tasks or a saved-filter list
-                quickAddBar
-                Divider()
-            }
             if displayedTasks.isEmpty {
                 if tasksForSelection.isEmpty {
                     ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     // The list has tasks but its saved filters hide them all (same filters as iOS/web).
                     ContentUnavailableView("Nothing matches this list’s filters",
                                            systemImage: "line.3.horizontal.decrease.circle",
                                            description: Text("Adjust the list’s filters on iOS or the web to see more."))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
                 taskTableBody
             }
+            // Quick-add FLOATS at the bottom (iPad/iOS placement), not pinned to the top.
+            if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual, hasSelection: selectedListId != nil) {
+                Divider()
+                quickAddBar
+            }
         }
+        .background(Theme.bgPrimary)   // theme shows behind the floating quick-add too
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
