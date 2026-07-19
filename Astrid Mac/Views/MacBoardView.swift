@@ -11,6 +11,7 @@ struct MacBoardView: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var dropTargetColumnId: String?
+    @State private var draftByColumn: [String: String] = [:]
 
     private var columns: [ProjectBoardColumn] { getProjectBoardColumns(listService.lists) }
     private var tasks: [Task] { taskService.getTasksForList(listId) }
@@ -39,6 +40,7 @@ struct MacBoardView: View {
             }
             .help(col.description)
             ForEach(items) { t in card(t) }
+            addCardField(col)
             Spacer(minLength: 40)
         }
         .padding(10)
@@ -51,6 +53,34 @@ struct MacBoardView: View {
             move(taskId: taskId, to: col)
             return true
         } isTargeted: { dropTargetColumnId = $0 ? col.id : nil }
+    }
+
+    /// Inline "＋ Add task" footer per column (iOS/web parity). Creates in the domain list, then
+    /// places the card into this column via the shared board move plan.
+    @ViewBuilder private func addCardField(_ col: ProjectBoardColumn) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "plus").foregroundStyle(Theme.textMuted).font(.caption)
+            TextField("Add task", text: Binding(
+                get: { draftByColumn[col.id] ?? "" },
+                set: { draftByColumn[col.id] = $0 }
+            ))
+            .textFieldStyle(.plain)
+            .onSubmit { addCard(to: col) }
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bgPrimary.opacity(0.6)))
+    }
+
+    private func addCard(to col: ProjectBoardColumn) {
+        let title = (draftByColumn[col.id] ?? "").trimmingCharacters(in: .whitespaces)
+        guard !title.isEmpty else { return }
+        draftByColumn[col.id] = ""
+        MacActions.perform("Add card") {
+            let created = try await taskService.createTask(listIds: [listId], title: title)
+            let (ids, complete) = MacBoardAdd.apply(MacBoardMove.plan(task: created, column: col, lists: listService.lists))
+            if let ids { _ = try await taskService.updateTask(taskId: created.id, listIds: ids, task: created) }
+            if complete { _ = try await taskService.completeTask(id: created.id, completed: true, task: created) }
+        }
     }
 
     private func card(_ t: Task) -> some View {
