@@ -13,8 +13,11 @@ import UniformTypeIdentifiers
 struct MacTaskDetailView: View {
     let task: Task
     @StateObject private var taskService = TaskService.shared
+    @StateObject private var listService = ListService.shared
     @ObservedObject private var appModel = MacAppModel.shared
     @Environment(\.openWindow) private var openWindow
+    @State private var shareURL: URL?
+    @State private var generatingShare = false
 
     @State private var title = ""
     @State private var notes = ""
@@ -208,6 +211,27 @@ struct MacTaskDetailView: View {
             }
 
             Section {
+                Menu {
+                    ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
+                        Button(t.label) { copyTask(to: t.listId) }
+                    }
+                } label: { Label("Copy to List", systemImage: "doc.on.doc") }
+
+                if let shareURL {
+                    HStack {
+                        Text(shareURL.absoluteString).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                        Spacer()
+                        Button("Copy") { copyToPasteboard(shareURL.absoluteString) }
+                        ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
+                    }
+                } else {
+                    Button { generateShareLink() } label: {
+                        HStack { Label("Share…", systemImage: "square.and.arrow.up")
+                            if generatingShare { Spacer(); ProgressView().controlSize(.small) } }
+                    }
+                    .disabled(generatingShare)
+                }
+
                 Button { openWindow(id: "task", value: task.id) } label: {
                     Label("Open in New Window", systemImage: "macwindow.on.rectangle")
                 }
@@ -392,6 +416,28 @@ struct MacTaskDetailView: View {
 
     private func setCompleted(_ value: Bool) {
         _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: value, task: task) }
+    }
+
+    /// Copy this task into another list (or My Tasks only) via the canonical service.
+    private func copyTask(to listId: String?) {
+        MacActions.perform("Copy task") {
+            _ = try await taskService.copyTask(id: task.id, targetListId: listId, includeComments: true)
+        }
+    }
+
+    /// Generate a shareable shortcode URL (then Copy / ShareLink present it).
+    private func generateShareLink() {
+        generatingShare = true
+        MacActions.perform("Create share link") {
+            defer { generatingShare = false }   // resets on success AND on thrown error
+            let resp = try await RemoteResourceService.shared.createShortcode(targetType: "task", targetId: task.id)
+            shareURL = URL(string: resp.url)
+        }
+    }
+
+    private func copyToPasteboard(_ s: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(s, forType: .string)
     }
 
     // MARK: subtasks + comments
