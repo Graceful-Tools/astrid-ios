@@ -177,9 +177,13 @@ struct MacAISettingsView: View {
     @State private var agents: [AvailableAgent] = []
     @State private var loadFailed = false
     @State private var isSaving = false
+    @State private var showKeys = false
 
     var body: some View {
         Form {
+            Section("API Keys & Agents") {
+                Button("Manage API keys & OpenClaw agents…") { showKeys = true }
+            }
             Section("AI Assistant") {
                 if let s = settings {
                     Picker("Default agent", selection: Binding(
@@ -205,6 +209,7 @@ struct MacAISettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showKeys) { MacAIKeysView() }
         .task { await load() }
     }
 
