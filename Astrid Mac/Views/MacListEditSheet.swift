@@ -16,6 +16,9 @@ struct MacListEditSheet: View {
     @State private var color = MacListEditSheet.palette[0]
     @State private var imageUrl: String?
     @State private var uploadingImage = false
+    @State private var defPriority = 0
+    @State private var defDueDate = "none"
+    @State private var defRepeating = "never"
 
     /// The shared list-color palette (hex), matching web/iOS.
     static let palette = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6",
@@ -66,6 +69,25 @@ struct MacListEditSheet: View {
                 }
             }
 
+            // Default task settings — applied to new tasks in this list (edit mode). Task c82173ff.
+            if existing != nil {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("New-task defaults").font(.caption).foregroundStyle(Theme.textSecondary)
+                    Picker("Priority", selection: $defPriority) {
+                        ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
+                            Text(MacTaskVisuals.priorityLabel(p)).tag(p.rawValue)
+                        }
+                    }.onChange(of: defPriority) { saveDefaults() }
+                    Picker("Due date", selection: $defDueDate) {
+                        ForEach(MacListDefaults.dueDate) { Text($0.label).tag($0.value) }
+                    }.onChange(of: defDueDate) { saveDefaults() }
+                    Picker("Repeat", selection: $defRepeating) {
+                        ForEach(MacListDefaults.repeating) { Text($0.label).tag($0.value) }
+                    }.onChange(of: defRepeating) { saveDefaults() }
+                }
+            }
+
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
@@ -82,6 +104,17 @@ struct MacListEditSheet: View {
             listDescription = existing?.description ?? ""
             color = existing?.color ?? Self.palette[0]
             imageUrl = existing?.imageUrl
+            defPriority = existing?.defaultPriority ?? 0
+            defDueDate = existing?.defaultDueDate ?? "none"
+            defRepeating = existing?.defaultRepeating ?? "never"
+        }
+    }
+
+    private func saveDefaults() {
+        guard let e = existing else { return }
+        let updates = MacListDefaults.updates(priority: defPriority, dueDate: defDueDate, repeating: defRepeating)
+        MacActions.perform("Update list defaults") {
+            _ = try await ListService.shared.updateListAdvanced(listId: e.id, updates: updates)
         }
     }
 
