@@ -101,8 +101,15 @@ struct MacTaskRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 6)
-        .padding(.leading, CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4 (deeper still shows)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
+        // card on dark), with margin/indent so the theme background shows around each card.
+        .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5))
+        .padding(.leading, 8 + CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4
+        .padding(.trailing, 8)
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
     }
 }

@@ -130,6 +130,18 @@ struct MacRootView: View {
         }
     }
 
+    /// Make `droppedId` a subtask of `parent` (drag-to-indent), guarding against cycles.
+    @discardableResult
+    private func makeSubtask(_ droppedId: String, of parent: Task) -> Bool {
+        guard droppedId != parent.id,
+              MacSubtaskDrop.canParent(childId: droppedId, parentId: parent.id, allTasks: taskService.tasks),
+              let dropped = taskService.tasks.first(where: { $0.id == droppedId }) else { return false }
+        MacActions.perform("Make subtask") {
+            _ = try await taskService.updateTask(taskId: droppedId, task: dropped, parentTaskId: parent.id)
+        }
+        return true
+    }
+
     private func beginInlineEdit(_ t: Task) { editingTaskId = t.id; editingTaskTitle = t.title }
     private func commitInlineEdit(_ t: Task) {
         let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)
@@ -280,6 +292,8 @@ struct MacRootView: View {
             }
         }
         .listStyle(.inset)
+        .scrollContentBackground(.hidden)            // let the theme background show through
+        .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {
@@ -294,6 +308,11 @@ struct MacRootView: View {
             onCancelEdit: { editingTaskId = nil }
         )
         .draggable(task.id)                        // drag onto a sidebar list to move
+        // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
+        .dropDestination(for: String.self) { droppedIds, _ in
+            guard let dropped = droppedIds.first else { return false }
+            return makeSubtask(dropped, of: task)
+        }
         .contextMenu {
             let targets = actionTargets(task)
             Button(task.completed ? "Mark Incomplete" : "Complete") {
@@ -313,6 +332,8 @@ struct MacRootView: View {
             Divider()
             Button("Delete", role: .destructive) { bulkDelete(targets) }
         }
+        .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
+        .listRowSeparator(.hidden)
     }
 
     /// The sort key actually in effect for the current selection (override wins over the list's own).

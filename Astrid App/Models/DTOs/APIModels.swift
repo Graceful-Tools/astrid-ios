@@ -73,6 +73,7 @@ nonisolated struct UpdateTaskRequest: Codable {
     var lastTimerValue: String?
     var completedAt: String?      // ISO8601 — backdates completion (sync)
     var completedSource: String?  // astrid | google | github | apple
+    var parentTaskId: String?     // reparent (drag-to-indent → subtask); nil = no change
 
     // Track which fields were explicitly set (including to nil)
     private var explicitlySetFields: Set<String> = []
@@ -84,6 +85,7 @@ nonisolated struct UpdateTaskRequest: Codable {
         case dueDateTime, isAllDay, reminderTime, reminderType
         case listIds, assigneeId, timerDuration, lastTimerValue
         case completedAt, completedSource
+        case parentTaskId
     }
 
     init(
@@ -104,7 +106,8 @@ nonisolated struct UpdateTaskRequest: Codable {
         timerDuration: Int? = nil,
         lastTimerValue: String? = nil,
         completedAt: String? = nil,
-        completedSource: String? = nil
+        completedSource: String? = nil,
+        parentTaskId: String? = nil
     ) {
         self.title = title
         self.description = description
@@ -124,6 +127,7 @@ nonisolated struct UpdateTaskRequest: Codable {
         self.lastTimerValue = lastTimerValue
         self.completedAt = completedAt
         self.completedSource = completedSource
+        self.parentTaskId = parentTaskId
     }
 
     // Custom encode to include explicit nil values
@@ -163,6 +167,7 @@ nonisolated struct UpdateTaskRequest: Codable {
         // and the server stamped "now" instead).
         try container.encodeIfPresent(completedAt, forKey: .completedAt)
         try container.encodeIfPresent(completedSource, forKey: .completedSource)
+        try container.encodeIfPresent(parentTaskId, forKey: .parentTaskId)
     }
 }
 

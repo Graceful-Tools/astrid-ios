@@ -496,7 +496,8 @@ class TaskService: ObservableObject {
         listIds: [String]? = nil,
         task: Task? = nil,  // Optional: provide task if not in cache (e.g., from featured lists)
         source: SyncSource? = nil,
-        completedAt: Date? = nil  // Origin tag for provider echo suppression (persisted on the Outbox payload)
+        completedAt: Date? = nil,  // Origin tag for provider echo suppression (persisted on the Outbox payload)
+        parentTaskId: String? = nil  // Reparent (drag-to-indent → subtask); nil = no change
     ) async throws -> Task {
         // Resolve stale temp ID → real server ID.
         // When a user opens a task detail view for a newly created task, the view
@@ -549,6 +550,7 @@ class TaskService: ObservableObject {
         if let timerDuration = timerDuration { optimisticTask.timerDuration = timerDuration }
         if let lastTimerValue = lastTimerValue { optimisticTask.lastTimerValue = lastTimerValue }
         if let listIds = listIds { optimisticTask.listIds = listIds }
+        if let parentTaskId = parentTaskId { optimisticTask.parentTaskId = parentTaskId }
 
         // CRITICAL: Update updatedAt to current time for optimistic update
         // This ensures completed tasks immediately pass the "recently completed" filter
@@ -669,7 +671,8 @@ class TaskService: ObservableObject {
                 lastTimerValue: lastTimerValue,
                 completedAt: (completed == true)
                     ? ISO8601DateFormatter().string(from: completedAt ?? Date()) : nil,
-                completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil
+                completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil,
+                parentTaskId: parentTaskId
             )
 
             // The Outbox is authoritative for updates: its handler performs the
