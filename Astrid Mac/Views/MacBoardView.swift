@@ -14,6 +14,7 @@ struct MacBoardView: View {
     @State private var dropTargetColumnId: String?
     @State private var draftByColumn: [String: String] = [:]
     @State private var boardBusy = false
+    @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
@@ -125,28 +126,41 @@ struct MacBoardView: View {
     }
 
     private func card(_ t: Task) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Button { toggleComplete(t) } label: {
-                MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18)
-            }.buttonStyle(.plain)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
-                if let due = t.dueDateTime {
-                    Text(due, style: .date).font(.caption2).foregroundStyle(Theme.textMuted)
+        let expanded = expandedCardId == t.id
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Button { toggleComplete(t) } label: {
+                    MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18)
+                }.buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
+                    if let due = t.dueDateTime {
+                        Text(due, style: .date).font(.caption2).foregroundStyle(Theme.textMuted)
+                    }
                 }
+                Spacer(minLength: 0)
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2).foregroundStyle(Theme.textMuted)
             }
-            Spacer(minLength: 0)
+            // Click the card body → expand INLINE to edit (like Astrid Web), not open the panel.
+            .contentShape(Rectangle())
+            .onTapGesture { expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id) }
+
+            if expanded {
+                Divider()
+                MacBoardCardEditor(task: t,
+                                   onOpenPanel: { MacAppModel.shared.openTask(listId: listId, taskId: t.id) },
+                                   onDone: { expandedCardId = nil })
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MacSelectionStyle.fill(isSelected: appModel.selectedTaskIds.contains(t.id)))
+        .background(MacSelectionStyle.fill(isSelected: expanded))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        // Subtle selection border (b8d1ec16) — thin accent when open, faint hairline otherwise.
+        // Subtle selection border (b8d1ec16) — thin accent when expanded, faint hairline otherwise.
         .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(MacSelectionStyle.borderColor(isSelected: appModel.selectedTaskIds.contains(t.id)),
-                    lineWidth: MacSelectionStyle.borderWidth(isSelected: appModel.selectedTaskIds.contains(t.id))))
-        .contentShape(Rectangle())
-        .onTapGesture { MacAppModel.shared.openTask(listId: listId, taskId: t.id) }
+            .stroke(MacSelectionStyle.borderColor(isSelected: expanded),
+                    lineWidth: MacSelectionStyle.borderWidth(isSelected: expanded)))
         .draggable(t.id)
     }
 
