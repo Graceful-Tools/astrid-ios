@@ -60,6 +60,13 @@ struct MacRootView: View {
     @State private var sharingList: TaskList?
     @State private var listToDelete: TaskList?
     @State private var showPublicLists = false
+    @State private var showFilterSheet = false
+
+    /// The currently-selected real list (nil for My Tasks / no selection) — drives the filter editor.
+    private var currentRealList: TaskList? {
+        guard let id = selectedListId, id != Self.myTasksId else { return nil }
+        return listService.lists.first { $0.id == id }
+    }
 
     private func toggleFavorite(_ list: TaskList) {
         _Concurrency.Task {
@@ -408,6 +415,20 @@ struct MacRootView: View {
                 if contentMode == .list, selectedListId != nil {
                     ToolbarItem(placement: .primaryAction) { sortMenu }
                 }
+                // Filter editor — real lists only (My Tasks filters live in its own prefs, efd05e56).
+                if contentMode == .list, let list = currentRealList {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { showFilterSheet = true } label: {
+                            let active = MacListFilter.activeCount(completion: list.filterCompletion,
+                                                                   priority: list.filterPriority,
+                                                                   dueDate: list.filterDueDate,
+                                                                   assignee: list.filterAssignee)
+                            Label("Filter", systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
+                                                                     : "line.3.horizontal.decrease.circle")
+                        }
+                        .help("Filter tasks")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
                         .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
@@ -485,6 +506,9 @@ struct MacRootView: View {
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
         .sheet(item: $sharingList) { MacListMembersView(list: $0) }
         .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
+        .sheet(isPresented: $showFilterSheet) {
+            if let list = currentRealList { MacFilterSheet(list: list) }
+        }
         .confirmationDialog("Delete this list?",
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),
