@@ -230,39 +230,63 @@ struct MacRootView: View {
         // + the shared filter/sort still drives ordering. Priority shows via the checkbox ring, so
         // there's no priority column (67c5e54c superseded by UI-parity polish).
         List(selection: $selectedTaskIds) {
-            ForEach(displayedTasks) { task in
-                MacTaskRow(
-                    task: task,
-                    hiddenListIds: selectedListId.map { $0 == Self.myTasksId ? [] : [$0] } ?? [],
-                    isEditing: editingTaskId == task.id,
-                    editingTitle: $editingTaskTitle,
-                    onToggle: { toggleCompleted(task) },
-                    onCommitEdit: { commitInlineEdit(task) },
-                    onCancelEdit: { editingTaskId = nil }
-                )
-                .draggable(task.id)                        // drag onto a sidebar list to move
-                .contextMenu {
-                    let targets = actionTargets(task)
-                    Button(task.completed ? "Mark Incomplete" : "Complete") {
-                        targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
-                    }
-                    Button("Rename") { beginInlineEdit(task) }
-                    Menu("Set Priority") {
-                        ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
-                            Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(targets, p) }
-                        }
-                    }
-                    Menu("Move to List") {
-                        ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
-                            Button(list.name) { move(targets, to: list.id) }
-                        }
-                    }
-                    Divider()
-                    Button("Delete", role: .destructive) { bulkDelete(targets) }
-                }
+            // Within-list drag-reorder is only meaningful under Manual sort (7b7a17d3), like iOS —
+            // otherwise the shared sort would immediately re-order any manual arrangement.
+            if isManualSort, currentRealList != nil {
+                ForEach(displayedTasks) { taskRow($0) }.onMove(perform: moveTasks)
+            } else {
+                ForEach(displayedTasks) { taskRow($0) }
             }
         }
         .listStyle(.inset)
+    }
+
+    @ViewBuilder private func taskRow(_ task: Task) -> some View {
+        MacTaskRow(
+            task: task,
+            hiddenListIds: selectedListId.map { $0 == Self.myTasksId ? [] : [$0] } ?? [],
+            isEditing: editingTaskId == task.id,
+            editingTitle: $editingTaskTitle,
+            onToggle: { toggleCompleted(task) },
+            onCommitEdit: { commitInlineEdit(task) },
+            onCancelEdit: { editingTaskId = nil }
+        )
+        .draggable(task.id)                        // drag onto a sidebar list to move
+        .contextMenu {
+            let targets = actionTargets(task)
+            Button(task.completed ? "Mark Incomplete" : "Complete") {
+                targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
+            }
+            Button("Rename") { beginInlineEdit(task) }
+            Menu("Set Priority") {
+                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
+                    Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(targets, p) }
+                }
+            }
+            Menu("Move to List") {
+                ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
+                    Button(list.name) { move(targets, to: list.id) }
+                }
+            }
+            Divider()
+            Button("Delete", role: .destructive) { bulkDelete(targets) }
+        }
+    }
+
+    /// The sort key actually in effect for the current selection (override wins over the list's own).
+    private var effectiveSortKey: String {
+        if !taskSortOverride.isEmpty { return taskSortOverride }
+        return currentRealList?.sortBy ?? "auto"
+    }
+    private var isManualSort: Bool { effectiveSortKey == "manual" }
+
+    /// Persist a manual within-list reorder via the canonical service (writes manualSortOrder).
+    private func moveTasks(from source: IndexSet, to destination: Int) {
+        guard let listId = currentRealList?.id else { return }
+        let ids = MacReorder.reordered(displayedTasks.map(\.id), from: source, to: destination)
+        MacActions.perform("Reorder tasks") {
+            try await listService.updateManualOrder(listId: listId, order: ids)
+        }
     }
 
     /// Sort control (retains the table's "nice sort", without the table chrome). Empty override =
