@@ -5,6 +5,8 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct MacListEditSheet: View {
     let existing: TaskList?          // nil = create
@@ -12,6 +14,8 @@ struct MacListEditSheet: View {
     @State private var name = ""
     @State private var listDescription = ""
     @State private var color = MacListEditSheet.palette[0]
+    @State private var imageUrl: String?
+    @State private var uploadingImage = false
 
     /// The shared list-color palette (hex), matching web/iOS.
     static let palette = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6",
@@ -31,6 +35,21 @@ struct MacListEditSheet: View {
             TextField("Description (optional)", text: $listDescription, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.roundedBorder)
+
+            // Image upload — only for an existing list (upload needs the list id). Task 383b96af.
+            if let e = existing {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Image").font(.caption).foregroundStyle(Theme.textSecondary)
+                    HStack(spacing: 10) {
+                        imagePreview
+                        Button(uploadingImage ? "Uploading…" : "Choose Image…") { pickImage(for: e) }
+                            .disabled(uploadingImage)
+                        if imageUrl != nil {
+                            Button("Remove") { setImage(nil, for: e) }.foregroundStyle(Theme.error)
+                        }
+                    }
+                }
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Color").font(.caption).foregroundStyle(Theme.textSecondary)
@@ -62,6 +81,51 @@ struct MacListEditSheet: View {
             name = existing?.name ?? ""
             listDescription = existing?.description ?? ""
             color = existing?.color ?? Self.palette[0]
+            imageUrl = existing?.imageUrl
+        }
+    }
+
+    private var fullImageURL: URL? {
+        guard let s = imageUrl, !s.isEmpty else { return nil }
+        if s.hasPrefix("http") { return URL(string: s) }
+        return URL(string: Constants.API.baseURL + s)
+    }
+
+    @ViewBuilder private var imagePreview: some View {
+        if let url = fullImageURL {
+            CachedAsyncImage(url: url) { img in img.resizable().scaledToFill() }
+                placeholder: { Color(hex: color) ?? .gray }
+                .frame(width: 36, height: 36).clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            RoundedRectangle(cornerRadius: 8).fill(Color(hex: color) ?? .gray).frame(width: 36, height: 36)
+        }
+    }
+
+    private func pickImage(for list: TaskList) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
+        panel.allowedContentTypes = MacListImage.contentTypes
+        guard panel.runModal() == .OK, let url = panel.url, MacListImage.isSupported(filename: url.lastPathComponent) else { return }
+        let name = url.lastPathComponent
+        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "image/png"
+        uploadingImage = true
+        _Concurrency.Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: url) else { await MainActor.run { uploadingImage = false }; return }
+            do {
+                let uploadedUrl = try await AttachmentService.shared.uploadToSecureEndpoint(
+                    fileData: data, fileName: name, mimeType: mime, context: ["listId": list.id])
+                await MainActor.run { uploadingImage = false; setImage(uploadedUrl, for: list) }
+            } catch {
+                await MainActor.run { uploadingImage = false }
+            }
+        }
+    }
+
+    private func setImage(_ url: String?, for list: TaskList) {
+        imageUrl = url
+        MacActions.perform("Update list image") {
+            _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: ["imageUrl": url ?? ""])
+            _ = try? await ListService.shared.fetchLists()
         }
     }
 

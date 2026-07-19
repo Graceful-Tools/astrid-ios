@@ -425,6 +425,7 @@ class ListService: ObservableObject {
         if let name = updates["name"] as? String { optimisticList.name = name }
         if let description = updates["description"] as? String { optimisticList.description = description }
         if let color = updates["color"] as? String { optimisticList.color = color }
+        if let imageUrl = updates["imageUrl"] as? String { optimisticList.imageUrl = imageUrl }
         if let privacy = updates["privacy"] as? String, let privacyEnum = TaskList.Privacy(rawValue: privacy) {
             optimisticList.privacy = privacyEnum
         }
