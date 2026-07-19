@@ -7,6 +7,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import QuickLook
 import UniformTypeIdentifiers
 
 struct MacTaskDetailView: View {
@@ -39,6 +40,8 @@ struct MacTaskDetailView: View {
     @State private var newComment = ""
     @State private var editingComment: Comment?
     @State private var editingCommentText = ""
+    @State private var previewURL: URL?           // QuickLook target (local temp copy)
+    @State private var previewLoadingId: String?  // attachment being downloaded for preview
 
     var body: some View {
         Form {
@@ -174,14 +177,31 @@ struct MacTaskDetailView: View {
             }
 
             Section("Attachments") {
-                ForEach(attachmentRows, id: \.id) { a in
-                    HStack {
-                        Image(systemName: "paperclip").foregroundStyle(Theme.textMuted)
-                        Text(a.name).foregroundStyle(Theme.textPrimary)
-                        Spacer()
-                        if let s = a.url, let u = URL(string: s) {
-                            Button("Open") { PlatformApplication.open(u) }
+                // URL-backed attachments: type icon + name + size, QuickLook preview + delete.
+                ForEach(task.attachments ?? []) { a in
+                    HStack(spacing: 8) {
+                        Image(systemName: MacAttachmentIcon.symbol(type: a.type, name: a.name))
+                            .foregroundStyle(Theme.accent).frame(width: 18)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(a.name).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                            let size = MacAttachmentIcon.humanSize(a.size)
+                            if !size.isEmpty { Text(size).font(.caption2).foregroundStyle(Theme.textMuted) }
                         }
+                        Spacer()
+                        Button { previewAttachment(a) } label: { Image(systemName: "eye") }
+                            .buttonStyle(.borderless).help("Quick Look")
+                            .disabled(previewLoadingId == a.id)
+                        Button { deleteAttachment(a) } label: { Image(systemName: "trash") }
+                            .buttonStyle(.borderless).foregroundStyle(Theme.error).help("Delete")
+                    }
+                }
+                // Secure files have no direct URL / delete API — show name + type icon only.
+                ForEach(task.secureFiles ?? [], id: \.id) { f in
+                    HStack(spacing: 8) {
+                        Image(systemName: MacAttachmentIcon.symbol(type: f.mimeType, name: f.name))
+                            .foregroundStyle(Theme.textMuted).frame(width: 18)
+                        Text(f.name).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                        Spacer()
                     }
                 }
                 Button { addFile() } label: { Label("Add File…", systemImage: "paperclip") }
@@ -194,6 +214,7 @@ struct MacTaskDetailView: View {
             }
         }
         .formStyle(.grouped)
+        .quickLookPreview($previewURL)   // native macOS Quick Look for a downloaded attachment
         // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Mac task detail has no
         // dedicated lists editor yet, so `lists` reveals the schedule/date area as the closest control.
         .onChange(of: appModel.shortcutRequest) { _, req in
@@ -294,9 +315,34 @@ struct MacTaskDetailView: View {
 
     private func hms(_ s: Int) -> String { String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60) }
 
-    private var attachmentRows: [(id: String, name: String, url: String?)] {
-        (task.attachments ?? []).map { ($0.id, $0.name, Optional($0.url)) }
-            + (task.secureFiles ?? []).map { ($0.id, $0.name, nil as String?) }
+    /// Download the attachment to a temp file (Quick Look needs a local URL), then present it.
+    private func previewAttachment(_ a: Attachment) {
+        guard let remote = URL(string: a.url) else { return }
+        previewLoadingId = a.id
+        let name = a.name
+        _Concurrency.Task {
+            defer { previewLoadingId = nil }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: remote)
+                let tmp = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+                let fileURL = tmp.appendingPathComponent(name)
+                try data.write(to: fileURL)
+                previewURL = fileURL
+            } catch {
+                // Fall back to opening in the default app if the download/preview fails.
+                PlatformApplication.open(remote)
+            }
+        }
+    }
+
+    /// Delete a URL-backed attachment via the canonical service, then refresh.
+    private func deleteAttachment(_ a: Attachment) {
+        MacActions.perform("Delete attachment") {
+            try await AttachmentService.shared.deleteAttachment(taskId: task.id, attachmentId: a.id)
+            load()
+        }
     }
 
     private func addFile() {
