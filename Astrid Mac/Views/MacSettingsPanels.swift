@@ -96,6 +96,8 @@ struct MacSyncSettingsView: View {
     @StateObject private var apple = AppleRemindersService.shared
     @StateObject private var featureFlags = FeatureFlagService.shared
     @State private var showReminders = false
+    @State private var showGoogleLinks = false
+    @State private var showGitHubLinks = false
 
     var body: some View {
         Form {
@@ -105,12 +107,14 @@ struct MacSyncSettingsView: View {
                 providerSection("Google Tasks", connected: google.isConnected, account: google.accountEmail,
                                 lastSync: google.lastSyncedAt,
                                 connect: { if let u = await google.authorizeURL() { PlatformApplication.open(u) } },
-                                disconnect: { await google.disconnect() })
+                                disconnect: { await google.disconnect() },
+                                manage: { showGoogleLinks = true })
             }
             providerSection("GitHub Issues", connected: github.isConnected, account: github.accountLogin,
                             lastSync: github.lastSyncedAt,
                             connect: { if let u = await github.authorizeURL() { PlatformApplication.open(u) } },
-                            disconnect: { await github.disconnect() })
+                            disconnect: { await github.disconnect() },
+                            manage: { showGitHubLinks = true })
             Section("Apple Reminders") {
                 HStack {
                     Circle().fill(MacRemindersStatus.isGranted(apple.authorizationStatus) ? Theme.success : Theme.textMuted)
@@ -125,6 +129,8 @@ struct MacSyncSettingsView: View {
         }
         .formStyle(.grouped)
         .sheet(isPresented: $showReminders) { MacAppleRemindersView() }
+        .sheet(isPresented: $showGoogleLinks) { MacGoogleTasksLinksView() }
+        .sheet(isPresented: $showGitHubLinks) { MacGitHubLinksView() }
         .task {
             await featureFlags.refreshIfStale()
             await github.refreshStatus()
@@ -143,7 +149,8 @@ struct MacSyncSettingsView: View {
     @ViewBuilder
     private func providerSection(_ title: String, connected: Bool, account: String?, lastSync: Date?,
                                  connect: @escaping () async -> Void,
-                                 disconnect: @escaping () async -> Void) -> some View {
+                                 disconnect: @escaping () async -> Void,
+                                 manage: (() -> Void)? = nil) -> some View {
         Section(title) {
             HStack {
                 Circle().fill(connected ? Theme.success : Theme.textMuted).frame(width: 8, height: 8)
@@ -154,6 +161,9 @@ struct MacSyncSettingsView: View {
                 } else {
                     Button("Connect") { _Concurrency.Task { await connect() } }
                 }
+            }
+            if connected, let manage {
+                Button("Manage links…") { manage() }
             }
             if let d = lastSync { LabeledContent("Last sync") { Text(d, style: .relative) } }
         }
