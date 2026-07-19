@@ -12,7 +12,10 @@ struct MacBoardView: View {
     @StateObject private var listService = ListService.shared
     @State private var dropTargetColumnId: String?
     @State private var draftByColumn: [String: String] = [:]
+    @State private var boardBusy = false
 
+    private var list: TaskList? { listService.lists.first { $0.id == listId } }
+    private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
     private var columns: [ProjectBoardColumn] { getProjectBoardColumns(listService.lists) }
     private var tasks: [Task] { taskService.getTasksForList(listId) }
 
@@ -21,13 +24,48 @@ struct MacBoardView: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal) {
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(columns) { col in
-                    columnView(col)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Spacer()
+                if boardEnabled {
+                    Menu {
+                        Button("Disable Board", role: .destructive) { disableBoard() }
+                    } label: { Image(systemName: "ellipsis.circle") }.fixedSize()
+                } else {
+                    Button { enableBoard() } label: {
+                        HStack { Label("Enable Board", systemImage: "square.grid.2x2")
+                            if boardBusy { ProgressView().controlSize(.small) } }
+                    }
+                    .disabled(boardBusy)
+                    .help("Create Ready / Doing / Waiting status columns for this list")
                 }
             }
-            .padding()
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            Divider()
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(columns) { col in columnView(col) }
+                }
+                .padding()
+            }
+        }
+    }
+
+    private func enableBoard() {
+        guard let list else { return }
+        boardBusy = true
+        MacActions.perform("Enable board") {
+            defer { boardBusy = false }
+            _ = try await ProjectService.shared.createBoardForList(list)
+            _ = try? await ListService.shared.fetchLists()
+        }
+    }
+
+    private func disableBoard() {
+        guard let projectId = list?.projectId else { return }
+        MacActions.perform("Disable board") {
+            _ = try await ProjectService.shared.deleteProject(id: projectId)
+            _ = try? await ListService.shared.fetchLists()
         }
     }
 
