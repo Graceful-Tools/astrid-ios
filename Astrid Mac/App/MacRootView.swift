@@ -371,7 +371,8 @@ struct MacRootView: View {
     /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
     private func commitDraft() {
         guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
-                                              lists: listService.lists) else { return }
+                                              lists: listService.lists,
+                                              smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else { return }
         draftTitle = ""
         _Concurrency.Task {
             _ = try? await taskService.createTask(

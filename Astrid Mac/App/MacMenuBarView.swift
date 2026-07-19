@@ -53,7 +53,8 @@ struct MacMenuBarView: View {
     private func add() {
         // Shared SmartTaskParser (dates/priority/#lists/repeat), same engine as the main window +
         // sidebar. Global context (no current list) → makeGlobalArgs (Task 8c7e5968, fa267754).
-        guard let args = MacQuickAdd.makeGlobalArgs(rawText: quickText, lists: listService.lists) else { return }
+        guard let args = MacQuickAdd.makeGlobalArgs(rawText: quickText, lists: listService.lists,
+                                                    smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else { return }
         quickText = ""
         _Concurrency.Task {
             _ = try? await taskService.createTask(

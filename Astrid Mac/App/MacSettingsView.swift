@@ -8,6 +8,7 @@ import SwiftUI
 
 struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
+    @StateObject private var userSettings = UserSettingsService.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
     var body: some View {
@@ -18,6 +19,23 @@ struct MacSettingsView: View {
                         ForEach(ThemeMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .pickerStyle(.inline)
+                }
+                Section("Tasks") {
+                    // Smart Task Creation — gates the shared SmartTaskParser in quick-add (a840511d).
+                    Toggle("Smart Task Creation", isOn: Binding(
+                        get: { userSettings.smartTaskCreationEnabled },
+                        set: { userSettings.smartTaskCreationEnabled = $0 }
+                    ))
+                    Text("Parse dates, priorities, and #lists from what you type.")
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                    // Sub-tasks display (consumed by the list's subtask rendering, 3c945236).
+                    Picker("Sub-tasks", selection: Binding(
+                        get: { userSettings.settings.subtaskDisplay ?? "indented" },
+                        set: { userSettings.updateSettings(UserSettings(subtaskDisplay: $0)) }
+                    )) {
+                        Text("In lists, indented").tag("indented")
+                        Text("Inside parent task only").tag("under_parent")
+                    }
                 }
             }
             .formStyle(.grouped)

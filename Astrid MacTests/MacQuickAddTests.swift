@@ -54,4 +54,21 @@ final class MacQuickAddTests: XCTestCase {
     // testSmartParsingExtractsPriority above), so priority/date/repeat extraction is covered there.
     // The global-specific behavior — empty/no-list guarding and NOT force-adding a current list —
     // is what these tests lock.
+
+    // MARK: - Smart Task Creation toggle (Task a840511d)
+
+    func testSmartDisabledKeepsRawTitleAndNoParsing() {
+        // With Smart Task Creation OFF, tokens like "urgent" stay in the title and no priority is parsed.
+        let args = MacQuickAdd.makeArgs(rawText: "Ship release urgent", selectedListId: listId,
+                                        lists: [], smartEnabled: false)
+        XCTAssertEqual(args?.title, "Ship release urgent")
+        XCTAssertNil(args?.priority)
+        XCTAssertNil(args?.whenDate)
+        XCTAssertEqual(args?.listIds, [listId])
+    }
+
+    func testGlobalSmartDisabledKeepsRawTitle() {
+        // No lists → still nil regardless of the flag.
+        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk urgent", lists: [], smartEnabled: false))
+    }
 }

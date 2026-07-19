@@ -20,9 +20,16 @@ enum MacQuickAdd {
 
     /// Build create args from raw quick-add text. Returns nil when there is nothing to
     /// commit (empty/whitespace) or no destination list — abandoned drafts create nothing.
-    static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList]) -> CreateArgs? {
+    /// `smartEnabled` gates the shared SmartTaskParser (the user's Smart Task Creation setting).
+    static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
+                         smartEnabled: Bool = true) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let selectedListId else { return nil }
+
+        guard smartEnabled else {
+            return CreateArgs(title: trimmed, listIds: [selectedListId],
+                              priority: nil, whenDate: nil, repeating: nil, repeatingData: nil)
+        }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
         let title = parsed.title.isEmpty ? trimmed : parsed.title
@@ -45,9 +52,14 @@ enum MacQuickAdd {
     /// "current list" context. Uses the parser's #list(s) when present, otherwise falls back to the
     /// first available list — unlike `makeArgs`, it does NOT force-add a selected list (Task fa267754).
     /// Returns nil for empty input or when there is no list to add to.
-    static func makeGlobalArgs(rawText: String, lists: [TaskList]) -> CreateArgs? {
+    static func makeGlobalArgs(rawText: String, lists: [TaskList], smartEnabled: Bool = true) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !lists.isEmpty else { return nil }
+
+        guard smartEnabled else {
+            return CreateArgs(title: trimmed, listIds: [lists[0].id],
+                              priority: nil, whenDate: nil, repeating: nil, repeatingData: nil)
+        }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
         let title = parsed.title.isEmpty ? trimmed : parsed.title
