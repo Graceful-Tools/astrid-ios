@@ -51,11 +51,9 @@ struct MacMenuBarView: View {
     }
 
     private func add() {
-        // Use the shared SmartTaskParser (dates/priority/#lists/repeat), same as the main window,
-        // instead of the naive local QuickEntryParser (Task 8c7e5968).
-        guard let args = MacQuickAdd.makeArgs(rawText: quickText,
-                                              selectedListId: listService.lists.first?.id,
-                                              lists: listService.lists) else { return }
+        // Shared SmartTaskParser (dates/priority/#lists/repeat), same engine as the main window +
+        // sidebar. Global context (no current list) → makeGlobalArgs (Task 8c7e5968, fa267754).
+        guard let args = MacQuickAdd.makeGlobalArgs(rawText: quickText, lists: listService.lists) else { return }
         quickText = ""
         _Concurrency.Task {
             _ = try? await taskService.createTask(

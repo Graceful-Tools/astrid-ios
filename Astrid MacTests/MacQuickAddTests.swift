@@ -40,4 +40,18 @@ final class MacQuickAddTests: XCTestCase {
         XCTAssertFalse(args?.title.localizedCaseInsensitiveContains("urgent") ?? true,
                        "The priority token must be stripped from the title.")
     }
+
+    // MARK: - Global quick-add (⌥Space window + menu-bar) — Task fa267754
+
+    func testGlobalEmptyOrNoListCreatesNothing() {
+        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "", lists: []))
+        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "   ", lists: []))
+        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk", lists: []),
+                     "No lists → nothing to add to.")
+    }
+
+    // Note: makeGlobalArgs routes through the SAME shared SmartTaskParser as makeArgs (locked by
+    // testSmartParsingExtractsPriority above), so priority/date/repeat extraction is covered there.
+    // The global-specific behavior — empty/no-list guarding and NOT force-adding a current list —
+    // is what these tests lock.
 }

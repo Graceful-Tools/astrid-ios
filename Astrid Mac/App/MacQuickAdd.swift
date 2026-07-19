@@ -40,5 +40,27 @@ enum MacQuickAdd {
             repeatingData: parsed.customRepeatingData
         )
     }
+
+    /// Build create args for a GLOBAL quick-add (the ⌥Space window and the menu-bar), which has no
+    /// "current list" context. Uses the parser's #list(s) when present, otherwise falls back to the
+    /// first available list — unlike `makeArgs`, it does NOT force-add a selected list (Task fa267754).
+    /// Returns nil for empty input or when there is no list to add to.
+    static func makeGlobalArgs(rawText: String, lists: [TaskList]) -> CreateArgs? {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !lists.isEmpty else { return nil }
+
+        let parsed = SmartTaskParser.parse(trimmed, lists: lists)
+        let title = parsed.title.isEmpty ? trimmed : parsed.title
+        let listIds = parsed.listIds.isEmpty ? [lists[0].id] : parsed.listIds
+
+        return CreateArgs(
+            title: title,
+            listIds: listIds,
+            priority: parsed.priority,
+            whenDate: parsed.dueDateTime,
+            repeating: parsed.repeating?.rawValue,
+            repeatingData: parsed.customRepeatingData
+        )
+    }
 }
 #endif

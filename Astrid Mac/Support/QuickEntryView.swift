@@ -42,7 +42,7 @@ struct QuickEntryView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            TextField("Add a task…  (#list, !task, natural-language dates in M2)", text: $text)
+            TextField("Add a task…  (try “Report friday #work urgent”)", text: $text)
                 .textFieldStyle(.plain)
                 .font(.title2)
                 .onSubmit(save)
@@ -58,26 +58,17 @@ struct QuickEntryView: View {
     }
 
     private func save() {
-        let parsed = QuickEntryParser.parse(text)
-        guard !parsed.title.isEmpty else { return }
-
-        // Resolve target list: a #list token match, else the first available list.
-        let lists = ListService.shared.lists
-        let targetId = parsed.listNames
-            .compactMap { name in lists.first { $0.name.lowercased() == name.lowercased() }?.id }
-            .first ?? lists.first?.id
-        guard let listId = targetId else {
-            NSLog("[Astrid] QuickEntry: no list available to add to")
+        // Use the shared SmartTaskParser (dates/priority/#lists/repeat) — same engine as the sidebar
+        // and menu-bar quick-add — instead of the naive local QuickEntryParser (Task fa267754).
+        guard let args = MacQuickAdd.makeGlobalArgs(rawText: text, lists: ListService.shared.lists) else {
+            NSLog("[Astrid] QuickEntry: nothing to add (empty text or no list)")
             return
         }
-
-        let cal = Calendar.current
-        let due: Date? = parsed.due == .today ? Date()
-            : parsed.due == .tomorrow ? cal.date(byAdding: .day, value: 1, to: Date()) : nil
-
         // Offline-first: creates locally + journals through the Outbox, syncs when online.
         _Concurrency.Task {
-            _ = try? await TaskService.shared.createTask(listIds: [listId], title: parsed.title, whenDate: due)
+            _ = try? await TaskService.shared.createTask(
+                listIds: args.listIds, title: args.title, priority: args.priority,
+                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
         }
         text = ""
         dismiss()
