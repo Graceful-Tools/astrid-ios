@@ -201,8 +201,10 @@ struct MacRootView: View {
                     ForEach(results) { taskRow($0) }
                 }
                 .listStyle(.inset)
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(Theme.bgPrimary)   // pervasive theme background in search
     }
 
     /// Focus the inline quick-add field instead of eagerly creating a junk "New Task" (C2).
@@ -481,6 +483,8 @@ struct MacRootView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
+            .background(Theme.bgPrimary)
             .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
             .navigationTitle("Astrid")
             .accessibilityIdentifier("sidebar.lists")

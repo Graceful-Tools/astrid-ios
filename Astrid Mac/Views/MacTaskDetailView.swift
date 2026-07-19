@@ -255,6 +255,8 @@ struct MacTaskDetailView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)   // pervasive theme background in the detail panel
+        .background(Theme.bgPrimary)
         .quickLookPreview($previewURL)   // native macOS Quick Look for a downloaded attachment
         // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Mac task detail has no
         // dedicated lists editor yet, so `lists` reveals the schedule/date area as the closest control.

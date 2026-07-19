@@ -48,7 +48,9 @@ struct MacBoardView: View {
                 }
                 .padding()
             }
+            .scrollContentBackground(.hidden)
         }
+        .background(Theme.bgPrimary)   // pervasive theme background (Ocean cyan) behind the board
     }
 
     private func enableBoard() {

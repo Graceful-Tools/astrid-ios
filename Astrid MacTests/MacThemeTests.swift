@@ -43,5 +43,13 @@ final class MacThemeTests: XCTestCase {
         XCTAssertEqual(Theme.bgPrimary, Theme.Dark.bgPrimary)
         XCTAssertEqual(Theme.textPrimary, Theme.Dark.textPrimary)
     }
+
+    /// Pervasive theme background (eae911d4): each theme's primary surface must be visually distinct
+    /// so applying Theme.bgPrimary everywhere actually reads as Ocean vs Light vs Dark.
+    func testThemeBackgroundsAreDistinct() {
+        XCTAssertNotEqual(Theme.Ocean.bgPrimary, Theme.Dark.bgPrimary)
+        // Ocean's cyan primary must differ from the plain light white.
+        XCTAssertNotEqual(Theme.Ocean.bgPrimary, Color(red: 1, green: 1, blue: 1))
+    }
 }
 #endif
