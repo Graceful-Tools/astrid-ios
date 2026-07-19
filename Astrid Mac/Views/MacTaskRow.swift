@@ -19,6 +19,15 @@ struct MacTaskRow: View {
     let onCancelEdit: () -> Void
 
     @ObservedObject private var listService = ListService.shared
+    @ObservedObject private var auth = AuthManager.shared
+
+    /// The assignee to surface as an avatar (task.assignee, or a minimal User from the id so the
+    /// shared UserImageCache can still resolve a picture) — nil for own/unassigned tasks.
+    private var avatarAssignee: User? {
+        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId),
+              let id = task.assigneeId else { return nil }
+        return task.assignee ?? User(id: id, email: nil, name: nil, image: nil)
+    }
 
     private var chipLists: [TaskList] {
         (task.listIds ?? [])
@@ -36,12 +45,17 @@ struct MacTaskRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button(action: onToggle) {
-                MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
+            if let assignee = avatarAssignee {
+                // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
+                MacAssigneeAvatar(user: assignee, priority: task.priority, size: 20)
+            } else {
+                Button(action: onToggle) {
+                    MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
+                }
+                .buttonStyle(.plain)
+                .help(task.completed ? "Mark incomplete" : "Mark complete")
+                .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
             }
-            .buttonStyle(.plain)
-            .help(task.completed ? "Mark incomplete" : "Mark complete")
-            .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
 
             VStack(alignment: .leading, spacing: 4) {
                 if isEditing {
@@ -85,14 +99,6 @@ struct MacTaskRow: View {
             }
 
             Spacer(minLength: 0)
-
-            // Subtle assignee indicator (mirrors iOS surfacing an avatar for assigned tasks).
-            if task.assigneeId != nil {
-                Image(systemName: "person.crop.circle.fill")
-                    .foregroundStyle(Theme.accent)
-                    .font(.system(size: 14))
-                    .help("Assigned")
-            }
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
