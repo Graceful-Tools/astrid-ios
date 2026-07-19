@@ -776,6 +776,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Astrid Mac/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Astrid links your lists with Apple Reminders so your tasks stay in sync.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -812,6 +813,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Astrid Mac/Info.plist";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Astrid links your lists with Apple Reminders so your tasks stay in sync.";
 				LD_RUNPATH_SEARCH_PATHS = (

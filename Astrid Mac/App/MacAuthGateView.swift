@@ -48,6 +48,7 @@ struct MacAuthGateView: View {
                 return
             }
             OutboxManager.shared.start()          // start the write runner (drains queued writes)
+            MacServiceProvider.register()          // Services menu "Add to Astrid" (Task 3b9883d0)
 
             // Local reminder notifications on Mac (Task 8b81fb9e): register + request permission,
             // then schedule for current tasks. Works offline too (local tasks have due dates).
