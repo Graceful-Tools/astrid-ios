@@ -251,6 +251,28 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         print("🔔 [NotificationDelegate] UserInfo: \(userInfo)")
 
+        // Handle the Complete / Snooze notification actions (previously ignored — the reminder's
+        // action buttons did nothing on iOS OR Mac). Task 32c6f756. Falls through to open on tap.
+        let taskIdForAction = userInfo["taskId"] as? String
+        switch ReminderAction.route(actionIdentifier: response.actionIdentifier) {
+        case .complete:
+            if let id = taskIdForAction {
+                _ = try? await TaskService.shared.completeTask(id: id, completed: true)
+            }
+            return
+        case .snooze:
+            if let id = taskIdForAction {
+                var task = TaskService.shared.tasks.first(where: { $0.id == id })
+                if task == nil { task = try? await TaskService.shared.fetchTask(id: id) }
+                if let task {
+                    try? await NotificationManager.shared.snoozeNotification(for: task, minutes: ReminderAction.snoozeMinutes)
+                }
+            }
+            return
+        case .open:
+            break   // tap on the body → open the task (handled below)
+        }
+
         // Extract task ID for deep linking
         if let taskId = userInfo["taskId"] as? String {
             print("📱 [NotificationDelegate] User tapped notification for task: \(taskId)")
@@ -285,6 +307,24 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     ) async -> UNNotificationPresentationOptions {
         // Show notification even when app is in foreground
         return [.banner, .sound, .badge]
+    }
+}
+
+// MARK: - Reminder action routing (pure, testable)
+
+/// Maps a notification `actionIdentifier` to what the app should do. Shared by iOS + Mac so the
+/// Complete / Snooze buttons behave identically (Task 32c6f756).
+enum ReminderAction: Equatable {
+    case complete, snooze, open
+
+    static let snoozeMinutes = 60
+
+    static func route(actionIdentifier: String) -> ReminderAction {
+        switch actionIdentifier {
+        case "COMPLETE_ACTION": return .complete
+        case "SNOOZE_ACTION":   return .snooze
+        default:                return .open   // default/tap action + anything unrecognized
+        }
     }
 }
 
