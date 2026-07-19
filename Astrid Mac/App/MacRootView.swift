@@ -19,7 +19,9 @@ struct MacRootView: View {
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
-    @State private var columnCustomization = TableColumnCustomization<Task>()   // configurable columns (67c5e54c)
+    // Sort applied to the task list. Empty = follow the list's own saved sortBy (shared logic);
+    // otherwise this per-scene override wins so the user can re-sort like the old table headers.
+    @SceneStorage("taskSortOverride") private var taskSortOverride = ""
     @State private var editingTaskId: String?          // inline title editing (67c5e54c)
     @State private var editingTaskTitle = ""
     @State private var draftTitle = ""
@@ -37,9 +39,11 @@ struct MacRootView: View {
         if let id = selectedListId, id != Self.myTasksId,
            let list = listService.lists.first(where: { $0.id == id }) {
             let filtered = filterTasksForList(base, list: list, currentUserId: auth.userId)
-            return sortTasksByListSetting(filtered, sortBy: list.sortBy ?? "auto", manualOrder: list.manualSortOrder)
+            let sortKey = taskSortOverride.isEmpty ? (list.sortBy ?? "auto") : taskSortOverride
+            return sortTasksByListSetting(filtered, sortBy: sortKey, manualOrder: list.manualSortOrder)
         }
-        return sortTasksByListSetting(base, sortBy: "auto", manualOrder: nil)
+        let sortKey = taskSortOverride.isEmpty ? "auto" : taskSortOverride
+        return sortTasksByListSetting(base, sortBy: sortKey, manualOrder: nil)
     }
 
     /// Cross-list move (C3): move the given tasks into another list via the canonical service.
@@ -167,68 +171,68 @@ struct MacRootView: View {
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
+    /// Which tasks a row action targets: the whole selection when right-clicking a selected row in
+    /// a multi-selection, otherwise just the clicked task.
+    private func actionTargets(_ task: Task) -> Set<String> {
+        (selectedTaskIds.contains(task.id) && selectedTaskIds.count > 1) ? selectedTaskIds : [task.id]
+    }
+
     @ViewBuilder private var taskTableBody: some View {
-            Table(displayedTasks, selection: $selectedTaskIds, columnCustomization: $columnCustomization) {
-                TableColumn("") { task in
-                    Button { toggleCompleted(task) } label: {
-                        MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 18)
+        // iOS-style rows (not a flat table): List(selection:) gives reliable single-click selection
+        // + the shared filter/sort still drives ordering. Priority shows via the checkbox ring, so
+        // there's no priority column (67c5e54c superseded by UI-parity polish).
+        List(selection: $selectedTaskIds) {
+            ForEach(displayedTasks) { task in
+                MacTaskRow(
+                    task: task,
+                    hiddenListIds: selectedListId.map { $0 == Self.myTasksId ? [] : [$0] } ?? [],
+                    isEditing: editingTaskId == task.id,
+                    editingTitle: $editingTaskTitle,
+                    onToggle: { toggleCompleted(task) },
+                    onCommitEdit: { commitInlineEdit(task) },
+                    onCancelEdit: { editingTaskId = nil }
+                )
+                .draggable(task.id)                        // drag onto a sidebar list to move
+                .contextMenu {
+                    let targets = actionTargets(task)
+                    Button(task.completed ? "Mark Incomplete" : "Complete") {
+                        targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
                     }
-                    .buttonStyle(.plain)
-                    .help(task.completed ? "Mark incomplete" : "Mark complete")
-                    .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
-                }.width(28).customizationID("done").disabledCustomizationBehavior(.all)
-                TableColumn("Task") { task in
-                    if editingTaskId == task.id {
-                        TextField("Title", text: $editingTaskTitle)
-                            .textFieldStyle(.plain)
-                            .onSubmit { commitInlineEdit(task) }
-                            .onExitCommand { editingTaskId = nil }
-                    } else {
-                        Text(task.title).strikethrough(task.completed)
-                            .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
-                            .draggable(task.id)                       // drag onto a sidebar list to move
-                            .onTapGesture(count: 2) { beginInlineEdit(task) }   // double-click to rename
-                    }
-                }.customizationID("title").disabledCustomizationBehavior(.visibility)
-                TableColumn("List") { task in
-                    if let l = listService.lists.first(where: { task.listIds?.contains($0.id) == true }) {
-                        HStack(spacing: 5) { MacListIcon(list: l, size: 12); Text(l.name).lineLimit(1) }
-                    } else { Text("—").foregroundStyle(.secondary) }
-                }.width(min: 90, ideal: 140).customizationID("list").defaultVisibility(.hidden)
-                TableColumn("Due") { task in
-                    if let due = task.dueDateTime { Text(due, style: .date) }
-                    else { Text("—").foregroundStyle(.secondary) }
-                }.width(min: 90, ideal: 120).customizationID("due")
-                TableColumn("Priority") { task in
-                    if task.priority != .none {
-                        Text(MacTaskVisuals.prioritySymbol(task.priority))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(MacTaskVisuals.priorityColor(task.priority))
-                    } else { Text("—").foregroundStyle(.secondary) }
-                }.width(min: 60, ideal: 80).customizationID("priority")
-                TableColumn("Assignee") { task in
-                    Image(systemName: task.assigneeId == nil ? "person.crop.circle.dashed" : "person.crop.circle.fill")
-                        .foregroundStyle(task.assigneeId == nil ? Theme.textMuted : Theme.accent)
-                        .help(task.assigneeId == nil ? "Unassigned" : "Assigned")
-                }.width(70).customizationID("assignee").defaultVisibility(.hidden)
-            }
-            .contextMenu(forSelectionType: String.self) { ids in
-                if !ids.isEmpty {
-                    Button("Complete") { bulkComplete(ids) }
+                    Button("Rename") { beginInlineEdit(task) }
                     Menu("Set Priority") {
                         ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
-                            Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(ids, p) }
+                            Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(targets, p) }
                         }
                     }
                     Menu("Move to List") {
                         ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
-                            Button(list.name) { move(ids, to: list.id) }
+                            Button(list.name) { move(targets, to: list.id) }
                         }
                     }
                     Divider()
-                    Button("Delete", role: .destructive) { bulkDelete(ids) }
+                    Button("Delete", role: .destructive) { bulkDelete(targets) }
                 }
             }
+        }
+        .listStyle(.inset)
+    }
+
+    /// Sort control (retains the table's "nice sort", without the table chrome). Empty override =
+    /// follow the list's own saved sort; a pick overrides it for this window.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort", selection: $taskSortOverride) {
+                Text("List Default").tag("")
+                Text("Smart (Auto)").tag("auto")
+                Text("Priority").tag("priority")
+                Text("Due Date").tag("when")
+                Text("Recently Created").tag("createdAt")
+                Text("Manual").tag("manual")
+            }
+        } label: {
+            Label("Sort", systemImage: "arrow.up.arrow.down")
+        }
+        .help("Sort tasks")
     }
 
     private func bulkComplete(_ ids: Set<String>) {
@@ -376,6 +380,9 @@ struct MacRootView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
+                }
+                if contentMode == .list, selectedListId != nil {
+                    ToolbarItem(placement: .primaryAction) { sortMenu }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { newTask() } label: { Label("New Task", systemImage: "plus") }
