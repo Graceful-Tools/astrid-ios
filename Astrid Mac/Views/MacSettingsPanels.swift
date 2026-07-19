@@ -95,6 +95,7 @@ struct MacSyncSettingsView: View {
     @StateObject private var google = GoogleTasksSyncService.shared
     @StateObject private var apple = AppleRemindersService.shared
     @StateObject private var featureFlags = FeatureFlagService.shared
+    @State private var showReminders = false
 
     var body: some View {
         Form {
@@ -111,12 +112,19 @@ struct MacSyncSettingsView: View {
                             connect: { if let u = await github.authorizeURL() { PlatformApplication.open(u) } },
                             disconnect: { await github.disconnect() })
             Section("Apple Reminders") {
-                LabeledContent("Access", value: apple.authorizationStatus == .fullAccess ? "Granted" : "Not granted")
+                HStack {
+                    Circle().fill(MacRemindersStatus.isGranted(apple.authorizationStatus) ? Theme.success : Theme.textMuted)
+                        .frame(width: 8, height: 8)
+                    Text(MacRemindersStatus.label(apple.authorizationStatus)).foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Button("Manage…") { showReminders = true }
+                }
                 if apple.linkedListCount > 0 { LabeledContent("Linked lists", value: "\(apple.linkedListCount)") }
                 if let d = apple.lastSyncDate { LabeledContent("Last sync") { Text(d, style: .relative) } }
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showReminders) { MacAppleRemindersView() }
         .task {
             await featureFlags.refreshIfStale()
             await github.refreshStatus()
