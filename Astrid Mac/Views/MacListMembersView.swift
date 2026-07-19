@@ -13,6 +13,7 @@ struct MacListMembersView: View {
     @State private var inviteRole = "member"
     @State private var privacy = "PRIVATE"
     @State private var publicType = "collaborative"
+    @State private var contactSuggestions: [ContactSearchResult] = []
     @Environment(\.dismiss) private var dismiss
 
     private static let roles = ["member", "admin"]
@@ -78,8 +79,23 @@ struct MacListMembersView: View {
             .frame(minHeight: 180)
 
             if canManage {
+                // Contacts autocomplete (server-synced contacts via the shared ContactsService) — 3753a521.
+                if !contactSuggestions.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(contactSuggestions) { c in
+                            Button { email = c.email; contactSuggestions = [] } label: {
+                                Text(MacContactPick.display(name: c.name, email: c.email))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 8).padding(.vertical, 3).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                    .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
+                }
                 HStack {
-                    TextField("Invite by email", text: $email).textFieldStyle(.roundedBorder).onSubmit(invite)
+                    TextField("Invite by email", text: $email).textFieldStyle(.roundedBorder)
+                        .onSubmit(invite)
+                        .onChange(of: email) { searchContacts() }
                     Picker("", selection: $inviteRole) {
                         ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
                     }.labelsHidden().frame(width: 110)
@@ -98,6 +114,16 @@ struct MacListMembersView: View {
         .onAppear {
             privacy = list.privacy?.rawValue ?? "PRIVATE"
             publicType = list.publicListType ?? "collaborative"
+        }
+    }
+
+    /// Autocomplete the invite field from server-synced contacts (shared ContactsService).
+    private func searchContacts() {
+        let q = email.trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2, !q.contains("@") else { contactSuggestions = []; return }
+        _Concurrency.Task {
+            let hits = (try? await ContactsService.shared.searchContacts(query: q, excludeListId: list.id)) ?? []
+            contactSuggestions = Array(hits.prefix(5))
         }
     }
 
