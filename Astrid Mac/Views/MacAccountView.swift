@@ -6,12 +6,14 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacAccountView: View {
     @StateObject private var auth = AuthManager.shared
     @State private var name = ""
     @State private var savedFlash = false
     @State private var showDelete = false
+    @State private var isExporting = false
 
     var body: some View {
         Form {
@@ -27,6 +29,17 @@ struct MacAccountView: View {
                 if savedFlash { Text("Saved").font(.caption).foregroundStyle(Theme.success) }
             }
 
+            Section("Your Data") {
+                Menu {
+                    Button("Export as JSON") { export(format: "json") }
+                    Button("Export as CSV") { export(format: "csv") }
+                } label: {
+                    HStack { Label("Export Data…", systemImage: "square.and.arrow.up")
+                        if isExporting { Spacer(); ProgressView().controlSize(.small) } }
+                }
+                .disabled(isExporting)
+            }
+
             Section {
                 Button("Sign Out") { _Concurrency.Task { try? await auth.signOut() } }
             }
@@ -39,6 +52,21 @@ struct MacAccountView: View {
         .frame(width: 460)
         .onAppear { name = auth.currentUser?.name ?? "" }
         .sheet(isPresented: $showDelete) { MacDeleteAccountSheet() }
+    }
+
+    /// Fetch the account export from the shared service, then save it via an NSSavePanel.
+    private func export(format: String) {
+        isExporting = true
+        MacActions.perform("Export data") {
+            defer { isExporting = false }
+            let data = try await AccountService.shared.exportAccountData(format: format)
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = MacDataExport.fileName(format: format, date: Date())
+            panel.allowedContentTypes = [MacDataExport.contentType(format: format)]
+            if panel.runModal() == .OK, let url = panel.url {
+                try data.write(to: url)
+            }
+        }
     }
 
     @ViewBuilder private var avatar: some View {
