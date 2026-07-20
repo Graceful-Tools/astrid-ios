@@ -582,6 +582,7 @@ struct MacRootView: View {
             _ = try? await listService.fetchLists()
         }
         .onChange(of: selectedListId) { _, id in
+            selectedTaskIds.removeAll()                        // close the detail panel when switching lists
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
             // The global SyncManager already loaded all lists' tasks; just refresh the opened
             // real list for immediacy (My Tasks/virtual needs no per-list fetch).
