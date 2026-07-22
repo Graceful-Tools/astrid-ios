@@ -185,13 +185,13 @@ struct MacRootView: View {
     private func taskDetailPopout(_ task: Task) -> some View {
         HStack(spacing: 0) {
             MacPopoverArrow()
-                .fill(Theme.bgSecondary)
+                .fill(MacDetailChrome.background)
                 .frame(width: 12, height: 24)
                 .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
             ZStack(alignment: .topTrailing) {
                 MacTaskDetailView(task: task)
                     .frame(width: 380)
-                    .background(Theme.bgSecondary)
+                    .background(MacDetailChrome.background)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
                     .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
@@ -596,7 +596,9 @@ struct MacRootView: View {
             // Floating pop-out detail panel over the list's trailing edge (2766d9a4) — no permanent
             // empty 3rd column, so an unselected list uses the FULL width (no large white pane).
             .overlay(alignment: .trailing) {
-                if MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count),
+                // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
+                if contentMode != .board,
+                   MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count),
                    let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
                     taskDetailPopout(task)
                         .transition(.move(edge: .trailing).combined(with: .opacity))

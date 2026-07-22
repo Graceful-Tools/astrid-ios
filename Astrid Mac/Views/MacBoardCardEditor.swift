@@ -81,8 +81,9 @@ struct MacBoardCardEditor: View {
     // MARK: rows
 
     private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(label).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 72, alignment: .leading)
+        // Compact 56pt label so the row fits within a ~250pt board column (vs popping out).
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 56, alignment: .leading)
             content()
             Spacer(minLength: 0)
         }
@@ -96,7 +97,7 @@ struct MacBoardCardEditor: View {
             Text("Unassigned").tag("")
             ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
         }
-        .labelsHidden().fixedSize()
+        .labelsHidden()   // no fixedSize — let it shrink to the column width
     }
 
     @ViewBuilder private var dateControl: some View {

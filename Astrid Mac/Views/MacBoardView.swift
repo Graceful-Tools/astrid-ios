@@ -155,7 +155,8 @@ struct MacBoardView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MacSelectionStyle.fill(isSelected: expanded))
+        // Expanded card is a WHITE details surface (like web); collapsed cards stay on the theme.
+        .background(expanded ? MacDetailChrome.background : MacSelectionStyle.fill(isSelected: false))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         // Subtle selection border (b8d1ec16) — thin accent when expanded, faint hairline otherwise.
         .overlay(RoundedRectangle(cornerRadius: 6)
