@@ -98,6 +98,7 @@ struct MacSyncSettingsView: View {
     @State private var showReminders = false
     @State private var showGoogleLinks = false
     @State private var showGitHubLinks = false
+    @State private var connecting: String?          // provider whose connection we're polling for
 
     var body: some View {
         Form {
@@ -105,15 +106,25 @@ struct MacSyncSettingsView: View {
             // hide it entirely when the flag is off, matching iOS SettingsView.
             if featureFlags.isEnabled(.googleTasks) {
                 providerSection("Google Tasks", connected: google.isConnected, account: google.accountEmail,
-                                lastSync: google.lastSyncedAt,
-                                connect: { if let u = await google.authorizeURL() { PlatformApplication.open(u) } },
+                                lastSync: google.lastSyncedAt, isConnecting: connecting == "Google Tasks",
+                                connect: {
+                                    if let u = await google.authorizeURL() { PlatformApplication.open(u) }
+                                    await pollConnection("Google Tasks", refresh: { await google.refreshStatus() },
+                                                         isConnected: { google.isConnected })
+                                },
                                 disconnect: { await google.disconnect() },
+                                refresh: { await google.refreshStatus() },
                                 manage: { showGoogleLinks = true })
             }
             providerSection("GitHub Issues", connected: github.isConnected, account: github.accountLogin,
-                            lastSync: github.lastSyncedAt,
-                            connect: { if let u = await github.authorizeURL() { PlatformApplication.open(u) } },
+                            lastSync: github.lastSyncedAt, isConnecting: connecting == "GitHub Issues",
+                            connect: {
+                                if let u = await github.authorizeURL() { PlatformApplication.open(u) }
+                                await pollConnection("GitHub Issues", refresh: { await github.refreshStatus() },
+                                                     isConnected: { github.isConnected })
+                            },
                             disconnect: { await github.disconnect() },
+                            refresh: { await github.refreshStatus() },
                             manage: { showGitHubLinks = true })
             Section("Apple Reminders") {
                 HStack {
@@ -146,20 +157,43 @@ struct MacSyncSettingsView: View {
         }
     }
 
+    /// After opening the OAuth browser, poll the provider's status until it connects (macOS has no
+    /// in-app callback) so the UI updates automatically instead of needing a close/reopen.
+    private func pollConnection(_ title: String, refresh: @escaping () async -> Void,
+                                isConnected: @escaping () -> Bool) async {
+        connecting = title
+        defer { connecting = nil }
+        var attempt = 0
+        while MacConnectPoll.shouldContinue(attempt: attempt, connected: isConnected()) {
+            try? await _Concurrency.Task.sleep(nanoseconds: MacConnectPoll.intervalNanos)
+            await refresh()
+            attempt += 1
+        }
+    }
+
     @ViewBuilder
     private func providerSection(_ title: String, connected: Bool, account: String?, lastSync: Date?,
+                                 isConnecting: Bool = false,
                                  connect: @escaping () async -> Void,
                                  disconnect: @escaping () async -> Void,
+                                 refresh: (() async -> Void)? = nil,
                                  manage: (() -> Void)? = nil) -> some View {
         Section(title) {
             HStack {
                 Circle().fill(connected ? Theme.success : Theme.textMuted).frame(width: 8, height: 8)
-                Text(connected ? (account ?? "Connected") : "Not connected").foregroundStyle(Theme.textPrimary)
+                Text(connected ? (account ?? "Connected")
+                     : isConnecting ? "Connecting…" : "Not connected").foregroundStyle(Theme.textPrimary)
+                if isConnecting { ProgressView().controlSize(.small) }
                 Spacer()
                 if connected {
                     Button("Disconnect", role: .destructive) { _Concurrency.Task { await disconnect() } }
                 } else {
-                    Button("Connect") { _Concurrency.Task { await connect() } }
+                    // Manual re-check in case the browser round-trip already finished.
+                    if let refresh {
+                        Button { _Concurrency.Task { await refresh() } } label: { Image(systemName: "arrow.clockwise") }
+                            .buttonStyle(.borderless).help("Refresh connection status")
+                    }
+                    Button("Connect") { _Concurrency.Task { await connect() } }.disabled(isConnecting)
                 }
             }
             if connected, let manage {
