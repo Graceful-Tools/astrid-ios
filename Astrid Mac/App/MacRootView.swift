@@ -180,6 +180,33 @@ struct MacRootView: View {
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
+    /// Floating detail pop-out: a rounded card on the trailing edge with a left-pointing arrow back
+    /// at the task list, plus a close button (2766d9a4). Replaces the permanent empty 3rd column.
+    private func taskDetailPopout(_ task: Task) -> some View {
+        HStack(spacing: 0) {
+            MacPopoverArrow()
+                .fill(Theme.bgSecondary)
+                .frame(width: 12, height: 24)
+                .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
+            ZStack(alignment: .topTrailing) {
+                MacTaskDetailView(task: task)
+                    .frame(width: 380)
+                    .background(Theme.bgSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
+                Button { selectedTaskIds.removeAll() } label: {
+                    Image(systemName: "xmark.circle.fill").font(.title3)
+                }
+                .buttonStyle(.plain).foregroundStyle(Theme.textMuted).padding(10)
+                .help("Close")
+            }
+        }
+        .padding(.trailing, 14)
+        .padding(.vertical, 14)
+        .frame(maxHeight: .infinity, alignment: .center)
+    }
+
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
     @ViewBuilder private var searchView: some View {
         VStack(spacing: 0) {
@@ -504,7 +531,7 @@ struct MacRootView: View {
                         .help("Browse Public Lists")
                 }
             }
-        } content: {
+        } detail: {
             Group {
                 if let listId = selectedListId {
                     if listId == Self.searchId {
@@ -566,16 +593,16 @@ struct MacRootView: View {
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 360, ideal: 520)
-        } detail: {
-            if selectedTaskIds.count == 1,
-               let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
-                MacTaskDetailView(task: task)
-            } else if selectedTaskIds.count > 1 {
-                ContentUnavailableView("\(selectedTaskIds.count) tasks selected", systemImage: "checklist")
-            } else {
-                ContentUnavailableView("Select a task", systemImage: "square.and.pencil")
+            // Floating pop-out detail panel over the list's trailing edge (2766d9a4) — no permanent
+            // empty 3rd column, so an unselected list uses the FULL width (no large white pane).
+            .overlay(alignment: .trailing) {
+                if MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count),
+                   let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
+                    taskDetailPopout(task)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
+            .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
         .task {
             // Hydrate lists from the shared service (cache-first, offline-safe).
