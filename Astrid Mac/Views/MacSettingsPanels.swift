@@ -108,9 +108,13 @@ struct MacSyncSettingsView: View {
                 providerSection("Google Tasks", connected: google.isConnected, account: google.accountEmail,
                                 lastSync: google.lastSyncedAt, isConnecting: connecting == "Google Tasks",
                                 connect: {
-                                    if let u = await google.authorizeURL() { PlatformApplication.open(u) }
-                                    await pollConnection("Google Tasks", refresh: { await google.refreshStatus() },
-                                                         isConnected: { google.isConnected })
+                                    // In-app auth session auto-returns on the callback (task 6745f40f) —
+                                    // no external browser / status polling needed.
+                                    connecting = "Google Tasks"
+                                    defer { connecting = nil }
+                                    do { try await google.connect() }
+                                    catch is CancellationError {}
+                                    catch { MacErrorCenter.shared.report("Connect Google Tasks", error) }
                                 },
                                 disconnect: { await google.disconnect() },
                                 refresh: { await google.refreshStatus() },

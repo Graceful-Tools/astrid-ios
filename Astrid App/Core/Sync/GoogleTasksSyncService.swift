@@ -1,6 +1,18 @@
 import Foundation
 import Combine
 
+/// Parses the `astrid://google-tasks/...` callback the backend redirects to after the OAuth
+/// flow (task 6745f40f). Pure/testable, separate from the ASWebAuthenticationSession plumbing.
+enum GoogleTasksConnectCallback {
+    /// An error message if the callback signals failure (path contains "error"), else nil (success).
+    static func errorMessage(from callback: URL) -> String? {
+        guard callback.path.contains("error") else { return nil }
+        return URLComponents(url: callback, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "message" })?.value
+            ?? "Connection didn't complete."
+    }
+}
+
 /// Google Tasks sync worker (Phase 3). Mirrors GitHubSyncService, with the
 /// Google-specific lossy mapping: `due` is DATE-ONLY (timed Astrid tasks mirror
 /// as all-day; the time survives locally), no priority/recurrence/reminders on
@@ -108,6 +120,20 @@ final class GoogleTasksSyncService: ObservableObject {
     func authorizeURL() async -> URL? {
         guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return nil }
         return (try? await apiClient.getGoogleAuthorizeURL().url).flatMap { URL(string: $0) }
+    }
+
+    /// Connect Google Tasks via an in-app auth session that auto-dismisses when the backend
+    /// callback returns to `astrid://google-tasks/...` — no more stranded web page (task 6745f40f).
+    /// Throws on cancel or a backend-reported error (message carried on the callback URL).
+    func connect() async throws {
+        guard let url = await authorizeURL() else { throw CancellationError() }
+        let callback = try await OAuthWebConnector.shared.present(url: url, callbackScheme: "astrid")
+        if let message = GoogleTasksConnectCallback.errorMessage(from: callback) {
+            throw NSError(domain: "GoogleTasksSyncService", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: message])
+        }
+        await refreshStatus()
+        scheduleSync()
     }
 
     func disconnect() async {

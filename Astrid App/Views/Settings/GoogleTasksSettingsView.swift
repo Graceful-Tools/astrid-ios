@@ -38,10 +38,13 @@ struct GoogleTasksSettingsView: View {
                 } else {
                     Button {
                         _Concurrency.Task {
-                            if let url = await sync.authorizeURL() {
-                                openURL(url)
-                            } else {
+                            do {
+                                // In-app auth session; auto-returns to the app on the callback (task 6745f40f).
+                                try await sync.connect()
+                            } catch is CancellationError {
                                 loadError = NSLocalizedString("sync.google_not_configured", comment: "Google sync not configured")
+                            } catch {
+                                loadError = error.localizedDescription
                             }
                         }
                     } label: {
