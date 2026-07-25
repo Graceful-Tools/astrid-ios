@@ -280,9 +280,8 @@ struct MacRootView: View {
             } else {
                 taskTableBody(rows)
             }
-            // Quick-add FLOATS at the bottom (iPad/iOS placement), not pinned to the top.
+            // Quick-add FLOATS at the bottom (iPad/iOS placement) as a lifted card — no divider.
             if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual, hasSelection: selectedListId != nil) {
-                Divider()
                 quickAddBar
             }
         }
@@ -292,16 +291,25 @@ struct MacRootView: View {
     /// Inline draft: a task is created only when the user commits non-empty text — so an
     /// abandoned draft creates nothing (the old New Task button eagerly created junk).
     private var quickAddBar: some View {
+        // iOS QuickAddTaskView parity (5b41942a): a floating rounded card hovering above the list —
+        // themed input surface (chrome silver on Ocean, black on Dark), hairline border, lift
+        // shadow (y −2), side margins matching the task-row card margins.
         HStack(spacing: 8) {
-            Image(systemName: "plus.circle").foregroundStyle(Theme.accent)
+            Image(systemName: "plus.circle.fill").foregroundStyle(Theme.accent)
             TextField("Add a task…  (try “Report friday #work urgent”)", text: $draftTitle)
                 .textFieldStyle(.plain)
+                .font(MacTypography.rowTitle)
                 .focused($addFieldFocused)
                 .onSubmit(commitDraft)
                 .accessibilityLabel("Add a task")
                 .accessibilityIdentifier("tasks.quickAdd")
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
     }
 
     /// Which tasks a row action targets: the whole selection when right-clicking a selected row in

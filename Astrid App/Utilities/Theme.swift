@@ -54,6 +54,10 @@ struct Theme {
     static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
     static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
 
+    // MARK: - Input Colors (themed like iOS: chrome silver on Ocean, black on Dark)
+    static var inputBg: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.inputBg, ocean: Ocean.inputBg) }
+    static var inputBorder: Color { themed(light: .init(red: 209/255, green: 213/255, blue: 219/255), dark: Dark.inputBorder, ocean: Ocean.inputBorder) }
+
     // MARK: - Text Colors
     static var textPrimary: Color { themed(light: .init(red: 17/255, green: 24/255, blue: 39/255), dark: Dark.textPrimary, ocean: Ocean.textPrimary) }
     static var textSecondary: Color { themed(light: .init(red: 75/255, green: 85/255, blue: 99/255), dark: Dark.textSecondary, ocean: Ocean.textSecondary) }
@@ -112,8 +116,10 @@ struct Theme {
     static let headerBg = Color(red: 249/255, green: 250/255, blue: 251/255)
     static let headerBorder = Color(red: 229/255, green: 231/255, blue: 235/255)
 
+#if !os(macOS)
     static let inputBg = Color(red: 255/255, green: 255/255, blue: 255/255)
     static let inputBorder = Color(red: 209/255, green: 213/255, blue: 219/255)
+#endif
     static let inputPlaceholder = Color(red: 156/255, green: 163/255, blue: 175/255)
 
     static let buttonBg = Color(red: 255/255, green: 255/255, blue: 255/255)

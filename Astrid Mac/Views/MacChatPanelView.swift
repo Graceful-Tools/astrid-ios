@@ -33,16 +33,17 @@ struct MacChatPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Loading + branded empty states (1c3562e9): no more blank scroll view.
-            if loadingChannel && messages.isEmpty {
+            // Loading + branded empty states (1c3562e9) via the tested surface rule (e4d0eb84).
+            switch MacChatLoadState.surface(loading: loadingChannel, hasMessages: !messages.isEmpty) {
+            case .spinner:
                 VStack(spacing: 8) {
                     ProgressView().controlSize(.small)
                     Text("Loading messages…").font(.caption).foregroundStyle(Theme.textMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if messages.isEmpty {
+            case .empty:
                 MacEmptyState(copy: .chatEmpty)
-            } else {
+            case .messages:
             ScrollViewReader { proxy in
                 ScrollView {
                     if hasMore {
@@ -227,24 +228,28 @@ struct MacChatPanelView: View {
 
     private func load() async {
         loadingChannel = true
-        defer { loadingChannel = false }
         channelId = try? await chat.resolveChannel(forListId: listId)
         try? await ListMemberService.shared.fetchMembers(listId: listId)
         members = ListMemberService.shared.membersByList[listId] ?? []
-        guard let cid = channelId else { return }
+        guard let cid = channelId else { loadingChannel = false; return }
         _ = try? await chat.fetchMessages(channelId: cid)   // populates the observable cache
+        // Spinner clears DETERMINISTICALLY here (e4d0eb84) — it must never wait on the SSE actor.
+        loadingChannel = false
 
-        // Agent typing indicator (eb1b7da6) — same SSE hooks iOS uses; resubscribe per channel.
-        unsubscribeTyping.forEach { $0() }
-        let start = await SSEClient.shared.onAgentTypingStart { agentName, eventChannelId, _ in
-            guard eventChannelId == cid else { return }
-            _Concurrency.Task { @MainActor in agentTypingName = agentName }
+        // Agent typing indicator (eb1b7da6): subscribe OFF the load path — awaiting the SSE actor
+        // here used to wedge load() (and the spinner) whenever the actor was busy streaming.
+        _Concurrency.Task { @MainActor in
+            unsubscribeTyping.forEach { $0() }
+            let start = await SSEClient.shared.onAgentTypingStart { agentName, eventChannelId, _ in
+                guard eventChannelId == cid else { return }
+                _Concurrency.Task { @MainActor in agentTypingName = agentName }
+            }
+            let stop = await SSEClient.shared.onAgentTypingStop { eventChannelId, _ in
+                guard eventChannelId == cid else { return }
+                _Concurrency.Task { @MainActor in agentTypingName = nil }
+            }
+            unsubscribeTyping = [start, stop]
         }
-        let stop = await SSEClient.shared.onAgentTypingStop { eventChannelId, _ in
-            guard eventChannelId == cid else { return }
-            _Concurrency.Task { @MainActor in agentTypingName = nil }
-        }
-        unsubscribeTyping = [start, stop]
     }
 
     private func loadEarlier() {
