@@ -19,6 +19,8 @@ class ListService: ObservableObject {
     private let coreDataManager = CoreDataManager.shared
     private let networkMonitor = NetworkMonitor.shared
     private var cachedLists: [String: TaskList] = [:]
+    /// O(1) id → list lookup (mirrors TaskService.tasksById) — used by row chips etc.
+    var listsById: [String: TaskList] { cachedLists }
     private var syncTimer: Timer?
     private var networkObserver: NSObjectProtocol?
 

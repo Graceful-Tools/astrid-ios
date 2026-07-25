@@ -252,8 +252,11 @@ struct MacRootView: View {
     }
 
     @ViewBuilder private var taskTable: some View {
+        // Compute the row pipeline ONCE per body eval (4e0ce183) — previously displayedTasks/
+        // tasksForSelection/renderedTasks were each re-run per reference (3–5 full passes).
+        let rows = renderedTasks
         VStack(spacing: 0) {
-            if displayedTasks.isEmpty {
+            if rows.isEmpty {
                 if tasksForSelection.isEmpty {
                     ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -265,7 +268,7 @@ struct MacRootView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
-                taskTableBody
+                taskTableBody(rows)
             }
             // Quick-add FLOATS at the bottom (iPad/iOS placement), not pinned to the top.
             if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual, hasSelection: selectedListId != nil) {
@@ -311,7 +314,7 @@ struct MacRootView: View {
         subtaskDepth(task, byId: taskService.tasksById)
     }
 
-    @ViewBuilder private var taskTableBody: some View {
+    @ViewBuilder private func taskTableBody(_ rows: [Task]) -> some View {
         // iOS-style rows (not a flat table): List(selection:) gives reliable single-click selection
         // + the shared filter/sort still drives ordering. Priority shows via the checkbox ring, so
         // there's no priority column (67c5e54c superseded by UI-parity polish).
@@ -319,9 +322,10 @@ struct MacRootView: View {
             // Within-list drag-reorder is only meaningful under Manual sort (7b7a17d3), like iOS —
             // otherwise the shared sort would immediately re-order any manual arrangement.
             if isManualSort, currentRealList != nil {
-                ForEach(renderedTasks) { taskRow($0) }.onMove(perform: moveTasks)
+                ForEach(rows) { taskRow($0) }
+                    .onMove { source, destination in moveTasks(rows: rows, from: source, to: destination) }
             } else {
-                ForEach(renderedTasks) { taskRow($0) }
+                ForEach(rows) { taskRow($0) }
             }
         }
         .listStyle(.inset)
@@ -378,9 +382,10 @@ struct MacRootView: View {
     private var isManualSort: Bool { effectiveSortKey == "manual" }
 
     /// Persist a manual within-list reorder via the canonical service (writes manualSortOrder).
-    private func moveTasks(from source: IndexSet, to destination: Int) {
+    /// Takes the already-computed rows so the pipeline isn't re-run (4e0ce183).
+    private func moveTasks(rows: [Task], from source: IndexSet, to destination: Int) {
         guard let listId = currentRealList?.id else { return }
-        let ids = MacReorder.reordered(renderedTasks.map(\.id), from: source, to: destination)
+        let ids = MacReorder.reordered(rows.map(\.id), from: source, to: destination)
         MacActions.perform("Reorder tasks") {
             try await listService.updateManualOrder(listId: listId, order: ids)
         }
@@ -597,9 +602,11 @@ struct MacRootView: View {
             // empty 3rd column, so an unselected list uses the FULL width (no large white pane).
             .overlay(alignment: .trailing) {
                 // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
+                // O(1) tasksById lookup — was a full tasksForSelection pipeline scan per eval (4e0ce183).
                 if contentMode != .board,
                    MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count),
-                   let task = tasksForSelection.first(where: { selectedTaskIds.contains($0.id) }) {
+                   let id = selectedTaskIds.first,
+                   let task = taskService.tasksById[id] {
                     taskDetailPopout(task)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }

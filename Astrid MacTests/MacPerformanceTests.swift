@@ -39,4 +39,18 @@ final class MacPerformanceTests: XCTestCase {
         let tasks = makeTasks(10_000)
         measure { _ = MacMyTasks.filter(tasks, userId: "me") }
     }
+
+    /// The COMPOSED per-render pipeline (sort → splice with subtasks) at 10k — the actual work
+    /// MacRootView does per body eval. Budgeted as a single pass now that rows are computed once
+    /// per eval (Task 4e0ce183); a regression to multiple passes shows up as a multiple here.
+    func testComposedSortSpliceOver10kTasks() {
+        var tasks = makeTasks(10_000)
+        // Give a third of tasks a parent (subtask splice shape).
+        for i in stride(from: 2, to: tasks.count, by: 3) { tasks[i].parentTaskId = tasks[i - 1].id }
+        measure {
+            let sorted = sortTasksByListSetting(tasks, sortBy: "auto", manualOrder: nil)
+            _ = spliceSubtasks(topLevel: sorted.filter { $0.parentTaskId == nil },
+                               allTasks: tasks, indented: true, subtaskVisible: { !$0.completed })
+        }
+    }
 }

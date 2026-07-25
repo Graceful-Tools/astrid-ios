@@ -32,9 +32,10 @@ struct MacTaskRow: View {
     }
 
     private var chipLists: [TaskList] {
+        // O(1) lookups via listsById (was an O(lists) scan per id, per reference — Task 4e0ce183).
         (task.listIds ?? [])
             .filter { !hiddenListIds.contains($0) }
-            .compactMap { id in listService.lists.first { $0.id == id } }
+            .compactMap { listService.listsById[$0] }
     }
 
     private var dueText: String? {
@@ -74,14 +75,15 @@ struct MacTaskRow: View {
                         .lineLimit(2)
                 }
 
-                if dueText != nil || !chipLists.isEmpty {
+                let chips = chipLists   // computed ONCE per row render (was 3 references = 3 computations)
+                if dueText != nil || !chips.isEmpty {
                     HStack(spacing: 8) {
                         if let dueText {
                             Text(dueText)
                                 .font(.system(size: 12))
                                 .foregroundStyle(Theme.textMuted)
                         }
-                        ForEach(chipLists.prefix(2)) { list in
+                        ForEach(chips.prefix(2)) { list in
                             HStack(spacing: 4) {
                                 MacListIcon(list: list, size: 11)
                                 Text(list.name).font(.system(size: 12)).lineLimit(1)
@@ -91,8 +93,8 @@ struct MacTaskRow: View {
                             .padding(.vertical, 2)
                             .background(Theme.bgSecondary, in: Capsule())
                         }
-                        if chipLists.count > 2 {
-                            Text("+\(chipLists.count - 2)")
+                        if chips.count > 2 {
+                            Text("+\(chips.count - 2)")
                                 .font(.system(size: 12))
                                 .foregroundStyle(Theme.textMuted)
                         }
