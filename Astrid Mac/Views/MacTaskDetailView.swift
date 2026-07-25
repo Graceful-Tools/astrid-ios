@@ -49,6 +49,7 @@ struct MacTaskDetailView: View {
     @State private var commentHit: MacAutocompleteHit?
 
     var body: some View {
+        VStack(spacing: 0) {
         Form {
             Section {
                 HStack(spacing: 10) {
@@ -190,27 +191,6 @@ struct MacTaskDetailView: View {
                         }
                     }
                 }
-                // @/#/! autocomplete suggestions (shared with chat via MacAutocomplete) — eda86d23.
-                if !commentSuggestions.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(commentSuggestions) { s in
-                            Button { applyCommentSuggestion(s) } label: {
-                                Label(s.label, systemImage: s.icon).frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 8).padding(.vertical, 4).contentShape(Rectangle())
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                    .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                HStack {
-                    Button { attachComment() } label: { Image(systemName: "paperclip") }
-                        .buttonStyle(.borderless).help("Attach a file")
-                    TextField("Add a comment…  (@ mention, # list, ! task)", text: $newComment)
-                        .focused($commentFocused)
-                        .onChange(of: newComment) { updateCommentSuggestions() }
-                        .onSubmit(addComment)
-                    Button("Post", action: addComment).disabled(newComment.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
             }
 
             Section("Timer") {
@@ -286,6 +266,44 @@ struct MacTaskDetailView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)   // white detail card (like web); dark-safe via MacDetailChrome
+
+        // STICKY Add-a-comment footer (e13e4959) — board-editor design: pinned to the bottom with
+        // the paperclip + timer visible, autocomplete popping above it. Never scrolls away.
+        Divider()
+        if !commentSuggestions.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(commentSuggestions) { s in
+                    Button { applyCommentSuggestion(s) } label: {
+                        Label(s.label, systemImage: s.icon).frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8).padding(.vertical, 4).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .macHoverHighlight()
+                }
+            }
+            .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, 8)
+        }
+        HStack(spacing: 8) {
+            Button { attachComment() } label: { Image(systemName: "paperclip") }
+                .buttonStyle(.borderless).help("Attach a file")
+            TextField("Add a comment…", text: $newComment)
+                .textFieldStyle(.plain)
+                .focused($commentFocused)
+                .onChange(of: newComment) { updateCommentSuggestions() }
+                .onSubmit(addComment)
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                if timerRunning {
+                    Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent)
+                }
+            }
+            Button { toggleTimer() } label: { Image(systemName: "timer") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
+                .help(timerRunning ? "Stop timer" : "Start timer")
+        }
+        .padding(10)
+        }
         .background(MacDetailChrome.background)
         .quickLookPreview($previewURL)   // native macOS Quick Look for a downloaded attachment
         // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Mac task detail has no
