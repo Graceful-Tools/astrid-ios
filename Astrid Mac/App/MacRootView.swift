@@ -35,6 +35,12 @@ struct MacRootView: View {
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
+    @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
+
+    /// 3-column mode: wide content + a real list → chat is a persistent right column (web parity).
+    private var chatColumnVisible: Bool {
+        MacLayout.showsChatColumn(contentWidth: contentWidth, isRealList: currentRealList != nil)
+    }
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
@@ -569,6 +575,18 @@ struct MacRootView: View {
                         searchView
                     } else if listId == Self.myTasksId {
                         taskTable                          // virtual My Tasks is list-only
+                    } else if chatColumnVisible {
+                        // 3-column (web ≥1100 parity): chat is ALWAYS visible as the right column;
+                        // the middle shows list or board (23c98550).
+                        HStack(spacing: 0) {
+                            switch contentMode {
+                            case .board: MacBoardView(listId: listId)
+                            default: taskTable
+                            }
+                            Divider()
+                            MacChatPanelView(listId: listId)
+                                .frame(width: MacLayout.chatColumnWidth)
+                        }
                     } else {
                         switch contentMode {
                         case .list: taskTable
@@ -582,6 +600,7 @@ struct MacRootView: View {
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space
             .onPreferenceChange(MacSelectedRowMidYKey.self) { selectedRowMidY = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
             .navigationTitle(selectedListId == Self.searchId ? "Search"
                              : selectedListId == Self.myTasksId ? "My Tasks"
@@ -591,7 +610,9 @@ struct MacRootView: View {
                     Picker("View", selection: $contentMode) {
                         Image(systemName: "list.bullet").tag(ContentMode.list)
                         Image(systemName: "square.grid.2x2").tag(ContentMode.board)
-                        Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
+                        if !chatColumnVisible {   // chat is a persistent column in 3-column mode
+                            Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
