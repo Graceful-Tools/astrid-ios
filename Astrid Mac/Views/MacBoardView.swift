@@ -15,6 +15,7 @@ struct MacBoardView: View {
     @State private var draftByColumn: [String: String] = [:]
     @State private var boardBusy = false
     @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
+    @State private var hoveredCardId: String?    // Mac hover affordance (77225941)
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
@@ -155,13 +156,16 @@ struct MacBoardView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Expanded card is a WHITE details surface (like web); collapsed cards stay on the theme.
-        .background(expanded ? MacDetailChrome.background : MacSelectionStyle.fill(isSelected: false))
+        // Expanded card is a WHITE details surface (like web); collapsed cards stay on the theme
+        // with a hover wash (77225941).
+        .background(expanded ? MacDetailChrome.background
+                             : MacSelectionStyle.fill(isSelected: false, hovering: hoveredCardId == t.id))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        // Subtle selection border (b8d1ec16) — thin accent when expanded, faint hairline otherwise.
+        // Subtle selection border (b8d1ec16) — thin accent when expanded, hover-hairline otherwise.
         .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(MacSelectionStyle.borderColor(isSelected: expanded),
+            .stroke(MacSelectionStyle.borderColor(isSelected: expanded, hovering: hoveredCardId == t.id),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: expanded)))
+        .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hoveredCardId = h ? t.id : (hoveredCardId == t.id ? nil : hoveredCardId) } }
         .draggable(t.id)
     }
 

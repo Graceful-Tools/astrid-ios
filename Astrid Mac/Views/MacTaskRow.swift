@@ -16,6 +16,7 @@ struct MacTaskRow: View {
     @Binding var editingTitle: String
     var indent: Int = 0                  // subtask nesting depth (0 = top level)
     var isSelected: Bool = false
+    @State private var hovering = false  // Mac hover affordance (77225941)
     let onToggle: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
@@ -56,6 +57,7 @@ struct MacTaskRow: View {
                     MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
                 }
                 .buttonStyle(.plain)
+                .macPointingHand()
                 .help(task.completed ? "Mark incomplete" : "Mark complete")
                 .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
             }
@@ -107,11 +109,13 @@ struct MacTaskRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
-        // card on dark). Selection is a SUBTLE thin accent (b8d1ec16), not a heavy border.
-        .background(MacSelectionStyle.fill(isSelected: isSelected), in: RoundedRectangle(cornerRadius: 8))
+        // card on dark). Selection is a SUBTLE thin accent (b8d1ec16); hover a lighter wash (77225941).
+        .background(MacSelectionStyle.fill(isSelected: isSelected, hovering: hovering),
+                    in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke(MacSelectionStyle.borderColor(isSelected: isSelected),
+            .stroke(MacSelectionStyle.borderColor(isSelected: isSelected, hovering: hovering),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: isSelected)))
+        .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
         .padding(.leading, 8 + CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4
         .padding(.trailing, 8)
         .padding(.vertical, 3)

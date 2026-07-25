@@ -60,7 +60,10 @@ struct MacChatPanelView: View {
                                 }
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .contentShape(Rectangle())
-                            }.buttonStyle(.plain)
+                            }
+                            .buttonStyle(.plain)
+                            .macHoverHighlight()
+                            .macPointingHand()
                         }
                     }
                     .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -150,6 +153,7 @@ struct MacChatPanelView: View {
                 .opacity(isPending(m) ? 0.6 : 1)
         }
         .contentShape(Rectangle())
+        .macHoverHighlight()   // hover affordance surfaces the context-menu interactivity (77225941)
         .contextMenu {
             Button("Copy") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(m.content, forType: .string)

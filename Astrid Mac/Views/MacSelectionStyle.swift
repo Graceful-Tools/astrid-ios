@@ -4,6 +4,7 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 enum MacSelectionStyle {
     static let selectedWidth: CGFloat = 1.5
@@ -13,13 +14,48 @@ enum MacSelectionStyle {
         isSelected ? selectedWidth : unselectedWidth
     }
 
-    static func borderColor(isSelected: Bool) -> Color {
-        isSelected ? Theme.accent.opacity(0.55) : Theme.border   // subtle accent vs faint hairline
+    static func borderColor(isSelected: Bool, hovering: Bool = false) -> Color {
+        if isSelected { return Theme.accent.opacity(0.55) }      // subtle accent
+        if hovering { return Theme.borderHover }                 // hover: slightly stronger hairline
+        return Theme.border                                      // faint hairline
     }
 
-    /// Faint accent wash behind a selected card (kept low so it reads as "selected", not "filled").
-    static func fill(isSelected: Bool) -> Color {
-        isSelected ? Theme.accent.opacity(0.08) : Theme.bgSecondary
+    /// Faint accent wash behind a selected card; a lighter wash on hover (Task 77225941 — Mac
+    /// hover affordance). Selected always wins over hover.
+    static func fill(isSelected: Bool, hovering: Bool = false) -> Color {
+        if isSelected { return Theme.accent.opacity(0.08) }
+        if hovering { return Theme.accent.opacity(0.04) }
+        return Theme.bgSecondary
+    }
+}
+
+/// Pointer + hover helpers for interactive elements (Task 77225941).
+struct MacPointingHandOnHover: ViewModifier {
+    func body(content: Content) -> some View {
+        content.onHover { inside in
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+    }
+}
+
+/// Subtle hover highlight for plain interactive rows (chat messages, suggestion rows).
+struct MacHoverHighlight: ViewModifier {
+    @State private var hovering = false
+    var cornerRadius: CGFloat = 6
+    func body(content: Content) -> some View {
+        content
+            .background(hovering ? Theme.accent.opacity(0.05) : .clear,
+                        in: RoundedRectangle(cornerRadius: cornerRadius))
+            .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
+    }
+}
+
+extension View {
+    /// Pointing-hand cursor on hover — for custom tappable glyphs (checkbox, chips, icon buttons).
+    func macPointingHand() -> some View { modifier(MacPointingHandOnHover()) }
+    /// Subtle hover wash — for interactive rows without their own selection chrome.
+    func macHoverHighlight(cornerRadius: CGFloat = 6) -> some View {
+        modifier(MacHoverHighlight(cornerRadius: cornerRadius))
     }
 }
 #endif
