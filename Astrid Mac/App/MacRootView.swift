@@ -42,15 +42,11 @@ struct MacRootView: View {
     /// logic as iOS/web (Core/Filters). For a real list it honors that list's saved filters and
     /// sortBy; My Tasks / no-list get the assignee filter (in tasksForSelection) + auto sort.
     private var displayedTasks: [Task] {
-        let base = tasksForSelection
-        if let id = selectedListId, id != Self.myTasksId,
-           let list = listService.lists.first(where: { $0.id == id }) {
-            let filtered = filterTasksForList(base, list: list, currentUserId: auth.userId)
-            let sortKey = taskSortOverride.isEmpty ? (list.sortBy ?? "auto") : taskSortOverride
-            return sortTasksByListSetting(filtered, sortBy: sortKey, manualOrder: list.manualSortOrder)
-        }
-        let sortKey = taskSortOverride.isEmpty ? "auto" : taskSortOverride
-        return sortTasksByListSetting(base, sortBy: sortKey, manualOrder: nil)
+        // Composition lives in the PURE MacRowPipeline (0b1ee8f7) so it's directly tested.
+        let list = (selectedListId != Self.myTasksId)
+            ? listService.lists.first(where: { $0.id == selectedListId }) : nil
+        return MacRowPipeline.displayed(base: tasksForSelection, list: list,
+                                        override: taskSortOverride, currentUserId: auth.userId)
     }
 
     /// Cross-list move (C3): move the given tasks into another list via the canonical service.
@@ -111,15 +107,12 @@ struct MacRootView: View {
     }
 
     // MARK: inline task-title editing (67c5e54c)
-    /// j/k / ↑↓ — move the single selection up or down within the currently displayed order.
+    /// j/k / ↑↓ — move the single selection within the RENDERED order (what the user sees),
+    /// via the pure, tested MacRowPipeline.nextSelection (0b1ee8f7).
     private func moveSelection(by dir: Int) {
-        let ordered = displayedTasks.map(\.id)
-        guard !ordered.isEmpty else { return }
-        if let cur = selectedTaskIds.first, let idx = ordered.firstIndex(of: cur) {
-            let next = max(0, min(ordered.count - 1, idx + dir))
-            selectedTaskIds = [ordered[next]]
-        } else {
-            selectedTaskIds = [dir >= 0 ? ordered[0] : ordered[ordered.count - 1]]
+        if let next = MacRowPipeline.nextSelection(orderedIds: renderedTasks.map(\.id),
+                                                   current: selectedTaskIds.first, direction: dir) {
+            selectedTaskIds = [next]
         }
     }
 
@@ -304,11 +297,10 @@ struct MacRootView: View {
     /// The rows to render — top-level tasks with subtasks spliced/indented under them via the SHARED
     /// splice helper (same as iOS), honoring the Sub-tasks display setting (3c945236).
     private var renderedTasks: [Task] {
-        let indented = UserSettingsService.shared.settings.subtaskDisplay != "under_parent"
-        let showCompletedSubs = ["all", "completed"].contains(currentRealList?.filterCompletion ?? "default")
-        return spliceSubtasks(topLevel: displayedTasks.filter { $0.parentTaskId == nil },
-                              allTasks: taskService.tasks, indented: indented,
-                              subtaskVisible: { showCompletedSubs || !$0.completed })
+        // Splice composition lives in the PURE MacRowPipeline (0b1ee8f7).
+        MacRowPipeline.rendered(displayed: displayedTasks, allTasks: taskService.tasks,
+                                indented: UserSettingsService.shared.settings.subtaskDisplay != "under_parent",
+                                filterCompletion: currentRealList?.filterCompletion)
     }
 
     private func indentLevel(_ task: Task) -> Int {
