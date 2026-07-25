@@ -71,6 +71,37 @@ Priority: **3** high · **2** medium · **1** low.
 - **Web push / calendar `.ics`/webcal subscribe** — the desktop uses native notifications + Calendar
   app; not re-implemented.
 
+## Quality pass — style/UX, tests, performance (2026-07-24)
+
+After feature parity, a three-way quality analysis (style/UX vs native-Mac conventions, test
+coverage, performance) found the gaps below; each is tracked as a task.
+
+**Key findings.** Style: a real white-on-white bug (detail chrome in Auto theme on a dark Mac);
+zero hover/pointer affordances anywhere; Settings + all sheets + login unthemed; chat is a flat
+transcript vs iOS bubbles; missing loading/branded-empty states; almost no animation; ad-hoc
+typography; two disagreeing detail designs. Performance: the rows pipeline recomputes 3–5× per
+body eval on every task mutation; macOS Theme tokens read UserDefaults per color access; search
+is un-debounced; the board is O(columns×tasks×lists); onChange reschedules all notifications per
+mutation. Tests: 171 pure-helper tests vs iOS's 1156 — the view-composition/dispatch glue, a
+mocks tier, interaction UI tests, and composed-pipeline perf budgets are missing.
+
+| P | Task | id |
+|---|------|----|
+| 3 | Fix white-on-white detail (Auto + dark system) | `98c6c6d5` |
+| 3 | Hover + pointer affordances everywhere | `77225941` |
+| 3 | Compute rows once per render + memoize pipeline | `4e0ce183` |
+| 2 | Cache theme mode (no per-access UserDefaults) | `3c34c411` |
+| 2 | Debounce search + one-pass board grouping | `6042bde0` |
+| 2 | Coalesce task-change side-effects + split child views | `c38b177b` |
+| 2 | Theme Settings, sheets, login, account bar | `55f435c2` |
+| 2 | Chat visual parity (bubbles/avatars/agent/typing) | `eb1b7da6` |
+| 2 | Loading + branded Astrid empty states | `1c3562e9` |
+| 2 | Animate state changes | `4c7b9f08` |
+| 2 | Unify detail design + Typography scale | `913216a9` |
+| 2 | View-composition + dispatch glue tests (mock tier) | `0b1ee8f7` |
+| 1 | UI interaction tests beyond launch smoke | `60dee573` |
+| 1 | Perf budgets (composed pipeline) + QuickAdd edges | `1c21489d` |
+
 ## Notes
 - Everything tracked above is Mac-native UI over already-shared services — no new business logic.
 - Cross-platform contracts (repeating, permissions, board, wire shapes) are inherited via `Core`, so
