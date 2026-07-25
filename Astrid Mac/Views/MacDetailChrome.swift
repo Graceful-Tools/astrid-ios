@@ -20,7 +20,7 @@ enum MacDetailChrome {
     }
 
     static var background: Color {
-        background(mode: UserDefaults.standard.string(forKey: "themeMode") ?? "ocean",
+        background(mode: Theme.currentThemeMode,   // cached — no UserDefaults read per access (3c34c411)
                    systemIsDark: NSApp?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
     }
 }

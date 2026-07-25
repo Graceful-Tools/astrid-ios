@@ -7,8 +7,29 @@ struct Theme {
     // On macOS the base surface/text/border tokens resolve to the SELECTED theme (ocean/light/dark/
     // auto), so the Mac app renders every theme — not just the light palette (Task: Mac themes).
     // iOS keeps the fixed light values below (#else) and does its own per-view effectiveTheme.
+
+    // Cached theme mode (Task 3c34c411): tokens are computed vars, so every color access used to
+    // read UserDefaults (~6 reads × N rows × every render). The cache invalidates synchronously on
+    // any UserDefaults change (queue: nil → delivered on the posting thread). Color access happens
+    // on the main thread (SwiftUI render), so the unsafe statics are effectively main-confined.
+    nonisolated(unsafe) private static var _cachedMode: String?
+    nonisolated(unsafe) private static var _modeObserver: NSObjectProtocol?
+
+    static var currentThemeMode: String {
+        if let m = _cachedMode { return m }
+        let m = UserDefaults.standard.string(forKey: "themeMode") ?? "ocean"
+        _cachedMode = m
+        if _modeObserver == nil {
+            _modeObserver = NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification, object: nil, queue: nil) { _ in
+                _cachedMode = UserDefaults.standard.string(forKey: "themeMode") ?? "ocean"
+            }
+        }
+        return m
+    }
+
     static func themed(light: Color, dark: Color, ocean: Color) -> Color {
-        switch UserDefaults.standard.string(forKey: "themeMode") ?? "ocean" {
+        switch currentThemeMode {
         case "dark":  return dark
         case "ocean": return ocean
         case "light": return light
