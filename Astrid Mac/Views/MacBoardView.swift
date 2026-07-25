@@ -98,6 +98,7 @@ struct MacBoardView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 8)
             .fill(dropTargetColumnId == col.id ? Theme.accent.opacity(0.15) : Theme.bgTertiary.opacity(0.4)))
+        .animation(MacMotion.fast, value: dropTargetColumnId)   // drop-target highlight eases (4c7b9f08)
         .dropDestination(for: String.self) { items, _ in
             guard let taskId = items.first else { return false }
             move(taskId: taskId, to: col)
@@ -151,14 +152,20 @@ struct MacBoardView: View {
                     .font(.caption2).foregroundStyle(Theme.textMuted)
             }
             // Click the card body → expand INLINE to edit (like Astrid Web), not open the panel.
+            // Springs open/closed instead of jumping (4c7b9f08).
             .contentShape(Rectangle())
-            .onTapGesture { expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id) }
+            .onTapGesture {
+                withAnimation(MacMotion.spring) {
+                    expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id)
+                }
+            }
 
             if expanded {
                 Divider()
                 MacBoardCardEditor(task: t,
                                    onOpenPanel: { MacAppModel.shared.openTask(listId: listId, taskId: t.id) },
-                                   onDone: { expandedCardId = nil })
+                                   onDone: { withAnimation(MacMotion.spring) { expandedCardId = nil } })
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(8)

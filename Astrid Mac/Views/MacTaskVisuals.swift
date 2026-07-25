@@ -60,8 +60,10 @@ struct MacTaskCheckbox: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: size * 0.62, weight: .bold))
                         .foregroundStyle(Theme.success)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
+            .animation(MacMotion.fast, value: completed)   // completion check pops in (4c7b9f08)
             .accessibilityLabel(completed ? "Completed" : "Not completed")
     }
 }

@@ -36,6 +36,7 @@ struct MacAuthGateView: View {
         .overlay { MacErrorBanner() }   // app-wide write-failure surface (Task 8a5f3066)
         .tint(Theme.accent)   // match the iOS app's accent blue app-wide
         .preferredColorScheme(themeMode.colorScheme)
+        .animation(MacMotion.medium, value: themeMode)   // theme switch cross-fades (4c7b9f08)
         .task {
             // Under XCTest, keep the host inert: these long-lived loops (Outbox/SSE/sync/hotkey)
             // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).

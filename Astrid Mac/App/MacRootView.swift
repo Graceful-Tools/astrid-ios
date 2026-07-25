@@ -332,6 +332,7 @@ struct MacRootView: View {
         .listStyle(.inset)
         .scrollContentBackground(.hidden)            // let the theme background show through
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
+        .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {
@@ -555,6 +556,7 @@ struct MacRootView: View {
                     MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
                 }
             }
+            .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
             .navigationTitle(selectedListId == Self.searchId ? "Search"
                              : selectedListId == Self.myTasksId ? "My Tasks"
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
