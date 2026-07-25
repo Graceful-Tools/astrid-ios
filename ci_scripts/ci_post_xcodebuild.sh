@@ -38,12 +38,22 @@ echo "xcodebuild test exit code: ${RC}"
 # macOS lane: build + unit-test the Astrid Mac target on the same runner.
 # macOS builds on the host (no simulator). Same safety rule: only a genuine
 # test failure (exit 65) blocks the build.
+#
+# Signing: the app's real entitlements (Apple Sign-In, associated domains, App Sandbox with
+# restricted capabilities) REQUIRE a development certificate — ad-hoc ("-") signing fails with
+# "has entitlements that require signing with a development certificate" (exit 65), which
+# blocked every build from #559 on. For the CI test run we substitute a MINIMAL entitlements
+# file (sandbox + network only) and disable the hardened runtime so the ad-hoc-signed test
+# host builds, launches, and runs the unit suite. (Do NOT run this ad-hoc config on a dev
+# machine: a foreign signing identity triggers blocking keychain prompts.)
 echo "── ci_post_xcodebuild: macOS build + tests (Astrid Mac) ──"
 xcodebuild test \
   -scheme "Astrid Mac" \
   -destination "platform=macOS" \
   -only-testing:"Astrid MacTests" \
-  CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES
+  CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_ENTITLEMENTS="ci_scripts/AstridMacCI.entitlements" \
+  ENABLE_HARDENED_RUNTIME=NO
 RC_MAC=$?
 echo "macOS test exit code: ${RC_MAC}"
 if [ "${RC_MAC}" -eq 65 ]; then
