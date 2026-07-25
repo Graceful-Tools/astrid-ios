@@ -53,4 +53,17 @@ final class MacPerformanceTests: XCTestCase {
                                allTasks: tasks, indented: true, subtaskVisible: { !$0.completed })
         }
     }
+
+    /// FULL composed pipeline (due-date filter → sort → splice) at 10k with a subtask-heavy shape —
+    /// the complete per-render cost (Task 1c21489d).
+    func testFullFilterSortSplicePipelineOver10kTasks() {
+        var tasks = makeTasks(10_000)
+        for i in stride(from: 1, to: tasks.count, by: 2) { tasks[i].parentTaskId = tasks[i - 1].id }
+        measure {
+            let filtered = applyListDueDateFilter(tasks, filter: "this_week")
+            let sorted = sortTasksByListSetting(filtered, sortBy: "auto", manualOrder: nil)
+            _ = spliceSubtasks(topLevel: sorted.filter { $0.parentTaskId == nil },
+                               allTasks: tasks, indented: true, subtaskVisible: { !$0.completed })
+        }
+    }
 }
