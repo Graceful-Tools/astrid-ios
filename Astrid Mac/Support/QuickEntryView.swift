@@ -42,7 +42,8 @@ struct QuickEntryView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            TextField("Add a task…  (try “Report friday #work urgent”)", text: $text)
+            TextField("Add a task…  (try “Report friday #work urgent”)", text: $text, axis: .vertical)
+                .lineLimit(1...4)   // wraps + expands vertically (a02a6819)
                 .textFieldStyle(.plain)
                 .font(.title2)
                 .onSubmit(save)

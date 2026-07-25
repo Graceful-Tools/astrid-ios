@@ -296,7 +296,9 @@ struct MacRootView: View {
         // shadow (y −2), side margins matching the task-row card margins.
         HStack(spacing: 8) {
             Image(systemName: "plus.circle.fill").foregroundStyle(Theme.accent)
-            TextField("Add a task…  (try “Report friday #work urgent”)", text: $draftTitle)
+            // Wraps + expands vertically for long titles (a02a6819); Return still commits.
+            TextField("Add a task…  (try “Report friday #work urgent”)", text: $draftTitle, axis: .vertical)
+                .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
                 .focused($addFieldFocused)
