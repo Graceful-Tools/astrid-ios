@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 
 struct MacTaskDetailView: View {
     let task: Task
+    var onClose: (() -> Void)? = nil   // shown as ✕ in the header when presented as a pop-out
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @ObservedObject private var appModel = MacAppModel.shared
@@ -50,6 +51,34 @@ struct MacTaskDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+        // Web-style header (df22157f): ✕ · "Task Details" · ⋯ actions menu.
+        HStack {
+            if let onClose {
+                Button(action: onClose) { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless).foregroundStyle(Theme.textMuted).help("Close")
+            }
+            Spacer()
+            Text("Task Details").font(.headline).foregroundStyle(Theme.textPrimary)
+            Spacer()
+            Menu {
+                Menu("Copy to List") {
+                    ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
+                        Button(t.label) { copyTask(to: t.listId) }
+                    }
+                }
+                if let shareURL {
+                    Button("Copy Share Link") { copyToPasteboard(shareURL.absoluteString) }
+                } else {
+                    Button("Share…") { generateShareLink() }
+                }
+                Button("Open in New Window") { openWindow(id: "task", value: task.id) }
+                Divider()
+                Button("Delete Task", role: .destructive) { deleteTask() }
+            } label: { Image(systemName: "ellipsis") }
+            .menuStyle(.borderlessButton).fixedSize()
+        }
+        .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
+
         Form {
             Section {
                 HStack(spacing: 10) {
@@ -141,6 +170,12 @@ struct MacTaskDetailView: View {
                             }
                         }
                 }
+                // "Last: …" timer caption under the description (web parity — df22157f).
+                if let last = task.lastTimerValue, !last.isEmpty {
+                    Text("Last: \(last)")
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             }
 
             Section("Subtasks") {
@@ -166,30 +201,21 @@ struct MacTaskDetailView: View {
                 }
             }
 
-            Section("Comments") {
+            // Web-style comments (df22157f): "Comments (N)" header + Refresh; own comments as
+            // right-aligned lavender bubbles with an avatar and a "You · date" caption.
+            Section {
                 if comments.isEmpty {
                     Text("No comments yet").foregroundStyle(Theme.textMuted).font(.callout)
                 }
-                ForEach(comments) { c in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(c.author?.name ?? c.author?.email ?? "Someone")
-                                .font(.caption).bold().foregroundStyle(Theme.textSecondary)
-                            if let d = c.createdAt {
-                                Text(d, style: .relative).font(.caption2).foregroundStyle(Theme.textMuted)
-                            }
-                        }
-                        Text(c.content).foregroundStyle(Theme.textPrimary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        // Edit/Delete only your own comments (permission-safe).
-                        if let uid = AuthManager.shared.userId, c.authorId == uid {
-                            Button("Edit…") { editingComment = c; editingCommentText = c.content }
-                            Button("Delete", role: .destructive) { deleteComment(c) }
-                        }
-                    }
+                ForEach(comments) { c in commentBubble(c) }
+            } header: {
+                HStack {
+                    Text("Comments (\(comments.count))")
+                    Spacer()
+                    Button {
+                        _Concurrency.Task { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }
+                    } label: { Label("Refresh", systemImage: "arrow.clockwise").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderless).font(.caption)
                 }
             }
 
@@ -237,30 +263,15 @@ struct MacTaskDetailView: View {
                 Button { addFile() } label: { Label("Add File…", systemImage: "paperclip") }
             }
 
-            Section {
-                Menu {
-                    ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
-                        Button(t.label) { copyTask(to: t.listId) }
-                    }
-                } label: { Label("Copy to List", systemImage: "doc.on.doc") }
-
-                if let shareURL {
+            // (Copy / Share / Open-in-Window / Delete live in the header's ⋯ menu — df22157f.)
+            if let shareURL {
+                Section {
                     HStack {
                         Text(shareURL.absoluteString).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
                         Button("Copy") { copyToPasteboard(shareURL.absoluteString) }
                         ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
                     }
-                } else {
-                    Button { generateShareLink() } label: {
-                        HStack { Label("Share…", systemImage: "square.and.arrow.up")
-                            if generatingShare { Spacer(); ProgressView().controlSize(.small) } }
-                    }
-                    .disabled(generatingShare)
-                }
-
-                Button { openWindow(id: "task", value: task.id) } label: {
-                    Label("Open in New Window", systemImage: "macwindow.on.rectangle")
                 }
             }
         }
@@ -326,6 +337,54 @@ struct MacTaskDetailView: View {
                 saveRepeat()
             }
         }
+    }
+
+    /// Web-style comment bubble (df22157f): own comments right-aligned in a lavender card with an
+    /// avatar and a "You · date" caption; others left-aligned with the author's name.
+    @ViewBuilder private func commentBubble(_ c: Comment) -> some View {
+        let mine = c.authorId != nil && c.authorId == AuthManager.shared.userId
+        VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
+            HStack(alignment: .bottom, spacing: 8) {
+                if mine { Spacer(minLength: 30) }
+                if !mine { commentAvatar(c) }
+                Text(c.content)
+                    .foregroundStyle(Theme.textPrimary)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
+                                in: RoundedRectangle(cornerRadius: 12))
+                if mine { commentAvatar(c) }
+                if !mine { Spacer(minLength: 30) }
+            }
+            HStack(spacing: 4) {
+                Text(mine ? "You" : (c.author?.name ?? c.author?.email ?? "Someone"))
+                if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
+            }
+            .font(.caption2).foregroundStyle(Theme.textMuted)
+            .padding(mine ? .trailing : .leading, 30)
+        }
+        .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
+        .contentShape(Rectangle())
+        .contextMenu {
+            // Edit/Delete only your own comments (permission-safe).
+            if mine {
+                Button("Edit…") { editingComment = c; editingCommentText = c.content }
+                Button("Delete", role: .destructive) { deleteComment(c) }
+            }
+        }
+    }
+
+    private func commentAvatar(_ c: Comment) -> some View {
+        ZStack {
+            Circle().fill(Theme.accent)
+            Text(c.author?.initials ?? "?").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white)
+        }
+        .frame(width: 20, height: 20)
+    }
+
+    /// Delete this task via the canonical service, closing the pop-out first.
+    private func deleteTask() {
+        onClose?()
+        MacActions.perform("Delete task") { try await taskService.deleteTask(id: task.id, task: task) }
     }
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.

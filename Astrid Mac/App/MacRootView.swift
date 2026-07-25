@@ -202,19 +202,13 @@ struct MacRootView: View {
                     .animation(MacMotion.fast, value: selectedRowMidY)
             }
             .frame(width: 12)
-            ZStack(alignment: .topTrailing) {
-                MacTaskDetailView(task: task)
-                    .frame(width: 380)
-                    .background(MacDetailChrome.background)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
-                Button { selectedTaskIds.removeAll() } label: {
-                    Image(systemName: "xmark.circle.fill").font(.title3)
-                }
-                .buttonStyle(.plain).foregroundStyle(Theme.textMuted).padding(10)
-                .help("Close")
-            }
+            // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
+            MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
+                .frame(width: 380)
+                .background(MacDetailChrome.background)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
         }
         .padding(.trailing, 14)
         .padding(.vertical, 14)
