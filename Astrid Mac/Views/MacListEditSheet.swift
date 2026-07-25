@@ -33,6 +33,7 @@ struct MacListEditSheet: View {
 
             TextField("List name", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("listEdit.name")
                 .onSubmit { if isValid { save() } }
 
             TextField("Description (optional)", text: $listDescription, axis: .vertical)

@@ -524,6 +524,7 @@ struct MacRootView: View {
                 ToolbarItem {
                     Button { showNewList = true } label: { Image(systemName: "plus") }
                         .help("New List")
+                        .accessibilityIdentifier("sidebar.newList")
                 }
                 ToolbarItem {
                     Button { showPublicLists = true } label: { Image(systemName: "globe") }
