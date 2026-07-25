@@ -505,24 +505,12 @@ struct MacTaskDetailView: View {
         }
     }
 
+    /// Attach a file/photo to the task (2bdd5df3). The upload only happens through an Outbox
+    /// upload→comment dependency chain (saveLocallyAndUploadAsync alone starts NO upload — the
+    /// old implementation stranded files in the local cache forever). Same working path as the
+    /// comment paperclip: persist locally, then post an attachment comment that owns the upload.
     private func addFile() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let name = url.lastPathComponent
-        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        let taskId = task.id
-        // Read the file OFF the main actor (large files must not freeze the UI), then hand it to
-        // the offline-first path: it persists locally and lets the Outbox own the upload (Task 46b669dd).
-        _Concurrency.Task.detached(priority: .userInitiated) {
-            guard let data = try? Data(contentsOf: url) else { return }
-            await MainActor.run {
-                _ = AttachmentService.shared.saveLocallyAndUploadAsync(
-                    fileData: data, fileName: name, mimeType: mime, taskId: taskId)
-            }
-        }
+        attachComment()
     }
 
     private func saveTitle() {
