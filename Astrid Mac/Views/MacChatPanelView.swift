@@ -20,6 +20,8 @@ struct MacChatPanelView: View {
     @State private var activeHit: MacAutocompleteHit?
     @State private var attaching = false
     @State private var replyingTo: ChatMessage?
+    @State private var agentTypingName: String?     // "… is thinking" indicator (eb1b7da6)
+    @State private var unsubscribeTyping: [() -> Void] = []
 
     /// Live messages from the observable service cache (SSE + polling keep this fresh).
     private var messages: [ChatMessage] {
@@ -41,6 +43,14 @@ struct MacChatPanelView: View {
                     }
                     LazyVStack(alignment: .leading, spacing: 10) {
                         ForEach(messages) { m in row(m).id(m.id) }
+                        if let name = agentTypingName {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.mini)
+                                Text("\(name) is thinking…").font(.caption).foregroundStyle(Theme.textMuted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 4)
+                        }
                     }
                     .padding()
                 }
@@ -95,6 +105,7 @@ struct MacChatPanelView: View {
             }
         }
         .task(id: listId) { await load() }
+        .onDisappear { unsubscribeTyping.forEach { $0() }; unsubscribeTyping = [] }
 
     }
 
@@ -138,20 +149,51 @@ struct MacChatPanelView: View {
 
     private func isPending(_ m: ChatMessage) -> Bool { m.id.hasPrefix("temp_") }
 
-    private func row(_ m: ChatMessage) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(m.author?.displayName ?? "Someone").font(.caption).bold().foregroundStyle(Theme.textSecondary)
-                if let d = m.createdAt { Text(d, style: .relative).font(.caption2).foregroundStyle(Theme.textMuted) }
-                if isPending(m) {
-                    Label("Sending…", systemImage: "clock").labelStyle(.titleOnly)
-                        .font(.caption2).foregroundStyle(Theme.textMuted)
-                }
+    /// Small initials avatar for others' messages; agents get a purple sparkles badge look.
+    @ViewBuilder private func chatAvatar(_ m: ChatMessage, isAgent: Bool) -> some View {
+        ZStack {
+            Circle().fill(isAgent ? Color.purple.opacity(0.8) : Theme.accent)
+            if isAgent {
+                Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+            } else {
+                Text(m.author?.initials ?? "?").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
             }
-            Text(m.content).foregroundStyle(Theme.textPrimary)
-                .padding(8).background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                .opacity(isPending(m) ? 0.6 : 1)
         }
+        .frame(width: 22, height: 22)
+    }
+
+    /// Web/iOS-style bubble row (eb1b7da6): mine right-aligned in accent, agents purple with a
+    /// sparkles badge + avatar, others left with an initials avatar; @/#/! references colored via
+    /// the SHARED attributedWithReferences.
+    private func row(_ m: ChatMessage) -> some View {
+        let mine = MacChatBubbleStyle.isMine(authorId: m.authorId, currentUserId: auth.userId)
+        let agent = m.isFromAgent
+        return HStack(alignment: .bottom, spacing: 8) {
+            if mine { Spacer(minLength: 40) }
+            if MacChatBubbleStyle.showsAvatar(isMine: mine) { chatAvatar(m, isAgent: agent) }
+            VStack(alignment: MacChatBubbleStyle.alignment(isMine: mine), spacing: 2) {
+                HStack(spacing: 4) {
+                    if !mine {
+                        Text(m.author?.displayName ?? "Someone").font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        if agent {
+                            Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
+                        }
+                    }
+                    if let d = m.createdAt { Text(d, style: .relative).font(.caption2).foregroundStyle(Theme.textMuted) }
+                    if isPending(m) {
+                        Label("Sending…", systemImage: "clock").labelStyle(.titleOnly)
+                            .font(.caption2).foregroundStyle(Theme.textMuted)
+                    }
+                }
+                Text(m.content.attributedWithReferences(defaultColor: Theme.textPrimary))
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(MacChatBubbleStyle.fill(isMine: mine, isAgent: agent))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .opacity(isPending(m) ? 0.6 : 1)
+            }
+            if !mine { Spacer(minLength: 40) }
+        }
+        .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
         .contentShape(Rectangle())
         .macHoverHighlight()   // hover affordance surfaces the context-menu interactivity (77225941)
         .contextMenu {
@@ -177,6 +219,18 @@ struct MacChatPanelView: View {
         members = ListMemberService.shared.membersByList[listId] ?? []
         guard let cid = channelId else { return }
         _ = try? await chat.fetchMessages(channelId: cid)   // populates the observable cache
+
+        // Agent typing indicator (eb1b7da6) — same SSE hooks iOS uses; resubscribe per channel.
+        unsubscribeTyping.forEach { $0() }
+        let start = await SSEClient.shared.onAgentTypingStart { agentName, eventChannelId, _ in
+            guard eventChannelId == cid else { return }
+            _Concurrency.Task { @MainActor in agentTypingName = agentName }
+        }
+        let stop = await SSEClient.shared.onAgentTypingStop { eventChannelId, _ in
+            guard eventChannelId == cid else { return }
+            _Concurrency.Task { @MainActor in agentTypingName = nil }
+        }
+        unsubscribeTyping = [start, stop]
     }
 
     private func loadEarlier() {
