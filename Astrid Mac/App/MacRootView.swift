@@ -266,16 +266,8 @@ struct MacRootView: View {
         let rows = renderedTasks
         VStack(spacing: 0) {
             if rows.isEmpty {
-                if tasksForSelection.isEmpty {
-                    ContentUnavailableView("No tasks", systemImage: "checkmark.circle")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    // The list has tasks but its saved filters hide them all (same filters as iOS/web).
-                    ContentUnavailableView("Nothing matches this list’s filters",
-                                           systemImage: "line.3.horizontal.decrease.circle",
-                                           description: Text("Adjust the list’s filters on iOS or the web to see more."))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                // Branded Astrid empty states (1c3562e9) — character + speech bubble, not system chrome.
+                MacEmptyState(copy: tasksForSelection.isEmpty ? .noTasks : .filteredOut)
             } else {
                 taskTableBody(rows)
             }
@@ -560,7 +552,7 @@ struct MacRootView: View {
                         }
                     }
                 } else {
-                    ContentUnavailableView("Select a list", systemImage: "sidebar.left")
+                    MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
                 }
             }
             .navigationTitle(selectedListId == Self.searchId ? "Search"

@@ -14,6 +14,7 @@ struct MacListMembersView: View {
     @State private var privacy = "PRIVATE"
     @State private var publicType = "collaborative"
     @State private var contactSuggestions: [ContactSearchResult] = []
+    @State private var loadingMembers = true      // first-fetch spinner (1c3562e9)
     @Environment(\.dismiss) private var dismiss
 
     private static let roles = ["member", "admin"]
@@ -73,7 +74,12 @@ struct MacListMembersView: View {
                     }
                 }
                 if members.isEmpty {
-                    Text("No members yet").foregroundStyle(Theme.textMuted)
+                    if loadingMembers {
+                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Loading members…") }
+                            .foregroundStyle(Theme.textMuted)
+                    } else {
+                        Text("No members yet").foregroundStyle(Theme.textMuted)
+                    }
                 }
             }
             .frame(minHeight: 180)
@@ -111,7 +117,7 @@ struct MacListMembersView: View {
         .padding(20)
         .frame(width: 440)
         .background(Theme.bgPrimary)
-        .task { try? await svc.fetchMembers(listId: list.id) }
+        .task { try? await svc.fetchMembers(listId: list.id); loadingMembers = false }
         .onAppear {
             privacy = list.privacy?.rawValue ?? "PRIVATE"
             publicType = list.publicListType ?? "collaborative"

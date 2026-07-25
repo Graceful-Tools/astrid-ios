@@ -22,6 +22,7 @@ struct MacChatPanelView: View {
     @State private var replyingTo: ChatMessage?
     @State private var agentTypingName: String?     // "… is thinking" indicator (eb1b7da6)
     @State private var unsubscribeTyping: [() -> Void] = []
+    @State private var loadingChannel = false       // first-load spinner (1c3562e9)
 
     /// Live messages from the observable service cache (SSE + polling keep this fresh).
     private var messages: [ChatMessage] {
@@ -32,6 +33,16 @@ struct MacChatPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Loading + branded empty states (1c3562e9): no more blank scroll view.
+            if loadingChannel && messages.isEmpty {
+                VStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Loading messages…").font(.caption).foregroundStyle(Theme.textMuted)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if messages.isEmpty {
+                MacEmptyState(copy: .chatEmpty)
+            } else {
             ScrollViewReader { proxy in
                 ScrollView {
                     if hasMore {
@@ -57,6 +68,7 @@ struct MacChatPanelView: View {
                 .onChange(of: messages.count) {
                     if let last = messages.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
                 }
+            }
             }
             Divider()
             VStack(spacing: 0) {
@@ -214,6 +226,8 @@ struct MacChatPanelView: View {
     }
 
     private func load() async {
+        loadingChannel = true
+        defer { loadingChannel = false }
         channelId = try? await chat.resolveChannel(forListId: listId)
         try? await ListMemberService.shared.fetchMembers(listId: listId)
         members = ListMemberService.shared.membersByList[listId] ?? []
