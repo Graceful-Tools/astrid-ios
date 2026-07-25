@@ -129,9 +129,14 @@ func getProjectBoardColumns(_ lists: [TaskList]) -> [ProjectBoardColumn] {
 /// `task.listIds` (compact form, present after a Core Data load). Either
 /// is sufficient to assign a column.
 func getTaskProjectColumnId(_ task: Task, lists: [TaskList]) -> String {
-    if task.completed { return VIRTUAL_DONE_COLUMN_ID }
+    getTaskProjectColumnId(task, statusLists: getProjectStatusLists(lists))
+}
 
-    let statusLists = getProjectStatusLists(lists)
+/// Fast variant taking the PRECOMPUTED status lists — callers grouping many tasks (the Mac board's
+/// one-pass column grouping, Task 6042bde0) hoist `getProjectStatusLists` out of the per-task loop
+/// instead of rescanning all lists for every task. Same contract, shared by both platforms.
+func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
+    if task.completed { return VIRTUAL_DONE_COLUMN_ID }
     let taskListIds = taskListMembershipIds(task)
     if let explicit = statusLists.first(where: { taskListIds.contains($0.id) }) {
         return explicit.id

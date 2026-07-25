@@ -29,6 +29,7 @@ struct MacRootView: View {
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var listSearch = ""
     @State private var taskSearchQuery = ""
+    @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
@@ -216,8 +217,13 @@ struct MacRootView: View {
                     .accessibilityIdentifier("search.field")
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
+            // Debounce: matches() runs on the debounced query (~200ms), not every keystroke (6042bde0).
+            .task(id: taskSearchQuery) {
+                try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
+                debouncedSearchQuery = taskSearchQuery
+            }
             Divider()
-            let results = MacTaskSearch.matches(taskService.tasks, query: taskSearchQuery)
+            let results = MacTaskSearch.matches(taskService.tasks, query: debouncedSearchQuery)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                 ContentUnavailableView("Search your tasks", systemImage: "magnifyingglass",
                                        description: Text("Find any task across every list, including completed."))

@@ -22,8 +22,15 @@ struct MacBoardView: View {
     private var columns: [ProjectBoardColumn] { getProjectBoardColumns(listService.lists) }
     private var tasks: [Task] { taskService.getTasksForList(listId) }
 
-    private func tasks(in column: ProjectBoardColumn) -> [Task] {
-        tasks.filter { getTaskProjectColumnId($0, lists: listService.lists) == column.id }
+    /// One-pass column grouping (6042bde0): hoists getProjectStatusLists out of the per-task path.
+    /// Was O(columns × tasks × lists) — tasks(in:) per column, each task rescanning all lists.
+    private func groupTasksByColumn() -> [String: [Task]] {
+        let statusLists = getProjectStatusLists(listService.lists)
+        var buckets: [String: [Task]] = [:]
+        for t in tasks {
+            buckets[getTaskProjectColumnId(t, statusLists: statusLists), default: []].append(t)
+        }
+        return buckets
     }
 
     var body: some View {
@@ -47,7 +54,8 @@ struct MacBoardView: View {
             Divider()
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 12) {
-                    ForEach(columns) { col in columnView(col) }
+                    let buckets = groupTasksByColumn()   // ONE pass over tasks (6042bde0)
+                    ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []) }
                 }
                 .padding()
             }
@@ -74,8 +82,7 @@ struct MacBoardView: View {
         }
     }
 
-    private func columnView(_ col: ProjectBoardColumn) -> some View {
-        let items = tasks(in: col)
+    private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(col.name).font(.headline).foregroundStyle(Theme.textSecondary)
