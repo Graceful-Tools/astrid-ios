@@ -36,6 +36,7 @@ struct MacRootView: View {
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
     /// 3-column mode: wide content + a real list → chat is a persistent right column (web parity).
     private var chatColumnVisible: Bool {
@@ -525,7 +526,7 @@ struct MacRootView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedListId) {
                 Section {
                     // Use the SAME ForEach-row pattern as the lists below — a lone tagged Label
@@ -672,6 +673,14 @@ struct MacRootView: View {
                 }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
+        }
+        // Fixed sidebar in 3-column mode (1a71c0e7): while the window is wide enough for the chat
+        // column, the left menu stays visible — a collapse is restored and content shifts right.
+        .onChange(of: columnVisibility) { _, vis in
+            if chatColumnVisible && vis != .all { columnVisibility = .all }
+        }
+        .onChange(of: chatColumnVisible) { _, wide in
+            if wide { columnVisibility = .all }
         }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
