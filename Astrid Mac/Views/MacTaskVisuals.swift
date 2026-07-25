@@ -68,26 +68,30 @@ struct MacTaskCheckbox: View {
     }
 }
 
-/// 4-button priority picker mirroring iOS PriorityButtonPicker.
+/// 4-button priority picker mirroring iOS PriorityButtonPicker. Desktop-compact (0c1c83d4).
 struct MacPriorityPicker: View {
     @Binding var selection: Task.Priority
 
+    static let buttonWidth: CGFloat = 28
+    static let buttonHeight: CGFloat = 22
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                 let color = MacTaskVisuals.priorityColor(p)
                 let isSelected = selection == p
                 Button { selection = p } label: {
                     Text(MacTaskVisuals.prioritySymbol(p))
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 36, height: 30)
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: Self.buttonWidth, height: Self.buttonHeight)
                         .foregroundStyle(isSelected ? .white : color)
                         .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
                             .fill(isSelected ? color : Color.clear))
                         .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                            .stroke(color, lineWidth: 1.5))
+                            .stroke(color, lineWidth: 1.2))
                 }
                 .buttonStyle(.plain)
+                .macPointingHand()
                 .help(MacTaskVisuals.priorityLabel(p))
             }
         }
