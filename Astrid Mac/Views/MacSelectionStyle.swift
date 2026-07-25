@@ -20,10 +20,11 @@ enum MacSelectionStyle {
         return Theme.border                                      // faint hairline
     }
 
-    /// Faint accent wash behind a selected card; a lighter wash on hover (Task 77225941 — Mac
-    /// hover affordance). Selected always wins over hover.
+    /// Card fill: the SELECTED card keeps the plain card surface (white on Ocean/Light) — only the
+    /// accent BORDER carries selection (0f695ef2; the old accent wash read as a dark-blue row).
+    /// Hover shows a faint accent wash. Selected suppresses the hover wash.
     static func fill(isSelected: Bool, hovering: Bool = false) -> Color {
-        if isSelected { return Theme.accent.opacity(0.08) }
+        if isSelected { return Theme.bgSecondary }
         if hovering { return Theme.accent.opacity(0.04) }
         return Theme.bgSecondary
     }

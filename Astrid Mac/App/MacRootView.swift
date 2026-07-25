@@ -33,6 +33,8 @@ struct MacRootView: View {
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
     @State private var lastDueSignature = 0
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
+    @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
+    @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
@@ -181,10 +183,18 @@ struct MacRootView: View {
     /// at the task list, plus a close button (2766d9a4). Replaces the permanent empty 3rd column.
     private func taskDetailPopout(_ task: Task) -> some View {
         HStack(spacing: 0) {
-            MacPopoverArrow()
-                .fill(MacDetailChrome.background)
-                .frame(width: 12, height: 24)
-                .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
+            // The arrow points at the SELECTED row (a1cb6083): positioned at the row's midY in the
+            // content space (minus this pop-out's vertical padding), clamped inside the panel.
+            GeometryReader { g in
+                MacPopoverArrow()
+                    .fill(MacDetailChrome.background)
+                    .frame(width: 12, height: 24)
+                    .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
+                    .position(x: 6, y: MacSelectionModel.arrowY(rowMidY: (selectedRowMidY ?? g.size.height / 2) - 14,
+                                                                panelHeight: g.size.height))
+                    .animation(MacMotion.fast, value: selectedRowMidY)
+            }
+            .frame(width: 12)
             ZStack(alignment: .topTrailing) {
                 MacTaskDetailView(task: task)
                     .frame(width: 380)
@@ -226,8 +236,8 @@ struct MacRootView: View {
             } else if results.isEmpty {
                 ContentUnavailableView.search(text: taskSearchQuery)
             } else {
-                List(selection: $selectedTaskIds) {
-                    ForEach(results) { taskRow($0) }
+                List {
+                    ForEach(results) { taskRow($0) }   // manual selection via row taps (0f695ef2)
                 }
                 .listStyle(.inset)
                 .scrollContentBackground(.hidden)
@@ -308,10 +318,10 @@ struct MacRootView: View {
     }
 
     @ViewBuilder private func taskTableBody(_ rows: [Task]) -> some View {
-        // iOS-style rows (not a flat table): List(selection:) gives reliable single-click selection
-        // + the shared filter/sort still drives ordering. Priority shows via the checkbox ring, so
-        // there's no priority column (67c5e54c superseded by UI-parity polish).
-        List(selection: $selectedTaskIds) {
+        // iOS-style rows. Selection is managed MANUALLY (no List(selection:) binding) so the native
+        // macOS accent highlight never paints the whole row — the card stays white and only the
+        // border shows selection (0f695ef2). Row taps select / re-tap closes / ⌘-click multi-selects.
+        List {
             // Within-list drag-reorder is only meaningful under Manual sort (7b7a17d3), like iOS —
             // otherwise the shared sort would immediately re-order any manual arrangement.
             if isManualSort, currentRealList != nil {
@@ -325,6 +335,15 @@ struct MacRootView: View {
         .scrollContentBackground(.hidden)            // let the theme background show through
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
         .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
+        // An intentional scroll dismisses the detail pop-out (a1cb6083).
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { oldY, newY in
+            guard MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count) else { scrollAccum = 0; return }
+            scrollAccum += abs(newY - oldY)
+            if MacSelectionModel.scrollShouldClose(delta: scrollAccum) {
+                scrollAccum = 0
+                selectedTaskIds.removeAll()
+            }
+        }
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {
@@ -366,6 +385,18 @@ struct MacRootView: View {
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
+        // Manual selection (0f695ef2/a1cb6083): tap selects, re-tap closes, ⌘-click multi-selects.
+        .onTapGesture {
+            let cmd = NSEvent.modifierFlags.contains(.command)
+            selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
+            scrollAccum = 0
+        }
+        // The selected row reports its vertical center so the pop-out arrow points at it.
+        .background(GeometryReader { g in
+            Color.clear.preference(key: MacSelectedRowMidYKey.self,
+                                   value: selectedTaskIds == [task.id]
+                                       ? g.frame(in: .named("contentArea")).midY : nil)
+        })
     }
 
     /// The sort key actually in effect for the current selection (override wins over the list's own).
@@ -549,6 +580,8 @@ struct MacRootView: View {
                     MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
                 }
             }
+            .coordinateSpace(name: "contentArea")              // rows report frames in this space
+            .onPreferenceChange(MacSelectedRowMidYKey.self) { selectedRowMidY = $0 }
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
             .navigationTitle(selectedListId == Self.searchId ? "Search"
                              : selectedListId == Self.myTasksId ? "My Tasks"

@@ -16,15 +16,17 @@ final class MacSelectionStyleTests: XCTestCase {
         XCTAssertEqual(unsel, 0.5)
     }
 
-    /// Hover affordance (77225941): hover is a distinct tier between normal and selected,
-    /// and selected always wins over hover.
-    func testHoverTier() {
+    /// Hover affordance (77225941) + white selected card (0f695ef2): the SELECTED card keeps the
+    /// plain card surface — only the border carries selection; hover is a faint wash.
+    func testHoverTierAndWhiteSelectedCard() {
         let normal = MacSelectionStyle.fill(isSelected: false, hovering: false)
         let hover = MacSelectionStyle.fill(isSelected: false, hovering: true)
         let selected = MacSelectionStyle.fill(isSelected: true, hovering: false)
         XCTAssertNotEqual(hover, normal, "Hover must be visible vs normal")
-        XCTAssertNotEqual(hover, selected, "Hover must be lighter than selected")
-        // Selected wins even while hovering.
+        XCTAssertEqual(selected, normal, "Selected card stays the plain card surface (no dark-blue row)")
+        // Selection is carried by the BORDER, and suppresses the hover wash.
+        XCTAssertNotEqual(MacSelectionStyle.borderColor(isSelected: true),
+                          MacSelectionStyle.borderColor(isSelected: false))
         XCTAssertEqual(MacSelectionStyle.fill(isSelected: true, hovering: true), selected)
         // Border also distinguishes hover from normal.
         XCTAssertNotEqual(MacSelectionStyle.borderColor(isSelected: false, hovering: true),
