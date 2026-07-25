@@ -110,6 +110,7 @@ struct MacListMembersView: View {
         }
         .padding(20)
         .frame(width: 440)
+        .background(Theme.bgPrimary)
         .task { try? await svc.fetchMembers(listId: list.id) }
         .onAppear {
             privacy = list.privacy?.rawValue ?? "PRIVATE"

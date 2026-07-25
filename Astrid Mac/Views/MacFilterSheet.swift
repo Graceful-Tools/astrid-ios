@@ -38,7 +38,7 @@ struct MacFilterSheet: View {
                 filterPicker("Due", selection: $dueDate, options: MacListFilter.dueDate)
                 filterPicker("Assignee", selection: $assignee, options: MacListFilter.assignee)
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
             .frame(height: 190)
 
             // Save the current filters as a reusable Smart List (virtual list), like iOS/web.
@@ -71,6 +71,7 @@ struct MacFilterSheet: View {
         }
         .padding(20)
         .frame(width: 340)
+        .background(Theme.bgPrimary)
     }
 
     /// Create a saved-filter (Smart) list from the current filters — mirrors iOS SaveFilterDialog.

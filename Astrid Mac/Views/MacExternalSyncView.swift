@@ -71,7 +71,7 @@ struct MacGoogleTasksLinksView: View {
                 }
                 syncNowSection(isSyncing: google.isSyncing, lastSync: google.lastSyncedAt) { await google.syncAll() }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
         }
         .frame(width: 460, height: 480)
         .task { suffix = google.listSuffix; await google.refreshStatus() }
@@ -113,7 +113,7 @@ struct MacGitHubLinksView: View {
                 }
                 syncNowSection(isSyncing: github.isSyncing, lastSync: github.lastSyncedAt) { await github.syncAll() }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
         }
         .frame(width: 460, height: 460)
         .task { await github.refreshStatus() }

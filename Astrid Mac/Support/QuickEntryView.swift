@@ -55,6 +55,7 @@ struct QuickEntryView: View {
         }
         .padding(20)
         .frame(width: 520)
+        .background(Theme.bgPrimary)
     }
 
     private func save() {

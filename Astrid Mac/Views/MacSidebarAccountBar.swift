@@ -34,7 +34,7 @@ struct MacSidebarAccountBar: View {
             .help("Account & Settings")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(.bar)
+        .background(Theme.bgPrimary)
     }
 
     @ViewBuilder private var avatar: some View {

@@ -40,7 +40,7 @@ struct MacAIKeysView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
         }
         .frame(width: 480, height: 500)
         .task { await load() }

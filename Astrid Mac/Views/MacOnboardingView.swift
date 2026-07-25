@@ -46,6 +46,7 @@ struct MacOnboardingView: View {
         }
         .padding(28)
         .frame(width: 440)
+        .background(Theme.bgPrimary)
     }
 }
 #endif

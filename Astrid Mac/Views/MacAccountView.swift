@@ -48,7 +48,7 @@ struct MacAccountView: View {
                 Button("Delete Account…", role: .destructive) { showDelete = true }
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
         .frame(width: 460)
         .onAppear { name = auth.currentUser?.name ?? "" }
         .sheet(isPresented: $showDelete) { MacDeleteAccountSheet() }
@@ -111,6 +111,7 @@ struct MacDeleteAccountSheet: View {
         }
         .padding(20)
         .frame(width: 380)
+        .background(Theme.bgPrimary)
     }
 
     private func delete() {

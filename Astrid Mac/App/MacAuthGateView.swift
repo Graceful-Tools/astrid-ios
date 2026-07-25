@@ -178,6 +178,7 @@ struct MacLoginView: View {
         }
         .padding(40)
         .frame(width: 400)
+        .background(Theme.bgPrimary)
         .sheet(isPresented: $showSignUp) { signUpSheet }
     }
 
@@ -196,6 +197,7 @@ struct MacLoginView: View {
         }
         .padding(20)
         .frame(width: 380)
+        .background(Theme.bgPrimary)
     }
 
     private func secondaryButton(_ title: String, _ icon: String, _ op: @escaping () async throws -> Void) -> some View {

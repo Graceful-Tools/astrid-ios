@@ -35,7 +35,7 @@ struct MacReminderSettingsView: View {
                 }
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
         .onChange(of: s.pushEnabled) { save() }
         .onChange(of: s.emailEnabled) { save() }
         .onChange(of: s.defaultReminderOffset) { save() }
@@ -68,7 +68,7 @@ struct MacLanguageSettingsView: View {
                     .font(.caption).foregroundStyle(Theme.textMuted)
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
     }
 }
 
@@ -84,7 +84,7 @@ struct MacConnectionSettingsView: View {
                 LabeledContent("Server", value: Constants.API.baseURL)
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
     }
 }
 
@@ -142,7 +142,7 @@ struct MacSyncSettingsView: View {
                 if let d = apple.lastSyncDate { LabeledContent("Last sync") { Text(d, style: .relative) } }
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
         .sheet(isPresented: $showReminders) { MacAppleRemindersView() }
         .sheet(isPresented: $showGoogleLinks) { MacGoogleTasksLinksView() }
         .sheet(isPresented: $showGitHubLinks) { MacGitHubLinksView() }
@@ -246,7 +246,7 @@ struct MacAISettingsView: View {
                 }
             }
         }
-        .formStyle(.grouped)
+        .formStyle(.grouped).macThemedSurface()
         .sheet(isPresented: $showKeys) { MacAIKeysView() }
         .task { await load() }
     }

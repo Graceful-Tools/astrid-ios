@@ -70,7 +70,7 @@ struct MacAppleRemindersView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
         }
         .frame(width: 440, height: 460)
         .task { apple.checkAuthorizationStatus() }

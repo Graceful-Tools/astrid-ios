@@ -99,6 +99,7 @@ struct MacListEditSheet: View {
         }
         .padding(20)
         .frame(width: 340)
+        .background(Theme.bgPrimary)
         .onAppear {
             name = existing?.name ?? ""
             listDescription = existing?.description ?? ""

@@ -38,7 +38,7 @@ struct MacSettingsView: View {
                     }
                 }
             }
-            .formStyle(.grouped)
+            .formStyle(.grouped).macThemedSurface()
             .tabItem { Label("General", systemImage: "gearshape") }
 
             MacReminderSettingsView()
