@@ -30,6 +30,9 @@ struct MacRootView: View {
     @State private var listSearch = ""
     @State private var taskSearchQuery = ""
     @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
+    @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
+    @State private var lastDueSignature = 0
+    @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
@@ -501,7 +504,7 @@ struct MacRootView: View {
                         } icon: {
                             Circle().fill(Theme.accent).frame(width: 12, height: 12)
                         }
-                        .badge(MacMyTasks.filter(taskService.tasks, userId: auth.userId).count)
+                        .badge(myTasksCount)   // memoized — was a full O(n) scan per body eval (c38b177b)
                         .tag(Optional(Self.myTasksId))
                         .accessibilityIdentifier("sidebar.myTasks")
                     }
@@ -620,6 +623,8 @@ struct MacRootView: View {
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
         .task {
+            // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
+            myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count
             // Hydrate lists from the shared service (cache-first, offline-safe).
             _ = try? await listService.fetchLists()
         }
@@ -656,10 +661,22 @@ struct MacRootView: View {
             }
         }
         .onChange(of: taskService.tasks) {
-            _Concurrency.Task {
-                await BadgeManager.shared.updateBadge(with: taskService.tasks)
-                // Keep local reminder notifications in sync with due dates (Task 8b81fb9e).
-                await NotificationManager.shared.rescheduleAllNotifications(for: taskService.tasks)
+            // Coalesce per-mutation side-effects (c38b177b): a burst of edits schedules ONE pass
+            // ~0.8s later, and notifications reschedule only when the due-date shape changed
+            // (title/priority edits used to reschedule ALL local notifications).
+            sideEffectsTask?.cancel()
+            sideEffectsTask = _Concurrency.Task {
+                try? await _Concurrency.Task.sleep(nanoseconds: MacSideEffects.coalesceNanos)
+                guard !_Concurrency.Task.isCancelled else { return }
+                let tasks = taskService.tasks
+                myTasksCount = MacMyTasks.filter(tasks, userId: auth.userId).count
+                await BadgeManager.shared.updateBadge(with: tasks)
+                let sig = MacSideEffects.dueSignature(tasks)
+                if sig != lastDueSignature {
+                    lastDueSignature = sig
+                    // Keep local reminder notifications in sync with due dates (Task 8b81fb9e).
+                    await NotificationManager.shared.rescheduleAllNotifications(for: tasks)
+                }
             }
         }
         .sheet(isPresented: $appModel.showShortcutsHelp) { MacShortcutsHelpView() }
