@@ -66,12 +66,12 @@ struct MacTaskRow: View {
                 if isEditing {
                     TextField("Title", text: $editingTitle)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(MacTypography.rowTitle)
                         .onSubmit(onCommitEdit)
                         .onExitCommand(perform: onCancelEdit)
                 } else {
                     Text(task.title)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(MacTypography.rowTitle)
                         .strikethrough(task.completed)
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                         .lineLimit(2)
@@ -82,13 +82,13 @@ struct MacTaskRow: View {
                     HStack(spacing: 8) {
                         if let dueText {
                             Text(dueText)
-                                .font(.system(size: 12))
+                                .font(MacTypography.rowMeta)
                                 .foregroundStyle(Theme.textMuted)
                         }
                         ForEach(chips.prefix(2)) { list in
                             HStack(spacing: 4) {
                                 MacListIcon(list: list, size: 11)
-                                Text(list.name).font(.system(size: 12)).lineLimit(1)
+                                Text(list.name).font(MacTypography.rowMeta).lineLimit(1)
                             }
                             .foregroundStyle(Theme.textSecondary)
                             .padding(.horizontal, 7)
@@ -97,7 +97,7 @@ struct MacTaskRow: View {
                         }
                         if chips.count > 2 {
                             Text("+\(chips.count - 2)")
-                                .font(.system(size: 12))
+                                .font(MacTypography.rowMeta)
                                 .foregroundStyle(Theme.textMuted)
                         }
                     }

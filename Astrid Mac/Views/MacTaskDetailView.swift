@@ -58,7 +58,7 @@ struct MacTaskDetailView: View {
                     .buttonStyle(.plain)
                     .help(task.completed ? "Mark incomplete" : "Mark complete")
                     TextField("Title", text: $title)
-                        .font(.title3)
+                        .font(MacTypography.detailTitle)
                         .strikethrough(task.completed)
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                         .focused($titleFocused)
@@ -66,50 +66,80 @@ struct MacTaskDetailView: View {
                 }
             }
 
-            Section("Notes") {
-                TextEditor(text: $notes)
-                    .frame(minHeight: 70)
-                    .focused($notesFocused)
-                    .onChange(of: notesFocused) { if !notesFocused { saveNotes() } }
-            }
-
-            Section("Schedule") {
-                Toggle("Due date", isOn: $hasDue).onChange(of: hasDue) { saveDue() }
-                if hasDue {
-                    DatePicker("When", selection: $due,
-                               displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
-                        .onChange(of: due) { saveDue() }
-                    Toggle("All day", isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
+            // Web-order labeled fields (913216a9) — same design language as the board's inline
+            // editor: Who / Date / Priority / Lists / Repeat / Description.
+            Section {
+                labeled("Who") {
+                    Picker("", selection: Binding(
+                        get: { task.assigneeId ?? "" },
+                        set: { setAssignee($0.isEmpty ? nil : $0) }
+                    )) {
+                        Text("No one").tag("")
+                        ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
+                    }
+                    .labelsHidden()
                 }
-                Picker("Repeat", selection: $repeating) {
-                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
-                        Text($0.displayName).tag($0)
+                labeled("Date") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Toggle("Due date", isOn: $hasDue).onChange(of: hasDue) { saveDue() }
+                        if hasDue {
+                            DatePicker("", selection: $due,
+                                       displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
+                                .labelsHidden()
+                                .onChange(of: due) { saveDue() }
+                            Toggle("All day", isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
+                        }
                     }
                 }
-                .onChange(of: repeating) { handleRepeatChange() }
-                if repeating == .custom {
-                    HStack {
-                        Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
-                            .foregroundStyle(Theme.textSecondary).font(.callout)
-                        Spacer()
-                        Button("Edit…") { showCustomRepeat = true }
+                labeled("Priority") {
+                    MacPriorityPicker(selection: $priority)
+                        .onChange(of: priority) { savePriority() }
+                }
+                labeled("Lists") {
+                    HStack(spacing: 4) {
+                        let chips = (task.listIds ?? []).compactMap { listService.listsById[$0] }
+                        ForEach(chips) { l in
+                            HStack(spacing: 4) { MacListIcon(list: l, size: 11); Text(l.name).font(MacTypography.rowMeta) }
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .foregroundStyle(Theme.accent)
+                                .background(Theme.accent.opacity(0.15), in: Capsule())
+                        }
+                        if chips.isEmpty { Text("—").foregroundStyle(Theme.textMuted) }
                     }
                 }
-            }
-
-            Section("Assignee") {
-                Picker("Assigned to", selection: Binding(
-                    get: { task.assigneeId ?? "" },
-                    set: { setAssignee($0.isEmpty ? nil : $0) }
-                )) {
-                    Text("No one").tag("")
-                    ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
+                labeled("Repeat") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Picker("", selection: $repeating) {
+                            ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
+                                Text($0.displayName).tag($0)
+                            }
+                        }
+                        .labelsHidden()
+                        .onChange(of: repeating) { handleRepeatChange() }
+                        if repeating == .custom {
+                            HStack {
+                                Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
+                                    .foregroundStyle(Theme.textSecondary).font(.callout)
+                                Spacer()
+                                Button("Edit…") { showCustomRepeat = true }
+                            }
+                        }
+                    }
                 }
-            }
-
-            Section("Priority") {
-                MacPriorityPicker(selection: $priority)
-                    .onChange(of: priority) { savePriority() }
+                labeled("Description") {
+                    TextEditor(text: $notes)
+                        .frame(minHeight: 70)
+                        .focused($notesFocused)
+                        .onChange(of: notesFocused) { if !notesFocused { saveNotes() } }
+                        .overlay(alignment: .topLeading) {
+                            if notes.isEmpty && !notesFocused {
+                                Text("Click to add a description…")
+                                    .foregroundStyle(Theme.textMuted)
+                                    .padding(.top, 8).padding(.leading, 5)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                }
             }
 
             Section("Subtasks") {
@@ -277,6 +307,16 @@ struct MacTaskDetailView: View {
                 customPattern = pattern
                 saveRepeat()
             }
+        }
+    }
+
+    /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
+    private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label).font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                .frame(width: 80, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
         }
     }
 
