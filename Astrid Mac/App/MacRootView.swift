@@ -189,33 +189,36 @@ struct MacRootView: View {
     /// Floating detail pop-out: a rounded card on the trailing edge with a left-pointing arrow back
     /// at the task list, plus a close button (2766d9a4). Replaces the permanent empty 3rd column.
     private func taskDetailPopout(_ task: Task) -> some View {
-        HStack(spacing: 0) {
-            // The arrow points at the SELECTED row (a1cb6083): positioned at the row's midY in the
-            // content space (minus this pop-out's vertical padding), clamped inside the panel.
-            GeometryReader { g in
-                // Convert the row's content-space midY through THIS column's measured origin.
-                // A hardcoded offset was wrong because the panel is centered, so its origin moves
-                // with the panel's height — the arrow aimed at the wrong task (69fd1f19).
-                let originY = g.frame(in: .named("contentArea")).minY
-                MacPopoverArrow()
-                    .fill(MacDetailChrome.background)
-                    .frame(width: 12, height: 24)
-                    .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
-                    .position(x: 6, y: MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
-                                                                     panelOriginY: originY,
-                                                                     panelHeight: g.size.height))
-                    .animation(MacMotion.fast, value: selectedRowMidY)
+        // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
+        MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
+            .frame(width: MacLayout.detailPanelWidth)
+            .background(MacDetailChrome.background)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
+            // The arrow is drawn ON TOP of the card, overlapping its edge by a point, so its base
+            // MERGES into the card surface. Previously it sat in its own column beside the card:
+            // the card's border stroke ran across the arrow's base (it looked cut off) and the
+            // arrow carried its own drop shadow, which tinted it darker than the card.
+            // Same fill as the card + no shadow of its own = it blends.
+            .overlay(alignment: .topLeading) {
+                GeometryReader { g in
+                    // Convert the row's content-space midY through the CARD's measured origin.
+                    // A hardcoded offset was wrong because the panel is centered, so its origin
+                    // moves with the panel's height — the arrow aimed at the wrong task (69fd1f19).
+                    let originY = g.frame(in: .named("contentArea")).minY
+                    MacPopoverArrow()
+                        .fill(MacDetailChrome.background)
+                        .frame(width: MacLayout.detailArrowWidth, height: 24)
+                        .position(x: -MacLayout.detailArrowWidth / 2 + 1,   // 1pt overlap hides the border seam
+                                  y: MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
+                                                                   panelOriginY: originY,
+                                                                   panelHeight: g.size.height))
+                        .animation(MacMotion.fast, value: selectedRowMidY)
+                }
             }
-            .frame(width: 12)
-            // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
-            MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
-                .frame(width: 380)
-                .background(MacDetailChrome.background)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
-        }
-        .padding(.trailing, 14)
+            .padding(.leading, MacLayout.detailArrowWidth)   // room for the arrow outside the card
+            .padding(.trailing, 14)
         .padding(.vertical, 14)
         .frame(maxHeight: .infinity, alignment: .center)
     }

@@ -47,6 +47,13 @@ func filterTasksForList(_ tasks: [Task], list: TaskList, currentUserId: String?)
         }
     }
 
+    // Repeating filter — "all"/nil keeps everything, "not_repeating" keeps tasks with NO rule
+    // (nil or .never), and a cadence keeps only that cadence. This was persisted and synced by
+    // every client but applied by none, so the control did nothing anywhere.
+    if let repeating = list.filterRepeating, repeating != "all" {
+        filtered = applyRepeatingFilter(filtered, filter: repeating)
+    }
+
     // Assigned-by filter
     if let assignedBy = list.filterAssignedBy, assignedBy != "all" {
         switch assignedBy {
@@ -162,5 +169,23 @@ func sortTasksByListSetting(_ tasks: [Task], sortBy: String, manualOrder: [Strin
         }
     default:
         return sortTasksByListSetting(tasks, sortBy: "auto", manualOrder: manualOrder)
+    }
+}
+
+/// Apply a list's `filterRepeating` value.
+///
+/// Values mirror the pickers on iOS/Mac/web: "all", "not_repeating", and the cadences
+/// "daily" | "weekly" | "monthly" | "yearly" | "custom". An unrecognised value is treated as
+/// "all" — a future client sending a new value must never blank out the user's list.
+func applyRepeatingFilter(_ tasks: [Task], filter: String) -> [Task] {
+    switch filter {
+    case "all":
+        return tasks
+    case "not_repeating":
+        return tasks.filter { $0.repeating == nil || $0.repeating == .never }
+    case "daily", "weekly", "monthly", "yearly", "custom":
+        return tasks.filter { $0.repeating?.rawValue == filter }
+    default:
+        return tasks
     }
 }
