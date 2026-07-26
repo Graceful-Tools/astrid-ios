@@ -12,8 +12,8 @@ struct MacShortcutsHelpView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Keyboard Shortcuts").font(.title2.bold())
-            Text("These match the Astrid web shortcuts. They’re ignored while you’re typing.")
+            Text(NSLocalizedString("mac.keyboard_shortcuts", comment: "")).font(.title2.bold())
+            Text(NSLocalizedString("mac.shortcuts_note", comment: ""))
                 .font(.callout).foregroundStyle(.secondary)
 
             ScrollView {
@@ -38,7 +38,7 @@ struct MacShortcutsHelpView: View {
 
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)

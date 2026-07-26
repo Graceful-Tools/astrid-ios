@@ -20,33 +20,33 @@ struct AstridCommands: Commands {
     var body: some Commands {
         // File → New Task (⌘N is the additive Mac equivalent of the bare `n`).
         CommandGroup(replacing: .newItem) {
-            Button("New Task") { MacAppModel.shared.perform(.newTask) }
+            Button(NSLocalizedString("tasks.new_task", comment: "")) { MacAppModel.shared.perform(.newTask) }
                 .keyboardShortcut("n", modifiers: .command)
         }
 
         // A dedicated Task menu for the additive ⌘-equivalents.
-        CommandMenu("Task") {
-            Button("Complete") { MacAppModel.shared.perform(.completeTask) }
+        CommandMenu(NSLocalizedString("tasks.task", comment: "")) {
+            Button(NSLocalizedString("reminders.complete", comment: "")) { MacAppModel.shared.perform(.completeTask) }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(appModel.selectedTaskIds.isEmpty)
-            Button("Delete") { MacAppModel.shared.perform(.deleteTask) }
+            Button(NSLocalizedString("actions.delete", comment: "")) { MacAppModel.shared.perform(.deleteTask) }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(appModel.selectedTaskIds.isEmpty)
             Divider()
-            Button("Command Palette…") { MacAppModel.shared.openPalette() }
+            Button(NSLocalizedString("mac.command_palette", comment: "")) { MacAppModel.shared.openPalette() }
                 .keyboardShortcut("k", modifiers: .command)
         }
 
         // App menu → Check for Updates (Direct/Sparkle build; no-op/hidden on App Store).
         CommandGroup(after: .appInfo) {
             if UpdaterController.shared.isAvailable {
-                Button("Check for Updates…") { UpdaterController.shared.checkForUpdates() }
+                Button(NSLocalizedString("mac.check_updates", comment: "")) { UpdaterController.shared.checkForUpdates() }
             }
         }
 
         // Help → Keyboard Shortcuts (the shared bare-key scheme; web shows this on `?`).
         CommandGroup(after: .help) {
-            Button("Keyboard Shortcuts") { MacAppModel.shared.perform(.showShortcuts) }
+            Button(NSLocalizedString("mac.keyboard_shortcuts", comment: "")) { MacAppModel.shared.perform(.showShortcuts) }
                 .keyboardShortcut("/", modifiers: .command)
         }
     }

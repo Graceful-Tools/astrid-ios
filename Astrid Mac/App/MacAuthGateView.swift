@@ -141,30 +141,30 @@ struct MacLoginView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 VStack(spacing: 2) {
                     Text("astrid").font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                    Text("Get it done!").font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
+                    Text(NSLocalizedString("auth.tagline", comment: "")).font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
                 }
-                Text("Sign in to get started!").font(.headline).foregroundStyle(Theme.textPrimary)
+                Text(NSLocalizedString("auth.sign_in_header", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
             }
             .padding(.bottom, 4)
 
             VStack(spacing: 10) {
                 // Passkey — primary sign-in (discoverable credential; no email needed).
                 Button { run { try await auth.signInWithPasskey(email: nil) } } label: {
-                    Label("Sign in with Passkey", systemImage: "person.badge.key.fill")
+                    Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
                 .accessibilityIdentifier("login.passkey")
 
-                secondaryButton("Continue with Google", "globe") { try await auth.signInWithGoogle() }
-                secondaryButton("Sign in with Apple", "apple.logo") { try await auth.signInWithApple() }
+                secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
+                secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
             }
             .frame(width: 280)
 
             VStack(spacing: 6) {
-                Button("New here? Create an account with Passkey") { showSignUp = true }
+                Button(NSLocalizedString("mac.new_here", comment: "")) { showSignUp = true }
                     .buttonStyle(.link).font(.callout)
-                Button("Continue without an account") {
+                Button(NSLocalizedString("mac.continue_without_account", comment: "")) {
                     _Concurrency.Task { await ConnectionModeManager.shared.createLocalUser() }
                 }
                 .buttonStyle(.link).font(.callout).foregroundStyle(Theme.textSecondary)
@@ -185,14 +185,14 @@ struct MacLoginView: View {
 
     private var signUpSheet: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Create Account").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text("Enter your email, then create a passkey on this Mac (Touch ID / your device).")
+            Text(NSLocalizedString("auth.create_account", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("mac.passkey_intro", comment: ""))
                 .font(.callout).foregroundStyle(Theme.textSecondary)
-            TextField("Email", text: $email).textFieldStyle(.roundedBorder).onSubmit(signUp)
+            TextField(NSLocalizedString("auth.email", comment: ""), text: $email).textFieldStyle(.roundedBorder).onSubmit(signUp)
             HStack {
                 Spacer()
-                Button("Cancel") { showSignUp = false }.keyboardShortcut(.escape, modifiers: [])
-                Button("Create Passkey", action: signUp)
+                Button(NSLocalizedString("actions.cancel", comment: "")) { showSignUp = false }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("mac.create_passkey", comment: ""), action: signUp)
                     .buttonStyle(.borderedProminent).disabled(!emailValid)
             }
         }

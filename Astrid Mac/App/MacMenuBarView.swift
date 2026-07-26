@@ -26,12 +26,12 @@ struct MacMenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                TextField("Quick add…", text: $quickText).textFieldStyle(.roundedBorder).onSubmit(add)
-                Button("Add", action: add).disabled(quickText.trimmingCharacters(in: .whitespaces).isEmpty)
+                TextField(NSLocalizedString("mac.quick_add", comment: ""), text: $quickText).textFieldStyle(.roundedBorder).onSubmit(add)
+                Button(NSLocalizedString("actions.add", comment: ""), action: add).disabled(quickText.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             Divider()
             if openTasks.isEmpty {
-                Text("No open tasks").foregroundStyle(.secondary).padding(.vertical, 4)
+                Text(NSLocalizedString("mac.no_open_tasks", comment: "")).foregroundStyle(.secondary).padding(.vertical, 4)
             } else {
                 ForEach(openTasks) { task in
                     Button {
@@ -43,8 +43,8 @@ struct MacMenuBarView: View {
                 }
             }
             Divider()
-            Button("Open Astrid") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
-            Button("Quit") { NSApp.terminate(nil) }
+            Button(NSLocalizedString("mac.open_astrid", comment: "")) { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
+            Button(NSLocalizedString("mac.quit", comment: "")) { NSApp.terminate(nil) }
         }
         .padding(12)
         .frame(width: 300)

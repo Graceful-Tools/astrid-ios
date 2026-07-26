@@ -55,25 +55,25 @@ struct MacTaskDetailView: View {
         HStack {
             if let onClose {
                 Button(action: onClose) { Image(systemName: "xmark") }
-                    .buttonStyle(.borderless).foregroundStyle(Theme.textMuted).help("Close")
+                    .buttonStyle(.borderless).foregroundStyle(Theme.textMuted).help(NSLocalizedString("actions.close", comment: ""))
             }
             Spacer()
-            Text("Task Details").font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("tasks.task_details", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
             Spacer()
             Menu {
-                Menu("Copy to List") {
+                Menu(NSLocalizedString("lists.copy_to_list", comment: "")) {
                     ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
                         Button(t.label) { copyTask(to: t.listId) }
                     }
                 }
                 if let shareURL {
-                    Button("Copy Share Link") { copyToPasteboard(shareURL.absoluteString) }
+                    Button(NSLocalizedString("mac.copy_share_link", comment: "")) { copyToPasteboard(shareURL.absoluteString) }
                 } else {
-                    Button("Share…") { generateShareLink() }
+                    Button(NSLocalizedString("actions.share", comment: "")) { generateShareLink() }
                 }
-                Button("Open in New Window") { openWindow(id: "task", value: task.id) }
+                Button(NSLocalizedString("mac.open_new_window", comment: "")) { openWindow(id: "task", value: task.id) }
                 Divider()
-                Button("Delete Task", role: .destructive) { deleteTask() }
+                Button(NSLocalizedString("tasks.delete_task", comment: ""), role: .destructive) { deleteTask() }
             } label: { Image(systemName: "ellipsis") }
             .menuStyle(.borderlessButton).fixedSize()
         }
@@ -90,7 +90,7 @@ struct MacTaskDetailView: View {
                     // `labelsHidden()`: inside a Form, macOS renders a TextField's first argument
                     // as a leading label — the stray "Title" prefix on the detail header
                     // (task 4a3360c3). It stays as the empty-state placeholder.
-                    TextField("Title", text: $title)
+                    TextField(NSLocalizedString("mac.title", comment: ""), text: $title)
                         .labelsHidden()
                         .font(MacTypography.detailTitle)
                         .strikethrough(task.completed)
@@ -108,20 +108,20 @@ struct MacTaskDetailView: View {
                         get: { task.assigneeId ?? "" },
                         set: { setAssignee($0.isEmpty ? nil : $0) }
                     )) {
-                        Text("No one").tag("")
+                        Text(NSLocalizedString("No one", comment: "")).tag("")
                         ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
                     }
                     .labelsHidden()
                 }
                 labeled("Date") {
                     VStack(alignment: .leading, spacing: 6) {
-                        Toggle("Due date", isOn: $hasDue).onChange(of: hasDue) { saveDue() }
+                        Toggle(NSLocalizedString("lists.due_date", comment: ""), isOn: $hasDue).onChange(of: hasDue) { saveDue() }
                         if hasDue {
                             DatePicker("", selection: $due,
                                        displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
                                 .labelsHidden()
                                 .onChange(of: due) { saveDue() }
-                            Toggle("All day", isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
+                            Toggle(NSLocalizedString("All day", comment: ""), isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
                         }
                     }
                 }
@@ -155,7 +155,7 @@ struct MacTaskDetailView: View {
                                 Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
                                     .foregroundStyle(Theme.textSecondary).font(.callout)
                                 Spacer()
-                                Button("Edit…") { showCustomRepeat = true }
+                                Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
                             }
                         }
                     }
@@ -164,7 +164,7 @@ struct MacTaskDetailView: View {
                 // task e4b4f87c). The inline `labeled` row shape squeezed the editor into the
                 // ~2/3 left over beside the 80pt label column.
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Description")
+                    Text(NSLocalizedString("tasks.description", comment: ""))
                         .font(MacTypography.label)
                         .foregroundStyle(Theme.textMuted)
                     TextEditor(text: $notes)
@@ -174,7 +174,7 @@ struct MacTaskDetailView: View {
                         .onChange(of: notesFocused) { if !notesFocused { saveNotes() } }
                         .overlay(alignment: .topLeading) {
                             if notes.isEmpty && !notesFocused {
-                                Text("Click to add a description…")
+                                Text(NSLocalizedString("mac.click_add_description", comment: ""))
                                     .foregroundStyle(Theme.textMuted)
                                     .padding(.top, 8).padding(.leading, 5)
                                     .allowsHitTesting(false)
@@ -183,13 +183,13 @@ struct MacTaskDetailView: View {
                 }
                 // "Last: …" timer caption under the description (web parity — df22157f).
                 if let last = task.lastTimerValue, !last.isEmpty {
-                    Text("Last: \(last)")
+                    Text(String(format: NSLocalizedString("mac.last_timer", comment: ""), last))
                         .font(.caption).foregroundStyle(Theme.textMuted)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
 
-            Section("Subtasks") {
+            Section(NSLocalizedString("Subtasks", comment: "")) {
                 ForEach(subtasks) { st in
                     HStack {
                         Button { toggleSubtask(st) } label: {
@@ -202,13 +202,13 @@ struct MacTaskDetailView: View {
                     }
                     .contentShape(Rectangle())
                     .contextMenu {
-                        Button("Rename…") { editingSubtask = st; editingSubtaskText = st.title }
-                        Button("Delete", role: .destructive) { deleteSubtask(st) }
+                        Button(NSLocalizedString("mac.rename_ellipsis", comment: "")) { editingSubtask = st; editingSubtaskText = st.title }
+                        Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteSubtask(st) }
                     }
                 }
                 HStack {
-                    TextField("Add subtask", text: $newSubtask).onSubmit(addSubtask)
-                    Button("Add", action: addSubtask).disabled(newSubtask.trimmingCharacters(in: .whitespaces).isEmpty)
+                    TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask).onSubmit(addSubtask)
+                    Button(NSLocalizedString("actions.add", comment: ""), action: addSubtask).disabled(newSubtask.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
 
@@ -216,21 +216,21 @@ struct MacTaskDetailView: View {
             // right-aligned lavender bubbles with an avatar and a "You · date" caption.
             Section {
                 if comments.isEmpty {
-                    Text("No comments yet").foregroundStyle(Theme.textMuted).font(.callout)
+                    Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
                 }
                 ForEach(comments) { c in commentBubble(c) }
             } header: {
                 HStack {
-                    Text("Comments (\(comments.count))")
+                    Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count))
                     Spacer()
                     Button {
                         _Concurrency.Task { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }
-                    } label: { Label("Refresh", systemImage: "arrow.clockwise").labelStyle(.titleAndIcon) }
+                    } label: { Label(NSLocalizedString("mac.refresh", comment: ""), systemImage: "arrow.clockwise").labelStyle(.titleAndIcon) }
                     .buttonStyle(.borderless).font(.caption)
                 }
             }
 
-            Section("Timer") {
+            Section(NSLocalizedString("tasks.timer", comment: "")) {
                 HStack {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         Text(hms(loggedSeconds)).font(.system(.title3, design: .monospaced))
@@ -243,7 +243,7 @@ struct MacTaskDetailView: View {
                 }
             }
 
-            Section("Attachments") {
+            Section(NSLocalizedString("Attachments", comment: "")) {
                 // URL-backed attachments: type icon + name + size, QuickLook preview + delete.
                 ForEach(task.attachments ?? []) { a in
                     HStack(spacing: 8) {
@@ -256,10 +256,10 @@ struct MacTaskDetailView: View {
                         }
                         Spacer()
                         Button { previewAttachment(a) } label: { Image(systemName: "eye") }
-                            .buttonStyle(.borderless).help("Quick Look")
+                            .buttonStyle(.borderless).help(NSLocalizedString("attachments.quick_look", comment: ""))
                             .disabled(previewLoadingId == a.id)
                         Button { deleteAttachment(a) } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless).foregroundStyle(Theme.error).help("Delete")
+                            .buttonStyle(.borderless).foregroundStyle(Theme.error).help(NSLocalizedString("actions.delete", comment: ""))
                     }
                 }
                 // Secure files have no direct URL / delete API — show name + type icon only.
@@ -271,7 +271,7 @@ struct MacTaskDetailView: View {
                         Spacer()
                     }
                 }
-                Button { addFile() } label: { Label("Add File…", systemImage: "paperclip") }
+                Button { addFile() } label: { Label(NSLocalizedString("mac.add_file", comment: ""), systemImage: "paperclip") }
             }
 
             // (Copy / Share / Open-in-Window / Delete live in the header's ⋯ menu — df22157f.)
@@ -280,7 +280,7 @@ struct MacTaskDetailView: View {
                     HStack {
                         Text(shareURL.absoluteString).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
-                        Button("Copy") { copyToPasteboard(shareURL.absoluteString) }
+                        Button(NSLocalizedString("actions.copy", comment: "")) { copyToPasteboard(shareURL.absoluteString) }
                         ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
                     }
                 }
@@ -308,8 +308,8 @@ struct MacTaskDetailView: View {
         }
         HStack(spacing: 8) {
             Button { attachComment() } label: { Image(systemName: "paperclip") }
-                .buttonStyle(.borderless).help("Attach a file")
-            TextField("Add a comment…", text: $newComment)
+                .buttonStyle(.borderless).help(NSLocalizedString("mac.attach_file", comment: ""))
+            TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
                 .textFieldStyle(.plain)
                 .focused($commentFocused)
                 .onChange(of: newComment) { updateCommentSuggestions() }
@@ -378,8 +378,8 @@ struct MacTaskDetailView: View {
         .contextMenu {
             // Edit/Delete only your own comments (permission-safe).
             if mine {
-                Button("Edit…") { editingComment = c; editingCommentText = c.content }
-                Button("Delete", role: .destructive) { deleteComment(c) }
+                Button(NSLocalizedString("actions.edit", comment: "")) { editingComment = c; editingCommentText = c.content }
+                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteComment(c) }
             }
         }
     }
@@ -415,8 +415,8 @@ struct MacTaskDetailView: View {
             TextField("", text: text, axis: .vertical).lineLimit(2...6).textFieldStyle(.roundedBorder)
             HStack {
                 Spacer()
-                Button("Cancel") { editingComment = nil; editingSubtask = nil }.keyboardShortcut(.escape, modifiers: [])
-                Button("Save", action: onSave).buttonStyle(.borderedProminent)
+                Button(NSLocalizedString("actions.cancel", comment: "")) { editingComment = nil; editingSubtask = nil }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("actions.save", comment: ""), action: onSave).buttonStyle(.borderedProminent)
                     .disabled(text.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }

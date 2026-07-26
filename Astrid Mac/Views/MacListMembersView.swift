@@ -33,16 +33,16 @@ struct MacListMembersView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Share “\(list.name)”").font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(String(format: NSLocalizedString("mac.share_title", comment: ""), list.name)).font(.headline).foregroundStyle(Theme.textPrimary)
 
             // Privacy + public type (owner/admin only) — Task 7d77a054.
             if canManage {
                 HStack {
-                    Picker("Privacy", selection: $privacy) {
+                    Picker(NSLocalizedString("mac.privacy", comment: ""), selection: $privacy) {
                         ForEach(MacListPrivacy.privacy) { Text($0.label).tag($0.value) }
                     }.onChange(of: privacy) { savePrivacy() }
                     if privacy == "PUBLIC" {
-                        Picker("Type", selection: $publicType) {
+                        Picker(NSLocalizedString("mac.type", comment: ""), selection: $publicType) {
                             ForEach(MacListPrivacy.publicType) { Text($0.label).tag($0.value) }
                         }.onChange(of: publicType) { savePrivacy() }
                     }
@@ -75,10 +75,10 @@ struct MacListMembersView: View {
                 }
                 if members.isEmpty {
                     if loadingMembers {
-                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Loading members…") }
+                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text(NSLocalizedString("mac.loading_members", comment: "")) }
                             .foregroundStyle(Theme.textMuted)
                     } else {
-                        Text("No members yet").foregroundStyle(Theme.textMuted)
+                        Text(NSLocalizedString("mac.no_members", comment: "")).foregroundStyle(Theme.textMuted)
                     }
                 }
             }
@@ -99,20 +99,20 @@ struct MacListMembersView: View {
                     .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 HStack {
-                    TextField("Invite by email", text: $email).textFieldStyle(.roundedBorder)
+                    TextField(NSLocalizedString("members.invite_email", comment: ""), text: $email).textFieldStyle(.roundedBorder)
                         .onSubmit(invite)
                         .onChange(of: email) { searchContacts() }
                     Picker("", selection: $inviteRole) {
                         ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
                     }.labelsHidden().frame(width: 110)
-                    Button("Invite", action: invite).disabled(!canInvite)
+                    Button(NSLocalizedString("mac.invite", comment: ""), action: invite).disabled(!canInvite)
                 }
             } else {
-                Text("Only the list owner or an admin can manage members.")
+                Text(NSLocalizedString("mac.members_admin_only", comment: ""))
                     .font(.caption).foregroundStyle(Theme.textMuted)
             }
 
-            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.return, modifiers: []) }
+            HStack { Spacer(); Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return, modifiers: []) }
         }
         .padding(20)
         .frame(width: 440)

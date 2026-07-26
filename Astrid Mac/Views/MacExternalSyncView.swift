@@ -37,29 +37,29 @@ struct MacGoogleTasksLinksView: View {
         VStack(alignment: .leading, spacing: 0) {
             header("Google Tasks")
             Form {
-                Section("Sync mode") {
-                    Picker("Mode", selection: Binding(
+                Section(NSLocalizedString("sync.sync_mode", comment: "")) {
+                    Picker(NSLocalizedString("sync.mode", comment: ""), selection: Binding(
                         get: { google.syncMode },
                         set: { newMode in _Concurrency.Task { await google.setSyncMode(newMode, suffix: suffix) } }
                     )) {
                         ForEach(GoogleSyncMode.allCases, id: \.self) { Text(MacSyncLinks.googleModeLabel($0)).tag($0) }
                     }
                     if google.syncMode != .manual {
-                        TextField("Name suffix (optional)", text: $suffix)
+                        TextField(NSLocalizedString("mac.name_suffix", comment: ""), text: $suffix)
                             .onSubmit { _Concurrency.Task { await google.setSyncMode(google.syncMode, suffix: suffix) } }
                     }
                 }
                 if google.syncMode == .manual {
-                    Section("Linked Lists") {
+                    Section(NSLocalizedString("reminders.linked_lists", comment: "")) {
                         ForEach(realLists) { list in
                             HStack {
                                 Text(list.name)
                                 Spacer()
                                 if let l = MacSyncLinks.link(google.links, for: list.id) {
                                     Text(l.remoteContainerName ?? "Linked").foregroundStyle(Theme.textSecondary)
-                                    Button("Unlink", role: .destructive) { _Concurrency.Task { await google.unlink(l.id) } }
+                                    Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { _Concurrency.Task { await google.unlink(l.id) } }
                                 } else {
-                                    Button("Create & link") {
+                                    Button(NSLocalizedString("mac.create_and_link", comment: "")) {
                                         MacActions.perform("Link Google Tasks") {
                                             _ = try await google.createGoogleTasklistAndLink(listId: list.id, listName: list.name)
                                         }
@@ -92,20 +92,20 @@ struct MacGitHubLinksView: View {
         VStack(alignment: .leading, spacing: 0) {
             header("GitHub Issues")
             Form {
-                Section("Linked Lists") {
+                Section(NSLocalizedString("reminders.linked_lists", comment: "")) {
                     ForEach(realLists) { list in
                         HStack {
                             Text(list.name)
                             Spacer()
                             if let l = MacSyncLinks.link(github.links, for: list.id) {
                                 Text(l.remoteContainerName ?? "Linked").foregroundStyle(Theme.textSecondary)
-                                Button("Unlink", role: .destructive) { _Concurrency.Task { await github.unlink(l.id) } }
+                                Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { _Concurrency.Task { await github.unlink(l.id) } }
                             } else {
-                                TextField("owner/repo", text: Binding(
+                                TextField(NSLocalizedString("mac.owner_repo", comment: ""), text: Binding(
                                     get: { repoDrafts[list.id] ?? "" },
                                     set: { repoDrafts[list.id] = $0 }
                                 )).frame(width: 130)
-                                Button("Link") { linkGitHub(list) }
+                                Button(NSLocalizedString("reminders.link", comment: "")) { linkGitHub(list) }
                                     .disabled((repoDrafts[list.id] ?? "").trimmingCharacters(in: .whitespaces).isEmpty)
                             }
                         }
@@ -143,7 +143,7 @@ private extension View {
             Button {
                 _Concurrency.Task { await sync() }
             } label: {
-                HStack { Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                HStack { Label(NSLocalizedString("sync_now", comment: ""), systemImage: "arrow.triangle.2.circlepath")
                     if isSyncing { Spacer(); ProgressView().controlSize(.small) } }
             }
             .disabled(isSyncing)
@@ -154,6 +154,6 @@ private extension View {
 
 private struct DismissButton: View {
     @Environment(\.dismiss) private var dismiss
-    var body: some View { Button("Done") { dismiss() }.keyboardShortcut(.return) }
+    var body: some View { Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return) }
 }
 #endif

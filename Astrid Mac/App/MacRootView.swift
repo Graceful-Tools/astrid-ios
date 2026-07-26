@@ -107,11 +107,11 @@ struct MacRootView: View {
             move(Set(ids), to: list.id); return true
         }
         .contextMenu {
-            Button("Rename…") { editingList = list }
+            Button(NSLocalizedString("mac.rename_ellipsis", comment: "")) { editingList = list }
             Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
-            Button("Sharing…") { sharingList = list }
+            Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
             Divider()
-            Button("Delete…", role: .destructive) { listToDelete = list }
+            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
         }
     }
 
@@ -193,12 +193,17 @@ struct MacRootView: View {
             // The arrow points at the SELECTED row (a1cb6083): positioned at the row's midY in the
             // content space (minus this pop-out's vertical padding), clamped inside the panel.
             GeometryReader { g in
+                // Convert the row's content-space midY through THIS column's measured origin.
+                // A hardcoded offset was wrong because the panel is centered, so its origin moves
+                // with the panel's height — the arrow aimed at the wrong task (69fd1f19).
+                let originY = g.frame(in: .named("contentArea")).minY
                 MacPopoverArrow()
                     .fill(MacDetailChrome.background)
                     .frame(width: 12, height: 24)
                     .shadow(color: .black.opacity(0.12), radius: 3, x: -1, y: 0)
-                    .position(x: 6, y: MacSelectionModel.arrowY(rowMidY: (selectedRowMidY ?? g.size.height / 2) - 14,
-                                                                panelHeight: g.size.height))
+                    .position(x: 6, y: MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
+                                                                     panelOriginY: originY,
+                                                                     panelHeight: g.size.height))
                     .animation(MacMotion.fast, value: selectedRowMidY)
             }
             .frame(width: 12)
@@ -220,7 +225,7 @@ struct MacRootView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
-                TextField("Search all tasks…", text: $taskSearchQuery).textFieldStyle(.plain)
+                TextField(NSLocalizedString("mac.search_all_tasks", comment: ""), text: $taskSearchQuery).textFieldStyle(.plain)
                     .accessibilityIdentifier("search.field")
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
@@ -233,7 +238,7 @@ struct MacRootView: View {
             let results = MacTaskSearch.matches(taskService.tasks, query: debouncedSearchQuery)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                 ContentUnavailableView("Search your tasks", systemImage: "magnifyingglass",
-                                       description: Text("Find any task across every list, including completed."))
+                                       description: Text(NSLocalizedString("mac.search_hint", comment: "")))
             } else if results.isEmpty {
                 ContentUnavailableView.search(text: taskSearchQuery)
             } else {
@@ -292,13 +297,13 @@ struct MacRootView: View {
         HStack(spacing: 8) {
             Image(systemName: "plus.circle.fill").foregroundStyle(Theme.accent)
             // Wraps + expands vertically for long titles (a02a6819); Return still commits.
-            TextField("Add a task…  (try “Report friday #work urgent”)", text: $draftTitle, axis: .vertical)
+            TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
                 .focused($addFieldFocused)
                 .onSubmit(commitDraft)
-                .accessibilityLabel("Add a task")
+                .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
         }
         .padding(.horizontal, 13).padding(.vertical, 10)
@@ -387,19 +392,19 @@ struct MacRootView: View {
             Button(task.completed ? "Mark Incomplete" : "Complete") {
                 targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
             }
-            Button("Rename") { beginInlineEdit(task) }
-            Menu("Set Priority") {
+            Button(NSLocalizedString("mac.rename", comment: "")) { beginInlineEdit(task) }
+            Menu(NSLocalizedString("mac.set_priority", comment: "")) {
                 ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
                     Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(targets, p) }
                 }
             }
-            Menu("Move to List") {
+            Menu(NSLocalizedString("mac.move_to_list", comment: "")) {
                 ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
                     Button(list.name) { move(targets, to: list.id) }
                 }
             }
             Divider()
-            Button("Delete", role: .destructive) { bulkDelete(targets) }
+            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { bulkDelete(targets) }
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
@@ -428,22 +433,35 @@ struct MacRootView: View {
         }
     }
 
-    /// Sort control (retains the table's "nice sort", without the table chrome). Empty override =
-    /// follow the list's own saved sort; a pick overrides it for this window.
+    /// Sort control. On a REAL list a pick is saved to the list (`sortBy`) through the canonical
+    /// service, so it persists and syncs to iOS/web — iOS behaves the same way. Previously every
+    /// pick was a window-local override that never left the Mac (task 2b886104). Virtual/saved
+    /// selections own no list, so those keep the local override.
     private var sortMenu: some View {
         Menu {
-            Picker("Sort", selection: $taskSortOverride) {
-                Text("List Default").tag("")
-                Text("Smart (Auto)").tag("auto")
-                Text("Priority").tag("priority")
-                Text("Due Date").tag("when")
-                Text("Recently Created").tag("createdAt")
-                Text("Manual").tag("manual")
+            if let list = currentRealList {
+                Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
+                    get: { list.sortBy ?? "auto" },
+                    set: { newValue in
+                        taskSortOverride = ""          // the list's own sort is authoritative again
+                        MacActions.perform("Update sort") {
+                            _ = try await ListService.shared.updateListAdvanced(
+                                listId: list.id, updates: ["sortBy": newValue])
+                        }
+                    }
+                )) {
+                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
+                }
+            } else {
+                Picker(NSLocalizedString("actions.sort", comment: ""), selection: $taskSortOverride) {
+                    Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
+                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
+                }
             }
         } label: {
-            Label("Sort", systemImage: "arrow.up.arrow.down")
+            Label(NSLocalizedString("actions.sort", comment: ""), systemImage: "arrow.up.arrow.down")
         }
-        .help("Sort tasks")
+        .help(NSLocalizedString("mac.sort_tasks", comment: ""))
     }
 
     private func bulkComplete(_ ids: Set<String>) {
@@ -532,7 +550,7 @@ struct MacRootView: View {
                     // isn't reliably selectable in List(selection:); ForEach gives it row identity.
                     ForEach([Self.myTasksId], id: \.self) { _ in
                         Label {
-                            Text("My Tasks")
+                            Text(NSLocalizedString("navigation.my_tasks", comment: ""))
                         } icon: {
                             Circle().fill(Theme.accent).frame(width: 12, height: 12)
                         }
@@ -542,18 +560,18 @@ struct MacRootView: View {
                     }
                     // Global search across ALL tasks incl. completed (Task 36587d3d).
                     ForEach([Self.searchId], id: \.self) { _ in
-                        Label("Search", systemImage: "magnifyingglass")
+                        Label(NSLocalizedString("actions.search", comment: ""), systemImage: "magnifyingglass")
                             .tag(Optional(Self.searchId))
                             .accessibilityIdentifier("sidebar.search")
                     }
                 }
                 if !favoriteLists.isEmpty {
-                    Section("Favorites") { ForEach(favoriteLists) { listRow($0) } }
+                    Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
-                Section("Lists") {
+                Section(NSLocalizedString("navigation.lists", comment: "")) {
                     ForEach(regularLists) { listRow($0) }
                     if regularLists.isEmpty && !listSearch.isEmpty {
-                        Text("No lists match “\(listSearch)”").foregroundStyle(Theme.textMuted).font(.callout)
+                        Text(String(format: NSLocalizedString("mac.no_lists_match", comment: ""), listSearch)).foregroundStyle(Theme.textMuted).font(.callout)
                     }
                 }
             }
@@ -570,12 +588,12 @@ struct MacRootView: View {
             .toolbar {
                 ToolbarItem {
                     Button { showNewList = true } label: { Image(systemName: "plus") }
-                        .help("New List")
+                        .help(NSLocalizedString("lists.new_list", comment: ""))
                         .accessibilityIdentifier("sidebar.newList")
                 }
                 ToolbarItem {
                     Button { showPublicLists = true } label: { Image(systemName: "globe") }
-                        .help("Browse Public Lists")
+                        .help(NSLocalizedString("mac.browse_public_lists", comment: ""))
                 }
             }
         } detail: {
@@ -617,7 +635,7 @@ struct MacRootView: View {
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("View", selection: $contentMode) {
+                    Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
                         Image(systemName: "list.bullet").tag(ContentMode.list)
                         Image(systemName: "square.grid.2x2").tag(ContentMode.board)
                         if !chatColumnVisible {   // chat is a persistent column in 3-column mode
@@ -638,16 +656,16 @@ struct MacRootView: View {
                                                                    priority: list.filterPriority,
                                                                    dueDate: list.filterDueDate,
                                                                    assignee: list.filterAssignee)
-                            Label("Filter", systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
+                            Label(NSLocalizedString("actions.filter", comment: ""), systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
                                                                      : "line.3.horizontal.decrease.circle")
                         }
-                        .help("Filter tasks")
+                        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button { newTask() } label: { Label("New Task", systemImage: "plus") }
+                    Button { newTask() } label: { Label(NSLocalizedString("tasks.new_task", comment: ""), systemImage: "plus") }
                         .disabled(selectedListId == nil || selectionIsVirtual)
-                        .help("New Task")
+                        .help(NSLocalizedString("tasks.new_task", comment: ""))
                         .accessibilityIdentifier("tasks.newTask")
                 }
                 if selectedTaskIds.count > 1 && contentMode == .list {
@@ -756,13 +774,13 @@ struct MacRootView: View {
                                                  set: { if !$0 { listToDelete = nil } }),
                             presenting: listToDelete) { list in
             Button("Delete “\(list.name)”", role: .destructive) { deleteList(list) }
-            Button("Cancel", role: .cancel) {}
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
         }
         .safeAreaInset(edge: .bottom) {
             if !network.isConnected {
                 HStack(spacing: 6) {
                     Image(systemName: "wifi.slash")
-                    Text("Offline — changes will sync when reconnected")
+                    Text(NSLocalizedString("mac.offline_banner", comment: ""))
                 }
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)

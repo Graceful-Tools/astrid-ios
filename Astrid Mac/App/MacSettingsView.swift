@@ -14,50 +14,50 @@ struct MacSettingsView: View {
     var body: some View {
         TabView {
             Form {
-                Section("Appearance") {
-                    Picker("Theme", selection: $themeMode) {
+                Section(NSLocalizedString("appearance", comment: "")) {
+                    Picker(NSLocalizedString("settings.appearance.theme", comment: ""), selection: $themeMode) {
                         ForEach(ThemeMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .pickerStyle(.inline)
                 }
-                Section("Tasks") {
+                Section(NSLocalizedString("tasks.tasks", comment: "")) {
                     // Smart Task Creation — gates the shared SmartTaskParser in quick-add (a840511d).
-                    Toggle("Smart Task Creation", isOn: Binding(
+                    Toggle(NSLocalizedString("smart_task_creations", comment: ""), isOn: Binding(
                         get: { userSettings.smartTaskCreationEnabled },
                         set: { userSettings.smartTaskCreationEnabled = $0 }
                     ))
-                    Text("Parse dates, priorities, and #lists from what you type.")
+                    Text(NSLocalizedString("mac.smart_parse_hint", comment: ""))
                         .font(.caption).foregroundStyle(Theme.textMuted)
                     // Sub-tasks display (consumed by the list's subtask rendering, 3c945236).
-                    Picker("Sub-tasks", selection: Binding(
+                    Picker(NSLocalizedString("mac.subtasks", comment: ""), selection: Binding(
                         get: { userSettings.settings.subtaskDisplay ?? "indented" },
                         set: { userSettings.updateSettings(UserSettings(subtaskDisplay: $0)) }
                     )) {
-                        Text("In lists, indented").tag("indented")
-                        Text("Inside parent task only").tag("under_parent")
+                        Text(NSLocalizedString("settings.subtasks.indented", comment: "")).tag("indented")
+                        Text(NSLocalizedString("settings.subtasks.under_parent", comment: "")).tag("under_parent")
                     }
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .tabItem { Label("General", systemImage: "gearshape") }
+            .tabItem { Label(NSLocalizedString("mac.general", comment: ""), systemImage: "gearshape") }
 
             MacReminderSettingsView()
-                .tabItem { Label("Reminders", systemImage: "bell") }
+                .tabItem { Label(NSLocalizedString("reminders", comment: ""), systemImage: "bell") }
 
             MacSyncSettingsView()
-                .tabItem { Label("Sync", systemImage: "arrow.triangle.2.circlepath") }
+                .tabItem { Label(NSLocalizedString("sync", comment: ""), systemImage: "arrow.triangle.2.circlepath") }
 
             MacAISettingsView()
-                .tabItem { Label("AI", systemImage: "sparkles") }
+                .tabItem { Label(NSLocalizedString("mac.ai", comment: ""), systemImage: "sparkles") }
 
             MacLanguageSettingsView()
-                .tabItem { Label("Language", systemImage: "globe") }
+                .tabItem { Label(NSLocalizedString("language", comment: ""), systemImage: "globe") }
 
             MacConnectionSettingsView()
-                .tabItem { Label("Connection", systemImage: "network") }
+                .tabItem { Label(NSLocalizedString("Connection", comment: ""), systemImage: "network") }
 
             MacAccountView()
-                .tabItem { Label("Account", systemImage: "person.circle") }
+                .tabItem { Label(NSLocalizedString("account", comment: ""), systemImage: "person.circle") }
         }
         .frame(width: 500, height: 380)
     }

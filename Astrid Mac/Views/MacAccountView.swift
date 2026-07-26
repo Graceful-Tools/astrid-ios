@@ -17,7 +17,7 @@ struct MacAccountView: View {
 
     var body: some View {
         Form {
-            Section("Profile") {
+            Section(NSLocalizedString("profile.title", comment: "")) {
                 HStack(spacing: 12) {
                     avatar
                     VStack(alignment: .leading) {
@@ -25,27 +25,27 @@ struct MacAccountView: View {
                         Text(auth.currentUser?.email ?? "").font(.caption).foregroundStyle(Theme.textMuted)
                     }
                 }
-                TextField("Name", text: $name).onSubmit(saveName)
-                if savedFlash { Text("Saved").font(.caption).foregroundStyle(Theme.success) }
+                TextField(NSLocalizedString("settings.account.name_placeholder", comment: ""), text: $name).onSubmit(saveName)
+                if savedFlash { Text(NSLocalizedString("messages.saved", comment: "")).font(.caption).foregroundStyle(Theme.success) }
             }
 
-            Section("Your Data") {
+            Section(NSLocalizedString("settings.account.your_data", comment: "")) {
                 Menu {
-                    Button("Export as JSON") { export(format: "json") }
-                    Button("Export as CSV") { export(format: "csv") }
+                    Button(NSLocalizedString("mac.export_json", comment: "")) { export(format: "json") }
+                    Button(NSLocalizedString("mac.export_csv", comment: "")) { export(format: "csv") }
                 } label: {
-                    HStack { Label("Export Data…", systemImage: "square.and.arrow.up")
+                    HStack { Label(NSLocalizedString("mac.export_data", comment: ""), systemImage: "square.and.arrow.up")
                         if isExporting { Spacer(); ProgressView().controlSize(.small) } }
                 }
                 .disabled(isExporting)
             }
 
             Section {
-                Button("Sign Out") { _Concurrency.Task { try? await auth.signOut() } }
+                Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
             }
 
-            Section("Danger Zone") {
-                Button("Delete Account…", role: .destructive) { showDelete = true }
+            Section(NSLocalizedString("messages.danger_zone", comment: "")) {
+                Button(NSLocalizedString("settings.account.delete_account", comment: ""), role: .destructive) { showDelete = true }
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -97,14 +97,14 @@ struct MacDeleteAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Delete Account").font(.headline).foregroundStyle(Theme.error)
-            Text("This permanently deletes your account and all data. This cannot be undone.")
+            Text(NSLocalizedString("settings.account.delete_account", comment: "")).font(.headline).foregroundStyle(Theme.error)
+            Text(NSLocalizedString("mac.delete_account_warning", comment: ""))
                 .font(.callout).foregroundStyle(Theme.textSecondary)
-            TextField("Type DELETE to confirm", text: $confirm).textFieldStyle(.roundedBorder)
+            TextField(NSLocalizedString("mac.type_delete_confirm", comment: ""), text: $confirm).textFieldStyle(.roundedBorder)
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-                Button("Delete Account", role: .destructive, action: delete)
+                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("settings.account.delete_account", comment: ""), role: .destructive, action: delete)
                     .buttonStyle(.borderedProminent).tint(Theme.error)
                     .disabled(confirm != "DELETE" || working)
             }

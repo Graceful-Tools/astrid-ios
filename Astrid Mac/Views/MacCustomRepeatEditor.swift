@@ -52,31 +52,31 @@ struct MacCustomRepeatEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Custom Repeat").font(.headline)
+            Text(NSLocalizedString("mac.custom_repeat", comment: "")).font(.headline)
 
             HStack {
-                Text("Every")
+                Text(NSLocalizedString("mac.every", comment: ""))
                 Stepper(value: $interval, in: 1...99) { Text("\(interval)") }.frame(width: 90)
                 Picker("", selection: $unit) {
                     ForEach(MacCustomRepeat.units, id: \.self) { Text($0.capitalized).tag($0) }
                 }.labelsHidden().frame(width: 120)
             }
 
-            Picker("Ends", selection: $endCondition) {
-                Text("Never").tag("never")
-                Text("After occurrences").tag("after_occurrences")
-                Text("On date").tag("until_date")
+            Picker(NSLocalizedString("mac.ends", comment: ""), selection: $endCondition) {
+                Text(NSLocalizedString("never", comment: "")).tag("never")
+                Text(NSLocalizedString("mac.after_occurrences", comment: "")).tag("after_occurrences")
+                Text(NSLocalizedString("mac.on_date", comment: "")).tag("until_date")
             }
             if endCondition == "after_occurrences" {
                 Stepper(value: $endAfter, in: 1...999) { Text("\(endAfter) occurrences") }
             } else if endCondition == "until_date" {
-                DatePicker("Until", selection: $endUntil, displayedComponents: [.date])
+                DatePicker(NSLocalizedString("mac.until", comment: ""), selection: $endUntil, displayedComponents: [.date])
             }
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-                Button("Save") {
+                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("actions.save", comment: "")) {
                     onSave(MacCustomRepeat.make(interval: interval, unit: unit,
                                                 endCondition: endCondition, endAfter: endAfter, endUntil: endUntil))
                     dismiss()

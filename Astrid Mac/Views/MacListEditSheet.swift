@@ -31,32 +31,32 @@ struct MacListEditSheet: View {
             Text(existing == nil ? "New List" : "Edit List")
                 .font(.headline).foregroundStyle(Theme.textPrimary)
 
-            TextField("List name", text: $name)
+            TextField(NSLocalizedString("lists.list_name", comment: ""), text: $name)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("listEdit.name")
                 .onSubmit { if isValid { save() } }
 
-            TextField("Description (optional)", text: $listDescription, axis: .vertical)
+            TextField(NSLocalizedString("tasks.description", comment: ""), text: $listDescription, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.roundedBorder)
 
             // Image upload — only for an existing list (upload needs the list id). Task 383b96af.
             if let e = existing {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Image").font(.caption).foregroundStyle(Theme.textSecondary)
+                    Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
                     HStack(spacing: 10) {
                         imagePreview
                         Button(uploadingImage ? "Uploading…" : "Choose Image…") { pickImage(for: e) }
                             .disabled(uploadingImage)
                         if imageUrl != nil {
-                            Button("Remove") { setImage(nil, for: e) }.foregroundStyle(Theme.error)
+                            Button(NSLocalizedString("actions.remove", comment: "")) { setImage(nil, for: e) }.foregroundStyle(Theme.error)
                         }
                     }
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Color").font(.caption).foregroundStyle(Theme.textSecondary)
+                Text(NSLocalizedString("Color", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 8) {
                     ForEach(Self.palette, id: \.self) { hex in
                         Circle()
@@ -65,7 +65,7 @@ struct MacListEditSheet: View {
                             .overlay(Circle().strokeBorder(Theme.textPrimary,
                                                            lineWidth: hex == color ? 2 : 0))
                             .onTapGesture { color = hex }
-                            .accessibilityLabel(Text("Color \(hex)"))
+                            .accessibilityLabel(Text(String(format: NSLocalizedString("mac.color_label", comment: ""), hex)))
                     }
                 }
             }
@@ -74,16 +74,16 @@ struct MacListEditSheet: View {
             if existing != nil {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("New-task defaults").font(.caption).foregroundStyle(Theme.textSecondary)
-                    Picker("Priority", selection: $defPriority) {
+                    Text(NSLocalizedString("mac.new_task_defaults", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                    Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defPriority) {
                         ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                             Text(MacTaskVisuals.priorityLabel(p)).tag(p.rawValue)
                         }
                     }.onChange(of: defPriority) { saveDefaults() }
-                    Picker("Due date", selection: $defDueDate) {
+                    Picker(NSLocalizedString("lists.due_date", comment: ""), selection: $defDueDate) {
                         ForEach(MacListDefaults.dueDate) { Text($0.label).tag($0.value) }
                     }.onChange(of: defDueDate) { saveDefaults() }
-                    Picker("Repeat", selection: $defRepeating) {
+                    Picker(NSLocalizedString("Repeat", comment: ""), selection: $defRepeating) {
                         ForEach(MacListDefaults.repeating) { Text($0.label).tag($0.value) }
                     }.onChange(of: defRepeating) { saveDefaults() }
                 }
@@ -91,7 +91,7 @@ struct MacListEditSheet: View {
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
                 Button(existing == nil ? "Create" : "Save", action: save)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: [])

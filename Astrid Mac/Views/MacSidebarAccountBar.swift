@@ -22,16 +22,16 @@ struct MacSidebarAccountBar: View {
             }
             Spacer(minLength: 4)
             Menu {
-                Button("Settings…") {
+                Button(NSLocalizedString("settings", comment: "")) {
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
                 Divider()
-                Button("Sign Out") { _Concurrency.Task { try? await auth.signOut() } }
+                Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
             } label: {
                 Image(systemName: "gearshape").foregroundStyle(Theme.textSecondary)
             }
             .menuStyle(.borderlessButton).fixedSize()
-            .help("Account & Settings")
+            .help(NSLocalizedString("mac.account_settings", comment: ""))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Theme.bgPrimary)

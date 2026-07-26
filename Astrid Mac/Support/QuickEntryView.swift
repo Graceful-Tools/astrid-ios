@@ -42,15 +42,15 @@ struct QuickEntryView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            TextField("Add a task…  (try “Report friday #work urgent”)", text: $text, axis: .vertical)
+            TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $text, axis: .vertical)
                 .lineLimit(1...4)   // wraps + expands vertically (a02a6819)
                 .textFieldStyle(.plain)
                 .font(.title2)
                 .onSubmit(save)
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-                Button("Add", action: save).keyboardShortcut(.return, modifiers: [])
+                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("actions.add", comment: ""), action: save).keyboardShortcut(.return, modifiers: [])
                     .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }

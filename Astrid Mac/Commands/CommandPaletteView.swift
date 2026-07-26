@@ -37,7 +37,7 @@ struct CommandPaletteView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Type a command or search tasks & lists…", text: $query)
+            TextField(NSLocalizedString("mac.palette_placeholder", comment: ""), text: $query)
                 .textFieldStyle(.plain)
                 .font(.title2)
                 .padding(16)
@@ -68,7 +68,7 @@ struct CommandPaletteView: View {
             HStack {
                 Label { Text(t.title) } icon: { Image(systemName: "circle") }
                 Spacer()
-                Button("Complete") { complete(t) }.buttonStyle(.borderless).font(.caption)
+                Button(NSLocalizedString("reminders.complete", comment: "")) { complete(t) }.buttonStyle(.borderless).font(.caption)
             }
         }
     }

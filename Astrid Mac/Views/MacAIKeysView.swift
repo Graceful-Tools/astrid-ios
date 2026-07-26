@@ -16,13 +16,13 @@ struct MacAIKeysView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack { Text("AI Keys & Agents").font(.headline); Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.return) }
+            HStack { Text(NSLocalizedString("mac.ai_keys_agents", comment: "")).font(.headline); Spacer(); Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return) }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
             Form {
-                Section("API Keys") {
+                Section(NSLocalizedString("mac.api_keys", comment: "")) {
                     ForEach(MacAIKeys.providers) { p in providerRow(p) }
                 }
-                Section("OpenClaw Agents") {
+                Section(NSLocalizedString("settings.openclaw.section", comment: "")) {
                     ForEach(agents) { a in
                         HStack {
                             VStack(alignment: .leading) {
@@ -30,12 +30,12 @@ struct MacAIKeysView: View {
                                 Text(a.status).font(.caption).foregroundStyle(Theme.textMuted)
                             }
                             Spacer()
-                            Button("Delete", role: .destructive) { deleteAgent(a) }
+                            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteAgent(a) }
                         }
                     }
                     HStack {
-                        TextField("New agent name", text: $newAgentName).textFieldStyle(.roundedBorder)
-                        Button("Register") { registerAgent() }
+                        TextField(NSLocalizedString("mac.new_agent_name", comment: ""), text: $newAgentName).textFieldStyle(.roundedBorder)
+                        Button(NSLocalizedString("mac.register", comment: "")) { registerAgent() }
                             .disabled(newAgentName.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }
@@ -46,8 +46,8 @@ struct MacAIKeysView: View {
         .task { await load() }
         .alert("OpenClaw credentials (save these now)", isPresented: Binding(
             get: { credentials != nil }, set: { if !$0 { credentials = nil } })) {
-            Button("Copy") { if let c = credentials { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(c, forType: .string) } }
-            Button("Done", role: .cancel) {}
+            Button(NSLocalizedString("actions.copy", comment: "")) { if let c = credentials { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(c, forType: .string) } }
+            Button(NSLocalizedString("actions.done", comment: ""), role: .cancel) {}
         } message: { Text(credentials ?? "") }
     }
 
@@ -63,10 +63,10 @@ struct MacAIKeysView: View {
             HStack {
                 SecureField("API key", text: Binding(get: { drafts[p.id] ?? "" }, set: { drafts[p.id] = $0 }))
                     .textFieldStyle(.roundedBorder)
-                Button("Save") { save(p.id) }.disabled((drafts[p.id] ?? "").isEmpty || busy == p.id)
+                Button(NSLocalizedString("actions.save", comment: "")) { save(p.id) }.disabled((drafts[p.id] ?? "").isEmpty || busy == p.id)
                 if status?.hasKey == true {
-                    Button("Test") { test(p.id) }.disabled(busy == p.id)
-                    Button("Delete", role: .destructive) { deleteKey(p.id) }
+                    Button(NSLocalizedString("settings.reminders.test", comment: "")) { test(p.id) }.disabled(busy == p.id)
+                    Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteKey(p.id) }
                 }
                 if busy == p.id { ProgressView().controlSize(.small) }
             }

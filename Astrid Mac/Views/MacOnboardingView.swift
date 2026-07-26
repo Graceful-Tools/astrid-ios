@@ -27,7 +27,7 @@ struct MacOnboardingView: View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
                 Image(systemName: "checklist").font(.system(size: 48)).foregroundStyle(Theme.accent)
-                Text("Welcome to Astrid for Mac").font(.title2.bold())
+                Text(NSLocalizedString("mac.welcome", comment: "")).font(.title2.bold())
             }
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(features) { f in
@@ -40,7 +40,7 @@ struct MacOnboardingView: View {
                     }
                 }
             }
-            Button("Get Started") { dismiss() }
+            Button(NSLocalizedString("mac.get_started", comment: "")) { dismiss() }
                 .buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("onboarding.getStarted")
         }

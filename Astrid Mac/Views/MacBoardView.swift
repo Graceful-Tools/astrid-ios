@@ -39,15 +39,15 @@ struct MacBoardView: View {
                 Spacer()
                 if boardEnabled {
                     Menu {
-                        Button("Disable Board", role: .destructive) { disableBoard() }
+                        Button(NSLocalizedString("mac.disable_board", comment: ""), role: .destructive) { disableBoard() }
                     } label: { Image(systemName: "ellipsis.circle") }.fixedSize()
                 } else {
                     Button { enableBoard() } label: {
-                        HStack { Label("Enable Board", systemImage: "square.grid.2x2")
+                        HStack { Label(NSLocalizedString("mac.enable_board", comment: ""), systemImage: "square.grid.2x2")
                             if boardBusy { ProgressView().controlSize(.small) } }
                     }
                     .disabled(boardBusy)
-                    .help("Create Ready / Doing / Waiting status columns for this list")
+                    .help(NSLocalizedString("mac.board_create_columns_hint", comment: ""))
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
@@ -111,7 +111,7 @@ struct MacBoardView: View {
     @ViewBuilder private func addCardField(_ col: ProjectBoardColumn) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "plus").foregroundStyle(Theme.textMuted).font(.caption)
-            TextField("Add task", text: Binding(
+            TextField(NSLocalizedString("tasks.add_task", comment: ""), text: Binding(
                 get: { draftByColumn[col.id] ?? "" },
                 set: { draftByColumn[col.id] = $0 }
             ))

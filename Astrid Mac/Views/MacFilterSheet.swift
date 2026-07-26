@@ -17,6 +17,9 @@ struct MacFilterSheet: View {
     @State private var priority: String
     @State private var dueDate: String
     @State private var assignee: String
+    @State private var assignedBy: String
+    @State private var repeatingFilter: String
+    @State private var sortBy: String
     @State private var showingSave = false
     @State private var smartListName = ""
 
@@ -26,47 +29,59 @@ struct MacFilterSheet: View {
         _priority   = State(initialValue: list.filterPriority ?? "all")
         _dueDate    = State(initialValue: list.filterDueDate ?? "all")
         _assignee   = State(initialValue: list.filterAssignee ?? "all")
+        _assignedBy = State(initialValue: list.filterAssignedBy ?? "all")
+        _repeatingFilter = State(initialValue: list.filterRepeating ?? "all")
+        _sortBy     = State(initialValue: list.sortBy ?? "auto")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Filter “\(list.name)”").font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name)).font(.headline).foregroundStyle(Theme.textPrimary)
 
             Form {
-                filterPicker("Show", selection: $completion, options: MacListFilter.completion)
-                filterPicker("Priority", selection: $priority, options: MacListFilter.priority)
-                filterPicker("Due", selection: $dueDate, options: MacListFilter.dueDate)
-                filterPicker("Assignee", selection: $assignee, options: MacListFilter.assignee)
+                // Sort lives WITH the filters and is saved on the list, exactly like iOS — the old
+                // Mac sort was a window-local override that never persisted or synced (2b886104).
+                Section(NSLocalizedString("actions.sort", comment: "")) {
+                    filterPicker(NSLocalizedString("lists.sort_by", comment: ""), selection: $sortBy, options: MacListFilter.sort)
+                }
+                Section(NSLocalizedString("lists.filters", comment: "")) {
+                    filterPicker(NSLocalizedString("filters.show", comment: ""), selection: $completion, options: MacListFilter.completion)
+                    filterPicker(NSLocalizedString("tasks.priority", comment: ""), selection: $priority, options: MacListFilter.priority)
+                    filterPicker(NSLocalizedString("mac.due", comment: ""), selection: $dueDate, options: MacListFilter.dueDate)
+                    filterPicker(NSLocalizedString("Assignee", comment: ""), selection: $assignee, options: MacListFilter.assignee)
+                    filterPicker(NSLocalizedString("lists.assigned_by", comment: ""), selection: $assignedBy, options: MacListFilter.assignedBy)
+                    filterPicker(NSLocalizedString("lists.repeating", comment: ""), selection: $repeatingFilter, options: MacListFilter.repeating)
+                }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(height: 190)
+            .frame(height: 320)
 
             // Save the current filters as a reusable Smart List (virtual list), like iOS/web.
             if showingSave {
                 HStack {
-                    TextField("Smart List name", text: $smartListName).textFieldStyle(.roundedBorder)
-                    Button("Create") { saveSmartList() }
+                    TextField(NSLocalizedString("mac.smart_list_name", comment: ""), text: $smartListName).textFieldStyle(.roundedBorder)
+                    Button(NSLocalizedString("actions.create", comment: "")) { saveSmartList() }
                         .buttonStyle(.borderedProminent)
                         .disabled(smartListName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } else {
                 Button {
                     smartListName = list.name; showingSave = true
-                } label: { Label("Save as Smart List…", systemImage: "star") }
+                } label: { Label(NSLocalizedString("filters.save_as_smart_list", comment: ""), systemImage: "star") }
                 .buttonStyle(.link)
                 .disabled(MacListFilter.activeCount(completion: completion, priority: priority,
                                                     dueDate: dueDate, assignee: assignee) == 0)
             }
 
             HStack {
-                Button("Clear filters") {
+                Button(NSLocalizedString("mac.clear_filters", comment: "")) {
                     completion = "default"; priority = "all"; dueDate = "all"; assignee = "all"
                     save()
                 }
                 .disabled(MacListFilter.activeCount(completion: completion, priority: priority,
                                                     dueDate: dueDate, assignee: assignee) == 0)
                 Spacer()
-                Button("Done") { dismiss() }.buttonStyle(.borderedProminent).keyboardShortcut(.return)
+                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.buttonStyle(.borderedProminent).keyboardShortcut(.return)
             }
         }
         .padding(20)
@@ -96,13 +111,17 @@ struct MacFilterSheet: View {
         .onChange(of: selection.wrappedValue) { save() }
     }
 
-    /// Persist all four filter fields through the canonical service (offline-first + server).
+    /// Persist sort + every filter field through the canonical service (offline-first + server),
+    /// so a Mac change syncs to iOS/web exactly like an iOS change does.
     private func save() {
         let updates: [String: Any] = [
+            "sortBy": sortBy,
             "filterCompletion": completion,
             "filterPriority": priority,
             "filterDueDate": dueDate,
             "filterAssignee": assignee,
+            "filterAssignedBy": assignedBy,
+            "filterRepeating": repeatingFilter,
         ]
         MacActions.perform("Update filters") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)

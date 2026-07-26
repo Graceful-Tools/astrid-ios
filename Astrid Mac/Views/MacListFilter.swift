@@ -37,6 +37,24 @@ enum MacListFilter {
         .init("not_current_user", "Someone else"), .init("unassigned", "Unassigned"),
     ]
 
+    /// Sort — the SAME five options iOS offers in ListSortFiltersTab, with iOS's wording.
+    /// Mac used to keep sort in a scene-local override that never touched the list, so a Mac sort
+    /// choice neither persisted nor synced (task 2b886104).
+    static let sort: [Option] = [
+        .init("auto", "Smart (Auto)"), .init("manual", "Manual"), .init("when", "Due Date"),
+        .init("priority", "Priority"), .init("createdAt", "Created Date"),
+    ]
+
+    /// Assigned By (task creator) — iOS parity; Mac had no such filter at all.
+    static let assignedBy: [Option] = [
+        .init("all", "Anyone"), .init("current_user", "Me"), .init("not_current_user", "Someone else"),
+    ]
+
+    /// Repeating status — iOS parity; Mac had no such filter at all.
+    static let repeating: [Option] = [
+        .init("all", "All"), .init("repeating", "Repeating"), .init("not_repeating", "Not repeating"),
+    ]
+
     /// Default (inactive) sentinel for each dimension.
     static func isDefault(_ value: String?, dimension: Dimension) -> Bool {
         let v = value ?? dimension.defaultValue

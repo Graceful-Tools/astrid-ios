@@ -49,7 +49,7 @@ struct MacBoardCardEditor: View {
                     labeled("Priority") { MacPriorityPicker(selection: $priority).onChange(of: priority) { savePriority() } }
                     labeled("Lists") { listChips }
                     labeled("Description") {
-                        TextField("Add a description…", text: $notes, axis: .vertical)
+                        TextField(NSLocalizedString("tasks.placeholder.description", comment: ""), text: $notes, axis: .vertical)
                             .lineLimit(2...6).textFieldStyle(.roundedBorder).onSubmit(saveNotes)
                     }
                     Divider()
@@ -63,8 +63,8 @@ struct MacBoardCardEditor: View {
             Divider()
             HStack(spacing: 8) {
                 Button { attach() } label: { Image(systemName: "paperclip") }
-                    .buttonStyle(.borderless).disabled(attaching).help("Attach a file")
-                TextField("Add a comment…", text: $newComment).textFieldStyle(.plain).onSubmit(postComment)
+                    .buttonStyle(.borderless).disabled(attaching).help(NSLocalizedString("mac.attach_file", comment: ""))
+                TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment).textFieldStyle(.plain).onSubmit(postComment)
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     if timerRunning { Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent) }
                 }
@@ -94,7 +94,7 @@ struct MacBoardCardEditor: View {
             get: { task.assigneeId ?? "" },
             set: { setAssignee($0.isEmpty ? nil : $0) }
         )) {
-            Text("Unassigned").tag("")
+            Text(NSLocalizedString("assignee.unassigned", comment: "")).tag("")
             ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
         }
         .labelsHidden()   // no fixedSize — let it shrink to the column width
@@ -107,7 +107,7 @@ struct MacBoardCardEditor: View {
                 DatePicker("", selection: $due, displayedComponents: [.date, .hourAndMinute])
                     .labelsHidden().onChange(of: due) { saveDue() }
             } else {
-                Text("No date").foregroundStyle(Theme.textMuted).font(.callout)
+                Text(NSLocalizedString("lists.no_date", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
             }
         }
     }
@@ -125,15 +125,15 @@ struct MacBoardCardEditor: View {
     }
 
     @ViewBuilder private var commentsSection: some View {
-        Text("Comments (\(comments.count))").font(.caption).bold().foregroundStyle(Theme.textSecondary)
+        Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count)).font(.caption).bold().foregroundStyle(Theme.textSecondary)
         ForEach(comments) { c in
             VStack(alignment: .leading, spacing: 1) {
                 Text(c.author?.name ?? c.author?.email ?? "Someone").font(.caption2).bold().foregroundStyle(Theme.textSecondary)
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
-        HStack { Button("Open full detail…", action: onOpenPanel).buttonStyle(.link).font(.caption)
-            Spacer(); Button("Done", action: onDone).controlSize(.small) }
+        HStack { Button(NSLocalizedString("mac.open_full_detail", comment: ""), action: onOpenPanel).buttonStyle(.link).font(.caption)
+            Spacer(); Button(NSLocalizedString("actions.done", comment: ""), action: onDone).controlSize(.small) }
     }
 
     // MARK: data

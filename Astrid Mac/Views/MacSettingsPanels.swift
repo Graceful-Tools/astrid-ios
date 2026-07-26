@@ -14,24 +14,24 @@ struct MacReminderSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Notifications") {
-                Toggle("Push reminders", isOn: $s.pushEnabled)
-                Toggle("Email reminders", isOn: $s.emailEnabled)
-                Picker("Default reminder", selection: $s.defaultReminderOffset) {
+            Section(NSLocalizedString("Notifications", comment: "")) {
+                Toggle(NSLocalizedString("mac.push_reminders", comment: ""), isOn: $s.pushEnabled)
+                Toggle(NSLocalizedString("mac.email_reminders", comment: ""), isOn: $s.emailEnabled)
+                Picker(NSLocalizedString("mac.default_reminder", comment: ""), selection: $s.defaultReminderOffset) {
                     ForEach(ReminderOffset.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
             }
-            Section("Daily digest") {
-                Toggle("Enabled", isOn: $s.dailyDigestEnabled)
+            Section(NSLocalizedString("settings.reminders.daily_digest", comment: "")) {
+                Toggle(NSLocalizedString("mac.enabled", comment: ""), isOn: $s.dailyDigestEnabled)
                 if s.dailyDigestEnabled {
-                    DatePicker("Time", selection: $s.dailyDigestTime, displayedComponents: .hourAndMinute)
+                    DatePicker(NSLocalizedString("mac.time", comment: ""), selection: $s.dailyDigestTime, displayedComponents: .hourAndMinute)
                 }
             }
-            Section("Quiet hours") {
-                Toggle("Enabled", isOn: $s.quietHoursEnabled)
+            Section(NSLocalizedString("settings.reminders.quiet_hours", comment: "")) {
+                Toggle(NSLocalizedString("mac.enabled", comment: ""), isOn: $s.quietHoursEnabled)
                 if s.quietHoursEnabled {
-                    DatePicker("From", selection: $s.quietHoursStart, displayedComponents: .hourAndMinute)
-                    DatePicker("To", selection: $s.quietHoursEnd, displayedComponents: .hourAndMinute)
+                    DatePicker(NSLocalizedString("mac.from", comment: ""), selection: $s.quietHoursStart, displayedComponents: .hourAndMinute)
+                    DatePicker(NSLocalizedString("mac.to", comment: ""), selection: $s.quietHoursEnd, displayedComponents: .hourAndMinute)
                 }
             }
         }
@@ -57,14 +57,14 @@ struct MacLanguageSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Language") {
-                Picker("App language", selection: $language) {
+            Section(NSLocalizedString("language", comment: "")) {
+                Picker(NSLocalizedString("mac.app_language", comment: ""), selection: $language) {
                     ForEach(codes, id: \.self) { code in
                         Text(Locale.current.localizedString(forLanguageCode: code)?.capitalized ?? code).tag(code)
                     }
                 }
                 .onChange(of: language) { LocalizationManager.shared.setLanguage(language) }
-                Text("Some changes take effect after relaunch.")
+                Text(NSLocalizedString("mac.relaunch_note", comment: ""))
                     .font(.caption).foregroundStyle(Theme.textMuted)
             }
         }
@@ -79,7 +79,7 @@ struct MacConnectionSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Connection") {
+            Section(NSLocalizedString("Connection", comment: "")) {
                 LabeledContent("Mode", value: conn.currentMode.displayName)
                 LabeledContent("Server", value: Constants.API.baseURL)
             }
@@ -130,13 +130,13 @@ struct MacSyncSettingsView: View {
                             disconnect: { await github.disconnect() },
                             refresh: { await github.refreshStatus() },
                             manage: { showGitHubLinks = true })
-            Section("Apple Reminders") {
+            Section(NSLocalizedString("apple_reminders", comment: "")) {
                 HStack {
                     Circle().fill(MacRemindersStatus.isGranted(apple.authorizationStatus) ? Theme.success : Theme.textMuted)
                         .frame(width: 8, height: 8)
                     Text(MacRemindersStatus.label(apple.authorizationStatus)).foregroundStyle(Theme.textPrimary)
                     Spacer()
-                    Button("Manage…") { showReminders = true }
+                    Button(NSLocalizedString("mac.manage", comment: "")) { showReminders = true }
                 }
                 if apple.linkedListCount > 0 { LabeledContent("Linked lists", value: "\(apple.linkedListCount)") }
                 if let d = apple.lastSyncDate { LabeledContent("Last sync") { Text(d, style: .relative) } }
@@ -190,18 +190,18 @@ struct MacSyncSettingsView: View {
                 if isConnecting { ProgressView().controlSize(.small) }
                 Spacer()
                 if connected {
-                    Button("Disconnect", role: .destructive) { _Concurrency.Task { await disconnect() } }
+                    Button(NSLocalizedString("sync.disconnect", comment: ""), role: .destructive) { _Concurrency.Task { await disconnect() } }
                 } else {
                     // Manual re-check in case the browser round-trip already finished.
                     if let refresh {
                         Button { _Concurrency.Task { await refresh() } } label: { Image(systemName: "arrow.clockwise") }
-                            .buttonStyle(.borderless).help("Refresh connection status")
+                            .buttonStyle(.borderless).help(NSLocalizedString("mac.refresh_connection", comment: ""))
                     }
-                    Button("Connect") { _Concurrency.Task { await connect() } }.disabled(isConnecting)
+                    Button(NSLocalizedString("mac.connect", comment: "")) { _Concurrency.Task { await connect() } }.disabled(isConnecting)
                 }
             }
             if connected, let manage {
-                Button("Manage links…") { manage() }
+                Button(NSLocalizedString("mac.manage_links", comment: "")) { manage() }
             }
             if let d = lastSync { LabeledContent("Last sync") { Text(d, style: .relative) } }
         }
@@ -219,16 +219,16 @@ struct MacAISettingsView: View {
 
     var body: some View {
         Form {
-            Section("API Keys & Agents") {
-                Button("Manage API keys & OpenClaw agents…") { showKeys = true }
+            Section(NSLocalizedString("mac.api_keys_agents", comment: "")) {
+                Button(NSLocalizedString("mac.manage_api_keys", comment: "")) { showKeys = true }
             }
-            Section("AI Assistant") {
+            Section(NSLocalizedString("ai_assistant", comment: "")) {
                 if let s = settings {
-                    Picker("Default agent", selection: Binding(
+                    Picker(NSLocalizedString("settings.default_agent.title", comment: ""), selection: Binding(
                         get: { s.defaultAgentId ?? "" },
                         set: { newId in if !newId.isEmpty { save(agentId: newId) } }
                     )) {
-                        if s.defaultAgentId == nil { Text("None").tag("") }
+                        if s.defaultAgentId == nil { Text(NSLocalizedString("lists.none", comment: "")).tag("") }
                         ForEach(agents) { a in
                             Text("\(a.name) · \(a.serviceDisplayName)").tag(a.id)
                         }
@@ -237,9 +237,9 @@ struct MacAISettingsView: View {
                     if isSaving { ProgressView().controlSize(.small) }
                 } else if loadFailed {
                     HStack {
-                        Text("Couldn’t load AI settings.").foregroundStyle(Theme.error)
+                        Text(NSLocalizedString("mac.ai_settings_load_failed", comment: "")).foregroundStyle(Theme.error)
                         Spacer()
-                        Button("Retry") { _Concurrency.Task { await load() } }
+                        Button(NSLocalizedString("actions.retry", comment: "")) { _Concurrency.Task { await load() } }
                     }
                 } else {
                     ProgressView().controlSize(.small)
@@ -289,8 +289,8 @@ struct MacPublicListsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Browse Public Lists").font(.headline).foregroundStyle(Theme.textPrimary)
-            TextField("Search", text: $query).textFieldStyle(.roundedBorder)
+            Text(NSLocalizedString("mac.browse_public_lists", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+            TextField(NSLocalizedString("actions.search", comment: ""), text: $query).textFieldStyle(.roundedBorder)
             List(filtered, id: \.id) { l in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -301,16 +301,16 @@ struct MacPublicListsView: View {
                     }
                     Spacer()
                     if addedIds.contains(l.id) {
-                        Label("Added", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.success)
+                        Label(NSLocalizedString("mac.added", comment: ""), systemImage: "checkmark.circle.fill").foregroundStyle(Theme.success)
                     } else if copyingId == l.id {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button("Add") { copy(l) }
+                        Button(NSLocalizedString("actions.add", comment: "")) { copy(l) }
                     }
                 }
             }
             .frame(minHeight: 260)
-            HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.return, modifiers: []) }
+            HStack { Spacer(); Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return, modifiers: []) }
         }
         .padding(20)
         .frame(width: 460)

@@ -35,34 +35,34 @@ struct MacAppleRemindersView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Apple Reminders").font(.headline)
+                Text(NSLocalizedString("apple_reminders", comment: "")).font(.headline)
                 Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.return)
+                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
 
             Form {
-                Section("Access") {
+                Section(NSLocalizedString("mac.access", comment: "")) {
                     HStack {
                         Circle().fill(granted ? Theme.success : Theme.textMuted).frame(width: 8, height: 8)
                         Text(MacRemindersStatus.label(apple.authorizationStatus)).foregroundStyle(Theme.textPrimary)
                         Spacer()
                         if !granted {
-                            Button("Enable Access") { _Concurrency.Task { _ = await apple.requestAccess() } }
+                            Button(NSLocalizedString("mac.enable_access", comment: "")) { _Concurrency.Task { _ = await apple.requestAccess() } }
                         }
                     }
                 }
 
                 if granted {
-                    Section("Linked Lists") {
+                    Section(NSLocalizedString("reminders.linked_lists", comment: "")) {
                         ForEach(realLists) { list in linkRow(list) }
-                        if realLists.isEmpty { Text("No lists to link").foregroundStyle(Theme.textMuted) }
+                        if realLists.isEmpty { Text(NSLocalizedString("mac.no_lists_to_link", comment: "")).foregroundStyle(Theme.textMuted) }
                     }
                     Section {
                         Button {
                             _Concurrency.Task { try? await apple.syncAllLinkedLists() }
                         } label: {
-                            HStack { Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                            HStack { Label(NSLocalizedString("sync_now", comment: ""), systemImage: "arrow.triangle.2.circlepath")
                                 if apple.isSyncing { Spacer(); ProgressView().controlSize(.small) } }
                         }
                         .disabled(apple.isSyncing || apple.linkedListCount == 0)
@@ -82,27 +82,27 @@ struct MacAppleRemindersView: View {
             Spacer()
             if let link = apple.linkedLists[list.id] {
                 Menu(link.reminderCalendarTitle) {
-                    Picker("Direction", selection: Binding(
+                    Picker(NSLocalizedString("mac.direction", comment: ""), selection: Binding(
                         get: { link.syncDirection },
                         set: { apple.updateLinkSettings(list.id, syncDirection: $0) }
                     )) {
                         ForEach(SyncDirection.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
-                    Toggle("Include completed", isOn: Binding(
+                    Toggle(NSLocalizedString("mac.include_completed", comment: ""), isOn: Binding(
                         get: { link.includeCompletedTasks },
                         set: { apple.updateLinkSettings(list.id, includeCompletedTasks: $0) }
                     ))
                     Divider()
-                    Button("Unlink", role: .destructive) { apple.unlinkList(list.id) }
+                    Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { apple.unlinkList(list.id) }
                 }
                 .fixedSize()
             } else {
-                Menu("Link…") {
+                Menu(NSLocalizedString("reminders.link", comment: "")) {
                     ForEach(apple.getRemindersCalendars(), id: \.calendarIdentifier) { cal in
                         Button(cal.title) { link(list, to: cal) }
                     }
                     Divider()
-                    Button("Create Reminders List") { createAndLink(list) }
+                    Button(NSLocalizedString("mac.create_reminders_list", comment: "")) { createAndLink(list) }
                 }
                 .fixedSize()
             }

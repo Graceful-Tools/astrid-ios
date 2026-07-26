@@ -38,7 +38,7 @@ struct MacChatPanelView: View {
             case .spinner:
                 VStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Loading messages…").font(.caption).foregroundStyle(Theme.textMuted)
+                    Text(NSLocalizedString("mac.loading_messages", comment: "")).font(.caption).foregroundStyle(Theme.textMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .empty:
@@ -49,7 +49,7 @@ struct MacChatPanelView: View {
                     if hasMore {
                         Button(action: loadEarlier) {
                             if loadingMore { ProgressView().controlSize(.small) }
-                            else { Text("Load earlier messages").font(.callout) }
+                            else { Text(NSLocalizedString("chat.load_earlier", comment: "")).font(.callout) }
                         }
                         .buttonStyle(.borderless).padding(.vertical, 6)
                     }
@@ -95,7 +95,7 @@ struct MacChatPanelView: View {
                 if let r = replyingTo {
                     HStack(spacing: 6) {
                         Image(systemName: "arrowshape.turn.up.left").foregroundStyle(Theme.accent).font(.caption)
-                        Text("Replying to \(r.author?.displayName ?? "message"): \(r.content)")
+                        Text(String(format: NSLocalizedString("mac.replying_to", comment: ""), r.author?.displayName ?? "message", r.content))
                             .font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
                         Button { replyingTo = nil } label: { Image(systemName: "xmark.circle.fill") }
@@ -106,13 +106,13 @@ struct MacChatPanelView: View {
                 HStack {
                     Button { attachFile() } label: { Image(systemName: "paperclip") }
                         .buttonStyle(.borderless).disabled(channelId == nil || attaching)
-                        .help("Attach a file")
+                        .help(NSLocalizedString("mac.attach_file", comment: ""))
                     if attaching { ProgressView().controlSize(.small) }
-                    TextField("Message…  (@ mention, # list, ! task)", text: $text)
+                    TextField(NSLocalizedString("mac.message_placeholder", comment: ""), text: $text)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit(send)
                         .onChange(of: text) { updateSuggestions() }
-                    Button("Send", action: send).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button(NSLocalizedString("chat.send", comment: ""), action: send).disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(8)
             }
@@ -194,7 +194,7 @@ struct MacChatPanelView: View {
                     }
                     if let d = m.createdAt { Text(d, style: .relative).font(.caption2).foregroundStyle(Theme.textMuted) }
                     if isPending(m) {
-                        Label("Sending…", systemImage: "clock").labelStyle(.titleOnly)
+                        Label(NSLocalizedString("mac.sending", comment: ""), systemImage: "clock").labelStyle(.titleOnly)
                             .font(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
@@ -210,13 +210,13 @@ struct MacChatPanelView: View {
         .contentShape(Rectangle())
         .macHoverHighlight()   // hover affordance surfaces the context-menu interactivity (77225941)
         .contextMenu {
-            Button("Copy") {
+            Button(NSLocalizedString("actions.copy", comment: "")) {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(m.content, forType: .string)
             }
-            Button("Reply") { replyingTo = m }
+            Button(NSLocalizedString("mac.reply", comment: "")) { replyingTo = m }
             if MacChatActions.canDelete(authorId: m.authorId, currentUserId: auth.userId, isPending: isPending(m)) {
                 Divider()
-                Button("Delete", role: .destructive) { deleteMessage(m) }
+                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteMessage(m) }
             }
         }
     }

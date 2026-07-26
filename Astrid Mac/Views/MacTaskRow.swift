@@ -86,7 +86,7 @@ struct MacTaskRow: View {
 
             let content = VStack(alignment: .leading, spacing: 4) {
                 if isEditing {
-                    TextField("Title", text: $editingTitle)
+                    TextField(NSLocalizedString("mac.title", comment: ""), text: $editingTitle)
                         .textFieldStyle(.plain)
                         .font(MacTypography.rowTitle)
                         .onSubmit(onCommitEdit)
