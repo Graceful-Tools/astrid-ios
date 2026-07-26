@@ -130,4 +130,83 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[taskTitle].firstMatch.waitForExistence(timeout: 10),
                       "Quick-added task should appear as a row")
     }
+
+    /// Regression for task 652edb22 — "[Mac] The check box doesn't work!".
+    /// Clicking a row's checkbox must complete the task. The row carries its own tap gesture for
+    /// selection, which can swallow the checkbox Button's click.
+    @MainActor
+    func testCheckboxCompletesTask() {
+        let app = enterOfflineShell()
+        let listName = "UITest List \(Int.random(in: 1000...9999))"
+        let taskTitle = "UITest check \(Int.random(in: 1000...9999))"
+
+        app.descendants(matching: .any).matching(identifier: "sidebar.newList").firstMatch.click()
+        let nameField = app.descendants(matching: .any).matching(identifier: "listEdit.name").firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 10))
+        nameField.click()
+        nameField.typeText(listName)
+        app.buttons["Create"].firstMatch.click()
+
+        let sidebarSearch = app.searchFields.firstMatch
+        if sidebarSearch.waitForExistence(timeout: 5) {
+            sidebarSearch.click()
+            sidebarSearch.typeText(listName)
+        }
+        let listRow = app.staticTexts[listName].firstMatch
+        XCTAssertTrue(listRow.waitForExistence(timeout: 10))
+        listRow.click()
+
+        app.activate()
+        let quickAdd = app.descendants(matching: .any).matching(identifier: "tasks.quickAdd").firstMatch
+        XCTAssertTrue(quickAdd.waitForExistence(timeout: 10))
+        quickAdd.click()
+        quickAdd.typeText(taskTitle + "\n")
+        XCTAssertTrue(app.staticTexts[taskTitle].firstMatch.waitForExistence(timeout: 10))
+
+        // The checkbox announces its state through its accessibility label.
+        // Diagnostic: click the title first (row-content selection tap) so the log shows whether
+        // ANY interaction inside a row reaches the app.
+        app.staticTexts[taskTitle].firstMatch.click()
+
+        let unchecked = app.buttons["Not completed, mark complete"].firstMatch
+        XCTAssertTrue(unchecked.waitForExistence(timeout: 10),
+                      "New task should show an unchecked checkbox")
+        unchecked.click()
+
+        XCTAssertTrue(app.buttons["Completed, mark incomplete"].firstMatch.waitForExistence(timeout: 10),
+                      "Clicking the checkbox must complete the task (task 652edb22)")
+    }
+
+    /// TEMPORARY diagnostic — completes via the context menu (no gesture conflict) to tell a
+    /// hit-testing problem apart from a completion-path problem.
+    @MainActor
+    func testDiagnoseCompletionViaContextMenu() {
+        let app = enterOfflineShell()
+        let listName = "UITest List \(Int.random(in: 1000...9999))"
+        let taskTitle = "UITest ctx \(Int.random(in: 1000...9999))"
+        app.descendants(matching: .any).matching(identifier: "sidebar.newList").firstMatch.click()
+        let nameField = app.descendants(matching: .any).matching(identifier: "listEdit.name").firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 10))
+        nameField.click(); nameField.typeText(listName)
+        app.buttons["Create"].firstMatch.click()
+        let sidebarSearch = app.searchFields.firstMatch
+        if sidebarSearch.waitForExistence(timeout: 5) { sidebarSearch.click(); sidebarSearch.typeText(listName) }
+        let listRow = app.staticTexts[listName].firstMatch
+        XCTAssertTrue(listRow.waitForExistence(timeout: 10)); listRow.click()
+        app.activate()
+        let quickAdd = app.descendants(matching: .any).matching(identifier: "tasks.quickAdd").firstMatch
+        XCTAssertTrue(quickAdd.waitForExistence(timeout: 10))
+        quickAdd.click(); quickAdd.typeText(taskTitle + "\n")
+        let row = app.staticTexts[taskTitle].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.rightClick()
+        let complete = app.menuItems["Complete"].firstMatch
+        XCTAssertTrue(complete.waitForExistence(timeout: 5), "context menu should offer Complete")
+        complete.click()
+        let done = app.buttons["Completed, mark incomplete"].firstMatch.waitForExistence(timeout: 10)
+        if !done {
+            let tree = app.debugDescription
+            XCTFail("DIAGNOSTIC tree after completion attempt:\n" + String(tree.prefix(6000)))
+        }
+    }
 }

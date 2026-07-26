@@ -20,6 +20,10 @@ struct MacTaskRow: View {
     let onToggle: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
+    /// Selection tap. Owned by the row's CONTENT rather than the whole row so it cannot swallow
+    /// the checkbox's click — a row-level `.onTapGesture` did exactly that, leaving the checkbox
+    /// dead (task 652edb22).
+    var onSelect: () -> Void = {}
 
     @ObservedObject private var listService = ListService.shared
     @ObservedObject private var auth = AuthManager.shared
@@ -53,16 +57,22 @@ struct MacTaskRow: View {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: 20)
             } else {
-                Button(action: onToggle) {
-                    MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
-                }
-                .buttonStyle(.plain)
-                .macPointingHand()
-                .help(task.completed ? "Mark incomplete" : "Mark complete")
-                .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
+                // A `Button` here NEVER fires: inside a macOS `List` row the cell's own click
+                // handling swallows it, so the checkbox was dead (task 652edb22). Gestures DO
+                // receive clicks in these rows (row selection has always worked), so the checkbox
+                // is a tap gesture that keeps full button semantics for VoiceOver and UI tests.
+                MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onToggle)
+                    .macPointingHand()
+                    .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    .accessibilityElement()
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
+                    .accessibilityAction { onToggle() }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            let content = VStack(alignment: .leading, spacing: 4) {
                 if isEditing {
                     TextField("Title", text: $editingTitle)
                         .textFieldStyle(.plain)
@@ -103,8 +113,18 @@ struct MacTaskRow: View {
                     }
                 }
             }
-
-            Spacer(minLength: 0)
+            // The tappable selection area is the content + trailing space — everything except the
+            // checkbox/avatar, which keep their own hit target.
+            HStack(spacing: 0) {
+                content
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            // While the title is being edited the row must stay OUT of the way: a drag region over
+            // a TextField turns "drag to select text" into a row drag, so text could not be
+            // selected with the mouse (task 6a7aaf55). Tap-to-select is likewise suppressed so a
+            // click inside the field places the caret instead of re-selecting the row.
+            .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id, onSelect: onSelect))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
@@ -120,6 +140,25 @@ struct MacTaskRow: View {
         .padding(.trailing, 8)
         .padding(.vertical, 3)
         .contentShape(Rectangle())
+    }
+}
+
+/// Row tap-to-select + drag-to-move, applied only when the row is NOT in inline-edit mode.
+/// Drag regions swallow clicks and text-selection drags for everything inside them, so they must
+/// never cover an active text field (tasks 652edb22 / 6a7aaf55).
+struct MacRowInteractions: ViewModifier {
+    let enabled: Bool
+    let dragId: String
+    let onSelect: () -> Void
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .onTapGesture(perform: onSelect)
+                .draggable(dragId)
+        } else {
+            content
+        }
     }
 }
 #endif

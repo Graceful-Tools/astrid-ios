@@ -367,9 +367,16 @@ struct MacRootView: View {
             isSelected: selectedTaskIds.contains(task.id),
             onToggle: { toggleCompleted(task) },
             onCommitEdit: { commitInlineEdit(task) },
-            onCancelEdit: { editingTaskId = nil }
+            onCancelEdit: { editingTaskId = nil },
+            // Selection lives on the row CONTENT (see MacTaskRow): a row-level tap gesture
+            // swallowed the checkbox click and left it dead (task 652edb22).
+            onSelect: {
+                let cmd = NSEvent.modifierFlags.contains(.command)
+                selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
+                scrollAccum = 0
+            }
         )
-        .draggable(task.id)                        // drag onto a sidebar list to move
+        // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
         .dropDestination(for: String.self) { droppedIds, _ in
             guard let dropped = droppedIds.first else { return false }
@@ -396,12 +403,6 @@ struct MacRootView: View {
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
-        // Manual selection (0f695ef2/a1cb6083): tap selects, re-tap closes, ⌘-click multi-selects.
-        .onTapGesture {
-            let cmd = NSEvent.modifierFlags.contains(.command)
-            selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
-            scrollAccum = 0
-        }
         // The selected row reports its vertical center so the pop-out arrow points at it.
         .background(GeometryReader { g in
             Color.clear.preference(key: MacSelectedRowMidYKey.self,
@@ -469,7 +470,11 @@ struct MacRootView: View {
 
     /// Toggle completion from the row glyph (both directions; repeat rollover honored).
     private func toggleCompleted(_ t: Task) {
-        _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: !t.completed, task: t) }
+        // Surface failures instead of swallowing them with `try?` — a silently-failing completion
+        // is indistinguishable from a dead checkbox (task 652edb22).
+        MacActions.perform("Complete task") {
+            _ = try await TaskService.shared.completeTask(id: t.id, completed: !t.completed, task: t)
+        }
     }
 
     // MARK: bare-key shortcuts (web-parity scheme, Task cdfbd79f)

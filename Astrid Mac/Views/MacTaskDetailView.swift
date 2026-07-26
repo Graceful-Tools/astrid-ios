@@ -87,7 +87,11 @@ struct MacTaskDetailView: View {
                     }
                     .buttonStyle(.plain)
                     .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    // `labelsHidden()`: inside a Form, macOS renders a TextField's first argument
+                    // as a leading label — the stray "Title" prefix on the detail header
+                    // (task 4a3360c3). It stays as the empty-state placeholder.
                     TextField("Title", text: $title)
+                        .labelsHidden()
                         .font(MacTypography.detailTitle)
                         .strikethrough(task.completed)
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
@@ -156,9 +160,16 @@ struct MacTaskDetailView: View {
                         }
                     }
                 }
-                labeled("Description") {
+                // Description spans the FULL width below its own label (web/iOS parity —
+                // task e4b4f87c). The inline `labeled` row shape squeezed the editor into the
+                // ~2/3 left over beside the 80pt label column.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Description")
+                        .font(MacTypography.label)
+                        .foregroundStyle(Theme.textMuted)
                     TextEditor(text: $notes)
                         .frame(minHeight: 70)
+                        .frame(maxWidth: .infinity)
                         .focused($notesFocused)
                         .onChange(of: notesFocused) { if !notesFocused { saveNotes() } }
                         .overlay(alignment: .topLeading) {
