@@ -27,12 +27,27 @@ final class MacLayoutTests: XCTestCase {
 
 extension MacLayoutTests {
 
-    /// The whole design rests on this: the chat column is wide enough to CONTAIN the floating
-    /// pop-out. If it ever gets narrower, the panel would spill over the task rows and the rows
-    /// would have to give up width again — the behaviour this replaced.
-    func testChatColumnContainsTheDetailPopout() {
-        XCTAssertGreaterThanOrEqual(MacLayout.chatColumnWidth, MacLayout.detailPopoutWidth,
-                                    "Chat must be at least as wide as the pop-out it hosts")
+    /// The arrow TIP must land exactly on the row card's trailing edge. Both sides are computed
+    /// from the same constants, so this is the real invariant: derive the chat width, then check
+    /// the two edges coincide.
+    func testArrowTipMeetsTheRowTrailingEdge() {
+        let contentRight: CGFloat = 1_000
+        let cardLeft = contentRight - MacLayout.detailPanelMargin - MacLayout.detailPanelWidth
+        let arrowTip = cardLeft - (MacLayout.detailArrowWidth - MacLayout.arrowOverlap)
+        let rowRight = contentRight - MacLayout.chatColumnWidth
+            - MacLayout.columnDividerWidth - MacLayout.rowTrailingGap
+        XCTAssertEqual(arrowTip, rowRight, accuracy: 0.001,
+                       "The arrow must touch the row card, not float short of it")
+    }
+
+    /// The panel still fits beside the rows: it may overlap the divider by the arrow, but the
+    /// CARD itself must stay clear of the row content.
+    func testPanelStaysWithinTheChatSideOfTheDivider() {
+        let contentRight: CGFloat = 1_000
+        let cardLeft = contentRight - MacLayout.detailPanelMargin - MacLayout.detailPanelWidth
+        let rowRight = contentRight - MacLayout.chatColumnWidth
+            - MacLayout.columnDividerWidth - MacLayout.rowTrailingGap
+        XCTAssertGreaterThan(cardLeft, rowRight, "The card must not cover the row content")
     }
 
     /// The pop-out width is panel + arrow + a margin on EACH side, so the arrow has room on the
@@ -53,8 +68,24 @@ extension MacLayoutTests {
 
     /// There is deliberately NO "reserve width for the pop-out" helper any more: reserving width
     /// is what made the rows reflow when a task was selected.
-    func testChatColumnIsDerivedFromThePopoutNotAMagicNumber() {
-        XCTAssertEqual(MacLayout.chatColumnWidth, MacLayout.detailPopoutWidth,
-                       "Deriving it keeps the two in step when the panel width changes")
+    /// Chat width is DERIVED from the panel geometry, so changing the panel width cannot silently
+    /// break the arrow alignment or reintroduce a row reflow.
+    func testChatColumnIsDerivedNotAMagicNumber() {
+        let expected = MacLayout.detailPanelMargin + MacLayout.detailPanelWidth
+            + (MacLayout.detailArrowWidth - MacLayout.arrowOverlap)
+            - MacLayout.rowTrailingGap - MacLayout.columnDividerWidth
+        XCTAssertEqual(MacLayout.chatColumnWidth, expected, accuracy: 0.001)
+    }
+
+    /// The panel is allowed to OVERHANG the chat column slightly — that is what pulls the arrow
+    /// far enough left to touch the row. What matters is that the overhang stays inside the row
+    /// gutter (empty margin), which testPanelStaysWithinTheChatSideOfTheDivider checks; here we
+    /// bound it so it can never grow into a full column's worth.
+    func testPanelOverhangStaysWithinTheRowGutter() {
+        let overhang = (MacLayout.detailPanelWidth + MacLayout.detailPanelMargin)
+            - MacLayout.chatColumnWidth
+        XCTAssertGreaterThanOrEqual(overhang, 0, "Some overhang is expected by construction")
+        XCTAssertLessThan(overhang, MacLayout.rowTrailingGap,
+                          "Overhang must stay inside the row's trailing gutter")
     }
 }

@@ -28,9 +28,27 @@ enum MacLayout {
         detailPanelWidth + detailArrowWidth + detailPanelMargin * 2
     }
 
-    /// The chat column is sized to CONTAIN the pop-out, so the panel can float over it without the
-    /// task list ever shrinking (and the arrow still lands beside the rows).
-    static var chatColumnWidth: CGFloat { detailPopoutWidth }
+    /// Space between a row card's trailing edge and the column edge: the card's own 8pt padding
+    /// plus `.listStyle(.inset)`'s ~10pt row inset.
+    static let rowTrailingGap: CGFloat = 18
+    /// The 1pt divider between the task column and the chat column.
+    static let columnDividerWidth: CGFloat = 1
+    /// The arrow overlaps the card by 1pt so its base merges into the card surface.
+    static let arrowOverlap: CGFloat = 1
+
+    /// Chat column width, derived so the ARROW TIP lands exactly on the row card's trailing edge.
+    ///
+    /// With the pop-out right-aligned in the content area:
+    ///   card right   = contentRight − margin
+    ///   card left    = contentRight − margin − panel
+    ///   arrow tip    = card left − (arrow − overlap)
+    ///   row right    = contentRight − chatWidth − divider − rowTrailingGap
+    /// Setting arrow tip == row right and solving for chatWidth gives the expression below, so the
+    /// tip touches the row instead of floating short of it.
+    static var chatColumnWidth: CGFloat {
+        detailPanelMargin + detailPanelWidth + (detailArrowWidth - arrowOverlap)
+            - rowTrailingGap - columnDividerWidth
+    }
 
     /// Show the persistent chat column? Wide content + a real (non-virtual) list selected.
     static func showsChatColumn(contentWidth: CGFloat, isRealList: Bool) -> Bool {

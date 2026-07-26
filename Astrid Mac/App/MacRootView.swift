@@ -334,10 +334,6 @@ struct MacRootView: View {
                 .onSubmit(commitDraft)
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
-                .padding(.horizontal, 13).padding(.vertical, 10)
-                .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
 
             // Right: ⊕ commits the draft (iOS parity); dimmed and inert while empty.
             Button(action: commitDraft) {
@@ -350,8 +346,15 @@ struct MacRootView: View {
             .macPointingHand()
             .help(NSLocalizedString("tasks.new_task", comment: ""))
         }
+        // ONE floating input card holding the checkbox, the field and ⊕ (iOS / web parity). The
+        // internal padding matches MacTaskRow's card, so the quick-add checkbox sits in the same
+        // column as the checkboxes of the rows above it.
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 8)      // same outer margin as a row card
         .padding(.vertical, 8)
     }
 
@@ -731,7 +734,10 @@ struct MacRootView: View {
                    let id = selectedTaskIds.first,
                    let task = taskService.tasksById[id] ?? tasksForSelection.first(where: { $0.id == id }) {
                     taskDetailPopout(task)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        // Grows OUT OF the task: anchored on the leading edge, where the arrow
+                        // points at the row. It used to slide in from the window's trailing edge,
+                        // which read as coming from nowhere.
+                        .transition(.scale(scale: 0.92, anchor: .leading).combined(with: .opacity))
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space
