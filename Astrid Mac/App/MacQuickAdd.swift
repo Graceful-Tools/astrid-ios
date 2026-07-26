@@ -21,6 +21,12 @@ enum MacQuickAdd {
     /// Build create args from raw quick-add text. Returns nil when there is nothing to
     /// commit (empty/whitespace) or no destination list — abandoned drafts create nothing.
     /// `smartEnabled` gates the shared SmartTaskParser (the user's Smart Task Creation setting).
+    /// Whether the ⊕ button should be live: there is something other than whitespace to create.
+    /// Pure so the button's enabled state is testable (task 022701f3).
+    static func isCommittable(_ rawText: String) -> Bool {
+        !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
                          smartEnabled: Bool = true) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)

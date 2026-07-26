@@ -9,7 +9,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 struct MacChatPanelView: View {
-    let listId: String
+    let source: MacChatSource
     @StateObject private var chat = ChatService.shared
     @StateObject private var auth = AuthManager.shared
     @State private var channelId: String?
@@ -117,7 +117,7 @@ struct MacChatPanelView: View {
                 .padding(8)
             }
         }
-        .task(id: listId) { await load() }
+        .task(id: source) { await load() }
         .onDisappear { unsubscribeTyping.forEach { $0() }; unsubscribeTyping = [] }
 
     }
@@ -151,7 +151,7 @@ struct MacChatPanelView: View {
             guard let data = try? Data(contentsOf: url) else { await MainActor.run { attaching = false }; return }
             await MainActor.run {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
-                    fileData: data, fileName: name, mimeType: mime, context: ["listId": listId])
+                    fileData: data, fileName: name, mimeType: mime, context: source.listIdForMembers.map { ["listId": $0] } ?? [:])
                 attaching = false
                 MacActions.perform("Attach file") {
                     _ = try await chat.sendMessage(channelId: cid, content: name, fileId: fileId)
@@ -228,9 +228,16 @@ struct MacChatPanelView: View {
 
     private func load() async {
         loadingChannel = true
-        channelId = try? await chat.resolveChannel(forListId: listId)
-        try? await ListMemberService.shared.fetchMembers(listId: listId)
-        members = ListMemberService.shared.membersByList[listId] ?? []
+        switch source {
+        case .list(let id):
+            channelId = try? await chat.resolveChannel(forListId: id)
+            try? await ListMemberService.shared.fetchMembers(listId: id)
+            members = ListMemberService.shared.membersByList[id] ?? []
+        case .virtual(let key):
+            // My Tasks and friends: same channel iOS and web resolve. No list members to mention.
+            channelId = try? await chat.resolveVirtualChannel(virtualKey: key)
+            members = []
+        }
         guard let cid = channelId else { loadingChannel = false; return }
         _ = try? await chat.fetchMessages(channelId: cid)   // populates the observable cache
         // Spinner clears DETERMINISTICALLY here (e4d0eb84) — it must never wait on the SSE actor.

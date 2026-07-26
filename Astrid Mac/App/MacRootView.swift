@@ -36,11 +36,21 @@ struct MacRootView: View {
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
+    @State private var listColumnWidth: CGFloat = 0  // the TASK column alone — see listColumn()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
-    /// 3-column mode: wide content + a real list → chat is a persistent right column (web parity).
+    /// What the chat panel talks to for the current selection — a real list's channel, or My
+    /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
+    private var chatSource: MacChatSource? {
+        MacChatSource.forSelection(selectedListId: selectedListId,
+                                   myTasksId: Self.myTasksId, searchId: Self.searchId,
+                                   isRealList: currentRealList != nil, userId: auth.userId)
+    }
+
+    /// 3-column mode: wide content + a selection that HAS a channel → chat is a persistent right
+    /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
     private var chatColumnVisible: Bool {
-        MacLayout.showsChatColumn(contentWidth: contentWidth, isRealList: currentRealList != nil)
+        MacLayout.showsChatColumn(contentWidth: contentWidth, isRealList: chatSource != nil)
     }
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
@@ -288,25 +298,51 @@ struct MacRootView: View {
                 quickAddBar
             }
         }
-        // While the pop-out is open the LIST gives up the pop-out's width, so rows end where the
-        // arrow begins instead of sliding underneath a floating panel (task f993dbe0).
-        // The inset lives on the table, NOT on the measured container: padding the container fed
-        // back into its own onGeometryChange width and oscillated AppKit into a layout exception.
-        .padding(.trailing, MacLayout.reservesDetailSpace(
-            contentWidth: contentWidth,
-            popoutVisible: MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count))
-            ? MacLayout.detailPopoutWidth : 0)
         .background(Theme.bgPrimary)   // theme shows behind the floating quick-add too
+    }
+
+    /// The task-list column: the rows plus the detail pop-out anchored to the COLUMN's trailing
+    /// edge. Anchoring here (rather than on the whole content area) is what makes the panel always
+    /// sit against the task rows: with the chat column visible the outer area is 320pt wider, so a
+    /// trailing overlay there drifted away from the rows and the gap changed with the layout
+    /// (task 89e42f29).
+    ///
+    /// The width is measured on the ZStack — OUTSIDE the padding it feeds — because measuring a
+    /// view whose own padding depends on that measurement oscillates AppKit into a layout
+    /// exception (learned the hard way in f993dbe0).
+    private var listColumn: some View {
+        let popoutVisible = MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count)
+        return ZStack(alignment: .trailing) {
+            taskTable
+                .padding(.trailing, MacLayout.reservesDetailSpace(contentWidth: listColumnWidth,
+                                                                  popoutVisible: popoutVisible)
+                         ? MacLayout.detailPopoutWidth : 0)
+            // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
+            // O(1) tasksById lookup — was a full tasksForSelection pipeline scan per eval (4e0ce183).
+            if popoutVisible, let id = selectedTaskIds.first, let task = taskService.tasksById[id] {
+                taskDetailPopout(task)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listColumnWidth = $0 }
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
     /// abandoned draft creates nothing (the old New Task button eagerly created junk).
     private var quickAddBar: some View {
-        // iOS QuickAddTaskView parity (5b41942a): a floating rounded card hovering above the list —
-        // themed input surface (chrome silver on Ocean, black on Dark), hairline border, lift
-        // shadow (y −2), side margins matching the task-row card margins.
-        HStack(spacing: 8) {
-            Image(systemName: "plus.circle.fill").foregroundStyle(Theme.accent)
+        // iOS QuickAddTaskView layout (task 022701f3): checkbox on the LEFT, the bordered input in
+        // the middle, and the add ⊕ on the RIGHT — the + used to be a decoration inside the field
+        // on the left, with no way to commit by clicking. The surface stays themed (chrome silver
+        // on Ocean, black on Dark) with a lift shadow, matching 5b41942a.
+        HStack(alignment: .center, spacing: 12) {
+            // Left: the same checkbox affordance iOS shows ahead of the field.
+            Button { addFieldFocused = true } label: {
+                MacTaskCheckbox(completed: false, priority: .none, size: 20)
+            }
+            .buttonStyle(.plain)
+            .macPointingHand()
+            .help(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
+
             // Wraps + expands vertically for long titles (a02a6819); Return still commits.
             TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
                 .lineLimit(1...4)
@@ -316,11 +352,22 @@ struct MacRootView: View {
                 .onSubmit(commitDraft)
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
+                .padding(.horizontal, 13).padding(.vertical, 10)
+                .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+
+            // Right: ⊕ commits the draft (iOS parity); dimmed and inert while empty.
+            Button(action: commitDraft) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(MacQuickAdd.isCommittable(draftTitle) ? Theme.accent : Theme.textMuted)
+            }
+            .buttonStyle(.plain)
+            .disabled(!MacQuickAdd.isCommittable(draftTitle))
+            .macPointingHand()
+            .help(NSLocalizedString("tasks.new_task", comment: ""))
         }
-        .padding(.horizontal, 13).padding(.vertical, 10)
-        .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
     }
@@ -630,25 +677,25 @@ struct MacRootView: View {
                 if let listId = selectedListId {
                     if listId == Self.searchId {
                         searchView
-                    } else if listId == Self.myTasksId {
-                        taskTable                          // virtual My Tasks is list-only
-                    } else if chatColumnVisible {
+                    } else if chatColumnVisible, let chatSource {
                         // 3-column (web ≥1100 parity): chat is ALWAYS visible as the right column;
-                        // the middle shows list or board (23c98550).
+                        // the middle shows list or board (23c98550). My Tasks reaches here too —
+                        // it has a virtual channel, same as iOS and web (51703e2a).
                         HStack(spacing: 0) {
                             switch contentMode {
-                            case .board: MacBoardView(listId: listId)
-                            default: taskTable
+                            case .board where listId != Self.myTasksId: MacBoardView(listId: listId)
+                            default: listColumn
                             }
                             Divider()
-                            MacChatPanelView(listId: listId)
+                            MacChatPanelView(source: chatSource)
                                 .frame(width: MacLayout.chatColumnWidth)
                         }
                     } else {
                         switch contentMode {
-                        case .list: taskTable
-                        case .board: MacBoardView(listId: listId)
-                        case .chat: MacChatPanelView(listId: listId)
+                        case .board where listId != Self.myTasksId: MacBoardView(listId: listId)
+                        case .chat:
+                            if let chatSource { MacChatPanelView(source: chatSource) } else { listColumn }
+                        default: listColumn
                         }
                     }
                 } else {
@@ -703,22 +750,6 @@ struct MacRootView: View {
                             Label("Complete \(selectedTaskIds.count)", systemImage: "checkmark.circle")
                         }
                     }
-                }
-            }
-            // Floating pop-out detail panel over the list's trailing edge (2766d9a4) — no permanent
-            // empty 3rd column, so an unselected list uses the FULL width (no large white pane).
-            // While the pop-out is open the list gives up its width instead of the rows sliding
-            // underneath a floating panel — so the arrow meets the row's trailing edge and the
-            // list column stays wider than the panel (task f993dbe0).
-            .overlay(alignment: .trailing) {
-                // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
-                // O(1) tasksById lookup — was a full tasksForSelection pipeline scan per eval (4e0ce183).
-                if contentMode != .board,
-                   MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count),
-                   let id = selectedTaskIds.first,
-                   let task = taskService.tasksById[id] {
-                    taskDetailPopout(task)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)

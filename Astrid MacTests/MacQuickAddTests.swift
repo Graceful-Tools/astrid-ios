@@ -200,3 +200,31 @@ final class MacQuickAddTests: XCTestCase {
         XCTAssertFalse(args?.title.isEmpty ?? true, "An empty parsed title must fall back to the raw text")
     }
 }
+
+// MARK: - Add-task bar (task 022701f3) — iOS layout: checkbox left, input, ⊕ right
+
+extension MacQuickAddTests {
+
+    /// The ⊕ button is live only when there is something to create; whitespace does not count.
+    func testCommitButtonIsLiveOnlyForRealInput() {
+        XCTAssertFalse(MacQuickAdd.isCommittable(""))
+        XCTAssertFalse(MacQuickAdd.isCommittable("   "))
+        XCTAssertFalse(MacQuickAdd.isCommittable("\n\t "))
+        XCTAssertTrue(MacQuickAdd.isCommittable("Buy milk"))
+        XCTAssertTrue(MacQuickAdd.isCommittable("  Buy milk  "))
+    }
+
+    /// Whatever the button allows, makeArgs must also accept — otherwise ⊕ looks enabled and does
+    /// nothing (the old bar had no button at all, so this pairing is new).
+    func testCommittableInputAlwaysProducesArgs() {
+        for text in ["Buy milk", "  Buy milk  ", "urgent"] {
+            XCTAssertTrue(MacQuickAdd.isCommittable(text))
+            XCTAssertNotNil(MacQuickAdd.makeArgs(rawText: text, selectedListId: listId, lists: []),
+                            "'\(text)' is committable, so it must produce create args")
+        }
+        for text in ["", "   "] {
+            XCTAssertFalse(MacQuickAdd.isCommittable(text))
+            XCTAssertNil(MacQuickAdd.makeArgs(rawText: text, selectedListId: listId, lists: []))
+        }
+    }
+}
