@@ -1097,3 +1097,10 @@
 "mac.share_title" = "Share “%@”";
 "mac.show_scroll_bars" = "Show scroll bars";
 "mac.list_default" = "List default";
+"mac.complete_count" = "Complete %d";
+"mac.delete_list_named" = "Delete “%@”";
+"mac.empty.chat" = "Start the conversation — say hi or @mention Astrid.";
+"mac.empty.filtered_out" = "Nothing matches this list’s filters.";
+"mac.empty.filtered_out_detail" = "Adjust the filters (funnel button) to see more.";
+"mac.empty.no_list_selected" = "Pick a list to see your tasks.";
+"mac.empty.no_tasks" = "All clear! Add a task below to get started.";

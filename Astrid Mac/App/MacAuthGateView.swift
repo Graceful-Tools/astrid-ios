@@ -53,6 +53,7 @@ struct MacAuthGateView: View {
 
             // Local reminder notifications on Mac (Task 8b81fb9e): register + request permission,
             // then schedule for current tasks. Works offline too (local tasks have due dates).
+            MacWakeRecovery.start()   // live updates must survive sleep (task de2764fb)
             UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
             NotificationManager.shared.registerNotificationCategories()
             _ = try? await NotificationManager.shared.requestPermission()

@@ -1091,3 +1091,10 @@
 "mac.share_title" = "“%@” 공유";
 "mac.show_scroll_bars" = "스크롤 막대 표시";
 "mac.list_default" = "목록 기본값";
+"mac.complete_count" = "%d개 완료";
+"mac.delete_list_named" = "“%@” 삭제";
+"mac.empty.chat" = "대화를 시작하세요 — 인사하거나 @Astrid를 멘션하세요.";
+"mac.empty.filtered_out" = "이 목록의 필터와 일치하는 항목이 없습니다.";
+"mac.empty.filtered_out_detail" = "필터(깔때기 버튼)를 조정하면 더 많이 볼 수 있습니다.";
+"mac.empty.no_list_selected" = "목록을 선택하면 작업이 표시됩니다.";
+"mac.empty.no_tasks" = "모두 완료! 아래에서 작업을 추가해 시작하세요.";

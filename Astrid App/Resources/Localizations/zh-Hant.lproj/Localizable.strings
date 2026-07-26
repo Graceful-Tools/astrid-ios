@@ -1091,3 +1091,10 @@
 "mac.share_title" = "分享「%@」";
 "mac.show_scroll_bars" = "顯示捲動列";
 "mac.list_default" = "列表預設";
+"mac.complete_count" = "完成 %d 項";
+"mac.delete_list_named" = "刪除「%@」";
+"mac.empty.chat" = "開始對話 — 打個招呼或 @Astrid。";
+"mac.empty.filtered_out" = "沒有符合此列表篩選條件的內容。";
+"mac.empty.filtered_out_detail" = "調整篩選條件（漏斗按鈕）以查看更多。";
+"mac.empty.no_list_selected" = "選擇一個列表以查看任務。";
+"mac.empty.no_tasks" = "全部完成！在下方新增任務開始吧。";

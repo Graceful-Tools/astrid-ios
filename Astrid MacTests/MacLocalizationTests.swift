@@ -73,3 +73,44 @@ final class MacLocalizationTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Astrid's nags are localized too (task 2eb3a080)
+
+extension MacLocalizationTests {
+
+    /// The empty-state copy is Astrid speaking — part of the product, so it must translate like
+    /// everything else. It was the last hardcoded English on Mac.
+    func testEmptyStateCopyIsLocalized() {
+        for copy in [MacEmptyCopy.noTasks, .filteredOut, .noListSelected, .chatEmpty] {
+            XCTAssertFalse(copy.message.isEmpty)
+            XCTAssertFalse(copy.message.hasPrefix("mac.empty"),
+                           "\(copy.message) is an unresolved key, not a translation")
+        }
+        XCTAssertNotNil(MacEmptyCopy.filteredOut.detail)
+    }
+
+    /// Every language must actually translate them — a missing entry silently falls back to
+    /// English, which is the state this task fixed.
+    func testEveryLanguageTranslatesTheNags() throws {
+        for lang in ["en", "es", "fr", "de", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"] {
+            let path = try XCTUnwrap(Bundle.main.path(forResource: lang, ofType: "lproj"))
+            let bundle = try XCTUnwrap(Bundle(path: path))
+            for key in ["mac.empty.no_tasks", "mac.empty.chat", "mac.empty.no_list_selected"] {
+                XCTAssertNotEqual(bundle.localizedString(forKey: key, value: nil, table: nil), key,
+                                  "\(lang) is missing \(key)")
+            }
+        }
+    }
+
+    /// Count/name formats must keep their placeholders in every language.
+    func testCountAndNameFormatsKeepPlaceholders() throws {
+        for lang in ["en", "es", "fr", "de", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"] {
+            let path = try XCTUnwrap(Bundle.main.path(forResource: lang, ofType: "lproj"))
+            let bundle = try XCTUnwrap(Bundle(path: path))
+            XCTAssertTrue(bundle.localizedString(forKey: "mac.complete_count", value: nil, table: nil)
+                .contains("%d"), "\(lang) lost %d in mac.complete_count")
+            XCTAssertTrue(bundle.localizedString(forKey: "mac.delete_list_named", value: nil, table: nil)
+                .contains("%@"), "\(lang) lost %@ in mac.delete_list_named")
+        }
+    }
+}

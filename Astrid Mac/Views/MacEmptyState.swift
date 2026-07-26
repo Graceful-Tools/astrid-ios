@@ -10,17 +10,19 @@ import SwiftUI
 enum MacEmptyCopy {
     case noTasks, filteredOut, noListSelected, chatEmpty
 
+    // Astrid's own voice is part of the product, so these are localized like every other string
+    // (task 2eb3a080) — they were the last hardcoded English left on Mac.
     var message: String {
         switch self {
-        case .noTasks:        return "All clear! Add a task below to get started."
-        case .filteredOut:    return "Nothing matches this list’s filters."
-        case .noListSelected: return "Pick a list to see your tasks."
-        case .chatEmpty:      return "Start the conversation — say hi or @mention Astrid."
+        case .noTasks:        return NSLocalizedString("mac.empty.no_tasks", comment: "")
+        case .filteredOut:    return NSLocalizedString("mac.empty.filtered_out", comment: "")
+        case .noListSelected: return NSLocalizedString("mac.empty.no_list_selected", comment: "")
+        case .chatEmpty:      return NSLocalizedString("mac.empty.chat", comment: "")
         }
     }
     var detail: String? {
         switch self {
-        case .filteredOut: return "Adjust the filters (funnel button) to see more."
+        case .filteredOut: return NSLocalizedString("mac.empty.filtered_out_detail", comment: "")
         default: return nil
         }
     }

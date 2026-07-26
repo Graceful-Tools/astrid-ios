@@ -1089,3 +1089,10 @@
 "mac.share_title" = "分享“%@”";
 "mac.show_scroll_bars" = "显示滚动条";
 "mac.list_default" = "列表默认";
+"mac.complete_count" = "完成 %d 项";
+"mac.delete_list_named" = "删除“%@”";
+"mac.empty.chat" = "开始对话 — 打个招呼或 @Astrid。";
+"mac.empty.filtered_out" = "没有符合此列表筛选条件的内容。";
+"mac.empty.filtered_out_detail" = "调整筛选条件（漏斗按钮）以查看更多。";
+"mac.empty.no_list_selected" = "选择一个列表以查看任务。";
+"mac.empty.no_tasks" = "全部完成！在下方添加任务开始吧。";

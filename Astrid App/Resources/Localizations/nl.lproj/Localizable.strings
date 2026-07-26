@@ -1089,3 +1089,10 @@
 "mac.share_title" = "“%@” delen";
 "mac.show_scroll_bars" = "Schuifbalken tonen";
 "mac.list_default" = "Standaard van lijst";
+"mac.complete_count" = "%d voltooien";
+"mac.delete_list_named" = "“%@” verwijderen";
+"mac.empty.chat" = "Begin het gesprek — zeg hallo of @vermeld Astrid.";
+"mac.empty.filtered_out" = "Niets komt overeen met de filters van deze lijst.";
+"mac.empty.filtered_out_detail" = "Pas de filters aan (trechterknop) om meer te zien.";
+"mac.empty.no_list_selected" = "Kies een lijst om je taken te zien.";
+"mac.empty.no_tasks" = "Alles klaar! Voeg hieronder een taak toe om te beginnen.";

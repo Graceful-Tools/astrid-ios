@@ -1105,3 +1105,10 @@
 "mac.share_title" = "Partager « %@ »";
 "mac.show_scroll_bars" = "Afficher les barres de défilement";
 "mac.list_default" = "Par défaut de la liste";
+"mac.complete_count" = "Terminer %d";
+"mac.delete_list_named" = "Supprimer « %@ »";
+"mac.empty.chat" = "Lancez la conversation — dites bonjour ou @mentionnez Astrid.";
+"mac.empty.filtered_out" = "Rien ne correspond aux filtres de cette liste.";
+"mac.empty.filtered_out_detail" = "Ajustez les filtres (bouton entonnoir) pour en voir plus.";
+"mac.empty.no_list_selected" = "Choisissez une liste pour voir vos tâches.";
+"mac.empty.no_tasks" = "Tout est fait ! Ajoutez une tâche ci-dessous pour commencer.";

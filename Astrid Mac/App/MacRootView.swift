@@ -905,7 +905,8 @@ struct MacRootView: View {
                 if selectedTaskIds.count > 1 && contentMode == .list {
                     ToolbarItem(placement: .primaryAction) {
                         Button { completeSelected() } label: {
-                            Label("Complete \(selectedTaskIds.count)", systemImage: "checkmark.circle")
+                            Label(String(format: NSLocalizedString("mac.complete_count", comment: ""),
+                                         selectedTaskIds.count), systemImage: "checkmark.circle")
                         }
                     }
                 }
@@ -995,7 +996,8 @@ struct MacRootView: View {
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),
                             presenting: listToDelete) { list in
-            Button("Delete “\(list.name)”", role: .destructive) { deleteList(list) }
+            Button(String(format: NSLocalizedString("mac.delete_list_named", comment: ""), list.name),
+                   role: .destructive) { deleteList(list) }
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
         }
         .safeAreaInset(edge: .bottom) {

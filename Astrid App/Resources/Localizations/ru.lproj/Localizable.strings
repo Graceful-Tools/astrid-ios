@@ -1089,3 +1089,10 @@
 "mac.share_title" = "Поделиться «%@»";
 "mac.show_scroll_bars" = "Показывать полосы прокрутки";
 "mac.list_default" = "По умолчанию для списка";
+"mac.complete_count" = "Завершить %d";
+"mac.delete_list_named" = "Удалить «%@»";
+"mac.empty.chat" = "Начните разговор — поздоровайтесь или упомяните @Astrid.";
+"mac.empty.filtered_out" = "Ничего не соответствует фильтрам этого списка.";
+"mac.empty.filtered_out_detail" = "Измените фильтры (кнопка воронки), чтобы увидеть больше.";
+"mac.empty.no_list_selected" = "Выберите список, чтобы увидеть задачи.";
+"mac.empty.no_tasks" = "Всё готово! Добавьте задачу ниже, чтобы начать.";

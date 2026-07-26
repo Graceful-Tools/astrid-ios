@@ -137,9 +137,12 @@ class ConnectionModeManager: ObservableObject {
         print("🌐 [ConnectionModeManager] Network restored - transitioning to online")
         currentMode = .online
 
-        // Trigger sync of pending operations
+        // Trigger sync of pending operations AND revive the live stream. Syncing alone left the
+        // app fetching on a timer with no live updates, because SSE had already exhausted its
+        // retries while the network was down.
         _Concurrency.Task {
             try? await SyncManager.shared.performQuickSync()
+            await SSEClient.shared.reconnectNow()
         }
     }
 

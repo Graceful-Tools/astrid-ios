@@ -1089,3 +1089,10 @@
 "mac.share_title" = "「%@」を共有";
 "mac.show_scroll_bars" = "スクロールバーを表示";
 "mac.list_default" = "リストの既定";
+"mac.complete_count" = "%d 件を完了";
+"mac.delete_list_named" = "「%@」を削除";
+"mac.empty.chat" = "会話を始めましょう — あいさつするか、@Astrid にメンションを。";
+"mac.empty.filtered_out" = "このリストのフィルタに一致するものはありません。";
+"mac.empty.filtered_out_detail" = "フィルタ（じょうごボタン）を調整すると、さらに表示されます。";
+"mac.empty.no_list_selected" = "リストを選ぶとタスクが表示されます。";
+"mac.empty.no_tasks" = "すべて完了！下からタスクを追加して始めましょう。";

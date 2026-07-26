@@ -9,7 +9,7 @@ actor SSEClient {
     private var streamTask: _Concurrency.Task<Void, Never>?
     private var isConnected = false
     private var reconnectAttempts = 0
-    private let maxReconnectAttempts = 5
+    private let maxReconnectAttempts = SSEReconnectPolicy.maxAttempts
 
     // Custom URLSession with cookie handling (same config as AstridAPIClient)
     private let session: URLSession = {
@@ -191,9 +191,9 @@ actor SSEClient {
         }
 
         // Attempt reconnect with exponential backoff
-        if reconnectAttempts < maxReconnectAttempts {
+        if SSEReconnectPolicy.shouldRetry(attempt: reconnectAttempts, max: maxReconnectAttempts) {
             reconnectAttempts += 1
-            let delay = min(pow(2.0, Double(reconnectAttempts)), 60.0)
+            let delay = SSEReconnectPolicy.delay(attempt: reconnectAttempts)
 
             print("⏳ [SSE] Reconnecting in \(Int(delay))s... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
 
@@ -206,6 +206,15 @@ actor SSEClient {
         } else {
             print("❌ [SSE] Max reconnect attempts reached")
         }
+    }
+
+    /// Start over after a wake or a network change: the earlier failures described a world that
+    /// no longer exists, so the exhausted attempt count must not keep the stream dead. Without
+    /// this, a Mac that slept through five backoffs never reconnected until the app relaunched.
+    func reconnectNow() async {
+        reconnectAttempts = SSEReconnectPolicy.attemptsAfterRecovery()
+        disconnect()
+        await connect()
     }
 
     private func processSSEBuffer(_ buffer: String) async {

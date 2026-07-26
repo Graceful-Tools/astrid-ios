@@ -1089,3 +1089,10 @@
 "mac.share_title" = "Condividi “%@”";
 "mac.show_scroll_bars" = "Mostra barre di scorrimento";
 "mac.list_default" = "Predefinito dell'elenco";
+"mac.complete_count" = "Completa %d";
+"mac.delete_list_named" = "Elimina “%@”";
+"mac.empty.chat" = "Inizia la conversazione: saluta o menziona @Astrid.";
+"mac.empty.filtered_out" = "Nessun elemento corrisponde ai filtri di questo elenco.";
+"mac.empty.filtered_out_detail" = "Modifica i filtri (pulsante imbuto) per vedere altro.";
+"mac.empty.no_list_selected" = "Scegli un elenco per vedere le tue attività.";
+"mac.empty.no_tasks" = "Tutto fatto! Aggiungi un'attività qui sotto per iniziare.";
