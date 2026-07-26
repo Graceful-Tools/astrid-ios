@@ -60,8 +60,15 @@ fi
 green "✓ Signing identity: $IDENTITY"
 TEAM_ID=$(echo "$IDENTITY" | sed -E 's/.*\(([A-Z0-9]+)\)$/\1/')
 
-VERSION=$(grep -m1 'MARKETING_VERSION' "Astrid App.xcodeproj/project.pbxproj" | sed -E 's/.*= (.*);/\1/')
-BUILD_NUM=$(grep -m1 'CURRENT_PROJECT_VERSION' "Astrid App.xcodeproj/project.pbxproj" | sed -E 's/.*= (.*);/\1/')
+# Read the version from the Mac scheme's own build settings. A grep of project.pbxproj
+# picks up whichever target appears first in the file (the iOS app), which silently
+# mislabels the DMG with the iOS version.
+MAC_SETTINGS=$(xcodebuild -scheme "$SCHEME" -destination "platform=macOS" -showBuildSettings 2>/dev/null)
+setting() { echo "$MAC_SETTINGS" | grep -m1 " $1 = " | sed -E 's/.* = //'; }
+VERSION=$(setting MARKETING_VERSION)
+BUILD_NUM=$(setting CURRENT_PROJECT_VERSION)
+PRODUCT=$(setting FULL_PRODUCT_NAME)   # "Astrid.app" — not "$SCHEME.app"
+[ -n "$VERSION" ] && [ -n "$PRODUCT" ] || { red "Could not read the Mac target's build settings"; exit 1; }
 green "✓ Version $VERSION ($BUILD_NUM)"
 
 rm -rf "$ARCHIVE" "$EXPORT_DIR"
@@ -99,7 +106,7 @@ xcodebuild -exportArchive \
   -exportPath "$EXPORT_DIR" \
   -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" \
   -quiet
-APP="$EXPORT_DIR/$SCHEME.app"
+APP="$EXPORT_DIR/$PRODUCT"
 [ -d "$APP" ] || { red "Export produced no .app"; exit 1; }
 green "✓ Exported $(du -sh "$APP" | cut -f1)"
 

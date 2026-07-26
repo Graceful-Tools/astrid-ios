@@ -711,7 +711,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -740,7 +740,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -779,16 +779,20 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Astrid Mac/Info.plist";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_CFBundleDisplayName = Astrid;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Astrid links your lists with your calendar so due dates sit alongside your events.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Graceful Tools LLC. All rights reserved.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Astrid links your lists with Apple Reminders so your tasks stay in sync.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-Mac";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-App";
+				PRODUCT_MODULE_NAME = Astrid_Mac;
+				PRODUCT_NAME = Astrid;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -816,16 +820,20 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Astrid Mac/Info.plist";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_CFBundleDisplayName = Astrid;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Astrid links your lists with your calendar so due dates sit alongside your events.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Graceful Tools LLC. All rights reserved.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Astrid links your lists with Apple Reminders so your tasks stay in sync.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-Mac";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-App";
+				PRODUCT_MODULE_NAME = Astrid_Mac;
+				PRODUCT_NAME = Astrid;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -844,7 +852,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-MacTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -854,7 +862,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid Mac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid Mac";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid";
 			};
 			name = Debug;
 		};
@@ -865,7 +873,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-MacTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -875,7 +883,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid Mac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid Mac";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid";
 			};
 			name = Release;
 		};
@@ -885,7 +893,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-MacUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -905,7 +913,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Astrid-MacUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1049,7 +1057,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1079,7 +1087,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1107,7 +1115,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.8.3;
@@ -1129,7 +1137,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -1150,7 +1158,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;
@@ -1170,7 +1178,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 157;
+				CURRENT_PROJECT_VERSION = 158;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.8.3;
