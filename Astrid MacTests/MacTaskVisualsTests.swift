@@ -51,9 +51,18 @@ extension MacTaskVisualsTests {
                                     "Never thinner than a visible hairline")
     }
 
-    /// Row (20) and detail (22) must stay visually consistent — the same ratios drive both.
+    /// The box should sit WITH macOS's 13pt body text, not tower over it.
+    func testCheckboxesAreDesktopScale() {
+        XCTAssertLessThanOrEqual(MacTaskVisuals.rowCheckboxSize, 18,
+                                 "20pt read chunky next to 13pt body text")
+        XCTAssertGreaterThanOrEqual(MacTaskVisuals.rowCheckboxSize, 14, "Still a comfortable target")
+        XCTAssertGreaterThan(MacTaskVisuals.detailCheckboxSize, MacTaskVisuals.rowCheckboxSize,
+                             "The detail's checkbox stays a step larger, as before")
+    }
+
+    /// Row and detail must stay visually consistent — the same ratios drive both.
     func testRowAndDetailShareTheSameProportions() {
-        for size in [CGFloat(20), CGFloat(22)] {
+        for size in [MacTaskVisuals.rowCheckboxSize, MacTaskVisuals.detailCheckboxSize] {
             let mark = size * MacTaskVisuals.checkmarkRatio
             XCTAssertGreaterThan(mark, size * 0.7, "Mark should dominate at size \(size)")
             XCTAssertLessThan(MacTaskVisuals.checkboxStroke(size: size), size * 0.12)

@@ -59,7 +59,7 @@ struct MacTaskRow: View {
         HStack(alignment: .center, spacing: 12) {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
-                MacAssigneeAvatar(user: assignee, priority: task.priority, size: 20)
+                MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
             } else {
                 // A `Button` here NEVER fires: inside a macOS `List` row the cell's own click
                 // handling swallows it, so the checkbox was dead (task 652edb22). Gestures DO
@@ -68,7 +68,7 @@ struct MacTaskRow: View {
                 // The check's own transition rarely plays: completing RE-SORTS the list, so the row
                 // is replaced rather than updated in place and the animation never runs. A local
                 // scale "pop" fires on the tap itself, so the click always gets visible feedback.
-                MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
+                MacTaskCheckbox(completed: task.completed, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
                     .scaleEffect(checkPop ? 1.28 : 1)
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())

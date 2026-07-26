@@ -13,6 +13,11 @@ enum MacTaskVisuals {
     // mark read small inside a chunky 2pt box (task: "checkbox size should be smaller relative to
     // checkmark"). The mark now takes most of the box, and the stroke scales with the size rather
     // than staying 2pt at every size.
+    /// Checkbox sizes. 20/22 read chunky next to macOS's 13pt body text — the box should sit with
+    /// the type, not dominate the row.
+    static let rowCheckboxSize: CGFloat = 17
+    static let detailCheckboxSize: CGFloat = 19
+
     static let checkmarkRatio: CGFloat = 0.78
     static let checkboxCornerRatio: CGFloat = 0.28
     static func checkboxStroke(size: CGFloat) -> CGFloat { max(1.5, size * 0.075) }

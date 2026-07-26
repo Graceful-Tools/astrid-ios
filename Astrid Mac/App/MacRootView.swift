@@ -28,6 +28,8 @@ struct MacRootView: View {
     /// Priority the user picked on the quick-add checkbox for the NEXT task. nil = follow the
     /// list's default (iOS behaves the same: the checkbox shows the default and can override it).
     @State private var draftPriorityOverride: Int?
+    @State private var draftAssigneeOverride: String?      // "" = explicitly no one
+    @State private var showDraftDefaults = false
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var listSearch = ""
@@ -40,11 +42,18 @@ struct MacRootView: View {
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
     @State private var windowWidth: CGFloat = 0    // decides the chat column — see chatColumnVisible
+    @State private var contentFrame: CGRect = .zero  // global frame — anchors the pop-out reveal
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false   // task 01d8cfa1
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
+    /// Where the pop-out unfolds from: the arrow's height inside the content area.
+    private var revealAnchorY: CGFloat {
+        MacDetailReveal.anchor(rowMidY: selectedRowMidY,
+                               contentMinY: contentFrame.minY, contentHeight: contentFrame.height)
+    }
+
     /// Cached once: `ProcessInfo.arguments` allocates on every read.
     private static let uiTestSelectsRow = ProcessInfo.processInfo.arguments.contains("-uiTestSelectRow")
 
@@ -332,22 +341,28 @@ struct MacRootView: View {
         // on Ocean, black on Dark) with a lift shadow, matching 5b41942a.
         HStack(alignment: .center, spacing: 12) {
             // Left: the same checkbox affordance iOS shows ahead of the field.
-            // The checkbox shows the priority the next task WILL get (the list's default) and
-            // lets the user override it for this one — the same affordance iOS offers.
-            Menu {
-                Button(NSLocalizedString("mac.list_default", comment: "")) { draftPriorityOverride = nil }
-                Divider()
-                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
-                    Button(MacTaskVisuals.priorityLabel(p)) { draftPriorityOverride = p.rawValue }
+            // The leading control mirrors a task ROW: the priority-coloured checkbox for the
+            // defaults this task will get, or the assignee's avatar when it is going to someone
+            // else. Tapping it opens the override picker.
+            //
+            // NOTE: this is a plain view + tap, NOT a `Menu` with a custom label — that collapsed
+            // the label and the checkbox disappeared from the add row entirely.
+            Group {
+                if let assignee = draftAssignee {
+                    MacAssigneeAvatar(user: assignee, priority: draftPriority,
+                                      size: MacTaskVisuals.rowCheckboxSize)
+                } else {
+                    MacTaskCheckbox(completed: false, priority: draftPriority,
+                                    size: MacTaskVisuals.rowCheckboxSize)
                 }
-            } label: {
-                MacTaskCheckbox(completed: false, priority: draftPriority, size: 20)
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            .contentShape(Rectangle())
+            .onTapGesture { showDraftDefaults = true }
             .macPointingHand()
             .help(NSLocalizedString("tasks.priority", comment: ""))
+            .popover(isPresented: $showDraftDefaults, arrowEdge: .top) {
+                draftDefaultsPicker
+            }
 
             // Wraps + expands vertically for long titles (a02a6819); Return still commits.
             TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
@@ -659,6 +674,50 @@ struct MacRootView: View {
     }
 
     /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
+    /// The assignee the next task will get — the override, else the list's default. nil means it
+    /// stays with the creator, which is drawn as a checkbox rather than an avatar (row parity).
+    private var draftAssignee: User? {
+        let id = draftAssigneeOverride ?? NewTaskDefaults.assignee(currentRealList?.defaultAssigneeId)
+        guard let id, !id.isEmpty, id != auth.userId else { return nil }
+        return listMembers.first { $0.userId == id }?.user ?? User(id: id, email: nil, name: nil, image: nil)
+    }
+
+    /// Members of the current list, for the assignee picker.
+    private var listMembers: [ListMember] {
+        currentRealList.flatMap { ListMemberService.shared.membersByList[$0.id] } ?? []
+    }
+
+    /// Override the defaults for the NEXT task only — the same idea as iOS's quick-add picker.
+    @ViewBuilder private var draftDefaultsPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(NSLocalizedString("tasks.priority", comment: ""))
+                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+            HStack(spacing: 6) {
+                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
+                    Button(MacTaskVisuals.priorityLabel(p)) { draftPriorityOverride = p.rawValue }
+                        .buttonStyle(.bordered)
+                }
+            }
+            Text(NSLocalizedString("tasks.assignee", comment: ""))
+                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+            Picker("", selection: Binding(
+                get: { draftAssigneeOverride ?? "" },
+                set: { draftAssigneeOverride = $0.isEmpty ? nil : $0 }
+            )) {
+                Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
+                ForEach(listMembers) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
+            }
+            .labelsHidden()
+            Divider()
+            Button(NSLocalizedString("mac.list_default", comment: "")) {
+                draftPriorityOverride = nil
+                draftAssigneeOverride = nil
+            }
+        }
+        .padding(14)
+        .frame(width: 260)
+    }
+
     /// The priority the quick-add checkbox displays: the user's override if they picked one,
     /// otherwise the destination list's default.
     private var draftPriority: Task.Priority {
@@ -676,11 +735,14 @@ struct MacRootView: View {
                                               selectionIsVirtual: selectionIsVirtual,
                                               priorityOverride: draftPriorityOverride) else { return }
         draftTitle = ""
-        draftPriorityOverride = nil          // the override applies to one task, like iOS
+        let assigneeOverride = draftAssigneeOverride
+        draftPriorityOverride = nil          // the overrides apply to one task, like iOS
+        draftAssigneeOverride = nil
         _Concurrency.Task {
             let created = try? await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                whenDate: args.whenDate, assigneeId: assigneeOverride ?? args.assigneeId,
+                isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)
             if openDetails, let created { selectedTaskIds = [created.id] }
         }
@@ -781,14 +843,18 @@ struct MacRootView: View {
                    // splice pipeline on every body evaluation (the cost 4e0ce183 removed).
                    let task = taskService.tasksById[id] {
                     taskDetailPopout(task)
-                        // Slides in LEFT→RIGHT and back out RIGHT→LEFT: both directions are the
-                        // LEADING edge, so it travels out of, and back into, the task it points at.
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        // Unfolds OUT OF the arrow and folds back into it the same way — the
+                        // panel grows horizontally from the arrow's position, which sits at the
+                        // selected row. A plain slide/fade did not read as coming from the task.
+                        .transition(.modifier(
+                            active: MacDetailReveal(progress: 0, anchorY: revealAnchorY),
+                            identity: MacDetailReveal(progress: 1, anchorY: revealAnchorY)))
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space
             .onPreferenceChange(MacSelectedRowMidYKey.self) { selectedRowMidY = $0 }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
             .navigationTitle(selectedListId == Self.searchId ? "Search"
                              : selectedListId == Self.myTasksId ? "My Tasks"
