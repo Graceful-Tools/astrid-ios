@@ -79,51 +79,12 @@ struct ChatInputView: View {
         }
     }
 
-    /// If the message mentions @Astrid and the user has Apple FM selected,
-    /// process the message on-device and post the response via the server.
+    /// If the message is addressed to Astrid and the user has Apple FM selected, answer on device.
+    ///
+    /// The rule and the mention-stripping now live in the SHARED `OnDeviceAstrid` — they used to
+    /// be inline here, which is why the Mac chat never answered at all (task 8dded037). Keeping
+    /// one copy is what stops the two platforms drifting apart.
     private func handleOnDeviceAstridMention(content: String) async {
-        // Check if on-device model is selected. Routed through ChatService
-        // so the call goes through the same control point as message sends
-        // and benefits from the short TTL cache (called on every @mention).
-        guard let settings = try? await ChatService.shared.getAIAssistantSettings(),
-              settings.isOnDeviceModel else { return }
-
-        // Check if message contains an @Astrid mention (format: @[Astrid](userId))
-        // Also trigger for any message in a personal channel (listId is nil or "my-tasks")
-        let hasAstridMention = content.contains("@[Astrid]") || content.contains("@[astrid]")
-        let isPersonalChannel = listId == nil || listId == "my-tasks"
-        guard hasAstridMention || isPersonalChannel else { return }
-
-        guard AppleFoundationModelService.shared.isAvailable else {
-            logger.warning("On-device model not available on this device")
-            return
-        }
-
-        logger.notice("Processing @Astrid mention on-device")
-
-        // Strip the mention markup to get the plain message
-        let plainMessage = content
-            .replacingOccurrences(of: "@\\[[^\\]]+\\]\\([^)]+\\)", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !plainMessage.isEmpty else { return }
-
-        // Process on-device
-        guard let response = await AppleFoundationModelService.shared.processChatMessage(plainMessage) else {
-            logger.error("On-device processing returned no response")
-            return
-        }
-
-        // Post the response as Astrid via ChatService (canonical entry point
-        // for everything that writes to a chat channel).
-        do {
-            try await ChatService.shared.postAgentResponse(
-                channelId: channelId,
-                content: response
-            )
-            logger.notice("On-device response posted to channel")
-        } catch {
-            logger.error("Failed to post on-device response: \(error.localizedDescription, privacy: .public)")
-        }
+        await OnDeviceAstrid.respondIfNeeded(channelId: channelId, content: content, listId: listId)
     }
 }

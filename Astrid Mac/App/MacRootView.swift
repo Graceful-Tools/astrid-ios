@@ -129,6 +129,8 @@ struct MacRootView: View {
                 MacListIcon(list: list, size: 16)     // real list image/color swatch (mirrors iOS)
             }
         }
+        // Incomplete count, like iOS's sidebar (task 74d6f6aa).
+        .badge(MacListCount.count(taskService.tasks, list: list, currentUserId: auth.userId))
         .tag(Optional(list.id))
         // Drop tasks here to MOVE them, or hold Option to COPY — the macOS convention (83f45d49).
         .dropDestination(for: String.self) { ids, _ in

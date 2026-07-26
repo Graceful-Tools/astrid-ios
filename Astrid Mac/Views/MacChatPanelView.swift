@@ -279,6 +279,10 @@ struct MacChatPanelView: View {
             _ = try await chat.sendMessage(channelId: cid, content: t, replyToId: replyId)
             text = ""
             replyingTo = nil
+            // Apple Intelligence parity with iOS: when the on-device model is the chosen agent,
+            // Astrid answers locally. Mac never did this, so @Astrid did nothing here (8dded037).
+            await OnDeviceAstrid.respondIfNeeded(channelId: cid, content: t,
+                                                 listId: source.listIdForMembers)
         }
     }
 }
