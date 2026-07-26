@@ -35,7 +35,9 @@ struct MacMenuBarView: View {
             } else {
                 ForEach(openTasks) { task in
                     Button {
-                        _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: true, task: task) }
+                        MacActions.perform("Complete task") {
+                            _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
+                        }
                     } label: {
                         Label(task.title, systemImage: "circle").labelStyle(.titleAndIcon)
                     }
@@ -56,8 +58,8 @@ struct MacMenuBarView: View {
         guard let args = MacQuickAdd.makeGlobalArgs(rawText: quickText, lists: listService.lists,
                                                     smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else { return }
         quickText = ""
-        _Concurrency.Task {
-            _ = try? await taskService.createTask(
+        MacActions.perform("Add task") {
+            _ = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
         }

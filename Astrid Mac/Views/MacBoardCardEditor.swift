@@ -156,19 +156,19 @@ struct MacBoardCardEditor: View {
     }
 
     private func setAssignee(_ id: String?) {
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
+        MacActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
     }
     private func saveNotes() {
         guard notes != task.description else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, description: notes, task: task) }
+        MacActions.perform("Save notes") { _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task) }
     }
     private func savePriority() {
         guard priority != task.priority else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
+        MacActions.perform("Save priority") { _ = try await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
     }
     private func saveDue() {
-        _Concurrency.Task {
-            _ = try? await taskService.updateTask(taskId: task.id,
+        MacActions.perform("Save due date") {
+            _ = try await taskService.updateTask(taskId: task.id,
                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due), isAllDay: false, task: task)
         }
     }
@@ -184,7 +184,7 @@ struct MacBoardCardEditor: View {
         if timerRunning, let s = timerStart {
             let total = (task.timerDuration ?? 0) + Int(Date().timeIntervalSince(s))
             timerRunning = false; timerStart = nil
-            _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
+            MacActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
         } else { timerRunning = true; timerStart = Date() }
     }
     private func attach() {

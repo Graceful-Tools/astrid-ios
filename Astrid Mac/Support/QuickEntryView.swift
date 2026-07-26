@@ -68,8 +68,8 @@ struct QuickEntryView: View {
             return
         }
         // Offline-first: creates locally + journals through the Outbox, syncs when online.
-        _Concurrency.Task {
-            _ = try? await TaskService.shared.createTask(
+        MacActions.perform("Add task") {
+            _ = try await TaskService.shared.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
         }

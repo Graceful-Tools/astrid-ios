@@ -88,7 +88,7 @@ struct CommandPaletteView: View {
     }
 
     private func complete(_ t: Task) {
-        _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: true, task: t) }
+        MacActions.perform("Complete task") { _ = try await taskService.completeTask(id: t.id, completed: true, task: t) }
         dismiss()
     }
 }

@@ -478,8 +478,8 @@ struct MacTaskDetailView: View {
     }
 
     private func saveRepeat() {
-        _Concurrency.Task {
-            _ = try? await taskService.updateTask(
+        MacActions.perform("Save repeat") {
+            _ = try await taskService.updateTask(
                 taskId: task.id, repeating: repeating.rawValue,
                 repeatingData: repeating == .custom ? customPattern : nil,
                 repeatFrom: MacTaskDetailUpdate.repeatFromArg(task), task: task)
@@ -488,7 +488,7 @@ struct MacTaskDetailView: View {
 
     private func setAssignee(_ id: String?) {
         // Empty string unassigns per the TaskService contract; "No one" (nil) must clear.
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
+        MacActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
     }
 
     private var loggedSeconds: Int {
@@ -501,7 +501,7 @@ struct MacTaskDetailView: View {
         if timerRunning, let s = timerStart {
             let total = (task.timerDuration ?? 0) + Int(Date().timeIntervalSince(s))
             timerRunning = false; timerStart = nil
-            _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
+            MacActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
         } else {
             timerRunning = true; timerStart = Date()
         }
@@ -550,25 +550,25 @@ struct MacTaskDetailView: View {
     private func saveTitle() {
         let t = title.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty, t != task.title else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, title: t, task: task) }
+        MacActions.perform("Save title") { _ = try await taskService.updateTask(taskId: task.id, title: t, task: task) }
     }
 
     private func saveNotes() {
         guard notes != task.description else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, description: notes, task: task) }
+        MacActions.perform("Save notes") { _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task) }
     }
 
     private func savePriority() {
         guard priority != task.priority else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
+        MacActions.perform("Save priority") { _ = try await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
     }
 
     private func saveDue() {
         // hasDue OFF sends Date.distantPast (the shared clear sentinel) so the due date is cleared.
-        _Concurrency.Task {
-            _ = try? await taskService.updateTask(taskId: task.id,
-                                                  dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due),
-                                                  isAllDay: isAllDay, task: task)
+        MacActions.perform("Save due date") {
+            _ = try await taskService.updateTask(taskId: task.id,
+                                                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due),
+                                                 isAllDay: isAllDay, task: task)
         }
     }
 
@@ -621,9 +621,9 @@ struct MacTaskDetailView: View {
     // MARK: subtasks + comments
 
     private func toggleSubtask(_ st: Task) {
-        _Concurrency.Task {
-            _ = try? await taskService.completeTask(id: st.id, completed: !st.completed, task: st)
-            load()
+        MacActions.perform("Complete subtask") {
+            defer { load() }
+            _ = try await taskService.completeTask(id: st.id, completed: !st.completed, task: st)
         }
     }
 
@@ -631,14 +631,14 @@ struct MacTaskDetailView: View {
         let t = newSubtask.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
         newSubtask = ""
-        _Concurrency.Task {
-            _ = try? await taskService.createTask(listIds: task.listIds ?? [], title: t, parentTaskId: task.id)
-            load()
+        MacActions.perform("Add subtask") {
+            defer { load() }
+            _ = try await taskService.createTask(listIds: task.listIds ?? [], title: t, parentTaskId: task.id)
         }
     }
 
     private func deleteSubtask(_ st: Task) {
-        _Concurrency.Task { try? await taskService.deleteTask(id: st.id); load() }
+        MacActions.perform("Delete subtask") { defer { load() }; try await taskService.deleteTask(id: st.id) }
     }
 
     private func renameSubtask() {
@@ -646,7 +646,7 @@ struct MacTaskDetailView: View {
         let t = editingSubtaskText.trimmingCharacters(in: .whitespaces)
         editingSubtask = nil
         guard !t.isEmpty, t != st.title else { return }
-        _Concurrency.Task { _ = try? await taskService.updateTask(taskId: st.id, title: t, task: st); load() }
+        MacActions.perform("Rename subtask") { defer { load() }; _ = try await taskService.updateTask(taskId: st.id, title: t, task: st) }
     }
 
     private func deleteComment(_ c: Comment) {

@@ -89,17 +89,19 @@ final class MacAppModel: ObservableObject {
         let all = TaskService.shared.tasks
         for id in ids {
             guard let t = all.first(where: { $0.id == id }) else { continue }
-            _Concurrency.Task {
+            // Keyboard actions report failures like every other write — a shortcut that silently
+            // does nothing is indistinguishable from one that is not wired up (task f1f0cb13).
+            MacActions.perform("Update task") {
                 switch effect {
                 case .priority(let p):
-                    _ = try? await TaskService.shared.updateTask(taskId: id, priority: p, task: t)
+                    _ = try await TaskService.shared.updateTask(taskId: id, priority: p, task: t)
                 case .shiftDueDays(let d):
                     let newDue = MacShortcutEffect.shiftedDueDate(current: t.dueDateTime, days: d, today: Date())
-                    _ = try? await TaskService.shared.updateTask(taskId: id, dueDateTime: newDue, task: t)
+                    _ = try await TaskService.shared.updateTask(taskId: id, dueDateTime: newDue, task: t)
                 case .clearDueDate:
-                    _ = try? await TaskService.shared.updateTask(taskId: id, dueDateTime: .distantPast, task: t)
+                    _ = try await TaskService.shared.updateTask(taskId: id, dueDateTime: .distantPast, task: t)
                 case .assignNoOne:
-                    _ = try? await TaskService.shared.updateTask(taskId: id, assigneeId: "", task: t)
+                    _ = try await TaskService.shared.updateTask(taskId: id, assigneeId: "", task: t)
                 }
             }
         }
@@ -110,8 +112,8 @@ final class MacAppModel: ObservableObject {
     @MainActor func completeSelectedTasks() {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
-        _Concurrency.Task {
-            for id in ids { _ = try? await TaskService.shared.completeTask(id: id, completed: true) }
+        MacActions.perform("Complete tasks") {
+            for id in ids { _ = try await TaskService.shared.completeTask(id: id, completed: true) }
         }
     }
 
@@ -119,8 +121,8 @@ final class MacAppModel: ObservableObject {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
         selectedTaskIds = []
-        _Concurrency.Task {
-            for id in ids { try? await TaskService.shared.deleteTask(id: id) }
+        MacActions.perform("Delete tasks") {
+            for id in ids { try await TaskService.shared.deleteTask(id: id) }
         }
     }
 

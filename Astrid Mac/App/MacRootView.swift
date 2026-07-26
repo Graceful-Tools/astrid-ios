@@ -90,7 +90,9 @@ struct MacRootView: View {
     private func move(_ ids: Set<String>, to listId: String) {
         let toMove = tasksForSelection.filter { ids.contains($0.id) }
         for t in toMove {
-            _Concurrency.Task { _ = try? await taskService.updateTask(taskId: t.id, listIds: [listId], task: t) }
+            MacActions.perform("Move task") {
+                _ = try await taskService.updateTask(taskId: t.id, listIds: [listId], task: t)
+            }
         }
         selectedTaskIds.removeAll()
     }
@@ -108,8 +110,8 @@ struct MacRootView: View {
     }
 
     private func toggleFavorite(_ list: TaskList) {
-        _Concurrency.Task {
-            _ = try? await listService.toggleFavorite(listId: list.id, isFavorite: !(list.isFavorite ?? false))
+        MacActions.perform("Update favourite") {
+            _ = try await listService.toggleFavorite(listId: list.id, isFavorite: !(list.isFavorite ?? false))
         }
     }
     private func deleteList(_ list: TaskList) {
@@ -324,7 +326,9 @@ struct MacRootView: View {
     private func completeSelected() {
         let toComplete = tasksForSelection.filter { selectedTaskIds.contains($0.id) && !$0.completed }
         for task in toComplete {
-            _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: true, task: task) }
+            MacActions.perform("Complete task") {
+                _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
+            }
         }
         selectedTaskIds.removeAll()
     }
@@ -634,7 +638,9 @@ struct MacRootView: View {
     }
 
     private func setCompleted(_ t: Task) {
-        _Concurrency.Task { _ = try? await taskService.completeTask(id: t.id, completed: true, task: t) }
+        MacActions.perform("Complete task") {
+            _ = try await taskService.completeTask(id: t.id, completed: true, task: t)
+        }
     }
 
     /// Toggle completion from the row glyph (both directions; repeat rollover honored).
@@ -795,14 +801,15 @@ struct MacRootView: View {
         let assigneeOverride = draftAssigneeOverride
         draftPriorityOverride = nil          // the overrides apply to one task, like iOS
         draftAssigneeOverride = nil
-        _Concurrency.Task {
-            let created = try? await taskService.createTask(
+        MacActions.perform("Add task") {
+            let created = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate,
                 assigneeId: assigneeOverride == "unassigned" ? nil : (assigneeOverride ?? args.assigneeId),
                 isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)
-            if openDetails, let created { selectedTaskIds = [created.id] }
+            // `created` is non-optional now that the error is thrown rather than swallowed.
+            if openDetails { selectedTaskIds = [created.id] }
         }
     }
 
