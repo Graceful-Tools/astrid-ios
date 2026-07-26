@@ -63,7 +63,8 @@ struct MacTaskCheckbox: View {
                         .transition(.scale.combined(with: .opacity))
                 }
             }
-            .animation(MacMotion.fast, value: completed)   // completion check pops in (4c7b9f08)
+            // Spring, not a linear fade: the check should pop in when the row DOES stay in place.
+            .animation(MacMotion.spring, value: completed)
             .accessibilityLabel(completed ? "Completed" : "Not completed")
     }
 }

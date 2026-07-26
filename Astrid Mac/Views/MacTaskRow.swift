@@ -17,6 +17,7 @@ struct MacTaskRow: View {
     var indent: Int = 0                  // subtask nesting depth (0 = top level)
     var isSelected: Bool = false
     @State private var hovering = false  // Mac hover affordance (77225941)
+    @State private var checkPop = false   // tap feedback on the checkbox (see below)
     let onToggle: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
@@ -61,9 +62,20 @@ struct MacTaskRow: View {
                 // handling swallows it, so the checkbox was dead (task 652edb22). Gestures DO
                 // receive clicks in these rows (row selection has always worked), so the checkbox
                 // is a tap gesture that keeps full button semantics for VoiceOver and UI tests.
+                // The check's own transition rarely plays: completing RE-SORTS the list, so the row
+                // is replaced rather than updated in place and the animation never runs. A local
+                // scale "pop" fires on the tap itself, so the click always gets visible feedback.
                 MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 20)
+                    .scaleEffect(checkPop ? 1.28 : 1)
+                    .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())
-                    .onTapGesture(perform: onToggle)
+                    .onTapGesture {
+                        checkPop = true
+                        onToggle()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + MacMotion.fastDuration) {
+                            checkPop = false
+                        }
+                    }
                     .macPointingHand()
                     .help(task.completed ? "Mark incomplete" : "Mark complete")
                     .accessibilityElement()
