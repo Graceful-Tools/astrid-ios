@@ -201,7 +201,8 @@ struct MacRootView: View {
     private func taskDetailPopout(_ task: Task) -> some View {
         // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
         MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
-            .frame(width: MacLayout.detailPanelWidth)
+            .frame(width: MacLayout.detailPanelWidth, alignment: .top)
+            .frame(maxHeight: .infinity, alignment: .top)
             .background(MacDetailChrome.background)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
@@ -230,7 +231,9 @@ struct MacRootView: View {
             .padding(.leading, MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
             .padding(.trailing, MacLayout.detailPanelMargin)
         .padding(.vertical, 14)
-        .frame(maxHeight: .infinity, alignment: .center)
+        // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
+        // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.
+        .frame(maxHeight: .infinity)
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
@@ -734,10 +737,9 @@ struct MacRootView: View {
                    let id = selectedTaskIds.first,
                    let task = taskService.tasksById[id] ?? tasksForSelection.first(where: { $0.id == id }) {
                     taskDetailPopout(task)
-                        // Grows OUT OF the task: anchored on the leading edge, where the arrow
-                        // points at the row. It used to slide in from the window's trailing edge,
-                        // which read as coming from nowhere.
-                        .transition(.scale(scale: 0.92, anchor: .leading).combined(with: .opacity))
+                        // Slides in LEFT→RIGHT and back out RIGHT→LEFT: both directions are the
+                        // LEADING edge, so it travels out of, and back into, the task it points at.
+                        .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space

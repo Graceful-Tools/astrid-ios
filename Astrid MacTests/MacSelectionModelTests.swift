@@ -87,3 +87,38 @@ extension MacSelectionModelTests {
                        300, accuracy: 0.001)
     }
 }
+
+// MARK: - Arrow aiming with a FULL-HEIGHT panel (reported: "arrow not pointing at the right row")
+
+extension MacSelectionModelTests {
+
+    /// With the panel spanning the content height, its origin is the content origin, so a row's
+    /// midY maps straight through — no centring offset to get wrong.
+    func testFullHeightPanelMapsRowPositionDirectly() {
+        // Panel starts at the content top (origin 0) and is as tall as the content.
+        XCTAssertEqual(MacSelectionModel.arrowLocalY(rowMidY: 240, panelOriginY: 0, panelHeight: 800),
+                       240, accuracy: 0.001)
+    }
+
+    /// The bug: a SHORT, vertically-centred panel could not reach rows outside its own extent, so
+    /// the arrow clamped to the panel edge and appeared to point at the wrong row. With a
+    /// full-height panel every visible row is reachable.
+    func testEveryVisibleRowIsReachableWhenThePanelIsFullHeight() {
+        let contentHeight: CGFloat = 800
+        for rowMidY in stride(from: CGFloat(40), through: 760, by: 40) {
+            let y = MacSelectionModel.arrowLocalY(rowMidY: rowMidY, panelOriginY: 0,
+                                                  panelHeight: contentHeight)
+            XCTAssertEqual(y, rowMidY, accuracy: 0.001,
+                           "Row at \(rowMidY) should be reachable without clamping")
+        }
+    }
+
+    /// A short centred panel demonstrates the old failure: rows near the top clamp away from their
+    /// true position. Kept as documentation of WHY the panel is full height now.
+    func testShortCentredPanelClampsAndMisses() {
+        // Panel occupying 300...500 of an 800pt content area; a row at 100 cannot be reached.
+        let y = MacSelectionModel.arrowLocalY(rowMidY: 100, panelOriginY: 300, panelHeight: 200)
+        XCTAssertNotEqual(y, 100 - 300, accuracy: 0.001)
+        XCTAssertEqual(y, 28, accuracy: 0.001, "Clamped to the inset — the wrong-row symptom")
+    }
+}

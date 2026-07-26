@@ -169,7 +169,11 @@ struct MacRowInteractions: ViewModifier {
     func body(content: Content) -> some View {
         if enabled {
             content
-                .onTapGesture(perform: onSelect)
+                // HIGH priority: `.draggable` treats the first mouse-down as a possible drag and
+                // swallows it, so a plain `.onTapGesture` only fired on the SECOND click — the
+                // detail pane appeared to need two taps. A high-priority tap wins that race while
+                // drag-to-move still works.
+                .highPriorityGesture(TapGesture().onEnded { onSelect() })
                 .draggable(dragId)
         } else {
             content
