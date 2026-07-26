@@ -6,6 +6,7 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacTaskRow: View {
     let task: Task
@@ -170,18 +171,14 @@ struct MacRowInteractions: ViewModifier {
 
     func body(content: Content) -> some View {
         if enabled {
-            // `.draggable` treats the first mouse-down as a possible drag and swallows the click,
-            // which is why opening a task took two or three attempts. The drag is now armed only
-            // once the row is SELECTED: the first click always selects, and dragging still works
-            // from the selected row (plus "Move to List" in the context menu).
-            if isSelected {
-                content
-                    .highPriorityGesture(TapGesture().onEnded { onSelect() })
-                    .draggable(dragId)
-            } else {
-                content
-                    .highPriorityGesture(TapGesture().onEnded { onSelect() })
-            }
+            // `.onDrag`, not `.draggable`: `.draggable` claimed the first mouse-down as a possible
+            // drag and swallowed the click, so opening a task took two or three attempts. Gating
+            // it on `isSelected` fixed the click but meant an UNSELECTED row could not be dragged
+            // at all — which is why drag-and-drop read as missing (task 83f45d49). `.onDrag` only
+            // begins once the pointer moves past a threshold, so a click and a drag coexist.
+            content
+                .highPriorityGesture(TapGesture().onEnded { onSelect() })
+                .onDrag { NSItemProvider(object: dragId as NSString) }
         } else {
             content
         }

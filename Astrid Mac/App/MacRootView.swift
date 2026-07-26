@@ -130,8 +130,13 @@ struct MacRootView: View {
             }
         }
         .tag(Optional(list.id))
-        .dropDestination(for: String.self) { ids, _ in   // drop dragged tasks here to move them
-            move(Set(ids), to: list.id); return true
+        // Drop tasks here to MOVE them, or hold Option to COPY — the macOS convention (83f45d49).
+        .dropDestination(for: String.self) { ids, _ in
+            switch MacDropAction.current {
+            case .copy: copyTasks(Set(ids), to: list.id)
+            case .move: move(Set(ids), to: list.id)
+            }
+            return true
         }
         .contextMenu {
             Button(NSLocalizedString("mac.rename_ellipsis", comment: "")) { editingList = list }
@@ -653,6 +658,17 @@ struct MacRootView: View {
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
         return true
+    }
+
+    /// Copy dropped tasks into a list (Option-drag), through the same service the menu uses so
+    /// comments come across too.
+    private func copyTasks(_ ids: Set<String>, to listId: String) {
+        MacActions.perform("Copy tasks") {
+            for id in ids {
+                _ = try await TaskService.shared.copyTask(id: id, targetListId: listId,
+                                                          includeComments: true)
+            }
+        }
     }
 
     /// Copy a task into another list from the row menu — the SAME service call the detail menu

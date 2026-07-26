@@ -30,7 +30,7 @@ final class AppleFoundationModelService {
     /// Whether Apple Foundation Models are available on this device
     var isAvailable: Bool {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
+        if #available(iOS 26, macOS 26, *) {
             return true
         }
         #endif
@@ -42,7 +42,7 @@ final class AppleFoundationModelService {
     /// Parse natural language input into structured task data using on-device AI.
     func parseTask(_ input: String) async -> AITaskParseResult? {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
+        if #available(iOS 26, macOS 26, *) {
             return await _parseTask(input)
         }
         #endif
@@ -57,7 +57,7 @@ final class AppleFoundationModelService {
     /// Returns the response text to post as Astrid, or nil if unavailable.
     func processChatMessage(_ message: String) async -> String? {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
+        if #available(iOS 26, macOS 26, *) {
             return await _processChatMessage(message)
         }
         #endif
@@ -70,7 +70,7 @@ final class AppleFoundationModelService {
 #if canImport(FoundationModels)
 import FoundationModels
 
-@available(iOS 26, *)
+@available(iOS 26, macOS 26, *)
 extension AppleFoundationModelService {
 
     // MARK: - Generable Schemas

@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA01BEEF0000000000000001 /* AstridApp.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */; };
 		CB5DE3932EBDCC160056928E /* Astrid.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB5DE3892EBDCC150056928E /* Astrid.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CBB1360B2EAB284400D41E86 /* AstridApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB1360A2EAB284400D41E86 /* AstridApp.swift */; };
 		DCA6E9C682DE48EF8A1490EC /* AstridApp.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */; };
-		AA01BEEF0000000000000001 /* AstridApp.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
