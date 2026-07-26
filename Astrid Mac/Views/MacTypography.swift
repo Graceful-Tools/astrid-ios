@@ -8,10 +8,14 @@
 import SwiftUI
 
 enum MacTypography {
-    static let rowTitleSize: CGFloat = 16       // iOS 19pt equivalent at desktop density
-    static let rowMetaSize: CGFloat = 13        // iOS 15pt metadata equivalent
-    static let detailTitleSize: CGFloat = 20    // detail header
-    static let labelSize: CGFloat = 12          // field labels (Who/Date/…)
+    // Sized against the MAC system ramp, not iOS's numbers. iOS body is 17pt and its row title
+    // 19pt (≈1.12x body); macOS body is 13pt, so the equivalent row title is ~14pt. The previous
+    // 16/13 ramp was a literal-ish port of the iOS sizes and read oversized in a Mac window —
+    // the same hierarchy, just at desktop density.
+    static let rowTitleSize: CGFloat = 14       // ≈ macOS body (13) + emphasis, like iOS 19 vs 17
+    static let rowMetaSize: CGFloat = 11        // macOS caption density
+    static let detailTitleSize: CGFloat = 17    // detail header — clearly above the row title
+    static let labelSize: CGFloat = 11          // field labels (Who/Date/…)
 
     static var rowTitle: Font { .system(size: rowTitleSize, weight: .medium) }
     static var rowMeta: Font { .system(size: rowMetaSize) }

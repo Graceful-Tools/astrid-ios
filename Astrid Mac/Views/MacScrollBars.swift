@@ -14,8 +14,11 @@ enum MacScrollBars {
     static let defaultsKey = "showScrollBars"
 
     /// Pure mapping so the rule is testable without a view.
+    /// `.never`, not `.hidden`: with the system preference set to "Show scroll bars: Always" (or a
+    /// mouse attached) macOS still draws the scroller for `.hidden`, which is why bars were still
+    /// showing in the task list. `.never` suppresses them regardless of that system setting.
     static func visibility(showScrollBars: Bool) -> ScrollIndicatorVisibility {
-        showScrollBars ? .automatic : .hidden
+        showScrollBars ? .automatic : .never
     }
 }
 

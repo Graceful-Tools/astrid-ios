@@ -8,6 +8,7 @@ import SwiftUI
 
 struct MacBoardView: View {
     let listId: String
+    @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var appModel = MacAppModel.shared
@@ -59,6 +60,7 @@ struct MacBoardView: View {
                 }
                 .padding()
             }
+            .macScrollBars(showScrollBars)
             .scrollContentBackground(.hidden)
         }
         .background(Theme.bgPrimary)   // pervasive theme background (Ocean cyan) behind the board

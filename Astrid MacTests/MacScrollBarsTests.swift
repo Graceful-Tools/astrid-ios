@@ -9,7 +9,9 @@ final class MacScrollBarsTests: XCTestCase {
 
     /// Default (the toggle off / key absent) hides them — that is the point of the task.
     func testHiddenWhenTheSettingIsOff() {
-        XCTAssertEqual(MacScrollBars.visibility(showScrollBars: false), .hidden)
+        // `.never`, not `.hidden` — macOS still draws the scroller for `.hidden` when the system
+        // preference is "always show scroll bars", which is exactly what was still appearing.
+        XCTAssertEqual(MacScrollBars.visibility(showScrollBars: false), .never)
     }
 
     /// Turning it on restores the SYSTEM behaviour (.automatic), not "always visible" — macOS
@@ -30,6 +32,6 @@ final class MacScrollBarsTests: XCTestCase {
         suite.removePersistentDomain(forName: "MacScrollBarsTests")
         XCTAssertFalse(suite.bool(forKey: MacScrollBars.defaultsKey))
         XCTAssertEqual(MacScrollBars.visibility(showScrollBars: suite.bool(forKey: MacScrollBars.defaultsKey)),
-                       .hidden)
+                       .never)
     }
 }
