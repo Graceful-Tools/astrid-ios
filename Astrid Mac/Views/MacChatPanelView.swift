@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 struct MacChatPanelView: View {
     let source: MacChatSource
+    @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var chat = ChatService.shared
     @StateObject private var auth = AuthManager.shared
     @State private var channelId: String?

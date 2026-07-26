@@ -1089,3 +1089,4 @@
 "mac.no_lists_match" = "沒有與「%@」相符的列表";
 "mac.replying_to" = "回覆 %@：%@";
 "mac.share_title" = "分享「%@」";
+"mac.show_scroll_bars" = "顯示捲動列";

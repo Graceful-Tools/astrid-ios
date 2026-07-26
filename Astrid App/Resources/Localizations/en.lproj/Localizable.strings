@@ -1095,3 +1095,4 @@
 "mac.no_lists_match" = "No lists match “%@”";
 "mac.replying_to" = "Replying to %@: %@";
 "mac.share_title" = "Share “%@”";
+"mac.show_scroll_bars" = "Show scroll bars";

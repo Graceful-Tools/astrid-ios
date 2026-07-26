@@ -37,6 +37,7 @@ struct MacRootView: View {
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
     @State private var listColumnWidth: CGFloat = 0  // the TASK column alone — see listColumn()
+    @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false   // task 01d8cfa1
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
@@ -421,10 +422,12 @@ struct MacRootView: View {
             }
         }
         .listStyle(.inset)
+        .macScrollBars(showScrollBars)          // hidden by default (task 01d8cfa1)
         // UI-test hook: XCUITest cannot deliver clicks into macOS List rows, so a layout test has
         // no way to open the detail pop-out. `-uiTestSelectRow <n>` selects the nth rendered row
         // on appear, making selection-dependent layout capturable. Inert without the argument.
-        .task(id: rows.map(\.id)) { await keepRowSelectedForUITesting(rows.map(\.id)) }
+        .onAppear { selectRowForUITestingIfRequested(rows.map(\.id)) }
+        .onChange(of: rows.map(\.id)) { _, ids in selectRowForUITestingIfRequested(ids) }
         .scrollContentBackground(.hidden)            // let the theme background show through
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
         .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
@@ -441,16 +444,14 @@ struct MacRootView: View {
 
     /// Test-only: honour `-uiTestSelectRow <index>` so UI tests can capture selection-dependent
     /// layout (the pop-out + its arrow). No effect in a normal run.
-    private func keepRowSelectedForUITesting(_ ids: [String]) async {
+    private func selectRowForUITestingIfRequested(_ ids: [String]) {
+        // Synchronous on purpose: an async `.task(id:)` version was cancelled every time `rows`
+        // changed, and `Task.sleep` returns immediately once cancelled, so the retry loop burned
+        // out before the rows settled and the row was never selected.
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: "-uiTestSelectRow"), i + 1 < args.count,
-              let n = Int(args[i + 1]) else { return }
-        // Re-assert for a few seconds: adding rows shifts the scroll offset, and the
-        // scroll-to-dismiss rule would otherwise clear the selection we just made.
-        for _ in 0..<25 {
-            if ids.indices.contains(n), selectedTaskIds.isEmpty { selectedTaskIds = [ids[n]] }
-            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
-        }
+              let n = Int(args[i + 1]), ids.indices.contains(n), selectedTaskIds.isEmpty else { return }
+        selectedTaskIds = [ids[n]]
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {
@@ -700,6 +701,7 @@ struct MacRootView: View {
                     }
                 }
             }
+            .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
             .background(Theme.bgPrimary)
             .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")

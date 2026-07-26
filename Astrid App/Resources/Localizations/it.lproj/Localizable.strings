@@ -1087,3 +1087,4 @@
 "mac.no_lists_match" = "Nessun elenco corrisponde a “%@”";
 "mac.replying_to" = "In risposta a %@: %@";
 "mac.share_title" = "Condividi “%@”";
+"mac.show_scroll_bars" = "Mostra barre di scorrimento";

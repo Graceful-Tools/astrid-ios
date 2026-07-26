@@ -22,9 +22,11 @@ struct MacSidebarAccountBar: View {
             }
             Spacer(minLength: 4)
             Menu {
-                Button(NSLocalizedString("settings", comment: "")) {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
+                // `SettingsLink` is the supported way to open Settings (macOS 14+). The old
+                // NSApp.sendAction(Selector("showSettingsWindow:")) relied on a private selector
+                // travelling the responder chain, and from a Menu in the sidebar it did nothing —
+                // the gear looked dead (task 32a1a10c).
+                SettingsLink { Text(NSLocalizedString("settings", comment: "")) }
                 Divider()
                 Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
             } label: {

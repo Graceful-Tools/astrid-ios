@@ -1087,3 +1087,4 @@
 "mac.no_lists_match" = "「%@」に一致するリストはありません";
 "mac.replying_to" = "%@ への返信: %@";
 "mac.share_title" = "「%@」を共有";
+"mac.show_scroll_bars" = "スクロールバーを表示";

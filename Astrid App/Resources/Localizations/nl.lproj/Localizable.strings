@@ -1087,3 +1087,4 @@
 "mac.no_lists_match" = "Geen lijsten komen overeen met “%@”";
 "mac.replying_to" = "Antwoord aan %@: %@";
 "mac.share_title" = "“%@” delen";
+"mac.show_scroll_bars" = "Schuifbalken tonen";

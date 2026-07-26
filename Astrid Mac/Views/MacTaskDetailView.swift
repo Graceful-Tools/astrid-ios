@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 struct MacTaskDetailView: View {
     let task: Task
     var onClose: (() -> Void)? = nil   // shown as ✕ in the header when presented as a pop-out
+    @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @ObservedObject private var appModel = MacAppModel.shared
@@ -302,6 +303,7 @@ struct MacTaskDetailView: View {
             }
         }
         .formStyle(.grouped)
+        .macScrollBars(showScrollBars)
         .scrollContentBackground(.hidden)   // white detail card (like web); dark-safe via MacDetailChrome
         // The grouped style draws each Section on the SYSTEM control background, which is not the
         // card colour — so the panel read as a different shade from the pop-out arrow (which fills

@@ -10,6 +10,9 @@ struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
     @StateObject private var userSettings = UserSettingsService.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
+    // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
+    // wants the system behaviour.
+    @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
 
     var body: some View {
         TabView {
@@ -19,6 +22,7 @@ struct MacSettingsView: View {
                         ForEach(ThemeMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .pickerStyle(.inline)
+                    Toggle(NSLocalizedString("mac.show_scroll_bars", comment: ""), isOn: $showScrollBars)
                 }
                 Section(NSLocalizedString("tasks.tasks", comment: "")) {
                     // Smart Task Creation — gates the shared SmartTaskParser in quick-add (a840511d).

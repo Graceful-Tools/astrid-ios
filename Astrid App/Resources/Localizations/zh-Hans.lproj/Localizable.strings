@@ -1087,3 +1087,4 @@
 "mac.no_lists_match" = "没有与“%@”匹配的列表";
 "mac.replying_to" = "回复 %@：%@";
 "mac.share_title" = "分享“%@”";
+"mac.show_scroll_bars" = "显示滚动条";
