@@ -111,4 +111,92 @@ final class MacQuickAddTests: XCTestCase {
         XCTAssertTrue(args?.title.contains("File taxes") ?? false)
         XCTAssertEqual(args?.listIds.first, listId, "Falls back to the selected list")
     }
+
+    // MARK: - #list resolution + token stripping (task 1c21489d)
+    //
+    // These verify against the SHARED SmartTaskParser's actual rules: a hashtag matches a list by
+    // name with spaces collapsed to "-", "_" or nothing, case-insensitively; every hashtag is
+    // stripped from the title whether or not it resolved.
+
+    private func list(_ id: String, _ name: String) -> TaskList {
+        TaskList(id: id, name: name)
+    }
+
+    func testHashtagResolvesToAListAndIsAddedAlongsideTheSelectedList() {
+        let work = list("work-1", "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "Draft proposal #work", selectedListId: listId, lists: [work])
+        XCTAssertEqual(args?.title, "Draft proposal", "The #tag must be stripped from the title")
+        XCTAssertEqual(args?.listIds.first, listId, "The selected list stays first")
+        XCTAssertTrue(args?.listIds.contains("work-1") ?? false, "#work must resolve to the Work list")
+    }
+
+    func testHashtagMatchingIsCaseInsensitive() {
+        let work = list("work-1", "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "Review #WORK", selectedListId: listId, lists: [work])
+        XCTAssertTrue(args?.listIds.contains("work-1") ?? false)
+    }
+
+    /// Multi-word list names match with the space collapsed — all three spellings the parser allows.
+    func testMultiWordListNameMatchesEverySupportedSpelling() {
+        let home = list("home-1", "Home Stuff")
+        for tag in ["#home-stuff", "#home_stuff", "#homestuff"] {
+            let args = MacQuickAdd.makeArgs(rawText: "Fix sink \(tag)", selectedListId: listId, lists: [home])
+            XCTAssertTrue(args?.listIds.contains("home-1") ?? false, "\(tag) should resolve to 'Home Stuff'")
+            XCTAssertEqual(args?.title, "Fix sink", "\(tag) should be stripped")
+        }
+    }
+
+    func testMultipleHashtagsResolveToMultipleLists() {
+        let work = list("work-1", "Work"), home = list("home-1", "Home")
+        let args = MacQuickAdd.makeArgs(rawText: "Call plumber #work #home", selectedListId: listId,
+                                        lists: [work, home])
+        XCTAssertTrue(args?.listIds.contains("work-1") ?? false)
+        XCTAssertTrue(args?.listIds.contains("home-1") ?? false)
+        XCTAssertEqual(args?.title, "Call plumber")
+    }
+
+    /// An unresolved hashtag is still STRIPPED — the title must not keep "#nowhere".
+    func testUnresolvedHashtagIsStrippedFromTheTitle() {
+        let work = list("work-1", "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "File taxes #nowhere", selectedListId: listId, lists: [work])
+        XCTAssertEqual(args?.title, "File taxes")
+        XCTAssertEqual(args?.listIds, [listId], "An unmatched tag must not add a list")
+    }
+
+    func testHashtagInTheMiddleIsStrippedWithoutDanglingSpaces() {
+        let work = list("work-1", "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "Send #work the invoice", selectedListId: listId, lists: [work])
+        XCTAssertEqual(args?.title, "Send the invoice", "Collapsing must not leave a double space")
+    }
+
+    /// A '#' that is not a tag (mid-word, like a Swift attribute or a number) must be left alone —
+    /// the parser only matches a '#' at a word boundary.
+    func testMidWordHashIsNotTreatedAsATag() {
+        let args = MacQuickAdd.makeArgs(rawText: "Fix issue C#42", selectedListId: listId, lists: [])
+        XCTAssertEqual(args?.title, "Fix issue C#42")
+        XCTAssertEqual(args?.listIds, [listId])
+    }
+
+    /// Priority words only count as whole words: "urgently" must NOT set priority or be stripped.
+    func testPriorityWordInsideAnotherWordIsNotAToken() {
+        let args = MacQuickAdd.makeArgs(rawText: "Reply urgently to Sam", selectedListId: listId, lists: [])
+        XCTAssertNil(args?.priority, "'urgently' is not the 'urgent' token")
+        XCTAssertEqual(args?.title, "Reply urgently to Sam")
+    }
+
+    func testEverythingAtOnceStripsEveryTokenAndKeepsAUsableTitle() {
+        let work = list("work-1", "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "Submit report tomorrow urgent #work",
+                                        selectedListId: listId, lists: [work])
+        XCTAssertNotNil(args?.whenDate)
+        XCTAssertNotNil(args?.priority)
+        XCTAssertTrue(args?.listIds.contains("work-1") ?? false)
+        XCTAssertEqual(args?.title, "Submit report", "All three token kinds must be stripped")
+    }
+
+    /// A title that is ONLY tokens must still produce something usable rather than an empty title.
+    func testTitleOfOnlyTokensFallsBackToTheRawText() {
+        let args = MacQuickAdd.makeArgs(rawText: "urgent", selectedListId: listId, lists: [])
+        XCTAssertFalse(args?.title.isEmpty ?? true, "An empty parsed title must fall back to the raw text")
+    }
 }
