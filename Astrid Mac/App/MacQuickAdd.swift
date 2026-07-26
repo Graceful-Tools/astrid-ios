@@ -27,22 +27,28 @@ enum MacQuickAdd {
         !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// - Parameter selectionIsVirtual: true for My Tasks (and saved filters). A virtual selection
+    ///   is NOT a real list, so it must never be attached as a list id — iOS does the same: a task
+    ///   added from My Tasks belongs to no list unless the text names one with #list, and shows up
+    ///   there because My Tasks lists what is mine or unassigned.
     static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
-                         smartEnabled: Bool = true) -> CreateArgs? {
+                         smartEnabled: Bool = true,
+                         selectionIsVirtual: Bool = false) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let selectedListId else { return nil }
+        let realListId = selectionIsVirtual ? nil : selectedListId
 
         guard smartEnabled else {
-            return CreateArgs(title: trimmed, listIds: [selectedListId],
+            return CreateArgs(title: trimmed, listIds: realListId.map { [$0] } ?? [],
                               priority: nil, whenDate: nil, repeating: nil, repeatingData: nil)
         }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
         let title = parsed.title.isEmpty ? trimmed : parsed.title
 
-        // Always include the currently selected list, plus any #lists the parser found.
+        // Include the currently selected REAL list, plus any #lists the parser found.
         var listIds = parsed.listIds
-        if !listIds.contains(selectedListId) { listIds.insert(selectedListId, at: 0) }
+        if let realListId, !listIds.contains(realListId) { listIds.insert(realListId, at: 0) }
 
         return CreateArgs(
             title: title,

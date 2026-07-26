@@ -228,3 +228,42 @@ extension MacQuickAddTests {
         }
     }
 }
+
+// MARK: - Adding from My Tasks (virtual selection)
+
+extension MacQuickAddTests {
+
+    /// A virtual selection is NOT a real list: its id must never be attached to the task. iOS does
+    /// the same — a task added from My Tasks belongs to no list and shows up there because My Tasks
+    /// lists what is mine or unassigned.
+    func testMyTasksAddCreatesTaskWithNoList() {
+        let args = MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: "__my_tasks__",
+                                        lists: [], selectionIsVirtual: true)
+        XCTAssertEqual(args?.title, "Buy milk")
+        XCTAssertTrue(args?.listIds.isEmpty ?? false,
+                      "The virtual selection id must not become a list id")
+    }
+
+    /// A #list in the text still works from My Tasks — that is the way to file it somewhere.
+    func testMyTasksAddHonoursHashtagLists() {
+        let work = TaskList(id: "work-1", name: "Work")
+        let args = MacQuickAdd.makeArgs(rawText: "Draft proposal #work", selectedListId: "__my_tasks__",
+                                        lists: [work], selectionIsVirtual: true)
+        XCTAssertEqual(args?.listIds, ["work-1"])
+        XCTAssertEqual(args?.title, "Draft proposal")
+    }
+
+    /// Smart parsing off, from My Tasks: still no list, and the raw title is kept.
+    func testMyTasksAddWithSmartParsingOff() {
+        let args = MacQuickAdd.makeArgs(rawText: "Report friday urgent", selectedListId: "__my_tasks__",
+                                        lists: [], smartEnabled: false, selectionIsVirtual: true)
+        XCTAssertEqual(args?.title, "Report friday urgent")
+        XCTAssertTrue(args?.listIds.isEmpty ?? false)
+    }
+
+    /// A real list is unaffected.
+    func testRealListStillAttachesItsId() {
+        let args = MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: listId, lists: [])
+        XCTAssertEqual(args?.listIds, [listId])
+    }
+}

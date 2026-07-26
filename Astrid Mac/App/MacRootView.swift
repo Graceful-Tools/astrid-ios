@@ -303,7 +303,9 @@ struct MacRootView: View {
                 taskTableBody(rows)
             }
             // Quick-add FLOATS at the bottom (iPad/iOS placement) as a lifted card — no divider.
-            if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual, hasSelection: selectedListId != nil) {
+            if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
+                                       hasSelection: selectedListId != nil,
+                                       isMyTasks: selectedListId == Self.myTasksId) {
                 quickAddBar
             }
         }
@@ -646,7 +648,8 @@ struct MacRootView: View {
     private func commitDraft() {
         guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
                                               lists: listService.lists,
-                                              smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else { return }
+                                              smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
+                                              selectionIsVirtual: selectionIsVirtual) else { return }
         draftTitle = ""
         _Concurrency.Task {
             _ = try? await taskService.createTask(
