@@ -89,6 +89,15 @@ final class Astrid_MacUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: "sidebar.search").firstMatch.click()
         let field = app.descendants(matching: .any).matching(identifier: "search.field").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 10), "Search view should show its input field")
+
+        // Capture the restyled surface (task 233144d9) for review.
+        app.activate()
+        let window = app.windows.firstMatch
+        let shot = XCTAttachment(screenshot: window.exists ? window.screenshot()
+                                                          : XCUIScreen.main.screenshot())
+        shot.name = "search-surface"
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 
     /// The core E2E: create a list, quick-add a task into it, and see the row appear —

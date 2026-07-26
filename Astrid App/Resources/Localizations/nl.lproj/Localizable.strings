@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "Kies een lijst om je taken te zien.";
 "mac.empty.no_tasks" = "Alles klaar! Voeg hieronder een taak toe om te beginnen.";
 "mac.list_default_is" = "Standaard van lijst (%@)";
+"mac.empty.search_none" = "Geen taken komen overeen met die zoekopdracht.";
+"mac.empty.search_prompt" = "Doorzoek je taken";

@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "Wähle eine Liste, um deine Aufgaben zu sehen.";
 "mac.empty.no_tasks" = "Alles erledigt! Füge unten eine Aufgabe hinzu.";
 "mac.list_default_is" = "Listenstandard (%@)";
+"mac.empty.search_none" = "Keine Aufgaben passen zu dieser Suche.";
+"mac.empty.search_prompt" = "Durchsuche deine Aufgaben";

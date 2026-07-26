@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "Выберите список, чтобы увидеть задачи.";
 "mac.empty.no_tasks" = "Всё готово! Добавьте задачу ниже, чтобы начать.";
 "mac.list_default_is" = "По умолчанию для списка (%@)";
+"mac.empty.search_none" = "Нет задач, соответствующих запросу.";
+"mac.empty.search_prompt" = "Поиск по задачам";

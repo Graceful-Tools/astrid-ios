@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "リストを選ぶとタスクが表示されます。";
 "mac.empty.no_tasks" = "すべて完了！下からタスクを追加して始めましょう。";
 "mac.list_default_is" = "リストの既定 (%@)";
+"mac.empty.search_none" = "その検索に一致するタスクはありません。";
+"mac.empty.search_prompt" = "タスクを検索";

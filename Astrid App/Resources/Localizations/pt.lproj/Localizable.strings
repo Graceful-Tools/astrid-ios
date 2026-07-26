@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "Escolha uma lista para ver as suas tarefas.";
 "mac.empty.no_tasks" = "Tudo em dia! Adicione uma tarefa abaixo para começar.";
 "mac.list_default_is" = "Predefinição da lista (%@)";
+"mac.empty.search_none" = "Nenhuma tarefa corresponde a essa pesquisa.";
+"mac.empty.search_prompt" = "Pesquise as suas tarefas";

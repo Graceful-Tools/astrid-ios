@@ -263,29 +263,46 @@ struct MacRootView: View {
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
     @ViewBuilder private var searchView: some View {
         VStack(spacing: 0) {
+            // A themed input card like the quick-add, with the SAME margins as a task row — it was
+            // a bare unstyled field sitting flush against the window chrome (task 233144d9).
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
-                TextField(NSLocalizedString("mac.search_all_tasks", comment: ""), text: $taskSearchQuery).textFieldStyle(.plain)
+                TextField(NSLocalizedString("mac.search_all_tasks", comment: ""), text: $taskSearchQuery)
+                    .textFieldStyle(.plain)
+                    .font(MacTypography.rowTitle)
                     .accessibilityIdentifier("search.field")
+                if !taskSearchQuery.isEmpty {
+                    Button { taskSearchQuery = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .macPointingHand()
+                    .help(NSLocalizedString("actions.clear", comment: ""))
+                }
             }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
+            .padding(.horizontal, MacLayout.rowTrailingGap)
+            .padding(.vertical, 10)
             // Debounce: matches() runs on the debounced query (~200ms), not every keystroke (6042bde0).
             .task(id: taskSearchQuery) {
                 try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
                 debouncedSearchQuery = taskSearchQuery
             }
-            Divider()
             let results = MacTaskSearch.matches(taskService.tasks, query: debouncedSearchQuery)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-                ContentUnavailableView("Search your tasks", systemImage: "magnifyingglass",
-                                       description: Text(NSLocalizedString("mac.search_hint", comment: "")))
+                // Branded Astrid empty states, like every other empty surface — search was the
+                // last place still showing system ContentUnavailableView chrome.
+                MacEmptyState(copy: .searchPrompt)
             } else if results.isEmpty {
-                ContentUnavailableView.search(text: taskSearchQuery)
+                MacEmptyState(copy: .searchNoResults)
             } else {
                 List {
                     ForEach(results) { taskRow($0) }   // manual selection via row taps (0f695ef2)
                 }
                 .listStyle(.inset)
+                .macScrollBars(showScrollBars)
                 .scrollContentBackground(.hidden)
             }
         }

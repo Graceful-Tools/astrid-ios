@@ -1099,3 +1099,5 @@
 "mac.empty.no_list_selected" = "목록을 선택하면 작업이 표시됩니다.";
 "mac.empty.no_tasks" = "모두 완료! 아래에서 작업을 추가해 시작하세요.";
 "mac.list_default_is" = "목록 기본값 (%@)";
+"mac.empty.search_none" = "검색과 일치하는 작업이 없습니다.";
+"mac.empty.search_prompt" = "작업 검색";

@@ -1113,3 +1113,5 @@
 "mac.empty.no_list_selected" = "Elige una lista para ver tus tareas.";
 "mac.empty.no_tasks" = "¡Todo listo! Añade una tarea abajo para empezar.";
 "mac.list_default_is" = "Predeterminado de la lista (%@)";
+"mac.empty.search_none" = "Ninguna tarea coincide con esa búsqueda.";
+"mac.empty.search_prompt" = "Busca en tus tareas";

@@ -1105,3 +1105,5 @@
 "mac.empty.no_list_selected" = "Pick a list to see your tasks.";
 "mac.empty.no_tasks" = "All clear! Add a task below to get started.";
 "mac.list_default_is" = "List default (%@)";
+"mac.empty.search_none" = "No tasks match that search.";
+"mac.empty.search_prompt" = "Search your tasks";

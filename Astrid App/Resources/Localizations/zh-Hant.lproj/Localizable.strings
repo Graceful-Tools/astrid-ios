@@ -1099,3 +1099,5 @@
 "mac.empty.no_list_selected" = "選擇一個列表以查看任務。";
 "mac.empty.no_tasks" = "全部完成！在下方新增任務開始吧。";
 "mac.list_default_is" = "列表預設 (%@)";
+"mac.empty.search_none" = "沒有符合該搜尋的任務。";
+"mac.empty.search_prompt" = "搜尋你的任務";

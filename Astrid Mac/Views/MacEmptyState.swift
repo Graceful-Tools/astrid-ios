@@ -8,7 +8,7 @@ import SwiftUI
 
 /// Pure copy per empty context (testable).
 enum MacEmptyCopy {
-    case noTasks, filteredOut, noListSelected, chatEmpty
+    case noTasks, filteredOut, noListSelected, chatEmpty, searchPrompt, searchNoResults
 
     // Astrid's own voice is part of the product, so these are localized like every other string
     // (task 2eb3a080) — they were the last hardcoded English left on Mac.
@@ -18,11 +18,14 @@ enum MacEmptyCopy {
         case .filteredOut:    return NSLocalizedString("mac.empty.filtered_out", comment: "")
         case .noListSelected: return NSLocalizedString("mac.empty.no_list_selected", comment: "")
         case .chatEmpty:      return NSLocalizedString("mac.empty.chat", comment: "")
+        case .searchPrompt:   return NSLocalizedString("mac.empty.search_prompt", comment: "")
+        case .searchNoResults: return NSLocalizedString("mac.empty.search_none", comment: "")
         }
     }
     var detail: String? {
         switch self {
         case .filteredOut: return NSLocalizedString("mac.empty.filtered_out_detail", comment: "")
+        case .searchPrompt: return NSLocalizedString("mac.search_hint", comment: "")
         default: return nil
         }
     }

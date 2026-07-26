@@ -1097,3 +1097,5 @@
 "mac.empty.no_list_selected" = "Scegli un elenco per vedere le tue attività.";
 "mac.empty.no_tasks" = "Tutto fatto! Aggiungi un'attività qui sotto per iniziare.";
 "mac.list_default_is" = "Predefinito dell'elenco (%@)";
+"mac.empty.search_none" = "Nessuna attività corrisponde a questa ricerca.";
+"mac.empty.search_prompt" = "Cerca tra le tue attività";
