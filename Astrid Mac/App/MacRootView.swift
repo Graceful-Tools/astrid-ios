@@ -36,7 +36,6 @@ struct MacRootView: View {
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
-    @State private var listColumnWidth: CGFloat = 0  // the TASK column alone — see listColumn()
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false   // task 01d8cfa1
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
@@ -228,8 +227,8 @@ struct MacRootView: View {
                         .animation(MacMotion.fast, value: selectedRowMidY)
                 }
             }
-            .padding(.leading, MacLayout.detailArrowWidth)   // room for the arrow outside the card
-            .padding(.trailing, 14)
+            .padding(.leading, MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
+            .padding(.trailing, MacLayout.detailPanelMargin)
         .padding(.vertical, 14)
         .frame(maxHeight: .infinity, alignment: .center)
     }
@@ -302,53 +301,12 @@ struct MacRootView: View {
         .background(Theme.bgPrimary)   // theme shows behind the floating quick-add too
     }
 
-    /// The task-list column: the rows plus the detail pop-out anchored to the COLUMN's trailing
-    /// edge. Anchoring here (rather than on the whole content area) is what makes the panel always
-    /// sit against the task rows: with the chat column visible the outer area is 320pt wider, so a
-    /// trailing overlay there drifted away from the rows and the gap changed with the layout
-    /// (task 89e42f29).
-    ///
-    /// The width is measured on the ZStack — OUTSIDE the padding it feeds — because measuring a
-    /// view whose own padding depends on that measurement oscillates AppKit into a layout
-    /// exception (learned the hard way in f993dbe0).
-    /// Is the detail pop-out on screen? Drives the row insets AND the width reservation, so the
-    /// row edge and the arrow cannot disagree.
-    private var detailPopoutOpen: Bool {
-        selectedTaskIds.count == 1 && contentMode != .board
-            && selectedTaskIds.first.map { id in
-                taskService.tasksById[id] != nil || tasksForSelection.contains { $0.id == id }
-            } == true
-    }
-
+    /// The task-list column. It NEVER changes width for the detail pop-out: the pop-out floats
+    /// over the chat column instead (which is sized to contain it), so selecting a task cannot
+    /// reflow the rows (task 89e42f29 follow-up).
     private var listColumn: some View {
-        // Resolve the task ONCE: the reservation and the panel must agree. They used to be decided
-        // separately — the padding keyed off the selection count while the panel additionally
-        // required a tasksById hit — so a selected-but-unresolved task reserved a 406pt gutter and
-        // drew nothing in it, which is the "variable and off" gap (task 89e42f29).
-        // Falls back to the rendered rows when the cache has not caught up (a just-created task).
-        let selectedTask: Task? = selectedTaskIds.count == 1
-            ? selectedTaskIds.first.flatMap { id in
-                taskService.tasksById[id] ?? tasksForSelection.first { $0.id == id }
-              }
-            : nil
-        let popoutVisible = selectedTask != nil
-        return ZStack(alignment: .trailing) {
-            taskTable
-                .padding(.trailing, MacLayout.reservesDetailSpace(contentWidth: listColumnWidth,
-                                                                  popoutVisible: popoutVisible)
-                         ? MacLayout.detailPopoutWidth : 0)
-            // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
-            if let selectedTask {
-                taskDetailPopout(selectedTask)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
-        }
-        // Fill the available width. Without this the column sized to its CONTENT, leaving dead
-        // space beside it — and since the pop-out is anchored to the column's trailing edge, the
-        // panel's left edge moved with the content instead of sitting against the rows
-        // ("variable and off", task 89e42f29).
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listColumnWidth = $0 }
+        taskTable
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
@@ -483,8 +441,7 @@ struct MacRootView: View {
                 let cmd = NSEvent.modifierFlags.contains(.command)
                 selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
                 scrollAccum = 0
-            },
-            trailingInset: detailPopoutOpen ? 0 : 8
+            }
         )
         // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
@@ -528,10 +485,6 @@ struct MacRootView: View {
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
-        // `.inset` list style adds its own horizontal insets; zero them on the trailing side while
-        // the pop-out is open so the row card runs all the way to the arrow (task 89e42f29).
-        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0,
-                                  trailing: detailPopoutOpen ? -MacLayout.listInsetCompensation : 0))
         // The selected row reports its vertical center so the pop-out arrow points at it.
         .background(GeometryReader { g in
             Color.clear.preference(key: MacSelectedRowMidYKey.self,
@@ -768,6 +721,17 @@ struct MacRootView: View {
                     }
                 } else {
                     MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
+                }
+            }
+            // The detail pop-out floats at the trailing edge of the content area, which in
+            // 3-column mode IS the chat column — the panel covers chat, never the task rows, and
+            // the rows keep their width (task 89e42f29 follow-up). Board shows details inline.
+            .overlay(alignment: .trailing) {
+                if contentMode != .board, selectedTaskIds.count == 1,
+                   let id = selectedTaskIds.first,
+                   let task = taskService.tasksById[id] ?? tasksForSelection.first(where: { $0.id == id }) {
+                    taskDetailPopout(task)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space

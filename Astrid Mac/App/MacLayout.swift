@@ -10,35 +10,27 @@ import Foundation
 enum MacLayout {
     /// Web's 3-column window threshold (1100) minus the Mac sidebar's ideal width (240).
     static let chatColumnContentThreshold: CGFloat = 860
-    static let chatColumnWidth: CGFloat = 320
 
-    // Detail pop-out geometry. The panel FLOATS over the content, so unless the task list
-    // reserves this width the rows slide underneath it: the visible list looked clipped/narrow and
-    // the arrow overlapped rows instead of meeting their trailing edge (task f993dbe0).
+    // MARK: - Detail pop-out geometry
+    //
+    // The pop-out floats over the CHAT column, never over the task rows, and the task list never
+    // gives up width for it — rows must not resize when a task is selected. That is only possible
+    // if the chat column is permanently at least as wide as the pop-out plus its margins, which is
+    // how chatColumnWidth is derived below rather than being a magic number.
     static let detailPanelWidth: CGFloat = 380
     static let detailArrowWidth: CGFloat = 12
-    static let detailPanelTrailingInset: CGFloat = 14
-    /// Total width the pop-out occupies — what the task list must give up while it is open.
-    static var detailPopoutWidth: CGFloat { detailPanelWidth + detailArrowWidth + detailPanelTrailingInset }
+    /// Breathing room on each side of the floating panel: the arrow needs room on the leading
+    /// edge, and the panel needs a matching margin on the trailing edge.
+    static let detailPanelMargin: CGFloat = 14
 
-    /// Width left for the task list when the pop-out is open. The list should stay WIDER than the
-    /// panel; below that the window is too narrow to show both, so the pop-out is not reserved
-    /// space (it floats, as before) rather than squeezing the list to a sliver.
-    static func taskListWidth(contentWidth: CGFloat, popoutVisible: Bool) -> CGFloat {
-        guard popoutVisible else { return contentWidth }
-        let remaining = contentWidth - detailPopoutWidth
-        return remaining >= detailPopoutWidth ? remaining : contentWidth
+    /// Total width the floating pop-out occupies, margins included.
+    static var detailPopoutWidth: CGFloat {
+        detailPanelWidth + detailArrowWidth + detailPanelMargin * 2
     }
 
-    /// Should the list reserve space for the pop-out (rather than let it overlay the rows)?
-    static func reservesDetailSpace(contentWidth: CGFloat, popoutVisible: Bool) -> Bool {
-        popoutVisible && contentWidth - detailPopoutWidth >= detailPopoutWidth
-    }
-
-    /// `.listStyle(.inset)` adds its own horizontal insets to every row. While the detail pop-out
-    /// is open we cancel the TRAILING one so the row card reaches the arrow — measured from the
-    /// rendered layout, where the card stopped ~10pt short of the reserved edge (task 89e42f29).
-    static let listInsetCompensation: CGFloat = 10
+    /// The chat column is sized to CONTAIN the pop-out, so the panel can float over it without the
+    /// task list ever shrinking (and the arrow still lands beside the rows).
+    static var chatColumnWidth: CGFloat { detailPopoutWidth }
 
     /// Show the persistent chat column? Wide content + a real (non-virtual) list selected.
     static func showsChatColumn(contentWidth: CGFloat, isRealList: Bool) -> Bool {

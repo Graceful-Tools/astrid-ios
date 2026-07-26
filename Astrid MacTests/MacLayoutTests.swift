@@ -23,35 +23,38 @@ final class MacLayoutTests: XCTestCase {
 }
 #endif
 
-// MARK: - Detail pop-out width reservation (task f993dbe0)
+// MARK: - Detail pop-out floats over the chat column (task 89e42f29 follow-up)
 
 extension MacLayoutTests {
 
-    /// The task list must stay WIDER than the detail panel, so the arrow meets the row's trailing
-    /// edge instead of the rows disappearing under a floating panel.
-    func testTaskListStaysWiderThanTheDetailPanel() {
-        let width = MacLayout.taskListWidth(contentWidth: 1200, popoutVisible: true)
-        XCTAssertEqual(width, 1200 - MacLayout.detailPopoutWidth, accuracy: 0.001)
-        XCTAssertGreaterThan(width, MacLayout.detailPopoutWidth,
-                             "The list column must be wider than the detail pop-out")
+    /// The whole design rests on this: the chat column is wide enough to CONTAIN the floating
+    /// pop-out. If it ever gets narrower, the panel would spill over the task rows and the rows
+    /// would have to give up width again — the behaviour this replaced.
+    func testChatColumnContainsTheDetailPopout() {
+        XCTAssertGreaterThanOrEqual(MacLayout.chatColumnWidth, MacLayout.detailPopoutWidth,
+                                    "Chat must be at least as wide as the pop-out it hosts")
     }
 
-    func testFullWidthWhenNoPopout() {
-        XCTAssertEqual(MacLayout.taskListWidth(contentWidth: 900, popoutVisible: false), 900)
+    /// The pop-out width is panel + arrow + a margin on EACH side, so the arrow has room on the
+    /// leading edge and the panel has a matching margin on the trailing edge.
+    func testPopoutWidthIsPanelPlusArrowPlusBothMargins() {
+        XCTAssertEqual(MacLayout.detailPopoutWidth,
+                       MacLayout.detailPanelWidth + MacLayout.detailArrowWidth
+                       + MacLayout.detailPanelMargin * 2)
     }
 
-    /// Too narrow to fit both: keep the floating behaviour rather than squeezing the list.
-    func testNarrowWindowDoesNotSqueezeTheList() {
-        XCTAssertFalse(MacLayout.reservesDetailSpace(contentWidth: 700, popoutVisible: true))
-        XCTAssertEqual(MacLayout.taskListWidth(contentWidth: 700, popoutVisible: true), 700)
+    /// Margins are symmetric — "a similar width on the right" as on the arrow side.
+    func testMarginsAreSymmetric() {
+        XCTAssertGreaterThan(MacLayout.detailPanelMargin, 0)
+        XCTAssertEqual(MacLayout.detailPopoutWidth - MacLayout.detailPanelWidth
+                       - MacLayout.detailArrowWidth,
+                       MacLayout.detailPanelMargin * 2)
     }
 
-    func testWideWindowReservesSpace() {
-        XCTAssertTrue(MacLayout.reservesDetailSpace(contentWidth: 1200, popoutVisible: true))
-    }
-
-    func testPopoutWidthMatchesTheRenderedPanel() {
-        // 380 panel + 12 arrow + 14 trailing inset — keep in sync with taskDetailPopout.
-        XCTAssertEqual(MacLayout.detailPopoutWidth, 406)
+    /// There is deliberately NO "reserve width for the pop-out" helper any more: reserving width
+    /// is what made the rows reflow when a task was selected.
+    func testChatColumnIsDerivedFromThePopoutNotAMagicNumber() {
+        XCTAssertEqual(MacLayout.chatColumnWidth, MacLayout.detailPopoutWidth,
+                       "Deriving it keeps the two in step when the panel width changes")
     }
 }
