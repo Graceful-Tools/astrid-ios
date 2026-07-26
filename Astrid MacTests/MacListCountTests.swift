@@ -67,3 +67,50 @@ final class MacListCountTests: XCTestCase {
     }
 }
 #endif
+
+// MARK: - Batch counting (memoized: per-row counting is O(lists × tasks) per render)
+
+extension MacListCountTests {
+
+    /// The batch pass must agree with the single-list rule — otherwise memoizing changes behaviour.
+    func testBatchAgreesWithSingleListCounting() {
+        let work = TaskList(id: "work", name: "Work")
+        let home = TaskList(id: "home", name: "Home")
+        let tasks = [task("a", listIds: ["work"]),
+                     task("b", listIds: ["work"]),
+                     task("c", listIds: ["home"]),
+                     task("done", listIds: ["work"], completed: true)]
+        let batch = MacListCount.counts(tasks, lists: [work, home], currentUserId: nil)
+        XCTAssertEqual(batch["work"], MacListCount.count(tasks, list: work, currentUserId: nil))
+        XCTAssertEqual(batch["home"], MacListCount.count(tasks, list: home, currentUserId: nil))
+        XCTAssertEqual(batch["work"], 2)
+        XCTAssertEqual(batch["home"], 1)
+    }
+
+    /// A task in BOTH representations of the same list must be counted once, not twice.
+    func testBatchDoesNotDoubleCountDualMembership() {
+        let work = TaskList(id: "work", name: "Work")
+        var t = task("a", listIds: ["work"])
+        t.lists = [work]
+        XCTAssertEqual(MacListCount.counts([t], lists: [work], currentUserId: nil)["work"], 1)
+    }
+
+    /// Every list gets an entry, so a list with nothing in it shows 0 rather than a blank badge.
+    func testEveryListGetsAnEntry() {
+        let empty = TaskList(id: "empty", name: "Empty")
+        XCTAssertEqual(MacListCount.counts([], lists: [empty], currentUserId: nil)["empty"], 0)
+    }
+
+    func testBatchHonoursPublicAndVirtualExceptions() {
+        var pub = TaskList(id: "pub", name: "Public")
+        pub.privacy = .PUBLIC
+        pub.taskCount = 7
+        var smart = TaskList(id: "smart", name: "Smart")
+        smart.isVirtual = true
+        smart.filterCompletion = "incomplete"
+        let tasks = [task("a", listIds: ["x"]), task("done", listIds: ["x"], completed: true)]
+        let batch = MacListCount.counts(tasks, lists: [pub, smart], currentUserId: nil)
+        XCTAssertEqual(batch["pub"], 7)
+        XCTAssertEqual(batch["smart"], 1)
+    }
+}

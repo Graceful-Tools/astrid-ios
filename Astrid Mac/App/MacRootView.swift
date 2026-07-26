@@ -38,6 +38,7 @@ struct MacRootView: View {
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
     @State private var lastDueSignature = 0
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
+    @State private var listCounts: [String: Int] = [:]   // memoized per-list badges — see MacListCount
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
@@ -130,7 +131,7 @@ struct MacRootView: View {
             }
         }
         // Incomplete count, like iOS's sidebar (task 74d6f6aa).
-        .badge(MacListCount.count(taskService.tasks, list: list, currentUserId: auth.userId))
+        .badge(listCounts[list.id] ?? 0)   // memoized: per-row counting is O(lists × tasks)
         .tag(Optional(list.id))
         // Drop tasks here to MOVE them, or hold Option to COPY — the macOS convention (83f45d49).
         .dropDestination(for: String.self) { ids, _ in
@@ -975,12 +976,19 @@ struct MacRootView: View {
         .onChange(of: chatColumnVisible) { _, wide in
             if wide { columnVisibility = .all }
         }
+        // Adding/removing a list, or editing a smart list's filters, changes the badges too.
+        .onChange(of: listService.lists.map(\.id)) { _, _ in
+            listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
+                                             currentUserId: auth.userId)
+        }
         // Measure the WINDOW, not the content area: the content shrinks when the sidebar opens,
         // which used to drop the window under the 3-column threshold and close the chat column.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
             myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count
+            listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
+                                             currentUserId: auth.userId)
             // Hydrate lists from the shared service (cache-first, offline-safe).
             _ = try? await listService.fetchLists()
         }
@@ -1026,6 +1034,8 @@ struct MacRootView: View {
                 guard !_Concurrency.Task.isCancelled else { return }
                 let tasks = taskService.tasks
                 myTasksCount = MacMyTasks.filter(tasks, userId: auth.userId).count
+                listCounts = MacListCount.counts(tasks, lists: listService.lists,
+                                                 currentUserId: auth.userId)
                 await BadgeManager.shared.updateBadge(with: tasks)
                 let sig = MacSideEffects.dueSignature(tasks)
                 if sig != lastDueSignature {
