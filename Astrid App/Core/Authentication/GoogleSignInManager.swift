@@ -89,7 +89,8 @@ class GoogleSignInManager: NSObject, ObservableObject {
                     }
 
                     do {
-                        let result = try await self?.exchangeCodeForTokens(callbackURL: callbackURL, codeVerifier: codeVerifier)
+                        let result = try await self?.exchangeCodeForTokens(
+                            callbackURL: callbackURL, codeVerifier: codeVerifier, expectedState: state)
                         if let result = result {
                             self?.complete(with: .success(result))
                         }
@@ -121,10 +122,17 @@ class GoogleSignInManager: NSObject, ObservableObject {
         continuation.resume(with: result)
     }
 
-    private func exchangeCodeForTokens(callbackURL: URL, codeVerifier: String) async throws -> GoogleSignInResult {
-        // Parse authorization code from callback URL
-        let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
-        guard let code = components?.queryItems?.first(where: { $0.name == "code" })?.value else {
+    private func exchangeCodeForTokens(callbackURL: URL, codeVerifier: String,
+                                       expectedState: String) async throws -> GoogleSignInResult {
+        // Validate `state` BEFORE spending the code. Generating state without checking it left the
+        // CSRF/code-injection protection it exists for entirely absent (security audit 2026-07-25).
+        let code: String
+        do {
+            code = try OAuthCallbackValidator.authorizationCode(from: callbackURL,
+                                                                expectedState: expectedState)
+        } catch OAuthCallbackError.stateMismatch {
+            throw GoogleSignInError.stateMismatch
+        } catch {
             throw GoogleSignInError.missingAuthorizationCode
         }
 
@@ -204,6 +212,7 @@ enum GoogleSignInError: LocalizedError {
     case userCancelled
     case missingCallback
     case missingAuthorizationCode
+    case stateMismatch
     case tokenExchangeFailed
     case presentationFailed
 
@@ -219,6 +228,9 @@ enum GoogleSignInError: LocalizedError {
             return "User cancelled sign in"
         case .missingCallback:
             return "Missing callback URL"
+        case .stateMismatch:
+            // Deliberately generic: the user can only retry, and the detail helps an attacker.
+            return "Sign-in could not be verified. Please try again."
         case .missingAuthorizationCode:
             return "Missing authorization code"
         case .tokenExchangeFailed:

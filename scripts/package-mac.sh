@@ -29,6 +29,22 @@ green() { printf "\033[0;32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[0;31m%s\033[0m\n" "$1"; }
 step()  { printf "\n\033[0;36m=== %s ===\033[0m\n" "$1"; }
 
+# The App Store Connect signing key is a credential: keep it out of shared /tmp, create it
+# mode-600 inside the build dir, and remove it on ANY exit path (success, failure, or Ctrl-C).
+KEY_FILE=""
+cleanup_key() { [ -n "$KEY_FILE" ] && rm -f "$KEY_FILE" 2>/dev/null; return 0; }
+trap cleanup_key EXIT INT TERM
+
+write_asc_key() {
+  mkdir -p "$BUILD_DIR"
+  KEY_FILE="$BUILD_DIR/.asc-key.p8"
+  (umask 077; : > "$KEY_FILE")
+  grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
+    | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
+  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' .env.local | cut -d= -f2- | tr -d '"')
+  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' .env.local | cut -d= -f2- | tr -d '"')
+}
+
 # --- Preflight: signing identity -------------------------------------------------
 step "Preflight"
 # `|| true`: no match is an expected state (cert not created yet), not a pipeline failure.
@@ -92,14 +108,7 @@ if [ "${SKIP_NOTARIZE:-0}" = "1" ]; then
   echo "SKIP_NOTARIZE=1 — skipping notarization (Gatekeeper will warn on other Macs)"
 else
   step "Notarizing"
-  # notarytool takes the same ASC API key Xcode Cloud uses; write it out briefly.
-  KEY_FILE=$(mktemp /tmp/asc-XXXXXX.p8)
-  trap 'rm -f "$KEY_FILE"' EXIT
-  grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
-    | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
-  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' .env.local | cut -d= -f2- | tr -d '"')
-  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' .env.local | cut -d= -f2- | tr -d '"')
-
+  write_asc_key
   ZIP="$BUILD_DIR/notarize.zip"
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
@@ -124,15 +133,10 @@ rm -rf "$STAGE"
 
 if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
   # The DMG itself is notarized too, so Gatekeeper is happy before the app is copied out.
-  KEY_FILE=$(mktemp /tmp/asc-XXXXXX.p8)
-  grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
-    | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
-  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' .env.local | cut -d= -f2- | tr -d '"')
-  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' .env.local | cut -d= -f2- | tr -d '"')
+  write_asc_key
   codesign --force --sign "$IDENTITY" --timestamp "$DMG"
   xcrun notarytool submit "$DMG" --key "$KEY_FILE" --key-id "$KEY_ID" --issuer "$ISSUER" --wait --timeout 30m
   xcrun stapler staple "$DMG"
-  rm -f "$KEY_FILE"
 fi
 
 step "Verifying"

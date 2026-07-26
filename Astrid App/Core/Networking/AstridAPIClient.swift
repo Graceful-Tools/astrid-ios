@@ -63,6 +63,14 @@ class AstridAPIClient {
         body: Encodable? = nil,
         queryItems: [URLQueryItem]? = nil
     ) async throws -> T {
+        // Security backstop (audit 2026-07-25): ids reach these paths from deep links, and a
+        // percent-encoded separator used to survive into the request — `astrid://tasks/a%2F..%2Fadmin`
+        // built `/api/v1/tasks/a/../admin`, which a server normalizes to a different endpoint and
+        // executes with the user's session. Refuse to send any path containing traversal segments.
+        guard APIPathSafety.isSafeRequestPath(path) else {
+            throw AstridAPIError.invalidURL
+        }
+
         // Build URL with query parameters
         var urlComponents = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         urlComponents?.queryItems = queryItems
@@ -143,6 +151,14 @@ class AstridAPIClient {
         body: [String: Any],
         queryItems: [URLQueryItem]? = nil
     ) async throws -> T {
+        // Security backstop (audit 2026-07-25): ids reach these paths from deep links, and a
+        // percent-encoded separator used to survive into the request — `astrid://tasks/a%2F..%2Fadmin`
+        // built `/api/v1/tasks/a/../admin`, which a server normalizes to a different endpoint and
+        // executes with the user's session. Refuse to send any path containing traversal segments.
+        guard APIPathSafety.isSafeRequestPath(path) else {
+            throw AstridAPIError.invalidURL
+        }
+
         // Build URL with query parameters
         var urlComponents = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         urlComponents?.queryItems = queryItems

@@ -62,19 +62,22 @@ class DeepLinkManager {
         guard let host = url.host else { return }
 
         switch host {
+        // Deep links are attacker-supplied input (any page or message can open one), and these
+        // ids flow into `/api/v1/<collection>/<id>`. Validate them before routing on them
+        // (security audit 2026-07-25) — a percent-encoded separator was path traversal.
         case "tasks":
             let taskId = url.lastPathComponent
-            if taskId != "tasks" {
+            if taskId != "tasks", APIPathSafety.isValidIdentifier(taskId) {
                 TaskPresenter.shared.showTask(taskId: taskId)
             }
         case "lists":
             let listId = url.lastPathComponent
-            if listId != "lists" {
+            if listId != "lists", APIPathSafety.isValidIdentifier(listId) {
                 ListPresenter.shared.showList(listId: listId)
             }
         case "users":
             let userId = url.lastPathComponent
-            if userId != "users" {
+            if userId != "users", APIPathSafety.isValidIdentifier(userId) {
                 // Navigate to profile in main content area
                 NotificationCenter.default.post(name: .openProfile, object: userId)
             }
@@ -87,7 +90,7 @@ class DeepLinkManager {
             }
         case "s":
             let code = url.lastPathComponent
-            if code != "s" {
+            if code != "s", APIPathSafety.isValidIdentifier(code) {
                 resolveAndRoute(code: code)
             }
         default:
@@ -109,11 +112,11 @@ class DeepLinkManager {
 
         switch first {
         case "tasks":
-            if pathComponents.count > 1 {
+            if pathComponents.count > 1, APIPathSafety.isValidIdentifier(pathComponents[1]) {
                 TaskPresenter.shared.showTask(taskId: pathComponents[1])
             }
         case "lists":
-            if pathComponents.count > 1 {
+            if pathComponents.count > 1, APIPathSafety.isValidIdentifier(pathComponents[1]) {
                 ListPresenter.shared.showList(listId: pathComponents[1])
             }
         case "settings":

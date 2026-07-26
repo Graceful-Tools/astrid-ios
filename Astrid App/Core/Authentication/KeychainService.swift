@@ -57,22 +57,37 @@ final class KeychainService: @unchecked Sendable {
 
     // MARK: - Generic Keychain Operations
     
+    /// Base query shared by every operation.
+    ///
+    /// `kSecUseDataProtectionKeychain` matters on macOS (security audit 2026-07-25): without it,
+    /// SecItem uses the legacy file-based login keychain, where `kSecAttrAccessible` is IGNORED
+    /// and items are protected only by keychain ACLs. With it, the Mac app gets the same
+    /// per-app, sandbox-isolated, accessibility-honoring storage the iOS app already has.
+    /// On iOS the flag is the default, so this is a no-op there.
+    private func baseQuery(key: String) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrAccount as String: key
+        ]
+        #if os(macOS)
+        query[kSecUseDataProtectionKeychain as String] = true
+        #endif
+        return query
+    }
+
     private func save(key: String, value: String) throws {
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.encodingFailed
         }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.Keychain.service,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        
+
+        var query = baseQuery(key: key)
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+
         // Delete any existing item
         SecItemDelete(query as CFDictionary)
-        
+
         // Add new item
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
@@ -81,16 +96,39 @@ final class KeychainService: @unchecked Sendable {
     }
     
     private func get(key: String) throws -> String {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.Keychain.service,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
+        var query = baseQuery(key: key)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        var status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        #if os(macOS)
+        // Migration: builds before the audit wrote to the legacy keychain. Read the old item
+        // once, re-save it into the data-protection keychain, and delete the legacy copy — so
+        // existing Mac users are not silently signed out by the hardening above.
+        if status == errSecItemNotFound {
+            var legacy: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: Constants.Keychain.service,
+                kSecAttrAccount as String: key,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ]
+            legacy[kSecUseDataProtectionKeychain as String] = false
+            var legacyResult: AnyObject?
+            if SecItemCopyMatching(legacy as CFDictionary, &legacyResult) == errSecSuccess,
+               let data = legacyResult as? Data,
+               let value = String(data: data, encoding: .utf8) {
+                try? save(key: key, value: value)
+                legacy.removeValue(forKey: kSecReturnData as String)
+                legacy.removeValue(forKey: kSecMatchLimit as String)
+                SecItemDelete(legacy as CFDictionary)
+                result = data as AnyObject
+                status = errSecSuccess
+            }
+        }
+        #endif
         
         guard status == errSecSuccess,
               let data = result as? Data,
@@ -102,13 +140,20 @@ final class KeychainService: @unchecked Sendable {
     }
     
     private func delete(key: String) throws {
-        let query: [String: Any] = [
+        let status = SecItemDelete(baseQuery(key: key) as CFDictionary)
+
+        #if os(macOS)
+        // Sign-out must also clear anything left in the legacy keychain by an older build,
+        // otherwise a stale session cookie survives on disk after the user signs out.
+        var legacy: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Constants.Keychain.service,
             kSecAttrAccount as String: key
         ]
-        
-        let status = SecItemDelete(query as CFDictionary)
+        legacy[kSecUseDataProtectionKeychain as String] = false
+        SecItemDelete(legacy as CFDictionary)
+        #endif
+
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.deleteFailed(status)
         }
