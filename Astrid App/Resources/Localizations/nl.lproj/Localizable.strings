@@ -1096,3 +1096,4 @@
 "mac.empty.filtered_out_detail" = "Pas de filters aan (trechterknop) om meer te zien.";
 "mac.empty.no_list_selected" = "Kies een lijst om je taken te zien.";
 "mac.empty.no_tasks" = "Alles klaar! Voeg hieronder een taak toe om te beginnen.";
+"mac.list_default_is" = "Standaard van lijst (%@)";

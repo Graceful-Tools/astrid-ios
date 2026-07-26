@@ -1096,3 +1096,4 @@
 "mac.empty.filtered_out_detail" = "Passe die Filter an (Trichter-Symbol), um mehr zu sehen.";
 "mac.empty.no_list_selected" = "Wähle eine Liste, um deine Aufgaben zu sehen.";
 "mac.empty.no_tasks" = "Alles erledigt! Füge unten eine Aufgabe hinzu.";
+"mac.list_default_is" = "Listenstandard (%@)";

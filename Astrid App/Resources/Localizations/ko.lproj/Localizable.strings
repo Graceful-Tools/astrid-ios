@@ -1098,3 +1098,4 @@
 "mac.empty.filtered_out_detail" = "필터(깔때기 버튼)를 조정하면 더 많이 볼 수 있습니다.";
 "mac.empty.no_list_selected" = "목록을 선택하면 작업이 표시됩니다.";
 "mac.empty.no_tasks" = "모두 완료! 아래에서 작업을 추가해 시작하세요.";
+"mac.list_default_is" = "목록 기본값 (%@)";

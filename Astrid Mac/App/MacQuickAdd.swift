@@ -38,7 +38,8 @@ enum MacQuickAdd {
     static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
                          smartEnabled: Bool = true,
                          selectionIsVirtual: Bool = false,
-                         priorityOverride: Int? = nil) -> CreateArgs? {
+                         priorityOverride: Int? = nil,
+                         currentUserId: String? = nil) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let selectedListId else { return nil }
         let realListId = selectionIsVirtual ? nil : selectedListId
@@ -49,7 +50,8 @@ enum MacQuickAdd {
             return applyingDefaults(
                 CreateArgs(title: trimmed, listIds: realListId.map { [$0] } ?? [],
                            priority: nil, whenDate: nil, repeating: nil, repeatingData: nil),
-                from: defaultsList, priorityOverride: priorityOverride)
+                from: defaultsList, priorityOverride: priorityOverride,
+                currentUserId: currentUserId)
         }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
@@ -63,13 +65,14 @@ enum MacQuickAdd {
             CreateArgs(title: title, listIds: listIds, priority: parsed.priority,
                        whenDate: parsed.dueDateTime, repeating: parsed.repeating?.rawValue,
                        repeatingData: parsed.customRepeatingData),
-            from: defaultsList, priorityOverride: priorityOverride)
+            from: defaultsList, priorityOverride: priorityOverride, currentUserId: currentUserId)
     }
 
     /// Fill only the gaps the user left, using the SHARED `NewTaskDefaults` (the same resolution iOS
     /// uses) — a default must never overwrite something they typed or chose.
     private static func applyingDefaults(_ args: CreateArgs, from list: TaskList?,
-                                         priorityOverride: Int?) -> CreateArgs {
+                                         priorityOverride: Int?,
+                                         currentUserId: String?) -> CreateArgs {
         var out = args
         // Priority: typed > checkbox override > list default.
         if out.priority == nil {
@@ -94,7 +97,7 @@ enum MacQuickAdd {
                              repeatingData: out.repeatingData,
                              assigneeId: out.assigneeId, isPrivate: out.isPrivate)
         }
-        out.assigneeId = NewTaskDefaults.assignee(list.defaultAssigneeId)
+        out.assigneeId = NewTaskDefaults.assignee(list.defaultAssigneeId, currentUserId: currentUserId)
         out.isPrivate = list.defaultIsPrivate
         return out
     }

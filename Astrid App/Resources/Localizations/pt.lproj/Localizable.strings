@@ -1096,3 +1096,4 @@
 "mac.empty.filtered_out_detail" = "Ajuste os filtros (botão de funil) para ver mais.";
 "mac.empty.no_list_selected" = "Escolha uma lista para ver as suas tarefas.";
 "mac.empty.no_tasks" = "Tudo em dia! Adicione uma tarefa abaixo para começar.";
+"mac.list_default_is" = "Predefinição da lista (%@)";

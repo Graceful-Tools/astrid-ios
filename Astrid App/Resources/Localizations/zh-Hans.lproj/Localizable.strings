@@ -1096,3 +1096,4 @@
 "mac.empty.filtered_out_detail" = "调整筛选条件（漏斗按钮）以查看更多。";
 "mac.empty.no_list_selected" = "选择一个列表以查看任务。";
 "mac.empty.no_tasks" = "全部完成！在下方添加任务开始吧。";
+"mac.list_default_is" = "列表默认 (%@)";

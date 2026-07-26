@@ -678,9 +678,24 @@ struct MacRootView: View {
     /// The assignee the next task will get — the override, else the list's default. nil means it
     /// stays with the creator, which is drawn as a checkbox rather than an avatar (row parity).
     private var draftAssignee: User? {
-        let id = draftAssigneeOverride ?? NewTaskDefaults.assignee(currentRealList?.defaultAssigneeId)
+        let id = draftAssigneeOverride
+            ?? NewTaskDefaults.assignee(currentRealList?.defaultAssigneeId, currentUserId: auth.userId)
+        // Unassigned, or assigned to ME, draws as the CHECKBOX — exactly like a task row. Only a
+        // task headed to someone ELSE shows an avatar.
         guard let id, !id.isEmpty, id != auth.userId else { return nil }
-        return listMembers.first { $0.userId == id }?.user ?? User(id: id, email: nil, name: nil, image: nil)
+        // Only show an avatar for someone we can actually name: a synthesised User with no name
+        // rendered as "??", which is not a person (task follow-up).
+        return listMembers.first { $0.userId == id }?.user
+    }
+
+    /// What "list default" resolves to for the Who row, so the picker states the real outcome
+    /// rather than an abstract label.
+    private var listDefaultAssigneeLabel: String {
+        let id = NewTaskDefaults.assignee(currentRealList?.defaultAssigneeId, currentUserId: auth.userId)
+        guard let id, !id.isEmpty else { return NSLocalizedString("assignee.unassigned", comment: "") }
+        if id == auth.userId { return NSLocalizedString("lists.me", comment: "") }
+        return listMembers.first { $0.userId == id }?.user?.displayName
+            ?? NSLocalizedString("lists.me", comment: "")
     }
 
     /// Members of the current list, for the assignee picker.
@@ -693,19 +708,23 @@ struct MacRootView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("tasks.priority", comment: ""))
                 .font(MacTypography.label).foregroundStyle(Theme.textMuted)
-            HStack(spacing: 6) {
-                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
-                    Button(MacTaskVisuals.priorityLabel(p)) { draftPriorityOverride = p.rawValue }
-                        .buttonStyle(.bordered)
-                }
-            }
+            // The SAME styled picker the task detail uses — ○ ! !! !!! in their priority colours,
+            // not plain text buttons.
+            MacPriorityPicker(selection: Binding(
+                get: { draftPriority },
+                set: { draftPriorityOverride = $0.rawValue }
+            ))
             Text(NSLocalizedString("tasks.assignee", comment: ""))
                 .font(MacTypography.label).foregroundStyle(Theme.textMuted)
             Picker("", selection: Binding(
                 get: { draftAssigneeOverride ?? "" },
                 set: { draftAssigneeOverride = $0.isEmpty ? nil : $0 }
             )) {
-                Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
+                // Say what the default actually resolves to (Me / Unassigned / a name) instead of
+                // an abstract "List default" the user then has to guess at.
+                Text(String(format: NSLocalizedString("mac.list_default_is", comment: ""),
+                            listDefaultAssigneeLabel)).tag("")
+                Text(NSLocalizedString("assignee.unassigned", comment: "")).tag("unassigned")
                 ForEach(listMembers) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
             }
             .labelsHidden()
@@ -734,7 +753,8 @@ struct MacRootView: View {
                                               lists: listService.lists,
                                               smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
                                               selectionIsVirtual: selectionIsVirtual,
-                                              priorityOverride: draftPriorityOverride) else { return }
+                                              priorityOverride: draftPriorityOverride,
+                                              currentUserId: auth.userId) else { return }
         draftTitle = ""
         let assigneeOverride = draftAssigneeOverride
         draftPriorityOverride = nil          // the overrides apply to one task, like iOS
@@ -742,7 +762,8 @@ struct MacRootView: View {
         _Concurrency.Task {
             let created = try? await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, assigneeId: assigneeOverride ?? args.assigneeId,
+                whenDate: args.whenDate,
+                assigneeId: assigneeOverride == "unassigned" ? nil : (assigneeOverride ?? args.assigneeId),
                 isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)
             if openDetails, let created { selectedTaskIds = [created.id] }

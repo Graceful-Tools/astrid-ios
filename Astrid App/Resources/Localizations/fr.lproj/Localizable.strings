@@ -1112,3 +1112,4 @@
 "mac.empty.filtered_out_detail" = "Ajustez les filtres (bouton entonnoir) pour en voir plus.";
 "mac.empty.no_list_selected" = "Choisissez une liste pour voir vos tâches.";
 "mac.empty.no_tasks" = "Tout est fait ! Ajoutez une tâche ci-dessous pour commencer.";
+"mac.list_default_is" = "Par défaut de la liste (%@)";

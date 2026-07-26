@@ -1112,3 +1112,4 @@
 "mac.empty.filtered_out_detail" = "Ajusta los filtros (botón de embudo) para ver más.";
 "mac.empty.no_list_selected" = "Elige una lista para ver tus tareas.";
 "mac.empty.no_tasks" = "¡Todo listo! Añade una tarea abajo para empezar.";
+"mac.list_default_is" = "Predeterminado de la lista (%@)";

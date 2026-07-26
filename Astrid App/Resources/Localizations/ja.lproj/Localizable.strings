@@ -1096,3 +1096,4 @@
 "mac.empty.filtered_out_detail" = "フィルタ（じょうごボタン）を調整すると、さらに表示されます。";
 "mac.empty.no_list_selected" = "リストを選ぶとタスクが表示されます。";
 "mac.empty.no_tasks" = "すべて完了！下からタスクを追加して始めましょう。";
+"mac.list_default_is" = "リストの既定 (%@)";

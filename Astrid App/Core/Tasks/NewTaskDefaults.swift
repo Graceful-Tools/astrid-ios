@@ -55,9 +55,18 @@ enum NewTaskDefaults {
         return r
     }
 
-    /// A list's default assignee, or nil when unset.
-    static func assignee(_ defaultAssigneeId: String?) -> String? {
-        guard let a = defaultAssigneeId, !a.isEmpty else { return nil }
-        return a
+    /// Resolve a list's default assignee. `defaultAssigneeId` carries THREE meanings on the wire
+    /// (see ListDefaults):
+    ///   nil          → "task_creator": the new task goes to whoever creates it
+    ///   "unassigned" → nobody
+    ///   an id        → that person
+    ///
+    /// Collapsing the first two into "no assignee" is wrong: a list whose default is the creator
+    /// would silently produce unassigned tasks.
+    static func assignee(_ defaultAssigneeId: String?, currentUserId: String?) -> String? {
+        guard let value = defaultAssigneeId, !value.isEmpty else {
+            return currentUserId       // "task_creator" — nil when signed out, i.e. unassigned
+        }
+        return value == "unassigned" ? nil : value
     }
 }
