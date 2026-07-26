@@ -26,7 +26,9 @@ class AstridAPIClient {
         // Enable cookie handling (required for session authentication)
         configuration.httpCookieAcceptPolicy = .always
         configuration.httpShouldSetCookies = true
-        self.session = URLSession(configuration: configuration)
+        // UI tests get an ephemeral, cookie-less session so they can never authenticate as the
+        // real user through the shared cookie jar (see UITestNetworkIsolation).
+        self.session = URLSession(configuration: UITestNetworkIsolation.harden(configuration))
 
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601

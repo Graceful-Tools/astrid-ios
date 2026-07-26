@@ -17,7 +17,7 @@ actor SSEClient {
         configuration.timeoutIntervalForRequest = .infinity // SSE needs infinite timeout
         configuration.httpCookieAcceptPolicy = .always
         configuration.httpShouldSetCookies = true
-        return URLSession(configuration: configuration)
+        return URLSession(configuration: UITestNetworkIsolation.harden(configuration))
     }()
 
     // Event handlers

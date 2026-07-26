@@ -359,11 +359,15 @@ struct MacRootView: View {
         // internal padding matches MacTaskRow's card, so the quick-add checkbox sits in the same
         // column as the checkboxes of the rows above it.
         .padding(.horizontal, 12).padding(.vertical, 9)
-        .background(Theme.inputBg, in: RoundedRectangle(cornerRadius: 10))
+        // The SAME surface a task row card uses (white on Light/Ocean) rather than the grey input
+        // fill — the add row should read as a task card you are about to fill in, like iOS.
+        .background(MacSelectionStyle.fill(isSelected: false), in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)      // same outer margin as a row card
+        // Same outer margin as a row CARD: the rows sit inside an inset List, so matching their
+        // 8pt card padding alone left the add row wider than the rows above it.
+        .padding(.horizontal, MacLayout.rowTrailingGap)
         .padding(.vertical, 8)
     }
 

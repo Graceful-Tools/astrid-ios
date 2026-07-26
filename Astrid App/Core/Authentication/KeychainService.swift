@@ -77,6 +77,8 @@ final class KeychainService: @unchecked Sendable {
     }
 
     private func save(key: String, value: String) throws {
+        // Never persist test credentials into the user's real keychain.
+        if Self.isUITesting { return }
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.encodingFailed
         }
@@ -95,7 +97,15 @@ final class KeychainService: @unchecked Sendable {
         }
     }
     
+    /// UI tests must NEVER reach the real account. They run against the shipping bundle id, so
+    /// the app would otherwise restore the user's real session from the keychain and create lists
+    /// on the server — which is exactly what happened once a UI test stopped forcing offline mode.
+    /// Under `-uiTesting` the credential store reads as EMPTY, so the app always starts signed out
+    /// and tests can only ever use the local/offline account.
+    private static let isUITesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+
     private func get(key: String) throws -> String {
+        if Self.isUITesting { throw KeychainError.notFound }
         var query = baseQuery(key: key)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne

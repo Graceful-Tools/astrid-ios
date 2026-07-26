@@ -33,9 +33,11 @@ enum MacLayout {
         detailPanelWidth + detailArrowWidth + detailPanelMargin * 2
     }
 
-    /// Space between a row card's trailing edge and the column edge: the card's own 8pt padding
-    /// plus `.listStyle(.inset)`'s ~10pt row inset.
-    static let rowTrailingGap: CGFloat = 18
+    /// Space between a row card's edge and the column edge: the card's own 8pt padding plus
+    /// `.listStyle(.inset)`'s row inset. MEASURED from a rendered capture (the inset is ~16pt, not
+    /// the ~10 first assumed), because it decides two things that must line up with the rows: the
+    /// quick-add card's margins and where the pop-out's arrow tip lands.
+    static let rowTrailingGap: CGFloat = 24
     /// The 1pt divider between the task column and the chat column.
     static let columnDividerWidth: CGFloat = 1
     /// The arrow overlaps the card by 1pt so its base merges into the card surface.

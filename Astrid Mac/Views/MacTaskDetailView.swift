@@ -82,7 +82,7 @@ struct MacTaskDetailView: View {
                 Button(NSLocalizedString("mac.open_new_window", comment: "")) { openWindow(id: "task", value: task.id) }
                 Divider()
                 Button(NSLocalizedString("tasks.delete_task", comment: ""), role: .destructive) { deleteTask() }
-            } label: { Image(systemName: "ellipsis") }
+            } label: { Image(systemName: "ellipsis.vertical") }
             .menuStyle(.borderlessButton).fixedSize()
         }
         .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
