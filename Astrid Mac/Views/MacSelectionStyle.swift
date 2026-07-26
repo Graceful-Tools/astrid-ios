@@ -22,10 +22,13 @@ enum MacSelectionStyle {
 
     /// Card fill: the SELECTED card keeps the plain card surface (white on Ocean/Light) — only the
     /// accent BORDER carries selection (0f695ef2; the old accent wash read as a dark-blue row).
-    /// Hover shows a faint accent wash. Selected suppresses the hover wash.
+    ///
+    /// Hover uses `Theme.bgHover`, which is the same token the WEB uses (`--theme-bg-hover`:
+    /// white on Light/Ocean, rgb(55,65,81) on Dark). The old 4% accent wash tinted rows blue,
+    /// which is not what the web does.
     static func fill(isSelected: Bool, hovering: Bool = false) -> Color {
         if isSelected { return Theme.bgSecondary }
-        if hovering { return Theme.accent.opacity(0.04) }
+        if hovering { return Theme.bgHover }
         return Theme.bgSecondary
     }
 }

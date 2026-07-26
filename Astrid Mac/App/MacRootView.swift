@@ -720,11 +720,9 @@ struct MacRootView: View {
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
-        // Fixed sidebar in 3-column mode (1a71c0e7): while the window is wide enough for the chat
-        // column, the left menu stays visible — a collapse is restored and content shifts right.
-        .onChange(of: columnVisibility) { _, vis in
-            if chatColumnVisible && vis != .all { columnVisibility = .all }
-        }
+        // 3-column mode (1a71c0e7) OPENS the sidebar when the window becomes wide enough — it must
+        // not PIN it there. Snapping `.all` back on every change made the rail impossible to close:
+        // the toolbar toggle and ⌃⌘S were undone the instant they fired.
         .onChange(of: chatColumnVisible) { _, wide in
             if wide { columnVisibility = .all }
         }

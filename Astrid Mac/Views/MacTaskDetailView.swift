@@ -288,6 +288,12 @@ struct MacTaskDetailView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)   // white detail card (like web); dark-safe via MacDetailChrome
+        // The grouped style draws each Section on the SYSTEM control background, which is not the
+        // card colour — so the panel read as a different shade from the pop-out arrow (which fills
+        // MacDetailChrome.background). Painting the rows with the same colour makes the whole card
+        // one flat surface, like the web, and the arrow matches by construction.
+        .environment(\.defaultMinListRowHeight, 0)
+        .listRowBackground(MacDetailChrome.background)
 
         // STICKY Add-a-comment footer (e13e4959) — board-editor design: pinned to the bottom with
         // the paperclip + timer visible, autocomplete popping above it. Never scrolls away.

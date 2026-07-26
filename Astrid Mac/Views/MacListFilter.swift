@@ -17,42 +17,47 @@ enum MacListFilter {
     }
 
     /// Completion — matches applyCompletionFilterWithWindow ("default"/"all"/"completed"/"incomplete").
+    // Every option below mirrors iOS's ListSortFiltersTab EXACTLY — same values (the
+    // cross-platform contract) AND the same localized keys, so both apps read identically in every
+    // language. Mac previously invented its own wording ("Show", "Active only", "Any priority")
+    // and even disagreed about what priority 0 means.
+    private static func L(_ key: String) -> String { NSLocalizedString(key, comment: "") }
+
     static let completion: [Option] = [
-        .init("default", "Default"), .init("all", "All"),
-        .init("incomplete", "Active only"), .init("completed", "Completed only"),
+        .init("default", L("lists.incomplete_completed_recently")), .init("all", L("lists.all")),
+        .init("completed", L("tasks.completed")), .init("incomplete", L("tasks.incomplete")),
     ]
-    /// Priority — "all" or the raw priority int, matching filterTasksForList.
+    /// Priority — iOS labels: 3 = Highest, 2 = High, 1 = Medium, 0 = Low.
     static let priority: [Option] = [
-        .init("all", "Any priority"), .init("3", "!!! High"), .init("2", "!! Medium"),
-        .init("1", "! Low"), .init("0", "○ None"),
+        .init("all", L("lists.all_priorities")), .init("3", L("lists.highest_priority")),
+        .init("2", L("lists.high_priority")), .init("1", L("lists.medium_priority")),
+        .init("0", L("lists.low_priority")),
     ]
-    /// Due date — matches applyListDueDateFilter cases.
     static let dueDate: [Option] = [
-        .init("all", "Any time"), .init("overdue", "Overdue"), .init("today", "Today"),
-        .init("this_week", "This week"), .init("this_month", "This month"), .init("no_date", "No date"),
+        .init("all", L("lists.all")), .init("overdue", L("lists.overdue")),
+        .init("today", L("time.today")), .init("this_week", L("lists.this_week")),
+        .init("this_month", L("lists.this_month")), .init("no_date", L("lists.no_date")),
     ]
-    /// Assignee — matches the assignee switch in filterTasksForList.
     static let assignee: [Option] = [
-        .init("all", "Anyone"), .init("current_user", "Me"),
-        .init("not_current_user", "Someone else"), .init("unassigned", "Unassigned"),
+        .init("all", L("lists.all")), .init("current_user", L("lists.me")),
+        .init("not_current_user", L("lists.not_me")), .init("unassigned", L("assignee.unassigned")),
     ]
-
-    /// Sort — the SAME five options iOS offers in ListSortFiltersTab, with iOS's wording.
-    /// Mac used to keep sort in a scene-local override that never touched the list, so a Mac sort
-    /// choice neither persisted nor synced (task 2b886104).
+    /// Sort — iOS tags: "when" is Due Date.
     static let sort: [Option] = [
-        .init("auto", "Smart (Auto)"), .init("manual", "Manual"), .init("when", "Due Date"),
-        .init("priority", "Priority"), .init("createdAt", "Created Date"),
+        .init("auto", L("lists.auto")), .init("manual", L("lists.manual")),
+        .init("when", L("lists.due_date")), .init("priority", L("tasks.priority")),
+        .init("createdAt", L("lists.created_date")),
     ]
-
-    /// Assigned By (task creator) — iOS parity; Mac had no such filter at all.
     static let assignedBy: [Option] = [
-        .init("all", "Anyone"), .init("current_user", "Me"), .init("not_current_user", "Someone else"),
+        .init("all", L("lists.all")), .init("current_user", L("lists.me")),
+        .init("not_current_user", L("lists.not_me")),
     ]
-
-    /// Repeating status — iOS parity; Mac had no such filter at all.
+    /// Repeating — iOS offers the specific cadences, not just a yes/no.
     static let repeating: [Option] = [
-        .init("all", "All"), .init("repeating", "Repeating"), .init("not_repeating", "Not repeating"),
+        .init("all", L("lists.all")), .init("not_repeating", L("lists.not_repeating")),
+        .init("daily", L("lists.daily")), .init("weekly", L("lists.weekly")),
+        .init("monthly", L("lists.monthly")), .init("yearly", L("lists.yearly")),
+        .init("custom", L("lists.custom")),
     ]
 
     /// Default (inactive) sentinel for each dimension.

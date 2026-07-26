@@ -42,19 +42,19 @@ struct MacFilterSheet: View {
                 // Sort lives WITH the filters and is saved on the list, exactly like iOS — the old
                 // Mac sort was a window-local override that never persisted or synced (2b886104).
                 Section(NSLocalizedString("actions.sort", comment: "")) {
-                    filterPicker(NSLocalizedString("lists.sort_by", comment: ""), selection: $sortBy, options: MacListFilter.sort)
+                    filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
                 }
                 Section(NSLocalizedString("lists.filters", comment: "")) {
-                    filterPicker(NSLocalizedString("filters.show", comment: ""), selection: $completion, options: MacListFilter.completion)
+                    filterPicker(NSLocalizedString("lists.task_completion", comment: ""), selection: $completion, options: MacListFilter.completion)
                     filterPicker(NSLocalizedString("tasks.priority", comment: ""), selection: $priority, options: MacListFilter.priority)
-                    filterPicker(NSLocalizedString("mac.due", comment: ""), selection: $dueDate, options: MacListFilter.dueDate)
-                    filterPicker(NSLocalizedString("Assignee", comment: ""), selection: $assignee, options: MacListFilter.assignee)
+                    filterPicker(NSLocalizedString("tasks.due_date", comment: ""), selection: $dueDate, options: MacListFilter.dueDate)
+                    filterPicker(NSLocalizedString("tasks.assignee", comment: ""), selection: $assignee, options: MacListFilter.assignee)
                     filterPicker(NSLocalizedString("lists.assigned_by", comment: ""), selection: $assignedBy, options: MacListFilter.assignedBy)
                     filterPicker(NSLocalizedString("lists.repeating", comment: ""), selection: $repeatingFilter, options: MacListFilter.repeating)
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(height: 320)
+            .frame(height: 360)
 
             // Save the current filters as a reusable Smart List (virtual list), like iOS/web.
             if showingSave {

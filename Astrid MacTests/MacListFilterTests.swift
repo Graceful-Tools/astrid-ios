@@ -10,7 +10,8 @@ final class MacListFilterTests: XCTestCase {
 
     /// Option values must match the shared Core/Filters vocabulary (else Mac filters differently).
     func testOptionValuesMatchSharedVocabulary() {
-        XCTAssertEqual(MacListFilter.completion.map(\.value), ["default", "all", "incomplete", "completed"])
+        // Order mirrors iOS's picker exactly (Completed before Incomplete).
+        XCTAssertEqual(MacListFilter.completion.map(\.value), ["default", "all", "completed", "incomplete"])
         XCTAssertEqual(MacListFilter.priority.map(\.value), ["all", "3", "2", "1", "0"])
         XCTAssertEqual(MacListFilter.dueDate.map(\.value), ["all", "overdue", "today", "this_week", "this_month", "no_date"])
         XCTAssertEqual(MacListFilter.assignee.map(\.value), ["all", "current_user", "not_current_user", "unassigned"])

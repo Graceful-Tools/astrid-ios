@@ -3,6 +3,7 @@
 
 #if os(macOS)
 import XCTest
+import SwiftUI
 @testable import Astrid_Mac
 
 final class MacSelectionStyleTests: XCTestCase {
@@ -34,3 +35,25 @@ final class MacSelectionStyleTests: XCTestCase {
     }
 }
 #endif
+
+// MARK: - Hover colour parity with the web (reported: "the hover task color is off")
+
+extension MacSelectionStyleTests {
+
+    /// The web hovers rows with its `--theme-bg-hover` token; Mac tinted them with a 4% accent
+    /// wash instead, which read blue. Theme.bgHover mirrors the web token per theme.
+    func testHoverUsesTheWebHoverTokenNotAnAccentWash() {
+        XCTAssertEqual(MacSelectionStyle.fill(isSelected: false, hovering: true), Theme.bgHover)
+        XCTAssertNotEqual(MacSelectionStyle.fill(isSelected: false, hovering: true),
+                          Theme.accent.opacity(0.04), "The blue accent wash is not what the web does")
+    }
+
+    func testRestingRowKeepsTheCardSurface() {
+        XCTAssertEqual(MacSelectionStyle.fill(isSelected: false, hovering: false), Theme.bgSecondary)
+    }
+
+    /// Selection is carried by the border, so a selected row must not also take the hover fill.
+    func testSelectedRowIgnoresHoverFill() {
+        XCTAssertEqual(MacSelectionStyle.fill(isSelected: true, hovering: true), Theme.bgSecondary)
+    }
+}
