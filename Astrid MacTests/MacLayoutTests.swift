@@ -8,17 +8,33 @@ import XCTest
 final class MacLayoutTests: XCTestCase {
 
     func testThresholdMirrorsWeb() {
-        // Web: 3-column at window ≥1100 with a ~240pt sidebar → content ≥860.
-        XCTAssertEqual(MacLayout.chatColumnContentThreshold, 1100 - 240)
+        // Web goes 3-column at a ≥1100px WINDOW. Mac now measures the window too, so the numbers
+        // are directly comparable (it used to subtract the sidebar and measure the content).
+        XCTAssertEqual(MacLayout.chatColumnWindowThreshold, 1100)
     }
 
     func testChatColumnRule() {
-        XCTAssertTrue(MacLayout.showsChatColumn(contentWidth: 900, isRealList: true), "Wide + real list → 3-col")
-        XCTAssertFalse(MacLayout.showsChatColumn(contentWidth: 700, isRealList: true), "Narrow → 2-col")
-        XCTAssertFalse(MacLayout.showsChatColumn(contentWidth: 900, isRealList: false),
-                       "Virtual selections (My Tasks/Search) have no chat channel")
+        XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1200, isRealList: true), "Wide + real list → 3-col")
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 900, isRealList: true), "Narrow → 2-col")
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 1200, isRealList: false),
+                       "Virtual selections (Search / saved filters) have no chat channel")
         // Boundary: exactly at the threshold is 3-col (web uses >=).
-        XCTAssertTrue(MacLayout.showsChatColumn(contentWidth: 860, isRealList: true))
+        XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1100, isRealList: true))
+    }
+
+    /// Reported: showing the left rail closed the right column. The decision must depend only on
+    /// the WINDOW, which does not change when the sidebar opens — so the same window width gives
+    /// the same answer regardless of how much content area the sidebar leaves behind.
+    func testTogglingTheSidebarCannotCloseTheChatColumn() {
+        let window: CGFloat = 1_200
+        let withSidebar = MacLayout.showsChatColumn(windowWidth: window, isRealList: true)
+        let withoutSidebar = MacLayout.showsChatColumn(windowWidth: window, isRealList: true)
+        XCTAssertEqual(withSidebar, withoutSidebar)
+        XCTAssertTrue(withSidebar)
+        // The old content-based rule failed exactly here: 1200 − 240 = 960, which is under the
+        // 1100 threshold it was compared against once the sidebar opened.
+        XCTAssertTrue(window - 240 < MacLayout.chatColumnWindowThreshold,
+                      "This is the case that used to close the chat column")
     }
 }
 #endif

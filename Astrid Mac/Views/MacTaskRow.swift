@@ -139,7 +139,8 @@ struct MacTaskRow: View {
             // a TextField turns "drag to select text" into a row drag, so text could not be
             // selected with the mouse (task 6a7aaf55). Tap-to-select is likewise suppressed so a
             // click inside the field places the caret instead of re-selecting the row.
-            .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id, onSelect: onSelect))
+            .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id,
+                                         isSelected: isSelected, onSelect: onSelect))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
@@ -164,17 +165,23 @@ struct MacTaskRow: View {
 struct MacRowInteractions: ViewModifier {
     let enabled: Bool
     let dragId: String
+    let isSelected: Bool
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
         if enabled {
-            content
-                // HIGH priority: `.draggable` treats the first mouse-down as a possible drag and
-                // swallows it, so a plain `.onTapGesture` only fired on the SECOND click — the
-                // detail pane appeared to need two taps. A high-priority tap wins that race while
-                // drag-to-move still works.
-                .highPriorityGesture(TapGesture().onEnded { onSelect() })
-                .draggable(dragId)
+            // `.draggable` treats the first mouse-down as a possible drag and swallows the click,
+            // which is why opening a task took two or three attempts. The drag is now armed only
+            // once the row is SELECTED: the first click always selects, and dragging still works
+            // from the selected row (plus "Move to List" in the context menu).
+            if isSelected {
+                content
+                    .highPriorityGesture(TapGesture().onEnded { onSelect() })
+                    .draggable(dragId)
+            } else {
+                content
+                    .highPriorityGesture(TapGesture().onEnded { onSelect() })
+            }
         } else {
             content
         }

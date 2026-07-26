@@ -36,11 +36,15 @@ struct MacRootView: View {
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
+    @State private var windowWidth: CGFloat = 0    // decides the chat column — see chatColumnVisible
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false   // task 01d8cfa1
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
+    /// Cached once: `ProcessInfo.arguments` allocates on every read.
+    private static let uiTestSelectsRow = ProcessInfo.processInfo.arguments.contains("-uiTestSelectRow")
+
     private var chatSource: MacChatSource? {
         MacChatSource.forSelection(selectedListId: selectedListId,
                                    myTasksId: Self.myTasksId, searchId: Self.searchId,
@@ -50,7 +54,7 @@ struct MacRootView: View {
     /// 3-column mode: wide content + a selection that HAS a channel → chat is a persistent right
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
     private var chatColumnVisible: Bool {
-        MacLayout.showsChatColumn(contentWidth: contentWidth, isRealList: chatSource != nil)
+        MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil)
     }
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
@@ -217,7 +221,9 @@ struct MacRootView: View {
                     // Convert the row's content-space midY through the CARD's measured origin.
                     // A hardcoded offset was wrong because the panel is centered, so its origin
                     // moves with the panel's height — the arrow aimed at the wrong task (69fd1f19).
-                    let originY = g.frame(in: .named("contentArea")).minY
+                    // Global on BOTH sides (row + panel): a named-space mismatch offset the arrow
+                    // by about one row height, so it pointed one row below the tapped one.
+                    let originY = g.frame(in: .global).minY
                     MacPopoverArrow()
                         .fill(MacDetailChrome.background)
                         .frame(width: MacLayout.detailArrowWidth, height: 24)
@@ -407,8 +413,9 @@ struct MacRootView: View {
         // An intentional scroll dismisses the detail pop-out (a1cb6083).
         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { oldY, newY in
             // A UI-test-driven selection must survive the content shift that inserting rows causes,
-            // or the layout capture never sees the pop-out.
-            if ProcessInfo.processInfo.arguments.contains("-uiTestSelectRow") { return }
+            // or the layout capture never sees the pop-out. Cached — reading
+            // ProcessInfo.arguments allocates, and this runs on every scroll event.
+            if Self.uiTestSelectsRow { return }
             guard MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count) else { scrollAccum = 0; return }
             scrollAccum += abs(newY - oldY)
             if MacSelectionModel.scrollShouldClose(delta: scrollAccum) {
@@ -495,7 +502,7 @@ struct MacRootView: View {
         .background(GeometryReader { g in
             Color.clear.preference(key: MacSelectedRowMidYKey.self,
                                    value: selectedTaskIds == [task.id]
-                                       ? g.frame(in: .named("contentArea")).midY : nil)
+                                       ? g.frame(in: .global).midY : nil)
         })
     }
 
@@ -735,7 +742,9 @@ struct MacRootView: View {
             .overlay(alignment: .trailing) {
                 if contentMode != .board, selectedTaskIds.count == 1,
                    let id = selectedTaskIds.first,
-                   let task = taskService.tasksById[id] ?? tasksForSelection.first(where: { $0.id == id }) {
+                   // O(1) only: `tasksForSelection` here would re-run the entire filter→sort→
+                   // splice pipeline on every body evaluation (the cost 4e0ce183 removed).
+                   let task = taskService.tasksById[id] {
                     taskDetailPopout(task)
                         // Slides in LEFT→RIGHT and back out RIGHT→LEFT: both directions are the
                         // LEADING edge, so it travels out of, and back into, the task it points at.
@@ -800,6 +809,9 @@ struct MacRootView: View {
         .onChange(of: chatColumnVisible) { _, wide in
             if wide { columnVisibility = .all }
         }
+        // Measure the WINDOW, not the content area: the content shrinks when the sidebar opens,
+        // which used to drop the window under the 3-column threshold and close the chat column.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
             myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count

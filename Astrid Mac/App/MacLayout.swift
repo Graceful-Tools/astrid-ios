@@ -8,8 +8,13 @@
 import Foundation
 
 enum MacLayout {
-    /// Web's 3-column window threshold (1100) minus the Mac sidebar's ideal width (240).
-    static let chatColumnContentThreshold: CGFloat = 860
+    /// Web's 3-column threshold, measured on the WINDOW (not the content area).
+    ///
+    /// It used to be measured on the content area (1100 − 240 sidebar = 860), which meant opening
+    /// the sidebar shrank the content below the threshold and the chat column vanished — toggling
+    /// the left rail should never close the right one. The window width does not change when the
+    /// sidebar opens, so the decision is now stable.
+    static let chatColumnWindowThreshold: CGFloat = 1_100
 
     // MARK: - Detail pop-out geometry
     //
@@ -50,9 +55,9 @@ enum MacLayout {
             - rowTrailingGap - columnDividerWidth
     }
 
-    /// Show the persistent chat column? Wide content + a real (non-virtual) list selected.
-    static func showsChatColumn(contentWidth: CGFloat, isRealList: Bool) -> Bool {
-        isRealList && contentWidth >= chatColumnContentThreshold
+    /// Show the persistent chat column? Wide WINDOW + a selection that has a channel.
+    static func showsChatColumn(windowWidth: CGFloat, isRealList: Bool) -> Bool {
+        isRealList && windowWidth >= chatColumnWindowThreshold
     }
 }
 #endif
