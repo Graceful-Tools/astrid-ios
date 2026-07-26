@@ -22,3 +22,36 @@ final class MacLayoutTests: XCTestCase {
     }
 }
 #endif
+
+// MARK: - Detail pop-out width reservation (task f993dbe0)
+
+extension MacLayoutTests {
+
+    /// The task list must stay WIDER than the detail panel, so the arrow meets the row's trailing
+    /// edge instead of the rows disappearing under a floating panel.
+    func testTaskListStaysWiderThanTheDetailPanel() {
+        let width = MacLayout.taskListWidth(contentWidth: 1200, popoutVisible: true)
+        XCTAssertEqual(width, 1200 - MacLayout.detailPopoutWidth, accuracy: 0.001)
+        XCTAssertGreaterThan(width, MacLayout.detailPopoutWidth,
+                             "The list column must be wider than the detail pop-out")
+    }
+
+    func testFullWidthWhenNoPopout() {
+        XCTAssertEqual(MacLayout.taskListWidth(contentWidth: 900, popoutVisible: false), 900)
+    }
+
+    /// Too narrow to fit both: keep the floating behaviour rather than squeezing the list.
+    func testNarrowWindowDoesNotSqueezeTheList() {
+        XCTAssertFalse(MacLayout.reservesDetailSpace(contentWidth: 700, popoutVisible: true))
+        XCTAssertEqual(MacLayout.taskListWidth(contentWidth: 700, popoutVisible: true), 700)
+    }
+
+    func testWideWindowReservesSpace() {
+        XCTAssertTrue(MacLayout.reservesDetailSpace(contentWidth: 1200, popoutVisible: true))
+    }
+
+    func testPopoutWidthMatchesTheRenderedPanel() {
+        // 380 panel + 12 arrow + 14 trailing inset — keep in sync with taskDetailPopout.
+        XCTAssertEqual(MacLayout.detailPopoutWidth, 406)
+    }
+}

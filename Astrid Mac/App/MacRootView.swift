@@ -285,6 +285,14 @@ struct MacRootView: View {
                 quickAddBar
             }
         }
+        // While the pop-out is open the LIST gives up the pop-out's width, so rows end where the
+        // arrow begins instead of sliding underneath a floating panel (task f993dbe0).
+        // The inset lives on the table, NOT on the measured container: padding the container fed
+        // back into its own onGeometryChange width and oscillated AppKit into a layout exception.
+        .padding(.trailing, MacLayout.reservesDetailSpace(
+            contentWidth: contentWidth,
+            popoutVisible: MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count))
+            ? MacLayout.detailPopoutWidth : 0)
         .background(Theme.bgPrimary)   // theme shows behind the floating quick-add too
     }
 
@@ -348,6 +356,10 @@ struct MacRootView: View {
             }
         }
         .listStyle(.inset)
+        // UI-test hook: XCUITest cannot deliver clicks into macOS List rows, so a layout test has
+        // no way to open the detail pop-out. `-uiTestSelectRow <n>` selects the nth rendered row
+        // on appear, making selection-dependent layout capturable. Inert without the argument.
+        .task(id: rows.map(\.id)) { await keepRowSelectedForUITesting(rows.map(\.id)) }
         .scrollContentBackground(.hidden)            // let the theme background show through
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
         .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
@@ -359,6 +371,20 @@ struct MacRootView: View {
                 scrollAccum = 0
                 selectedTaskIds.removeAll()
             }
+        }
+    }
+
+    /// Test-only: honour `-uiTestSelectRow <index>` so UI tests can capture selection-dependent
+    /// layout (the pop-out + its arrow). No effect in a normal run.
+    private func keepRowSelectedForUITesting(_ ids: [String]) async {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-uiTestSelectRow"), i + 1 < args.count,
+              let n = Int(args[i + 1]) else { return }
+        // Re-assert for a few seconds: adding rows shifts the scroll offset, and the
+        // scroll-to-dismiss rule would otherwise clear the selection we just made.
+        for _ in 0..<25 {
+            if ids.indices.contains(n), selectedTaskIds.isEmpty { selectedTaskIds = [ids[n]] }
+            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
         }
     }
 
@@ -678,6 +704,9 @@ struct MacRootView: View {
             }
             // Floating pop-out detail panel over the list's trailing edge (2766d9a4) — no permanent
             // empty 3rd column, so an unselected list uses the FULL width (no large white pane).
+            // While the pop-out is open the list gives up its width instead of the rows sliding
+            // underneath a floating panel — so the arrow meets the row's trailing edge and the
+            // list column stays wider than the panel (task f993dbe0).
             .overlay(alignment: .trailing) {
                 // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
                 // O(1) tasksById lookup — was a full tasksForSelection pipeline scan per eval (4e0ce183).
