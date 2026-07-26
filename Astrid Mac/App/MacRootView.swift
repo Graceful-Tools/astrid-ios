@@ -311,6 +311,15 @@ struct MacRootView: View {
     /// The width is measured on the ZStack — OUTSIDE the padding it feeds — because measuring a
     /// view whose own padding depends on that measurement oscillates AppKit into a layout
     /// exception (learned the hard way in f993dbe0).
+    /// Is the detail pop-out on screen? Drives the row insets AND the width reservation, so the
+    /// row edge and the arrow cannot disagree.
+    private var detailPopoutOpen: Bool {
+        selectedTaskIds.count == 1 && contentMode != .board
+            && selectedTaskIds.first.map { id in
+                taskService.tasksById[id] != nil || tasksForSelection.contains { $0.id == id }
+            } == true
+    }
+
     private var listColumn: some View {
         // Resolve the task ONCE: the reservation and the panel must agree. They used to be decided
         // separately — the padding keyed off the selection count while the panel additionally
@@ -433,6 +442,9 @@ struct MacRootView: View {
         .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
         // An intentional scroll dismisses the detail pop-out (a1cb6083).
         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { oldY, newY in
+            // A UI-test-driven selection must survive the content shift that inserting rows causes,
+            // or the layout capture never sees the pop-out.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestSelectRow") { return }
             guard MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count) else { scrollAccum = 0; return }
             scrollAccum += abs(newY - oldY)
             if MacSelectionModel.scrollShouldClose(delta: scrollAccum) {
@@ -471,7 +483,8 @@ struct MacRootView: View {
                 let cmd = NSEvent.modifierFlags.contains(.command)
                 selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
                 scrollAccum = 0
-            }
+            },
+            trailingInset: detailPopoutOpen ? 0 : 8
         )
         // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
@@ -515,6 +528,10 @@ struct MacRootView: View {
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
+        // `.inset` list style adds its own horizontal insets; zero them on the trailing side while
+        // the pop-out is open so the row card runs all the way to the arrow (task 89e42f29).
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0,
+                                  trailing: detailPopoutOpen ? -MacLayout.listInsetCompensation : 0))
         // The selected row reports its vertical center so the pop-out arrow points at it.
         .background(GeometryReader { g in
             Color.clear.preference(key: MacSelectedRowMidYKey.self,

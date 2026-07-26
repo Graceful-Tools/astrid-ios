@@ -35,6 +35,11 @@ enum MacLayout {
         popoutVisible && contentWidth - detailPopoutWidth >= detailPopoutWidth
     }
 
+    /// `.listStyle(.inset)` adds its own horizontal insets to every row. While the detail pop-out
+    /// is open we cancel the TRAILING one so the row card reaches the arrow — measured from the
+    /// rendered layout, where the card stopped ~10pt short of the reserved edge (task 89e42f29).
+    static let listInsetCompensation: CGFloat = 10
+
     /// Show the persistent chat column? Wide content + a real (non-virtual) list selected.
     static func showsChatColumn(contentWidth: CGFloat, isRealList: Bool) -> Bool {
         isRealList && contentWidth >= chatColumnContentThreshold

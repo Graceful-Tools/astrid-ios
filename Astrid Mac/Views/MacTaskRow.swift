@@ -25,6 +25,9 @@ struct MacTaskRow: View {
     /// the checkbox's click — a row-level `.onTapGesture` did exactly that, leaving the checkbox
     /// dead (task 652edb22).
     var onSelect: () -> Void = {}
+    /// Trailing inset of the card. Drops to 0 while the detail pop-out is open so the row's edge
+    /// MEETS the pop-out's arrow instead of stopping short of it (task 89e42f29).
+    var trailingInset: CGFloat = 8
 
     @ObservedObject private var listService = ListService.shared
     @ObservedObject private var auth = AuthManager.shared
@@ -149,7 +152,7 @@ struct MacTaskRow: View {
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: isSelected)))
         .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
         .padding(.leading, 8 + CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4
-        .padding(.trailing, 8)
+        .padding(.trailing, trailingInset)
         .padding(.vertical, 3)
         .contentShape(Rectangle())
     }
