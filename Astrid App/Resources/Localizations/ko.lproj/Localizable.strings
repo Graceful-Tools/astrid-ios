@@ -1090,3 +1090,4 @@
 "mac.replying_to" = "%@에게 답장: %@";
 "mac.share_title" = "“%@” 공유";
 "mac.show_scroll_bars" = "스크롤 막대 표시";
+"mac.list_default" = "목록 기본값";

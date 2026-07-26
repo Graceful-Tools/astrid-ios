@@ -25,6 +25,9 @@ struct MacRootView: View {
     @State private var editingTaskId: String?          // inline title editing (67c5e54c)
     @State private var editingTaskTitle = ""
     @State private var draftTitle = ""
+    /// Priority the user picked on the quick-add checkbox for the NEXT task. nil = follow the
+    /// list's default (iOS behaves the same: the checkbox shows the default and can override it).
+    @State private var draftPriorityOverride: Int?
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var listSearch = ""
@@ -329,12 +332,22 @@ struct MacRootView: View {
         // on Ocean, black on Dark) with a lift shadow, matching 5b41942a.
         HStack(alignment: .center, spacing: 12) {
             // Left: the same checkbox affordance iOS shows ahead of the field.
-            Button { addFieldFocused = true } label: {
-                MacTaskCheckbox(completed: false, priority: .none, size: 20)
+            // The checkbox shows the priority the next task WILL get (the list's default) and
+            // lets the user override it for this one — the same affordance iOS offers.
+            Menu {
+                Button(NSLocalizedString("mac.list_default", comment: "")) { draftPriorityOverride = nil }
+                Divider()
+                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
+                    Button(MacTaskVisuals.priorityLabel(p)) { draftPriorityOverride = p.rawValue }
+                }
+            } label: {
+                MacTaskCheckbox(completed: false, priority: draftPriority, size: 20)
             }
-            .buttonStyle(.plain)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
             .macPointingHand()
-            .help(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
+            .help(NSLocalizedString("tasks.priority", comment: ""))
 
             // Wraps + expands vertically for long titles (a02a6819); Return still commits.
             TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
@@ -342,12 +355,13 @@ struct MacRootView: View {
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
                 .focused($addFieldFocused)
-                .onSubmit(commitDraft)
+                .onSubmit { commitDraft() }
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
 
             // Right: ⊕ commits the draft (iOS parity); dimmed and inert while empty.
-            Button(action: commitDraft) {
+            // ⊕ adds the task AND opens its details (iOS / web parity); Return just adds.
+            Button { commitDraft(openDetails: true) } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
                     .foregroundStyle(MacQuickAdd.isCommittable(draftTitle) ? Theme.accent : Theme.textMuted)
@@ -645,16 +659,30 @@ struct MacRootView: View {
     }
 
     /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
-    private func commitDraft() {
+    /// The priority the quick-add checkbox displays: the user's override if they picked one,
+    /// otherwise the destination list's default.
+    private var draftPriority: Task.Priority {
+        let raw = draftPriorityOverride
+            ?? NewTaskDefaults.priority(currentRealList?.defaultPriority)
+            ?? 0
+        return Task.Priority(rawValue: raw) ?? .none
+    }
+
+    /// - Parameter openDetails: ⊕ opens the new task's details (iOS / web); Return does not.
+    private func commitDraft(openDetails: Bool = false) {
         guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
                                               lists: listService.lists,
                                               smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
-                                              selectionIsVirtual: selectionIsVirtual) else { return }
+                                              selectionIsVirtual: selectionIsVirtual,
+                                              priorityOverride: draftPriorityOverride) else { return }
         draftTitle = ""
+        draftPriorityOverride = nil          // the override applies to one task, like iOS
         _Concurrency.Task {
-            _ = try? await taskService.createTask(
+            let created = try? await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
+                whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                repeating: args.repeating, repeatingData: args.repeatingData)
+            if openDetails, let created { selectedTaskIds = [created.id] }
         }
     }
 

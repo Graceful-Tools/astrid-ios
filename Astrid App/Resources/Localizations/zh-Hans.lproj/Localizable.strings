@@ -1088,3 +1088,4 @@
 "mac.replying_to" = "回复 %@：%@";
 "mac.share_title" = "分享“%@”";
 "mac.show_scroll_bars" = "显示滚动条";
+"mac.list_default" = "列表默认";

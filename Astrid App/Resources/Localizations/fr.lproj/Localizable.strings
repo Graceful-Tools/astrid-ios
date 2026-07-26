@@ -1104,3 +1104,4 @@
 "mac.replying_to" = "En réponse à %@ : %@";
 "mac.share_title" = "Partager « %@ »";
 "mac.show_scroll_bars" = "Afficher les barres de défilement";
+"mac.list_default" = "Par défaut de la liste";

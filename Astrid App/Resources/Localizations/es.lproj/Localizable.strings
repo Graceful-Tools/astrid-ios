@@ -1104,3 +1104,4 @@
 "mac.replying_to" = "Respondiendo a %@: %@";
 "mac.share_title" = "Compartir “%@”";
 "mac.show_scroll_bars" = "Mostrar barras de desplazamiento";
+"mac.list_default" = "Predeterminado de la lista";

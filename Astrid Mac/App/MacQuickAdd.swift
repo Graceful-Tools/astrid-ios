@@ -16,6 +16,8 @@ enum MacQuickAdd {
         let whenDate: Date?          // smart-parsed dates are all-day (mirrors iOS QuickAdd)
         let repeating: String?
         let repeatingData: CustomRepeatingPattern?
+        var assigneeId: String?      // from the list's default assignee
+        var isPrivate: Bool?         // from the list's default privacy
     }
 
     /// Build create args from raw quick-add text. Returns nil when there is nothing to
@@ -31,16 +33,23 @@ enum MacQuickAdd {
     ///   is NOT a real list, so it must never be attached as a list id — iOS does the same: a task
     ///   added from My Tasks belongs to no list unless the text names one with #list, and shows up
     ///   there because My Tasks lists what is mine or unassigned.
+    /// - Parameter priorityOverride: what the user picked on the quick-add checkbox. It beats the
+    ///   list default; typed text beats it in turn, so the last thing the user expressed wins.
     static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
                          smartEnabled: Bool = true,
-                         selectionIsVirtual: Bool = false) -> CreateArgs? {
+                         selectionIsVirtual: Bool = false,
+                         priorityOverride: Int? = nil) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let selectedListId else { return nil }
         let realListId = selectionIsVirtual ? nil : selectedListId
+        // Defaults come from the destination list — a virtual selection (My Tasks) has none.
+        let defaultsList = realListId.flatMap { id in lists.first { $0.id == id } }
 
         guard smartEnabled else {
-            return CreateArgs(title: trimmed, listIds: realListId.map { [$0] } ?? [],
-                              priority: nil, whenDate: nil, repeating: nil, repeatingData: nil)
+            return applyingDefaults(
+                CreateArgs(title: trimmed, listIds: realListId.map { [$0] } ?? [],
+                           priority: nil, whenDate: nil, repeating: nil, repeatingData: nil),
+                from: defaultsList, priorityOverride: priorityOverride)
         }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
@@ -50,14 +59,44 @@ enum MacQuickAdd {
         var listIds = parsed.listIds
         if let realListId, !listIds.contains(realListId) { listIds.insert(realListId, at: 0) }
 
-        return CreateArgs(
-            title: title,
-            listIds: listIds,
-            priority: parsed.priority,
-            whenDate: parsed.dueDateTime,
-            repeating: parsed.repeating?.rawValue,
-            repeatingData: parsed.customRepeatingData
-        )
+        return applyingDefaults(
+            CreateArgs(title: title, listIds: listIds, priority: parsed.priority,
+                       whenDate: parsed.dueDateTime, repeating: parsed.repeating?.rawValue,
+                       repeatingData: parsed.customRepeatingData),
+            from: defaultsList, priorityOverride: priorityOverride)
+    }
+
+    /// Fill only the gaps the user left, using the SHARED `NewTaskDefaults` (the same resolution iOS
+    /// uses) — a default must never overwrite something they typed or chose.
+    private static func applyingDefaults(_ args: CreateArgs, from list: TaskList?,
+                                         priorityOverride: Int?) -> CreateArgs {
+        var out = args
+        // Priority: typed > checkbox override > list default.
+        if out.priority == nil {
+            let resolved = priorityOverride ?? NewTaskDefaults.priority(list?.defaultPriority)
+            out = CreateArgs(title: out.title, listIds: out.listIds, priority: resolved,
+                             whenDate: out.whenDate, repeating: out.repeating,
+                             repeatingData: out.repeatingData,
+                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
+        }
+        guard let list else { return out }
+        if out.whenDate == nil {
+            out = CreateArgs(title: out.title, listIds: out.listIds, priority: out.priority,
+                             whenDate: NewTaskDefaults.dueDate(from: list.defaultDueDate,
+                                                            time: list.defaultDueTime),
+                             repeating: out.repeating, repeatingData: out.repeatingData,
+                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
+        }
+        if out.repeating == nil {
+            out = CreateArgs(title: out.title, listIds: out.listIds, priority: out.priority,
+                             whenDate: out.whenDate,
+                             repeating: NewTaskDefaults.repeating(list.defaultRepeating),
+                             repeatingData: out.repeatingData,
+                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
+        }
+        out.assigneeId = NewTaskDefaults.assignee(list.defaultAssigneeId)
+        out.isPrivate = list.defaultIsPrivate
+        return out
     }
 
     /// Build create args for a GLOBAL quick-add (the ⌥Space window and the menu-bar), which has no

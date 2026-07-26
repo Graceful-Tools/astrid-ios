@@ -1088,3 +1088,4 @@
 "mac.replying_to" = "Ответ %@: %@";
 "mac.share_title" = "Поделиться «%@»";
 "mac.show_scroll_bars" = "Показывать полосы прокрутки";
+"mac.list_default" = "По умолчанию для списка";
