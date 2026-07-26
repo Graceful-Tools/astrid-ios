@@ -1066,6 +1066,9 @@
 "mac.passkey_intro" = "Saisissez votre e-mail, puis créez une clé d'accès sur ce Mac (Touch ID / votre appareil).";
 "mac.privacy" = "Confidentialité";
 "mac.push_reminders" = "Rappels push";
+"mac.undo.complete" = "terminer la tâche";
+"mac.undo.delete" = "supprimer la tâche";
+"mac.undo.move" = "déplacer la tâche";
 "mac.quick_add" = "Ajout rapide…";
 "mac.quick_add_placeholder" = "Ajouter une tâche…  (essayez « Rapport vendredi #travail urgent »)";
 "mac.quit" = "Quitter";

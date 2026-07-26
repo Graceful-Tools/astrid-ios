@@ -1058,6 +1058,9 @@
 "mac.passkey_intro" = "Enter your email, then create a passkey on this Mac (Touch ID / your device).";
 "mac.privacy" = "Privacy";
 "mac.push_reminders" = "Push reminders";
+"mac.undo.complete" = "Complete Task";
+"mac.undo.delete" = "Delete Task";
+"mac.undo.move" = "Move Task";
 "mac.quick_add" = "Quick add…";
 "mac.quick_add_placeholder" = "Add a task…  (try “Report friday #work urgent”)";
 "mac.quit" = "Quit";

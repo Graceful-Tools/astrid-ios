@@ -112,6 +112,9 @@ final class MacAppModel: ObservableObject {
     @MainActor func completeSelectedTasks() {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
+        let byId = Dictionary(uniqueKeysWithValues: TaskService.shared.tasks
+            .filter { ids.contains($0.id) }.map { ($0.id, $0.completed) })
+        MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: byId, to: true))
         MacActions.perform("Complete tasks") {
             for id in ids { _ = try await TaskService.shared.completeTask(id: id, completed: true) }
         }
@@ -121,6 +124,9 @@ final class MacAppModel: ObservableObject {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
         selectedTaskIds = []
+        let targets = TaskService.shared.tasks.filter { ids.contains($0.id) }
+        MacUndoCoordinator.shared.record(MacUndo.deleteStep(
+            snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: targets, allTasks: TaskService.shared.tasks)))
         MacActions.perform("Delete tasks") {
             for id in ids { try await TaskService.shared.deleteTask(id: id) }
         }

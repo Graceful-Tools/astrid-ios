@@ -1050,6 +1050,9 @@
 "mac.passkey_intro" = "Inserisci la tua email, poi crea una passkey su questo Mac (Touch ID / il tuo dispositivo).";
 "mac.privacy" = "Privacy";
 "mac.push_reminders" = "Promemoria push";
+"mac.undo.complete" = "completa attività";
+"mac.undo.delete" = "elimina attività";
+"mac.undo.move" = "sposta attività";
 "mac.quick_add" = "Aggiunta rapida…";
 "mac.quick_add_placeholder" = "Aggiungi un'attività…  (prova “Report venerdì #lavoro urgente”)";
 "mac.quit" = "Esci";

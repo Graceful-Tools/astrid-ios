@@ -71,6 +71,9 @@ struct MacRootView: View {
                                   isBoard: contentMode == .board)
     }
     @Environment(\.openWindow) private var openWindow
+    /// The window's undo manager — handed to MacUndoCoordinator so ⌘Z / Edit ▸ Undo reverse
+    /// complete, move and delete (Task 9b603be4).
+    @Environment(\.undoManager) private var undoManager
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
@@ -89,6 +92,11 @@ struct MacRootView: View {
     /// Cross-list move (C3): move the given tasks into another list via the canonical service.
     private func move(_ ids: Set<String>, to listId: String) {
         let toMove = tasksForSelection.filter { ids.contains($0.id) }
+        // Capture each task's own origin BEFORE the write — ⌘Z has to send three tasks back to
+        // three different lists, not all to the one they happened to share.
+        MacUndoCoordinator.shared.record(
+            MacUndo.moveStep(previous: Dictionary(uniqueKeysWithValues: toMove.map { ($0.id, $0.listIds ?? []) }),
+                             to: listId))
         for t in toMove {
             MacActions.perform("Move task") {
                 _ = try await taskService.updateTask(taskId: t.id, listIds: [listId], task: t)
@@ -325,6 +333,9 @@ struct MacRootView: View {
     /// Complete every selected task through the canonical service (repeat rollover honored).
     private func completeSelected() {
         let toComplete = tasksForSelection.filter { selectedTaskIds.contains($0.id) && !$0.completed }
+        MacUndoCoordinator.shared.record(
+            MacUndo.completeStep(previous: Dictionary(uniqueKeysWithValues: toComplete.map { ($0.id, $0.completed) }),
+                                 to: true))
         for task in toComplete {
             MacActions.perform("Complete task") {
                 _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
@@ -632,12 +643,15 @@ struct MacRootView: View {
     private func bulkDelete(_ ids: Set<String>) {
         let targets = tasksForSelection.filter { ids.contains($0.id) }
         selectedTaskIds.removeAll()
+        MacUndoCoordinator.shared.record(MacUndo.deleteStep(
+            snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: targets, allTasks: taskService.tasks)))
         MacActions.perform("Delete tasks") {
             for t in targets { try await taskService.deleteTask(id: t.id, task: t) }
         }
     }
 
     private func setCompleted(_ t: Task) {
+        MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed], to: true))
         MacActions.perform("Complete task") {
             _ = try await taskService.completeTask(id: t.id, completed: true, task: t)
         }
@@ -647,6 +661,7 @@ struct MacRootView: View {
     private func toggleCompleted(_ t: Task) {
         // Surface failures instead of swallowing them with `try?` — a silently-failing completion
         // is indistinguishable from a dead checkbox (task 652edb22).
+        MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed], to: !t.completed))
         MacActions.perform("Complete task") {
             _ = try await TaskService.shared.completeTask(id: t.id, completed: !t.completed, task: t)
         }
@@ -1053,7 +1068,8 @@ struct MacRootView: View {
             }
         }
         .sheet(isPresented: $appModel.showShortcutsHelp) { MacShortcutsHelpView() }
-        .onAppear { installKeyMonitor() }
+        .onAppear { installKeyMonitor(); MacUndoCoordinator.shared.undoManager = undoManager }
+        .onChange(of: undoManager) { _, new in MacUndoCoordinator.shared.undoManager = new }
         .onDisappear { removeKeyMonitor() }
         .sheet(isPresented: $appModel.showPalette) {
             CommandPaletteView(registry: appModel.registry)
