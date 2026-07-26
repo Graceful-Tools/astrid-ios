@@ -105,3 +105,24 @@ extension MacLayoutTests {
                           "Overhang must stay inside the row's trailing gutter")
     }
 }
+
+// MARK: - Board and chat are mutually exclusive (task f1430338)
+
+extension MacLayoutTests {
+
+    /// A board needs the full width for its columns, so the chat column stands down for it.
+    func testBoardModeHidesTheChatColumn() {
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 1_600, isRealList: true, isBoard: true),
+                       "Even on a very wide window, a board takes the horizontal space")
+    }
+
+    /// …and the list view is unaffected.
+    func testListModeStillShowsTheChatColumn() {
+        XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1_600, isRealList: true, isBoard: false))
+    }
+
+    /// Board mode does not resurrect chat for a selection that never had a channel.
+    func testBoardModeDoesNotOverrideTheChannelRule() {
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 1_600, isRealList: false, isBoard: false))
+    }
+}

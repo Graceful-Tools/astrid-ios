@@ -57,9 +57,11 @@ enum MacLayout {
             - rowTrailingGap - columnDividerWidth
     }
 
-    /// Show the persistent chat column? Wide WINDOW + a selection that has a channel.
-    static func showsChatColumn(windowWidth: CGFloat, isRealList: Bool) -> Bool {
-        isRealList && windowWidth >= chatColumnWindowThreshold
+    /// Show the persistent chat column? Wide WINDOW + a selection that has a channel, and NOT in
+    /// board mode — a board needs the full horizontal width for its columns, so the two are
+    /// mutually exclusive (task f1430338).
+    static func showsChatColumn(windowWidth: CGFloat, isRealList: Bool, isBoard: Bool = false) -> Bool {
+        isRealList && !isBoard && windowWidth >= chatColumnWindowThreshold
     }
 }
 #endif

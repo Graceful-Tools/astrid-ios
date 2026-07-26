@@ -66,7 +66,8 @@ struct MacRootView: View {
     /// 3-column mode: wide content + a selection that HAS a channel → chat is a persistent right
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
     private var chatColumnVisible: Bool {
-        MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil)
+        MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil,
+                                  isBoard: contentMode == .board)
     }
     @Environment(\.openWindow) private var openWindow
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
@@ -813,17 +814,24 @@ struct MacRootView: View {
                         // the middle shows list or board (23c98550). My Tasks reaches here too —
                         // it has a virtual channel, same as iOS and web (51703e2a).
                         HStack(spacing: 0) {
-                            switch contentMode {
-                            case .board where listId != Self.myTasksId: MacBoardView(listId: listId)
-                            default: listColumn
-                            }
+                            listColumn      // board never reaches here — see chatColumnVisible
                             Divider()
                             MacChatPanelView(source: chatSource)
                                 .frame(width: MacLayout.chatColumnWidth)
                         }
                     } else {
                         switch contentMode {
-                        case .board where listId != Self.myTasksId: MacBoardView(listId: listId)
+                        case .board where listId != Self.myTasksId:
+                            // The board gets the SAME floating quick-add as the list, pinned at the
+                            // bottom, adding into this board's list (task e466eab8).
+                            VStack(spacing: 0) {
+                                MacBoardView(listId: listId)
+                                if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
+                                                           hasSelection: true,
+                                                           isMyTasks: listId == Self.myTasksId) {
+                                    quickAddBar
+                                }
+                            }
                         case .chat:
                             if let chatSource { MacChatPanelView(source: chatSource) } else { listColumn }
                         default: listColumn
