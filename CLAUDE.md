@@ -29,6 +29,14 @@ completion, repeating tasks, the Outbox, sync, chat, list members, or an API cal
 5. **API paths are `/api/v1/...` only** — `/api/user/...` and `/api/chat/...` are dead.
 6. **Preserve Outbox / offline behavior.** For breaking API changes, add a new version.
 7. **Bug fixes are TDD:** RED regression test (name the task id) → green → `npm run predeploy`.
+8. **Reuse before you write.** Never inline permission checks or hardcode user-facing
+   copy — use the shared filtering/permission helpers in `Astrid App/Core/` and
+   `Localizable.strings` keys. Permission decisions and shared strings are a
+   cross-platform contract with Web: see
+   [astrid-web `docs/PRODUCT_CONTRACT.md`](https://github.com/Graceful-Tools/astrid-web/blob/main/docs/PRODUCT_CONTRACT.md)
+   for the permission matrix both platforms must honor and the Web-i18n ⇄
+   iOS-`Localizable.strings` key registry. Diverging from it is a bug on whichever
+   platform moved.
 
 ---
 
