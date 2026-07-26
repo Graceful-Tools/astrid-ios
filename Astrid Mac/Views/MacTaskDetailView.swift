@@ -89,11 +89,19 @@ struct MacTaskDetailView: View {
         Form {
             Section {
                 HStack(spacing: 10) {
-                    Button { setCompleted(!task.completed) } label: {
-                        MacTaskCheckbox(completed: task.completed, priority: priority, size: 22)
-                    }
-                    .buttonStyle(.plain)
-                    .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    // A `Button` here does not fire: inside a Form row (as inside a List row) the
+                    // row's own click handling swallows it — the same defect that left the task-row
+                    // checkbox dead in 652edb22. A tap gesture DOES receive the click, and keeps
+                    // full button semantics for VoiceOver and UI tests.
+                    MacTaskCheckbox(completed: task.completed, priority: priority, size: 22)
+                        .contentShape(Rectangle())
+                        .onTapGesture { setCompleted(!task.completed) }
+                        .macPointingHand()
+                        .help(task.completed ? "Mark incomplete" : "Mark complete")
+                        .accessibilityElement()
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
+                        .accessibilityAction { setCompleted(!task.completed) }
                     // `labelsHidden()`: inside a Form, macOS renders a TextField's first argument
                     // as a leading label — the stray "Title" prefix on the detail header
                     // (task 4a3360c3). It stays as the empty-state placeholder.
@@ -563,7 +571,11 @@ struct MacTaskDetailView: View {
     }
 
     private func setCompleted(_ value: Bool) {
-        _Concurrency.Task { _ = try? await taskService.completeTask(id: task.id, completed: value, task: task) }
+        // Surface failures instead of swallowing them with `try?` — a silently failing completion
+        // is indistinguishable from a dead checkbox (652edb22).
+        MacActions.perform("Complete task") {
+            _ = try await TaskService.shared.completeTask(id: task.id, completed: value, task: task)
+        }
     }
 
     /// Copy this task into another list (or My Tasks only) via the canonical service.

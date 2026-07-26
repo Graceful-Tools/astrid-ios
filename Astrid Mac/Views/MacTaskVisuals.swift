@@ -8,6 +8,15 @@
 import SwiftUI
 
 enum MacTaskVisuals {
+    // Checkbox proportions. iOS draws its checkbox from a designed ASSET (check_box_checked_*)
+    // where the mark fills most of the box; Mac draws it from a shape + SF Symbol, and at 0.62 the
+    // mark read small inside a chunky 2pt box (task: "checkbox size should be smaller relative to
+    // checkmark"). The mark now takes most of the box, and the stroke scales with the size rather
+    // than staying 2pt at every size.
+    static let checkmarkRatio: CGFloat = 0.78
+    static let checkboxCornerRatio: CGFloat = 0.28
+    static func checkboxStroke(size: CGFloat) -> CGFloat { max(1.5, size * 0.075) }
+
     /// Priority glyphs, matching iOS PriorityButton (○ / ! / !! / !!!).
     static func prioritySymbol(_ p: Task.Priority) -> String {
         switch p {
@@ -48,17 +57,17 @@ struct MacTaskCheckbox: View {
     var size: CGFloat = 20
 
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.28)
-            .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 2)
+        RoundedRectangle(cornerRadius: size * MacTaskVisuals.checkboxCornerRatio)
+            .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: MacTaskVisuals.checkboxStroke(size: size))
             .frame(width: size, height: size)
             .background(
-                RoundedRectangle(cornerRadius: size * 0.28)
+                RoundedRectangle(cornerRadius: size * MacTaskVisuals.checkboxCornerRatio)
                     .fill(completed ? Theme.success.opacity(0.12) : Color.clear)
             )
             .overlay {
                 if completed {
                     Image(systemName: "checkmark")
-                        .font(.system(size: size * 0.62, weight: .bold))
+                        .font(.system(size: size * MacTaskVisuals.checkmarkRatio, weight: .bold))
                         .foregroundStyle(Theme.success)
                         .transition(.scale.combined(with: .opacity))
                 }

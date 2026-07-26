@@ -311,19 +311,33 @@ struct MacRootView: View {
     /// view whose own padding depends on that measurement oscillates AppKit into a layout
     /// exception (learned the hard way in f993dbe0).
     private var listColumn: some View {
-        let popoutVisible = MacDetailPopover.isVisible(selectionCount: selectedTaskIds.count)
+        // Resolve the task ONCE: the reservation and the panel must agree. They used to be decided
+        // separately — the padding keyed off the selection count while the panel additionally
+        // required a tasksById hit — so a selected-but-unresolved task reserved a 406pt gutter and
+        // drew nothing in it, which is the "variable and off" gap (task 89e42f29).
+        // Falls back to the rendered rows when the cache has not caught up (a just-created task).
+        let selectedTask: Task? = selectedTaskIds.count == 1
+            ? selectedTaskIds.first.flatMap { id in
+                taskService.tasksById[id] ?? tasksForSelection.first { $0.id == id }
+              }
+            : nil
+        let popoutVisible = selectedTask != nil
         return ZStack(alignment: .trailing) {
             taskTable
                 .padding(.trailing, MacLayout.reservesDetailSpace(contentWidth: listColumnWidth,
                                                                   popoutVisible: popoutVisible)
                          ? MacLayout.detailPopoutWidth : 0)
             // Board fits task-details INLINE in the column; the pop-out is for list/search/My Tasks.
-            // O(1) tasksById lookup — was a full tasksForSelection pipeline scan per eval (4e0ce183).
-            if popoutVisible, let id = selectedTaskIds.first, let task = taskService.tasksById[id] {
-                taskDetailPopout(task)
+            if let selectedTask {
+                taskDetailPopout(selectedTask)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+        // Fill the available width. Without this the column sized to its CONTENT, leaving dead
+        // space beside it — and since the pop-out is anchored to the column's trailing edge, the
+        // panel's left edge moved with the content instead of sitting against the rows
+        // ("variable and off", task 89e42f29).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listColumnWidth = $0 }
     }
 
@@ -368,6 +382,7 @@ struct MacRootView: View {
             .macPointingHand()
             .help(NSLocalizedString("tasks.new_task", comment: ""))
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
     }

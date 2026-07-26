@@ -225,7 +225,11 @@ final class Astrid_MacUITests: XCTestCase {
         // click macOS List rows, so this is the only way in; it is best-effort and the capture is
         // useful either way, hence no assertion (this test is a diagnostic, not a gate).
 
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        // Capture the APP WINDOW, not the whole display: XCUIScreen grabs whatever is frontmost,
+        // which was another app's window in earlier runs.
+        app.activate()
+        let window = app.windows.firstMatch
+        let shot = XCTAttachment(screenshot: window.exists ? window.screenshot() : XCUIScreen.main.screenshot())
         shot.name = "detail-popout-layout"
         shot.lifetime = .keepAlways
         add(shot)
