@@ -107,12 +107,20 @@ final class Astrid_MacUITests: XCTestCase {
         nameField.typeText(listName)
         app.buttons["Create"].firstMatch.click()
 
-        // Select the new list in the sidebar.
+        // Select the new list — filter the sidebar via its search field first so the row is
+        // visible/hittable regardless of how many lists exist.
+        let sidebarSearch = app.searchFields.firstMatch
+        if sidebarSearch.waitForExistence(timeout: 5) {
+            sidebarSearch.click()
+            sidebarSearch.typeText(listName)
+        }
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10), "Created list should appear in the sidebar")
         listRow.click()
 
-        // Quick-add floats at the bottom; type a task and press return.
+        // Quick-add floats at the bottom of the window (the app clamps its window to the visible
+        // screen under -uiTesting so this is on-screen). Make sure our app is frontmost first.
+        app.activate()
         let quickAdd = app.descendants(matching: .any).matching(identifier: "tasks.quickAdd").firstMatch
         XCTAssertTrue(quickAdd.waitForExistence(timeout: 10), "Quick-add should be available for a real list")
         quickAdd.click()

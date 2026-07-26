@@ -31,7 +31,12 @@ struct AstridMacApp: App {
     var body: some Scene {
         // Main window: auth gate → sign-in when signed out, shell when signed in.
         WindowGroup(id: "main") {
-            if underTest { Color.clear.frame(width: 1, height: 1) } else { MacAuthGateView() }
+            if underTest {
+                Color.clear.frame(width: 1, height: 1)
+            } else {
+                MacAuthGateView()
+                    .onAppear { Self.normalizeWindowForUITestingIfNeeded() }
+            }
         }
         .commands { AstridCommands() }              // full menu bar (M1)
 
@@ -56,6 +61,23 @@ struct AstridMacApp: App {
         // Tear-off: open a single task in its own window (v1.1).
         WindowGroup(id: "task", for: String.self) { $taskId in
             if !underTest { MacTaskWindowView(taskId: taskId) }
+        }
+    }
+
+    /// UI tests restore whatever window frame the last run saved — which can be TALLER than the
+    /// screen, leaving bottom UI (quick-add) off-screen and "not hittable". Clamp the main window
+    /// to the visible screen and bring it frontmost so XCUITest coordinates are always on-screen.
+    private static func normalizeWindowForUITestingIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+        DispatchQueue.main.async {
+            guard let win = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) else { return }
+            let vis = win.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+                ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
+            let w = min(1100, vis.width), h = min(760, vis.height)
+            win.setFrame(NSRect(x: vis.midX - w / 2, y: vis.midY - h / 2, width: w, height: h),
+                         display: true)
+            NSApp.activate(ignoringOtherApps: true)
+            win.makeKeyAndOrderFront(nil)
         }
     }
 }

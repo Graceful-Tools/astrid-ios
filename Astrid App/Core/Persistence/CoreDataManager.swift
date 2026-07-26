@@ -23,6 +23,13 @@ class CoreDataManager {
         description?.shouldMigrateStoreAutomatically = true
         description?.shouldInferMappingModelAutomatically = true
 
+        // UI tests share the real app container (same bundle id): use a throwaway store so test
+        // data (lists/tasks) can never land in — or later sync out of — the user's real store.
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            description?.url = URL(fileURLWithPath: "/dev/null")
+            print("🧪 [CoreData] -uiTesting: using ephemeral store")
+        }
+
         print("🔄 [CoreData] Loading persistent store...")
         container.loadPersistentStores { [weak self] description, error in
             if let error = error {

@@ -17,6 +17,12 @@ nonisolated final class OutboxStore: Sendable {
 
     /// Production location: Application Support/outbox.json.
     static func defaultFileURL() -> URL {
+        // UI tests share the real app container: use a throwaway journal so queued test writes
+        // can never drain into the user's real account when their app next runs online.
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            return FileManager.default.temporaryDirectory
+                .appendingPathComponent("outbox-uitest-\(UUID().uuidString).json")
+        }
         let base = (try? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: true

@@ -35,19 +35,24 @@ class ConnectionModeManager: ObservableObject {
 
     // MARK: - Computed Properties
 
+    // In-memory local-mode state for -uiTesting runs (never persisted — UI tests share the real
+    // app container, and persisted flags left the user's app permanently offline after a test).
+    private var inMemoryOfflineOnly = false
+    private var inMemoryLocalUserId: String?
+
     /// Whether the app is in explicit offline-only mode
     var isOfflineOnly: Bool {
-        UserDefaults.standard.bool(forKey: Self.offlineOnlyModeKey)
+        inMemoryOfflineOnly || UserDefaults.standard.bool(forKey: Self.offlineOnlyModeKey)
     }
 
     /// Whether a local-only user exists
     var hasLocalUser: Bool {
-        UserDefaults.standard.string(forKey: Self.localUserIdKey) != nil
+        inMemoryLocalUserId != nil || UserDefaults.standard.string(forKey: Self.localUserIdKey) != nil
     }
 
     /// The local user ID if in offline-only mode
     var localUserId: String? {
-        UserDefaults.standard.string(forKey: Self.localUserIdKey)
+        inMemoryLocalUserId ?? UserDefaults.standard.string(forKey: Self.localUserIdKey)
     }
 
     // MARK: - Initialization
@@ -153,11 +158,22 @@ class ConnectionModeManager: ObservableObject {
     func createLocalUser() async {
         let localUserId = "local_\(UUID().uuidString)"
 
+        // UI tests share the real app container (same bundle id). Persisting local-only mode from
+        // a -uiTesting run left the USER'S app permanently offline (no SSE/sync) after the test
+        // suite ran — the flags survive the test. Under -uiTesting, keep local mode IN-MEMORY only.
+        let persist = !ProcessInfo.processInfo.arguments.contains("-uiTesting")
+
         // Store local user info in UserDefaults
-        UserDefaults.standard.set(localUserId, forKey: Self.localUserIdKey)
-        UserDefaults.standard.set(localUserId, forKey: Constants.UserDefaults.userId)
-        UserDefaults.standard.set(true, forKey: Self.offlineOnlyModeKey)
-        UserDefaults.standard.set(NSLocalizedString("local_user", comment: "Local User"), forKey: Constants.UserDefaults.userName)
+        if persist {
+            UserDefaults.standard.set(localUserId, forKey: Self.localUserIdKey)
+            UserDefaults.standard.set(localUserId, forKey: Constants.UserDefaults.userId)
+            UserDefaults.standard.set(true, forKey: Self.offlineOnlyModeKey)
+            UserDefaults.standard.set(NSLocalizedString("local_user", comment: "Local User"), forKey: Constants.UserDefaults.userName)
+        } else {
+            // -uiTesting: same behavior, in-memory only (isOfflineOnly/localUserId consult these).
+            inMemoryOfflineOnly = true
+            inMemoryLocalUserId = localUserId
+        }
 
         // Create a local-only user in AuthManager
         let localUser = User(
