@@ -66,10 +66,17 @@ struct MacTaskDetailView: View {
                         Button(t.label) { copyTask(to: t.listId) }
                     }
                 }
+                // Share — iOS parity (ShareTaskView): make the shortcode link, then offer the
+                // native share sheet (Mail/Messages/AirDrop…) as well as copy-to-clipboard.
+                Button(NSLocalizedString("actions.share", comment: "")) { shareTask() }
                 if let shareURL {
-                    Button(NSLocalizedString("mac.copy_share_link", comment: "")) { copyToPasteboard(shareURL.absoluteString) }
-                } else {
-                    Button(NSLocalizedString("actions.share", comment: "")) { generateShareLink() }
+                    Button(NSLocalizedString("mac.copy_share_link", comment: "")) {
+                        MacTaskActions.copyToPasteboard(shareURL.absoluteString)
+                    }
+                }
+                Button(NSLocalizedString("actions.copy", comment: "")) {
+                    MacTaskActions.copyToPasteboard(
+                        MacTaskActions.clipboardText(title: task.title, shareURL: shareURL))
                 }
                 Button(NSLocalizedString("mac.open_new_window", comment: "")) { openWindow(id: "task", value: task.id) }
                 Divider()
@@ -563,6 +570,22 @@ struct MacTaskDetailView: View {
     private func copyTask(to listId: String?) {
         MacActions.perform("Copy task") {
             _ = try await taskService.copyTask(id: task.id, targetListId: listId, includeComments: true)
+        }
+    }
+
+    /// Share: generate the link if we don't have one yet, then present the native share sheet.
+    /// The link itself comes from the SAME shared service iOS uses (RemoteResourceService).
+    private func shareTask() {
+        if let shareURL {
+            MacTaskActions.presentShareSheet(url: shareURL, relativeTo: nil)
+            return
+        }
+        generatingShare = true
+        MacActions.perform("Share task") {
+            defer { generatingShare = false }
+            let url = try await MacTaskActions.makeShareURL(taskId: task.id)
+            shareURL = url
+            if let url { MacTaskActions.presentShareSheet(url: url, relativeTo: nil) }
         }
     }
 

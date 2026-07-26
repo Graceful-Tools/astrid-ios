@@ -479,6 +479,21 @@ struct MacRootView: View {
                     Button(list.name) { move(targets, to: list.id) }
                 }
             }
+            // Share / copy straight from the row — iOS offers these on a task without opening it
+            // first, and on Mac they were detail-only (task ea0527ef). Same shared services.
+            Menu(NSLocalizedString("lists.copy_to_list", comment: "")) {
+                ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
+                    Button(t.label) { copyTask(task, to: t.listId) }
+                }
+            }
+            Button(NSLocalizedString("actions.share", comment: "")) { shareTaskFromRow(task) }
+            Button(NSLocalizedString("actions.copy", comment: "")) {
+                MacTaskActions.copyToPasteboard(
+                    MacTaskActions.clipboardText(title: task.title, shareURL: nil))
+            }
+            Button(NSLocalizedString("mac.open_new_window", comment: "")) {
+                openWindow(id: "task", value: task.id)
+            }
             Divider()
             Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { bulkDelete(targets) }
         }
@@ -603,6 +618,25 @@ struct MacRootView: View {
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
         return true
+    }
+
+    /// Copy a task into another list from the row menu — the SAME service call the detail menu
+    /// uses, so the comments come across too.
+    private func copyTask(_ task: Task, to listId: String?) {
+        MacActions.perform("Copy task") {
+            _ = try await TaskService.shared.copyTask(id: task.id, targetListId: listId,
+                                                      includeComments: true)
+        }
+    }
+
+    /// Share from the row: make the shortcode link through the shared service (identical to iOS
+    /// ShareTaskView), then present the native share sheet.
+    private func shareTaskFromRow(_ task: Task) {
+        MacActions.perform("Share task") {
+            if let url = try await MacTaskActions.makeShareURL(taskId: task.id) {
+                MacTaskActions.presentShareSheet(url: url, relativeTo: nil)
+            }
+        }
     }
 
     /// Commit the inline quick-add draft. Empty text creates nothing (no junk tasks).
