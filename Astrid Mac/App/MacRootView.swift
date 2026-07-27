@@ -56,7 +56,11 @@ struct MacRootView: View {
     }
 
     /// Cached once: `ProcessInfo.arguments` allocates on every read.
-    private static let uiTestSelectsRow = ProcessInfo.processInfo.arguments.contains("-uiTestSelectRow")
+    // Cached: read once, not on every scroll event. Goes through MacUITestArgs so it matches the
+    // single-token `-uiTestSelectRow=<n>` form the hook actually supports (69ff12e7) — a raw
+    // `contains("-uiTestSelectRow")` missed it and let the scroll handler clear the selection.
+    private static let uiTestSelectsRow =
+        MacUITestArgs.selectedRowIndex(from: ProcessInfo.processInfo.arguments) != nil
 
     private var chatSource: MacChatSource? {
         MacChatSource.forSelection(selectedListId: selectedListId,
@@ -507,9 +511,8 @@ struct MacRootView: View {
         // Synchronous on purpose: an async `.task(id:)` version was cancelled every time `rows`
         // changed, and `Task.sleep` returns immediately once cancelled, so the retry loop burned
         // out before the rows settled and the row was never selected.
-        let args = ProcessInfo.processInfo.arguments
-        guard let i = args.firstIndex(of: "-uiTestSelectRow"), i + 1 < args.count,
-              let n = Int(args[i + 1]), ids.indices.contains(n), selectedTaskIds.isEmpty else { return }
+        guard let n = MacUITestArgs.selectedRowIndex(from: ProcessInfo.processInfo.arguments),
+              ids.indices.contains(n), selectedTaskIds.isEmpty else { return }
         selectedTaskIds = [ids[n]]
     }
 

@@ -1058,6 +1058,8 @@
 "mac.passkey_intro" = "Enter your email, then create a passkey on this Mac (Touch ID / your device).";
 "mac.privacy" = "Privacy";
 "mac.push_reminders" = "Push reminders";
+"actions.undo" = "Undo";
+"actions.redo" = "Redo";
 "mac.undo.complete" = "Complete Task";
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";

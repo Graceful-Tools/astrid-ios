@@ -1052,6 +1052,8 @@
 "mac.passkey_intro" = "이메일을 입력한 뒤 이 Mac에서 패스키를 생성하세요 (Touch ID / 사용 기기).";
 "mac.privacy" = "개인정보 보호";
 "mac.push_reminders" = "푸시 미리 알림";
+"actions.undo" = "실행 취소";
+"actions.redo" = "다시 실행";
 "mac.undo.complete" = "작업 완료";
 "mac.undo.delete" = "작업 삭제";
 "mac.undo.move" = "작업 이동";

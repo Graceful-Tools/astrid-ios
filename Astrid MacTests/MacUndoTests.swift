@@ -129,3 +129,34 @@ final class MacUndoTests: XCTestCase {
         XCTAssertEqual(step.inverted.actionName, step.actionName)
     }
 }
+
+/// Edit-menu presentation + ⌘Z routing (Task 9b603be4).
+final class MacUndoMenuTests: XCTestCase {
+
+    /// The task stack wins whenever it holds something, so the menu title (built from the stack)
+    /// always describes what ⌘Z actually does.
+    func testTaskStackWinsWheneverItHasSomething() {
+        XCTAssertEqual(MacUndoMenu.target(fieldEditorCanUndo: true, stackCanUndo: true), .stack)
+        XCTAssertEqual(MacUndoMenu.target(fieldEditorCanUndo: false, stackCanUndo: true), .stack)
+    }
+
+    /// A focused text field still gets ⌘Z once there is no task change left to reverse.
+    func testFieldEditorTakesTheRest() {
+        XCTAssertEqual(MacUndoMenu.target(fieldEditorCanUndo: true, stackCanUndo: false), .fieldEditor)
+        XCTAssertEqual(MacUndoMenu.target(fieldEditorCanUndo: false, stackCanUndo: false), MacUndoMenu.Target.none)
+    }
+
+    func testTitleNamesTheActionOnlyWhenThereIsOne() {
+        let undo = NSLocalizedString("actions.undo", comment: "")
+        XCTAssertEqual(MacUndoMenu.title(verb: .undo, actionName: nil), undo)
+        XCTAssertEqual(MacUndoMenu.title(verb: .undo, actionName: ""), undo)
+        XCTAssertEqual(MacUndoMenu.title(verb: .undo, actionName: "Complete Task"), "\(undo) Complete Task")
+    }
+
+    func testRedoUsesItsOwnVerb() {
+        XCTAssertEqual(MacUndoMenu.title(verb: .redo, actionName: nil),
+                       NSLocalizedString("actions.redo", comment: ""))
+        XCTAssertNotEqual(NSLocalizedString("actions.redo", comment: ""),
+                          NSLocalizedString("actions.undo", comment: ""))
+    }
+}

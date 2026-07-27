@@ -1050,6 +1050,8 @@
 "mac.passkey_intro" = "Voer je e-mail in en maak een toegangssleutel aan op deze Mac (Touch ID / je apparaat).";
 "mac.privacy" = "Privacy";
 "mac.push_reminders" = "Pushherinneringen";
+"actions.undo" = "Herstel";
+"actions.redo" = "Opnieuw";
 "mac.undo.complete" = "taak voltooien";
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";

@@ -16,12 +16,24 @@ import SwiftUI
 
 struct AstridCommands: Commands {
     @ObservedObject private var appModel = MacAppModel.shared
+    @ObservedObject private var undo = MacUndoCoordinator.shared
 
     var body: some Commands {
         // File → New Task (⌘N is the additive Mac equivalent of the bare `n`).
         CommandGroup(replacing: .newItem) {
             Button(NSLocalizedString("tasks.new_task", comment: "")) { MacAppModel.shared.perform(.newTask) }
                 .keyboardShortcut("n", modifiers: .command)
+        }
+
+        // Edit ▸ Undo / Redo drive the app's own undo stack (Task 9b603be4). Replacing the group
+        // rather than relying on @Environment(\.undoManager) is deliberate: registrations against
+        // the environment manager never reached this menu. The actions still hand ⌘Z back to a
+        // focused text field when it has something to undo.
+        CommandGroup(replacing: .undoRedo) {
+            Button(undo.undoTitle) { MacUndoCoordinator.shared.performUndo() }
+                .keyboardShortcut("z", modifiers: .command)
+            Button(undo.redoTitle) { MacUndoCoordinator.shared.performRedo() }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
         }
 
         // A dedicated Task menu for the additive ⌘-equivalents.

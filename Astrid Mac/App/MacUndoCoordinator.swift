@@ -7,19 +7,81 @@
 #if os(macOS)
 import Foundation
 import AppKit
+import Combine
 
 @MainActor
-final class MacUndoCoordinator: NSObject {
+final class MacUndoCoordinator: NSObject, ObservableObject {
     static let shared = MacUndoCoordinator()
 
-    /// The window's undo manager, handed over by MacRootView (`@Environment(\.undoManager)`).
-    weak var undoManager: UndoManager?
+    /// The app OWNS its undo stack rather than borrowing the window's. `@Environment(\.undoManager)`
+    /// proved unreliable here — registrations against it never reached Edit ▸ Undo, which stayed
+    /// plain "Undo" — and the Edit menu items below drive this stack directly, so ⌘Z is either
+    /// wired or the tests fail. An UndoManager (not a hand-rolled array) keeps the grouping,
+    /// action names and redo semantics AppKit users expect.
+    private let ownStack = UndoManager()
 
-    /// The environment value can be nil (a scene without a hosting window yet, a torn-off task
-    /// window). Falling back to the key/main window's manager means a change is never silently
-    /// unrecorded — an undo stack that only sometimes exists is worse than none.
-    var resolvedUndoManager: UndoManager? {
-        undoManager ?? NSApp?.keyWindow?.undoManager ?? NSApp?.mainWindow?.undoManager
+    /// Overridable for tests; nil means the app's own stack.
+    var undoManager: UndoManager?
+
+    /// Fired whenever the stack changes so the Edit menu re-renders its titles. Declared by hand:
+    /// the synthesized publisher of a @MainActor class cannot satisfy the nonisolated requirement.
+    nonisolated let objectWillChange = ObservableObjectPublisher()
+
+    var resolvedUndoManager: UndoManager? { undoManager ?? ownStack }
+
+    override init() {
+        super.init()
+        // Notification callbacks are a safe place to look at NSApp; the menu-build path is not.
+        // NSUndoManagerCheckpoint is deliberately NOT observed: it fires constantly, and turning
+        // each one into a menu rebuild (which itself checkpoints) wedges the app at launch — it
+        // never finishes loading accessibility.
+        for name: NSNotification.Name in [.NSUndoManagerDidUndoChange, .NSUndoManagerDidRedoChange,
+                                          .NSUndoManagerDidCloseUndoGroup,
+                                          NSText.didBeginEditingNotification,
+                                          NSText.didEndEditingNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                MainActor.assumeIsolated {
+                    self?.objectWillChange.send()
+                }
+            }
+        }
+    }
+
+    // MARK: Edit menu
+
+    var canUndo: Bool { resolvedUndoManager?.canUndo ?? false }
+    var canRedo: Bool { resolvedUndoManager?.canRedo ?? false }
+
+    /// Names the task action whenever there is one — which, given the routing rule above, is
+    /// exactly what ⌘Z will do. The title is computed while SwiftUI assembles the menu bar, so it
+    /// must not touch NSApp: reading `NSApp.keyWindow` there wedges the app at launch.
+    var undoTitle: String { MacUndoMenu.title(verb: .undo, actionName: resolvedUndoManager?.undoActionName) }
+    var redoTitle: String { MacUndoMenu.title(verb: .redo, actionName: resolvedUndoManager?.redoActionName) }
+
+    /// ⌘Z while typing belongs to the field editor — that is what every other Mac app does.
+    /// Only when the focused field has nothing to undo does the task stack get the keystroke.
+    func performUndo() {
+        switch MacUndoMenu.target(fieldEditorCanUndo: Self.fieldEditorUndoManager()?.canUndo ?? false,
+                                  stackCanUndo: canUndo) {
+        case .fieldEditor: Self.fieldEditorUndoManager()?.undo()
+        case .stack:       resolvedUndoManager?.undo()
+        case .none:        break
+        }
+    }
+
+    func performRedo() {
+        switch MacUndoMenu.target(fieldEditorCanUndo: Self.fieldEditorUndoManager()?.canRedo ?? false,
+                                  stackCanUndo: canRedo) {
+        case .fieldEditor: Self.fieldEditorUndoManager()?.redo()
+        case .stack:       resolvedUndoManager?.redo()
+        case .none:        break
+        }
+    }
+
+    /// The undo manager of the text view currently being edited, if any.
+    private static func fieldEditorUndoManager() -> UndoManager? {
+        (NSApp?.keyWindow?.firstResponder as? NSText)?.undoManager
+            ?? (NSApp?.keyWindow?.firstResponder as? NSTextView)?.undoManager
     }
 
     /// Record a change the user just made. Registering the REVERSE means ⌘Z writes `backward`;

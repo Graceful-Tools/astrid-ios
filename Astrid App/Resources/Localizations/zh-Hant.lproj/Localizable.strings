@@ -1052,6 +1052,8 @@
 "mac.passkey_intro" = "輸入您的電子郵件，然後在此 Mac 上建立通行密鑰（Touch ID／您的裝置）。";
 "mac.privacy" = "隱私";
 "mac.push_reminders" = "推播提醒";
+"actions.undo" = "還原";
+"actions.redo" = "重做";
 "mac.undo.complete" = "完成任務";
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";

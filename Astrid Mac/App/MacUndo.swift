@@ -94,4 +94,29 @@ enum MacUndo {
         }
     }
 }
+
+/// Edit-menu presentation + routing for ⌘Z (Task 9b603be4). Pure, so the routing rule — the
+/// field editor wins while you are typing — is testable without a window.
+enum MacUndoMenu {
+    enum Verb { case undo, redo }
+    enum Target { case fieldEditor, stack, none }
+
+    /// "Undo" on its own when nothing is undoable, "Undo Complete Task" when something is.
+    static func title(verb: Verb, actionName: String?) -> String {
+        let base = NSLocalizedString(verb == .undo ? "actions.undo" : "actions.redo", comment: "")
+        guard let name = actionName, !name.isEmpty else { return base }
+        return "\(base) \(name)"
+    }
+
+    /// The task stack wins whenever it has something in it, and a focused text field's editor
+    /// picks up the rest. The other order — field editor first — reads better on paper but cannot
+    /// be shown honestly in the menu: the title is built while SwiftUI assembles the menu bar,
+    /// where asking AppKit who is focused wedges the app, so a field-first rule would let the item
+    /// say "Undo Complete Task" and then undo your typing instead. Undoing a completion is also
+    /// the change worth protecting; retyping a few characters is not.
+    static func target(fieldEditorCanUndo: Bool, stackCanUndo: Bool) -> Target {
+        if stackCanUndo { return .stack }
+        return fieldEditorCanUndo ? .fieldEditor : .none
+    }
+}
 #endif

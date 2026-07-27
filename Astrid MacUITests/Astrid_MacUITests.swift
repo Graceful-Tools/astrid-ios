@@ -200,7 +200,7 @@ final class Astrid_MacUITests: XCTestCase {
         // The app may already be signed in (it reads the real keychain), in which case there is
         // no login screen — take whichever path lands in the shell.
         let app = XCUIApplication()
-        app.launchArguments += ["-uiTesting", "-uiTestSelectRow", "1"]   // select the middle row
+        app.launchArguments += ["-uiTesting", "-uiTestSelectRow=1"]   // select the middle row
         app.launch()
         let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
         let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch

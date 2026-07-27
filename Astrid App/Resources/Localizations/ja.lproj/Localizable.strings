@@ -1050,6 +1050,8 @@
 "mac.passkey_intro" = "メールアドレスを入力し、このMacでパスキーを作成してください（Touch ID／お使いのデバイス）。";
 "mac.privacy" = "プライバシー";
 "mac.push_reminders" = "プッシュリマインダー";
+"actions.undo" = "取り消す";
+"actions.redo" = "やり直す";
 "mac.undo.complete" = "タスクを完了";
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";

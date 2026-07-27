@@ -1050,6 +1050,8 @@
 "mac.passkey_intro" = "Введите адрес почты и создайте passkey на этом Mac (Touch ID / ваше устройство).";
 "mac.privacy" = "Конфиденциальность";
 "mac.push_reminders" = "Push-напоминания";
+"actions.undo" = "Отменить";
+"actions.redo" = "Повторить";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";

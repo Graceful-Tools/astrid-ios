@@ -1050,6 +1050,8 @@
 "mac.passkey_intro" = "输入您的邮箱，然后在此 Mac 上创建通行密钥（触控 ID／您的设备）。";
 "mac.privacy" = "隐私";
 "mac.push_reminders" = "推送提醒";
+"actions.undo" = "撤销";
+"actions.redo" = "重做";
 "mac.undo.complete" = "完成任务";
 "mac.undo.delete" = "删除任务";
 "mac.undo.move" = "移动任务";

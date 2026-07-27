@@ -1066,6 +1066,8 @@
 "mac.passkey_intro" = "Saisissez votre e-mail, puis créez une clé d'accès sur ce Mac (Touch ID / votre appareil).";
 "mac.privacy" = "Confidentialité";
 "mac.push_reminders" = "Rappels push";
+"actions.undo" = "Annuler";
+"actions.redo" = "Rétablir";
 "mac.undo.complete" = "terminer la tâche";
 "mac.undo.delete" = "supprimer la tâche";
 "mac.undo.move" = "déplacer la tâche";
