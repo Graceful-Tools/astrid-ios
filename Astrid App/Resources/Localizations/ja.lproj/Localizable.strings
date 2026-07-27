@@ -1059,6 +1059,11 @@
 "mac.occurrences_count" = "%d 回";
 "mac.openclaw_credentials" = "OpenClaw の認証情報（今すぐ保存）";
 "mac.remove_favorite" = "お気に入りから削除";
+"mac.view_board" = "ボード表示";
+"mac.view_chat" = "チャット表示";
+"mac.view_list" = "リスト表示";
+"navigation.search" = "検索";
+"mac.menu_commands" = "メニューコマンド";
 "mac.undo.complete" = "タスクを完了";
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";

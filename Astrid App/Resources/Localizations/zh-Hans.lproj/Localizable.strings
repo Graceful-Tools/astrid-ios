@@ -1059,6 +1059,11 @@
 "mac.occurrences_count" = "%d 次";
 "mac.openclaw_credentials" = "OpenClaw 凭据（请立即保存）";
 "mac.remove_favorite" = "取消收藏";
+"mac.view_board" = "看板视图";
+"mac.view_chat" = "聊天视图";
+"mac.view_list" = "列表视图";
+"navigation.search" = "搜索";
+"mac.menu_commands" = "菜单命令";
 "mac.undo.complete" = "完成任务";
 "mac.undo.delete" = "删除任务";
 "mac.undo.move" = "移动任务";

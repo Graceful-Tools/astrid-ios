@@ -1049,6 +1049,17 @@ struct MacRootView: View {
             case .openWindow:
                 if let id = selectedTaskIds.first { openWindow(id: "task", value: id) }
             case .focus: break   // handled by MacTaskDetailView
+            // Menu-bar ⌘ equivalents (e0412a64).
+            case .focusSearch:
+                selectedListId = Self.searchId
+            case .setContentMode(let raw):
+                // Board/chat only mean something for a real list; falling back to the list view
+                // beats a menu item that silently does nothing.
+                if let mode = ContentMode(rawValue: raw) {
+                    contentMode = MacViewMode.resolve(requested: mode, isRealList: currentRealList != nil)
+                }
+            case .showFilters:
+                if currentRealList != nil { showFilterSheet = true }
             }
         }
         .onChange(of: taskService.tasks) {

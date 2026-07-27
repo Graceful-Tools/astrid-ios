@@ -1061,6 +1061,11 @@
 "mac.occurrences_count" = "%d회";
 "mac.openclaw_credentials" = "OpenClaw 자격 증명 (지금 저장하세요)";
 "mac.remove_favorite" = "즐겨찾기 해제";
+"mac.view_board" = "보드 보기";
+"mac.view_chat" = "채팅 보기";
+"mac.view_list" = "목록 보기";
+"navigation.search" = "검색";
+"mac.menu_commands" = "메뉴 명령";
 "mac.undo.complete" = "작업 완료";
 "mac.undo.delete" = "작업 삭제";
 "mac.undo.move" = "작업 이동";

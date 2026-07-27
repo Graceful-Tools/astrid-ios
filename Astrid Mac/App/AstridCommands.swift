@@ -18,11 +18,17 @@ struct AstridCommands: Commands {
     @ObservedObject private var appModel = MacAppModel.shared
     @ObservedObject private var undo = MacUndoCoordinator.shared
 
+    /// One menu item, titled and bound from the shared table.
+    private func item(_ command: MacMenuShortcuts.Command, action: @escaping () -> Void) -> some View {
+        let binding = MacMenuShortcuts.binding(for: command)
+        return Button(binding?.title ?? "", action: action)
+            .keyboardShortcut(binding?.shortcut ?? KeyboardShortcut("/", modifiers: .command))
+    }
+
     var body: some Commands {
         // File → New Task (⌘N is the additive Mac equivalent of the bare `n`).
         CommandGroup(replacing: .newItem) {
-            Button(NSLocalizedString("tasks.new_task", comment: "")) { MacAppModel.shared.perform(.newTask) }
-                .keyboardShortcut("n", modifiers: .command)
+            item(.newTask) { MacAppModel.shared.perform(.newTask) }
         }
 
         // Edit ▸ Undo / Redo drive the app's own undo stack (Task 9b603be4). Replacing the group
@@ -36,17 +42,30 @@ struct AstridCommands: Commands {
                 .keyboardShortcut("z", modifiers: [.command, .shift])
         }
 
-        // A dedicated Task menu for the additive ⌘-equivalents.
+        // A dedicated Task menu for the additive ⌘-equivalents. Titles and keystrokes come from
+        // MacMenuShortcuts so the menus and the ⌘/ help sheet cannot drift (e0412a64).
         CommandMenu(NSLocalizedString("tasks.task", comment: "")) {
-            Button(NSLocalizedString("reminders.complete", comment: "")) { MacAppModel.shared.perform(.completeTask) }
-                .keyboardShortcut(.return, modifiers: .command)
+            item(.completeTask) { MacAppModel.shared.perform(.completeTask) }
                 .disabled(appModel.selectedTaskIds.isEmpty)
-            Button(NSLocalizedString("actions.delete", comment: "")) { MacAppModel.shared.perform(.deleteTask) }
-                .keyboardShortcut(.delete, modifiers: .command)
+            item(.deleteTask) { MacAppModel.shared.perform(.deleteTask) }
                 .disabled(appModel.selectedTaskIds.isEmpty)
             Divider()
-            Button(NSLocalizedString("mac.command_palette", comment: "")) { MacAppModel.shared.openPalette() }
-                .keyboardShortcut("k", modifiers: .command)
+            item(.palette) { MacAppModel.shared.openPalette() }
+        }
+
+        // These go INTO the standard View menu (after the sidebar item) rather than into a second
+        // menu of the same name — a CommandMenu("View") sits beside AppKit's own View menu, and the
+        // user finds two. Search, the three content modes and the filter editor all existed on web
+        // and in the ⌘/ sheet but had no menu item at all, which on macOS means undiscoverable.
+        CommandGroup(after: .sidebar) {
+            Divider()
+            item(.search) { MacAppModel.shared.requestSearch() }
+            Divider()
+            item(.viewList) { MacAppModel.shared.requestContentMode("list") }
+            item(.viewBoard) { MacAppModel.shared.requestContentMode("board") }
+            item(.viewChat) { MacAppModel.shared.requestContentMode("chat") }
+            Divider()
+            item(.filter) { MacAppModel.shared.requestFilters() }
         }
 
         // App menu → Check for Updates (Direct/Sparkle build; no-op/hidden on App Store).
@@ -58,8 +77,7 @@ struct AstridCommands: Commands {
 
         // Help → Keyboard Shortcuts (the shared bare-key scheme; web shows this on `?`).
         CommandGroup(after: .help) {
-            Button(NSLocalizedString("mac.keyboard_shortcuts", comment: "")) { MacAppModel.shared.perform(.showShortcuts) }
-                .keyboardShortcut("/", modifiers: .command)
+            item(.shortcuts) { MacAppModel.shared.perform(.showShortcuts) }
         }
     }
 }

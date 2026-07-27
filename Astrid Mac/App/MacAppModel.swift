@@ -30,6 +30,10 @@ final class MacAppModel: ObservableObject {
             case beginRename
             case openWindow
             case focus(MacShortcutEffect.FocusField)
+            // Menu-bar ⌘ equivalents (e0412a64): the web has these, the Mac menus did not.
+            case focusSearch
+            case setContentMode(String)   // "list" | "board" | "chat"
+            case showFilters
         }
     }
     @Published var shortcutRequest: ShortcutRequest?
@@ -108,6 +112,12 @@ final class MacAppModel: ObservableObject {
     }
 
     @MainActor func requestNewTask() { openQuickAdd() }
+
+    /// Menu-bar ⌘ commands (e0412a64). MacRootView owns the selection/content state, so these
+    /// travel as requests rather than being mutated from the menu.
+    @MainActor func requestSearch() { emit(.focusSearch) }
+    @MainActor func requestContentMode(_ mode: String) { emit(.setContentMode(mode)) }
+    @MainActor func requestFilters() { emit(.showFilters) }
 
     @MainActor func completeSelectedTasks() {
         let ids = selectedTaskIds

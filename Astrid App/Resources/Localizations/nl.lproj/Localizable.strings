@@ -1059,6 +1059,11 @@
 "mac.occurrences_count" = "%d herhalingen";
 "mac.openclaw_credentials" = "OpenClaw-inloggegevens (nu opslaan)";
 "mac.remove_favorite" = "Verwijder favoriet";
+"mac.view_board" = "Bordweergave";
+"mac.view_chat" = "Chatweergave";
+"mac.view_list" = "Lijstweergave";
+"navigation.search" = "Zoeken";
+"mac.menu_commands" = "Menuopdrachten";
 "mac.undo.complete" = "taak voltooien";
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";

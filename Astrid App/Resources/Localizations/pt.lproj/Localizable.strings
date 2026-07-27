@@ -1059,6 +1059,11 @@
 "mac.occurrences_count" = "%d ocorrências";
 "mac.openclaw_credentials" = "Credenciais do OpenClaw (salve agora)";
 "mac.remove_favorite" = "Remover dos favoritos";
+"mac.view_board" = "Visualização em quadro";
+"mac.view_chat" = "Visualização de chat";
+"mac.view_list" = "Visualização em lista";
+"navigation.search" = "Buscar";
+"mac.menu_commands" = "Comandos de menu";
 "mac.undo.complete" = "concluir tarefa";
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";

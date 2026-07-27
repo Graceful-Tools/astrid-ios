@@ -1059,6 +1059,11 @@
 "mac.occurrences_count" = "%d повторений";
 "mac.openclaw_credentials" = "Учётные данные OpenClaw (сохраните сейчас)";
 "mac.remove_favorite" = "Убрать из избранного";
+"mac.view_board" = "Доска";
+"mac.view_chat" = "Чат";
+"mac.view_list" = "Список";
+"navigation.search" = "Поиск";
+"mac.menu_commands" = "Команды меню";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";
