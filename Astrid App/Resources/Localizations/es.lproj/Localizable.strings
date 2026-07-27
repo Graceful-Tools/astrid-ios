@@ -1068,6 +1068,13 @@
 "mac.push_reminders" = "Recordatorios push";
 "actions.undo" = "Deshacer";
 "actions.redo" = "Rehacer";
+"mac.agent_thinking" = "%@ está pensando…";
+"mac.assigned_to" = "Asignada a %@";
+"mac.delete_list_confirm" = "¿Eliminar esta lista?";
+"mac.mark_incomplete" = "Marcar como incompleta";
+"mac.occurrences_count" = "%d repeticiones";
+"mac.openclaw_credentials" = "Credenciales de OpenClaw (guárdalas ahora)";
+"mac.remove_favorite" = "Quitar de favoritos";
 "mac.undo.complete" = "completar tarea";
 "mac.undo.delete" = "eliminar tarea";
 "mac.undo.move" = "mover tarea";

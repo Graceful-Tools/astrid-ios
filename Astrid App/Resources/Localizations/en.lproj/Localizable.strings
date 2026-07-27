@@ -1060,6 +1060,13 @@
 "mac.push_reminders" = "Push reminders";
 "actions.undo" = "Undo";
 "actions.redo" = "Redo";
+"mac.agent_thinking" = "%@ is thinking…";
+"mac.assigned_to" = "Assigned to %@";
+"mac.delete_list_confirm" = "Delete this list?";
+"mac.mark_incomplete" = "Mark Incomplete";
+"mac.occurrences_count" = "%d occurrences";
+"mac.openclaw_credentials" = "OpenClaw credentials (save these now)";
+"mac.remove_favorite" = "Remove Favorite";
 "mac.undo.complete" = "Complete Task";
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";

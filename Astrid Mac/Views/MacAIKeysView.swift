@@ -44,7 +44,7 @@ struct MacAIKeysView: View {
         }
         .frame(width: 480, height: 500)
         .task { await load() }
-        .alert("OpenClaw credentials (save these now)", isPresented: Binding(
+        .alert(NSLocalizedString("mac.openclaw_credentials", comment: ""), isPresented: Binding(
             get: { credentials != nil }, set: { if !$0 { credentials = nil } })) {
             Button(NSLocalizedString("actions.copy", comment: "")) { if let c = credentials { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(c, forType: .string) } }
             Button(NSLocalizedString("actions.done", comment: ""), role: .cancel) {}

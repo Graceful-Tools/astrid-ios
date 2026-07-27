@@ -1052,6 +1052,13 @@
 "mac.push_reminders" = "Lembretes push";
 "actions.undo" = "Desfazer";
 "actions.redo" = "Refazer";
+"mac.agent_thinking" = "%@ está pensando…";
+"mac.assigned_to" = "Atribuída a %@";
+"mac.delete_list_confirm" = "Excluir esta lista?";
+"mac.mark_incomplete" = "Marcar como incompleta";
+"mac.occurrences_count" = "%d ocorrências";
+"mac.openclaw_credentials" = "Credenciais do OpenClaw (salve agora)";
+"mac.remove_favorite" = "Remover dos favoritos";
 "mac.undo.complete" = "concluir tarefa";
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";

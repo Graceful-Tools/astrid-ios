@@ -38,7 +38,7 @@ struct MacAssigneeAvatar: View {
             RoundedRectangle(cornerRadius: size * 0.25)
                 .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 2)
         )
-        .help("Assigned to \(user.displayName)")
+        .help(String(format: NSLocalizedString("mac.assigned_to", comment: ""), user.displayName))
     }
 
     private var initials: some View {

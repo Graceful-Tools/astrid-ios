@@ -59,7 +59,8 @@ struct MacChatPanelView: View {
                         if let name = agentTypingName {
                             HStack(spacing: 6) {
                                 ProgressView().controlSize(.mini)
-                                Text("\(name) is thinking…").font(.caption).foregroundStyle(Theme.textMuted)
+                                Text(String(format: NSLocalizedString("mac.agent_thinking", comment: ""), name))
+                                    .font(.caption).foregroundStyle(Theme.textMuted)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 4)

@@ -1052,6 +1052,13 @@
 "mac.push_reminders" = "Pushherinneringen";
 "actions.undo" = "Herstel";
 "actions.redo" = "Opnieuw";
+"mac.agent_thinking" = "%@ denkt na…";
+"mac.assigned_to" = "Toegewezen aan %@";
+"mac.delete_list_confirm" = "Deze lijst verwijderen?";
+"mac.mark_incomplete" = "Markeer als onvoltooid";
+"mac.occurrences_count" = "%d herhalingen";
+"mac.openclaw_credentials" = "OpenClaw-inloggegevens (nu opslaan)";
+"mac.remove_favorite" = "Verwijder favoriet";
 "mac.undo.complete" = "taak voltooien";
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";

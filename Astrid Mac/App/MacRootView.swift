@@ -157,7 +157,8 @@ struct MacRootView: View {
         }
         .contextMenu {
             Button(NSLocalizedString("mac.rename_ellipsis", comment: "")) { editingList = list }
-            Button((list.isFavorite ?? false) ? "Remove Favorite" : "Favorite") { toggleFavorite(list) }
+            Button((list.isFavorite ?? false) ? NSLocalizedString("mac.remove_favorite", comment: "")
+                                  : NSLocalizedString("lists.favorite", comment: "")) { toggleFavorite(list) }
             Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
             Divider()
             Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
@@ -543,7 +544,8 @@ struct MacRootView: View {
         }
         .contextMenu {
             let targets = actionTargets(task)
-            Button(task.completed ? "Mark Incomplete" : "Complete") {
+            Button(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "")
+                     : NSLocalizedString("reminders.complete", comment: "")) {
                 targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
             }
             Button(NSLocalizedString("mac.rename", comment: "")) { beginInlineEdit(task) }
@@ -1084,7 +1086,7 @@ struct MacRootView: View {
         .sheet(isPresented: $showFilterSheet) {
             if let list = currentRealList { MacFilterSheet(list: list) }
         }
-        .confirmationDialog("Delete this list?",
+        .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),
                             presenting: listToDelete) { list in

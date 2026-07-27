@@ -68,7 +68,9 @@ struct MacCustomRepeatEditor: View {
                 Text(NSLocalizedString("mac.on_date", comment: "")).tag("until_date")
             }
             if endCondition == "after_occurrences" {
-                Stepper(value: $endAfter, in: 1...999) { Text("\(endAfter) occurrences") }
+                Stepper(value: $endAfter, in: 1...999) {
+                    Text(String(format: NSLocalizedString("mac.occurrences_count", comment: ""), endAfter))
+                }
             } else if endCondition == "until_date" {
                 DatePicker(NSLocalizedString("mac.until", comment: ""), selection: $endUntil, displayedComponents: [.date])
             }

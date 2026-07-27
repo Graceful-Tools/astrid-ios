@@ -1052,6 +1052,13 @@
 "mac.push_reminders" = "Push-Erinnerungen";
 "actions.undo" = "Widerrufen";
 "actions.redo" = "Wiederholen";
+"mac.agent_thinking" = "%@ denkt nach…";
+"mac.assigned_to" = "Zugewiesen an %@";
+"mac.delete_list_confirm" = "Diese Liste löschen?";
+"mac.mark_incomplete" = "Als unerledigt markieren";
+"mac.occurrences_count" = "%d Wiederholungen";
+"mac.openclaw_credentials" = "OpenClaw-Zugangsdaten (jetzt sichern)";
+"mac.remove_favorite" = "Favorit entfernen";
 "mac.undo.complete" = "Aufgabe abschließen";
 "mac.undo.delete" = "Aufgabe löschen";
 "mac.undo.move" = "Aufgabe verschieben";

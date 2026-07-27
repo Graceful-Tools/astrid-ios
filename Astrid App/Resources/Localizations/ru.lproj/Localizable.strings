@@ -1052,6 +1052,13 @@
 "mac.push_reminders" = "Push-напоминания";
 "actions.undo" = "Отменить";
 "actions.redo" = "Повторить";
+"mac.agent_thinking" = "%@ думает…";
+"mac.assigned_to" = "Назначено: %@";
+"mac.delete_list_confirm" = "Удалить этот список?";
+"mac.mark_incomplete" = "Отметить невыполненной";
+"mac.occurrences_count" = "%d повторений";
+"mac.openclaw_credentials" = "Учётные данные OpenClaw (сохраните сейчас)";
+"mac.remove_favorite" = "Убрать из избранного";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";

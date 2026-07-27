@@ -1054,6 +1054,13 @@
 "mac.push_reminders" = "推播提醒";
 "actions.undo" = "還原";
 "actions.redo" = "重做";
+"mac.agent_thinking" = "%@ 正在思考…";
+"mac.assigned_to" = "指派給 %@";
+"mac.delete_list_confirm" = "刪除此列表？";
+"mac.mark_incomplete" = "標記為未完成";
+"mac.occurrences_count" = "%d 次";
+"mac.openclaw_credentials" = "OpenClaw 憑證（請立即儲存）";
+"mac.remove_favorite" = "取消收藏";
 "mac.undo.complete" = "完成任務";
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";
