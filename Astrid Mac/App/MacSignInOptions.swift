@@ -23,13 +23,18 @@ enum MacSignInOptions {
         return true
     }
 
-    /// The running build's answer, read once from its code signature.
+    /// A value from the running app's own code signature, or nil if it is not granted.
+    static func entitlement(_ key: String) -> Any? {
+        guard let task = SecTaskCreateFromSelf(nil) else { return nil }
+        return SecTaskCopyValueForEntitlement(task, key as CFString, nil)
+    }
+
+    /// The running build's answer, read once from its code signature. Its value depends entirely
+    /// on how THIS binary was signed — true for development and TestFlight builds, false for the
+    /// DMG and for the ad-hoc-signed CI test host — so nothing may assume a particular answer.
     static let showsAppleSignIn: Bool = {
-        guard let task = SecTaskCreateFromSelf(nil) else { return false }
-        let value = SecTaskCopyValueForEntitlement(task, "com.apple.developer.applesignin" as CFString, nil)
-        guard let value else { return false }
-        if let array = value as? [String] { return !array.isEmpty }
-        return true
+        let key = "com.apple.developer.applesignin"
+        return showsAppleSignIn(entitlements: entitlement(key).map { [key: $0] } ?? [:])
     }()
 }
 #endif

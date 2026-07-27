@@ -31,10 +31,21 @@ final class MacSignInOptionsTests: XCTestCase {
                            "com.apple.security.app-sandbox": true]))
     }
 
-    /// The locally-built (development-signed) app carries the full entitlements, so the runtime
-    /// answer here is true — the value is read from the signature, not hardcoded.
-    func testRuntimeValueReadsThisBuildsSignature() {
-        XCTAssertTrue(MacSignInOptions.showsAppleSignIn,
-                      "Development builds sign with Astrid Mac.entitlements, which has it")
+    /// The signature-reading path works: the sandbox entitlement is present in EVERY signing
+    /// configuration — the app's own file, the DMG's stripped one, and the minimal CI file.
+    func testItCanReadThisBuildsSignature() {
+        XCTAssertNotNil(MacSignInOptions.entitlement("com.apple.security.app-sandbox"),
+                        "SecTask should surface an entitlement every configuration grants")
+    }
+
+    /// The runtime flag follows the signature, whatever it happens to say. An earlier version of
+    /// this test asserted the entitlement was PRESENT — true on a dev machine, false on Xcode
+    /// Cloud, where the test host is ad-hoc signed with ci_scripts/AstridMacCI.entitlements. That
+    /// assumption is precisely what this feature exists to avoid, and it broke the macOS build.
+    func testRuntimeValueAgreesWithTheSignature() {
+        let key = "com.apple.developer.applesignin"
+        let expected = MacSignInOptions.showsAppleSignIn(
+            entitlements: MacSignInOptions.entitlement(key).map { [key: $0] } ?? [:])
+        XCTAssertEqual(MacSignInOptions.showsAppleSignIn, expected)
     }
 }
