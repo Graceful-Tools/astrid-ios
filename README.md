@@ -1,10 +1,30 @@
-# Astrid iOS App
+# Astrid for iOS and Mac
 
-Native iOS app for Astrid task management with AI assistance.
+Native iOS, iPadOS and macOS apps for Astrid task management with AI assistance.
+One repository, two shipping apps: the `Astrid App` scheme (iOS/iPadOS) and the
+`Astrid Mac` scheme (macOS), sharing the service layer in `Astrid App/Core/`.
 
 **Repository:** https://github.com/Graceful-Tools/astrid-ios
 **Web App:** https://github.com/Graceful-Tools/astrid-web
 **Production:** https://astrid.cc
+
+## Download
+
+**Mac — [latest release](https://github.com/Graceful-Tools/astrid-ios/releases/latest)**
+A signed and notarized `.dmg` is attached to every `mac-v*` GitHub Release (Developer ID,
+stapled, so it opens without a Gatekeeper detour). The [astrid.cc download
+page](https://astrid.cc/download) resolves the newest one automatically — publishing a release
+is the only step needed to ship a Mac update. Requires macOS 15 or later.
+
+The binary lives on the Release, not in the git tree; `build/` is ignored. To produce one, see
+[Mac app](#mac-app) below.
+
+**iPhone & iPad — [TestFlight beta](https://testflight.apple.com/join/V11WpM3d)**
+
+Sign-in note: the direct-download Mac build offers Passkey, Google and email. Sign in with Apple
+is available in the TestFlight and App Store builds only — Apple does not issue that entitlement
+in Developer ID provisioning profiles, so the DMG hides the button rather than showing one that
+fails on click (see `MacSignInOptions`).
 
 ## Features
 
@@ -102,6 +122,29 @@ npm run predeploy
 npm run predeploy:full
 ```
 
+### Mac app
+
+```bash
+# Build + unit-test the Mac target
+xcodebuild build-for-testing -scheme "Astrid Mac" -destination "platform=macOS" \
+  -derivedDataPath /tmp/astrid-mac-dd -allowProvisioningUpdates
+xcodebuild test-without-building -scheme "Astrid Mac" -destination "platform=macOS" \
+  -derivedDataPath /tmp/astrid-mac-dd -only-testing:"Astrid MacTests"
+
+# Build a signed, notarized DMG (needs a Developer ID certificate)
+npm run package:mac
+
+# Run the exact Xcode Cloud binary locally, without TestFlight
+node scripts/mac-ci-build.mjs --open
+```
+
+`build-for-testing` matters after any entitlements change — `build` alone leaves stale test
+products and the test host fails to launch.
+
+TestFlight on iPhone/iPad never lists Mac builds; they appear only in the **TestFlight app on
+macOS**. `scripts/mac-ci-build.mjs` sidesteps that by downloading the newest successful Xcode
+Cloud macOS archive and launching it.
+
 ### Configuration
 
 **Backend API**
@@ -165,7 +208,20 @@ npm run predeploy
 git push origin main
 ```
 
-TestFlight builds are distributed via Xcode Cloud.
+TestFlight builds are distributed via Xcode Cloud — two workflows, `iOS Internal testers` and
+`Mac app internal testers`, both triggered by a push to `main`. Bump `CURRENT_PROJECT_VERSION`
+before pushing; Xcode Cloud stamps its own build number on CI archives, but local archives (the
+DMG) use this one.
+
+Publishing a Mac release:
+
+```bash
+npm run package:mac
+gh release create mac-v$VERSION build/dist/Astrid-Mac-$VERSION.dmg --title "Astrid for Mac $VERSION"
+```
+
+The tag and filename both come from the Mac target's `MARKETING_VERSION`, so bump it before
+cutting a second release or it collides with the previous tag.
 
 ## Documentation
 
