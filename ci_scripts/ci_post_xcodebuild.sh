@@ -14,9 +14,24 @@
 # never be able to break the TestFlight pipeline.
 
 set -u
-echo "── ci_post_xcodebuild: unit tests ──"
+
+# Which lanes to run. A macOS workflow booting an iPhone simulator to run the iOS suite is
+# correct but pointless — it roughly doubles that build for no extra signal, and vice versa.
+# CI_PRODUCT_PLATFORM is set by Xcode Cloud ("iOS", "macOS", …); unset means a local run, where
+# both lanes are wanted.
+PLATFORM="$(printf '%s' "${CI_PRODUCT_PLATFORM:-}" | tr '[:upper:]' '[:lower:]')"
+case "$PLATFORM" in
+  *mac*) RUN_IOS=0; RUN_MAC=1 ;;
+  *ios*) RUN_IOS=1; RUN_MAC=0 ;;
+  *)     RUN_IOS=1; RUN_MAC=1 ;;
+esac
+echo "── ci_post_xcodebuild: platform='${CI_PRODUCT_PLATFORM:-unset}' → iOS lane=${RUN_IOS} macOS lane=${RUN_MAC} ──"
 
 cd "${CI_PRIMARY_REPOSITORY_PATH:-$(dirname "$0")/..}" || exit 0
+
+RC=0
+if [ "${RUN_IOS}" -eq 1 ]; then
+echo "── ci_post_xcodebuild: unit tests ──"
 
 # First available iPhone simulator on the runner image (fallback: iPhone 16).
 DEVICE="$(xcrun simctl list devices available 2>/dev/null | grep -oE 'iPhone 1[0-9]' | head -1)"
@@ -34,6 +49,7 @@ xcodebuild test \
   -skip-testing:"Astrid AppTests/CanonicalControlPointsTests/testRefactoredViews_DoNotCallAstridAPIClientDirectly"
 RC=$?
 echo "xcodebuild test exit code: ${RC}"
+fi
 
 # macOS lane: build + unit-test the Astrid Mac target on the same runner.
 # macOS builds on the host (no simulator). Same safety rule: only a genuine
@@ -46,6 +62,8 @@ echo "xcodebuild test exit code: ${RC}"
 # file (sandbox + network only) and disable the hardened runtime so the ad-hoc-signed test
 # host builds, launches, and runs the unit suite. (Do NOT run this ad-hoc config on a dev
 # machine: a foreign signing identity triggers blocking keychain prompts.)
+RC_MAC=0
+if [ "${RUN_MAC}" -eq 1 ]; then
 echo "── ci_post_xcodebuild: macOS build + tests (Astrid Mac) ──"
 xcodebuild test \
   -scheme "Astrid Mac" \
@@ -56,11 +74,16 @@ xcodebuild test \
   ENABLE_HARDENED_RUNTIME=NO
 RC_MAC=$?
 echo "macOS test exit code: ${RC_MAC}"
+fi
 if [ "${RC_MAC}" -eq 65 ]; then
   echo "── macOS tests FAILED — blocking the build ──"
   exit 1
 fi
 
+if [ "${RUN_IOS}" -eq 0 ]; then
+  echo "── macOS build: iOS lane skipped ──"
+  exit 0
+fi
 if [ "${RC}" -eq 0 ]; then
   echo "── unit tests passed ──"
   exit 0
