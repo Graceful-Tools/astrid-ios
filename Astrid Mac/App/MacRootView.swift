@@ -486,11 +486,13 @@ struct MacRootView: View {
         // UI-test hook: XCUITest cannot deliver clicks into macOS List rows, so a layout test has
         // no way to open the detail pop-out. `-uiTestSelectRow <n>` selects the nth rendered row
         // on appear, making selection-dependent layout capturable. Inert without the argument.
-        .onAppear { selectRowForUITestingIfRequested(rows.map(\.id)) }
-        .onChange(of: rows.map(\.id)) { _, ids in selectRowForUITestingIfRequested(ids) }
+        .onAppear { selectRowForUITestingIfRequested(rows) }
+        // MacRowKey, not rows.map(\.id): the same question, without allocating an id array on
+        // every body evaluation (e949df82).
+        .onChange(of: MacRowKey.key(rows)) { _, _ in selectRowForUITestingIfRequested(rows) }
         .scrollContentBackground(.hidden)            // let the theme background show through
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
-        .animation(MacMotion.medium, value: rows.map(\.id))   // row insert/delete/reorder eases (4c7b9f08)
+        .animation(MacMotion.medium, value: MacRowKey.key(rows))   // row insert/delete/reorder eases (4c7b9f08)
         // An intentional scroll dismisses the detail pop-out (a1cb6083).
         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { oldY, newY in
             // A UI-test-driven selection must survive the content shift that inserting rows causes,
@@ -508,13 +510,13 @@ struct MacRootView: View {
 
     /// Test-only: honour `-uiTestSelectRow <index>` so UI tests can capture selection-dependent
     /// layout (the pop-out + its arrow). No effect in a normal run.
-    private func selectRowForUITestingIfRequested(_ ids: [String]) {
+    private func selectRowForUITestingIfRequested(_ rows: [Task]) {
         // Synchronous on purpose: an async `.task(id:)` version was cancelled every time `rows`
         // changed, and `Task.sleep` returns immediately once cancelled, so the retry loop burned
         // out before the rows settled and the row was never selected.
         guard let n = MacUITestArgs.selectedRowIndex(from: ProcessInfo.processInfo.arguments),
-              ids.indices.contains(n), selectedTaskIds.isEmpty else { return }
-        selectedTaskIds = [ids[n]]
+              rows.indices.contains(n), selectedTaskIds.isEmpty else { return }
+        selectedTaskIds = [rows[n].id]
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {
