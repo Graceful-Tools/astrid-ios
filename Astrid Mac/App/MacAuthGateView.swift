@@ -158,7 +158,11 @@ struct MacLoginView: View {
                 .accessibilityIdentifier("login.passkey")
 
                 secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
-                secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
+                // Hidden in the direct-download build: Developer ID profiles cannot carry the
+                // Sign In with Apple entitlement, so the button would fail on tap (MacSignInOptions).
+                if MacSignInOptions.showsAppleSignIn {
+                    secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
+                }
             }
             .frame(width: 280)
 

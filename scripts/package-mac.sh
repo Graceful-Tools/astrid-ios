@@ -5,6 +5,18 @@
 # Produces build/dist/Astrid-Mac-<version>.dmg, ready to attach to a GitHub Release.
 # The web download link points at the release asset (see astrid-web /download).
 #
+# Signing shape (learned the hard way):
+#   • The archive is signed AUTOMATICALLY (development identity). Forcing the Developer ID
+#     identity there fails: the target has Associated Domains + Sign In with Apple, and xcodebuild
+#     demands a matching profile before it will archive.
+#   • The Developer ID re-signing happens at EXPORT, against a MAC_APP_DIRECT profile. The CLI has
+#     no Xcode account ("No Accounts"), so the profile is created via the ASC API by
+#     scripts/mac-devid-profile.mjs and installed into ~/Library/MobileDevice/Provisioning Profiles.
+#   • The export uses "Astrid Mac Direct.entitlements", which drops
+#     com.apple.developer.applesignin — Apple does not issue that entitlement in Developer ID
+#     profiles, and the export fails outright with it present. MacSignInOptions hides the Apple
+#     sign-in button when the signature lacks it.
+#
 # Requirements (one-time):
 #   • A "Developer ID Application" certificate in the login keychain.
 #     Apple only lets the ACCOUNT HOLDER create one — do it in Xcode
@@ -75,15 +87,19 @@ rm -rf "$ARCHIVE" "$EXPORT_DIR"
 mkdir -p "$DIST_DIR"
 
 # --- Archive ---------------------------------------------------------------------
+step "Provisioning profile"
+node scripts/mac-devid-profile.mjs || { red "Could not obtain a Developer ID profile"; exit 1; }
+
 step "Archiving"
 xcodebuild archive \
   -scheme "$SCHEME" \
-  -destination "platform=macOS" \
+  -destination "platform=macOS,arch=arm64" \
   -archivePath "$ARCHIVE" \
   -quiet \
-  CODE_SIGN_STYLE=Manual \
-  CODE_SIGN_IDENTITY="$IDENTITY" \
-  DEVELOPMENT_TEAM="$TEAM_ID"
+  -allowProvisioningUpdates \
+  CODE_SIGN_STYLE=Automatic \
+  DEVELOPMENT_TEAM="$TEAM_ID" \
+  CODE_SIGN_ENTITLEMENTS="Astrid Mac/Astrid Mac Direct.entitlements"
 green "✓ Archived"
 
 # --- Export as Developer ID ------------------------------------------------------
@@ -96,6 +112,11 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
     <key>method</key><string>developer-id</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <key>signingStyle</key><string>manual</string>
+    <key>signingCertificate</key><string>Developer ID Application</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>Graceful-Tools-Inc.Astrid-App</key><string>Astrid Mac Developer ID</string>
+    </dict>
     <key>destination</key><string>export</string>
 </dict>
 </plist>
