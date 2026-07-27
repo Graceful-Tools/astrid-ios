@@ -58,7 +58,7 @@ struct MacCustomRepeatEditor: View {
                 Text(NSLocalizedString("mac.every", comment: ""))
                 Stepper(value: $interval, in: 1...99) { Text("\(interval)") }.frame(width: 90)
                 Picker("", selection: $unit) {
-                    ForEach(MacCustomRepeat.units, id: \.self) { Text($0.capitalized).tag($0) }
+                    ForEach(MacCustomRepeat.units, id: \.self) { Text(MacRepeatUnitLabel.title(for: $0)).tag($0) }
                 }.labelsHidden().frame(width: 120)
             }
 

@@ -64,7 +64,7 @@ struct MacListMembersView: View {
                                 get: { m.role },
                                 set: { setRole(m, $0) }
                             )) {
-                                ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
+                                ForEach(Self.roles, id: \.self) { Text(MacMemberRoleLabel.title(for: $0)).tag($0) }
                             }
                             .labelsHidden().frame(width: 110)
                             Button(role: .destructive) { remove(m) } label: {
@@ -103,7 +103,7 @@ struct MacListMembersView: View {
                         .onSubmit(invite)
                         .onChange(of: email) { searchContacts() }
                     Picker("", selection: $inviteRole) {
-                        ForEach(Self.roles, id: \.self) { Text($0.capitalized).tag($0) }
+                        ForEach(Self.roles, id: \.self) { Text(MacMemberRoleLabel.title(for: $0)).tag($0) }
                     }.labelsHidden().frame(width: 110)
                     Button(NSLocalizedString("mac.invite", comment: ""), action: invite).disabled(!canInvite)
                 }

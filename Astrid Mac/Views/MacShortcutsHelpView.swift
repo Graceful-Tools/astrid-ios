@@ -35,7 +35,7 @@ struct MacShortcutsHelpView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(KeyboardShortcuts.all.enumerated()), id: \.offset) { _, binding in
-                        row(binding.title, keys: binding.keys)
+                        row(MacShortcutTitle.localized(for: binding.action), keys: binding.keys)
                     }
 
                     // The ⌘ menu equivalents, from the same table the menus bind (e0412a64) —

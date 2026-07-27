@@ -363,8 +363,8 @@ struct MacTaskDetailView: View {
             }
         }
         .task(id: task.id) { load() }
-        .sheet(item: $editingComment) { _ in editSheet(title: "Edit Comment", text: $editingCommentText, onSave: saveEditedComment) }
-        .sheet(item: $editingSubtask) { _ in editSheet(title: "Rename Subtask", text: $editingSubtaskText, onSave: renameSubtask) }
+        .sheet(item: $editingComment) { _ in editSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText, onSave: saveEditedComment) }
+        .sheet(item: $editingSubtask) { _ in editSheet(title: NSLocalizedString("mac.rename_subtask", comment: ""), text: $editingSubtaskText, onSave: renameSubtask) }
         .sheet(isPresented: $showCustomRepeat) {
             MacCustomRepeatEditor(initial: customPattern) { pattern in
                 customPattern = pattern

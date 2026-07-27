@@ -28,11 +28,37 @@ final class MacErrorCenter: ObservableObject {
         }
     }
 
+    /// The banner is user-facing, so it must be translated. The 60-odd call-site contexts
+    /// ("Save due date", "Delete subtask", …) are developer strings — they stay English and go to
+    /// the log, while the banner shows the localized category plus whatever the server said
+    /// (task 29b673c0).
     func report(_ context: String, _ error: Error) {
-        show("\(context): \(error.localizedDescription)")
+        NSLog("[Astrid] %@ failed: %@", context, error.localizedDescription)
+        show("\(MacFailureCopy.message(for: context)): \(error.localizedDescription)")
     }
 
     func clear() { dismiss?.cancel(); current = nil }
+}
+
+/// Which localized "that didn't work" line a call-site context maps to. Grouping by the verb
+/// keeps one translated sentence per kind of failure instead of 60 near-identical ones, and the
+/// exact operation is still in the log for whoever is debugging.
+enum MacFailureCopy {
+    static func message(for context: String) -> String {
+        let verb = context.split(separator: " ").first.map(String.init)?.lowercased() ?? ""
+        switch verb {
+        case "delete", "remove":
+            return NSLocalizedString("mac.failed.delete", comment: "")
+        case "complete":
+            return NSLocalizedString("mac.failed.complete", comment: "")
+        case "add", "create", "register", "invite", "post", "attach", "link", "enable":
+            return NSLocalizedString("mac.failed.create", comment: "")
+        case "save", "update", "rename", "change", "set", "reorder", "edit", "move", "make", "disable":
+            return NSLocalizedString("mac.failed.save", comment: "")
+        default:
+            return NSLocalizedString("mac.failed.generic", comment: "")
+        }
+    }
 }
 
 /// Run an async write and surface any failure via MacErrorCenter (replaces `try?` swallowing).

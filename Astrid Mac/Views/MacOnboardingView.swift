@@ -13,14 +13,18 @@ struct MacOnboardingView: View {
     }
 
     private let features = [
-        Feature(icon: "bolt.fill", title: "Quick Add anywhere",
-                detail: "Press ⌥Space to capture a task from any app — with natural-language dates, #lists and priorities."),
-        Feature(icon: "command", title: "Command palette",
-                detail: "⌘K to search tasks and lists and run actions without leaving the keyboard."),
-        Feature(icon: "keyboard", title: "Keyboard-first",
-                detail: "The same shortcuts as Astrid on the web. Press ? any time to see them."),
-        Feature(icon: "arrow.triangle.2.circlepath", title: "Works offline",
-                detail: "Everything you do is saved locally and syncs when you’re back online."),
+        Feature(icon: "bolt.fill",
+                title: NSLocalizedString("mac.onboard.quickadd.title", comment: ""),
+                detail: NSLocalizedString("mac.onboard.quickadd.detail", comment: "")),
+        Feature(icon: "command",
+                title: NSLocalizedString("mac.onboard.palette.title", comment: ""),
+                detail: NSLocalizedString("mac.onboard.palette.detail", comment: "")),
+        Feature(icon: "keyboard",
+                title: NSLocalizedString("mac.onboard.keyboard.title", comment: ""),
+                detail: NSLocalizedString("mac.onboard.keyboard.detail", comment: "")),
+        Feature(icon: "arrow.triangle.2.circlepath",
+                title: NSLocalizedString("mac.onboard.offline.title", comment: ""),
+                detail: NSLocalizedString("mac.onboard.offline.detail", comment: "")),
     ]
 
     var body: some View {

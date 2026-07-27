@@ -143,11 +143,14 @@ final class MacAppModel: ObservableObject {
     }
 
     private init() {
-        registry.register(AppCommand(id: "new-task", title: "New Task",
-                                     subtitle: "Quick add", shortcut: "⌥Space") { [weak self] in
+        registry.register(AppCommand(id: "new-task",
+                                     title: NSLocalizedString("tasks.new_task", comment: ""),
+                                     subtitle: NSLocalizedString("mac.quick_add", comment: ""),
+                                     shortcut: "⌥Space") { [weak self] in
             self?.openQuickAdd()
         })
-        registry.register(AppCommand(id: "refresh-lists", title: "Refresh Lists",
+        registry.register(AppCommand(id: "refresh-lists",
+                                     title: NSLocalizedString("mac.refresh_lists", comment: ""),
                                      subtitle: nil, shortcut: nil) {
             _Concurrency.Task { _ = try? await ListService.shared.fetchLists() }
         })

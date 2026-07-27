@@ -13,7 +13,7 @@ struct MacCopyTarget: Equatable, Identifiable {
 enum MacTaskCopy {
     /// Copy destinations: "My Tasks only" first, then every real (non-virtual) list.
     static func targets(lists: [TaskList]) -> [MacCopyTarget] {
-        [MacCopyTarget(listId: nil, label: "My Tasks only")]
+        [MacCopyTarget(listId: nil, label: NSLocalizedString("mac.my_tasks_only", comment: ""))]
             + lists.filter { $0.isVirtual != true }.map { MacCopyTarget(listId: $0.id, label: $0.name) }
     }
 }
