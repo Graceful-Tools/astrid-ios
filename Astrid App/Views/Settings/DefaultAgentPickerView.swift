@@ -19,9 +19,13 @@ struct DefaultAgentPickerView: View {
     @State private var showAPIKeyManager = false
     @State private var apiKeyServiceToShow: AIService?
 
-    /// Filter out Astrid itself — this selector picks the model that powers Astrid
+    /// Filter out the assistant itself — this selector picks the model that powers it.
+    ///
+    /// Matched on `service`, not on the email address: the assistant's address is
+    /// brand-derived on the server (task 97208a72), so a hardcoded `astrid@astrid.cc`
+    /// would list the assistant as a model option on any rebranded deployment.
     private var modelOptions: [AvailableAgent] {
-        agents.filter { $0.email != "astrid@astrid.cc" }
+        agents.filter { !$0.isDefaultAssistant }
     }
 
     /// Built-in models not yet returned by the API (no key configured)

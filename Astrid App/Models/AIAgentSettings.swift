@@ -23,7 +23,19 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
 
     /// Whether this is a built-in service agent (vs OpenClaw/custom)
     var isBuiltIn: Bool {
-        ["claude", "openai", "gemini", "astrid"].contains(service)
+        ["claude", "openai", "gemini", Self.defaultAssistantService].contains(service)
+    }
+
+    /// The `service` value the server uses for the default assistant identity.
+    ///
+    /// The assistant's email address is brand-derived on the server and can differ
+    /// per deployment, so clients must identify it by `service` — never by matching
+    /// its address. Task 97208a72.
+    static let defaultAssistantService = "astrid"
+
+    /// Whether this row is the default assistant rather than a specific model/provider.
+    var isDefaultAssistant: Bool {
+        service == Self.defaultAssistantService
     }
 
     /// Display-friendly service name

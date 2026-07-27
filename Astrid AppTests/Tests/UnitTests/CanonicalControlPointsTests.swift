@@ -213,12 +213,23 @@ final class CanonicalControlPointsTests: XCTestCase {
         }
     }
 
+    /// Walk up from this source file to the repository root.
+    ///
+    /// Identified by the presence of `Astrid App.xcodeproj` rather than by the
+    /// checkout being named `astrid-ios`. A git worktree (or any clone under a
+    /// different folder name) is not called `astrid-ios`, so the old name check
+    /// walked all the way to `/` and every path-based assertion here failed.
+    /// Task 97208a72.
     private func repositoryRoot() throws -> URL {
         var url = URL(fileURLWithPath: #filePath)
-        while url.lastPathComponent != "astrid-ios" && url.path != "/" {
+        while url.path != "/" {
             url.deleteLastPathComponent()
+            let marker = url.appendingPathComponent("Astrid App.xcodeproj")
+            if FileManager.default.fileExists(atPath: marker.path) {
+                return url
+            }
         }
-        return url
+        throw XCTSkip("Repository root not found from \(#filePath) — running outside a source checkout")
     }
 
     // MARK: - AstridAPIClient exposes the preferences endpoints
