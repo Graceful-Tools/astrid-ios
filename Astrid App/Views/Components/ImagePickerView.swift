@@ -257,7 +257,7 @@ struct ImagePickerView: View {
                     } label: {
                         VStack(spacing: Theme.spacing8) {
                             // Load default icon from web
-                            AsyncImage(url: URL(string: "https://astrid.cc\(icon.filename)")) { phase in
+                            AsyncImage(url: URL(string: "\(Brand.productionBaseURL)\(icon.filename)")) { phase in
                                 switch phase {
                                 case .empty:
                                     RoundedRectangle(cornerRadius: Theme.radiusMedium)

@@ -158,7 +158,7 @@
 "messages.something_went_wrong" = "Что-то пошло не так";
 
 /* Empty States */
-"empty_state.my_tasks" = "Добро пожаловать в Astrid! Добавьте свою первую задачу, чтобы начать.";
+"empty_state.my_tasks" = "Добро пожаловать в %1$@! Добавьте свою первую задачу, чтобы начать.";
 "empty_state.my_tasks_caught_up" = "Вы со всем справились! На данный момент у вас нет назначенных задач.";
 "empty_state.today" = "На сегодня ничего не запланировано! Наслаждайтесь свободным временем.";
 "empty_state.public_list" = "Делитесь своими идеями! Добавляйте задачи — этот список виден всем.";
@@ -186,7 +186,7 @@
 "debug.reminder_debug_mode" = "Режим отладки напоминаний";
 "debug.reminder_debug_desc" = "Включить подробные логи отладки напоминаний";
 "debug.test_prompts" = "Тестовые подсказки";
-"debug.test_love_prompt" = "Тест подсказки 'Нравится Astrid?'";
+"debug.test_love_prompt" = "Тест подсказки 'Нравится %1$@?'";
 "debug.test_love_prompt_desc" = "Запускает окно обратной связи для активных пользователей";
 "debug.reset_prompt_tracking" = "Сбросить отслеживание подсказок";
 "debug.reset_prompt_tracking_desc" = "Очищает историю подсказок";
@@ -280,8 +280,8 @@
 "settings.ai.api_keys_description" = "Добавьте свои API-ключи для использования ИИ-ассистентов. Ключи шифруются и надежно хранятся на сервере.";
 "settings.ai.loading_keys" = "Загрузка API-ключей...";
 "settings.ai.about_keys" = "Об API-ключах";
-"settings.ai.about_description" = "Ваши API-ключи используются для работы функций ИИ-ассистента в Astrid. Каждый провайдер предлагает разные возможности и цены.";
-"settings.ai.encryption_info" = "Ключи шифруются с помощью AES-256 перед сохранением. Astrid никогда не передает ваши ключи третьим лицам.";
+"settings.ai.about_description" = "Ваши API-ключи используются для работы функций ИИ-ассистента в %1$@. Каждый провайдер предлагает разные возможности и цены.";
+"settings.ai.encryption_info" = "Ключи шифруются с помощью AES-256 перед сохранением. %1$@ никогда не передает ваши ключи третьим лицам.";
 "settings.ai.not_configured" = "Не настроено";
 "settings.ai.api_new.badge" = "НОВОЕ";
 "settings.ai.manage_keys" = "Управление API-ключами";
@@ -514,7 +514,7 @@
 "reminders.enable_sync" = "Включить синхронизацию Напоминаний";
 "reminders.sync_description" = "Синхронизируйте задачи с Напоминаниями Apple для Siri и Watch";
 "reminders.access_header" = "Доступ к Напоминаниям";
-"reminders.access_footer" = "Синхронизируйте задачи Astrid с Напоминаниями Apple. Используйте Siri для добавления задач и просматривайте их на Apple Watch.";
+"reminders.access_footer" = "Синхронизируйте задачи %1$@ с Напоминаниями Apple. Используйте Siri для добавления задач и просматривайте их на Apple Watch.";
 "reminders.sync_status" = "Статус синхронизации";
 "reminders.last_sync" = "Последняя синхронизация";
 "reminders.linked_lists" = "Связанные списки";
@@ -523,9 +523,9 @@
 "reminders.your_lists" = "Ваши списки";
 "reminders.your_lists_footer" = "Нажмите на список, чтобы связать его с Напоминаниями Apple. Выберите экспорт задач или импорт из существующего списка Напоминаний.";
 "reminders.import_from_reminders" = "Импорт из Напоминаний";
-"reminders.import_footer" = "Импортируйте существующие списки Напоминаний в Astrid.";
+"reminders.import_footer" = "Импортируйте существующие списки Напоминаний в %1$@.";
 "reminders.unlink" = "Отвязать";
-"reminders.astrid_list" = "Список Astrid";
+"reminders.astrid_list" = "Список %1$@";
 "reminders.sync_direction" = "Направление синхронизации";
 "reminders.create_new_list" = "Создать новый список";
 "reminders.link_to_reminders_list" = "Связать со списком Напоминаний";
@@ -536,9 +536,9 @@
 "reminders.link_list" = "Связать список";
 "reminders.link" = "Связать";
 "reminders.reminders_list" = "Список Напоминаний";
-"reminders.create_new_astrid_list" = "Создать новый список Astrid";
+"reminders.create_new_astrid_list" = "Создать новый список %1$@";
 "reminders.import_into" = "Импортировать в";
-"reminders.import_into_footer" = "Создайте новый список Astrid с именем '%@' или импортируйте в существующий список.";
+"reminders.import_into_footer" = "Создайте новый список %1$@ с именем '%2$@' или импортируйте в существующий список.";
 "reminders.import_completed_desc" = "Импортировать уже завершённые напоминания";
 "reminders.import_reminders" = "Импортировать Напоминания";
 "reminders.import" = "Импортировать";
@@ -664,7 +664,7 @@
 "attachments.saving" = "Сохранение...";
 "attachments.save_to_task" = "Сохранить в задачу";
 "attachments.quick_look" = "Быстрый просмотр";
-"attachments.quick_look_tip" = "Совет: Используйте Разметку в Быстром просмотре для редактирования и сохранения в Astrid";
+"attachments.quick_look_tip" = "Совет: Используйте Разметку в Быстром просмотре для редактирования и сохранения в %1$@";
 "attachments.choose_photo" = "Выбрать фото";
 "attachments.choose_video" = "Выбрать видео";
 "attachments.choose_document" = "Выбрать документ";
@@ -707,7 +707,7 @@
 
 /* Members */
 "members.searching" = "Поиск контактов...";
-"members.astrid_users" = "Люди из ваших контактов, использующие Astrid";
+"members.astrid_users" = "Люди из ваших контактов, использующие %1$@";
 "members.loading_suggestions" = "Загрузка предложений...";
 "members.add_collaborators" = "Добавить участников";
 "members.upload_contacts" = "Загрузите контакты для лучшего сотрудничества";
@@ -749,7 +749,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "Настройки контактов";
 "debug.debug_settings" = "Настройки отладки";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "Текущий сервер";
 "debug.active_config" = "Активная конфигурация";
 "debug.restart_required" = "Изменения требуют перезапуска приложения";
@@ -770,7 +770,7 @@
 "settings.openclaw.description" = "Зарегистрируйте AI-агентов, подключающихся по протоколу OpenClaw. Каждый агент получает уникальную идентификацию и учётные данные OAuth.";
 "settings.openclaw.loading" = "Загрузка агентов...";
 "settings.openclaw.no_agents" = "Нет подключённых агентов";
-"settings.openclaw.no_agents_hint" = "Зарегистрируйте агента, чтобы начать. Агенты получают учётные данные OAuth для связи с Astrid через REST и SSE.";
+"settings.openclaw.no_agents_hint" = "Зарегистрируйте агента, чтобы начать. Агенты получают учётные данные OAuth для связи с %1$@ через REST и SSE.";
 "settings.openclaw.status.active" = "Активен";
 "settings.openclaw.status.idle" = "Неактивен";
 "settings.openclaw.registered" = "Зарегистрирован %@";
@@ -798,7 +798,7 @@
 "settings.openclaw.delete_confirm" = "Это навсегда удалит %@ и отзовёт учётные данные OAuth. Это действие необратимо.";
 "settings.openclaw.agent_deleted" = "Агент удалён";
 "settings.openclaw.about" = "Об OpenClaw";
-"settings.openclaw.about_description" = "OpenClaw — открытый протокол для подключения AI-агентов к Astrid. Агенты аутентифицируются через OAuth, получают задачи через REST API и обновления в реальном времени через SSE. Работает с любым провайдером AI.";
+"settings.openclaw.about_description" = "OpenClaw — открытый протокол для подключения AI-агентов к %1$@. Агенты аутентифицируются через OAuth, получают задачи через REST API и обновления в реальном времени через SSE. Работает с любым провайдером AI.";
 "settings.openclaw.tip_title" = "Совет: Описания списков = инструкции для агентов";
 "settings.openclaw.tip_description" = "Описание каждого списка используется как инструкции для AI-агентов, работающих с задачами в этом списке. Пишите в формате markdown, чтобы указать агентам, как обрабатывать задачи.";
 "settings.openclaw.agent_created" = "Агент успешно создан";
@@ -836,7 +836,7 @@
 "status.retry_now" = "Повторить";
 "status.sync_in_progress" = "Изменения синхронизируются автоматически";
 "sync" = "Синхронизация";
-"welcome.title" = "Добро пожаловать в Astrid!";
+"welcome.title" = "Добро пожаловать в %1$@!";
 "welcome.subtitle" = "Ваш умный менеджер задач";
 "welcome.sign_in" = "Войти";
 "welcome.use_locally" = "Использовать без аккаунта";
@@ -905,9 +905,9 @@
 "sync.disconnect" = "Отключить";
 "sync.external_footer" = "Задачи или issues из связанного сервиса зеркалируются в этот список и обратно через ваш подключённый аккаунт.";
 "sync.external_sync" = "Внешняя синхронизация";
-"sync.github_footer" = "Задачи (issues) из связанных репозиториев зеркалируются в задачи и обратно. Astrid остаётся источником истины; ваш токен GitHub никогда не покидает сервер.";
+"sync.github_footer" = "Задачи (issues) из связанных репозиториев зеркалируются в задачи и обратно. %1$@ остаётся источником истины; ваш токен GitHub никогда не покидает сервер.";
 "sync.github_not_configured" = "Синхронизация с GitHub ещё не настроена на сервере.";
-"sync.google_footer" = "Задачи из связанных списков Google зеркалируются в Astrid и обратно, включая подзадачи. Сроки Google — только даты; время остаётся в Astrid. Ваш токен Google никогда не покидает сервер.";
+"sync.google_footer" = "Задачи из связанных списков Google зеркалируются в %1$@ и обратно, включая подзадачи. Сроки Google — только даты; время остаётся в %1$@. Ваш токен Google никогда не покидает сервер.";
 "sync.google_list" = "Список Google";
 "sync.google_not_configured" = "Синхронизация с Google Tasks ещё не настроена на сервере.";
 "sync.last_synced" = "Последняя синхронизация: %@";
@@ -918,11 +918,11 @@
 "sync.linking" = "Связывание…";
 "sync.list" = "Список";
 "sync.mode" = "Режим";
-"sync.mode_astrid_to_google" = "Резервное копирование списков Astrid в Google";
-"sync.mode_footer_astrid_to_google" = "Каждый список Astrid зеркалируется в Google Tasks как резервная копия — новые списки подхватываются автоматически.";
-"sync.mode_footer_google_to_astrid" = "Каждый список Google Tasks зеркалируется в Astrid — новые списки подхватываются автоматически и получают суффикс. Одноимённые списки Astrid переиспользуются, а не дублируются.";
+"sync.mode_astrid_to_google" = "Резервное копирование списков %1$@ в Google";
+"sync.mode_footer_astrid_to_google" = "Каждый список %1$@ зеркалируется в Google Tasks как резервная копия — новые списки подхватываются автоматически.";
+"sync.mode_footer_google_to_astrid" = "Каждый список Google Tasks зеркалируется в %1$@ — новые списки подхватываются автоматически и получают суффикс. Одноимённые списки %1$@ переиспользуются, а не дублируются.";
 "sync.mode_footer_manual" = "Синхронизируются только списки, связанные ниже.";
-"sync.mode_google_to_astrid" = "Перенести списки Google в Astrid";
+"sync.mode_google_to_astrid" = "Перенести списки Google в %1$@";
 "sync.mode_manual" = "Только связанные мной списки";
 "sync.no_lists_linked" = "Списки пока не связаны.";
 "sync.new_list" = "Новый список";
@@ -934,7 +934,7 @@
 "sync.unlink" = "Отвязать";
 "task_detail.completed_via" = "Завершено через %@";
 "sync.mode_bidirectional" = "Синхронизировать всё (в обе стороны)";
-"sync.mode_footer_bidirectional" = "Ваши списки Google Tasks появляются в Astrid, а списки Astrid — в Google Tasks. Новые списки с обеих сторон добавляются автоматически, а одноимённые объединяются в пары, а не дублируются.";
+"sync.mode_footer_bidirectional" = "Ваши списки Google Tasks появляются в %1$@, а списки %1$@ — в Google Tasks. Новые списки с обеих сторон добавляются автоматически, а одноимённые объединяются в пары, а не дублируются.";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "Мои задачи";
@@ -1042,7 +1042,7 @@
 "mac.no_open_tasks" = "Нет открытых задач";
 "mac.offline_banner" = "Офлайн — изменения синхронизируются при подключении";
 "mac.on_date" = "В дату";
-"mac.open_astrid" = "Открыть Astrid";
+"mac.open_astrid" = "Открыть %1$@";
 "mac.open_full_detail" = "Открыть подробности…";
 "mac.open_new_window" = "Открыть в новом окне";
 "mac.owner_repo" = "владелец/репозиторий";
@@ -1066,7 +1066,7 @@
 "mac.menu_commands" = "Команды меню";
 "mac.edit_comment" = "Изменить комментарий";
 "mac.my_tasks_only" = "Только «Мои задачи»";
-"mac.onboard.keyboard.detail" = "Те же сочетания клавиш, что и в веб-версии Astrid. Нажмите ?, чтобы их увидеть.";
+"mac.onboard.keyboard.detail" = "Те же сочетания клавиш, что и в веб-версии %1$@. Нажмите ?, чтобы их увидеть.";
 "mac.onboard.keyboard.title" = "Сначала клавиатура";
 "mac.onboard.offline.detail" = "Всё сохраняется локально и синхронизируется, когда вы снова в сети.";
 "mac.onboard.offline.title" = "Работает офлайн";
@@ -1121,7 +1121,7 @@
 "mac.sending" = "Отправка…";
 "mac.set_priority" = "Задать приоритет";
 "mac.sharing" = "Публикация…";
-"mac.shortcuts_note" = "Совпадают с горячими клавишами Astrid в вебе. Игнорируются во время ввода.";
+"mac.shortcuts_note" = "Совпадают с горячими клавишами %1$@ в вебе. Игнорируются во время ввода.";
 "mac.sign_in_apple" = "Войти через Apple";
 "mac.sign_in_passkey" = "Войти по passkey";
 "mac.smart_list_name" = "Название смарт-списка";
@@ -1135,7 +1135,7 @@
 "mac.type_delete_confirm" = "Введите DELETE для подтверждения";
 "mac.until" = "До";
 "mac.view" = "Вид";
-"mac.welcome" = "Добро пожаловать в Astrid для Mac";
+"mac.welcome" = "Добро пожаловать в %1$@ для Mac";
 "mac.color_label" = "Цвет %@";
 "mac.comments_count" = "Комментарии (%d)";
 "mac.filter_title" = "Фильтр «%@»";
@@ -1147,7 +1147,7 @@
 "mac.list_default" = "По умолчанию для списка";
 "mac.complete_count" = "Завершить %d";
 "mac.delete_list_named" = "Удалить «%@»";
-"mac.empty.chat" = "Начните разговор — поздоровайтесь или упомяните @Astrid.";
+"mac.empty.chat" = "Начните разговор — поздоровайтесь или упомяните @%1$@.";
 "mac.empty.filtered_out" = "Ничего не соответствует фильтрам этого списка.";
 "mac.empty.filtered_out_detail" = "Измените фильтры (кнопка воронки), чтобы увидеть больше.";
 "mac.empty.no_list_selected" = "Выберите список, чтобы увидеть задачи.";

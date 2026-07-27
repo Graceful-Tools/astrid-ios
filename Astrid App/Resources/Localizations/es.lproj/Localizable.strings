@@ -156,7 +156,7 @@
 "messages.something_went_wrong" = "Algo salió mal";
 
 /* Empty States */
-"empty_state.my_tasks" = "¡Bienvenido a Astrid! Agrega tu primera tarea para comenzar.";
+"empty_state.my_tasks" = "¡Bienvenido a %1$@! Agrega tu primera tarea para comenzar.";
 "empty_state.my_tasks_caught_up" = "¡Estás al día! No hay tareas asignadas ahora. ¡Hora de relajarse!";
 "empty_state.today" = "¡Nada programado para hoy! Disfruta el tiempo libre o agrega algo nuevo.";
 "empty_state.public_list" = "¡Comparte tus ideas con el mundo! Agrega tareas - todos pueden ver esta lista pública.";
@@ -184,7 +184,7 @@
 "debug.reminder_debug_mode" = "Modo de Depuración de Recordatorios";
 "debug.reminder_debug_desc" = "Habilitar registros detallados de depuración de recordatorios";
 "debug.test_prompts" = "Probar Prompts";
-"debug.test_love_prompt" = "Probar Prompt '¿Te gusta Astrid?'";
+"debug.test_love_prompt" = "Probar Prompt '¿Te gusta %1$@?'";
 "debug.test_love_prompt_desc" = "Activa el prompt de retroalimentación mostrado a usuarios comprometidos";
 "debug.reset_prompt_tracking" = "Restablecer Seguimiento de Prompts";
 "debug.reset_prompt_tracking_desc" = "Borra el historial de prompts para que pueda mostrarse nuevamente";
@@ -318,8 +318,8 @@
 "settings.ai.api_keys_description" = "Agrega tus propias claves API para usar asistentes de IA. Las claves se cifran y se almacenan de forma segura en el servidor.";
 "settings.ai.loading_keys" = "Cargando claves API...";
 "settings.ai.about_keys" = "Acerca de las claves API";
-"settings.ai.about_description" = "Tus claves API se utilizan para potenciar las funciones del asistente de IA en Astrid. Cada proveedor ofrece diferentes capacidades y precios.";
-"settings.ai.encryption_info" = "Las claves se cifran mediante AES-256 antes de almacenarse. Astrid nunca comparte tus claves con terceros.";
+"settings.ai.about_description" = "Tus claves API se utilizan para potenciar las funciones del asistente de IA en %1$@. Cada proveedor ofrece diferentes capacidades y precios.";
+"settings.ai.encryption_info" = "Las claves se cifran mediante AES-256 antes de almacenarse. %1$@ nunca comparte tus claves con terceros.";
 "settings.ai.not_configured" = "No configurado";
 "settings.ai.api_new.badge" = "NUEVO";
 "settings.ai.manage_keys" = "Gestionar claves API";
@@ -530,7 +530,7 @@
 "reminders.enable_sync" = "Activar sincronización de Recordatorios";
 "reminders.sync_description" = "Sincroniza tareas con Recordatorios de Apple para Siri y Watch";
 "reminders.access_header" = "Acceso a Recordatorios";
-"reminders.access_footer" = "Sincroniza tus tareas de Astrid con Recordatorios de Apple. Usa Siri para añadir tareas y verlas en Apple Watch.";
+"reminders.access_footer" = "Sincroniza tus tareas de %1$@ con Recordatorios de Apple. Usa Siri para añadir tareas y verlas en Apple Watch.";
 "reminders.sync_status" = "Estado de sincronización";
 "reminders.last_sync" = "Última sincronización";
 "reminders.linked_lists" = "Listas vinculadas";
@@ -539,9 +539,9 @@
 "reminders.your_lists" = "Tus listas";
 "reminders.your_lists_footer" = "Toca una lista para vincularla con Recordatorios de Apple. Elige exportar tareas o importar desde una lista de Recordatorios existente.";
 "reminders.import_from_reminders" = "Importar desde Recordatorios";
-"reminders.import_footer" = "Importa listas de Recordatorios existentes a Astrid.";
+"reminders.import_footer" = "Importa listas de Recordatorios existentes a %1$@.";
 "reminders.unlink" = "Desvincular";
-"reminders.astrid_list" = "Lista de Astrid";
+"reminders.astrid_list" = "Lista de %1$@";
 "reminders.sync_direction" = "Dirección de sincronización";
 "reminders.create_new_list" = "Crear nueva lista";
 "reminders.link_to_reminders_list" = "Vincular a lista de Recordatorios";
@@ -552,9 +552,9 @@
 "reminders.link_list" = "Vincular lista";
 "reminders.link" = "Vincular";
 "reminders.reminders_list" = "Lista de Recordatorios";
-"reminders.create_new_astrid_list" = "Crear nueva lista de Astrid";
+"reminders.create_new_astrid_list" = "Crear nueva lista de %1$@";
 "reminders.import_into" = "Importar a";
-"reminders.import_into_footer" = "Crea una nueva lista de Astrid llamada '%@' o importa a una lista existente.";
+"reminders.import_into_footer" = "Crea una nueva lista de %1$@ llamada '%2$@' o importa a una lista existente.";
 "reminders.import_completed_desc" = "Importar recordatorios ya completados";
 "reminders.import_reminders" = "Importar Recordatorios";
 "reminders.import" = "Importar";
@@ -680,7 +680,7 @@
 "attachments.saving" = "Guardando...";
 "attachments.save_to_task" = "Guardar en tarea";
 "attachments.quick_look" = "Vista rápida";
-"attachments.quick_look_tip" = "Consejo: Usa Marcado en Vista rápida para editar y guardar en Astrid";
+"attachments.quick_look_tip" = "Consejo: Usa Marcado en Vista rápida para editar y guardar en %1$@";
 "attachments.choose_photo" = "Elegir foto";
 "attachments.choose_video" = "Elegir video";
 "attachments.choose_document" = "Elegir documento";
@@ -723,7 +723,7 @@
 
 /* Members */
 "members.searching" = "Buscando contactos...";
-"members.astrid_users" = "Personas de tus contactos que están en Astrid";
+"members.astrid_users" = "Personas de tus contactos que están en %1$@";
 "members.loading_suggestions" = "Cargando sugerencias...";
 "members.add_collaborators" = "Añadir colaboradores";
 "members.upload_contacts" = "Sube tus contactos para mejor colaboración";
@@ -765,7 +765,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "Configuración de contactos";
 "debug.debug_settings" = "Configuración de depuración";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "Servidor actual";
 "debug.active_config" = "Configuración activa";
 "debug.restart_required" = "Los cambios requieren reiniciar la app";
@@ -786,7 +786,7 @@
 "settings.openclaw.description" = "Registra agentes de IA que se conectan mediante el protocolo OpenClaw. Cada agente obtiene una identidad única y credenciales OAuth.";
 "settings.openclaw.loading" = "Cargando agentes...";
 "settings.openclaw.no_agents" = "No hay agentes conectados";
-"settings.openclaw.no_agents_hint" = "Registra un agente para comenzar. Los agentes obtienen credenciales OAuth para comunicarse con Astrid vía REST y SSE.";
+"settings.openclaw.no_agents_hint" = "Registra un agente para comenzar. Los agentes obtienen credenciales OAuth para comunicarse con %1$@ vía REST y SSE.";
 "settings.openclaw.status.active" = "Activo";
 "settings.openclaw.status.idle" = "Inactivo";
 "settings.openclaw.registered" = "Registrado %@";
@@ -814,7 +814,7 @@
 "settings.openclaw.delete_confirm" = "Esto eliminará permanentemente %@ y revocará sus credenciales OAuth. No se puede deshacer.";
 "settings.openclaw.agent_deleted" = "Agente eliminado";
 "settings.openclaw.about" = "Acerca de OpenClaw";
-"settings.openclaw.about_description" = "OpenClaw es un protocolo abierto para conectar agentes de IA a Astrid. Los agentes se autentican vía OAuth, reciben tareas a través de API REST y obtienen actualizaciones en tiempo real vía SSE. Funciona con cualquier proveedor de IA.";
+"settings.openclaw.about_description" = "OpenClaw es un protocolo abierto para conectar agentes de IA a %1$@. Los agentes se autentican vía OAuth, reciben tareas a través de API REST y obtienen actualizaciones en tiempo real vía SSE. Funciona con cualquier proveedor de IA.";
 "settings.openclaw.tip_title" = "Consejo: Descripciones de lista = instrucciones del agente";
 "settings.openclaw.tip_description" = "La descripción de cada lista se usa como instrucciones para los agentes de IA que trabajan en esa lista. Escribe markdown para indicar a los agentes cómo manejar las tareas.";
 "settings.openclaw.agent_created" = "Agente creado exitosamente";
@@ -852,7 +852,7 @@
 "status.retry_now" = "Reintentar";
 "status.sync_in_progress" = "Los cambios se sincronizarán automáticamente";
 "sync" = "Sincronizar";
-"welcome.title" = "¡Bienvenido a Astrid!";
+"welcome.title" = "¡Bienvenido a %1$@!";
 "welcome.subtitle" = "Tu gestor de tareas inteligente";
 "welcome.sign_in" = "Iniciar sesión";
 "welcome.use_locally" = "Usar sin cuenta";
@@ -921,9 +921,9 @@
 "sync.disconnect" = "Desconectar";
 "sync.external_footer" = "Los issues o tareas del servicio vinculado se reflejan en esta lista y viceversa, sincronizados con tu cuenta conectada.";
 "sync.external_sync" = "Sincronización externa";
-"sync.github_footer" = "Los issues de los repositorios vinculados se reflejan como tareas (y viceversa). Astrid sigue siendo la fuente de verdad; tu token de GitHub nunca sale del servidor.";
+"sync.github_footer" = "Los issues de los repositorios vinculados se reflejan como tareas (y viceversa). %1$@ sigue siendo la fuente de verdad; tu token de GitHub nunca sale del servidor.";
 "sync.github_not_configured" = "La sincronización con GitHub aún no está configurada en el servidor.";
-"sync.google_footer" = "Las tareas de las listas de Google vinculadas se reflejan en Astrid (y viceversa), incluidas las subtareas. Las fechas de Google no incluyen hora; las horas se conservan en Astrid. Tu token de Google nunca sale del servidor.";
+"sync.google_footer" = "Las tareas de las listas de Google vinculadas se reflejan en %1$@ (y viceversa), incluidas las subtareas. Las fechas de Google no incluyen hora; las horas se conservan en %1$@. Tu token de Google nunca sale del servidor.";
 "sync.google_list" = "Lista de Google";
 "sync.google_not_configured" = "La sincronización con Google Tasks aún no está configurada en el servidor.";
 "sync.last_synced" = "Última sincronización: %@";
@@ -934,11 +934,11 @@
 "sync.linking" = "Vinculando…";
 "sync.list" = "Lista";
 "sync.mode" = "Modo";
-"sync.mode_astrid_to_google" = "Respaldar las listas de Astrid en Google";
-"sync.mode_footer_astrid_to_google" = "Cada lista de Astrid se refleja en Google Tasks como copia de seguridad; las listas nuevas se detectan automáticamente.";
-"sync.mode_footer_google_to_astrid" = "Cada lista de Google Tasks se refleja en Astrid: las nuevas listas se detectan automáticamente y se nombran con el sufijo. Las listas de Astrid con el mismo nombre se reutilizan, no se duplican.";
+"sync.mode_astrid_to_google" = "Respaldar las listas de %1$@ en Google";
+"sync.mode_footer_astrid_to_google" = "Cada lista de %1$@ se refleja en Google Tasks como copia de seguridad; las listas nuevas se detectan automáticamente.";
+"sync.mode_footer_google_to_astrid" = "Cada lista de Google Tasks se refleja en %1$@: las nuevas listas se detectan automáticamente y se nombran con el sufijo. Las listas de %1$@ con el mismo nombre se reutilizan, no se duplican.";
 "sync.mode_footer_manual" = "Solo se sincronizan las listas que vincules abajo.";
-"sync.mode_google_to_astrid" = "Traer las listas de Google a Astrid";
+"sync.mode_google_to_astrid" = "Traer las listas de Google a %1$@";
 "sync.mode_manual" = "Solo las listas que yo vincule";
 "sync.no_lists_linked" = "Aún no hay listas vinculadas.";
 "sync.new_list" = "Nueva lista";
@@ -950,7 +950,7 @@
 "sync.unlink" = "Desvincular";
 "task_detail.completed_via" = "Completada en %@";
 "sync.mode_bidirectional" = "Mantener todo sincronizado (bidireccional)";
-"sync.mode_footer_bidirectional" = "Tus listas de Google Tasks aparecen en Astrid y tus listas de Astrid aparecen en Google Tasks. Las listas nuevas de ambos lados se añaden automáticamente, y las que comparten nombre se emparejan en lugar de duplicarse.";
+"sync.mode_footer_bidirectional" = "Tus listas de Google Tasks aparecen en %1$@ y tus listas de %1$@ aparecen en Google Tasks. Las listas nuevas de ambos lados se añaden automáticamente, y las que comparten nombre se emparejan en lugar de duplicarse.";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "Mis tareas";
@@ -1058,7 +1058,7 @@
 "mac.no_open_tasks" = "No hay tareas pendientes";
 "mac.offline_banner" = "Sin conexión: los cambios se sincronizarán al reconectar";
 "mac.on_date" = "En la fecha";
-"mac.open_astrid" = "Abrir Astrid";
+"mac.open_astrid" = "Abrir %1$@";
 "mac.open_full_detail" = "Abrir detalle completo…";
 "mac.open_new_window" = "Abrir en ventana nueva";
 "mac.owner_repo" = "propietario/repo";
@@ -1082,7 +1082,7 @@
 "mac.menu_commands" = "Comandos de menú";
 "mac.edit_comment" = "Editar comentario";
 "mac.my_tasks_only" = "Solo Mis tareas";
-"mac.onboard.keyboard.detail" = "Los mismos atajos que Astrid en la web. Pulsa ? cuando quieras para verlos.";
+"mac.onboard.keyboard.detail" = "Los mismos atajos que %1$@ en la web. Pulsa ? cuando quieras para verlos.";
 "mac.onboard.keyboard.title" = "Primero el teclado";
 "mac.onboard.offline.detail" = "Todo lo que haces se guarda localmente y se sincroniza cuando vuelves a estar en línea.";
 "mac.onboard.offline.title" = "Funciona sin conexión";
@@ -1137,7 +1137,7 @@
 "mac.sending" = "Enviando…";
 "mac.set_priority" = "Establecer prioridad";
 "mac.sharing" = "Compartiendo…";
-"mac.shortcuts_note" = "Coinciden con los atajos de Astrid web. Se ignoran mientras escribes.";
+"mac.shortcuts_note" = "Coinciden con los atajos de %1$@ web. Se ignoran mientras escribes.";
 "mac.sign_in_apple" = "Iniciar sesión con Apple";
 "mac.sign_in_passkey" = "Iniciar sesión con clave de acceso";
 "mac.smart_list_name" = "Nombre de la lista inteligente";
@@ -1151,7 +1151,7 @@
 "mac.type_delete_confirm" = "Escribe DELETE para confirmar";
 "mac.until" = "Hasta";
 "mac.view" = "Vista";
-"mac.welcome" = "Te damos la bienvenida a Astrid para Mac";
+"mac.welcome" = "Te damos la bienvenida a %1$@ para Mac";
 "mac.color_label" = "Color %@";
 "mac.comments_count" = "Comentarios (%d)";
 "mac.filter_title" = "Filtrar “%@”";
@@ -1163,7 +1163,7 @@
 "mac.list_default" = "Predeterminado de la lista";
 "mac.complete_count" = "Completar %d";
 "mac.delete_list_named" = "Eliminar “%@”";
-"mac.empty.chat" = "Empieza la conversación: saluda o menciona a @Astrid.";
+"mac.empty.chat" = "Empieza la conversación: saluda o menciona a @%1$@.";
 "mac.empty.filtered_out" = "Nada coincide con los filtros de esta lista.";
 "mac.empty.filtered_out_detail" = "Ajusta los filtros (botón de embudo) para ver más.";
 "mac.empty.no_list_selected" = "Elige una lista para ver tus tareas.";

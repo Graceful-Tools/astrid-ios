@@ -37,7 +37,7 @@ struct WelcomeChoiceView: View {
                             .frame(width: 120, height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: 24))
 
-                        Text(NSLocalizedString("welcome.title", comment: "Welcome to Astrid!"))
+                        Text(Brand.localized("welcome.title"))
                             .font(Theme.Typography.title1())
                             .foregroundColor(textColor)
 

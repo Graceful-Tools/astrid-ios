@@ -158,11 +158,11 @@ struct AIAPIKeyManagerView: View {
                         .font(Theme.Typography.subheadline())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                    Text(NSLocalizedString("settings.ai.about_description", comment: ""))
+                    Text(Brand.localized("settings.ai.about_description"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
-                    Text(NSLocalizedString("settings.ai.encryption_info", comment: ""))
+                    Text(Brand.localized("settings.ai.encryption_info"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                 }

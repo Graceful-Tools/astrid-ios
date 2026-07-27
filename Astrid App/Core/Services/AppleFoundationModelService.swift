@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "AppleFM")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "AppleFM")
 
 /// Sentinel ID used to identify the on-device Apple Foundation Model in settings
 let kAppleFoundationModelId = "apple-foundation-model"

@@ -3,7 +3,7 @@ import Combine
 import CoreData
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "CommentService")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "CommentService")
 
 /// Errors that can occur during comment sync
 @MainActor

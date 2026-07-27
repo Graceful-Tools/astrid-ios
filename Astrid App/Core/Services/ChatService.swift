@@ -3,7 +3,7 @@ import Combine
 import CoreData
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "ChatService")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatService")
 
 /// Errors that can occur during chat message sync
 enum ChatSyncError: Error {

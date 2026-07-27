@@ -191,7 +191,7 @@ class NotificationManager {
         // Create notification content
         let content = UNMutableNotificationContent()
         content.title = "Test Reminder"
-        content.body = "This is a test notification from Astrid"
+        content.body = "This is a test notification from \(Brand.appName)"
         content.sound = .default
         // Note: Badge count is managed by BadgeManager based on due/overdue tasks
         // Don't set badge here to avoid overriding the accurate count

@@ -95,8 +95,8 @@ class ReviewPromptManager: ObservableObject {
 
     /// Opens the app's support/contact page via email
     func openSupportEmail() {
-        let email = "support@astrid.cc"
-        let subject = "Astrid App Feedback"
+        let email = Brand.supportEmail
+        let subject = "\(Brand.appName) App Feedback"
         let urlString = "mailto:\(email)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? subject)"
 
         if let url = URL(string: urlString) {

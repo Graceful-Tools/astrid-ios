@@ -6,6 +6,8 @@ struct ReminderConstants {
 
     // MARK: - General Reminders
 
+    // `reminders` names the app in one entry, so it is computed rather than a stored
+    // literal — mirrors the web's `{appName} here!` reminder copy. Task 97208a72.
     static let reminders = [
         "Hi there! Have a sec?",
         "Can I see you for a sec?",
@@ -15,7 +17,7 @@ struct ReminderConstants {
         "When you have a minute:",
         "On your agenda:",
         "Free for a moment?",
-        "Astrid here!",
+        "\(Brand.appName) here!",
         "Hi! Can I bug you?",
         "A minute of your time?",
         "It's a great day to"

@@ -48,7 +48,7 @@ struct GitHubSyncSettingsView: View {
             } header: {
                 Text(NSLocalizedString("sync.account", comment: "Account"))
             } footer: {
-                Text(NSLocalizedString("sync.github_footer", comment: "GitHub sync footer"))
+                Text(Brand.localized("sync.github_footer"))
             }
 
             if sync.isConnected {

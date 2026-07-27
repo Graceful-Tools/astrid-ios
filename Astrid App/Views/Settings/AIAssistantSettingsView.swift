@@ -13,7 +13,7 @@ struct AIAssistantSettingsView: View {
     var body: some View {
         Form {
             // Astrid's AI — top of the page
-            Section(header: Text("Astrid's AI")) {
+            Section(header: Text("\(Brand.appName)'s AI")) {
                 NavigationLink(destination: DefaultAgentPickerView()) {
                     HStack {
                         Image("AstridCharacter")
@@ -22,10 +22,10 @@ struct AIAssistantSettingsView: View {
                             .frame(width: 28, height: 28)
                             .clipShape(Circle())
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Astrid's AI")
+                            Text("\(Brand.appName)'s AI")
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            Text("Choose which AI model powers Astrid")
+                            Text("Choose which AI model powers \(Brand.appName)")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

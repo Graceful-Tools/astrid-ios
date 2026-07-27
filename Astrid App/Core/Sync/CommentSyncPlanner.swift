@@ -140,7 +140,7 @@ enum CommentSyncPlanner {
     /// Outbound body: comment text plus a line per attachment (GitHub can't
     /// host the file — name it so the mirror isn't silently empty).
     static func pushBody(content: String, attachmentNames: [String]) -> String {
-        let attachmentLines = attachmentNames.map { "📎 \($0) *(attachment in Astrid)*" }
+        let attachmentLines = attachmentNames.map { "📎 \($0) *(attachment in \(Brand.appName))*" }
         let parts = ([content.trimmingCharacters(in: .whitespacesAndNewlines)] + attachmentLines)
             .filter { !$0.isEmpty }
         return parts.joined(separator: "\n\n")

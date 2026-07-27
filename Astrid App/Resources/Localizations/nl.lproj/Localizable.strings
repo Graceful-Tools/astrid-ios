@@ -158,7 +158,7 @@
 "messages.something_went_wrong" = "Er is iets misgegaan";
 
 /* Empty States */
-"empty_state.my_tasks" = "Welkom bij Astrid! Voeg je eerste taak toe om te beginnen.";
+"empty_state.my_tasks" = "Welkom bij %1$@! Voeg je eerste taak toe om te beginnen.";
 "empty_state.my_tasks_caught_up" = "Je bent helemaal bij! Geen taken aan jou toegewezen op dit moment.";
 "empty_state.today" = "Niets gepland voor vandaag! Geniet van je vrije tijd.";
 "empty_state.public_list" = "Deel je ideeën! Voeg taken toe - iedereen kan deze openbare lijst zien.";
@@ -186,7 +186,7 @@
 "debug.reminder_debug_mode" = "Herinnering Debug Modus";
 "debug.reminder_debug_desc" = "Schakel gedetailleerde herinnering-debuglogs in";
 "debug.test_prompts" = "Test Prompts";
-"debug.test_love_prompt" = "Test 'Houd je van Astrid?' Prompt";
+"debug.test_love_prompt" = "Test 'Houd je van %1$@?' Prompt";
 "debug.test_love_prompt_desc" = "Activeert de feedback-prompt voor actieve gebruikers";
 "debug.reset_prompt_tracking" = "Reset Prompt Tracking";
 "debug.reset_prompt_tracking_desc" = "Wist de prompt-geschiedenis";
@@ -280,8 +280,8 @@
 "settings.ai.api_keys_description" = "Voeg je eigen API-sleutels toe om AI-assistenten te gebruiken. Sleutels worden versleuteld en veilig op de server opgeslagen.";
 "settings.ai.loading_keys" = "API-sleutels laden...";
 "settings.ai.about_keys" = "Over API-sleutels";
-"settings.ai.about_description" = "Je API-sleutels worden gebruikt om de AI-assistentfuncties in Astrid aan te sturen. Elke provider biedt verschillende mogelijkheden en prijzen.";
-"settings.ai.encryption_info" = "Sleutels worden versleuteld met AES-256 voordat ze worden opgeslagen. Astrid deelt je sleutels nooit met derden.";
+"settings.ai.about_description" = "Je API-sleutels worden gebruikt om de AI-assistentfuncties in %1$@ aan te sturen. Elke provider biedt verschillende mogelijkheden en prijzen.";
+"settings.ai.encryption_info" = "Sleutels worden versleuteld met AES-256 voordat ze worden opgeslagen. %1$@ deelt je sleutels nooit met derden.";
 "settings.ai.not_configured" = "Niet geconfigureerd";
 "settings.ai.api_new.badge" = "NIEUW";
 "settings.ai.manage_keys" = "API-sleutels beheren";
@@ -514,7 +514,7 @@
 "reminders.enable_sync" = "Herinneringen-synchronisatie inschakelen";
 "reminders.sync_description" = "Synchroniseer taken met Apple Herinneringen voor Siri en Watch";
 "reminders.access_header" = "Herinneringen-toegang";
-"reminders.access_footer" = "Synchroniseer je Astrid-taken met Apple Herinneringen. Gebruik Siri om taken toe te voegen en bekijk ze op Apple Watch.";
+"reminders.access_footer" = "Synchroniseer je %1$@-taken met Apple Herinneringen. Gebruik Siri om taken toe te voegen en bekijk ze op Apple Watch.";
 "reminders.sync_status" = "Synchronisatiestatus";
 "reminders.last_sync" = "Laatste synchronisatie";
 "reminders.linked_lists" = "Gekoppelde lijsten";
@@ -523,9 +523,9 @@
 "reminders.your_lists" = "Jouw lijsten";
 "reminders.your_lists_footer" = "Tik op een lijst om deze te koppelen met Apple Herinneringen. Kies of je taken wilt exporteren of importeren vanuit een bestaande Herinneringenlijst.";
 "reminders.import_from_reminders" = "Importeren uit Herinneringen";
-"reminders.import_footer" = "Importeer bestaande Herinneringenlijsten in Astrid.";
+"reminders.import_footer" = "Importeer bestaande Herinneringenlijsten in %1$@.";
 "reminders.unlink" = "Ontkoppelen";
-"reminders.astrid_list" = "Astrid-lijst";
+"reminders.astrid_list" = "%1$@-lijst";
 "reminders.sync_direction" = "Synchronisatierichting";
 "reminders.create_new_list" = "Nieuwe lijst maken";
 "reminders.link_to_reminders_list" = "Koppelen aan Herinneringenlijst";
@@ -536,9 +536,9 @@
 "reminders.link_list" = "Lijst koppelen";
 "reminders.link" = "Koppelen";
 "reminders.reminders_list" = "Herinneringenlijst";
-"reminders.create_new_astrid_list" = "Nieuwe Astrid-lijst maken";
+"reminders.create_new_astrid_list" = "Nieuwe %1$@-lijst maken";
 "reminders.import_into" = "Importeren in";
-"reminders.import_into_footer" = "Maak een nieuwe Astrid-lijst met de naam '%@' of importeer in een bestaande lijst.";
+"reminders.import_into_footer" = "Maak een nieuwe %1$@-lijst met de naam '%2$@' of importeer in een bestaande lijst.";
 "reminders.import_completed_desc" = "Al voltooide herinneringen importeren";
 "reminders.import_reminders" = "Herinneringen importeren";
 "reminders.import" = "Importeren";
@@ -664,7 +664,7 @@
 "attachments.saving" = "Opslaan...";
 "attachments.save_to_task" = "Opslaan bij taak";
 "attachments.quick_look" = "Snelle weergave";
-"attachments.quick_look_tip" = "Tip: Gebruik Markering in Snelle weergave om te bewerken en op te slaan in Astrid";
+"attachments.quick_look_tip" = "Tip: Gebruik Markering in Snelle weergave om te bewerken en op te slaan in %1$@";
 "attachments.choose_photo" = "Kies foto";
 "attachments.choose_video" = "Kies video";
 "attachments.choose_document" = "Kies document";
@@ -707,7 +707,7 @@
 
 /* Members */
 "members.searching" = "Contacten zoeken...";
-"members.astrid_users" = "Mensen uit je contacten die Astrid gebruiken";
+"members.astrid_users" = "Mensen uit je contacten die %1$@ gebruiken";
 "members.loading_suggestions" = "Suggesties laden...";
 "members.add_collaborators" = "Medewerkers toevoegen";
 "members.upload_contacts" = "Upload je contacten voor betere samenwerking";
@@ -749,7 +749,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "Contactinstellingen";
 "debug.debug_settings" = "Debug-instellingen";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "Huidige server";
 "debug.active_config" = "Actieve configuratie";
 "debug.restart_required" = "Wijzigingen vereisen een herstart van de app";
@@ -770,7 +770,7 @@
 "settings.openclaw.description" = "Registreer AI-agents die verbinding maken via het OpenClaw-protocol. Elke agent krijgt een unieke identiteit en OAuth-inloggegevens.";
 "settings.openclaw.loading" = "Agents laden...";
 "settings.openclaw.no_agents" = "Geen agents verbonden";
-"settings.openclaw.no_agents_hint" = "Registreer een agent om te beginnen. Agents krijgen OAuth-inloggegevens om met Astrid te communiceren via REST en SSE.";
+"settings.openclaw.no_agents_hint" = "Registreer een agent om te beginnen. Agents krijgen OAuth-inloggegevens om met %1$@ te communiceren via REST en SSE.";
 "settings.openclaw.status.active" = "Actief";
 "settings.openclaw.status.idle" = "Inactief";
 "settings.openclaw.registered" = "Geregistreerd %@";
@@ -798,7 +798,7 @@
 "settings.openclaw.delete_confirm" = "Dit verwijdert %@ permanent en trekt de OAuth-inloggegevens in. Dit kan niet ongedaan worden gemaakt.";
 "settings.openclaw.agent_deleted" = "Agent verwijderd";
 "settings.openclaw.about" = "Over OpenClaw";
-"settings.openclaw.about_description" = "OpenClaw is een open protocol om AI-agents te verbinden met Astrid. Agents authenticeren via OAuth, ontvangen taken via de REST API en krijgen realtime updates via SSE. Werkt met elke AI-provider.";
+"settings.openclaw.about_description" = "OpenClaw is een open protocol om AI-agents te verbinden met %1$@. Agents authenticeren via OAuth, ontvangen taken via de REST API en krijgen realtime updates via SSE. Werkt met elke AI-provider.";
 "settings.openclaw.tip_title" = "Tip: Lijstbeschrijvingen = agentinstructies";
 "settings.openclaw.tip_description" = "De beschrijving van elke lijst wordt gebruikt als instructies voor AI-agents die aan taken in die lijst werken. Schrijf markdown om agents te vertellen hoe ze taken moeten afhandelen.";
 "settings.openclaw.agent_created" = "Agent succesvol aangemaakt";
@@ -836,7 +836,7 @@
 "status.retry_now" = "Opnieuw proberen";
 "status.sync_in_progress" = "Wijzigingen worden automatisch gesynchroniseerd";
 "sync" = "Synchroniseren";
-"welcome.title" = "Welkom bij Astrid!";
+"welcome.title" = "Welkom bij %1$@!";
 "welcome.subtitle" = "Je slimme taakmanager";
 "welcome.sign_in" = "Inloggen";
 "welcome.use_locally" = "Gebruik zonder account";
@@ -905,9 +905,9 @@
 "sync.disconnect" = "Ontkoppelen";
 "sync.external_footer" = "Issues of taken in de gekoppelde dienst worden gespiegeld naar deze lijst en terug, gesynchroniseerd via je gekoppelde account.";
 "sync.external_sync" = "Externe synchronisatie";
-"sync.github_footer" = "Issues in gekoppelde repo's worden gespiegeld naar taken (en terug). Astrid blijft de bron van waarheid; je GitHub-token verlaat de server nooit.";
+"sync.github_footer" = "Issues in gekoppelde repo's worden gespiegeld naar taken (en terug). %1$@ blijft de bron van waarheid; je GitHub-token verlaat de server nooit.";
 "sync.github_not_configured" = "GitHub-synchronisatie is nog niet geconfigureerd op de server.";
-"sync.google_footer" = "Taken in gekoppelde Google-lijsten worden gespiegeld naar Astrid (en terug), inclusief subtaken. Google-deadlines zijn alleen datums; tijden blijven in Astrid. Je Google-token verlaat de server nooit.";
+"sync.google_footer" = "Taken in gekoppelde Google-lijsten worden gespiegeld naar %1$@ (en terug), inclusief subtaken. Google-deadlines zijn alleen datums; tijden blijven in %1$@. Je Google-token verlaat de server nooit.";
 "sync.google_list" = "Google-lijst";
 "sync.google_not_configured" = "Google Tasks-synchronisatie is nog niet geconfigureerd op de server.";
 "sync.last_synced" = "Laatst gesynchroniseerd: %@";
@@ -918,11 +918,11 @@
 "sync.linking" = "Koppelen…";
 "sync.list" = "Lijst";
 "sync.mode" = "Modus";
-"sync.mode_astrid_to_google" = "Astrid-lijsten back-uppen naar Google";
-"sync.mode_footer_astrid_to_google" = "Elke Astrid-lijst wordt als back-up gespiegeld naar Google Tasks — nieuwe Astrid-lijsten worden automatisch opgepikt.";
-"sync.mode_footer_google_to_astrid" = "Elke Google Tasks-lijst wordt gespiegeld in Astrid — nieuwe Google-lijsten worden automatisch opgepikt en benoemd met het achtervoegsel. Bestaande gelijknamige Astrid-lijsten worden hergebruikt, niet gedupliceerd.";
+"sync.mode_astrid_to_google" = "%1$@-lijsten back-uppen naar Google";
+"sync.mode_footer_astrid_to_google" = "Elke %1$@-lijst wordt als back-up gespiegeld naar Google Tasks — nieuwe %1$@-lijsten worden automatisch opgepikt.";
+"sync.mode_footer_google_to_astrid" = "Elke Google Tasks-lijst wordt gespiegeld in %1$@ — nieuwe Google-lijsten worden automatisch opgepikt en benoemd met het achtervoegsel. Bestaande gelijknamige %1$@-lijsten worden hergebruikt, niet gedupliceerd.";
 "sync.mode_footer_manual" = "Alleen de hieronder gekoppelde lijsten blijven gesynchroniseerd.";
-"sync.mode_google_to_astrid" = "Google-lijsten naar Astrid halen";
+"sync.mode_google_to_astrid" = "Google-lijsten naar %1$@ halen";
 "sync.mode_manual" = "Alleen lijsten die ik koppel";
 "sync.no_lists_linked" = "Nog geen lijsten gekoppeld.";
 "sync.new_list" = "Nieuwe lijst";
@@ -934,7 +934,7 @@
 "sync.unlink" = "Ontkoppelen";
 "task_detail.completed_via" = "Voltooid via %@";
 "sync.mode_bidirectional" = "Alles synchroon houden (twee richtingen)";
-"sync.mode_footer_bidirectional" = "Je Google Tasks-lijsten verschijnen in Astrid en je Astrid-lijsten in Google Tasks. Nieuwe lijsten aan beide kanten doen automatisch mee, en lijsten met dezelfde naam worden gekoppeld in plaats van gedupliceerd.";
+"sync.mode_footer_bidirectional" = "Je Google Tasks-lijsten verschijnen in %1$@ en je %1$@-lijsten in Google Tasks. Nieuwe lijsten aan beide kanten doen automatisch mee, en lijsten met dezelfde naam worden gekoppeld in plaats van gedupliceerd.";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "Mijn taken";
@@ -1042,7 +1042,7 @@
 "mac.no_open_tasks" = "Geen openstaande taken";
 "mac.offline_banner" = "Offline — wijzigingen worden gesynchroniseerd bij herverbinding";
 "mac.on_date" = "Op datum";
-"mac.open_astrid" = "Astrid openen";
+"mac.open_astrid" = "%1$@ openen";
 "mac.open_full_detail" = "Volledige details openen…";
 "mac.open_new_window" = "In nieuw venster openen";
 "mac.owner_repo" = "eigenaar/repo";
@@ -1066,7 +1066,7 @@
 "mac.menu_commands" = "Menuopdrachten";
 "mac.edit_comment" = "Reactie bewerken";
 "mac.my_tasks_only" = "Alleen Mijn taken";
-"mac.onboard.keyboard.detail" = "Dezelfde sneltoetsen als Astrid op het web. Druk op ? om ze te bekijken.";
+"mac.onboard.keyboard.detail" = "Dezelfde sneltoetsen als %1$@ op het web. Druk op ? om ze te bekijken.";
 "mac.onboard.keyboard.title" = "Toetsenbord voorop";
 "mac.onboard.offline.detail" = "Alles wat je doet wordt lokaal opgeslagen en synchroniseert zodra je weer online bent.";
 "mac.onboard.offline.title" = "Werkt offline";
@@ -1121,7 +1121,7 @@
 "mac.sending" = "Verzenden…";
 "mac.set_priority" = "Prioriteit instellen";
 "mac.sharing" = "Delen…";
-"mac.shortcuts_note" = "Deze komen overeen met de sneltoetsen van Astrid web. Tijdens het typen worden ze genegeerd.";
+"mac.shortcuts_note" = "Deze komen overeen met de sneltoetsen van %1$@ web. Tijdens het typen worden ze genegeerd.";
 "mac.sign_in_apple" = "Inloggen met Apple";
 "mac.sign_in_passkey" = "Inloggen met toegangssleutel";
 "mac.smart_list_name" = "Naam slimme lijst";
@@ -1135,7 +1135,7 @@
 "mac.type_delete_confirm" = "Typ DELETE om te bevestigen";
 "mac.until" = "Tot";
 "mac.view" = "Weergave";
-"mac.welcome" = "Welkom bij Astrid voor Mac";
+"mac.welcome" = "Welkom bij %1$@ voor Mac";
 "mac.color_label" = "Kleur %@";
 "mac.comments_count" = "Reacties (%d)";
 "mac.filter_title" = "“%@” filteren";
@@ -1147,7 +1147,7 @@
 "mac.list_default" = "Standaard van lijst";
 "mac.complete_count" = "%d voltooien";
 "mac.delete_list_named" = "“%@” verwijderen";
-"mac.empty.chat" = "Begin het gesprek — zeg hallo of @vermeld Astrid.";
+"mac.empty.chat" = "Begin het gesprek — zeg hallo of @vermeld %1$@.";
 "mac.empty.filtered_out" = "Niets komt overeen met de filters van deze lijst.";
 "mac.empty.filtered_out_detail" = "Pas de filters aan (trechterknop) om meer te zien.";
 "mac.empty.no_list_selected" = "Kies een lijst om je taken te zien.";

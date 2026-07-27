@@ -45,7 +45,7 @@ struct MacMenuBarView: View {
                 }
             }
             Divider()
-            Button(NSLocalizedString("mac.open_astrid", comment: "")) { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
+            Button(Brand.localized("mac.open_astrid")) { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
             Button(NSLocalizedString("mac.quit", comment: "")) { NSApp.terminate(nil) }
         }
         .padding(12)

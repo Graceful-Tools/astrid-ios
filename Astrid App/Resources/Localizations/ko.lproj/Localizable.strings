@@ -158,7 +158,7 @@
 "messages.something_went_wrong" = "문제가 발생했습니다";
 
 /* Empty States */
-"empty_state.my_tasks" = "Astrid에 오신 것을 환영합니다! 첫 번째 작업을 추가하여 시작해 보세요.";
+"empty_state.my_tasks" = "%1$@에 오신 것을 환영합니다! 첫 번째 작업을 추가하여 시작해 보세요.";
 "empty_state.my_tasks_caught_up" = "모든 작업을 완료했습니다! 현재 할당된 작업이 없습니다.";
 "empty_state.today" = "오늘 예정된 일정이 없습니다! 자유 시간을 즐기거나 새 작업을 추가해 보세요.";
 "empty_state.public_list" = "아이디어를 세상과 공유하세요! 작업을 추가하면 누구나 이 목록을 볼 수 있습니다.";
@@ -186,7 +186,7 @@
 "debug.reminder_debug_mode" = "알림 디버그 모드";
 "debug.reminder_debug_desc" = "상세 알림 디버그 로그 활성화";
 "debug.test_prompts" = "테스트 프롬프트";
-"debug.test_love_prompt" = "'Astrid가 마음에 드시나요?' 프롬프트 테스트";
+"debug.test_love_prompt" = "'%1$@가 마음에 드시나요?' 프롬프트 테스트";
 "debug.test_love_prompt_desc" = "활성 사용자에게 표시되는 피드백 프롬프트를 트리거합니다";
 "debug.reset_prompt_tracking" = "프롬프트 추적 초기화";
 "debug.reset_prompt_tracking_desc" = "프롬프트 기록을 삭제합니다";
@@ -280,8 +280,8 @@
 "settings.ai.api_keys_description" = "AI 어시스턴트를 사용하려면 고유한 API 키를 추가하세요. 키는 암호화되어 서버에 안전하게 저장됩니다.";
 "settings.ai.loading_keys" = "API 키를 불러오는 중...";
 "settings.ai.about_keys" = "API 키 정보";
-"settings.ai.about_description" = "API 키는 Astrid의 AI 어시스턴트 기능을 지원하는 데 사용됩니다. 각 제공업체는 서로 다른 기능과 가격을 제공합니다.";
-"settings.ai.encryption_info" = "키는 저장되기 전에 AES-256을 사용하여 암호화됩니다. Astrid는 귀하의 키를 제3자와 공유하지 않습니다.";
+"settings.ai.about_description" = "API 키는 %1$@의 AI 어시스턴트 기능을 지원하는 데 사용됩니다. 각 제공업체는 서로 다른 기능과 가격을 제공합니다.";
+"settings.ai.encryption_info" = "키는 저장되기 전에 AES-256을 사용하여 암호화됩니다. %1$@는 귀하의 키를 제3자와 공유하지 않습니다.";
 "settings.ai.not_configured" = "설정되지 않음";
 "settings.ai.api_new.badge" = "신규";
 "settings.ai.manage_keys" = "API 키 관리";
@@ -514,7 +514,7 @@
 "reminders.enable_sync" = "미리 알림 동기화 활성화";
 "reminders.sync_description" = "Siri 및 Watch용 Apple 미리 알림과 작업 동기화";
 "reminders.access_header" = "미리 알림 접근";
-"reminders.access_footer" = "Astrid 작업을 Apple 미리 알림과 동기화하세요. Siri로 작업을 추가하고 Apple Watch에서 확인할 수 있습니다.";
+"reminders.access_footer" = "%1$@ 작업을 Apple 미리 알림과 동기화하세요. Siri로 작업을 추가하고 Apple Watch에서 확인할 수 있습니다.";
 "reminders.sync_status" = "동기화 상태";
 "reminders.last_sync" = "마지막 동기화";
 "reminders.linked_lists" = "연결된 목록";
@@ -523,9 +523,9 @@
 "reminders.your_lists" = "내 목록";
 "reminders.your_lists_footer" = "목록을 탭하여 Apple 미리 알림에 연결하세요. 작업을 내보내거나 기존 미리 알림 목록에서 가져올 수 있습니다.";
 "reminders.import_from_reminders" = "미리 알림에서 가져오기";
-"reminders.import_footer" = "기존 미리 알림 목록을 Astrid로 가져옵니다.";
+"reminders.import_footer" = "기존 미리 알림 목록을 %1$@로 가져옵니다.";
 "reminders.unlink" = "연결 해제";
-"reminders.astrid_list" = "Astrid 목록";
+"reminders.astrid_list" = "%1$@ 목록";
 "reminders.sync_direction" = "동기화 방향";
 "reminders.create_new_list" = "새 목록 만들기";
 "reminders.link_to_reminders_list" = "미리 알림 목록에 연결";
@@ -536,9 +536,9 @@
 "reminders.link_list" = "목록 연결";
 "reminders.link" = "연결";
 "reminders.reminders_list" = "미리 알림 목록";
-"reminders.create_new_astrid_list" = "새 Astrid 목록 만들기";
+"reminders.create_new_astrid_list" = "새 %1$@ 목록 만들기";
 "reminders.import_into" = "가져올 위치";
-"reminders.import_into_footer" = "'%@' 이름으로 새 Astrid 목록을 만들거나 기존 목록으로 가져옵니다.";
+"reminders.import_into_footer" = "'%2$@' 이름으로 새 %1$@ 목록을 만들거나 기존 목록으로 가져옵니다.";
 "reminders.import_completed_desc" = "이미 완료된 미리 알림 가져오기";
 "reminders.import_reminders" = "미리 알림 가져오기";
 "reminders.import" = "가져오기";
@@ -666,7 +666,7 @@
 "attachments.saving" = "저장 중...";
 "attachments.save_to_task" = "작업에 저장";
 "attachments.quick_look" = "훑어보기";
-"attachments.quick_look_tip" = "팁: 훑어보기에서 마크업을 사용하여 편집하고 Astrid에 저장";
+"attachments.quick_look_tip" = "팁: 훑어보기에서 마크업을 사용하여 편집하고 %1$@에 저장";
 "attachments.choose_photo" = "사진 선택";
 "attachments.choose_video" = "비디오 선택";
 "attachments.choose_document" = "문서 선택";
@@ -709,7 +709,7 @@
 
 /* Members */
 "members.searching" = "연락처 검색 중...";
-"members.astrid_users" = "Astrid를 사용하는 연락처";
+"members.astrid_users" = "%1$@를 사용하는 연락처";
 "members.loading_suggestions" = "제안 로딩 중...";
 "members.add_collaborators" = "협업자 추가";
 "members.upload_contacts" = "더 나은 협업을 위해 연락처 업로드";
@@ -751,7 +751,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "연락처 설정";
 "debug.debug_settings" = "디버그 설정";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "현재 서버";
 "debug.active_config" = "활성 구성";
 "debug.restart_required" = "변경 사항을 적용하려면 앱을 다시 시작해야 합니다";
@@ -772,7 +772,7 @@
 "settings.openclaw.description" = "OpenClaw 프로토콜로 연결되는 AI 에이전트를 등록하세요. 각 에이전트는 고유한 ID와 OAuth 자격 증명을 받습니다.";
 "settings.openclaw.loading" = "에이전트 로딩 중...";
 "settings.openclaw.no_agents" = "연결된 에이전트 없음";
-"settings.openclaw.no_agents_hint" = "에이전트를 등록하여 시작하세요. 에이전트는 REST와 SSE를 통해 Astrid와 통신하기 위한 OAuth 자격 증명을 받습니다.";
+"settings.openclaw.no_agents_hint" = "에이전트를 등록하여 시작하세요. 에이전트는 REST와 SSE를 통해 %1$@와 통신하기 위한 OAuth 자격 증명을 받습니다.";
 "settings.openclaw.status.active" = "활성";
 "settings.openclaw.status.idle" = "유휴";
 "settings.openclaw.registered" = "%@ 등록됨";
@@ -800,7 +800,7 @@
 "settings.openclaw.delete_confirm" = "%@을(를) 영구 삭제하고 OAuth 자격 증명을 해지합니다. 이 작업은 되돌릴 수 없습니다.";
 "settings.openclaw.agent_deleted" = "에이전트 삭제됨";
 "settings.openclaw.about" = "OpenClaw 정보";
-"settings.openclaw.about_description" = "OpenClaw는 AI 에이전트를 Astrid에 연결하기 위한 개방형 프로토콜입니다. 에이전트는 OAuth로 인증하고, REST API로 작업을 수신하며, SSE로 실시간 업데이트를 받습니다. 모든 AI 제공업체와 호환됩니다.";
+"settings.openclaw.about_description" = "OpenClaw는 AI 에이전트를 %1$@에 연결하기 위한 개방형 프로토콜입니다. 에이전트는 OAuth로 인증하고, REST API로 작업을 수신하며, SSE로 실시간 업데이트를 받습니다. 모든 AI 제공업체와 호환됩니다.";
 "settings.openclaw.tip_title" = "팁: 목록 설명 = 에이전트 지침";
 "settings.openclaw.tip_description" = "각 목록의 설명은 해당 목록의 작업을 처리하는 AI 에이전트의 지침으로 사용됩니다. 마크다운으로 에이전트에게 작업 처리 방법을 알려주세요.";
 "settings.openclaw.agent_created" = "에이전트가 성공적으로 생성되었습니다";
@@ -838,7 +838,7 @@
 "status.retry_now" = "재시도";
 "status.sync_in_progress" = "변경사항이 자동으로 동기화됩니다";
 "sync" = "동기화";
-"welcome.title" = "Astrid에 오신 것을 환영합니다!";
+"welcome.title" = "%1$@에 오신 것을 환영합니다!";
 "welcome.subtitle" = "스마트 작업 관리자";
 "welcome.sign_in" = "로그인";
 "welcome.use_locally" = "계정 없이 사용";
@@ -907,9 +907,9 @@
 "sync.disconnect" = "연결 해제";
 "sync.external_footer" = "연결된 서비스의 이슈나 작업이 이 목록과 양방향으로 미러링되며, 연결된 계정을 통해 동기화됩니다.";
 "sync.external_sync" = "외부 동기화";
-"sync.github_footer" = "연결된 저장소의 이슈가 작업과 양방향으로 미러링됩니다. Astrid가 기준이며 GitHub 토큰은 서버를 벗어나지 않습니다.";
+"sync.github_footer" = "연결된 저장소의 이슈가 작업과 양방향으로 미러링됩니다. %1$@가 기준이며 GitHub 토큰은 서버를 벗어나지 않습니다.";
 "sync.github_not_configured" = "GitHub 동기화가 아직 서버에 구성되지 않았습니다.";
-"sync.google_footer" = "연결된 Google 목록의 작업이 하위 작업을 포함해 Astrid와 양방향으로 미러링됩니다. Google 기한은 날짜만 지원하며 시간은 Astrid에 유지됩니다. Google 토큰은 서버를 벗어나지 않습니다.";
+"sync.google_footer" = "연결된 Google 목록의 작업이 하위 작업을 포함해 %1$@와 양방향으로 미러링됩니다. Google 기한은 날짜만 지원하며 시간은 %1$@에 유지됩니다. Google 토큰은 서버를 벗어나지 않습니다.";
 "sync.google_list" = "Google 목록";
 "sync.google_not_configured" = "Google Tasks 동기화가 아직 서버에 구성되지 않았습니다.";
 "sync.last_synced" = "마지막 동기화: %@";
@@ -920,11 +920,11 @@
 "sync.linking" = "연결 중…";
 "sync.list" = "목록";
 "sync.mode" = "모드";
-"sync.mode_astrid_to_google" = "Astrid 목록을 Google에 백업";
-"sync.mode_footer_astrid_to_google" = "모든 Astrid 목록이 백업으로 Google Tasks에 미러링됩니다. 새 Astrid 목록은 자동으로 추가됩니다.";
-"sync.mode_footer_google_to_astrid" = "모든 Google Tasks 목록이 Astrid에 미러링됩니다. 새 Google 목록은 자동으로 추가되며 접미사가 붙습니다. 같은 이름의 Astrid 목록은 재사용되며 중복되지 않습니다.";
+"sync.mode_astrid_to_google" = "%1$@ 목록을 Google에 백업";
+"sync.mode_footer_astrid_to_google" = "모든 %1$@ 목록이 백업으로 Google Tasks에 미러링됩니다. 새 %1$@ 목록은 자동으로 추가됩니다.";
+"sync.mode_footer_google_to_astrid" = "모든 Google Tasks 목록이 %1$@에 미러링됩니다. 새 Google 목록은 자동으로 추가되며 접미사가 붙습니다. 같은 이름의 %1$@ 목록은 재사용되며 중복되지 않습니다.";
 "sync.mode_footer_manual" = "아래에서 연결한 목록만 동기화됩니다.";
-"sync.mode_google_to_astrid" = "Google 목록을 Astrid로 가져오기";
+"sync.mode_google_to_astrid" = "Google 목록을 %1$@로 가져오기";
 "sync.mode_manual" = "내가 연결한 목록만";
 "sync.no_lists_linked" = "아직 연결된 목록이 없습니다.";
 "sync.new_list" = "새 목록";
@@ -936,7 +936,7 @@
 "sync.unlink" = "연결 해제";
 "task_detail.completed_via" = "%@에서 완료됨";
 "sync.mode_bidirectional" = "모두 양방향으로 동기화 유지";
-"sync.mode_footer_bidirectional" = "Google Tasks 목록이 Astrid에 나타나고 Astrid 목록이 Google Tasks에 나타납니다. 양쪽의 새 목록은 자동으로 추가되며, 이름이 같은 목록은 중복되지 않고 짝을 이룹니다.";
+"sync.mode_footer_bidirectional" = "Google Tasks 목록이 %1$@에 나타나고 %1$@ 목록이 Google Tasks에 나타납니다. 양쪽의 새 목록은 자동으로 추가되며, 이름이 같은 목록은 중복되지 않고 짝을 이룹니다.";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "내 작업";
@@ -1044,7 +1044,7 @@
 "mac.no_open_tasks" = "진행 중인 작업이 없습니다";
 "mac.offline_banner" = "오프라인 — 다시 연결되면 변경 사항이 동기화됩니다";
 "mac.on_date" = "지정 날짜";
-"mac.open_astrid" = "Astrid 열기";
+"mac.open_astrid" = "%1$@ 열기";
 "mac.open_full_detail" = "전체 상세 열기…";
 "mac.open_new_window" = "새 창에서 열기";
 "mac.owner_repo" = "소유자/저장소";
@@ -1068,7 +1068,7 @@
 "mac.menu_commands" = "메뉴 명령";
 "mac.edit_comment" = "댓글 편집";
 "mac.my_tasks_only" = "내 작업만";
-"mac.onboard.keyboard.detail" = "웹 Astrid와 동일한 단축키. 언제든 ?를 눌러 확인하세요.";
+"mac.onboard.keyboard.detail" = "웹 %1$@와 동일한 단축키. 언제든 ?를 눌러 확인하세요.";
 "mac.onboard.keyboard.title" = "키보드 우선";
 "mac.onboard.offline.detail" = "모든 작업이 로컬에 저장되고 온라인이 되면 동기화됩니다.";
 "mac.onboard.offline.title" = "오프라인에서도 작동";
@@ -1123,7 +1123,7 @@
 "mac.sending" = "보내는 중…";
 "mac.set_priority" = "우선순위 설정";
 "mac.sharing" = "공유 중…";
-"mac.shortcuts_note" = "Astrid 웹 단축키와 동일하며, 입력 중에는 무시됩니다.";
+"mac.shortcuts_note" = "%1$@ 웹 단축키와 동일하며, 입력 중에는 무시됩니다.";
 "mac.sign_in_apple" = "Apple로 로그인";
 "mac.sign_in_passkey" = "패스키로 로그인";
 "mac.smart_list_name" = "스마트 목록 이름";
@@ -1137,7 +1137,7 @@
 "mac.type_delete_confirm" = "확인하려면 DELETE를 입력하세요";
 "mac.until" = "종료일";
 "mac.view" = "보기";
-"mac.welcome" = "Astrid for Mac에 오신 것을 환영합니다";
+"mac.welcome" = "%1$@ for Mac에 오신 것을 환영합니다";
 "mac.color_label" = "색상 %@";
 "mac.comments_count" = "댓글 (%d)";
 "mac.filter_title" = "“%@” 필터";
@@ -1149,7 +1149,7 @@
 "mac.list_default" = "목록 기본값";
 "mac.complete_count" = "%d개 완료";
 "mac.delete_list_named" = "“%@” 삭제";
-"mac.empty.chat" = "대화를 시작하세요 — 인사하거나 @Astrid를 멘션하세요.";
+"mac.empty.chat" = "대화를 시작하세요 — 인사하거나 @%1$@를 멘션하세요.";
 "mac.empty.filtered_out" = "이 목록의 필터와 일치하는 항목이 없습니다.";
 "mac.empty.filtered_out_detail" = "필터(깔때기 버튼)를 조정하면 더 많이 볼 수 있습니다.";
 "mac.empty.no_list_selected" = "목록을 선택하면 작업이 표시됩니다.";

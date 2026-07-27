@@ -59,7 +59,7 @@ struct GoogleTasksSettingsView: View {
             } header: {
                 Text(NSLocalizedString("sync.account", comment: "Account"))
             } footer: {
-                Text(NSLocalizedString("sync.google_footer", comment: "Google sync footer"))
+                Text(Brand.localized("sync.google_footer"))
             }
 
             if sync.isConnected {
@@ -71,8 +71,8 @@ struct GoogleTasksSettingsView: View {
                         }
                     )) {
                         Text(NSLocalizedString("sync.mode_manual", comment: "Linked lists only")).tag(GoogleSyncMode.manual)
-                        Text(NSLocalizedString("sync.mode_google_to_astrid", comment: "All Google lists to Astrid")).tag(GoogleSyncMode.allGoogleToAstrid)
-                        Text(NSLocalizedString("sync.mode_astrid_to_google", comment: "All Astrid lists to Google")).tag(GoogleSyncMode.allAstridToGoogle)
+                        Text(Brand.localized("sync.mode_google_to_astrid")).tag(GoogleSyncMode.allGoogleToAstrid)
+                        Text(Brand.localized("sync.mode_astrid_to_google")).tag(GoogleSyncMode.allAstridToGoogle)
                         Text(NSLocalizedString("sync.mode_bidirectional", comment: "All lists, both directions")).tag(GoogleSyncMode.allBidirectional)
                     }
                     if sync.syncMode == .allGoogleToAstrid || sync.syncMode == .allBidirectional {
@@ -95,11 +95,11 @@ struct GoogleTasksSettingsView: View {
                     case .manual:
                         Text(NSLocalizedString("sync.mode_footer_manual", comment: "Manual mode footer"))
                     case .allGoogleToAstrid:
-                        Text(NSLocalizedString("sync.mode_footer_google_to_astrid", comment: "Google to Astrid mode footer"))
+                        Text(Brand.localized("sync.mode_footer_google_to_astrid"))
                     case .allAstridToGoogle:
-                        Text(NSLocalizedString("sync.mode_footer_astrid_to_google", comment: "Astrid to Google mode footer"))
+                        Text(Brand.localized("sync.mode_footer_astrid_to_google"))
                     case .allBidirectional:
-                        Text(NSLocalizedString("sync.mode_footer_bidirectional", comment: "Bidirectional mode footer"))
+                        Text(Brand.localized("sync.mode_footer_bidirectional"))
                     }
                 }
 

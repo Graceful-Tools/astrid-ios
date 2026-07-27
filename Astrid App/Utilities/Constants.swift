@@ -52,7 +52,7 @@ import Foundation
                     return "http://192.168.50.254:3000"
                     #endif
                 case .production:
-                    return "https://astrid.cc"
+                    return Brand.productionBaseURL
                 }
             }
         }
@@ -62,13 +62,22 @@ import Foundation
         enum ServerOption: String, CaseIterable {
             case localhost = "http://localhost:3000"
             case localNetwork = "http://192.168.50.254:3000"
-            case production = "https://astrid.cc"
+            case production = "production"
+
+            /// The URL this option selects. `production` resolves through Brand, so a
+            /// rebranded build points at its own host; the others are developer-local.
+            var url: String {
+                switch self {
+                case .localhost, .localNetwork: return rawValue
+                case .production: return Brand.productionBaseURL
+                }
+            }
 
             var displayName: String {
                 switch self {
                 case .localhost: return "Localhost (Simulator)"
                 case .localNetwork: return "Local Network (Device)"
-                case .production: return "Production (astrid.cc)"
+                case .production: return "Production (\(Brand.host))"
                 }
             }
         }

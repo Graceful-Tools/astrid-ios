@@ -56,7 +56,7 @@ struct SettingsView: View {
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 24, height: 24)
                                 .clipShape(Circle())
-                            Text("Astrid's AI")
+                            Text("\(Brand.appName)'s AI")
                         }
                     }
 
@@ -228,7 +228,7 @@ struct SettingsView: View {
                                 .foregroundColor(.pink)
                                 .frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("debug.test_love_prompt", comment: ""))
+                                Text(Brand.localized("debug.test_love_prompt"))
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 Text(NSLocalizedString("debug.test_love_prompt_desc", comment: ""))

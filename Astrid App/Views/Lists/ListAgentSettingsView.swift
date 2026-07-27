@@ -1,7 +1,7 @@
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "ListAgentSettings")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "ListAgentSettings")
 
 /// Per-list AI agent configuration (override default agent for this list)
 struct ListAgentSettingsView: View {

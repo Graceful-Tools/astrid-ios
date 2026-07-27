@@ -176,7 +176,7 @@ struct OpenClawSettingsView: View {
                     .font(Theme.Typography.body())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                Text(NSLocalizedString("settings.openclaw.no_agents_hint", comment: ""))
+                Text(Brand.localized("settings.openclaw.no_agents_hint"))
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -511,7 +511,7 @@ struct OpenClawSettingsView: View {
                     .font(Theme.Typography.subheadline())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                Text(NSLocalizedString("settings.openclaw.about_description", comment: ""))
+                Text(Brand.localized("settings.openclaw.about_description"))
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
             }

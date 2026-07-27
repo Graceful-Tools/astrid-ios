@@ -1187,7 +1187,7 @@ struct TaskListView: View {
         // message per list type, no completed-task threshold. iOS used to
         // branch to a "caught up" message after 10 completions, but web has
         // no equivalent and this created cross-platform UX inconsistency.
-        return NSLocalizedString("empty_state.my_tasks", comment: "")
+        return Brand.localized("empty_state.my_tasks")
     }
 
     // MARK: - Actions

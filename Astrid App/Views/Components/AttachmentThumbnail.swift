@@ -114,7 +114,7 @@ struct AttachmentThumbnail: View {
 
                 // Hint about markup functionality
                 if isImage {
-                    Text(NSLocalizedString("attachments.quick_look_tip", comment: "Tip about Markup in Quick Look"))
+                    Text(Brand.localized("attachments.quick_look_tip"))
                         .font(.caption)
                 }
             }

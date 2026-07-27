@@ -1,7 +1,7 @@
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "DefaultAgentPicker")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "DefaultAgentPicker")
 
 /// View for selecting the default AI agent for chat
 struct DefaultAgentPickerView: View {
@@ -58,7 +58,7 @@ struct DefaultAgentPickerView: View {
                         .foregroundColor(Theme.error)
                 }
             } else {
-                Section(footer: Text("Choose the model that powers Astrid for My Tasks and your private lists. Mention @Astrid in any chat or comment to get help.")) {
+                Section(footer: Text("Choose the model that powers \(Brand.appName) for My Tasks and your private lists. Mention @\(Brand.appName) in any chat or comment to get help.")) {
                     // Apple Intelligence (on-device, free) — shown first when available
                     if AppleFoundationModelService.shared.isAvailable {
                         Button {
@@ -176,7 +176,7 @@ struct DefaultAgentPickerView: View {
                                 Text("None")
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Text("Astrid won't auto-respond")
+                                Text("\(Brand.appName) won't auto-respond")
                                     .font(Theme.Typography.caption2())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
@@ -192,7 +192,7 @@ struct DefaultAgentPickerView: View {
                 }
             }
         }
-        .navigationTitle("Astrid's AI Model")
+        .navigationTitle("\(Brand.appName)'s AI Model")
         .navigationBarTitleDisplayMode(.inline)
         .swipeToDismiss()
         .task { await loadData() }

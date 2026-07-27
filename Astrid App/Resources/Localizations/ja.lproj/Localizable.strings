@@ -158,7 +158,7 @@
 "messages.something_went_wrong" = "問題が発生しました";
 
 /* Empty States */
-"empty_state.my_tasks" = "Astridへようこそ！最初のタスクを追加して始めましょう。";
+"empty_state.my_tasks" = "%1$@へようこそ！最初のタスクを追加して始めましょう。";
 "empty_state.my_tasks_caught_up" = "すべて完了しました！現在割り当てられているタスクはありません。";
 "empty_state.today" = "今日の予定はありません！自由な時間を楽しむか、新しい予定を追加しましょう。";
 "empty_state.public_list" = "アイデアを世界と共有しましょう！タスクを追加してください。誰でもこのリストを見ることができます。";
@@ -186,7 +186,7 @@
 "debug.reminder_debug_mode" = "リマインダーデバッグモード";
 "debug.reminder_debug_desc" = "詳細なリマインダーデバッグログを有効にする";
 "debug.test_prompts" = "テストプロンプト";
-"debug.test_love_prompt" = "「Astridを気に入っていますか？」プロンプトのテスト";
+"debug.test_love_prompt" = "「%1$@を気に入っていますか？」プロンプトのテスト";
 "debug.test_love_prompt_desc" = "アクティブユーザーに表示されるフィードバックプロンプトを表示します";
 "debug.reset_prompt_tracking" = "プロンプト追跡をリセット";
 "debug.reset_prompt_tracking_desc" = "プロンプトの履歴を消去します";
@@ -280,8 +280,8 @@
 "settings.ai.api_keys_description" = "AIアシスタントを使用するために独自のAPIキーを追加します。キーは暗号化され、サーバーに安全に保存されます。";
 "settings.ai.loading_keys" = "APIキーを読み込み中...";
 "settings.ai.about_keys" = "APIキーについて";
-"settings.ai.about_description" = "APIキーは、AstridのAIアシスタント機能に使用されます。プロバイダーごとに異なる機能と料金が提供されています。";
-"settings.ai.encryption_info" = "キーは保存前にAES-256で暗号化されます。Astridがキーを第三者と共有することはありません。";
+"settings.ai.about_description" = "APIキーは、%1$@のAIアシスタント機能に使用されます。プロバイダーごとに異なる機能と料金が提供されています。";
+"settings.ai.encryption_info" = "キーは保存前にAES-256で暗号化されます。%1$@がキーを第三者と共有することはありません。";
 "settings.ai.not_configured" = "未設定";
 "settings.ai.api_new.badge" = "新規";
 "settings.ai.manage_keys" = "APIキーを管理";
@@ -514,7 +514,7 @@
 "reminders.enable_sync" = "リマインダー同期を有効にする";
 "reminders.sync_description" = "Siri と Watch のために Apple リマインダーとタスクを同期";
 "reminders.access_header" = "リマインダーへのアクセス";
-"reminders.access_footer" = "Astrid のタスクを Apple リマインダーと同期します。Siri でタスクを追加し、Apple Watch で確認できます。";
+"reminders.access_footer" = "%1$@ のタスクを Apple リマインダーと同期します。Siri でタスクを追加し、Apple Watch で確認できます。";
 "reminders.sync_status" = "同期ステータス";
 "reminders.last_sync" = "最後の同期";
 "reminders.linked_lists" = "リンクされたリスト";
@@ -523,9 +523,9 @@
 "reminders.your_lists" = "あなたのリスト";
 "reminders.your_lists_footer" = "リストをタップして Apple リマインダーにリンクします。タスクをエクスポートするか、既存のリマインダーリストからインポートするかを選択できます。";
 "reminders.import_from_reminders" = "リマインダーからインポート";
-"reminders.import_footer" = "既存のリマインダーリストを Astrid にインポートします。";
+"reminders.import_footer" = "既存のリマインダーリストを %1$@ にインポートします。";
 "reminders.unlink" = "リンク解除";
-"reminders.astrid_list" = "Astrid リスト";
+"reminders.astrid_list" = "%1$@ リスト";
 "reminders.sync_direction" = "同期方向";
 "reminders.create_new_list" = "新しいリストを作成";
 "reminders.link_to_reminders_list" = "リマインダーリストにリンク";
@@ -536,9 +536,9 @@
 "reminders.link_list" = "リストをリンク";
 "reminders.link" = "リンク";
 "reminders.reminders_list" = "リマインダーリスト";
-"reminders.create_new_astrid_list" = "新しい Astrid リストを作成";
+"reminders.create_new_astrid_list" = "新しい %1$@ リストを作成";
 "reminders.import_into" = "インポート先";
-"reminders.import_into_footer" = "'%@' という名前で新しい Astrid リストを作成するか、既存のリストにインポートします。";
+"reminders.import_into_footer" = "'%2$@' という名前で新しい %1$@ リストを作成するか、既存のリストにインポートします。";
 "reminders.import_completed_desc" = "既に完了したリマインダーをインポート";
 "reminders.import_reminders" = "リマインダーをインポート";
 "reminders.import" = "インポート";
@@ -664,7 +664,7 @@
 "attachments.saving" = "保存中...";
 "attachments.save_to_task" = "タスクに保存";
 "attachments.quick_look" = "クイックルック";
-"attachments.quick_look_tip" = "ヒント：クイックルックでマークアップを使用して編集し、Astridに保存";
+"attachments.quick_look_tip" = "ヒント：クイックルックでマークアップを使用して編集し、%1$@に保存";
 "attachments.choose_photo" = "写真を選択";
 "attachments.choose_video" = "ビデオを選択";
 "attachments.choose_document" = "書類を選択";
@@ -707,7 +707,7 @@
 
 /* Members */
 "members.searching" = "連絡先を検索中...";
-"members.astrid_users" = "Astridを使用している連絡先の人々";
+"members.astrid_users" = "%1$@を使用している連絡先の人々";
 "members.loading_suggestions" = "候補を読み込み中...";
 "members.add_collaborators" = "コラボレーターを追加";
 "members.upload_contacts" = "より良いコラボレーションのために連絡先をアップロード";
@@ -749,7 +749,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "連絡先設定";
 "debug.debug_settings" = "デバッグ設定";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "現在のサーバー";
 "debug.active_config" = "アクティブな設定";
 "debug.restart_required" = "変更を反映するにはアプリの再起動が必要です";
@@ -770,7 +770,7 @@
 "settings.openclaw.description" = "OpenClawプロトコルで接続するAIエージェントを登録します。各エージェントは固有のIDとOAuth認証情報を取得します。";
 "settings.openclaw.loading" = "エージェントを読み込み中...";
 "settings.openclaw.no_agents" = "接続されたエージェントはありません";
-"settings.openclaw.no_agents_hint" = "エージェントを登録して開始しましょう。エージェントはOAuth認証情報を取得し、RESTとSSEでAstridと通信します。";
+"settings.openclaw.no_agents_hint" = "エージェントを登録して開始しましょう。エージェントはOAuth認証情報を取得し、RESTとSSEで%1$@と通信します。";
 "settings.openclaw.status.active" = "アクティブ";
 "settings.openclaw.status.idle" = "アイドル";
 "settings.openclaw.registered" = "%@ に登録";
@@ -798,7 +798,7 @@
 "settings.openclaw.delete_confirm" = "%@ を完全に削除し、OAuth認証情報を無効にします。この操作は元に戻せません。";
 "settings.openclaw.agent_deleted" = "エージェントを削除しました";
 "settings.openclaw.about" = "OpenClawについて";
-"settings.openclaw.about_description" = "OpenClawはAIエージェントをAstridに接続するためのオープンプロトコルです。エージェントはOAuthで認証し、REST APIでタスクを受信し、SSEでリアルタイム更新を取得します。あらゆるAIプロバイダーに対応。";
+"settings.openclaw.about_description" = "OpenClawはAIエージェントを%1$@に接続するためのオープンプロトコルです。エージェントはOAuthで認証し、REST APIでタスクを受信し、SSEでリアルタイム更新を取得します。あらゆるAIプロバイダーに対応。";
 "settings.openclaw.tip_title" = "ヒント：リストの説明 = エージェントへの指示";
 "settings.openclaw.tip_description" = "各リストの説明は、そのリストのタスクを担当するAIエージェントへの指示として使用されます。マークダウンでエージェントにタスクの処理方法を伝えましょう。";
 "settings.openclaw.agent_created" = "エージェントを作成しました";
@@ -836,7 +836,7 @@
 "status.retry_now" = "再試行";
 "status.sync_in_progress" = "変更は自動的に同期されます";
 "sync" = "同期";
-"welcome.title" = "Astridへようこそ！";
+"welcome.title" = "%1$@へようこそ！";
 "welcome.subtitle" = "あなたのスマートタスクマネージャー";
 "welcome.sign_in" = "サインイン";
 "welcome.use_locally" = "アカウントなしで使用";
@@ -905,9 +905,9 @@
 "sync.disconnect" = "接続解除";
 "sync.external_footer" = "リンク先サービスの Issue やタスクはこのリストと相互にミラーリングされ、接続済みアカウント経由で同期されます。";
 "sync.external_sync" = "外部同期";
-"sync.github_footer" = "リンクされたリポジトリの Issue はタスクと相互にミラーリングされます。Astrid が信頼できる情報源であり、GitHub トークンがサーバーの外に出ることはありません。";
+"sync.github_footer" = "リンクされたリポジトリの Issue はタスクと相互にミラーリングされます。%1$@ が信頼できる情報源であり、GitHub トークンがサーバーの外に出ることはありません。";
 "sync.github_not_configured" = "GitHub 同期はまだサーバーで設定されていません。";
-"sync.google_footer" = "リンクされた Google リストのタスクは Astrid と相互にミラーリングされます（サブタスクを含む）。Google の期限は日付のみで、時刻は Astrid に保持されます。Google トークンがサーバーの外に出ることはありません。";
+"sync.google_footer" = "リンクされた Google リストのタスクは %1$@ と相互にミラーリングされます（サブタスクを含む）。Google の期限は日付のみで、時刻は %1$@ に保持されます。Google トークンがサーバーの外に出ることはありません。";
 "sync.google_list" = "Google リスト";
 "sync.google_not_configured" = "Google Tasks 同期はまだサーバーで設定されていません。";
 "sync.last_synced" = "最終同期: %@";
@@ -918,11 +918,11 @@
 "sync.linking" = "リンク中…";
 "sync.list" = "リスト";
 "sync.mode" = "モード";
-"sync.mode_astrid_to_google" = "Astrid のリストを Google にバックアップ";
-"sync.mode_footer_astrid_to_google" = "すべての Astrid リストがバックアップとして Google Tasks にミラーリングされます。新しい Astrid リストは自動的に取り込まれます。";
-"sync.mode_footer_google_to_astrid" = "すべての Google Tasks リストが Astrid にミラーリングされます。新しい Google リストは自動的に取り込まれ、接尾辞付きで命名されます。同名の Astrid リストは再利用され、重複しません。";
+"sync.mode_astrid_to_google" = "%1$@ のリストを Google にバックアップ";
+"sync.mode_footer_astrid_to_google" = "すべての %1$@ リストがバックアップとして Google Tasks にミラーリングされます。新しい %1$@ リストは自動的に取り込まれます。";
+"sync.mode_footer_google_to_astrid" = "すべての Google Tasks リストが %1$@ にミラーリングされます。新しい Google リストは自動的に取り込まれ、接尾辞付きで命名されます。同名の %1$@ リストは再利用され、重複しません。";
 "sync.mode_footer_manual" = "下でリンクしたリストのみが同期されます。";
-"sync.mode_google_to_astrid" = "Google のリストを Astrid に取り込む";
+"sync.mode_google_to_astrid" = "Google のリストを %1$@ に取り込む";
 "sync.mode_manual" = "自分でリンクしたリストのみ";
 "sync.no_lists_linked" = "まだリンクされたリストはありません。";
 "sync.new_list" = "新規リスト";
@@ -934,7 +934,7 @@
 "sync.unlink" = "リンク解除";
 "task_detail.completed_via" = "%@ で完了";
 "sync.mode_bidirectional" = "すべてを双方向で同期";
-"sync.mode_footer_bidirectional" = "Google Tasks のリストが Astrid に、Astrid のリストが Google Tasks に表示されます。どちら側の新しいリストも自動的に追加され、同名のリストは重複せずペアになります。";
+"sync.mode_footer_bidirectional" = "Google Tasks のリストが %1$@ に、%1$@ のリストが Google Tasks に表示されます。どちら側の新しいリストも自動的に追加され、同名のリストは重複せずペアになります。";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "マイタスク";
@@ -1042,7 +1042,7 @@
 "mac.no_open_tasks" = "未完了のタスクはありません";
 "mac.offline_banner" = "オフライン — 再接続時に変更が同期されます";
 "mac.on_date" = "指定日";
-"mac.open_astrid" = "Astridを開く";
+"mac.open_astrid" = "%1$@を開く";
 "mac.open_full_detail" = "詳細を開く…";
 "mac.open_new_window" = "新しいウインドウで開く";
 "mac.owner_repo" = "オーナー/リポジトリ";
@@ -1066,7 +1066,7 @@
 "mac.menu_commands" = "メニューコマンド";
 "mac.edit_comment" = "コメントを編集";
 "mac.my_tasks_only" = "マイタスクのみ";
-"mac.onboard.keyboard.detail" = "Web 版 Astrid と同じショートカット。? をいつでも押すと一覧を表示します。";
+"mac.onboard.keyboard.detail" = "Web 版 %1$@ と同じショートカット。? をいつでも押すと一覧を表示します。";
 "mac.onboard.keyboard.title" = "キーボード中心";
 "mac.onboard.offline.detail" = "操作はすべてローカルに保存され、オンラインに戻ると同期されます。";
 "mac.onboard.offline.title" = "オフラインでも使える";
@@ -1121,7 +1121,7 @@
 "mac.sending" = "送信中…";
 "mac.set_priority" = "優先度を設定";
 "mac.sharing" = "共有中…";
-"mac.shortcuts_note" = "Astrid ウェブのショートカットと同じです。入力中は無視されます。";
+"mac.shortcuts_note" = "%1$@ ウェブのショートカットと同じです。入力中は無視されます。";
 "mac.sign_in_apple" = "Appleでサインイン";
 "mac.sign_in_passkey" = "パスキーでサインイン";
 "mac.smart_list_name" = "スマートリスト名";
@@ -1135,7 +1135,7 @@
 "mac.type_delete_confirm" = "確認するには DELETE と入力";
 "mac.until" = "終了日";
 "mac.view" = "表示";
-"mac.welcome" = "Astrid for Mac へようこそ";
+"mac.welcome" = "%1$@ for Mac へようこそ";
 "mac.color_label" = "色 %@";
 "mac.comments_count" = "コメント (%d)";
 "mac.filter_title" = "「%@」を絞り込む";
@@ -1147,7 +1147,7 @@
 "mac.list_default" = "リストの既定";
 "mac.complete_count" = "%d 件を完了";
 "mac.delete_list_named" = "「%@」を削除";
-"mac.empty.chat" = "会話を始めましょう — あいさつするか、@Astrid にメンションを。";
+"mac.empty.chat" = "会話を始めましょう — あいさつするか、@%1$@ にメンションを。";
 "mac.empty.filtered_out" = "このリストのフィルタに一致するものはありません。";
 "mac.empty.filtered_out_detail" = "フィルタ（じょうごボタン）を調整すると、さらに表示されます。";
 "mac.empty.no_list_selected" = "リストを選ぶとタスクが表示されます。";

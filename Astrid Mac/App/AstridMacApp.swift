@@ -41,7 +41,7 @@ struct AstridMacApp: App {
         .commands { AstridCommands() }              // full menu bar (M1)
 
         // Menu-bar extra: glanceable tasks + quick add (v1.1).
-        MenuBarExtra("Astrid", systemImage: "checklist") {
+        MenuBarExtra(Brand.appName, systemImage: "checklist") {
             if !underTest { MacMenuBarView() }
         }
         .menuBarExtraStyle(.window)

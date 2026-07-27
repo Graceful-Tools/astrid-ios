@@ -45,7 +45,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "openai": return "OpenAI"
         case "gemini": return "Gemini"
         case "openclaw": return "OpenClaw"
-        case "astrid": return "Astrid"
+        case Self.defaultAssistantService: return Brand.appName
         case "apple-fm": return "Apple Intelligence"
         default: return service.capitalized
         }

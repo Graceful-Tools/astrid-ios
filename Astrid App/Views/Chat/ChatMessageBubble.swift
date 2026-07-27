@@ -1,7 +1,7 @@
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "ChatMessageBubble")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatMessageBubble")
 
 /// Individual chat message bubble with agent indicator support
 struct ChatMessageBubble: View {
