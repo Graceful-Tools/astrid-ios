@@ -883,6 +883,19 @@ struct MacRootView: View {
                     Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
                 Section(NSLocalizedString("navigation.lists", comment: "")) {
+                    // Add List / Public Lists live HERE, above the lists, the way iOS
+                    // (ListSidebarView.addListButton) and web do — not as unlabelled toolbar
+                    // glyphs (0fc546a8).
+                    ForEach(MacSidebarActions.all, id: \.id) { action in
+                        Button {
+                            if action.id == "sidebar.newList" { showNewList = true } else { showPublicLists = true }
+                        } label: {
+                            Label(action.title, systemImage: action.symbol)
+                                .foregroundStyle(Theme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier(action.id)
+                    }
                     ForEach(regularLists) { listRow($0) }
                     if regularLists.isEmpty && !listSearch.isEmpty {
                         Text(String(format: NSLocalizedString("mac.no_lists_match", comment: ""), listSearch)).foregroundStyle(Theme.textMuted).font(.callout)
@@ -900,17 +913,7 @@ struct MacRootView: View {
                 MacSidebarAccountBar()
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .toolbar {
-                ToolbarItem {
-                    Button { showNewList = true } label: { Image(systemName: "plus") }
-                        .help(NSLocalizedString("lists.new_list", comment: ""))
-                        .accessibilityIdentifier("sidebar.newList")
-                }
-                ToolbarItem {
-                    Button { showPublicLists = true } label: { Image(systemName: "globe") }
-                        .help(NSLocalizedString("mac.browse_public_lists", comment: ""))
-                }
-            }
+
         } detail: {
             Group {
                 if let listId = selectedListId {
