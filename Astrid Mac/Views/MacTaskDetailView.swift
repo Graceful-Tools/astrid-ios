@@ -50,6 +50,7 @@ struct MacTaskDetailView: View {
     /// System comments ("marked complete", "moved to …") are hidden until asked for — iOS parity
     /// (CommentSectionViewEnhanced). Task 9c24d16c.
     @State private var showSystemComments = false
+    @State private var profileTarget: MacProfileTarget?      // author name tapped → profile sheet (0994eabb)
     @ObservedObject private var network = NetworkMonitor.shared
     @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
     @State private var commentHit: MacAutocompleteHit?
@@ -405,6 +406,7 @@ struct MacTaskDetailView: View {
             }
         }
         .task(id: task.id) { load() }
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
         .sheet(item: $editingComment) { _ in editSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: NSLocalizedString("mac.rename_subtask", comment: ""), text: $editingSubtaskText, onSave: renameSubtask) }
         .sheet(isPresented: $showCustomRepeat) {
@@ -434,7 +436,13 @@ struct MacTaskDetailView: View {
                 if !mine { Spacer(minLength: 30) }
             }
             HStack(spacing: 4) {
-                Text(who.name)
+                // Names open the profile, as on iOS. System comments have no id and stay plain.
+                if let uid = MacProfileLink.userId(authorId: c.authorId) {
+                    Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
+                        .buttonStyle(.plain).macPointingHand()
+                } else {
+                    Text(who.name)
+                }
                 if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
             }
             .font(.caption2).foregroundStyle(Theme.textMuted)

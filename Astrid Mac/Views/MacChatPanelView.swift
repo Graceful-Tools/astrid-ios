@@ -15,6 +15,7 @@ struct MacChatPanelView: View {
     @StateObject private var auth = AuthManager.shared
     @State private var channelId: String?
     @State private var text = ""
+    @State private var profileTarget: MacProfileTarget?   // author name → profile (0994eabb)
     @State private var loadingMore = false
     @State private var members: [ListMember] = []
     @State private var suggestions: [MacAutocomplete.Suggestion] = []
@@ -122,6 +123,7 @@ struct MacChatPanelView: View {
         }
         .task(id: source) { await load() }
         .onDisappear { unsubscribeTyping.forEach { $0() }; unsubscribeTyping = [] }
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
 
     }
 
@@ -190,9 +192,15 @@ struct MacChatPanelView: View {
             VStack(alignment: MacChatBubbleStyle.alignment(isMine: mine), spacing: 2) {
                 HStack(spacing: 4) {
                     if !mine {
-                        Text(MacAuthorDisplay.of(authorId: m.authorId, author: m.author,
-                                                 currentUser: AuthManager.shared.currentUser).name)
-                            .font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        let who = MacAuthorDisplay.of(authorId: m.authorId, author: m.author,
+                                                      currentUser: AuthManager.shared.currentUser)
+                        if let uid = MacProfileLink.userId(authorId: m.authorId) {
+                            Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
+                                .buttonStyle(.plain)
+                                .font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        } else {
+                            Text(who.name).font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        }
                         if agent {
                             Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
                         }

@@ -26,6 +26,7 @@ struct MacBoardCardEditor: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var notes = ""
+    @State private var profileTarget: MacProfileTarget?   // author name → profile (0994eabb)
     @State private var priority: Task.Priority = .none
     @State private var hasDue = false
     @State private var due = Date()
@@ -76,6 +77,7 @@ struct MacBoardCardEditor: View {
         }
         .task(id: task.id) { await load() }
         .onDisappear { saveNotes() }
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
     }
 
     // MARK: rows
@@ -128,8 +130,13 @@ struct MacBoardCardEditor: View {
         Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count)).font(.caption).bold().foregroundStyle(Theme.textSecondary)
         ForEach(comments) { c in
             VStack(alignment: .leading, spacing: 1) {
-                Text(MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser).name)
-                    .font(.caption2).bold().foregroundStyle(Theme.textSecondary)
+                let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
+                if let uid = MacProfileLink.userId(authorId: c.authorId) {
+                    Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
+                        .buttonStyle(.plain).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
+                } else {
+                    Text(who.name).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
+                }
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
