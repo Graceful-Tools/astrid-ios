@@ -25,7 +25,32 @@ struct MacDetailReveal: ViewModifier {
                          // Collapsed, the panel is about as tall as the arrow; it grows to full
                          // height as it unfolds.
                          y: MacDetailReveal.verticalScale(progress: progress),
-                         anchor: UnitPoint(x: 0, y: anchorY))
+                         anchor: UnitPoint(x: MacDetailReveal.collapseAnchorX, y: anchorY))
+            // Dissolve on the way out instead of shrinking at full strength (65b81ff8).
+            .opacity(MacDetailReveal.fade(progress: progress))
+    }
+
+    /// Opacity for a given unfold progress, BELOW linear on purpose: the panel has to be mostly
+    /// gone while it is still visibly collapsing, or it reads as a solid panel being squashed
+    /// rather than dissolving. A first attempt at 1.8× linear left it 54% opaque at a third
+    /// closed, which the test rejected — quadratic puts it at 9% there.
+    static func fade(progress: CGFloat) -> CGFloat {
+        let p = min(max(progress, 0), 1)
+        return p * p
+    }
+
+    /// The collapse converges on the panel's LEADING edge — the arrow, which sits at the task
+    /// row's right border. Any other anchor sweeps the panel leftward across the rows as it
+    /// shrinks, which is the motion this task is about: a centre anchor would drag it half a panel
+    /// width to the left of where it started.
+    static let collapseAnchorX: CGFloat = 0
+
+    /// The leftmost point the panel occupies at a given progress, measured from its resting
+    /// leading edge. Zero for every progress while the anchor is the leading edge; it is the
+    /// property that must hold, so it is asserted rather than assumed.
+    static func leftmostOffset(progress: CGFloat, panelWidth: CGFloat) -> CGFloat {
+        let p = min(max(progress, 0), 1)
+        return -collapseAnchorX * panelWidth * (1 - p)
     }
 
     /// Vertical growth lags slightly behind the horizontal unfold, which is what makes it read as
