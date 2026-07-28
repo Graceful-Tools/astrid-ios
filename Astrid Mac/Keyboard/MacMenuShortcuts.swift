@@ -66,9 +66,26 @@ enum MacMenuShortcuts {
 /// My Tasks and Search have neither a board nor a channel — so a request for one there falls back
 /// to the list view rather than switching to an empty pane (e0412a64).
 enum MacViewMode {
-    static func resolve(requested: MacRootView.ContentMode, isRealList: Bool) -> MacRootView.ContentMode {
-        guard !isRealList else { return requested }
-        return .list
+    /// The board is offered only for a real list that HAS a project board — iOS skips the board
+    /// step in its rotator on exactly this condition (8b71bc24).
+    static func offersBoard(projectId: String?, isRealList: Bool) -> Bool {
+        isRealList && MacBoardControl.isEnabled(projectId: projectId)
+    }
+
+    /// Enabling a board belongs to a real list that does not have one yet; it lives in the
+    /// sidebar's context menu now that the board pane (its old home) is hidden.
+    static func offersEnableBoard(projectId: String?) -> Bool {
+        !MacBoardControl.isEnabled(projectId: projectId)
+    }
+
+    static func resolve(requested: MacRootView.ContentMode,
+                        isRealList: Bool,
+                        projectId: String? = nil) -> MacRootView.ContentMode {
+        guard isRealList else { return .list }
+        // Asking for a board the list does not have falls back, so the pane can never show a board
+        // the picker is hiding.
+        if requested == .board, !offersBoard(projectId: projectId, isRealList: isRealList) { return .list }
+        return requested
     }
 }
 

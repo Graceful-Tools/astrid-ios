@@ -77,8 +77,12 @@ final class MacMenuShortcutsTests: XCTestCase {
 /// ⌘1/⌘2/⌘3 landing behaviour (Task e0412a64).
 final class MacViewModeTests: XCTestCase {
 
+    /// Updated by 8b71bc24: a real list honours the request, but the BOARD now also requires the
+    /// list to actually have one — asking for a board that does not exist used to land on an empty
+    /// pane. Chat and list are unaffected.
     func testARealListHonoursTheRequestedMode() {
-        XCTAssertEqual(MacViewMode.resolve(requested: .board, isRealList: true), .board)
+        XCTAssertEqual(MacViewMode.resolve(requested: .board, isRealList: true, projectId: "p"), .board)
+        XCTAssertEqual(MacViewMode.resolve(requested: .board, isRealList: true, projectId: nil), .list)
         XCTAssertEqual(MacViewMode.resolve(requested: .chat, isRealList: true), .chat)
         XCTAssertEqual(MacViewMode.resolve(requested: .list, isRealList: true), .list)
     }

@@ -121,6 +121,15 @@ struct MacRootView: View {
         return listService.lists.first { $0.id == id && $0.isVirtual != true }
     }
 
+    /// Give a list a project board. Lived only inside the board pane, which is now hidden for a
+    /// list that has no board — so it moves to the sidebar's context menu (8b71bc24).
+    private func enableBoard(_ list: TaskList) {
+        MacActions.perform("Enable board") {
+            _ = try await ProjectService.shared.createBoardForList(list)
+            _ = try? await ListService.shared.fetchLists()
+        }
+    }
+
     private func toggleFavorite(_ list: TaskList) {
         MacActions.perform("Update favourite") {
             _ = try await listService.toggleFavorite(listId: list.id, isFavorite: !(list.isFavorite ?? false))
@@ -160,6 +169,9 @@ struct MacRootView: View {
             Button((list.isFavorite ?? false) ? NSLocalizedString("mac.remove_favorite", comment: "")
                                   : NSLocalizedString("lists.favorite", comment: "")) { toggleFavorite(list) }
             Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
+            if MacViewMode.offersEnableBoard(projectId: list.projectId) {
+                Button(NSLocalizedString("mac.enable_board", comment: "")) { enableBoard(list) }
+            }
             Divider()
             Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
         }
@@ -966,7 +978,10 @@ struct MacRootView: View {
                 ToolbarItem(placement: .principal) {
                     Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
                         Image(systemName: "list.bullet").tag(ContentMode.list)
-                        Image(systemName: "square.grid.2x2").tag(ContentMode.board)
+                        if MacViewMode.offersBoard(projectId: currentRealList?.projectId,
+                                                   isRealList: currentRealList != nil) {
+                            Image(systemName: "square.grid.2x2").tag(ContentMode.board)
+                        }
                         if !chatColumnVisible {   // chat is a persistent column in 3-column mode
                             Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
                         }
@@ -1040,6 +1055,12 @@ struct MacRootView: View {
         }
         .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
         // Apply selection requested by the command palette, then clear the request (Task 5003c622).
+        // A list without a board must not leave the pane showing one the picker is hiding.
+        .onChange(of: selectedListId) { _, _ in
+            contentMode = MacViewMode.resolve(requested: contentMode,
+                                              isRealList: currentRealList != nil,
+                                              projectId: currentRealList?.projectId)
+        }
         .onChange(of: appModel.requestedListId) { _, id in
             if let id { selectedListId = id; appModel.requestedListId = nil }
         }
@@ -1067,7 +1088,9 @@ struct MacRootView: View {
                 // Board/chat only mean something for a real list; falling back to the list view
                 // beats a menu item that silently does nothing.
                 if let mode = ContentMode(rawValue: raw) {
-                    contentMode = MacViewMode.resolve(requested: mode, isRealList: currentRealList != nil)
+                    contentMode = MacViewMode.resolve(requested: mode,
+                                                      isRealList: currentRealList != nil,
+                                                      projectId: currentRealList?.projectId)
                 }
             case .showFilters:
                 if currentRealList != nil { showFilterSheet = true }
