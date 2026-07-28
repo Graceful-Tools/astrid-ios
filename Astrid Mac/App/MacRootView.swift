@@ -494,7 +494,7 @@ struct MacRootView: View {
         .background(Theme.bgPrimary)                 // Ocean cyan / Dark / Light per theme
         .animation(MacMotion.medium, value: MacRowKey.key(rows))   // row insert/delete/reorder eases (4c7b9f08)
         // An intentional scroll dismisses the detail pop-out (a1cb6083).
-        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { oldY, newY in
+        .onVerticalScroll { oldY, newY in
             // A UI-test-driven selection must survive the content shift that inserting rows causes,
             // or the layout capture never sees the pop-out. Cached — reading
             // ProcessInfo.arguments allocates, and this runs on every scroll event.

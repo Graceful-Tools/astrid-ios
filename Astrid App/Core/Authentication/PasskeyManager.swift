@@ -624,6 +624,17 @@ extension PasskeyManager: ASAuthorizationControllerDelegate {
         }
     }
 
+    /// `.matchedExcludedCredential` — the passkey is already registered on this device — exists
+    /// only on iOS 18 / macOS 15. Matching it unguarded pins the Mac deployment floor to macOS 15,
+    /// which would drop Sonoma for the sake of one error message, so it is probed behind an
+    /// availability check and reported as a generic failure on older systems.
+    private static func isMatchedExcludedCredential(_ code: ASAuthorizationError.Code) -> Bool {
+        if #available(iOS 18, macOS 15, *) {
+            return code == .matchedExcludedCredential
+        }
+        return false
+    }
+
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
         self.error = error
 
@@ -639,7 +650,7 @@ extension PasskeyManager: ASAuthorizationControllerDelegate {
                 passkeyError = .invalidResponse
             } else if code == .notHandled || code == .notInteractive {
                 passkeyError = .notSupported
-            } else if code == .matchedExcludedCredential {
+            } else if Self.isMatchedExcludedCredential(code) {
                 passkeyError = .authenticationFailed("This passkey is already registered")
             } else {
                 // Handles .unknown and any future cases
