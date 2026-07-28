@@ -1112,6 +1112,11 @@
 "mac.failed.generic" = "Something didn’t go through";
 "mac.failed.save" = "Couldn’t save your changes";
 "mac.unknown_author" = "Unknown";
+"mac.attachments" = "Attachments";
+"mac.timer_logged" = "Time logged: %@";
+"mac.timer_start" = "Start";
+"mac.timer_start_menu" = "Start Timer";
+"mac.timer_stop" = "Stop";
 "mac.undo.complete" = "Complete Task";
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";

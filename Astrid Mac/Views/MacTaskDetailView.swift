@@ -69,6 +69,11 @@ struct MacTaskDetailView: View {
                 }
                 // Share — iOS parity (ShareTaskView): make the shortcode link, then offer the
                 // native share sheet (Mail/Messages/AirDrop…) as well as copy-to-clipboard.
+                if MacTimerSection.offersStartInMenu(running: timerRunning) {
+                    Button(NSLocalizedString("mac.timer_start_menu", comment: ""), systemImage: "play.fill") {
+                        toggleTimer()
+                    }
+                }
                 Button(NSLocalizedString("actions.share", comment: "")) { shareTask() }
                 if let shareURL {
                     Button(NSLocalizedString("mac.copy_share_link", comment: "")) {
@@ -248,17 +253,28 @@ struct MacTaskDetailView: View {
                 }
             }
 
-            Section(NSLocalizedString("tasks.timer", comment: "")) {
-                HStack {
-                    TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        Text(hms(loggedSeconds)).font(.system(.title3, design: .monospaced))
-                            .foregroundStyle(timerRunning ? Theme.accent : Theme.textPrimary)
-                    }
-                    Spacer()
-                    Button(timerRunning ? "Stop" : "Start", systemImage: timerRunning ? "stop.fill" : "play.fill") {
-                        toggleTimer()
+            // Only while a timer is RUNNING (b2785c35). Starting one lives in the ⋮ menu, and a
+            // task with recorded time keeps the caption below, so nothing is hidden — just the
+            // permanent 00:00:00 that sat on every task.
+            if MacTimerSection.showsSection(running: timerRunning) {
+                Section(NSLocalizedString("tasks.timer", comment: "")) {
+                    HStack {
+                        TimelineView(.periodic(from: .now, by: 1)) { _ in
+                            Text(hms(loggedSeconds)).font(.system(.title3, design: .monospaced))
+                                .foregroundStyle(Theme.accent)
+                        }
+                        Spacer()
+                        Button(NSLocalizedString("mac.timer_stop", comment: ""), systemImage: "stop.fill") {
+                            toggleTimer()
+                        }
                     }
                 }
+            } else if MacTimerSection.showsLoggedCaption(running: timerRunning, loggedSeconds: loggedSeconds) {
+                // iOS parity: one caption line instead of a section (task_edit.last_timer).
+                Text(String(format: NSLocalizedString("mac.timer_logged", comment: ""), hms(loggedSeconds)))
+                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowBackground(Color.clear)
             }
 
             Section(NSLocalizedString("Attachments", comment: "")) {

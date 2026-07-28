@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "Etwas hat nicht geklappt";
 "mac.failed.save" = "Änderungen konnten nicht gesichert werden";
 "mac.unknown_author" = "Unbekannt";
+"mac.attachments" = "Anhänge";
+"mac.timer_logged" = "Erfasste Zeit: %@";
+"mac.timer_start" = "Starten";
+"mac.timer_start_menu" = "Timer starten";
+"mac.timer_stop" = "Stoppen";
 "mac.undo.complete" = "Aufgabe abschließen";
 "mac.undo.delete" = "Aufgabe löschen";
 "mac.undo.move" = "Aufgabe verschieben";

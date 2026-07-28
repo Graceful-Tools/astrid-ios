@@ -1120,6 +1120,11 @@
 "mac.failed.generic" = "Algo no se completó";
 "mac.failed.save" = "No se pudieron guardar los cambios";
 "mac.unknown_author" = "Desconocido";
+"mac.attachments" = "Adjuntos";
+"mac.timer_logged" = "Tiempo registrado: %@";
+"mac.timer_start" = "Iniciar";
+"mac.timer_start_menu" = "Iniciar temporizador";
+"mac.timer_stop" = "Detener";
 "mac.undo.complete" = "completar tarea";
 "mac.undo.delete" = "eliminar tarea";
 "mac.undo.move" = "mover tarea";

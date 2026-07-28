@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "Algo não foi concluído";
 "mac.failed.save" = "Não foi possível salvar suas alterações";
 "mac.unknown_author" = "Desconhecido";
+"mac.attachments" = "Anexos";
+"mac.timer_logged" = "Tempo registrado: %@";
+"mac.timer_start" = "Iniciar";
+"mac.timer_start_menu" = "Iniciar cronômetro";
+"mac.timer_stop" = "Parar";
 "mac.undo.complete" = "concluir tarefa";
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";

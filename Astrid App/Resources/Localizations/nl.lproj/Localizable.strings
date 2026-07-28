@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "Er ging iets niet door";
 "mac.failed.save" = "Kan je wijzigingen niet opslaan";
 "mac.unknown_author" = "Onbekend";
+"mac.attachments" = "Bijlagen";
+"mac.timer_logged" = "Geregistreerde tijd: %@";
+"mac.timer_start" = "Start";
+"mac.timer_start_menu" = "Timer starten";
+"mac.timer_stop" = "Stop";
 "mac.undo.complete" = "taak voltooien";
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";

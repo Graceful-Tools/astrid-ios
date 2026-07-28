@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "Что-то не прошло";
 "mac.failed.save" = "Не удалось сохранить изменения";
 "mac.unknown_author" = "Неизвестно";
+"mac.attachments" = "Вложения";
+"mac.timer_logged" = "Учтённое время: %@";
+"mac.timer_start" = "Запустить";
+"mac.timer_start_menu" = "Запустить таймер";
+"mac.timer_stop" = "Остановить";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";

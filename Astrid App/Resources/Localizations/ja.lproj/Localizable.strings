@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "処理が完了しませんでした";
 "mac.failed.save" = "変更を保存できませんでした";
 "mac.unknown_author" = "不明";
+"mac.attachments" = "添付ファイル";
+"mac.timer_logged" = "記録時間: %@";
+"mac.timer_start" = "開始";
+"mac.timer_start_menu" = "タイマーを開始";
+"mac.timer_stop" = "停止";
 "mac.undo.complete" = "タスクを完了";
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";

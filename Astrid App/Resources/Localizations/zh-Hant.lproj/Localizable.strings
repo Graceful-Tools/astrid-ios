@@ -1106,6 +1106,11 @@
 "mac.failed.generic" = "操作未能完成";
 "mac.failed.save" = "無法儲存變更";
 "mac.unknown_author" = "未知";
+"mac.attachments" = "附件";
+"mac.timer_logged" = "已記錄時間：%@";
+"mac.timer_start" = "開始";
+"mac.timer_start_menu" = "啟動計時器";
+"mac.timer_stop" = "停止";
 "mac.undo.complete" = "完成任務";
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";

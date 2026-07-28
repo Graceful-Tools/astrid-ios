@@ -1104,6 +1104,11 @@
 "mac.failed.generic" = "Qualcosa non è andato a buon fine";
 "mac.failed.save" = "Impossibile salvare le modifiche";
 "mac.unknown_author" = "Sconosciuto";
+"mac.attachments" = "Allegati";
+"mac.timer_logged" = "Tempo registrato: %@";
+"mac.timer_start" = "Avvia";
+"mac.timer_start_menu" = "Avvia timer";
+"mac.timer_stop" = "Ferma";
 "mac.undo.complete" = "completa attività";
 "mac.undo.delete" = "elimina attività";
 "mac.undo.move" = "sposta attività";
