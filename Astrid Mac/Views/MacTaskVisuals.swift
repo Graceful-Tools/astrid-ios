@@ -60,8 +60,27 @@ struct MacTaskCheckbox: View {
     let completed: Bool
     let priority: Task.Priority
     var size: CGFloat = 20
+    /// Repeating tasks get the arrow-cornered box iOS and web show (ca13c94b).
+    var repeating: Bool = false
 
     var body: some View {
+        // The shared artwork first, so all three platforms show the same checkbox; the drawn shape
+        // below stays as a fallback for a missing asset rather than rendering nothing.
+        if let image = NSImage(named: MacCheckboxAsset.name(priority: priority.rawValue,
+                                                            completed: completed,
+                                                            repeating: repeating)) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .animation(MacMotion.spring, value: completed)
+                .accessibilityLabel(completed ? "Completed" : "Not completed")
+        } else {
+            drawnFallback
+        }
+    }
+
+    private var drawnFallback: some View {
         RoundedRectangle(cornerRadius: size * MacTaskVisuals.checkboxCornerRatio)
             .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: MacTaskVisuals.checkboxStroke(size: size))
             .frame(width: size, height: size)

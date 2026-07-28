@@ -399,7 +399,10 @@ struct MacRootView: View {
                                       size: MacTaskVisuals.rowCheckboxSize)
                 } else {
                     MacTaskCheckbox(completed: false, priority: draftPriority,
-                                    size: MacTaskVisuals.rowCheckboxSize)
+                                    size: MacTaskVisuals.rowCheckboxSize,
+                                    // The add-row previews what the task will be, repeat
+                                    // included — the list's default repeat (ca13c94b).
+                                    repeating: draftRepeats)
                 }
             }
             .contentShape(Rectangle())
@@ -804,6 +807,12 @@ struct MacRootView: View {
 
     /// The priority the quick-add checkbox displays: the user's override if they picked one,
     /// otherwise the destination list's default.
+    /// Whether a task added right now would repeat — i.e. the list carries a default repeat.
+    /// The quick-add checkbox previews it, the same way it previews the default priority.
+    private var draftRepeats: Bool {
+        NewTaskDefaults.repeating(currentRealList?.defaultRepeating) != nil
+    }
+
     private var draftPriority: Task.Priority {
         let raw = draftPriorityOverride
             ?? NewTaskDefaults.priority(currentRealList?.defaultPriority)

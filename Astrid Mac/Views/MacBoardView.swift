@@ -141,7 +141,8 @@ struct MacBoardView: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 8) {
                 Button { toggleComplete(t) } label: {
-                    MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18)
+                    MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18,
+                                    repeating: MacCheckboxAsset.isRepeating(t.repeating))
                 }.buttonStyle(.plain)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)

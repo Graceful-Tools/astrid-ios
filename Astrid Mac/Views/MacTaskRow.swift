@@ -79,7 +79,9 @@ struct MacTaskRow: View {
                 // The check's own transition rarely plays: completing RE-SORTS the list, so the row
                 // is replaced rather than updated in place and the animation never runs. A local
                 // scale "pop" fires on the tap itself, so the click always gets visible feedback.
-                MacTaskCheckbox(completed: task.completed, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
+                MacTaskCheckbox(completed: task.completed, priority: task.priority,
+                                size: MacTaskVisuals.rowCheckboxSize,
+                                repeating: MacCheckboxAsset.isRepeating(task.repeating))
                     .scaleEffect(checkPop ? 1.28 : 1)
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())

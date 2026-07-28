@@ -94,7 +94,9 @@ struct MacTaskDetailView: View {
                     // row's own click handling swallows it — the same defect that left the task-row
                     // checkbox dead in 652edb22. A tap gesture DOES receive the click, and keeps
                     // full button semantics for VoiceOver and UI tests.
-                    MacTaskCheckbox(completed: task.completed, priority: priority, size: MacTaskVisuals.detailCheckboxSize)
+                    MacTaskCheckbox(completed: task.completed, priority: priority,
+                                    size: MacTaskVisuals.detailCheckboxSize,
+                                    repeating: MacCheckboxAsset.isRepeating(repeating))
                         .contentShape(Rectangle())
                         .onTapGesture { setCompleted(!task.completed) }
                         .macPointingHand()
