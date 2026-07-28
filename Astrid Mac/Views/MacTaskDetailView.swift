@@ -69,6 +69,10 @@ struct MacTaskDetailView: View {
                 }
                 // Share — iOS parity (ShareTaskView): make the shortcode link, then offer the
                 // native share sheet (Mail/Messages/AirDrop…) as well as copy-to-clipboard.
+                if MacAttachmentsSection.offersAddInMenu(attachments: task.attachments?.count ?? 0,
+                                                         secureFiles: task.secureFiles?.count ?? 0) {
+                    Button(NSLocalizedString("mac.add_file", comment: ""), systemImage: "paperclip") { addFile() }
+                }
                 if MacTimerSection.offersStartInMenu(running: timerRunning) {
                     Button(NSLocalizedString("mac.timer_start_menu", comment: ""), systemImage: "play.fill") {
                         toggleTimer()
@@ -277,7 +281,11 @@ struct MacTaskDetailView: View {
                     .listRowBackground(Color.clear)
             }
 
-            Section(NSLocalizedString("Attachments", comment: "")) {
+            // Only when the task actually carries something (cb2702a9). "Attachments" was also
+            // being used as its own key, so every language rendered the raw English word.
+            if MacAttachmentsSection.isVisible(attachments: task.attachments?.count ?? 0,
+                                               secureFiles: task.secureFiles?.count ?? 0) {
+            Section(NSLocalizedString("mac.attachments", comment: "")) {
                 // URL-backed attachments: type icon + name + size, QuickLook preview + delete.
                 ForEach(task.attachments ?? []) { a in
                     HStack(spacing: 8) {
@@ -306,6 +314,7 @@ struct MacTaskDetailView: View {
                     }
                 }
                 Button { addFile() } label: { Label(NSLocalizedString("mac.add_file", comment: ""), systemImage: "paperclip") }
+            }
             }
 
             // (Copy / Share / Open-in-Window / Delete live in the header's ⋯ menu — df22157f.)
