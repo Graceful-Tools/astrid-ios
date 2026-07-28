@@ -1119,6 +1119,7 @@
 "mac.failed.delete" = "Impossible de supprimer cet élément";
 "mac.failed.generic" = "Quelque chose n’a pas abouti";
 "mac.failed.save" = "Impossible d’enregistrer vos modifications";
+"mac.unknown_author" = "Inconnu";
 "mac.undo.complete" = "terminer la tâche";
 "mac.undo.delete" = "supprimer la tâche";
 "mac.undo.move" = "déplacer la tâche";

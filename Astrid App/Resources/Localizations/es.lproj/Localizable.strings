@@ -1119,6 +1119,7 @@
 "mac.failed.delete" = "No se pudo eliminar";
 "mac.failed.generic" = "Algo no se completó";
 "mac.failed.save" = "No se pudieron guardar los cambios";
+"mac.unknown_author" = "Desconocido";
 "mac.undo.complete" = "completar tarea";
 "mac.undo.delete" = "eliminar tarea";
 "mac.undo.move" = "mover tarea";

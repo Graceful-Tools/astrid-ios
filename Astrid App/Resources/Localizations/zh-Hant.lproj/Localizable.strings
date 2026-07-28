@@ -1105,6 +1105,7 @@
 "mac.failed.delete" = "無法刪除";
 "mac.failed.generic" = "操作未能完成";
 "mac.failed.save" = "無法儲存變更";
+"mac.unknown_author" = "未知";
 "mac.undo.complete" = "完成任務";
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";

@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "Konnte nicht gelöscht werden";
 "mac.failed.generic" = "Etwas hat nicht geklappt";
 "mac.failed.save" = "Änderungen konnten nicht gesichert werden";
+"mac.unknown_author" = "Unbekannt";
 "mac.undo.complete" = "Aufgabe abschließen";
 "mac.undo.delete" = "Aufgabe löschen";
 "mac.undo.move" = "Aufgabe verschieben";

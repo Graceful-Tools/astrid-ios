@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "削除できませんでした";
 "mac.failed.generic" = "処理が完了しませんでした";
 "mac.failed.save" = "変更を保存できませんでした";
+"mac.unknown_author" = "不明";
 "mac.undo.complete" = "タスクを完了";
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";

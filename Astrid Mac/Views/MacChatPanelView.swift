@@ -190,7 +190,9 @@ struct MacChatPanelView: View {
             VStack(alignment: MacChatBubbleStyle.alignment(isMine: mine), spacing: 2) {
                 HStack(spacing: 4) {
                     if !mine {
-                        Text(m.author?.displayName ?? "Someone").font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        Text(MacAuthorDisplay.of(authorId: m.authorId, author: m.author,
+                                                 currentUser: AuthManager.shared.currentUser).name)
+                            .font(.caption).bold().foregroundStyle(Theme.textSecondary)
                         if agent {
                             Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
                         }

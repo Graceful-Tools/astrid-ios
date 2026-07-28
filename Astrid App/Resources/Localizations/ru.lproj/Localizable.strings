@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "Не удалось удалить";
 "mac.failed.generic" = "Что-то не прошло";
 "mac.failed.save" = "Не удалось сохранить изменения";
+"mac.unknown_author" = "Неизвестно";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";

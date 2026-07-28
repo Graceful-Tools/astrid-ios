@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "无法删除";
 "mac.failed.generic" = "操作未能完成";
 "mac.failed.save" = "无法保存更改";
+"mac.unknown_author" = "未知";
 "mac.undo.complete" = "完成任务";
 "mac.undo.delete" = "删除任务";
 "mac.undo.move" = "移动任务";

@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "Impossibile eliminare l’elemento";
 "mac.failed.generic" = "Qualcosa non è andato a buon fine";
 "mac.failed.save" = "Impossibile salvare le modifiche";
+"mac.unknown_author" = "Sconosciuto";
 "mac.undo.complete" = "completa attività";
 "mac.undo.delete" = "elimina attività";
 "mac.undo.move" = "sposta attività";

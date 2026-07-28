@@ -128,7 +128,8 @@ struct MacBoardCardEditor: View {
         Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count)).font(.caption).bold().foregroundStyle(Theme.textSecondary)
         ForEach(comments) { c in
             VStack(alignment: .leading, spacing: 1) {
-                Text(c.author?.name ?? c.author?.email ?? "Someone").font(.caption2).bold().foregroundStyle(Theme.textSecondary)
+                Text(MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser).name)
+                    .font(.caption2).bold().foregroundStyle(Theme.textSecondary)
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }

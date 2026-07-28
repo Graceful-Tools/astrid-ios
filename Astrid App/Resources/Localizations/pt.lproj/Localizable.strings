@@ -1103,6 +1103,7 @@
 "mac.failed.delete" = "Não foi possível excluir";
 "mac.failed.generic" = "Algo não foi concluído";
 "mac.failed.save" = "Não foi possível salvar suas alterações";
+"mac.unknown_author" = "Desconhecido";
 "mac.undo.complete" = "concluir tarefa";
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";

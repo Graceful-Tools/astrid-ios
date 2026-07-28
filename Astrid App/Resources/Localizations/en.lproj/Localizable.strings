@@ -1111,6 +1111,7 @@
 "mac.failed.delete" = "Couldn’t delete that";
 "mac.failed.generic" = "Something didn’t go through";
 "mac.failed.save" = "Couldn’t save your changes";
+"mac.unknown_author" = "Unknown";
 "mac.undo.complete" = "Complete Task";
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";

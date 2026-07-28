@@ -378,21 +378,23 @@ struct MacTaskDetailView: View {
     /// Web-style comment bubble (df22157f): own comments right-aligned in a lavender card with an
     /// avatar and a "You · date" caption; others left-aligned with the author's name.
     @ViewBuilder private func commentBubble(_ c: Comment) -> some View {
-        let mine = c.authorId != nil && c.authorId == AuthManager.shared.userId
+        // One shared decision for every surface that shows an author (283a03df).
+        let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
+        let mine = who.isCurrentUser
         VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
             HStack(alignment: .bottom, spacing: 8) {
                 if mine { Spacer(minLength: 30) }
-                if !mine { commentAvatar(c) }
+                if !mine { commentAvatar(who) }
                 Text(c.content)
                     .foregroundStyle(Theme.textPrimary)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
                                 in: RoundedRectangle(cornerRadius: 12))
-                if mine { commentAvatar(c) }
+                if mine { commentAvatar(who) }
                 if !mine { Spacer(minLength: 30) }
             }
             HStack(spacing: 4) {
-                Text(mine ? "You" : (c.author?.name ?? c.author?.email ?? "Someone"))
+                Text(who.name)
                 if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
             }
             .font(.caption2).foregroundStyle(Theme.textMuted)
@@ -409,12 +411,8 @@ struct MacTaskDetailView: View {
         }
     }
 
-    private func commentAvatar(_ c: Comment) -> some View {
-        ZStack {
-            Circle().fill(Theme.accent)
-            Text(c.author?.initials ?? "?").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white)
-        }
-        .frame(width: 20, height: 20)
+    private func commentAvatar(_ who: MacAuthorDisplay) -> some View {
+        MacAuthorAvatar(display: who, size: 20)
     }
 
     /// Delete this task via the canonical service, closing the pop-out first.
