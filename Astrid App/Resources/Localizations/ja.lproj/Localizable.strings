@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "開始";
 "mac.timer_start_menu" = "タイマーを開始";
 "mac.timer_stop" = "停止";
+"mac.system_comments_hide" = "システムを非表示";
+"mac.system_comments_show" = "システムを表示";
 "mac.undo.complete" = "タスクを完了";
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";

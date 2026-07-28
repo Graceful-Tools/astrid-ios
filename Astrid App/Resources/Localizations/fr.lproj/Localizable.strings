@@ -1125,6 +1125,8 @@
 "mac.timer_start" = "Démarrer";
 "mac.timer_start_menu" = "Démarrer le minuteur";
 "mac.timer_stop" = "Arrêter";
+"mac.system_comments_hide" = "Masquer le système";
+"mac.system_comments_show" = "Afficher le système";
 "mac.undo.complete" = "terminer la tâche";
 "mac.undo.delete" = "supprimer la tâche";
 "mac.undo.move" = "déplacer la tâche";

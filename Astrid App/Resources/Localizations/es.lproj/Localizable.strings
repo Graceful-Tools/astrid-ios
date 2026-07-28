@@ -1125,6 +1125,8 @@
 "mac.timer_start" = "Iniciar";
 "mac.timer_start_menu" = "Iniciar temporizador";
 "mac.timer_stop" = "Detener";
+"mac.system_comments_hide" = "Ocultar del sistema";
+"mac.system_comments_show" = "Mostrar del sistema";
 "mac.undo.complete" = "completar tarea";
 "mac.undo.delete" = "eliminar tarea";
 "mac.undo.move" = "mover tarea";

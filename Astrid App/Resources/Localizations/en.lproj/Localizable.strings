@@ -1117,6 +1117,8 @@
 "mac.timer_start" = "Start";
 "mac.timer_start_menu" = "Start Timer";
 "mac.timer_stop" = "Stop";
+"mac.system_comments_hide" = "Hide system";
+"mac.system_comments_show" = "Show system";
 "mac.undo.complete" = "Complete Task";
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";

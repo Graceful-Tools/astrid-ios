@@ -47,6 +47,10 @@ struct MacTaskDetailView: View {
     @State private var editingCommentText = ""
     @State private var previewURL: URL?           // QuickLook target (local temp copy)
     @State private var previewLoadingId: String?  // attachment being downloaded for preview
+    /// System comments ("marked complete", "moved to …") are hidden until asked for — iOS parity
+    /// (CommentSectionViewEnhanced). Task 9c24d16c.
+    @State private var showSystemComments = false
+    @ObservedObject private var network = NetworkMonitor.shared
     @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
     @State private var commentHit: MacAutocompleteHit?
 
@@ -245,10 +249,21 @@ struct MacTaskDetailView: View {
                 if comments.isEmpty {
                     Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
                 }
-                ForEach(comments) { c in commentBubble(c) }
+                ForEach(MacSystemComments.displayed(comments, showingSystem: showSystemComments,
+                                                    isOffline: !network.isConnected)) { c in
+                    commentBubble(c)
+                }
             } header: {
                 HStack {
-                    Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count))
+                    Text(String(format: NSLocalizedString("mac.comments_count", comment: ""),
+                                MacSystemComments.count(comments, showingSystem: showSystemComments,
+                                                        isOffline: !network.isConnected)))
+                    if MacSystemComments.showsToggle(comments, isOffline: !network.isConnected) {
+                        Button(MacSystemComments.toggleTitle(showingSystem: showSystemComments)) {
+                            showSystemComments.toggle()
+                        }
+                        .buttonStyle(.borderless).font(.caption).foregroundStyle(Theme.textMuted)
+                    }
                     Spacer()
                     Button {
                         _Concurrency.Task { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }

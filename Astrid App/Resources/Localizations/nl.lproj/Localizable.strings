@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "Start";
 "mac.timer_start_menu" = "Timer starten";
 "mac.timer_stop" = "Stop";
+"mac.system_comments_hide" = "Systeem verbergen";
+"mac.system_comments_show" = "Systeem tonen";
 "mac.undo.complete" = "taak voltooien";
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";

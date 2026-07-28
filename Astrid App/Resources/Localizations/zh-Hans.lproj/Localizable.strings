@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "开始";
 "mac.timer_start_menu" = "启动计时器";
 "mac.timer_stop" = "停止";
+"mac.system_comments_hide" = "隐藏系统";
+"mac.system_comments_show" = "显示系统";
 "mac.undo.complete" = "完成任务";
 "mac.undo.delete" = "删除任务";
 "mac.undo.move" = "移动任务";

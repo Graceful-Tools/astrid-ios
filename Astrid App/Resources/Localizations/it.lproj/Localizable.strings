@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "Avvia";
 "mac.timer_start_menu" = "Avvia timer";
 "mac.timer_stop" = "Ferma";
+"mac.system_comments_hide" = "Nascondi di sistema";
+"mac.system_comments_show" = "Mostra di sistema";
 "mac.undo.complete" = "completa attività";
 "mac.undo.delete" = "elimina attività";
 "mac.undo.move" = "sposta attività";

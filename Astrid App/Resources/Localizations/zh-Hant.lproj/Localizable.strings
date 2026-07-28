@@ -1111,6 +1111,8 @@
 "mac.timer_start" = "開始";
 "mac.timer_start_menu" = "啟動計時器";
 "mac.timer_stop" = "停止";
+"mac.system_comments_hide" = "隱藏系統";
+"mac.system_comments_show" = "顯示系統";
 "mac.undo.complete" = "完成任務";
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";

@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "Iniciar";
 "mac.timer_start_menu" = "Iniciar cronômetro";
 "mac.timer_stop" = "Parar";
+"mac.system_comments_hide" = "Ocultar do sistema";
+"mac.system_comments_show" = "Mostrar do sistema";
 "mac.undo.complete" = "concluir tarefa";
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";

@@ -1111,6 +1111,8 @@
 "mac.timer_start" = "시작";
 "mac.timer_start_menu" = "타이머 시작";
 "mac.timer_stop" = "중지";
+"mac.system_comments_hide" = "시스템 숨기기";
+"mac.system_comments_show" = "시스템 표시";
 "mac.undo.complete" = "작업 완료";
 "mac.undo.delete" = "작업 삭제";
 "mac.undo.move" = "작업 이동";

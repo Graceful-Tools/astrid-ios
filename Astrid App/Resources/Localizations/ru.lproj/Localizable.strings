@@ -1109,6 +1109,8 @@
 "mac.timer_start" = "Запустить";
 "mac.timer_start_menu" = "Запустить таймер";
 "mac.timer_stop" = "Остановить";
+"mac.system_comments_hide" = "Скрыть системные";
+"mac.system_comments_show" = "Показать системные";
 "mac.undo.complete" = "завершение задачи";
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";
