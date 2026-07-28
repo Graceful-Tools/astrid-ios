@@ -57,7 +57,17 @@ struct MacTaskRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: MacRowHitArea.columnSpacing) {
+            // The checkbox COLUMN, not just the glyph: a transparent layer behind it takes the
+            // clicks that land in the padding around the checkbox and selects the row, instead of
+            // leaving a dead strip down the left of every row (b556c6a9). The glyph sits on top and
+            // keeps its own gesture, so completing a task is untouched (652edb22).
+            ZStack {
+                if !isEditing {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { onSelect() }
+                }
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
@@ -87,6 +97,10 @@ struct MacTaskRow: View {
                     .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
                     .accessibilityAction { onToggle() }
             }
+            }
+            .frame(width: MacRowHitArea.checkboxColumnWidth(glyph: MacTaskVisuals.rowCheckboxSize),
+                   alignment: .trailing)
+            .padding(.vertical, MacRowHitArea.verticalPadding)
 
             let content = VStack(alignment: .leading, spacing: 4) {
                 if isEditing {
@@ -135,6 +149,9 @@ struct MacTaskRow: View {
                 content
                 Spacer(minLength: 0)
             }
+            .padding(.vertical, MacRowHitArea.verticalPadding)
+            .padding(.trailing, MacRowHitArea.horizontalPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             // While the title is being edited the row must stay OUT of the way: a drag region over
             // a TextField turns "drag to select text" into a row drag, so text could not be
@@ -143,8 +160,7 @@ struct MacTaskRow: View {
             .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id,
                                          isSelected: isSelected, onSelect: onSelect))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        // No outer padding: both columns carry it inside their own hit areas (b556c6a9).
         // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
         // card on dark). Selection is a SUBTLE thin accent (b8d1ec16); hover a lighter wash (77225941).
         .background(MacSelectionStyle.fill(isSelected: isSelected, hovering: hovering),
@@ -153,7 +169,7 @@ struct MacTaskRow: View {
             .stroke(MacSelectionStyle.borderColor(isSelected: isSelected, hovering: hovering),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: isSelected)))
         .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
-        .padding(.leading, 8 + CGFloat(min(indent, 4)) * 16)   // per-level indent, capped at 4
+        .padding(.leading, 8 + MacRowHitArea.indent(level: indent))   // per-level indent, capped at 4
         .padding(.trailing, trailingInset)
         .padding(.vertical, 3)
         .contentShape(Rectangle())
