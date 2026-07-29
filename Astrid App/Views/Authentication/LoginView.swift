@@ -39,11 +39,11 @@ struct LoginView: View {
 
                             // Logo text and tagline on right
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("astrid")
+                                Text(Brand.wordmark)
                                     .font(.system(size: 34, weight: .bold))
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                                Text(NSLocalizedString("auth.tagline", comment: ""))
+                                Text(Brand.slogan)
                                     .font(.system(size: 16))
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             }

@@ -39,6 +39,32 @@ enum Brand {
     /// Address users email to create a task.
     static let inboundTaskEmail = infoString("BrandInboundTaskEmail") ?? "remindme@astrid.cc"
 
+    /// The header lockup, drawn on the sign-in screen.
+    ///
+    /// Astrid draws its mark in lowercase. That is a typographic choice about *this*
+    /// mark, not a rule about names, so a partner can override it — hence a value of
+    /// its own rather than `appName.lowercased()` at the call site.
+    static let wordmark = infoString("BrandWordmark") ?? appName.lowercased()
+
+    /// The line beneath the wordmark, e.g. "Get it done!".
+    ///
+    /// A brand value, not a translation: it defaults to the localized `auth.tagline` so
+    /// Astrid keeps its twelve translations, and a partner overrides it with one string
+    /// rather than commissioning twelve.
+    static var slogan: String {
+        infoString("BrandSlogan") ?? NSLocalizedString("auth.tagline", comment: "")
+    }
+
+    /// Filename stem for exported account data, e.g. `astrid-export-2026-07-18.json`.
+    static var exportFilePrefix: String { "\(wordmark)-export" }
+
+    /// Display name of the default assistant persona. Mirrors `NEXT_PUBLIC_BRAND_AGENT_NAME`.
+    ///
+    /// Distinct from `appName` because a brand may name its assistant separately from its
+    /// product, and because the on-device model is *told* this name and then repeats it
+    /// to the user — it is user-visible copy, not an internal identifier.
+    static let agentName = infoString("BrandAgentName") ?? appName
+
     // MARK: - Appearance
 
     /// Default accent, as a hex string. Astrid blue (Tailwind `blue-500`).
@@ -95,6 +121,23 @@ enum Brand {
 
     /// Hosts that count as this brand's web app, for Universal Link routing.
     static var webHosts: Set<String> { [host, "www.\(host)"] }
+
+    /// Does this cookie domain belong to the brand? Used when clearing session state.
+    ///
+    /// The previous test was `domain.contains("astrid")`, which is brand-coupled AND too
+    /// broad. The leading dot below is load-bearing: `hasSuffix(host)` alone also accepts
+    /// `evil-astrid.cc`, and `contains` accepts `astrid.evil.com`. Cookie domains are
+    /// commonly stored with a leading dot (`.astrid.cc`), so that form is normalised away
+    /// before matching rather than being treated as a subdomain.
+    static func isBrandCookieDomain(_ domain: String) -> Bool {
+        let normalized = domain
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+            .drop(while: { $0 == "." })
+        guard !normalized.isEmpty else { return false }
+        let host = self.host.lowercased()
+        return normalized == host || normalized.hasSuffix(".\(host)")
+    }
 
     /// Subsystem for `os.log` / `Logger`, e.g. `com.graceful-tools.astrid`.
     ///

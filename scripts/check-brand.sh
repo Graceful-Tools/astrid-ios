@@ -42,8 +42,12 @@ run_rule() {
     local exclude_args=()
     for e in "$@"; do exclude_args+=(--exclude="$e"); done
 
+    # Comments are internal prose and deliberately left alone — renaming them is churn
+    # with no whitelabel benefit, and a doc comment showing an EXAMPLE filename
+    # ("astrid-export-2026-07-18.json") is documentation, not a shipped literal.
     local hits
-    hits=$(grep -rEn --include='*.swift' "${exclude_args[@]}" -e "$pattern" "${SOURCE_DIRS[@]}" 2>/dev/null || true)
+    hits=$(grep -rEn --include='*.swift' "${exclude_args[@]}" -e "$pattern" "${SOURCE_DIRS[@]}" 2>/dev/null \
+           | grep -Ev ':[0-9]+:[[:space:]]*(//|///|\*|/\*)' || true)
 
     if [[ -z "$hits" ]]; then
         echo -e "${GREEN}  ✓ [$id] $description${NC}"
@@ -133,6 +137,34 @@ run_rule "raw-accent-blue" \
     "Use Theme.accent (or Theme.accentText for content drawn ON the accent)." \
     '(foregroundColor|foregroundStyle|\.fill|\.tint|\.stroke|\.background)\((Color\.)?\.?blue\b' \
     "Theme.swift"
+
+# --- Rule: brand-text-literal ----------------------------------------------------
+#
+# Brand text a USER SEES, written as a literal. The web app shipped an Astrid wordmark
+# on a partner's sign-in page for exactly this reason, and iOS/Mac had the same bug in
+# LoginView and MacAuthGateView.
+#
+# Scoped to strings that REACH THE SCREEN — SwiftUI Text/Label, accessibility labels,
+# filenames, and the on-device assistant's persona prompt. A blanket /Astrid/ would be
+# useless here: most remaining occurrences are frozen wire values (`astrid://`,
+# `completedSource: "astrid"`, `@[Astrid]`, `astridTaskId` Core Data attributes,
+# `cc.astrid.app.sync`, `com.astrid.ios`) or Swift identifiers, none of which may change.
+run_rule "brand-text-literal" \
+    "User-visible brand text written as a literal" \
+    "Use Brand.appName / Brand.wordmark / Brand.slogan / Brand.agentName, or Brand.localized(...)." \
+    '(Text|Label|accessibilityLabel|navigationTitle)\([[:space:]]*"[^"]*([Aa]strid)|"[Aa]strid-export|You are [Aa]strid' \
+    "Brand.swift"
+
+# --- Rule: brand-domain-substring ------------------------------------------------
+#
+# `domain.contains("astrid")` was how sign-out decided which cookies were ours. Brand
+# coupling aside, substring matching on a host is a security bug in both directions: it
+# accepts `astrid.evil.com` and, as `hasSuffix`, `evil-astrid.cc`.
+run_rule "brand-domain-substring" \
+    "Host matched by substring instead of by suffix boundary" \
+    "Use Brand.isBrandCookieDomain(_:) / Brand.webHosts — the leading dot is load-bearing." \
+    '(domain|host)[A-Za-z]*\.(contains|hasSuffix)\([[:space:]]*"[^"]*astrid' \
+    "Brand.swift"
 
 echo ""
 echo "──────────────────────────────────────────"

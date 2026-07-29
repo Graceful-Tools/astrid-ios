@@ -141,8 +141,8 @@ struct MacLoginView: View {
                     .frame(width: 88, height: 88)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 VStack(spacing: 2) {
-                    Text("astrid").font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                    Text(NSLocalizedString("auth.tagline", comment: "")).font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
+                    Text(Brand.wordmark).font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                    Text(Brand.slogan).font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
                 }
                 Text(NSLocalizedString("auth.sign_in_header", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
             }

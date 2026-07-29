@@ -302,7 +302,7 @@ class AccountViewModel: ObservableObject {
             let data = try await apiClient.exportAccountData(format: format)
 
             // Save to temporary file
-            let fileName = "astrid-export-\(Date().ISO8601Format()).\(format)"
+            let fileName = "\(Brand.exportFilePrefix)-\(Date().ISO8601Format()).\(format)"
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try data.write(to: tempURL)
 
