@@ -5,16 +5,20 @@ import Foundation
 /// Task 97208a72. Mirrors `lib/brand/copy.ts` on the web, and is fed from the `copy`
 /// block of `GET /api/v1/capabilities`.
 ///
-/// CACHED, not read live, for two reasons that both matter:
+/// CACHED, not read live, for two reasons:
 ///
-///   Reminders fire OFFLINE. A notification scheduled on a plane, days after the last
-///   successful fetch, must still speak in the brand's voice. Reading through a network
-///   service would silently revert a partner's app to Astrid's nags whenever the network
-///   was away — the exact moment a reminder is most likely to be scheduled.
+///   The nags render in `ReminderView` the moment it appears — before any capabilities
+///   fetch has necessarily completed, and while offline. Reading through the network
+///   service would show a partner's users Astrid's nags whenever the last fetch had not
+///   landed, which is a visible wrong-brand bug rather than a missing feature.
 ///
-///   Notification scheduling does not run on the main actor, and
-///   `ServerCapabilityService` is `@MainActor`. A plain `UserDefaults`-backed store is
-///   readable from wherever the scheduler happens to be.
+///   `ServerCapabilityService` is `@MainActor`; a plain `UserDefaults`-backed store is
+///   readable from anywhere, so this does not constrain where the copy can be used.
+///
+/// SCOPE, stated plainly because an earlier version of this comment got it wrong: these
+/// nags reach the IN-APP reminder view only. Scheduled `UNNotification` bodies are the
+/// task's own title with a fixed "Task Due Soon" heading (`NotificationManager`) and do
+/// not read this at all. Localising and branding that heading is separate work.
 ///
 /// Everything here is untrusted input from an unauthenticated endpoint, so it is
 /// sanitized on the way IN — once, at store time, rather than on every read.

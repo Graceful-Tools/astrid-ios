@@ -41,10 +41,10 @@ final class ServerCapabilityService: ObservableObject {
         do {
             let fetched = try await AstridAPIClient.shared.getServerCapabilities()
             capabilities = fetched
-            // Cache the brand's voice so reminders scheduled offline still speak in it.
-            // Only written on a SUCCESSFUL fetch: a failed request must leave the last
-            // known voice alone rather than reverting a partner's app to Astrid's nags
-            // the first time the network is away. Task 97208a72.
+            // Cache the brand's voice so the in-app reminder view has it before/without
+            // a fetch. Only written on a SUCCESSFUL fetch: a failed request must leave the
+            // last known voice alone rather than reverting a partner's app to Astrid's
+            // nags the first time the network is away. Task 97208a72.
             BrandCopyStore.shared.store(fetched.copy)
             lastFetchedBaseURL = baseURL
             logger.debug("Loaded server capabilities from \(baseURL, privacy: .public)")

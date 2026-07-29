@@ -97,6 +97,60 @@ final class BrandProfileTests: XCTestCase {
         }
     }
 
+    // MARK: - The shell script must agree
+
+    /// `scripts/apply-brand.sh` carries its own copy of the mapping, because a shell
+    /// script cannot import Swift. A duplicated table with nothing checking it is exactly
+    /// how these things rot: the script is what actually WRITES a partner's Info.plist,
+    /// so a mapping only Swift knows about would test clean and ship unconfigured.
+    func testTheApplyScriptMappingMatchesTheSwiftOne() throws {
+        let script = try String(
+            contentsOf: try RepositoryLocator.repositoryRoot()
+                .appendingPathComponent("scripts/apply-brand.sh"), encoding: .utf8)
+
+        var scriptMap: [String: String] = [:]
+        for line in script.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // Lines of the embedded python dict: "NEXT_PUBLIC_BRAND_NAME": "BrandName",
+            guard trimmed.hasPrefix("\""), trimmed.contains("\": \"") else { continue }
+            let parts = trimmed
+                .replacingOccurrences(of: "\",", with: "\"")
+                .components(separatedBy: "\": \"")
+            guard parts.count == 2 else { continue }
+            let key = parts[0].replacingOccurrences(of: "\"", with: "")
+            let value = parts[1].replacingOccurrences(of: "\"", with: "")
+            scriptMap[key] = value
+        }
+
+        XCTAssertFalse(scriptMap.isEmpty, "parsed no mapping out of apply-brand.sh")
+        XCTAssertEqual(scriptMap, BrandProfile.keyMap,
+                       "apply-brand.sh and BrandProfile.keyMap disagree — the script is "
+                       + "what writes a partner's Info.plist, so the script wins in production")
+    }
+
+    /// The script also lists the plist keys it clears before applying. A key missing
+    /// there is worse than a missing mapping: switching profiles would leave the previous
+    /// brand's value behind, producing a build branded half one way and half the other.
+    func testTheApplyScriptClearsEveryKeyItCanWrite() throws {
+        let script = try String(
+            contentsOf: try RepositoryLocator.repositoryRoot()
+                .appendingPathComponent("scripts/apply-brand.sh"), encoding: .utf8)
+
+        guard let range = script.range(of: "BRAND_PLIST_KEYS=("),
+              let end = script[range.upperBound...].range(of: ")") else {
+            return XCTFail("BRAND_PLIST_KEYS not found in apply-brand.sh")
+        }
+        let declared = Set(script[range.upperBound..<end.lowerBound]
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init))
+
+        for key in Set(BrandProfile.keyMap.values) {
+            XCTAssertTrue(declared.contains(key),
+                          "apply-brand.sh can write \(key) but never clears it — "
+                          + "switching profiles would leave the previous brand's value")
+        }
+    }
+
     // MARK: - The shared profile
 
     /// The real payoff: the Acme profile the web deploys from also configures iOS.
@@ -128,11 +182,11 @@ final class BrandProfileTests: XCTestCase {
     // MARK: - Helpers
 
     private func brandSourceURL() throws -> URL {
-        try repositoryRoot().appendingPathComponent("Astrid App/Utilities/Brand.swift")
+        try RepositoryLocator.repositoryRoot().appendingPathComponent("Astrid App/Utilities/Brand.swift")
     }
 
     private func loadProfile(named name: String) throws -> [String: Any] {
-        let url = try siblingWebRepository()
+        let url = try RepositoryLocator.siblingWebRepository()
             .appendingPathComponent("brands/\(name).brand.json")
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw XCTSkip("No \(name).brand.json in the paired web checkout")
@@ -141,36 +195,4 @@ final class BrandProfileTests: XCTestCase {
         return try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
-    /// Walk up from this source file to the repository root, identified by the Xcode
-    /// project rather than by the folder being named `astrid-ios` — a git worktree is not.
-    private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.path != "/" {
-            url.deleteLastPathComponent()
-            if FileManager.default.fileExists(
-                atPath: url.appendingPathComponent("Astrid App.xcodeproj").path) {
-                return url
-            }
-        }
-        throw XCTSkip("Repository root not found from \(#filePath)")
-    }
-
-    /// Prefer the web worktree paired with this one, so a run from a feature worktree
-    /// checks the web branch it belongs with rather than whatever is on main.
-    private func siblingWebRepository() throws -> URL {
-        let root = try repositoryRoot()
-        let parent = root.deletingLastPathComponent()
-        let suffix = root.lastPathComponent.hasPrefix("astrid-ios")
-            ? String(root.lastPathComponent.dropFirst("astrid-ios".count))
-            : ""
-
-        for candidate in ["astrid-web\(suffix)", "astrid-web"] {
-            let url = parent.appendingPathComponent(candidate)
-            if FileManager.default.fileExists(
-                atPath: url.appendingPathComponent("package.json").path) {
-                return url
-            }
-        }
-        throw XCTSkip("No astrid-web checkout beside \(root.lastPathComponent)")
-    }
 }

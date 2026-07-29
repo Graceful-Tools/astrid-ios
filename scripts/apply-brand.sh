@@ -20,6 +20,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# shellcheck source=lib/find-web-repo.sh
+source "$SCRIPT_DIR/lib/find-web-repo.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -60,25 +63,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Locate the paired astrid-web checkout. When this repo is a git worktree
-# (astrid-ios-<topic>) the matching web worktree is astrid-web-<topic>; prefer it, so a
-# partner build from a feature worktree uses the brand on that branch.
-find_web_repo() {
-    local parent base suffix
-    parent="$(dirname "$PROJECT_DIR")"
-    base="$(basename "$PROJECT_DIR")"
-    suffix=""
-    [[ "$base" == astrid-ios* ]] && suffix="${base#astrid-ios}"
-
-    for candidate in "astrid-web${suffix}" "astrid-web"; do
-        if [[ -f "$parent/$candidate/package.json" ]]; then
-            echo "$parent/$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
 remove_all_keys() {
     local plist="$1"
     for key in "${BRAND_PLIST_KEYS[@]}"; do
@@ -105,7 +89,7 @@ if [[ -z "$PROFILE" ]]; then
     exit 1
 fi
 
-WEB_REPO="$(find_web_repo)" || {
+WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || {
     echo -e "${RED}No astrid-web checkout beside $(basename "$PROJECT_DIR")${NC}"
     echo "Brand profiles live in astrid-web/brands/. Clone it alongside this repo."
     exit 1

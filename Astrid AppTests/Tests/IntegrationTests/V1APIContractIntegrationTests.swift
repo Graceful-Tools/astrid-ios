@@ -6,7 +6,7 @@ import XCTest
 final class V1APIContractIntegrationTests: XCTestCase {
 
     func testIOSClientUsesV1ForCoreServiceEndpoints() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
 
@@ -44,7 +44,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     /// `POST /api/v1/projects/from-list` rather than the old two-step
     /// project-then-list-PUT flow that could orphan a project.
     func testCreateBoardUsesAtomicV1Endpoint() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
         XCTAssertTrue(source.contains("/api/v1/projects/from-list"),
@@ -55,7 +55,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     /// (`api/shortcodes/<code>`). It must use the v1 path like every other
     /// service call, and must not retain the legacy unversioned form.
     func testResolveShortcodeUsesV1Path() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
 
@@ -66,7 +66,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     }
 
     func testSiblingWebRepoHasV1RoutesIOSConsumes() throws {
-        let webRoot = try siblingWebRepository()
+        let webRoot = try RepositoryLocator.siblingWebRepository()
 
         let routeFiles = [
             "app/api/v1/tasks/route.ts",
@@ -93,47 +93,5 @@ final class V1APIContractIntegrationTests: XCTestCase {
         }
     }
 
-    /// Locate the paired astrid-web checkout next to this one.
-    ///
-    /// When the iOS repo is checked out as a git worktree (`astrid-ios-<topic>`), the
-    /// matching web worktree is `astrid-web-<topic>` — prefer that, so a contract test
-    /// run from a feature worktree checks the web branch it is paired with rather than
-    /// whatever happens to be on main. Falls back to plain `astrid-web`, and skips when
-    /// neither is present (the web repo is not required to be cloned). Task 97208a72.
-    private func siblingWebRepository() throws -> URL {
-        let root = try repositoryRoot()
-        let parent = root.deletingLastPathComponent()
-        let suffix = root.lastPathComponent.hasPrefix("astrid-ios")
-            ? String(root.lastPathComponent.dropFirst("astrid-ios".count))
-            : ""
 
-        let candidates = ["astrid-web\(suffix)", "astrid-web"]
-        for candidate in candidates {
-            let url = parent.appendingPathComponent(candidate)
-            if FileManager.default.fileExists(atPath: url.appendingPathComponent("package.json").path) {
-                return url
-            }
-        }
-
-        throw XCTSkip("No astrid-web checkout beside \(root.lastPathComponent) — skipping contract check")
-    }
-
-    /// Walk up from this source file to the repository root.
-    ///
-    /// Identified by the presence of `Astrid App.xcodeproj` rather than by the
-    /// checkout being named `astrid-ios`. A git worktree (or any clone under a
-    /// different folder name) is not called `astrid-ios`, so the old name check
-    /// walked all the way to `/` and every path-based assertion here failed.
-    /// Task 97208a72.
-    private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.path != "/" {
-            url.deleteLastPathComponent()
-            let marker = url.appendingPathComponent("Astrid App.xcodeproj")
-            if FileManager.default.fileExists(atPath: marker.path) {
-                return url
-            }
-        }
-        throw XCTSkip("Repository root not found from \(#filePath) — running outside a source checkout")
-    }
 }

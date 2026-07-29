@@ -28,6 +28,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# shellcheck source=lib/find-web-repo.sh
+source "$SCRIPT_DIR/lib/find-web-repo.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -57,19 +60,7 @@ for plist in "${PLISTS[@]}"; do
     fi
 done
 
-find_web_repo() {
-    local parent base suffix
-    parent="$(dirname "$PROJECT_DIR")"
-    base="$(basename "$PROJECT_DIR")"
-    suffix=""
-    [[ "$base" == astrid-ios* ]] && suffix="${base#astrid-ios}"
-    for candidate in "astrid-web${suffix}" "astrid-web"; do
-        [[ -f "$parent/$candidate/package.json" ]] && { echo "$parent/$candidate"; return 0; }
-    done
-    return 1
-}
-
-WEB_REPO="$(find_web_repo)" || {
+WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || {
     echo -e "${YELLOW}No astrid-web checkout beside $(basename "$PROJECT_DIR") — skipping.${NC}"
     echo "Brand profiles live in astrid-web/brands/."
     exit 0
@@ -108,20 +99,37 @@ for profile in "${PROFILES[@]}"; do
         -scheme "Astrid App" \
         -destination "platform=iOS Simulator,name=iPhone 17" \
         -only-testing:"Astrid AppTests/BrandAuditTests" \
-        -quiet > "/tmp/brand-audit-$profile.log" 2>&1
-    RESULT=$?
+        -quiet > "/tmp/brand-audit-$profile-ios.log" 2>&1
+    IOS_RESULT=$?
+
+    # Mac is audited SEPARATELY, not assumed. apply-brand.sh writes "Astrid Mac/
+    # Info.plist" as its own file, and the Mac target has its own #if os(macOS) branch of
+    # Theme with its own borderFocus — so "iOS is branded" says nothing about Mac.
+    xcodebuild test \
+        -scheme "Astrid Mac" \
+        -destination "platform=macOS" \
+        -only-testing:"Astrid MacTests/MacBrandAuditTests" \
+        -quiet > "/tmp/brand-audit-$profile-mac.log" 2>&1
+    MAC_RESULT=$?
     set -e
 
     restore_plists
 
-    if [[ $RESULT -eq 0 ]]; then
-        echo -e "${GREEN}  ✓ $profile audits clean${NC}"
-    else
-        echo -e "${RED}  ✗ $profile failed the brand audit${NC}"
-        grep -E "error:|XCTAssert.*failed" "/tmp/brand-audit-$profile.log" | head -12 | sed 's/^/      /'
-        echo "      full log: /tmp/brand-audit-$profile.log"
-        FAILED=$((FAILED + 1))
-    fi
+    for platform in ios mac; do
+        [[ "$platform" == "ios" ]] && RESULT=$IOS_RESULT || RESULT=$MAC_RESULT
+        log="/tmp/brand-audit-$profile-$platform.log"
+        if [[ $RESULT -eq 0 ]]; then
+            echo -e "${GREEN}  ✓ $profile audits clean ($platform)${NC}"
+        else
+            echo -e "${RED}  ✗ $profile failed the brand audit ($platform)${NC}"
+            # -quiet suppresses per-assertion output, so match the failure lines
+            # xcodebuild still prints: "<file>:<line>: error: -[Class test] : ..."
+            grep -E "error:|XCTAssert|Failing tests:|[[:space:]]+-\[" "$log" \
+                | grep -v "^ *$" | head -12 | sed 's/^/      /'
+            echo "      full log: $log"
+            FAILED=$((FAILED + 1))
+        fi
+    done
     echo ""
 done
 

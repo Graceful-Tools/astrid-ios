@@ -66,9 +66,10 @@ final class ServerBrandTests: XCTestCase {
 
     // MARK: - Untrusted input
 
-    /// This is a string from the network rendered into the UI chrome. The DEBUG server
-    /// picker lets a user point the app at an arbitrary host, so it is attacker-supplied
-    /// in the only threat model that matters here.
+    /// Defence in depth. A release build only talks to `Brand.productionBaseURL` — the
+    /// server picker is `#if DEBUG` with three fixed options — so this is not
+    /// attacker-chosen input. It is still network data rendered straight into the UI
+    /// chrome, and validating it costs nothing.
     func testBlankServerValuesFallBackRatherThanBlankingTheUI() throws {
         let caps = try decode(#"{"brand":{"appName":"","wordmark":"   ","slogan":"\n"}}"#)
 
@@ -102,6 +103,38 @@ final class ServerBrandTests: XCTestCase {
     func testControlCharactersAreRejected() throws {
         let caps = try decode(#"{"brand":{"appName":"Acme\nSign in with your password"}}"#)
         XCTAssertEqual(caps.brand.resolvedAppName, Brand.appName)
+    }
+
+    /// U+202E reverses rendering — the classic way to make a string display as something
+    /// other than what it says, which on a sign-in lockup is a spoofing primitive.
+    ///
+    /// These pass today because Foundation's `.controlCharacters` is Unicode Cc AND Cf,
+    /// so it already covers them. That is not obvious from the name, which is exactly why
+    /// the behaviour is pinned here: narrowing the check to "reject newlines" looks
+    /// equivalent and silently reopens the hole. Mutation-tested — that narrowing fails
+    /// this test and `testInvisibleFormattingCharactersAreRejected`.
+    func testBidirectionalOverridesAreRejected() throws {
+        for scalar in ["\u{202E}", "\u{202D}", "\u{202A}", "\u{202B}", "\u{2066}", "\u{2067}", "\u{2068}"] {
+            let caps = try decode(#"{"brand":{"appName":"Acme\#(scalar)evil"}}"#)
+            XCTAssertEqual(caps.brand.resolvedAppName, Brand.appName,
+                           "U+\(String(scalar.unicodeScalars.first!.value, radix: 16)) should be rejected")
+        }
+    }
+
+    /// A zero-width joiner or invisible separator can pad a name past what looks
+    /// reasonable, or hide characters inside it.
+    func testInvisibleFormattingCharactersAreRejected() throws {
+        let caps = try decode(#"{"brand":{"appName":"Ac\#u{200B}me"}}"#)
+        XCTAssertEqual(caps.brand.resolvedAppName, Brand.appName)
+    }
+
+    /// Ordinary non-Latin brand names must still work — the filter targets rendering
+    /// attacks, not non-English brands.
+    func testNonLatinBrandNamesAreAccepted() throws {
+        for name in ["アクメ", "Ακμή", "Акме", "אקמה", "شركة"] {
+            let caps = try decode(#"{"brand":{"appName":"\#(name)"}}"#)
+            XCTAssertEqual(caps.brand.resolvedAppName, name, "\(name) should be accepted")
+        }
     }
 
     // MARK: - Before the first fetch

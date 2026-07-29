@@ -51,6 +51,15 @@ enum Brand {
     /// A brand value, not a translation: it defaults to the localized `auth.tagline` so
     /// Astrid keeps its twelve translations, and a partner overrides it with one string
     /// rather than commissioning twelve.
+    ///
+    /// COMPUTED, and it must stay that way. `LocalizationManager.setLanguage` changes the
+    /// app's language at RUNTIME, so a `static let` here would freeze the slogan in
+    /// whichever language happened to be active the first time it was read. The identity
+    /// values above are stored because Info.plist cannot change after launch; anything
+    /// that resolves through `NSLocalizedString` cannot be.
+    ///
+    /// The cost is a strings-table lookup on a screen that renders a handful of times,
+    /// which is not a hot path. `accentColor` is the opposite case and is stored.
     static var slogan: String {
         infoString("BrandSlogan") ?? NSLocalizedString("auth.tagline", comment: "")
     }

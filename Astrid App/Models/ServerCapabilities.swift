@@ -80,11 +80,13 @@ struct ServerCapabilities: Codable, Equatable {
     /// `Brand` supplies the defaults — what the app shows before the first fetch, and
     /// what it falls back to for anything the server does not send.
     ///
-    /// TEXT ONLY, and every field is validated. This is a string arriving over the
-    /// network and rendered into the app's chrome; the DEBUG server picker lets a user
-    /// point the app at an arbitrary host, so it is untrusted input in the only threat
-    /// model that matters. Blank, overlong and control-character values fall back rather
-    /// than render.
+    /// TEXT ONLY, and every field is validated — defence in depth, stated accurately
+    /// because an earlier version of this comment overstated it. A release build only
+    /// ever talks to `Brand.productionBaseURL`; the server picker is `#if DEBUG` and
+    /// offers three fixed options, so this is not attacker-chosen input. It is still
+    /// input from the network rendered directly into the app's chrome, and the cost of
+    /// validating it is nil, so blank, overlong, control and bidi-override values fall
+    /// back rather than render.
     ///
     /// Deliberately NOT here:
     ///   host / agentEmailDomain — trust boundaries. A server claiming a different brand
@@ -118,8 +120,16 @@ struct ServerCapabilities: Codable, Equatable {
             guard let raw else { return nil }
             let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, trimmed.count <= maxValueLength else { return nil }
-            // Newlines and control characters would let a server inject extra lines into
-            // the sign-in lockup.
+            // `.controlCharacters` is doing MORE work than its name suggests, and the
+            // extra work is load-bearing: Foundation defines it as Unicode categories Cc
+            // AND Cf, so it also rejects bidirectional overrides (U+202E and friends) and
+            // zero-width characters. U+202E reverses rendering — the classic way to make
+            // a string display as something other than what it says, which on a sign-in
+            // lockup is a spoofing primitive.
+            //
+            // Narrowing this to "reject newlines" would look equivalent and silently
+            // reopen that hole. ServerBrandTests pins both behaviours, and the narrowing
+            // has been mutation-tested to fail them.
             guard trimmed.rangeOfCharacter(from: .controlCharacters) == nil else { return nil }
             return trimmed
         }
