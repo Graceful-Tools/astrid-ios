@@ -11,6 +11,7 @@
     "test:ui": "./scripts/run-tests.sh --ui --no-unit",
     "test:all": "./scripts/run-tests.sh --ui",
     "check:localizations": "./scripts/check-localizations.sh",
+    "check:brand": "./scripts/check-brand.sh",
     "build": "xcodebuild build -scheme 'Astrid App' -destination 'platform=iOS Simulator,name=iPhone 17' -quiet",
     "build:verbose": "xcodebuild build -scheme 'Astrid App' -destination 'platform=iOS Simulator,name=iPhone 17'",
     "audit:dependencies": "npm audit --omit=dev",

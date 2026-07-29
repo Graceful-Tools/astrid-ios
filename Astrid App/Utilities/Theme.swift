@@ -51,7 +51,7 @@ struct Theme {
     // MARK: - Border Colors
     static var border: Color { themed(light: .init(red: 229/255, green: 231/255, blue: 235/255), dark: Dark.border, ocean: Ocean.border) }
     static var borderHover: Color { themed(light: .init(red: 209/255, green: 213/255, blue: 219/255), dark: Dark.borderHover, ocean: Ocean.borderHover) }
-    static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
+    static let borderFocus = Brand.accentColor
     static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
 
     // MARK: - Input Colors (themed like iOS: chrome silver on Ocean, black on Dark)
@@ -79,7 +79,7 @@ struct Theme {
 
     static let border = Color(red: 229/255, green: 231/255, blue: 235/255)
     static let borderHover = Color(red: 209/255, green: 213/255, blue: 219/255)
-    static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
+    static let borderFocus = Brand.accentColor
     static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
 
     // MARK: - Text Colors
@@ -93,9 +93,12 @@ struct Theme {
 
     // MARK: - Interactive Colors
 
-    static let accent = Color(red: 59/255, green: 130/255, blue: 246/255)
-    static let accentHover = Color(red: 37/255, green: 99/255, blue: 235/255)
-    static let accentText = Color(red: 255/255, green: 255/255, blue: 255/255)
+    // The accent is the BRAND colour, so it comes from Brand rather than being written
+    // out per theme variant (task 97208a72). Theme abstracts light vs dark vs ocean; it
+    // must also abstract *whose* blue, or a partner theme is a find-and-replace.
+    static let accent = Brand.accentColor
+    static let accentHover = Brand.accentHoverColor
+    static let accentText = Brand.accentTextColor
 
     // MARK: - Status Colors
 
@@ -107,7 +110,7 @@ struct Theme {
     // MARK: - Priority Colors (matching web app exactly)
 
     static let priorityNone = Color(red: 107/255, green: 114/255, blue: 128/255)     // rgb(107, 114, 128) - Gray
-    static let priorityLow = Color(red: 59/255, green: 130/255, blue: 246/255)       // rgb(59, 130, 246) - Blue
+    static let priorityLow = Brand.accentColor                                       // the brand accent
     static let priorityMedium = Color(red: 251/255, green: 191/255, blue: 36/255)    // rgb(251, 191, 36) - Yellow
     static let priorityHigh = Color(red: 239/255, green: 68/255, blue: 68/255)       // rgb(239, 68, 68) - Red
 
@@ -236,12 +239,12 @@ extension Theme {
         static let bgHover = Color(red: 55/255, green: 65/255, blue: 81/255)
         static let bgActive = Color(red: 75/255, green: 85/255, blue: 99/255)
         static let bgSelected = Color(red: 30/255, green: 58/255, blue: 138/255)
-        static let bgSelectedBorder = Color(red: 59/255, green: 130/255, blue: 246/255)
+        static let bgSelectedBorder = Brand.accentColor
 
         // Border colors
         static let border = Color(red: 75/255, green: 85/255, blue: 99/255)
         static let borderHover = Color(red: 107/255, green: 114/255, blue: 128/255)
-        static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
+        static let borderFocus = Brand.accentColor
         static let borderInput = Color(red: 75/255, green: 85/255, blue: 99/255)
 
         // Text colors
@@ -252,9 +255,9 @@ extension Theme {
         static let textSelected = Color(red: 255/255, green: 255/255, blue: 255/255)
 
         // Interactive colors (same as light)
-        static let accent = Color(red: 59/255, green: 130/255, blue: 246/255)
-        static let accentHover = Color(red: 37/255, green: 99/255, blue: 235/255)
-        static let accentText = Color(red: 255/255, green: 255/255, blue: 255/255)
+        static let accent = Brand.accentColor
+        static let accentHover = Brand.accentHoverColor
+        static let accentText = Brand.accentTextColor
 
         // Component colors
         static let headerBg = Color(red: 31/255, green: 41/255, blue: 55/255)
@@ -282,7 +285,7 @@ extension Theme {
         // Border colors - Cyan-tinted for Ocean theme
         static let border = Color(red: 136/255, green: 220/255, blue: 248/255)
         static let borderHover = Color(red: 209/255, green: 213/255, blue: 219/255)
-        static let borderFocus = Color(red: 59/255, green: 130/255, blue: 246/255)
+        static let borderFocus = Brand.accentColor
         static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
 
         // Text colors (same as light)
@@ -293,9 +296,9 @@ extension Theme {
         static let textSelected = Color(red: 17/255, green: 24/255, blue: 39/255)
 
         // Interactive colors (same as light)
-        static let accent = Color(red: 59/255, green: 130/255, blue: 246/255)
-        static let accentHover = Color(red: 37/255, green: 99/255, blue: 235/255)
-        static let accentText = Color(red: 255/255, green: 255/255, blue: 255/255)
+        static let accent = Brand.accentColor
+        static let accentHover = Brand.accentHoverColor
+        static let accentText = Brand.accentTextColor
 
         // Component colors - Cyan headers (matching ocean background) and chrome inputs
         static let headerBg = Color(red: 136/255, green: 220/255, blue: 248/255)  // Cyan (same as bgPrimary)

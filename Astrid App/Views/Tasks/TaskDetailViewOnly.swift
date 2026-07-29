@@ -47,10 +47,10 @@ struct TaskDetailViewOnly: View {
                             } placeholder: {
                                 ZStack {
                                     Circle()
-                                        .fill(Color(hex: "3b82f6") ?? Theme.accent)
+                                        .fill(Theme.accent)
                                     Text(creator.name?.prefix(1).uppercased() ?? creator.email?.prefix(1).uppercased() ?? "?")
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .foregroundColor(Theme.accentText)
                                 }
                             }
                             .frame(width: 28, height: 28)

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Brand configuration — the single source of truth for every brand-bearing value
 /// in the iOS and Mac apps.
@@ -38,6 +39,55 @@ enum Brand {
     /// Address users email to create a task.
     static let inboundTaskEmail = infoString("BrandInboundTaskEmail") ?? "remindme@astrid.cc"
 
+    // MARK: - Appearance
+
+    /// Default accent, as a hex string. Astrid blue (Tailwind `blue-500`).
+    ///
+    /// Kept as the one place the literal appears — `Theme`, `Theme.Dark` and
+    /// `Theme.Ocean` all derive from it rather than repeating it.
+    static let defaultAccentHex = "#3b82f6"
+
+    /// The brand accent, e.g. `#3b82f6`. Always a parseable hex.
+    static let accentColorHex = resolveAccentHex(infoString("BrandAccentColor"))
+
+    /// Pressed / hovered state of the accent.
+    static let accentHoverColorHex = resolveAccentHex(
+        infoString("BrandAccentHoverColor"), fallback: "#2563eb")
+
+    /// Colour drawn ON the accent. A partner choosing a pale accent needs to change
+    /// this with it, which is why it is configuration and not a constant `.white`.
+    static let accentTextColorHex = resolveAccentHex(
+        infoString("BrandAccentTextColor"), fallback: "#ffffff")
+
+    // Stored, not computed: theme colours are read on every SwiftUI render, and parsing
+    // a hex string with Scanner per access would be a real cost. `static let` resolves
+    // once via swift_once, and the value cannot change after launch anyway.
+
+    /// The brand accent as a `Color`. `Theme.accent` and friends resolve to this.
+    static let accentColor: Color = color(accentColorHex, fallback: defaultAccentHex)
+
+    /// Pressed / hovered accent.
+    static let accentHoverColor: Color = color(accentHoverColorHex, fallback: "#2563eb")
+
+    /// Foreground drawn on top of the accent.
+    static let accentTextColor: Color = color(accentTextColorHex, fallback: "#ffffff")
+
+    /// Normalise a configured accent to a `#rrggbb` / `#rrggbbaa` string, or fall back.
+    ///
+    /// Deliberately total: a brand colour is chrome, not a feature, so a typo in it must
+    /// render the default rather than throw or produce a transparent control. Exposed
+    /// (rather than inlined) so the fallback behaviour is testable without a second bundle.
+    static func resolveAccentHex(_ raw: String?, fallback: String = "#3b82f6") -> String {
+        guard let raw else { return fallback }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An unsubstituted build setting (`$(BRAND_ACCENT)`) is not a colour.
+        guard !trimmed.hasPrefix("$(") else { return fallback }
+        let digits = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
+        guard digits.count == 6 || digits.count == 8,
+              digits.allSatisfy(\.isHexDigit) else { return fallback }
+        return "#\(digits)"
+    }
+
     // MARK: - Derived
 
     /// Canonical production origin, e.g. `https://astrid.cc`.
@@ -71,6 +121,14 @@ enum Brand {
     }
 
     // MARK: - Private
+
+    /// Parse a hex string that `resolveAccentHex` has already validated.
+    ///
+    /// The `fallback` is belt-and-braces: resolution guarantees a parseable value, so
+    /// this only fires if the two ever disagree, and `.clear` chrome is not an option.
+    private static func color(_ hex: String, fallback: String) -> Color {
+        Color(hex: hex) ?? Color(hex: fallback) ?? Color(red: 59/255, green: 130/255, blue: 246/255)
+    }
 
     /// Read a non-empty string from the running bundle's Info.plist.
     private static func infoString(_ key: String) -> String? {
