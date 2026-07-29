@@ -14,6 +14,7 @@ struct MacAccountView: View {
     @State private var savedFlash = false
     @State private var showDelete = false
     @State private var isExporting = false
+    @State private var profileTarget: MacProfileTarget?   // your photo/name → your profile (0994eabb)
 
     var body: some View {
         Form {
@@ -25,6 +26,8 @@ struct MacAccountView: View {
                         Text(auth.currentUser?.email ?? "").font(.caption).foregroundStyle(Theme.textMuted)
                     }
                 }
+                .contentShape(Rectangle())
+                .macOpensProfile(MacProfileLink.ownUserId(auth.currentUser), target: $profileTarget)
                 TextField(NSLocalizedString("settings.account.name_placeholder", comment: ""), text: $name).onSubmit(saveName)
                 if savedFlash { Text(NSLocalizedString("messages.saved", comment: "")).font(.caption).foregroundStyle(Theme.success) }
             }
@@ -52,6 +55,7 @@ struct MacAccountView: View {
         .frame(width: 460)
         .onAppear { name = auth.currentUser?.name ?? "" }
         .sheet(isPresented: $showDelete) { MacDeleteAccountSheet() }
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
     }
 
     /// Fetch the account export from the shared service, then save it via an NSSavePanel.

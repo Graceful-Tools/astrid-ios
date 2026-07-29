@@ -15,6 +15,7 @@ struct MacListMembersView: View {
     @State private var publicType = "collaborative"
     @State private var contactSuggestions: [ContactSearchResult] = []
     @State private var loadingMembers = true      // first-fetch spinner (1c3562e9)
+    @State private var profileTarget: MacProfileTarget?   // member row → profile (0994eabb)
     @Environment(\.dismiss) private var dismiss
 
     private static let roles = ["member", "admin"]
@@ -52,11 +53,24 @@ struct MacListMembersView: View {
             List {
                 ForEach(members) { m in
                     HStack {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(m.user?.displayName ?? m.userId).foregroundStyle(Theme.textPrimary)
-                            Text(isOwner(m) ? "Owner" : m.role.capitalized)
-                                .font(.caption).foregroundStyle(Theme.textMuted)
+                        // Photo + name open that person's profile (0994eabb). Resolved with
+                        // currentUser: nil so a roster names everyone, including you — "You"
+                        // belongs on a comment you wrote, not on a row in a member list.
+                        HStack(spacing: 8) {
+                            MacAuthorAvatar(display: MacAuthorDisplay.of(authorId: m.userId,
+                                                                         author: m.user,
+                                                                         currentUser: nil),
+                                            size: 26)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(m.user?.displayName ?? m.userId).foregroundStyle(Theme.textPrimary)
+                                Text(isOwner(m) ? "Owner" : m.role.capitalized)
+                                    .font(.caption).foregroundStyle(Theme.textMuted)
+                            }
                         }
+                        .contentShape(Rectangle())
+                        .macOpensProfile(MacProfileLink.userId(authorId: m.userId,
+                                                               isAgent: m.user?.isAIAgent == true),
+                                         target: $profileTarget)
                         Spacer()
                         // Only owner/admin can change roles, and never the list owner's row.
                         if canManage && !isOwner(m) {
@@ -117,6 +131,7 @@ struct MacListMembersView: View {
         .padding(20)
         .frame(width: 440)
         .background(Theme.bgPrimary)
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
         .task { try? await svc.fetchMembers(listId: list.id); loadingMembers = false }
         .onAppear {
             privacy = list.privacy?.rawValue ?? "PRIVATE"

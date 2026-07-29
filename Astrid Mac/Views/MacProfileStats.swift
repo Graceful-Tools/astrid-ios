@@ -32,13 +32,39 @@ enum MacProfileStats {
     }
 }
 
-/// Which author names open a profile.
+/// Which people open a profile — one rule for every surface that shows a person.
 enum MacProfileLink {
     /// A system comment carries no author id; making it a link would give every "marked complete"
-    /// line a clickable name that goes nowhere. Your own name IS a link, as on iOS.
-    static func userId(authorId: String?) -> String? {
-        guard let authorId, !authorId.isEmpty else { return nil }
+    /// line a clickable name that goes nowhere. An AI agent has an id but no profile behind it,
+    /// so a link there just 404s. Your own name IS a link, as on iOS.
+    static func userId(authorId: String?, isAgent: Bool = false) -> String? {
+        guard !isAgent, let authorId, !authorId.isEmpty else { return nil }
         return authorId
+    }
+
+    /// Your own profile, reached from the sidebar account row. iOS opens yours from its profile
+    /// tab; the Mac has no tab bar, so the bottom-left row is the door. Signed out, there is
+    /// nothing to open and the row must not look clickable.
+    static func ownUserId(_ currentUser: User?) -> String? {
+        userId(authorId: currentUser?.id)
+    }
+}
+
+extension View {
+    /// Makes anything that depicts a person — a name, an avatar, a whole member row — open that
+    /// person's profile. A nil id leaves the content exactly as it was: unclickable, no hover
+    /// hand. That is the point of routing through `MacProfileLink` instead of testing the id at
+    /// each call site — system comments and agents stay plain everywhere at once.
+    @ViewBuilder
+    func macOpensProfile(_ userId: String?, target: Binding<MacProfileTarget?>) -> some View {
+        if let uid = MacProfileLink.userId(authorId: userId) {
+            Button { target.wrappedValue = MacProfileTarget(id: uid) } label: { self }
+                .buttonStyle(.plain)
+                .macPointingHand()
+                .help(NSLocalizedString("profile.title", comment: ""))
+        } else {
+            self
+        }
     }
 }
 

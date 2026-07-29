@@ -178,6 +178,9 @@ struct MacChatPanelView: View {
             }
         }
         .frame(width: 22, height: 22)
+        // The photo opens the profile, like the name beside it. An agent has none (0994eabb).
+        .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: isAgent),
+                         target: $profileTarget)
     }
 
     /// Web/iOS-style bubble row (eb1b7da6): mine right-aligned in accent, agents purple with a
@@ -194,13 +197,9 @@ struct MacChatPanelView: View {
                     if !mine {
                         let who = MacAuthorDisplay.of(authorId: m.authorId, author: m.author,
                                                       currentUser: AuthManager.shared.currentUser)
-                        if let uid = MacProfileLink.userId(authorId: m.authorId) {
-                            Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
-                                .buttonStyle(.plain)
-                                .font(.caption).bold().foregroundStyle(Theme.textSecondary)
-                        } else {
-                            Text(who.name).font(.caption).bold().foregroundStyle(Theme.textSecondary)
-                        }
+                        Text(who.name).font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                            .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: agent),
+                                             target: $profileTarget)
                         if agent {
                             Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
                         }

@@ -9,17 +9,23 @@ import AppKit
 
 struct MacSidebarAccountBar: View {
     @StateObject private var auth = AuthManager.shared
+    @State private var profileTarget: MacProfileTarget?   // your photo/name → your profile (0994eabb)
 
     var body: some View {
         HStack(spacing: 10) {
-            avatar.frame(width: 30, height: 30)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(auth.currentUser?.displayName ?? "Account")
-                    .font(.callout).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                if let email = auth.currentUser?.email, !email.isEmpty {
-                    Text(email).font(.caption2).foregroundStyle(Theme.textMuted).lineLimit(1)
+            // Your photo and name open your own profile, the way an author's do everywhere else.
+            HStack(spacing: 10) {
+                avatar.frame(width: 30, height: 30)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(auth.currentUser?.displayName ?? "Account")
+                        .font(.callout).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                    if let email = auth.currentUser?.email, !email.isEmpty {
+                        Text(email).font(.caption2).foregroundStyle(Theme.textMuted).lineLimit(1)
+                    }
                 }
             }
+            .contentShape(Rectangle())
+            .macOpensProfile(MacProfileLink.ownUserId(auth.currentUser), target: $profileTarget)
             Spacer(minLength: 4)
             Menu {
                 // `SettingsLink` is the supported way to open Settings (macOS 14+). The old
@@ -37,6 +43,7 @@ struct MacSidebarAccountBar: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Theme.bgPrimary)
+        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
     }
 
     @ViewBuilder private var avatar: some View {

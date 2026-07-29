@@ -131,12 +131,8 @@ struct MacBoardCardEditor: View {
         ForEach(comments) { c in
             VStack(alignment: .leading, spacing: 1) {
                 let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
-                if let uid = MacProfileLink.userId(authorId: c.authorId) {
-                    Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
-                        .buttonStyle(.plain).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
-                } else {
-                    Text(who.name).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
-                }
+                Text(who.name).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
+                    .macOpensProfile(c.authorId, target: $profileTarget)
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }

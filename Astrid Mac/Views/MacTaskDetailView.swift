@@ -426,23 +426,18 @@ struct MacTaskDetailView: View {
         VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
             HStack(alignment: .bottom, spacing: 8) {
                 if mine { Spacer(minLength: 30) }
-                if !mine { commentAvatar(who) }
+                if !mine { commentAvatar(who, authorId: c.authorId) }
                 Text(c.content)
                     .foregroundStyle(Theme.textPrimary)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
                                 in: RoundedRectangle(cornerRadius: 12))
-                if mine { commentAvatar(who) }
+                if mine { commentAvatar(who, authorId: c.authorId) }
                 if !mine { Spacer(minLength: 30) }
             }
             HStack(spacing: 4) {
                 // Names open the profile, as on iOS. System comments have no id and stay plain.
-                if let uid = MacProfileLink.userId(authorId: c.authorId) {
-                    Button(who.name) { profileTarget = MacProfileTarget(id: uid) }
-                        .buttonStyle(.plain).macPointingHand()
-                } else {
-                    Text(who.name)
-                }
+                Text(who.name).macOpensProfile(c.authorId, target: $profileTarget)
                 if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
             }
             .font(.caption2).foregroundStyle(Theme.textMuted)
@@ -459,8 +454,10 @@ struct MacTaskDetailView: View {
         }
     }
 
-    private func commentAvatar(_ who: MacAuthorDisplay) -> some View {
+    /// The photo opens the profile too — people click the face at least as often as the name.
+    private func commentAvatar(_ who: MacAuthorDisplay, authorId: String?) -> some View {
         MacAuthorAvatar(display: who, size: 20)
+            .macOpensProfile(authorId, target: $profileTarget)
     }
 
     /// Delete this task via the canonical service, closing the pop-out first.
