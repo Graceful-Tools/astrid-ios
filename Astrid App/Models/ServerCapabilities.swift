@@ -141,11 +141,47 @@ struct ServerCapabilities: Codable, Equatable {
         }
     }
 
+    /// The brand's VOICE — reminder nags, and captions for the default lists.
+    ///
+    /// Not identity but personality: Astrid's "I die a little every time you ignore me"
+    /// is the kind of line a partner replaces wholesale rather than translates. Native
+    /// clients each shipped their own copy of the set, so a partner had to replace it
+    /// once per platform with nothing keeping them in step.
+    ///
+    /// Absent for any deployment that overrides nothing, which is the common case — the
+    /// endpoint carries what DIFFERS, so Astrid pays no bytes for this.
+    struct BrandCopy: Codable, Equatable {
+        struct Reminders: Codable, Equatable {
+            var general: [String]?
+            var due: [String]?
+            var responses: [String]?
+
+            init() {}
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                general = try c.decodeIfPresent([String].self, forKey: .general)
+                due = try c.decodeIfPresent([String].self, forKey: .due)
+                responses = try c.decodeIfPresent([String].self, forKey: .responses)
+            }
+        }
+
+        var reminders: Reminders?
+
+        init() {}
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            reminders = try c.decodeIfPresent(Reminders.self, forKey: .reminders)
+        }
+    }
+
     var auth = Auth()
     var sync = Sync()
     var integrations = Integrations()
     var services = Services()
     var brand = BrandInfo()
+    var copy: BrandCopy?
 
     /// Assume everything is available.
     ///
@@ -164,5 +200,6 @@ struct ServerCapabilities: Codable, Equatable {
         integrations = try c.decodeIfPresent(Integrations.self, forKey: .integrations) ?? Integrations()
         services = try c.decodeIfPresent(Services.self, forKey: .services) ?? Services()
         brand = try c.decodeIfPresent(BrandInfo.self, forKey: .brand) ?? BrandInfo()
+        copy = try c.decodeIfPresent(BrandCopy.self, forKey: .copy)
     }
 }

@@ -2,13 +2,31 @@ import Foundation
 
 /// Reminder strings from original Astrid app
 /// Ported from web app's reminder-constants.ts
+///
+/// Each set is the BUILT-IN voice, used unless the connected deployment supplies its
+/// own through `BrandCopyStore` (task 97208a72). The nags carry a personality, so a
+/// partner usually replaces them wholesale rather than translating Astrid's — and now
+/// does so once, in the brand profile, rather than once per platform.
 struct ReminderConstants {
 
     // MARK: - General Reminders
 
-    // `reminders` names the app in one entry, so it is computed rather than a stored
-    // literal — mirrors the web's `{appName} here!` reminder copy. Task 97208a72.
-    static let reminders = [
+    /// The brand's nags if it supplied any, otherwise Astrid's.
+    static var reminders: [String] {
+        BrandCopyStore.shared.reminders(.general) ?? builtInReminders
+    }
+
+    static var remindersDue: [String] {
+        BrandCopyStore.shared.reminders(.due) ?? builtInRemindersDue
+    }
+
+    static var reminderResponses: [String] {
+        BrandCopyStore.shared.reminders(.responses) ?? builtInReminderResponses
+    }
+
+    // `builtInReminders` names the app in one entry, so it is computed rather than a
+    // stored literal — mirrors the web's `{appName} here!` reminder copy.
+    static let builtInReminders = [
         "Hi there! Have a sec?",
         "Can I see you for a sec?",
         "Have a few minutes?",
@@ -25,7 +43,7 @@ struct ReminderConstants {
 
     // MARK: - Due Date Reminders
 
-    static let remindersDue = [
+    static let builtInRemindersDue = [
         "Time to work!",
         "Due date is here!",
         "Ready to start?",
@@ -39,7 +57,7 @@ struct ReminderConstants {
 
     // MARK: - Encouraging Responses
 
-    static let reminderResponses = [
+    static let builtInReminderResponses = [
         "I've got something for you!",
         "Ready to put this in the past?",
         "Why don't you get this done?",
@@ -83,12 +101,14 @@ struct ReminderConstants {
     /// Get a random reminder string based on type
     static func getRandomReminderString(isDue: Bool = false) -> String {
         let array = isDue ? remindersDue : reminders
-        return array.randomElement() ?? reminders[0]
+        // `builtInReminders` is the last resort rather than `reminders[0]`: the resolved
+        // set is what might be empty, so indexing it would be the crash it guards against.
+        return array.randomElement() ?? builtInReminders[0]
     }
 
     /// Get a random encouraging response
     static func getRandomResponse() -> String {
-        return reminderResponses.randomElement() ?? reminderResponses[0]
+        return reminderResponses.randomElement() ?? builtInReminderResponses[0]
     }
 
     /// Get a complete reminder phrase (greeting + response)
