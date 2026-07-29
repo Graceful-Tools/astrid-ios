@@ -126,6 +126,9 @@ struct MacAuthGateView: View {
 /// the shared AuthManager; mirrors the iOS LoginView, adapted to native macOS (ASAuthorization).
 struct MacLoginView: View {
     @StateObject private var auth = AuthManager.shared
+    /// The connected deployment's brand. Starts as this build's own values, so the
+    /// lockup below is never blank and never flashes a placeholder (task 97208a72).
+    @ObservedObject private var serverCapabilities = ServerCapabilityService.shared
     @State private var showSignUp = false
     @State private var email = ""
 
@@ -141,8 +144,10 @@ struct MacLoginView: View {
                     .frame(width: 88, height: 88)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 VStack(spacing: 2) {
-                    Text(Brand.wordmark).font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                    Text(Brand.slogan).font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
+                    Text(serverCapabilities.capabilities.brand.resolvedWordmark)
+                        .font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                    Text(serverCapabilities.capabilities.brand.resolvedSlogan)
+                        .font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
                 }
                 Text(NSLocalizedString("auth.sign_in_header", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
             }
@@ -186,6 +191,11 @@ struct MacLoginView: View {
         .frame(width: 400)
         .background(Theme.bgPrimary)
         .sheet(isPresented: $showSignUp) { signUpSheet }
+        // Ask the connected deployment who it is. /api/v1/capabilities is
+        // unauthenticated precisely so this can happen before sign-in — which is exactly
+        // when the app needs to know which brand to show. Failure leaves this build's
+        // own brand in place (task 97208a72).
+        .task { await serverCapabilities.refreshIfServerChanged() }
     }
 
     private var signUpSheet: some View {
