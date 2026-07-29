@@ -50,6 +50,7 @@ while [[ $# -gt 0 ]]; do
             echo "Default behavior:"
             echo "  - Check localizations"
             echo "  - Check brand literals"
+            echo "  - Audit partner brand profiles"
             echo "  - Run unit tests"
             echo "  - Verify build compiles"
             exit 0
@@ -70,9 +71,9 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=4
+TOTAL_STEPS=5
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=5
+    TOTAL_STEPS=6
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
     TOTAL_STEPS=3
@@ -129,7 +130,25 @@ if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 4: Unit tests (unless quick mode)
+# Step 4: Partner brand audit (unless quick mode)
+# Its own gate for the same reason as the web's brand matrix: a whitelabel regression
+# should be reported as itself. This is the ONLY gate that can see one — on an Astrid
+# build every brand assertion is vacuous, because a reverted literal still compares
+# equal to the configured value. Task 97208a72.
+if [[ "$QUICK_MODE" != "true" ]]; then
+    STEP=$((STEP + 1))
+    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Auditing partner brand profiles...${NC}"
+    echo ""
+    if "$SCRIPT_DIR/check-brands.sh"; then
+        echo -e "${GREEN}✓ Brand audit passed${NC}"
+    else
+        echo -e "${RED}✗ Brand audit failed${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+# Step 5: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running unit tests...${NC}"
@@ -143,7 +162,7 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 5: UI tests (only with --full)
+# Step 6: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running UI tests...${NC}"
