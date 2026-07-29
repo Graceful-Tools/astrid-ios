@@ -83,7 +83,7 @@ struct SettingsView: View {
                     NavigationLink(destination: LazyView { AppleRemindersSettingsView() }) {
                         HStack {
                             Image(systemName: "checklist")
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                             Text(NSLocalizedString("apple_reminders", comment: ""))
                         }
                     }

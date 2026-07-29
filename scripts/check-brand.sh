@@ -90,6 +90,50 @@ run_rule "brand-accent-literal" \
     "ImagePickerView.swift" \
     "CompactTaskRow.swift"
 
+# --- Rule: parallel-colour-source ------------------------------------------------
+#
+# A colour constant declared outside Theme.swift / Brand.swift is a SECOND source of
+# truth that can drift from the first. `Constants.UI` was exactly that — hex copies of
+# the theme palette, carrying the comment "Match web app colors", with no mechanism to
+# keep them matching. Nothing read them, so they had already drifted into being dead
+# code without anyone noticing.
+#
+# Same exemptions as above: the default list colour is a protocol value, and
+# MacListEditSheet's palette is the set users pick FROM.
+run_rule "parallel-colour-source" \
+    "Colour constant declared outside Theme.swift / Brand.swift" \
+    "Declare colours in Theme.swift (surfaces) or Brand.swift (the brand accent)." \
+    'static[[:space:]]+let[[:space:]]+[A-Za-z_]+[[:space:]]*=[[:space:]]*"#?[0-9a-fA-F]{6}"' \
+    "Brand.swift" \
+    "Theme.swift" \
+    "MacListEditSheet.swift" \
+    "Project.swift" \
+    "TaskList.swift" \
+    "ListService.swift" \
+    "ListImageHelper.swift" \
+    "ReminderPresenter.swift" \
+    "ShareListView.swift" \
+    "InlineListsPicker.swift" \
+    "ListImageView.swift" \
+    "ReminderView.swift" \
+    "ImagePickerView.swift" \
+    "CompactTaskRow.swift"
+
+# --- Rule: raw-accent-blue -------------------------------------------------------
+#
+# A view tinted `.blue` is asking for the app's accent and getting the OPERATING
+# SYSTEM's instead. On an Astrid build the two are merely inconsistent (systemBlue
+# #007AFF next to Astrid blue #3b82f6); on a partner build with a green accent these
+# stay blue and look broken.
+#
+# Theme.swift is exempt: its LiquidGlass variant is defined in terms of system colours
+# on purpose, since that theme adopts the platform's materials wholesale.
+run_rule "raw-accent-blue" \
+    "View tinted with the system blue instead of the brand accent" \
+    "Use Theme.accent (or Theme.accentText for content drawn ON the accent)." \
+    '(foregroundColor|foregroundStyle|\.fill|\.tint|\.stroke|\.background)\((Color\.)?\.?blue\b' \
+    "Theme.swift"
+
 echo ""
 echo "──────────────────────────────────────────"
 if [[ $ERRORS -eq 0 ]]; then

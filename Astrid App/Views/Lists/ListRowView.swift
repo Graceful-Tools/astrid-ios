@@ -93,7 +93,7 @@ struct ListRowView: View {
             case .PUBLIC:
                 Image(systemName: "globe")
                     .font(.caption)
-                    .foregroundColor(.blue)
+                    .foregroundColor(Theme.accent)
             case .SHARED:
                 Image(systemName: "person.2.fill")
                     .font(.caption)

@@ -270,10 +270,10 @@ struct AIAPIKeyManagerView: View {
                                     Text("Test Key")
                                 }
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Theme.accent.opacity(0.1))
                                 .cornerRadius(8)
                             }
                             .disabled(status.isTesting)
@@ -378,7 +378,7 @@ struct AIAPIKeyManagerView: View {
                                             Text(NSLocalizedString("debug.get_key", comment: "Get Key"))
                                         }
                                         .font(Theme.Typography.caption1())
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Theme.accent)
                                     }
                                     .buttonStyle(.plain)
                                 }

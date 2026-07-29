@@ -58,7 +58,7 @@ struct TaskDetailViewOnly: View {
 
                             Text(creator.displayName)
                                 .font(Theme.Typography.body())
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                         }
                     }
                 }
@@ -73,7 +73,7 @@ struct TaskDetailViewOnly: View {
 
                             Text(date, style: .date)
                                 .font(Theme.Typography.body())
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
 
                             // Show time if this is a timed task (not all-day)
                             if !task.isAllDay {
@@ -83,7 +83,7 @@ struct TaskDetailViewOnly: View {
 
                                 Text(date, style: .time)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(Theme.accent)
                             }
                         }
                     }
@@ -94,7 +94,7 @@ struct TaskDetailViewOnly: View {
                     ViewOnlyTwoColumnRow(label: "Repeat") {
                         Text(repeating.rawValue.capitalized)
                             .font(Theme.Typography.body())
-                            .foregroundColor(.blue)
+                            .foregroundColor(Theme.accent)
                     }
                 }
 

@@ -193,7 +193,7 @@ struct TaskRowView: View {
                                         } else if let members = list.listMembers, members.count > 1 {
                                             Image(systemName: "person.2")
                                                 .font(.system(size: 12))
-                                                .foregroundColor(.blue)
+                                                .foregroundColor(Theme.accent)
                                         } else {
                                             Image(systemName: "number")
                                                 .font(.system(size: 12))

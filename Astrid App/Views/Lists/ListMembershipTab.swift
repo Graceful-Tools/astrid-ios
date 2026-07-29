@@ -578,10 +578,10 @@ struct ListMembershipTab: View {
                                         }) {
                                             Text(NSLocalizedString("actions.add", comment: ""))
                                                 .font(Theme.Typography.caption1())
-                                                .foregroundColor(.blue)
+                                                .foregroundColor(Theme.accent)
                                                 .padding(.horizontal, 12)
                                                 .padding(.vertical, 6)
-                                                .background(Color.blue.opacity(0.1))
+                                                .background(Theme.accent.opacity(0.1))
                                                 .cornerRadius(6)
                                         }
                                         .buttonStyle(.plain)

@@ -86,7 +86,7 @@ struct DefaultAgentPickerView: View {
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                     Text("Free \u{00B7} On-Device \u{00B7} Private")
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Theme.accent)
                                 }
 
                                 Spacer()

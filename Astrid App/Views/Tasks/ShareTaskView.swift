@@ -41,15 +41,15 @@ struct ShareTaskView: View {
                     HStack(alignment: .top, spacing: Theme.spacing8) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(.blue)
+                            .foregroundColor(Theme.accent)
 
                         Text(NSLocalizedString("share.private_task_message", comment: "This is a private task. Only users with access to this list can view it."))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(.blue)
+                            .foregroundColor(Theme.accent)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(Theme.spacing12)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Theme.accent.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     .padding(.horizontal, Theme.spacing16)
                 }
