@@ -339,14 +339,6 @@ struct MacRootView: View {
         .background(Theme.bgPrimary)   // pervasive theme background in search
     }
 
-    /// Focus the inline quick-add field instead of eagerly creating a junk "New Task" (C2).
-    /// A task is only created when the user commits non-empty text (see commitDraft).
-    private func newTask() {
-        guard selectedListId != nil else { return }
-        if contentMode != .list { contentMode = .list }
-        addFieldFocused = true
-    }
-
     /// Complete every selected task through the canonical service (repeat rollover honored).
     private func completeSelected() {
         let toComplete = tasksForSelection.filter { selectedTaskIds.contains($0.id) && !$0.completed }
@@ -386,8 +378,47 @@ struct MacRootView: View {
     /// over the chat column instead (which is sized to contain it), so selecting a task cannot
     /// reflow the rows (task 89e42f29 follow-up).
     private var listColumn: some View {
-        taskTable
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        VStack(spacing: 0) {
+            listChrome
+            taskTable
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Sort and filter, above the rows they act on (9998d83a). They used to be
+    /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
+    /// 3-column mode they right-aligned above the CHAT column and read as its controls.
+    @ViewBuilder
+    private var listChrome: some View {
+        let showsSort = MacListChrome.showsSort(hasSelection: selectedListId != nil,
+                                                isListMode: contentMode == .list)
+        let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil,
+                                                    isListMode: contentMode == .list)
+        if showsSort || showsFilter {
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                if showsSort { sortMenu.fixedSize() }
+                if showsFilter, let list = currentRealList { filterButton(list) }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .padding(.horizontal, MacLayout.rowTrailingGap)
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
+    private func filterButton(_ list: TaskList) -> some View {
+        Button { showFilterSheet = true } label: {
+            let active = MacListFilter.activeCount(completion: list.filterCompletion,
+                                                   priority: list.filterPriority,
+                                                   dueDate: list.filterDueDate,
+                                                   assignee: list.filterAssignee)
+            Label(NSLocalizedString("actions.filter", comment: ""),
+                  systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
+                                          : "line.3.horizontal.decrease.circle")
+        }
+        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
@@ -992,29 +1023,10 @@ struct MacRootView: View {
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
                 }
-                if contentMode == .list, selectedListId != nil {
-                    ToolbarItem(placement: .primaryAction) { sortMenu }
-                }
-                // Filter editor — real lists only (My Tasks filters live in its own prefs, efd05e56).
-                if contentMode == .list, let list = currentRealList {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button { showFilterSheet = true } label: {
-                            let active = MacListFilter.activeCount(completion: list.filterCompletion,
-                                                                   priority: list.filterPriority,
-                                                                   dueDate: list.filterDueDate,
-                                                                   assignee: list.filterAssignee)
-                            Label(NSLocalizedString("actions.filter", comment: ""), systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
-                                                                     : "line.3.horizontal.decrease.circle")
-                        }
-                        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button { newTask() } label: { Label(NSLocalizedString("tasks.new_task", comment: ""), systemImage: "plus") }
-                        .disabled(selectedListId == nil || selectionIsVirtual)
-                        .help(NSLocalizedString("tasks.new_task", comment: ""))
-                        .accessibilityIdentifier("tasks.newTask")
-                }
+                // Sort, filter and the task "+" are NOT toolbar items (9998d83a, 10d2cd34): the
+                // window toolbar's trailing edge is the chat column in 3-column mode, so they
+                // looked like the message list's controls. Sort/filter moved to `listChrome`
+                // above the rows; adding lives on the quick-add bar's ⊕ and ⌘N.
                 if selectedTaskIds.count > 1 && contentMode == .list {
                     ToolbarItem(placement: .primaryAction) {
                         Button { completeSelected() } label: {
