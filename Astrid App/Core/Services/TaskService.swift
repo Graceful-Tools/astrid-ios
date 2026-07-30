@@ -76,6 +76,9 @@ class TaskService: ObservableObject {
     func reconcileOutboxCreatedTask(tempId: String, serverTask: Task) async {
         // Always ensure the mapping — a dependent comment/update may target it.
         recordTempTaskMapping(tempId: tempId, realId: serverTask.id)
+        // WE created this and the server confirmed it. A fetch already in flight does not know
+        // that yet, and its silence must not be read as a delete (f07dff56).
+        recordRecentlyCreated(serverTask.id)
 
         guard cachedTasks[tempId] != nil || tasks.contains(where: { $0.id == tempId }) else {
             // A fetch merge already swapped temp→real in memory. It saved the
@@ -161,6 +164,36 @@ class TaskService: ObservableObject {
     /// evicts arbitrarily and could drop the id just recorded).
     private var recentlyDeletedIds: Set<String> {
         Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? [])
+    }
+
+    /// Ids we created ourselves and the server has confirmed, kept briefly (Task f07dff56).
+    ///
+    /// The mirror image of `recentlyDeletedIds`. A fetch that started BEFORE our create returns a
+    /// snapshot without the new task; the merge read that absence as "deleted remotely" and
+    /// dropped the row, which is the task vanishing and coming back a minute later. For an id we
+    /// created and the server acknowledged, absence from an in-flight response is staleness, not
+    /// authority. In-memory only: the window is seconds, and a relaunch re-fetches anyway.
+    private var recentlyCreatedIds: [String: Date] = [:]
+
+    /// Long enough to cover a fetch in flight across a create, short enough that a genuine remote
+    /// delete is honoured almost immediately. Same window the create dedup already uses.
+    private static let recentlyCreatedWindow: TimeInterval = 60
+
+    private func recordRecentlyCreated(_ id: String) {
+        let now = Date()
+        recentlyCreatedIds[id] = now
+        recentlyCreatedIds = recentlyCreatedIds.filter {
+            now.timeIntervalSince($0.value) < Self.recentlyCreatedWindow
+        }
+    }
+
+    /// Ids still inside the window — everything else falls back to "absent from the server means
+    /// deleted", so this can never become "never delete anything".
+    private var protectedCreatedIds: Set<String> {
+        let now = Date()
+        return Set(recentlyCreatedIds.filter {
+            now.timeIntervalSince($0.value) < Self.recentlyCreatedWindow
+        }.keys)
     }
 
     private func recordRecentlyDeleted(_ ids: [String]) {
@@ -1261,7 +1294,8 @@ class TaskService: ObservableObject {
         // Merge and sort (background CPU work, awaited)
         let sortedTasks = await Self.mergeAndSortTasksInBackground(
             newTasks: filteredNewTasks,
-            pendingTasks: localTasks
+            pendingTasks: localTasks,
+            protectedIds: protectedCreatedIds
         )
 
         // recentlyDeletedIds is intentionally NOT pruned on confirmation: a
@@ -1297,9 +1331,13 @@ class TaskService: ObservableObject {
     }
 
     /// Merge and sort tasks in background to avoid blocking main thread
+    /// `protectedIds` are tasks WE created and the server acknowledged moments ago. A fetch that
+    /// started before that create returns a snapshot without them, and treating that absence as a
+    /// remote delete is what made a new task vanish and come back (f07dff56).
     static nonisolated func mergeAndSortTasksInBackground(
         newTasks: [Task],
-        pendingTasks: [Task]
+        pendingTasks: [Task],
+        protectedIds: Set<String> = []
     ) async -> [Task] {
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -1327,8 +1365,12 @@ class TaskService: ObservableObject {
                             if localUpdated > serverUpdated {
                                 mergedDict[task.id] = task
                             }
+                        } else if protectedIds.contains(task.id) {
+                            // We created this and the server confirmed it — this response simply
+                            // predates it. Silence here is staleness, not a delete (f07dff56).
+                            mergedDict[task.id] = task
                         }
-                        // If task not on server (deleted remotely), don't re-add it
+                        // Otherwise not on the server → deleted remotely; don't re-add it.
                         continue
                     }
 
