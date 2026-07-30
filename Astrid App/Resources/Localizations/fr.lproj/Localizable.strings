@@ -1179,3 +1179,6 @@
 "mac.list_default_is" = "Par défaut de la liste (%@)";
 "mac.empty.search_none" = "Aucune tâche ne correspond à cette recherche.";
 "mac.empty.search_prompt" = "Recherchez vos tâches";
+
+"board.full_screen" = "Plein écran";
+"board.exit_full_screen" = "Quitter le plein écran";

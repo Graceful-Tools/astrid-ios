@@ -15,6 +15,9 @@ struct ViewModeRotatorButton: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var mode: HeaderToggleSegment
     let hasBoard: Bool
+    /// False where list messages are a pane beside the list instead of a view that replaces it
+    /// (iPad 2- and 3-column) — rotating there would hide the list to show what is already up.
+    var includesMessages: Bool = true
 
     var body: some View {
         Button {
@@ -31,14 +34,7 @@ struct ViewModeRotatorButton: View {
     }
 
     private func next(after current: HeaderToggleSegment) -> HeaderToggleSegment {
-        switch current {
-        case .list:
-            return .messages
-        case .messages:
-            return hasBoard ? .board : .list
-        case .board:
-            return .list
-        }
+        nextRotatorSegment(after: current, hasBoard: hasBoard, includesMessages: includesMessages)
     }
 
     /// Icon for the segment the button will move to on tap.

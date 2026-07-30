@@ -1165,3 +1165,6 @@
 "mac.list_default_is" = "列表預設 (%@)";
 "mac.empty.search_none" = "沒有符合該搜尋的任務。";
 "mac.empty.search_prompt" = "搜尋你的任務";
+
+"board.full_screen" = "全螢幕";
+"board.exit_full_screen" = "結束全螢幕";

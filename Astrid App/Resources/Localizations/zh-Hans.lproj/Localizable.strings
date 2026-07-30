@@ -1163,3 +1163,6 @@
 "mac.list_default_is" = "列表默认 (%@)";
 "mac.empty.search_none" = "没有与该搜索匹配的任务。";
 "mac.empty.search_prompt" = "搜索你的任务";
+
+"board.full_screen" = "全屏";
+"board.exit_full_screen" = "退出全屏";

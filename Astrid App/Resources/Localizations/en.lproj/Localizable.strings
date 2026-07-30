@@ -1171,3 +1171,6 @@
 "mac.list_default_is" = "List default (%@)";
 "mac.empty.search_none" = "No tasks match that search.";
 "mac.empty.search_prompt" = "Search your tasks";
+
+"board.full_screen" = "Full Screen";
+"board.exit_full_screen" = "Exit Full Screen";

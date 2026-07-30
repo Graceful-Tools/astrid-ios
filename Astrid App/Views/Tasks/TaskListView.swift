@@ -32,6 +32,13 @@ struct TaskListView: View {
     @Binding var selectedTaskForPanel: Task?  // For iPad side panel presentation
     var forcePushNavigation: Bool = false  // When true, use iPhone-style push even on iPad
     var onMenuTap: (() -> Void)?
+    /// Reports the rotator's current view to a container that lays out panes around this one
+    /// (iPad, Task a34d0163). One-way on purpose: the mode belongs to this view, the container
+    /// only needs to know whether it is drawing a list or a board.
+    var onViewModeChange: ((HeaderToggleSegment) -> Void)?
+    /// True when the container shows list messages in their own pane beside this one, so the
+    /// rotator must not offer messages as a view that replaces the list (a34d0163).
+    var messagesArePinnedBeside: Bool = false
 
     @State private var isCopyingList = false
     @State private var showingListSettings = false
@@ -49,6 +56,10 @@ struct TaskListView: View {
     /// renders by default while still letting the user rotate back to
     /// the list or forward to messages).
     @State private var taskViewMode: HeaderToggleSegment = .list
+    /// Board full screen on iPad (a34d0163). Shared with the pane container through AppStorage
+    /// rather than another binding down three layers, and it survives a relaunch, so a board
+    /// you expanded stays expanded.
+    @AppStorage("iPadBoardFullScreen") private var boardFullScreen: Bool = false
     @FocusState private var isSearchFieldFocused: Bool  // Keyboard focus for search header
 
     // My Tasks filter preferences (synced across devices via server)
@@ -69,7 +80,9 @@ struct TaskListView: View {
         searchText: Binding<String> = .constant(""),
         selectedTaskForPanel: Binding<Task?> = .constant(nil),
         forcePushNavigation: Bool = false,
-        onMenuTap: (() -> Void)? = nil
+        onMenuTap: (() -> Void)? = nil,
+        onViewModeChange: ((HeaderToggleSegment) -> Void)? = nil,
+        messagesArePinnedBeside: Bool = false
     ) {
         _selectedListId = selectedListId
         _isViewingFromFeatured = isViewingFromFeatured
@@ -78,6 +91,8 @@ struct TaskListView: View {
         _selectedTaskForPanel = selectedTaskForPanel
         self.forcePushNavigation = forcePushNavigation
         self.onMenuTap = onMenuTap
+        self.onViewModeChange = onViewModeChange
+        self.messagesArePinnedBeside = messagesArePinnedBeside
     }
 
     private var selectedList: TaskList? {
@@ -432,11 +447,34 @@ struct TaskListView: View {
                 // Replaces the old 2-way ChatToggleButton. The board step is
                 // skipped automatically when the current list has no project
                 // board attached, matching getHeaderViewToggle()'s rules.
-                if !isViewingFromFeatured, let _ = selectedListId {
+                // Hidden when it would rotate to itself: no board, and messages already pinned
+                // in their own pane beside this one (a34d0163).
+                if !isViewingFromFeatured, let _ = selectedListId,
+                   selectedList?.projectId != nil || !messagesArePinnedBeside {
                     ViewModeRotatorButton(
                         mode: $taskViewMode,
-                        hasBoard: selectedList?.projectId != nil
+                        hasBoard: selectedList?.projectId != nil,
+                        includesMessages: !messagesArePinnedBeside
                     )
+                }
+
+                // Board full screen (a34d0163, item 4): drops the picker and the messages pane
+                // so the board fills the window. Board-only — on a list it would just hide the
+                // picker for no reason.
+                if messagesArePinnedBeside, iPadPaneLayout.offersFullScreen(viewMode: taskViewMode) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { boardFullScreen.toggle() }
+                    } label: {
+                        Image(systemName: boardFullScreen
+                              ? "arrow.down.right.and.arrow.up.left"
+                              : "arrow.up.left.and.arrow.down.right")
+                            .font(Theme.Typography.headline())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .accessibilityLabel(Text(NSLocalizedString(
+                                boardFullScreen ? "board.exit_full_screen" : "board.full_screen",
+                                comment: "")))
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Settings/Filter button
@@ -674,6 +712,9 @@ struct TaskListView: View {
                 featuredListTasks = []
             }
         }
+        // Keep a pane-laying container in step with the rotator (a34d0163).
+        .onAppear { onViewModeChange?(taskViewMode) }
+        .onChange(of: taskViewMode) { _, newMode in onViewModeChange?(newMode) }
         .onChange(of: selectedListId) { _, newListId in
             // Reset the view-mode rotator: default to board when the new
             // list has one, list otherwise. A fresh selection always

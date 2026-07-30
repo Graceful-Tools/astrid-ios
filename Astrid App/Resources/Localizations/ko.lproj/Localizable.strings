@@ -1165,3 +1165,6 @@
 "mac.list_default_is" = "목록 기본값 (%@)";
 "mac.empty.search_none" = "검색과 일치하는 작업이 없습니다.";
 "mac.empty.search_prompt" = "작업 검색";
+
+"board.full_screen" = "전체 화면";
+"board.exit_full_screen" = "전체 화면 종료";

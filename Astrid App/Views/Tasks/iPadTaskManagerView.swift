@@ -10,6 +10,7 @@ private struct iPadTaskListView: View {
     @Binding var searchText: String
     @Binding var selectedTask: Task?
     var onMenuTap: (() -> Void)?
+    var onViewModeChange: ((HeaderToggleSegment) -> Void)?
 
     var body: some View {
         TaskListView(
@@ -18,7 +19,11 @@ private struct iPadTaskListView: View {
             featuredList: $featuredList,
             searchText: $searchText,
             selectedTaskForPanel: $selectedTask,
-            onMenuTap: onMenuTap
+            onMenuTap: onMenuTap,
+            onViewModeChange: onViewModeChange,
+            // List messages get their own pane out here, so the rotator must not
+            // offer them as a view that replaces the list (a34d0163).
+            messagesArePinnedBeside: true
         )
     }
 }
@@ -45,7 +50,10 @@ struct iPadTaskManagerView: View {
 
     // Selected task for detail panel
     @State private var selectedTask: Task?
-    @State private var showChatPanel = false  // Toggle chat in right panel
+    /// What the list column is currently drawing, reported by TaskListView's rotator. The pane
+    /// layout turns on it: messages ride beside a LIST, and stand down for a board (a34d0163).
+    @State private var listViewMode: HeaderToggleSegment = .list
+    @AppStorage("iPadBoardFullScreen") private var boardFullScreen: Bool = false
 
     // Portrait mode: sidebar shown via sliding overlay (like iPhone)
     @State private var showingSidebar = false
@@ -122,7 +130,6 @@ struct iPadTaskManagerView: View {
         .onAppear {
             TaskPresenter.shared.panelHandler = { task in
                 selectedTask = task
-                showChatPanel = false
             }
         }
         .onDisappear {
@@ -132,7 +139,6 @@ struct iPadTaskManagerView: View {
         // panelAnimation drives the slide-out (a nested withAnimation here fought it).
         .onChange(of: selectedListId) { _, _ in
             selectedTask = nil
-            showChatPanel = false
         }
     }
 
@@ -140,85 +146,107 @@ struct iPadTaskManagerView: View {
 
     @ViewBuilder
     private func threeColumnLandscapeLayout(width: CGFloat) -> some View {
+        let showsMessages = showsMessagesPane(columns: 3)
+        let panes = iPadPaneLayout.widths(total: width, columns: 3,
+                                          showsMessages: showsMessages,
+                                          boardFullScreen: isBoardFullScreen)
+        let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
+                                                     showsMessages: showsMessages)
+
         ZStack {
             // Full-screen background (fills safe areas — fixes black in dark mode)
             themeBackground
                 .ignoresSafeArea()
 
         HStack(spacing: 0) {
-            // Left: Sidebar (28% - permanently visible)
-            NavigationStack {
-                ListSidebarView(
-                    selectedListId: $selectedListId,
-                    isViewingFromFeatured: $isViewingFromFeatured,
-                    featuredList: $featuredList,
-                    searchText: $searchText,
-                    shouldScrollToTop: $shouldScrollSidebarToTop
-                )
-                .environmentObject(authManager)
+            // Left: list picker — permanently visible, except under a full-screen board.
+            if panes.sidebar > 0 {
+                NavigationStack {
+                    ListSidebarView(
+                        selectedListId: $selectedListId,
+                        isViewingFromFeatured: $isViewingFromFeatured,
+                        featuredList: $featuredList,
+                        searchText: $searchText,
+                        shouldScrollToTop: $shouldScrollSidebarToTop
+                    )
+                    .environmentObject(authManager)
+                }
+                .frame(width: panes.sidebar)
+                .background(themeBackground)
+
+                Divider()
             }
-            .frame(width: width * 0.28)
-            .background(themeBackground)
 
-            Divider()
-
-            // Middle + detail. The detail/chat is a trailing OVERLAY so the list/
-            // board keeps its full 0.72 width and doesn't reflow when a task opens.
+            // Centre: task list (or board). Right: list messages. The task detail is a
+            // trailing OVERLAY sized to the messages pane, so opening a task covers the
+            // messages and never the list you are working in (a34d0163).
             ZStack(alignment: .trailing) {
-                Group {
-                    if selectedListId == "settings" {
-                        NavigationStack {
-                            SettingsView()
-                                .environmentObject(authManager)
+                HStack(spacing: 0) {
+                    Group {
+                        if selectedListId == "settings" {
+                            NavigationStack {
+                                SettingsView()
+                                    .environmentObject(authManager)
+                            }
+                        } else if selectedListId == "profile", let userId = authManager.userId {
+                            NavigationStack {
+                                UserProfileView(userId: userId, isRootDestination: true)
+                                    .environmentObject(authManager)
+                            }
+                        } else {
+                            // No onMenuTap - hamburger does nothing in landscape since sidebar is always visible
+                            iPadTaskListView(
+                                selectedListId: $selectedListId,
+                                isViewingFromFeatured: $isViewingFromFeatured,
+                                featuredList: $featuredList,
+                                searchText: $searchText,
+                                selectedTask: $selectedTask,
+                                onMenuTap: nil,
+                                onViewModeChange: { listViewMode = $0 }
+                            )
                         }
-                    } else if selectedListId == "profile", let userId = authManager.userId {
-                        NavigationStack {
-                            UserProfileView(userId: userId, isRootDestination: true)
-                                .environmentObject(authManager)
-                        }
-                    } else {
-                        // No onMenuTap - hamburger does nothing in landscape since sidebar is always visible
-                        iPadTaskListView(
-                            selectedListId: $selectedListId,
-                            isViewingFromFeatured: $isViewingFromFeatured,
-                            featuredList: $featuredList,
-                            searchText: $searchText,
-                            selectedTask: $selectedTask,
-                            onMenuTap: nil
-                        )
+                    }
+                    .frame(width: panes.list)
+
+                    if showsMessages, let listId = selectedListId {
+                        messagesPane(listId: listId, width: panes.messages)
                     }
                 }
-                .frame(width: width * 0.72)
+                .frame(width: width - panes.sidebar)
 
-                // Right panel: Task Detail or Chat — overlays the list's trailing edge.
-                // The task detail self-styles (rounded card, clear corners); chat
-                // gets its own solid backing + shadow.
                 if let task = selectedTask {
-                    Group {
-                        if showChatPanel, let listId = selectedListId {
-                            ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
-                                .frame(width: width * 0.40)
-                                .background(themeBackground)
-                                .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
-                        } else {
-                            taskDetailPanel(for: task)
-                                .frame(width: width * 0.40)
-                        }
-                    }
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-                } else if showChatPanel, let listId = selectedListId {
-                    ChatPanelView(listId: listId, onSignedIn: { showChatPanel = false })
-                        .frame(width: width * 0.40)
-                        .background(themeBackground)
-                        .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
+                    taskDetailPanel(for: task)
+                        .frame(width: detailWidth)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .frame(width: width * 0.72)
+            .frame(width: width - panes.sidebar)
             // Slide the detail overlay + board scroll room in/out on selection.
             .animation(Self.panelAnimation, value: selectedTask?.id)
         }
         } // ZStack
+    }
+
+    // MARK: - Panes (Task a34d0163)
+
+    /// Does the messages pane belong beside the list right now?
+    private func showsMessagesPane(columns: Int) -> Bool {
+        iPadPaneLayout.showsMessages(columns: columns, viewMode: listViewMode,
+                                     listId: selectedListId, boardFullScreen: isBoardFullScreen)
+    }
+
+    /// Full screen only means anything while a board is on screen — the flag persists, so a
+    /// board you expanded stays expanded, but a list view must never lose its picker to it.
+    private var isBoardFullScreen: Bool {
+        boardFullScreen && listViewMode == .board
+    }
+
+    /// List messages, styled to sit beside the list rather than float over it.
+    private func messagesPane(listId: String, width: CGFloat) -> some View {
+        ChatPanelView(listId: listId)
+            .frame(width: width)
+            .background(themeBackground)
+            .overlay(alignment: .leading) { Divider() }
     }
 
     // MARK: - Portrait Layout (Sliding sidebar like iPhone)
@@ -227,7 +255,13 @@ struct iPadTaskManagerView: View {
 
     @ViewBuilder
     private func threeColumnPortraitLayout(width: CGFloat, isLandscape: Bool) -> some View {
-        let sidebarWidth = width * 0.40  // 40% sidebar width for iPad
+        let sidebarWidth = width * 0.40  // 40% drawer width for iPad
+        let showsMessages = showsMessagesPane(columns: 2)
+        let panes = iPadPaneLayout.widths(total: width, columns: 2,
+                                          showsMessages: showsMessages,
+                                          boardFullScreen: isBoardFullScreen)
+        let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 2,
+                                                     showsMessages: showsMessages)
 
         ZStack(alignment: .leading) {
             // Full-screen background
@@ -313,34 +347,45 @@ struct iPadTaskManagerView: View {
                     }
                     .frame(width: width)
                 } else {
-                    iPadTaskListView(
-                        selectedListId: $selectedListId,
-                        isViewingFromFeatured: $isViewingFromFeatured,
-                        featuredList: $featuredList,
-                        searchText: $searchText,
-                        selectedTask: $selectedTask,
-                        onMenuTap: {
-                            // Dismiss keyboard first
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                            // Open sidebar
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                impact.impactOccurred()
-                            }
+                    // Task list + list messages side by side. The picker stays the sliding
+                    // drawer here, so it costs no width (a34d0163).
+                    HStack(spacing: 0) {
+                        iPadTaskListView(
+                            selectedListId: $selectedListId,
+                            isViewingFromFeatured: $isViewingFromFeatured,
+                            featuredList: $featuredList,
+                            searchText: $searchText,
+                            selectedTask: $selectedTask,
+                            onMenuTap: {
+                                // Dismiss keyboard first
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                // Open sidebar
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                    showingSidebar = true
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                    let impact = UIImpactFeedbackGenerator(style: .light)
+                                    impact.impactOccurred()
+                                }
+                            },
+                            onViewModeChange: { listViewMode = $0 }
+                        )
+                        .frame(width: panes.list)
+
+                        if showsMessages, let listId = selectedListId {
+                            messagesPane(listId: listId, width: panes.messages)
                         }
-                    )
+                    }
                     .frame(width: width)
                 }
 
-                // Task Detail Panel - overlays the trailing half; the list/board
-                // underneath keeps its full width so its rows/cards don't reflow.
-                // The panel self-styles (rounded card, shadow, clear corners).
+                // Task Detail Panel — sized to the messages pane so details appear OVER the
+                // messages and the task list stays visible. With no messages pane it keeps
+                // the half-width it has always had. The panel self-styles (rounded card,
+                // shadow, clear corners).
                 if let task = selectedTask {
                     taskDetailPanel(for: task)
-                        .frame(width: width * 0.50)
+                        .frame(width: detailWidth)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
@@ -370,8 +415,8 @@ struct iPadTaskManagerView: View {
                             predictedEndTranslationWidth: value.predictedEndTranslation.width
                         ) else { return }
                         // Only act for swipes that begin in the list area; the task
-                        // detail panel (right half when open) handles its own.
-                        let listWidth = selectedTask != nil ? width * 0.5 : width
+                        // detail panel (the trailing pane when open) handles its own.
+                        let listWidth = selectedTask != nil ? width - detailWidth : width
                         guard value.startLocation.x < listWidth else { return }
                         if isLandscape && selectedTask != nil {
                             // Landscape WITH a task open: just close it to reveal the

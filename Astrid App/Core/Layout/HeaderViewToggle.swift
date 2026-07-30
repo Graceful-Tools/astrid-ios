@@ -36,6 +36,26 @@ struct HeaderViewToggleConfig: Equatable {
     let unified: Bool
 }
 
+/// The segment the header's rotator button moves to next (Task a34d0163).
+///
+/// `includesMessages` is false wherever list messages are a PANE beside the list rather than a
+/// view that replaces it — the iPad's 2- and 3-column layouts. Rotating into messages there
+/// would hide the task list to show something already on screen. This is the same rule
+/// `getHeaderViewToggle` applies when it withholds `.messages` from a non-one-column layout.
+func nextRotatorSegment(after current: HeaderToggleSegment,
+                        hasBoard: Bool,
+                        includesMessages: Bool) -> HeaderToggleSegment {
+    switch current {
+    case .list:
+        if includesMessages { return .messages }
+        return hasBoard ? .board : .list
+    case .messages:
+        return hasBoard ? .board : .list
+    case .board:
+        return .list
+    }
+}
+
 /// Decide which segments the header's view-toggle should render and how.
 /// See `lib/header-view-toggle.ts` in astrid-web for the canonical spec.
 func getHeaderViewToggle(_ state: HeaderViewToggleState) -> HeaderViewToggleConfig {
