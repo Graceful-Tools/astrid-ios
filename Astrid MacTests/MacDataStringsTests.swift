@@ -105,7 +105,10 @@ final class MacDataStringsTests: XCTestCase {
     func testPaletteCommandsAreLocalized() {
         let titles = MacAppModel.shared.registry.commands.map(\.title)
         XCTAssertTrue(titles.contains(NSLocalizedString("tasks.new_task", comment: "")))
-        XCTAssertTrue(titles.contains(NSLocalizedString("mac.refresh_lists", comment: "")))
+        // "Refresh Lists" → "Refresh" (0f525a89): the command used to fetch only the lists, so the
+        // sidebar refreshed while stale tasks stayed on screen. It now runs the same full sync as
+        // ⌘R and the toolbar button, and the title had to stop promising less than it does.
+        XCTAssertTrue(titles.contains(NSLocalizedString("mac.refresh", comment: "")))
     }
 }
 

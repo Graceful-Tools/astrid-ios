@@ -66,6 +66,11 @@ struct AstridCommands: Commands {
             item(.viewChat) { MacAppModel.shared.requestContentMode("chat") }
             Divider()
             item(.filter) { MacAppModel.shared.requestFilters() }
+            Divider()
+            // ⌘R — the platform's refresh key. Same action as the toolbar button and the palette
+            // command (0f525a89); there was no menu item, button or shortcut before.
+            Button(NSLocalizedString("mac.refresh", comment: "")) { MacAppModel.shared.refreshNow() }
+                .keyboardShortcut("r", modifiers: .command)
         }
 
         // App menu → Check for Updates (Direct/Sparkle build; no-op/hidden on App Store).

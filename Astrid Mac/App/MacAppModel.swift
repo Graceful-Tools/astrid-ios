@@ -113,6 +113,17 @@ final class MacAppModel: ObservableObject {
 
     @MainActor func requestNewTask() { openQuickAdd() }
 
+    /// Manual refresh (0f525a89) — one action behind ⌘R, the toolbar button and the palette, so
+    /// the three routes cannot drift. Full sync, not quick: quick only pushes the outbox and
+    /// fetches nothing, which is a refresh that refreshes nothing.
+    @MainActor func refreshNow() {
+        guard MacRefresh.isEnabled(isOnline: NetworkMonitor.shared.isConnected,
+                                   isSyncing: SyncManager.shared.isSyncing) else { return }
+        MacActions.perform("Refresh") {
+            try await SyncManager.shared.performFullSync(includeUserTasks: true)
+        }
+    }
+
     /// Menu-bar ⌘ commands (e0412a64). MacRootView owns the selection/content state, so these
     /// travel as requests rather than being mutated from the menu.
     @MainActor func requestSearch() { emit(.focusSearch) }
@@ -149,10 +160,12 @@ final class MacAppModel: ObservableObject {
                                      shortcut: "⌥Space") { [weak self] in
             self?.openQuickAdd()
         })
+        // Same action as ⌘R and the toolbar button (0f525a89). It used to fetch only the lists,
+        // so the sidebar refreshed while stale tasks stayed on screen.
         registry.register(AppCommand(id: "refresh-lists",
-                                     title: NSLocalizedString("mac.refresh_lists", comment: ""),
-                                     subtitle: nil, shortcut: nil) {
-            _Concurrency.Task { _ = try? await ListService.shared.fetchLists() }
+                                     title: NSLocalizedString("mac.refresh", comment: ""),
+                                     subtitle: nil, shortcut: "⌘R") { [weak self] in
+            _Concurrency.Task { @MainActor in self?.refreshNow() }
         })
     }
 

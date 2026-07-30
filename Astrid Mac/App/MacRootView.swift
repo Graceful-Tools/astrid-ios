@@ -16,6 +16,7 @@ struct MacRootView: View {
     @StateObject private var appModel = MacAppModel.shared
     @StateObject private var auth = AuthManager.shared
     @StateObject private var network = NetworkMonitor.shared
+    @StateObject private var syncManager = SyncManager.shared   // drives the refresh spinner (0f525a89)
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
@@ -1022,6 +1023,22 @@ struct MacRootView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
+                }
+                // Manual refresh (0f525a89) — the one control that DOES belong to the window
+                // rather than to the task list: it reconciles everything, not just these rows.
+                ToolbarItem(placement: .primaryAction) {
+                    Button { MacAppModel.shared.refreshNow() } label: {
+                        if MacRefresh.showsProgress(isSyncing: syncManager.isSyncing) {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label(NSLocalizedString("mac.refresh", comment: ""),
+                                  systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(!MacRefresh.isEnabled(isOnline: network.isConnected,
+                                                    isSyncing: syncManager.isSyncing))
+                    .help(NSLocalizedString("mac.refresh", comment: ""))
+                    .accessibilityIdentifier("tasks.refresh")
                 }
                 // Sort, filter and the task "+" are NOT toolbar items (9998d83a, 10d2cd34): the
                 // window toolbar's trailing edge is the chat column in 3-column mode, so they
