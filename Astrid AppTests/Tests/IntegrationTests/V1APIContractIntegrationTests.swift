@@ -6,7 +6,7 @@ import XCTest
 final class V1APIContractIntegrationTests: XCTestCase {
 
     func testIOSClientUsesV1ForCoreServiceEndpoints() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
 
@@ -44,7 +44,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     /// `POST /api/v1/projects/from-list` rather than the old two-step
     /// project-then-list-PUT flow that could orphan a project.
     func testCreateBoardUsesAtomicV1Endpoint() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
         XCTAssertTrue(source.contains("/api/v1/projects/from-list"),
@@ -55,7 +55,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     /// (`api/shortcodes/<code>`). It must use the v1 path like every other
     /// service call, and must not retain the legacy unversioned form.
     func testResolveShortcodeUsesV1Path() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
 
@@ -66,9 +66,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
     }
 
     func testSiblingWebRepoHasV1RoutesIOSConsumes() throws {
-        let webRoot = try repositoryRoot()
-            .deletingLastPathComponent()
-            .appendingPathComponent("astrid-web")
+        let webRoot = try RepositoryLocator.siblingWebRepository()
 
         let routeFiles = [
             "app/api/v1/tasks/route.ts",
@@ -95,11 +93,5 @@ final class V1APIContractIntegrationTests: XCTestCase {
         }
     }
 
-    private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.lastPathComponent != "astrid-ios" && url.path != "/" {
-            url.deleteLastPathComponent()
-        }
-        return url
-    }
+
 }

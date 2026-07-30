@@ -195,13 +195,13 @@ struct EditProfileView: View {
             if viewModel.isOAuthUser {
                 HStack(spacing: Theme.spacing8) {
                     Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
+                        .foregroundColor(Theme.accent)
                     Text("Your profile photo is synced with your \(viewModel.oauthProvider) account. You can override it by uploading a custom photo above.")
                         .font(Theme.Typography.caption2())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
                 .padding(Theme.spacing12)
-                .background(Color.blue.opacity(0.1))
+                .background(Theme.accent.opacity(0.1))
                 .cornerRadius(Theme.radiusMedium)
             }
         }

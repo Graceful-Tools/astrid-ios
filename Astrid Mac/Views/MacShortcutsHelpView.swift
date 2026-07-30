@@ -29,7 +29,7 @@ struct MacShortcutsHelpView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(NSLocalizedString("mac.keyboard_shortcuts", comment: "")).font(.title2.bold())
-            Text(NSLocalizedString("mac.shortcuts_note", comment: ""))
+            Text(Brand.localized("mac.shortcuts_note"))
                 .font(.callout).foregroundStyle(.secondary)
 
             ScrollView {

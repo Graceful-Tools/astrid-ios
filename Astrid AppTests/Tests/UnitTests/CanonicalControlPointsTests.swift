@@ -193,7 +193,7 @@ final class CanonicalControlPointsTests: XCTestCase {
     }
 
     func testRefactoredViews_DoNotCallAstridAPIClientDirectly() throws {
-        let root = try repositoryRoot()
+        let root = try RepositoryLocator.repositoryRoot()
         let auditedViews = [
             "Astrid App/Views/Tasks/TaskDetailViewNew.swift",
             "Astrid App/Views/Tasks/TaskListView.swift",
@@ -213,13 +213,6 @@ final class CanonicalControlPointsTests: XCTestCase {
         }
     }
 
-    private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.lastPathComponent != "astrid-ios" && url.path != "/" {
-            url.deleteLastPathComponent()
-        }
-        return url
-    }
 
     // MARK: - AstridAPIClient exposes the preferences endpoints
 

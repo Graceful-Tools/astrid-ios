@@ -49,6 +49,8 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Default behavior:"
             echo "  - Check localizations"
+            echo "  - Check brand literals"
+            echo "  - Audit partner brand profiles"
             echo "  - Run unit tests"
             echo "  - Verify build compiles"
             exit 0
@@ -69,12 +71,12 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=3
+TOTAL_STEPS=5
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=4
+    TOTAL_STEPS=6
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
-    TOTAL_STEPS=2
+    TOTAL_STEPS=3
 fi
 
 # Step 1: Localization checks
@@ -89,7 +91,22 @@ else
 fi
 echo ""
 
-# Step 2: Build verification (unless skipped or quick mode)
+# Step 2: Brand-literal checks (whitelabel — task 97208a72)
+# Its own gate, not folded into the unit tests, so a whitelabel regression is reported
+# as itself rather than as one failure among 1200. A brand literal is invisible on an
+# Astrid build and only surfaces on a partner's, where nobody is watching.
+STEP=$((STEP + 1))
+echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking brand literals...${NC}"
+echo ""
+if "$SCRIPT_DIR/check-brand.sh"; then
+    echo -e "${GREEN}✓ Brand checks passed${NC}"
+else
+    echo -e "${RED}✗ Brand checks failed${NC}"
+    exit 1
+fi
+echo ""
+
+# Step 3: Build verification (unless skipped or quick mode)
 if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Verifying build compiles...${NC}"
@@ -113,7 +130,25 @@ if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 3: Unit tests (unless quick mode)
+# Step 4: Partner brand audit (unless quick mode)
+# Its own gate for the same reason as the web's brand matrix: a whitelabel regression
+# should be reported as itself. This is the ONLY gate that can see one — on an Astrid
+# build every brand assertion is vacuous, because a reverted literal still compares
+# equal to the configured value. Task 97208a72.
+if [[ "$QUICK_MODE" != "true" ]]; then
+    STEP=$((STEP + 1))
+    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Auditing partner brand profiles...${NC}"
+    echo ""
+    if "$SCRIPT_DIR/check-brands.sh"; then
+        echo -e "${GREEN}✓ Brand audit passed${NC}"
+    else
+        echo -e "${RED}✗ Brand audit failed${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+# Step 5: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running unit tests...${NC}"
@@ -127,7 +162,7 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 4: UI tests (only with --full)
+# Step 6: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running UI tests...${NC}"

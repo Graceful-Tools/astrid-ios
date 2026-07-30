@@ -563,7 +563,7 @@ class PasskeyManager: NSObject, ObservableObject {
             throw PasskeyError.invalidChallenge
         }
 
-        let rpId = options.rpId ?? "astrid.cc"
+        let rpId = options.rpId ?? Brand.host
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
 
         var allowedCredentials: [ASAuthorizationPlatformPublicKeyCredentialDescriptor] = []

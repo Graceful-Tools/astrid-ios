@@ -39,7 +39,7 @@ final class MacServiceProvider: NSObject {
                            error: AutoreleasingUnsafeMutablePointer<NSString>) {
         guard let text = pboard.string(forType: .string),
               let parsed = MacServiceInput.parse(text) else { return }
-        MacActions.perform("Add to Astrid") {
+        MacActions.perform("Add to \(Brand.appName)") {
             let listIds = ListService.shared.lists.first(where: { $0.isVirtual != true }).map { [$0.id] } ?? []
             _ = try await TaskService.shared.createTask(
                 listIds: listIds, title: parsed.title,

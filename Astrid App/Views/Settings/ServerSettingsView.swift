@@ -55,7 +55,7 @@ struct ServerSettingsView: View {
                                 Text(option.displayName)
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Text(option.rawValue)
+                                Text(option.url)
                                     .font(Theme.Typography.caption2())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
@@ -105,17 +105,17 @@ struct ServerSettingsView: View {
     }
 
     private func isCurrentServer(_ option: Constants.API.ServerOption) -> Bool {
-        return Constants.API.baseURL == option.rawValue
+        return Constants.API.baseURL == option.url
     }
 
     private func selectServer(_ option: Constants.API.ServerOption) {
         guard !isCurrentServer(option) else { return }
 
-        serverURL = option.rawValue
-        pendingURL = option.rawValue
+        serverURL = option.url
+        pendingURL = option.url
         showingRestartAlert = true
 
-        print("🔧 [ServerSettings] Server changed to: \(option.rawValue)")
+        print("🔧 [ServerSettings] Server changed to: \(option.url)")
         print("⚠️ [ServerSettings] App restart required for changes to take effect")
     }
 

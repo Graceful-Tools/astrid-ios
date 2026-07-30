@@ -521,9 +521,9 @@ class AuthManager: ObservableObject {
         }
         // Also clear all cookies for the domain (covers subdomains too)
         if let allCookies = HTTPCookieStorage.shared.cookies {
-            let astridCookies = allCookies.filter { $0.domain.contains("astrid") }
-            print("🍪 [AuthManager] Clearing \(astridCookies.count) Astrid domain cookies...")
-            for cookie in astridCookies {
+            let brandCookies = allCookies.filter { Brand.isBrandCookieDomain($0.domain) }
+            print("🍪 [AuthManager] Clearing \(brandCookies.count) \(Brand.appName) domain cookies...")
+            for cookie in brandCookies {
                 HTTPCookieStorage.shared.deleteCookie(cookie)
             }
         }

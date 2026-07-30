@@ -906,7 +906,7 @@ struct MacRootView: View {
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
             .background(Theme.bgPrimary)
             .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
-            .navigationTitle("Astrid")
+            .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
                 Divider()

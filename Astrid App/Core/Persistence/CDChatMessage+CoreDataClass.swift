@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "CDChatMessage")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "CDChatMessage")
 
 @objc(CDChatMessage)
 public class CDChatMessage: NSManagedObject {

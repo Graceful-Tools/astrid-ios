@@ -118,7 +118,7 @@ struct PublicListRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "globe")
                             .font(.caption)
-                            .foregroundColor(.blue)
+                            .foregroundColor(Theme.accent)
 
                         if isCollaborative {
                             Image(systemName: "person.2")

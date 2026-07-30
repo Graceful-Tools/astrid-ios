@@ -36,7 +36,7 @@ struct AppearanceSettingsView: View {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "envelope.fill")
                             .foregroundColor(Theme.accent)
-                        Text("remindme@astrid.cc")
+                        Text(Brand.inboundTaskEmail)
                             .font(Theme.Typography.body())
                             .fontWeight(.medium)
                     }

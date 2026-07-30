@@ -133,7 +133,7 @@ struct AppleRemindersSettingsView: View {
         } header: {
             Text(NSLocalizedString("reminders.access_header", comment: ""))
         } footer: {
-            Text(NSLocalizedString("reminders.access_footer", comment: ""))
+            Text(Brand.localized("reminders.access_footer"))
                 .font(Theme.Typography.caption2())
                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
         }
@@ -254,7 +254,7 @@ struct AppleRemindersSettingsView: View {
                 } header: {
                     Text(NSLocalizedString("reminders.import_from_reminders", comment: ""))
                 } footer: {
-                    Text(NSLocalizedString("reminders.import_footer", comment: ""))
+                    Text(Brand.localized("reminders.import_footer"))
                         .font(Theme.Typography.caption2())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                 }
@@ -384,7 +384,7 @@ struct LinkListSheet: View {
                                 .font(Theme.Typography.headline())
                         }
                     } header: {
-                        Text(NSLocalizedString("reminders.astrid_list", comment: ""))
+                        Text(Brand.localized("reminders.astrid_list"))
                     }
 
                     Section {
@@ -576,7 +576,7 @@ struct ImportCalendarSheet: View {
                             HStack {
                                 Image(systemName: "plus.circle")
                                     .foregroundColor(Theme.accent)
-                                Text(NSLocalizedString("reminders.create_new_astrid_list", comment: ""))
+                                Text(Brand.localized("reminders.create_new_astrid_list"))
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 Spacer()
                                 if createNewList {
@@ -612,7 +612,7 @@ struct ImportCalendarSheet: View {
                     } header: {
                         Text(NSLocalizedString("reminders.import_into", comment: ""))
                     } footer: {
-                        Text(String(format: NSLocalizedString("reminders.import_into_footer", comment: ""), calendar.title))
+                        Text(Brand.localized("reminders.import_into_footer", calendar.title))
                             .font(Theme.Typography.caption2())
                     }
 

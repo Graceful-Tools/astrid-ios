@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "AppleFM")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "AppleFM")
 
 /// Sentinel ID used to identify the on-device Apple Foundation Model in settings
 let kAppleFoundationModelId = "apple-foundation-model"
@@ -102,6 +102,28 @@ extension AppleFoundationModelService {
 
     // MARK: - Chat Processing
 
+    /// The fixed, brand-bearing head of the on-device chat prompt.
+    ///
+    /// Extracted so it is testable, and because it NAMES THE ASSISTANT: the model is
+    /// told who it is and then says so to the user, which makes this as user-visible as
+    /// any label on screen (task 97208a72). `nonisolated` so tests can read it without
+    /// hopping to the main actor.
+    nonisolated static func personaInstructions(today: String) -> String {
+        """
+        You are \(Brand.agentName), a helpful task management assistant running on-device. \
+        Keep responses concise and friendly. Current date/time: \(today)
+
+        ## How to reference things in your responses
+        Always refer to tasks, lists, and people by name using linked references — never show raw IDs.
+        - Reference a task: ![Task Title](taskId) — e.g. ![Buy groceries](def-456)
+        - Reference a list: #[List Name](listId) — e.g. #[Shopping](abc-123)
+        - Mention a person: @[Name](userId) — e.g. @[Jon](cmeje-123)
+
+        ## Priority levels
+        0 = none, 1 = low (!), 2 = medium (!!), 3 = high/urgent (!!!)
+        """
+    }
+
     private func _processChatMessage(_ message: String) async -> String? {
         do {
             // Build task context from local data
@@ -124,17 +146,7 @@ extension AppleFoundationModelService {
 
             let session = LanguageModelSession(
                 instructions: """
-                You are Astrid, a helpful task management assistant running on-device. \
-                Keep responses concise and friendly. Current date/time: \(today)
-
-                ## How to reference things in your responses
-                Always refer to tasks, lists, and people by name using linked references — never show raw IDs.
-                - Reference a task: ![Task Title](taskId) — e.g. ![Buy groceries](def-456)
-                - Reference a list: #[List Name](listId) — e.g. #[Shopping](abc-123)
-                - Mention a person: @[Name](userId) — e.g. @[Jon](cmeje-123)
-
-                ## Priority levels
-                0 = none, 1 = low (!), 2 = medium (!!), 3 = high/urgent (!!!)
+                \(Self.personaInstructions(today: today))
 
                 ## Current tasks (\(incompleteTasks.count) incomplete, \(completedCount) completed)
                 \(taskSummary.isEmpty ? "No incomplete tasks." : taskSummary)

@@ -8,7 +8,7 @@
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "OnDeviceAstrid")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "OnDeviceAstrid")
 
 enum OnDeviceAstrid {
 

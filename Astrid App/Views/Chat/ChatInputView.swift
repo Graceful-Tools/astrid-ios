@@ -1,7 +1,7 @@
 import SwiftUI
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "ChatInput")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatInput")
 
 /// Chat message input — wraps RichTextInput with chat-specific send logic
 struct ChatInputView: View {

@@ -17,7 +17,7 @@ enum MacEmptyCopy {
         case .noTasks:        return NSLocalizedString("mac.empty.no_tasks", comment: "")
         case .filteredOut:    return NSLocalizedString("mac.empty.filtered_out", comment: "")
         case .noListSelected: return NSLocalizedString("mac.empty.no_list_selected", comment: "")
-        case .chatEmpty:      return NSLocalizedString("mac.empty.chat", comment: "")
+        case .chatEmpty:      return Brand.localized("mac.empty.chat")
         case .searchPrompt:   return NSLocalizedString("mac.empty.search_prompt", comment: "")
         case .searchNoResults: return NSLocalizedString("mac.empty.search_none", comment: "")
         }

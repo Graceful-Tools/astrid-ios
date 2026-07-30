@@ -158,7 +158,7 @@
 "messages.something_went_wrong" = "出錯了";
 
 /* Empty States */
-"empty_state.my_tasks" = "歡迎使用 Astrid！添加您的第一個任務開始吧。";
+"empty_state.my_tasks" = "歡迎使用 %1$@！添加您的第一個任務開始吧。";
 "empty_state.my_tasks_caught_up" = "您已完成所有任務！目前沒有分配給您的任務。";
 "empty_state.today" = "今天沒有安排！享受空閒時間，或添加新任務。";
 "empty_state.public_list" = "與世界分享您的想法！添加任務 - 任何人都可以看到此公開清單。";
@@ -186,7 +186,7 @@
 "debug.reminder_debug_mode" = "提醒調試模式";
 "debug.reminder_debug_desc" = "啟用詳細的提醒調試日誌";
 "debug.test_prompts" = "測試提示";
-"debug.test_love_prompt" = "測試“喜歡 Astrid 嗎？”提示";
+"debug.test_love_prompt" = "測試“喜歡 %1$@ 嗎？”提示";
 "debug.test_love_prompt_desc" = "觸發向活躍用戶顯示的反饋提示";
 "debug.reset_prompt_tracking" = "重置提示追蹤";
 "debug.reset_prompt_tracking_desc" = "清除提示歷史記錄";
@@ -280,8 +280,8 @@
 "settings.ai.api_keys_description" = "添加您自己的 API 金鑰以使用 AI 助手。金鑰經過加密並安全地存儲在伺服器上。";
 "settings.ai.loading_keys" = "正在載入 API 金鑰...";
 "settings.ai.about_keys" = "關於 API 金鑰";
-"settings.ai.about_description" = "您的 API 金鑰用於支持 Astrid 中的 AI 助手功能。每個提供商提供不同的功能和定價。";
-"settings.ai.encryption_info" = "金鑰在存儲前使用 AES-256 進行加密。Astrid 絕不會與第三方共享您的金鑰。";
+"settings.ai.about_description" = "您的 API 金鑰用於支持 %1$@ 中的 AI 助手功能。每個提供商提供不同的功能和定價。";
+"settings.ai.encryption_info" = "金鑰在存儲前使用 AES-256 進行加密。%1$@ 絕不會與第三方共享您的金鑰。";
 "settings.ai.not_configured" = "未配置";
 "settings.ai.api_new.badge" = "新";
 "settings.ai.manage_keys" = "管理 API 金鑰";
@@ -514,7 +514,7 @@
 "reminders.enable_sync" = "啟用提醒事項同步";
 "reminders.sync_description" = "與 Apple 提醒事項同步任務以便 Siri 和 Watch 使用";
 "reminders.access_header" = "提醒事項存取";
-"reminders.access_footer" = "將 Astrid 任務與 Apple 提醒事項同步。使用 Siri 新增任務，並在 Apple Watch 上檢視。";
+"reminders.access_footer" = "將 %1$@ 任務與 Apple 提醒事項同步。使用 Siri 新增任務，並在 Apple Watch 上檢視。";
 "reminders.sync_status" = "同步狀態";
 "reminders.last_sync" = "上次同步";
 "reminders.linked_lists" = "已連結列表";
@@ -523,9 +523,9 @@
 "reminders.your_lists" = "您的列表";
 "reminders.your_lists_footer" = "點擊列表以將其與 Apple 提醒事項連結。選擇匯出任務或從現有提醒事項列表匯入。";
 "reminders.import_from_reminders" = "從提醒事項匯入";
-"reminders.import_footer" = "將現有提醒事項列表匯入 Astrid。";
+"reminders.import_footer" = "將現有提醒事項列表匯入 %1$@。";
 "reminders.unlink" = "取消連結";
-"reminders.astrid_list" = "Astrid 列表";
+"reminders.astrid_list" = "%1$@ 列表";
 "reminders.sync_direction" = "同步方向";
 "reminders.create_new_list" = "建立新列表";
 "reminders.link_to_reminders_list" = "連結到提醒事項列表";
@@ -536,9 +536,9 @@
 "reminders.link_list" = "連結列表";
 "reminders.link" = "連結";
 "reminders.reminders_list" = "提醒事項列表";
-"reminders.create_new_astrid_list" = "建立新的 Astrid 列表";
+"reminders.create_new_astrid_list" = "建立新的 %1$@ 列表";
 "reminders.import_into" = "匯入到";
-"reminders.import_into_footer" = "建立名為 '%@' 的新 Astrid 列表或匯入到現有列表。";
+"reminders.import_into_footer" = "建立名為 '%2$@' 的新 %1$@ 列表或匯入到現有列表。";
 "reminders.import_completed_desc" = "匯入已完成的提醒事項";
 "reminders.import_reminders" = "匯入提醒事項";
 "reminders.import" = "匯入";
@@ -666,7 +666,7 @@
 "attachments.saving" = "儲存中...";
 "attachments.save_to_task" = "儲存到任務";
 "attachments.quick_look" = "快速查看";
-"attachments.quick_look_tip" = "提示：在快速查看中使用標記來編輯並儲存到Astrid";
+"attachments.quick_look_tip" = "提示：在快速查看中使用標記來編輯並儲存到%1$@";
 "attachments.choose_photo" = "選擇照片";
 "attachments.choose_video" = "選擇影片";
 "attachments.choose_document" = "選擇文件";
@@ -709,7 +709,7 @@
 
 /* Members */
 "members.searching" = "搜尋聯絡人...";
-"members.astrid_users" = "您的聯絡人中使用Astrid的人";
+"members.astrid_users" = "您的聯絡人中使用%1$@的人";
 "members.loading_suggestions" = "載入建議...";
 "members.add_collaborators" = "新增協作者";
 "members.upload_contacts" = "上傳您的聯絡人以獲得更好的協作";
@@ -751,7 +751,7 @@
 /* Debug Settings */
 "debug.contacts_settings" = "聯絡人設定";
 "debug.debug_settings" = "除錯設定";
-"debug.app_version" = "Astrid v%@";
+"debug.app_version" = "%1$@ v%2$@";
 "debug.current_server" = "目前伺服器";
 "debug.active_config" = "使用中的設定";
 "debug.restart_required" = "更改需要重新啟動應用程式";
@@ -772,7 +772,7 @@
 "settings.openclaw.description" = "註冊透過 OpenClaw 協定連接的 AI 代理。每個代理獲得唯一身份和 OAuth 憑證。";
 "settings.openclaw.loading" = "正在載入代理...";
 "settings.openclaw.no_agents" = "尚無已連接的代理";
-"settings.openclaw.no_agents_hint" = "註冊一個代理以開始使用。代理透過 OAuth 憑證與 Astrid 經由 REST 和 SSE 進行通訊。";
+"settings.openclaw.no_agents_hint" = "註冊一個代理以開始使用。代理透過 OAuth 憑證與 %1$@ 經由 REST 和 SSE 進行通訊。";
 "settings.openclaw.status.active" = "活躍";
 "settings.openclaw.status.idle" = "閒置";
 "settings.openclaw.registered" = "註冊於 %@";
@@ -800,7 +800,7 @@
 "settings.openclaw.delete_confirm" = "這將永久刪除 %@ 並撤銷其 OAuth 憑證。此操作無法復原。";
 "settings.openclaw.agent_deleted" = "代理已移除";
 "settings.openclaw.about" = "關於 OpenClaw";
-"settings.openclaw.about_description" = "OpenClaw 是一個用於將 AI 代理連接到 Astrid 的開放協定。代理透過 OAuth 驗證，經由 REST API 接收任務，並透過 SSE 取得即時更新。支援任何 AI 供應商。";
+"settings.openclaw.about_description" = "OpenClaw 是一個用於將 AI 代理連接到 %1$@ 的開放協定。代理透過 OAuth 驗證，經由 REST API 接收任務，並透過 SSE 取得即時更新。支援任何 AI 供應商。";
 "settings.openclaw.tip_title" = "提示：清單描述 = 代理指令";
 "settings.openclaw.tip_description" = "每個清單的描述用作該清單中處理任務的 AI 代理的指令。使用 markdown 編寫來告訴代理如何處理任務。";
 "settings.openclaw.agent_created" = "代理建立成功";
@@ -838,7 +838,7 @@
 "status.retry_now" = "重試";
 "status.sync_in_progress" = "變更將自動同步";
 "sync" = "同步";
-"welcome.title" = "歡迎使用 Astrid！";
+"welcome.title" = "歡迎使用 %1$@！";
 "welcome.subtitle" = "您的智慧任務管理器";
 "welcome.sign_in" = "登入";
 "welcome.use_locally" = "無需帳戶使用";
@@ -907,9 +907,9 @@
 "sync.disconnect" = "中斷連接";
 "sync.external_footer" = "關聯服務中的 Issue 或任務會與此清單雙向鏡像，透過您連接的帳戶同步。";
 "sync.external_sync" = "外部同步";
-"sync.github_footer" = "關聯儲存庫中的 Issue 會與任務雙向鏡像。Astrid 始終是資料來源；您的 GitHub 權杖不會離開伺服器。";
+"sync.github_footer" = "關聯儲存庫中的 Issue 會與任務雙向鏡像。%1$@ 始終是資料來源；您的 GitHub 權杖不會離開伺服器。";
 "sync.github_not_configured" = "伺服器尚未設定 GitHub 同步。";
-"sync.google_footer" = "關聯的 Google 清單中的任務會與 Astrid 雙向鏡像（包括子任務）。Google 截止日期僅含日期；時間保留在 Astrid 中。您的 Google 權杖不會離開伺服器。";
+"sync.google_footer" = "關聯的 Google 清單中的任務會與 %1$@ 雙向鏡像（包括子任務）。Google 截止日期僅含日期；時間保留在 %1$@ 中。您的 Google 權杖不會離開伺服器。";
 "sync.google_list" = "Google 清單";
 "sync.google_not_configured" = "伺服器尚未設定 Google Tasks 同步。";
 "sync.last_synced" = "上次同步：%@";
@@ -920,11 +920,11 @@
 "sync.linking" = "正在關聯…";
 "sync.list" = "清單";
 "sync.mode" = "模式";
-"sync.mode_astrid_to_google" = "將 Astrid 清單備份到 Google";
-"sync.mode_footer_astrid_to_google" = "每個 Astrid 清單都會作為備份鏡像到 Google Tasks——新的 Astrid 清單會自動加入。";
-"sync.mode_footer_google_to_astrid" = "每個 Google Tasks 清單都會鏡像到 Astrid——新的 Google 清單會自動加入並使用後綴命名。同名的 Astrid 清單會被重用而不會重複建立。";
+"sync.mode_astrid_to_google" = "將 %1$@ 清單備份到 Google";
+"sync.mode_footer_astrid_to_google" = "每個 %1$@ 清單都會作為備份鏡像到 Google Tasks——新的 %1$@ 清單會自動加入。";
+"sync.mode_footer_google_to_astrid" = "每個 Google Tasks 清單都會鏡像到 %1$@——新的 Google 清單會自動加入並使用後綴命名。同名的 %1$@ 清單會被重用而不會重複建立。";
 "sync.mode_footer_manual" = "僅下方關聯的清單保持同步。";
-"sync.mode_google_to_astrid" = "將 Google 清單匯入 Astrid";
+"sync.mode_google_to_astrid" = "將 Google 清單匯入 %1$@";
 "sync.mode_manual" = "僅我關聯的清單";
 "sync.no_lists_linked" = "尚未關聯任何清單。";
 "sync.new_list" = "新增清單";
@@ -936,7 +936,7 @@
 "sync.unlink" = "取消關聯";
 "task_detail.completed_via" = "透過 %@ 完成";
 "sync.mode_bidirectional" = "保持全部雙向同步";
-"sync.mode_footer_bidirectional" = "您的 Google Tasks 清單會出現在 Astrid 中，Astrid 清單也會出現在 Google Tasks 中。雙方的新清單會自動加入，同名清單會配對而不會重複。";
+"sync.mode_footer_bidirectional" = "您的 Google Tasks 清單會出現在 %1$@ 中，%1$@ 清單也會出現在 Google Tasks 中。雙方的新清單會自動加入，同名清單會配對而不會重複。";
 
 /* Mac UI (7f7f3724) */
 "My Tasks" = "我的任務";
@@ -1044,7 +1044,7 @@
 "mac.no_open_tasks" = "沒有待辦任務";
 "mac.offline_banner" = "離線 — 重新連線後將同步變更";
 "mac.on_date" = "於日期";
-"mac.open_astrid" = "開啟 Astrid";
+"mac.open_astrid" = "開啟 %1$@";
 "mac.open_full_detail" = "開啟完整詳細資料…";
 "mac.open_new_window" = "在新視窗開啟";
 "mac.owner_repo" = "擁有者/儲存庫";
@@ -1068,7 +1068,7 @@
 "mac.menu_commands" = "選單指令";
 "mac.edit_comment" = "編輯留言";
 "mac.my_tasks_only" = "僅我的任務";
-"mac.onboard.keyboard.detail" = "與網頁版 Astrid 相同的快速鍵。隨時按 ? 查看。";
+"mac.onboard.keyboard.detail" = "與網頁版 %1$@ 相同的快速鍵。隨時按 ? 查看。";
 "mac.onboard.keyboard.title" = "鍵盤優先";
 "mac.onboard.offline.detail" = "所有操作都會儲存在本機，恢復連線後自動同步。";
 "mac.onboard.offline.title" = "離線也能用";
@@ -1131,7 +1131,7 @@
 "mac.sending" = "傳送中…";
 "mac.set_priority" = "設定優先順序";
 "mac.sharing" = "正在分享…";
-"mac.shortcuts_note" = "與 Astrid 網頁版快捷鍵一致。輸入時會被忽略。";
+"mac.shortcuts_note" = "與 %1$@ 網頁版快捷鍵一致。輸入時會被忽略。";
 "mac.sign_in_apple" = "透過 Apple 登入";
 "mac.sign_in_passkey" = "使用通行密鑰登入";
 "mac.smart_list_name" = "智慧型列表名稱";
@@ -1145,7 +1145,7 @@
 "mac.type_delete_confirm" = "輸入 DELETE 以確認";
 "mac.until" = "直到";
 "mac.view" = "檢視";
-"mac.welcome" = "歡迎使用 Astrid for Mac";
+"mac.welcome" = "歡迎使用 %1$@ for Mac";
 "mac.color_label" = "顏色 %@";
 "mac.comments_count" = "留言 (%d)";
 "mac.filter_title" = "篩選「%@」";
@@ -1157,7 +1157,7 @@
 "mac.list_default" = "列表預設";
 "mac.complete_count" = "完成 %d 項";
 "mac.delete_list_named" = "刪除「%@」";
-"mac.empty.chat" = "開始對話 — 打個招呼或 @Astrid。";
+"mac.empty.chat" = "開始對話 — 打個招呼或 @%1$@。";
 "mac.empty.filtered_out" = "沒有符合此列表篩選條件的內容。";
 "mac.empty.filtered_out_detail" = "調整篩選條件（漏斗按鈕）以查看更多。";
 "mac.empty.no_list_selected" = "選擇一個列表以查看任務。";

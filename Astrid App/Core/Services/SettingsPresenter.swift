@@ -93,7 +93,7 @@ struct SettingsRootView: View {
             Text(NSLocalizedString("debug.debug_settings", comment: "Debug Settings"))
                 .navigationTitle(NSLocalizedString("debug.settings", comment: "Debug"))
         case .about:
-            Text(String(format: NSLocalizedString("debug.app_version", comment: "Astrid version"), Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"))
+            Text(Brand.localized("debug.app_version", Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"))
                 .navigationTitle(NSLocalizedString("about", comment: "About"))
         }
     }

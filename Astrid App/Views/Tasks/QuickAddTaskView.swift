@@ -248,10 +248,10 @@ struct QuickAddTaskView: View {
             } placeholder: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(hex: "3b82f6") ?? Theme.accent)
+                        .fill(Theme.accent)
                     Text(assignee.name?.prefix(1).uppercased() ?? assignee.email?.prefix(1).uppercased() ?? "?")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Theme.accentText)
                 }
             }
             .frame(width: 30, height: 30)
@@ -925,10 +925,10 @@ private struct AssigneeOptionButton: View {
                     } placeholder: {
                         ZStack {
                             Circle()
-                                .fill(Color(hex: "3b82f6") ?? Theme.accent)
+                                .fill(Theme.accent)
                             Text(user.name?.prefix(1).uppercased() ?? user.email?.prefix(1).uppercased() ?? "?")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(Theme.accentText)
                         }
                     }
                     .frame(width: 36, height: 36)

@@ -16,8 +16,8 @@ enum MacSyncLinks {
     static func googleModeLabel(_ m: GoogleSyncMode) -> String {
         switch m {
         case .manual:             return "Link lists manually"
-        case .allGoogleToAstrid:  return "All Google → Astrid"
-        case .allAstridToGoogle:  return "All Astrid → Google"
+        case .allGoogleToAstrid:  return "All Google → \(Brand.appName)"
+        case .allAstridToGoogle:  return "All \(Brand.appName) → Google"
         case .allBidirectional:   return "Two-way (all lists)"
         }
     }

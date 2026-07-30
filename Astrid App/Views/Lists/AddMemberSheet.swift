@@ -133,7 +133,7 @@ struct AddMemberSheet: View {
                             Text("Suggested")
                         }
                     } footer: {
-                        Text(NSLocalizedString("members.astrid_users", comment: "People from your contacts who are on Astrid"))
+                        Text(Brand.localized("members.astrid_users"))
                             .font(Theme.Typography.caption2())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     }

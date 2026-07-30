@@ -3,7 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "CommentSection")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "CommentSection")
 
 /// Enhanced Comment Section with Markdown and SSE support
 struct CommentSectionViewEnhanced: View {

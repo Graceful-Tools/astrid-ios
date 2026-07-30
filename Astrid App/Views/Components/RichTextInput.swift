@@ -3,7 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "RichTextInput")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "RichTextInput")
 
 /// Reusable rich text input with @mention, #list, !task autocomplete, colored references,
 /// file attachments, and send button. Used by both chat messages and task comments.

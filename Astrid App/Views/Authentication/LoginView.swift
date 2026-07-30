@@ -3,6 +3,9 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
     @ObservedObject private var connectionManager = ConnectionModeManager.shared
+    /// The connected deployment's brand. Starts as this build's own values, so the
+    /// lockup below is never blank and never flashes a placeholder (task 97208a72).
+    @ObservedObject private var serverCapabilities = ServerCapabilityService.shared
     @Environment(\.colorScheme) var colorScheme
 
     @State private var isLoading = false
@@ -39,11 +42,11 @@ struct LoginView: View {
 
                             // Logo text and tagline on right
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("astrid")
+                                Text(serverCapabilities.capabilities.brand.resolvedWordmark)
                                     .font(.system(size: 34, weight: .bold))
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                                Text(NSLocalizedString("auth.tagline", comment: ""))
+                                Text(serverCapabilities.capabilities.brand.resolvedSlogan)
                                     .font(.system(size: 16))
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             }
@@ -230,6 +233,11 @@ struct LoginView: View {
                 .presentationDetents([.height(380)])
                 .presentationDragIndicator(.visible)
             }
+            // Ask the connected deployment who it is. /api/v1/capabilities is
+            // unauthenticated precisely so this can happen before sign-in — which is
+            // exactly when the app needs to know which brand and which sign-in methods
+            // to show. Failure leaves this build's own brand in place (task 97208a72).
+            .task { await serverCapabilities.refreshIfServerChanged() }
         }
     }
 

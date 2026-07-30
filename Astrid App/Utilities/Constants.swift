@@ -52,7 +52,7 @@ import Foundation
                     return "http://192.168.50.254:3000"
                     #endif
                 case .production:
-                    return "https://astrid.cc"
+                    return Brand.productionBaseURL
                 }
             }
         }
@@ -62,13 +62,22 @@ import Foundation
         enum ServerOption: String, CaseIterable {
             case localhost = "http://localhost:3000"
             case localNetwork = "http://192.168.50.254:3000"
-            case production = "https://astrid.cc"
+            case production = "production"
+
+            /// The URL this option selects. `production` resolves through Brand, so a
+            /// rebranded build points at its own host; the others are developer-local.
+            var url: String {
+                switch self {
+                case .localhost, .localNetwork: return rawValue
+                case .production: return Brand.productionBaseURL
+                }
+            }
 
             var displayName: String {
                 switch self {
                 case .localhost: return "Localhost (Simulator)"
                 case .localNetwork: return "Local Network (Device)"
-                case .production: return "Production (astrid.cc)"
+                case .production: return "Production (\(Brand.host))"
                 }
             }
         }
@@ -93,21 +102,13 @@ import Foundation
         static let userImage = "user_image"
     }
     
-    enum UI {
-        // Match web app colors
-        static let primaryColor = "3b82f6" // blue-500
-        static let successColor = "10b981" // green-500
-        static let warningColor = "f59e0b" // amber-500
-        static let dangerColor = "ef4444" // red-500
-
-        // Priority colors matching web app
-        enum Priority {
-            static let none = "gray"
-            static let low = "10b981" // green
-            static let medium = "f59e0b" // amber
-            static let high = "ef4444" // red
-        }
-    }
+    // `enum UI` lived here: hex copies of the theme palette, commented "Match web app
+    // colors", with nothing to keep them matching. Removed in the whitelabel refactor
+    // (task 97208a72) — a second colour source can only drift from the first, and this
+    // one had already drifted all the way into dead code with no readers at all.
+    //
+    // Colours have exactly two homes now: Theme.swift for surfaces, Brand.swift for the
+    // brand accent. scripts/check-brand.sh keeps it that way.
 
     enum Lists {
         // Special list IDs

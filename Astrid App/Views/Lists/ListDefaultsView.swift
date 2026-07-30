@@ -137,7 +137,7 @@ struct ListDefaultsView: View {
                         }) {
                             Image(systemName: "doc.on.doc")
                                 .font(.system(size: 14))
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                         }
                         .buttonStyle(.plain)
                     }

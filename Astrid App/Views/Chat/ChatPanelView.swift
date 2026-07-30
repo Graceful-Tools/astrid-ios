@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 import os.log
 
-private let logger = Logger(subsystem: "com.graceful-tools.astrid", category: "ChatPanel")
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatPanel")
 
 /// Main chat panel for a list — resolves channel, displays messages, handles input
 struct ChatPanelView: View {

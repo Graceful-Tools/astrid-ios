@@ -20,7 +20,7 @@ struct ListPickerView: View {
                         Spacer()
                         if selectedList == nil {
                             Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                         }
                     }
                 }
@@ -39,7 +39,7 @@ struct ListPickerView: View {
                                 Spacer()
                                 if selectedList?.id == list.id {
                                     Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Theme.accent)
                                 }
                             }
                         }

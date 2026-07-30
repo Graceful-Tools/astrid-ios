@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
     @State private var outboxStats: OutboxStats?
     @StateObject private var featureFlags = FeatureFlagService.shared
+    @StateObject private var serverCapabilities = ServerCapabilityService.shared
 
 
     var body: some View {
@@ -56,7 +57,7 @@ struct SettingsView: View {
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 24, height: 24)
                                 .clipShape(Circle())
-                            Text("Astrid's AI")
+                            Text("\(Brand.appName)'s AI")
                         }
                     }
 
@@ -82,20 +83,26 @@ struct SettingsView: View {
                     NavigationLink(destination: LazyView { AppleRemindersSettingsView() }) {
                         HStack {
                             Image(systemName: "checklist")
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                             Text(NSLocalizedString("apple_reminders", comment: ""))
                         }
                     }
 
-                    NavigationLink(destination: LazyView { GitHubSyncSettingsView() }) {
-                        HStack {
-                            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                                .foregroundColor(.purple)
-                            Text("GitHub Issues")
+                    // Hidden when the deployment does not offer GitHub Issues sync —
+                    // its routes 404 there. Task 97208a72.
+                    if serverCapabilities.capabilities.sync.githubIssues {
+                        NavigationLink(destination: LazyView { GitHubSyncSettingsView() }) {
+                            HStack {
+                                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                                    .foregroundColor(.purple)
+                                Text("GitHub Issues")
+                            }
                         }
                     }
 
-                    if featureFlags.isEnabled(.googleTasks) {
+                    // Server capability first: no runtime rollout flag can enable a
+                    // service the deployment does not ship.
+                    if serverCapabilities.capabilities.sync.googleTasks && featureFlags.isEnabled(.googleTasks) {
                         NavigationLink(destination: LazyView { GoogleTasksSettingsView() }) {
                             HStack {
                                 Image(systemName: "checkmark.circle.badge.questionmark")
@@ -228,7 +235,7 @@ struct SettingsView: View {
                                 .foregroundColor(.pink)
                                 .frame(width: 24)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("debug.test_love_prompt", comment: ""))
+                                Text(Brand.localized("debug.test_love_prompt"))
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 Text(NSLocalizedString("debug.test_love_prompt_desc", comment: ""))
@@ -358,6 +365,7 @@ struct SettingsView: View {
             // without adding network work to startup; cached state remains in
             // place when the device is offline.
             await featureFlags.refreshIfStale(force: true)
+            await serverCapabilities.refresh()
         }
         .alert(NSLocalizedString("sign_out", comment: ""), isPresented: $showingSignOutAlert) {
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }

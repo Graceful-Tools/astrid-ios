@@ -49,8 +49,8 @@ class DeepLinkManager {
             return
         }
         
-        // Handle Universal Links: https://astrid.cc/...
-        if url.host == "astrid.cc" || url.host == "www.astrid.cc" {
+        // Handle Universal Links: https://<brand host>/...
+        if let host = url.host, Brand.webHosts.contains(host) {
             handleUniversalLink(url)
             return
         }
@@ -96,7 +96,7 @@ class DeepLinkManager {
         default:
             // Convert custom scheme to https URL and open in in-app browser
             print("ℹ️ [DeepLinkManager] Unknown custom scheme host '\(host)' - opening in in-app browser")
-            if let httpsURL = URL(string: "https://astrid.cc/\(host)\(url.path)") {
+            if let httpsURL = URL(string: "\(Brand.productionBaseURL)/\(host)\(url.path)") {
                 openInAppBrowser(url: httpsURL)
             }
         }
@@ -159,7 +159,7 @@ class DeepLinkManager {
             } catch {
                 print("❌ [DeepLinkManager] Failed to resolve shortcode \(code): \(error)")
                 // Fallback to web if resolution fails
-                if let url = URL(string: "https://astrid.cc/s/\(code)") {
+                if let url = URL(string: "\(Brand.productionBaseURL)/s/\(code)") {
                     await MainActor.run {
                         UIApplication.shared.open(url)
                     }

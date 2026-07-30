@@ -10,7 +10,7 @@ enum MacDataExport {
     static func fileName(format: String, date: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         let stamp = String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
-        return "astrid-export-\(stamp).\(format)"
+        return "\(Brand.exportFilePrefix)-\(stamp).\(format)"
     }
 
     /// UTType for the save panel by format.

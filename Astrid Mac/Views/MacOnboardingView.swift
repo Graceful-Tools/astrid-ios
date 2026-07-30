@@ -21,7 +21,7 @@ struct MacOnboardingView: View {
                 detail: NSLocalizedString("mac.onboard.palette.detail", comment: "")),
         Feature(icon: "keyboard",
                 title: NSLocalizedString("mac.onboard.keyboard.title", comment: ""),
-                detail: NSLocalizedString("mac.onboard.keyboard.detail", comment: "")),
+                detail: Brand.localized("mac.onboard.keyboard.detail")),
         Feature(icon: "arrow.triangle.2.circlepath",
                 title: NSLocalizedString("mac.onboard.offline.title", comment: ""),
                 detail: NSLocalizedString("mac.onboard.offline.detail", comment: "")),
@@ -31,7 +31,7 @@ struct MacOnboardingView: View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
                 Image(systemName: "checklist").font(.system(size: 48)).foregroundStyle(Theme.accent)
-                Text(NSLocalizedString("mac.welcome", comment: "")).font(.title2.bold())
+                Text(Brand.localized("mac.welcome")).font(.title2.bold())
             }
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(features) { f in

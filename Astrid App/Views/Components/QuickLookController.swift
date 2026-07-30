@@ -207,7 +207,7 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
         }
 
         let toast = UILabel()
-        toast.text = "✅ Saved to Astrid"
+        toast.text = "✅ Saved to \(Brand.appName)"
         toast.textColor = .white
         toast.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
         toast.textAlignment = .center

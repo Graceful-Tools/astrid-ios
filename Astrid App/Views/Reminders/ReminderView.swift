@@ -122,7 +122,7 @@ struct ReminderView: View {
                 HStack(spacing: -8) {
                     ForEach(sharedListMembers) { member in
                         Circle()
-                            .fill(Color.blue)
+                            .fill(Theme.accent)
                             .frame(width: 32, height: 32)
                             .overlay(
                                 Text(getInitials(from: member))

@@ -1025,8 +1025,8 @@ enum SyncDirection: String, Codable, CaseIterable {
 
     var description: String {
         switch self {
-        case .export: return "Push Astrid tasks to Apple Reminders"
-        case .import_: return "Pull Apple Reminders into Astrid"
+        case .export: return "Push \(Brand.appName) tasks to Apple Reminders"
+        case .import_: return "Pull Apple Reminders into \(Brand.appName)"
         case .bidirectional: return "Keep both apps in sync"
         }
     }
@@ -1049,7 +1049,7 @@ enum AppleRemindersError: LocalizedError {
         case .noCalendarSource:
             return "No calendar source available for creating reminders."
         case .listNotFound:
-            return "Astrid list not found."
+            return "\(Brand.appName) list not found."
         case .listNotLinked:
             return "List is not linked to Apple Reminders."
         case .calendarNotFound:

@@ -158,11 +158,11 @@ struct AIAPIKeyManagerView: View {
                         .font(Theme.Typography.subheadline())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                    Text(NSLocalizedString("settings.ai.about_description", comment: ""))
+                    Text(Brand.localized("settings.ai.about_description"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
-                    Text(NSLocalizedString("settings.ai.encryption_info", comment: ""))
+                    Text(Brand.localized("settings.ai.encryption_info"))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                 }
@@ -270,10 +270,10 @@ struct AIAPIKeyManagerView: View {
                                     Text("Test Key")
                                 }
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(.blue)
+                                .foregroundColor(Theme.accent)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.blue.opacity(0.1))
+                                .background(Theme.accent.opacity(0.1))
                                 .cornerRadius(8)
                             }
                             .disabled(status.isTesting)
@@ -378,7 +378,7 @@ struct AIAPIKeyManagerView: View {
                                             Text(NSLocalizedString("debug.get_key", comment: "Get Key"))
                                         }
                                         .font(Theme.Typography.caption1())
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Theme.accent)
                                     }
                                     .buttonStyle(.plain)
                                 }
