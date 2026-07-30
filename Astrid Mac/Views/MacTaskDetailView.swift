@@ -347,6 +347,9 @@ struct MacTaskDetailView: View {
         }
         .formStyle(.grouped)
         .macScrollBars(showScrollBars)
+        // A grouped Form ignores `scrollIndicators`, so the bar stayed on the right of the details
+        // whether or not there was anything to scroll (1a112a44). This reaches the NSScrollView.
+        .macFormScrollBars(showScrollBars)
         .scrollContentBackground(.hidden)   // white detail card (like web); dark-safe via MacDetailChrome
         // The grouped style draws each Section on the SYSTEM control background, which is not the
         // card colour — so the panel read as a different shade from the pop-out arrow (which fills
