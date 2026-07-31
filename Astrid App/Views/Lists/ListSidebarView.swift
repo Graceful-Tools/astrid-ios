@@ -184,12 +184,14 @@ struct ListSidebarView: View {
                                     .font(Theme.Typography.caption1())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             } else if let user = authManager.currentUser {
+                                // Name only. The email wrapped onto a second line in the sidebar's
+                                // narrow column ("jonparis@gmail.-\ncom") and told the signed-in
+                                // user nothing they did not know. It is still on the profile this
+                                // row opens, and in Settings › Account.
                                 Text(user.displayName)
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Text(user.email ?? NSLocalizedString("profile.no_email", comment: ""))
-                                    .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .lineLimit(1)
                             }
                         }
                     }
