@@ -1174,3 +1174,5 @@
 
 "board.full_screen" = "Full Screen";
 "board.exit_full_screen" = "Exit Full Screen";
+"tasks.when" = "When";
+"picker.add_date" = "Add date";

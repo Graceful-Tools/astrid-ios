@@ -17,6 +17,7 @@ struct MacRootView: View {
     @StateObject private var auth = AuthManager.shared
     @StateObject private var network = NetworkMonitor.shared
     @StateObject private var syncManager = SyncManager.shared   // drives the refresh spinner (0f525a89)
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false   // 42013da7
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
     @State private var selectedTaskIds = Set<String>()
@@ -986,19 +987,29 @@ struct MacRootView: View {
             // The detail pop-out floats at the trailing edge of the content area, which in
             // 3-column mode IS the chat column — the panel covers chat, never the task rows, and
             // the rows keep their width (task 89e42f29 follow-up). Board shows details inline.
-            .overlay(alignment: .trailing) {
+            .overlay(alignment: detailFullScreen ? .center : .trailing) {
                 if contentMode != .board, selectedTaskIds.count == 1,
                    let id = selectedTaskIds.first,
                    // O(1) only: `tasksForSelection` here would re-run the entire filter→sort→
                    // splice pipeline on every body evaluation (the cost 4e0ce183 removed).
                    let task = taskService.tasksById[id] {
-                    taskDetailPopout(task)
-                        // Unfolds OUT OF the arrow and folds back into it the same way — the
-                        // panel grows horizontally from the arrow's position, which sits at the
-                        // selected row. A plain slide/fade did not read as coming from the task.
-                        .transition(.modifier(
-                            active: MacDetailReveal(progress: 0, anchorY: revealAnchorY),
-                            identity: MacDetailReveal(progress: 1, anchorY: revealAnchorY)))
+                    if detailFullScreen {
+                        // Full screen (42013da7): the panel fills the content area so the
+                        // description gets the whole window. No arrow — there is no row beside it
+                        // to point at, and the fold-out transition would be pointing at nothing.
+                        MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(MacDetailChrome.background)
+                            .transition(.opacity)
+                    } else {
+                        taskDetailPopout(task)
+                            // Unfolds OUT OF the arrow and folds back into it the same way — the
+                            // panel grows horizontally from the arrow's position, which sits at the
+                            // selected row. A plain slide/fade did not read as coming from the task.
+                            .transition(.modifier(
+                                active: MacDetailReveal(progress: 0, anchorY: revealAnchorY),
+                                identity: MacDetailReveal(progress: 1, anchorY: revealAnchorY)))
+                    }
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space

@@ -1182,3 +1182,5 @@
 
 "board.full_screen" = "Plein écran";
 "board.exit_full_screen" = "Quitter le plein écran";
+"tasks.when" = "Quand";
+"picker.add_date" = "Ajouter une date";

@@ -1166,3 +1166,5 @@
 
 "board.full_screen" = "フルスクリーン";
 "board.exit_full_screen" = "フルスクリーンを終了";
+"tasks.when" = "日時";
+"picker.add_date" = "日付を追加";

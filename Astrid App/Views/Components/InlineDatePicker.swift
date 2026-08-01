@@ -8,6 +8,9 @@ struct InlineDatePicker: View {
     var onSave: (() -> Void)?
     var showLabel: Bool = true
     var isAllDay: Bool = true  // Whether this is an all-day task (affects timezone handling)
+    /// Sizes the trigger to its content instead of filling the row, so Date, Time and Repeat can
+    /// share one line in the task detail (Task 42013da7).
+    var compact: Bool = false
 
     @State private var showingPicker = false
 
@@ -28,21 +31,24 @@ struct InlineDatePicker: View {
             }
 
             Button(action: { showingPicker = true }) {
-                HStack {
+                HStack(spacing: Theme.spacing4) {
                     if let date = date {
                         Text(formatDate(date))
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .lineLimit(1)
                     } else {
-                        Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
+                        Text(NSLocalizedString(compact ? "picker.add_date" : "picker.no_due_date", comment: "No due date"))
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .lineLimit(1)
                     }
-                    Spacer()
+                    if !compact { Spacer() }
                     Image(systemName: "calendar")
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                 }
-                .padding(Theme.spacing12)
+                .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
+                .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
                 .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }

@@ -1168,3 +1168,5 @@
 
 "board.full_screen" = "전체 화면";
 "board.exit_full_screen" = "전체 화면 종료";
+"tasks.when" = "일시";
+"picker.add_date" = "날짜 추가";

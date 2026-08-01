@@ -318,9 +318,28 @@ struct TaskDetailViewNew: View {
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
 
-                // 2. Creator for public list tasks, Assignee for regular tasks (hidden for local users)
+                // 2. Priority + Assignee on ONE row (Task 42013da7). A public-list task shows its
+                // creator here instead — that is who the row is about, and it is not editable.
                 if isPublicListTask || !AuthManager.shared.isLocalOnlyMode {
-                    TwoColumnRow(label: isPublicListTask ? NSLocalizedString("tasks.created_by", comment: "") : NSLocalizedString("tasks.assignee", comment: "")) {
+                    TwoColumnRow(label: isPublicListTask ? NSLocalizedString("tasks.created_by", comment: "") : NSLocalizedString("tasks.priority", comment: "")) {
+                        HStack(spacing: Theme.spacing8) {
+                        if !isPublicListTask {
+                            // Priority leads: it is the row's label, and the colour reads at a glance.
+                            if isReadOnly {
+                                HStack(spacing: Theme.spacing4) {
+                                    Circle()
+                                        .fill(priorityColor(editedPriority))
+                                        .frame(width: 12, height: 12)
+                                    Text(priorityText(editedPriority))
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                }
+                            } else {
+                                PriorityButtonPicker(priority: $editedPriority) { newPriority in
+                                    _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
+                                }
+                            }
+                        }
                         if isPublicListTask {
                             // Show creator with avatar for public list tasks (tappable to view profile)
                             if let creator = task.creator {
@@ -373,88 +392,64 @@ struct TaskDetailViewNew: View {
                                 showLabel: false
                             )
                         }
+                        }
                     }
                 }
 
-                // 3. When (Due Date)
+                // 3. When — Date, Time and Repeat on ONE row (Task 42013da7). Five stacked field
+                // rows were what pushed the description below the fold; this is where the room
+                // for it comes from. Time and Repeat stay conditional on a date, so with no date
+                // the row is a single "Add date" chip rather than three empty controls.
                 if editedDueDate != nil || !isReadOnly {
-                    TwoColumnRow(label: NSLocalizedString("tasks.due_date", comment: "")) {
+                    TwoColumnRow(label: NSLocalizedString("tasks.when", comment: "")) {
                         if isReadOnly {
-                            if let date = editedDueDate {
-                                Text(formatDateReadOnly(date))
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            HStack(spacing: Theme.spacing8) {
+                                if let date = editedDueDate {
+                                    Text(formatDateReadOnly(date))
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                }
+                                if let time = editedDueTime {
+                                    Text(time, style: .time)
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                }
+                                if let repeating = editedRepeating, repeating != .never {
+                                    Label(repeating.rawValue.capitalized, systemImage: "repeat")
+                                        .font(Theme.Typography.caption1())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                }
                             }
                         } else {
-                            InlineDatePicker(
-                                label: NSLocalizedString("tasks.due_date", comment: ""),
-                                date: $editedDueDate,
-                                onSave: saveDueDate,
-                                showLabel: false,
-                                isAllDay: isAllDay
-                            )
-                        }
-                    }
-                }
-
-                // 4. Time (conditional - only if date is set)
-                if editedDueDate != nil {
-                    if let time = editedDueTime, isReadOnly {
-                        TwoColumnRow(label: "Time") {
-                            Text(time, style: .time)
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        }
-                    } else if !isReadOnly {
-                        TwoColumnRow(label: "Time") {
-                            InlineTimePicker(
-                                label: "Time",
-                                time: $editedDueTime,
-                                onSave: saveDueTime,
-                                showLabel: false
-                            )
-                        }
-                    }
-                }
-
-                // 5. Repeat (conditional - only if date is set)
-                if editedDueDate != nil {
-                    if let repeating = editedRepeating, isReadOnly {
-                        TwoColumnRow(label: "Repeat") {
-                            Text(repeating.rawValue.capitalized)
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        }
-                    } else if !isReadOnly {
-                        TwoColumnRow(label: "Repeat") {
-                            InlineRepeatPicker(
-                                label: "Repeat",
-                                repeatPattern: $editedRepeating,
-                                repeatFrom: $editedRepeatFrom,
-                                repeatingData: $editedRepeatingData,
-                                onSave: saveRepeating,
-                                onSaveCustom: saveCustomRepeating,
-                                showLabel: false
-                            )
-                        }
-                    }
-                }
-
-                // 6. Priority
-                TwoColumnRow(label: "Priority") {
-                    if isReadOnly {
-                        HStack(spacing: Theme.spacing8) {
-                            // Show priority icon/color
-                            Circle()
-                                .fill(priorityColor(editedPriority))
-                                .frame(width: 12, height: 12)
-                            Text(priorityText(editedPriority))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                        }
-                    } else {
-                        PriorityButtonPicker(priority: $editedPriority) { newPriority in
-                            _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
+                            HStack(spacing: Theme.spacing8) {
+                                InlineDatePicker(
+                                    label: NSLocalizedString("tasks.due_date", comment: ""),
+                                    date: $editedDueDate,
+                                    onSave: saveDueDate,
+                                    showLabel: false,
+                                    isAllDay: isAllDay,
+                                    compact: true
+                                )
+                                if editedDueDate != nil {
+                                    InlineTimePicker(
+                                        label: "Time",
+                                        time: $editedDueTime,
+                                        onSave: saveDueTime,
+                                        showLabel: false,
+                                        compact: true
+                                    )
+                                    InlineRepeatPicker(
+                                        label: "Repeat",
+                                        repeatPattern: $editedRepeating,
+                                        repeatFrom: $editedRepeatFrom,
+                                        repeatingData: $editedRepeatingData,
+                                        onSave: saveRepeating,
+                                        onSaveCustom: saveCustomRepeating,
+                                        showLabel: false,
+                                        compact: true
+                                    )
+                                }
+                            }
                         }
                     }
                 }

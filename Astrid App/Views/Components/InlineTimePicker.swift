@@ -9,6 +9,8 @@ struct InlineTimePicker: View {
     @Binding var time: Date?
     let onSave: (() async -> Void)?
     var showLabel: Bool = true
+    /// Sizes the trigger to its content so it can share the "When" row (Task 42013da7).
+    var compact: Bool = false
 
     @State private var isEditing = false
     @State private var selectedTime: Date = Date()
@@ -148,22 +150,25 @@ struct InlineTimePicker: View {
                     initializePickerValues()
                     isEditing = true
                 } label: {
-                    HStack {
+                    HStack(spacing: Theme.spacing4) {
                         if let time = time {
                             Text(formatTime(time))
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .lineLimit(1)
                         } else {
                             Text(NSLocalizedString("picker.add_time", comment: "Add time"))
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .lineLimit(1)
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
+                        if !compact { Spacer() }
+                        Image(systemName: compact ? "clock" : "chevron.right")
                             .font(.system(size: 14))
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     }
-                    .padding(Theme.spacing12)
+                    .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
+                    .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
                     .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }

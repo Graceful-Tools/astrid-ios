@@ -1168,3 +1168,5 @@
 
 "board.full_screen" = "全螢幕";
 "board.exit_full_screen" = "結束全螢幕";
+"tasks.when" = "時間";
+"picker.add_date" = "新增日期";

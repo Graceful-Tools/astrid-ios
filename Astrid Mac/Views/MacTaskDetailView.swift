@@ -14,6 +14,9 @@ struct MacTaskDetailView: View {
     let task: Task
     var onClose: (() -> Void)? = nil   // shown as ✕ in the header when presented as a pop-out
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
+    /// Full-screen task details (42013da7). Shared with MacRootView through AppStorage rather than
+    /// a binding threaded through the pop-out, exactly as the board's full screen is.
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @ObservedObject private var appModel = MacAppModel.shared
@@ -66,6 +69,20 @@ struct MacTaskDetailView: View {
             Spacer()
             Text(NSLocalizedString("tasks.task_details", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
             Spacer()
+            // Full screen (42013da7) — the point of the redesign is room for the description, and
+            // the widest the pop-out can ever be is the detail column. This takes the window.
+            // Same affordance and icons as the board's full screen (a34d0163).
+            Button {
+                withAnimation(MacMotion.fast) { detailFullScreen.toggle() }
+            } label: {
+                Image(systemName: detailFullScreen
+                      ? "arrow.down.right.and.arrow.up.left"
+                      : "arrow.up.left.and.arrow.down.right")
+            }
+            .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
+            .help(NSLocalizedString(detailFullScreen ? "board.exit_full_screen" : "board.full_screen",
+                                    comment: ""))
+            .accessibilityIdentifier("taskDetail.fullScreen")
             Menu {
                 Menu(NSLocalizedString("lists.copy_to_list", comment: "")) {
                     ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
@@ -135,31 +152,62 @@ struct MacTaskDetailView: View {
             // Web-order labeled fields (913216a9) — same design language as the board's inline
             // editor: Who / Date / Priority / Lists / Repeat / Description.
             Section {
-                labeled("Who") {
-                    Picker("", selection: Binding(
-                        get: { task.assigneeId ?? "" },
-                        set: { setAssignee($0.isEmpty ? nil : $0) }
-                    )) {
-                        Text(NSLocalizedString("No one", comment: "")).tag("")
-                        ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
+                // Priority + Who on ONE row, and Date/Time/Repeat on ONE row below it
+                // (Task 42013da7). Four stacked rows were what pushed the description down the
+                // panel; this is where the room for it comes from.
+                labeled(NSLocalizedString("tasks.priority", comment: "")) {
+                    HStack(spacing: 10) {
+                        MacPriorityPicker(selection: $priority)
+                            .onChange(of: priority) { savePriority() }
+                            .fixedSize()
+                        Picker("", selection: Binding(
+                            get: { task.assigneeId ?? "" },
+                            set: { setAssignee($0.isEmpty ? nil : $0) }
+                        )) {
+                            Text(NSLocalizedString("No one", comment: "")).tag("")
+                            ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
                     }
-                    .labelsHidden()
                 }
-                labeled("Date") {
+                labeled(NSLocalizedString("tasks.when", comment: "")) {
+                    // The date toggle leads; time and repeat only appear once there IS a date,
+                    // so an undated task shows one control rather than three inert ones.
                     VStack(alignment: .leading, spacing: 6) {
-                        Toggle(NSLocalizedString("lists.due_date", comment: ""), isOn: $hasDue).onChange(of: hasDue) { saveDue() }
-                        if hasDue {
-                            DatePicker("", selection: $due,
-                                       displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
+                        HStack(spacing: 10) {
+                            Toggle(NSLocalizedString("lists.due_date", comment: ""), isOn: $hasDue)
+                                .onChange(of: hasDue) { saveDue() }
+                                .fixedSize()
+                            if hasDue {
+                                DatePicker("", selection: $due,
+                                           displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
+                                    .labelsHidden()
+                                    .onChange(of: due) { saveDue() }
+                                    .fixedSize()
+                                Picker("", selection: $repeating) {
+                                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
+                                        Text($0.displayName).tag($0)
+                                    }
+                                }
                                 .labelsHidden()
-                                .onChange(of: due) { saveDue() }
-                            Toggle(NSLocalizedString("All day", comment: ""), isOn: $isAllDay).onChange(of: isAllDay) { saveDue() }
+                                .onChange(of: repeating) { handleRepeatChange() }
+                                .fixedSize()
+                            }
+                        }
+                        if hasDue {
+                            Toggle(NSLocalizedString("All day", comment: ""), isOn: $isAllDay)
+                                .onChange(of: isAllDay) { saveDue() }
+                            if repeating == .custom {
+                                HStack {
+                                    Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
+                                        .foregroundStyle(Theme.textSecondary).font(.callout)
+                                    Spacer()
+                                    Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
+                                }
+                            }
                         }
                     }
-                }
-                labeled("Priority") {
-                    MacPriorityPicker(selection: $priority)
-                        .onChange(of: priority) { savePriority() }
                 }
                 labeled("Lists") {
                     HStack(spacing: 4) {
@@ -173,25 +221,7 @@ struct MacTaskDetailView: View {
                         if chips.isEmpty { Text("—").foregroundStyle(Theme.textMuted) }
                     }
                 }
-                labeled("Repeat") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Picker("", selection: $repeating) {
-                            ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
-                                Text($0.displayName).tag($0)
-                            }
-                        }
-                        .labelsHidden()
-                        .onChange(of: repeating) { handleRepeatChange() }
-                        if repeating == .custom {
-                            HStack {
-                                Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
-                                    .foregroundStyle(Theme.textSecondary).font(.callout)
-                                Spacer()
-                                Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
-                            }
-                        }
-                    }
-                }
+                // (Repeat moved into the "When" row above — 42013da7.)
                 // Description spans the FULL width below its own label (web/iOS parity —
                 // task e4b4f87c). The inline `labeled` row shape squeezed the editor into the
                 // ~2/3 left over beside the 80pt label column.

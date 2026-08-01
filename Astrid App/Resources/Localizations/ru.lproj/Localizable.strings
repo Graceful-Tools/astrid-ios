@@ -1166,3 +1166,5 @@
 
 "board.full_screen" = "Полный экран";
 "board.exit_full_screen" = "Выйти из полноэкранного режима";
+"tasks.when" = "Когда";
+"picker.add_date" = "Добавить дату";
