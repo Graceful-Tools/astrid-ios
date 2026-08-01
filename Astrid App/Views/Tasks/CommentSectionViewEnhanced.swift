@@ -383,8 +383,13 @@ struct CommentSectionViewEnhanced: View {
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     .padding(.vertical, Theme.spacing8)
             } else {
-                // Use comment.id directly - must ensure all comments have valid IDs
-                ForEach(displayedComments, id: \.stableId) { comment in
+                // A repeating task appends a completion line per rollover; a run of them folds
+                // into one streak row you can tap open (dd3fda86).
+                ForEach(CompletionStreak.fold(displayedComments)) { item in
+                    switch item {
+                    case .streak(let streak):
+                        CompletionStreakRow(streak: streak, colorScheme: colorScheme)
+                    case .comment(let comment):
                     CommentRowViewEnhanced(
                         comment: comment,
                         allTaskFiles: allTaskFiles,
@@ -417,6 +422,7 @@ struct CommentSectionViewEnhanced: View {
                             }
                         }
                     )
+                    }
                 }
             }
 

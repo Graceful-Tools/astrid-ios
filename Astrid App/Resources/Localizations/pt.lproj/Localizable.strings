@@ -1168,3 +1168,6 @@
 "board.exit_full_screen" = "Sair do ecrã inteiro";
 "tasks.when" = "Quando";
 "picker.add_date" = "Adicionar data";
+"comments.streak_summary" = "Concluída %1$d vezes em %2$d dias";
+"comments.streak_summary_no_span" = "Concluída %1$d vezes";
+"comments.streak_expand_hint" = "Mostrar cada data de conclusão";

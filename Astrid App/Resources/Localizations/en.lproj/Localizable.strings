@@ -1176,3 +1176,6 @@
 "board.exit_full_screen" = "Exit Full Screen";
 "tasks.when" = "When";
 "picker.add_date" = "Add date";
+"comments.streak_summary" = "Completed %1$d times in %2$d days";
+"comments.streak_summary_no_span" = "Completed %1$d times";
+"comments.streak_expand_hint" = "Show each completion date";

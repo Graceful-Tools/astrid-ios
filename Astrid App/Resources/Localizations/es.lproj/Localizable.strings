@@ -1184,3 +1184,6 @@
 "board.exit_full_screen" = "Salir de pantalla completa";
 "tasks.when" = "Cuándo";
 "picker.add_date" = "Añadir fecha";
+"comments.streak_summary" = "Completada %1$d veces en %2$d días";
+"comments.streak_summary_no_span" = "Completada %1$d veces";
+"comments.streak_expand_hint" = "Mostrar cada fecha de finalización";

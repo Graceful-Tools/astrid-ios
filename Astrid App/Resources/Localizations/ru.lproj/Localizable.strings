@@ -1168,3 +1168,6 @@
 "board.exit_full_screen" = "Выйти из полноэкранного режима";
 "tasks.when" = "Когда";
 "picker.add_date" = "Добавить дату";
+"comments.streak_summary" = "Выполнено %1$d раз за %2$d дн.";
+"comments.streak_summary_no_span" = "Выполнено %1$d раз";
+"comments.streak_expand_hint" = "Показать все даты выполнения";

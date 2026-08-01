@@ -53,6 +53,7 @@ struct MacTaskDetailView: View {
     /// System comments ("marked complete", "moved to …") are hidden until asked for — iOS parity
     /// (CommentSectionViewEnhanced). Task 9c24d16c.
     @State private var showSystemComments = false
+    @State private var expandedStreaks: Set<String> = []   // folded completion runs (dd3fda86)
     @State private var profileTarget: MacProfileTarget?      // author name tapped → profile sheet (0994eabb)
     @ObservedObject private var network = NetworkMonitor.shared
     @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
@@ -280,9 +281,17 @@ struct MacTaskDetailView: View {
                 if comments.isEmpty {
                     Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
                 }
-                ForEach(MacSystemComments.displayed(comments, showingSystem: showSystemComments,
-                                                    isOffline: !network.isConnected)) { c in
-                    commentBubble(c)
+                // A repeating task appends a completion line per rollover; a run of them folds
+                // into one streak row you can expand (dd3fda86).
+                ForEach(CompletionStreak.fold(
+                    MacSystemComments.displayed(comments, showingSystem: showSystemComments,
+                                                isOffline: !network.isConnected))) { item in
+                    switch item {
+                    case .comment(let c):
+                        commentBubble(c)
+                    case .streak(let streak):
+                        streakRow(streak)
+                    }
                 }
             } header: {
                 HStack {
@@ -488,6 +497,40 @@ struct MacTaskDetailView: View {
     }
 
     /// The photo opens the profile too — people click the face at least as often as the name.
+    /// A folded run of completions (dd3fda86) — one line, expanding to the actual dates on click.
+    @ViewBuilder private func streakRow(_ streak: CompletionStreak.Streak) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(MacMotion.fast) {
+                    if expandedStreaks.contains(streak.id) { expandedStreaks.remove(streak.id) }
+                    else { expandedStreaks.insert(streak.id) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill").foregroundStyle(Theme.accent)
+                    Text(CompletionStreak.summary(for: streak))
+                        .foregroundStyle(Theme.textSecondary)
+                    Image(systemName: expandedStreaks.contains(streak.id) ? "chevron.down" : "chevron.right")
+                        .font(.caption2).foregroundStyle(Theme.textMuted)
+                }
+                .font(.caption)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).macPointingHand()
+
+            if expandedStreaks.contains(streak.id) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(streak.dates, id: \.self) { date in
+                        Text(date, format: .dateTime.month().day().hour().minute())
+                            .font(.caption2).foregroundStyle(Theme.textMuted)
+                    }
+                }
+                .padding(.leading, 20)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func commentAvatar(_ who: MacAuthorDisplay, authorId: String?) -> some View {
         MacAuthorAvatar(display: who, size: 20)
             .macOpensProfile(authorId, target: $profileTarget)

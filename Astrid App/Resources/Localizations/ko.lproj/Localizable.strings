@@ -1170,3 +1170,6 @@
 "board.exit_full_screen" = "전체 화면 종료";
 "tasks.when" = "일시";
 "picker.add_date" = "날짜 추가";
+"comments.streak_summary" = "%2$d일 동안 %1$d회 완료";
+"comments.streak_summary_no_span" = "%1$d회 완료";
+"comments.streak_expand_hint" = "각 완료 날짜 표시";

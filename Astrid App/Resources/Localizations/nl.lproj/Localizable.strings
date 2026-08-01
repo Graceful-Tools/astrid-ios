@@ -1168,3 +1168,6 @@
 "board.exit_full_screen" = "Volledig scherm afsluiten";
 "tasks.when" = "Wanneer";
 "picker.add_date" = "Datum toevoegen";
+"comments.streak_summary" = "%1$d keer voltooid in %2$d dagen";
+"comments.streak_summary_no_span" = "%1$d keer voltooid";
+"comments.streak_expand_hint" = "Toon elke voltooiingsdatum";

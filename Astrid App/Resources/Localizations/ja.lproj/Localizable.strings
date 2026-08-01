@@ -1168,3 +1168,6 @@
 "board.exit_full_screen" = "フルスクリーンを終了";
 "tasks.when" = "日時";
 "picker.add_date" = "日付を追加";
+"comments.streak_summary" = "%2$d日間で%1$d回完了";
+"comments.streak_summary_no_span" = "%1$d回完了";
+"comments.streak_expand_hint" = "各完了日を表示";
