@@ -214,21 +214,29 @@ struct InlineAssigneePicker: View {
                 } label: {
                     HStack {
                         if compact {
-                            // Just who it is — avatar, or a crossed-out person when nobody
-                            // (42013da7). The name repeats what the face already says.
+                            // Avatar AND name (42013da7): a face alone is only recognisable if
+                            // you already know it, and a shared list can hold people you do not.
                             if let assignee = currentAssignee {
-                                CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    ZStack {
-                                        Circle().fill(Theme.accent)
-                                        Text(assignee.initials)
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundColor(.white)
+                                HStack(spacing: Theme.spacing4) {
+                                    CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        ZStack {
+                                            Circle().fill(Theme.accent)
+                                            Text(assignee.initials)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
                                     }
+                                    .frame(width: 26, height: 26)
+                                    .clipShape(Circle())
+
+                                    Text(assignee.displayName)
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .lineLimit(1)
                                 }
-                                .frame(width: 26, height: 26)
-                                .clipShape(Circle())
+                                .accessibilityElement(children: .combine)
                                 .accessibilityLabel(Text(assignee.displayName))
                             } else {
                                 SlashedSymbol(systemName: "person",

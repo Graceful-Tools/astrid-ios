@@ -10,27 +10,17 @@ struct PriorityButtonPicker: View {
     /// whole row to display three options the task is not set to.
     var compact: Bool = false
 
+    @State private var showingPicker = false
+
     private let priorities: [Task.Priority] = [.none, .low, .medium, .high]
 
     var body: some View {
         if compact {
-            Menu {
-                ForEach(priorities, id: \.self) { level in
-                    Button {
-                        _Concurrency.Task { await handlePriorityChange(level) }
-                    } label: {
-                        // `systemImage: ""` renders as a MISSING image, which is why the menu
-                        // came up blank. Only the selected row carries an image at all, and the
-                        // priority's own symbol goes in the title so the menu reads like the
-                        // chips it replaced.
-                        if priority == level {
-                            Label("\(level.symbol)  \(level.pickerTitle)", systemImage: "checkmark")
-                        } else {
-                            Text("\(level.symbol)  \(level.pickerTitle)")
-                        }
-                    }
-                }
-            } label: {
+            // A POPOVER of the real buttons, not a Menu. A menu renders its rows in the system's
+            // own style — it will not draw the priority colours, which are the whole point of
+            // this control (42013da7). The popover shows the same four coloured buttons the
+            // full-width picker has always used.
+            Button { showingPicker = true } label: {
                 Text(priority.symbol)
                     .font(.system(size: 14, weight: .semibold))
                     .frame(minWidth: 30, minHeight: 28)
@@ -44,9 +34,27 @@ struct PriorityButtonPicker: View {
                             .stroke(priority.themeColor, lineWidth: 1.5)
                     )
             }
-            .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
             .fixedSize()
             .accessibilityLabel(Text(priority.pickerTitle))
+            .popover(isPresented: $showingPicker) {
+                HStack(spacing: Theme.spacing12) {
+                    ForEach(priorities, id: \.self) { priorityLevel in
+                        PriorityButton(
+                            priority: priorityLevel,
+                            isSelected: priority == priorityLevel,
+                            colorScheme: colorScheme
+                        ) {
+                            await handlePriorityChange(priorityLevel)
+                            showingPicker = false
+                        }
+                    }
+                }
+                .padding(Theme.spacing16)
+                // Without this a popover becomes a full sheet on iPhone, which is far too much
+                // chrome for four buttons.
+                .presentationCompactAdaptation(.popover)
+            }
         } else {
             HStack(spacing: Theme.spacing12) {
                 ForEach(priorities, id: \.self) { priorityLevel in

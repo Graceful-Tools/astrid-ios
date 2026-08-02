@@ -15,9 +15,13 @@ struct TwoColumnRow<Content: View>: View {
     var icon: String? = nil
     @ViewBuilder let content: () -> Content
 
-    // Standard label width for all device types
-    // iPad portrait now has 60% detail panel width, so no need for wider labels
-    private var labelWidth: CGFloat { icon == nil ? 80 : 24 }
+    // The icon column is exactly as wide as the title row's CHECKBOX (34pt), and this row uses
+    // the same 16pt horizontal padding and 12pt spacing as that row. So the icon lands centred
+    // under the checkbox, and the content's left edge lands on the title field's left edge —
+    // 16 + 34 + 12 = 62pt in both rows (42013da7). Changing one without the other breaks it.
+    /// Computed, not stored: a generic type cannot hold a static stored property.
+    static var iconColumnWidth: CGFloat { 34 }
+    private var labelWidth: CGFloat { icon == nil ? 80 : Self.iconColumnWidth }
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.spacing12) {
@@ -32,7 +36,8 @@ struct TwoColumnRow<Content: View>: View {
                 }
             }
             .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-            .frame(width: labelWidth, alignment: .leading)
+            // Centred for an icon (to sit under the checkbox), leading for a text label.
+            .frame(width: labelWidth, alignment: icon == nil ? .leading : .center)
 
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
