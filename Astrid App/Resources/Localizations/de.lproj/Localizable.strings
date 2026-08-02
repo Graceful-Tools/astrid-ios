@@ -1171,3 +1171,4 @@
 "comments.streak_summary" = "%1$d Mal in %2$d Tagen erledigt";
 "comments.streak_summary_no_span" = "%1$d Mal erledigt";
 "comments.streak_expand_hint" = "Alle Abschlussdaten anzeigen";
+"actions.set" = "Setzen";

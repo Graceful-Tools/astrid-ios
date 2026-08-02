@@ -1179,3 +1179,4 @@
 "comments.streak_summary" = "Completed %1$d times in %2$d days";
 "comments.streak_summary_no_span" = "Completed %1$d times";
 "comments.streak_expand_hint" = "Show each completion date";
+"actions.set" = "Set";

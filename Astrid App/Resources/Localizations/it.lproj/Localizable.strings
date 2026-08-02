@@ -1171,3 +1171,4 @@
 "comments.streak_summary" = "Completata %1$d volte in %2$d giorni";
 "comments.streak_summary_no_span" = "Completata %1$d volte";
 "comments.streak_expand_hint" = "Mostra ogni data di completamento";
+"actions.set" = "Imposta";

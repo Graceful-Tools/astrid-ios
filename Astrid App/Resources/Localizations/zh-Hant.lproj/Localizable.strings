@@ -1173,3 +1173,4 @@
 "comments.streak_summary" = "%2$d 天內完成 %1$d 次";
 "comments.streak_summary_no_span" = "已完成 %1$d 次";
 "comments.streak_expand_hint" = "顯示每個完成日期";
+"actions.set" = "設定";

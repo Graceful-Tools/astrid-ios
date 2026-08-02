@@ -48,11 +48,17 @@ struct InlineTimePicker: View {
         .sheet(isPresented: Binding(get: { compact && isEditing },
                                     set: { isEditing = $0 })) {
             NavigationStack {
-                ScrollView { editor.padding(Theme.spacing16) }
-                    .navigationTitle(label)
-                    .navigationBarTitleDisplayMode(.inline)
+                ScrollView {
+                    editor
+                        .padding(Theme.spacing16)
+                        // See InlineRepeatPicker: a ScrollView hands its content the IDEAL width,
+                        // so rows shrink to their text unless told to fill (42013da7).
+                        .frame(maxWidth: .infinity)
+                }
+                .navigationTitle(label)
+                .navigationBarTitleDisplayMode(.inline)
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.large])
         }
     }
 
@@ -66,20 +72,29 @@ struct InlineTimePicker: View {
                                 // Save immediately on quick option selection
                                 saveTime()
                             } label: {
+                                let isSelected = Calendar.current.component(.hour, from: selectedTime) == option.1
+                                    && Calendar.current.component(.minute, from: selectedTime) == 0
                                 HStack {
                                     Text(option.0)
                                         .font(Theme.Typography.body())
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                     Spacer()
-                                    if Calendar.current.component(.hour, from: selectedTime) == option.1 &&
-                                       Calendar.current.component(.minute, from: selectedTime) == 0 {
+                                    if isSelected {
                                         Image(systemName: "checkmark")
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
                                 .padding(.horizontal, Theme.spacing12)
                                 .padding(.vertical, Theme.spacing8)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                // The row has to FILL the sheet, or a VStack inside a ScrollView
+                                // shrinks to its text and the list reads as a narrow column.
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                // Selected is tinted, not just ticked — a checkmark alone at the
+                                // far edge of a full-width row is easy to miss (42013da7).
+                                .background(isSelected ? Theme.accent.opacity(0.15)
+                                                       : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                                .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                    .stroke(isSelected ? Theme.accent : .clear, lineWidth: 1.5))
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
@@ -95,70 +110,46 @@ struct InlineTimePicker: View {
                             .font(Theme.Typography.caption1())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
-                        // Compact time picker with reduced font size
-                        HStack(spacing: 4) {
-                            // Hour picker (1-12)
-                            Picker("Hour", selection: $pickerHour) {
-                                ForEach(1...12, id: \.self) { hour in
-                                    Text("\(hour)")
-                                        .font(.system(size: 16))
-                                        .tag(hour)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 50)
-                            .clipped()
-
-                            Text(":")
-                                .font(.system(size: 16, weight: .medium))
-
-                            // Minute picker (00-59, step by 5)
-                            Picker("Minute", selection: $pickerMinute) {
-                                ForEach(Array(stride(from: 0, to: 60, by: 5)), id: \.self) { minute in
-                                    Text(String(format: "%02d", minute))
-                                        .font(.system(size: 16))
-                                        .tag(minute)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 50)
-                            .clipped()
-
-                            // AM/PM picker
-                            Picker("Period", selection: $pickerPeriod) {
-                                Text("AM").font(.system(size: 16)).tag(0)
-                                Text("PM").font(.system(size: 16)).tag(1)
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 50)
-                            .clipped()
-                        }
-                        .frame(height: 100)
-                        .onChange(of: pickerHour) { _, _ in updateSelectedTime() }
-                        .onChange(of: pickerMinute) { _, _ in updateSelectedTime() }
-                        .onChange(of: pickerPeriod) { _, _ in updateSelectedTime() }
+                        // The system time picker, not three 50pt-wide wheels clipped to 100pt
+                        // (42013da7). Those were unreadably small, and the hour/minute/AM-PM
+                        // triple had to be re-derived into `selectedTime` on every change —
+                        // this edits the time directly. Minutes are no longer restricted to
+                        // 5-minute steps either.
+                        DatePicker("", selection: $selectedTime, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.wheel)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Actions
+                    // Actions. The styling goes on the LABEL, under .buttonStyle(.plain) — applied
+                    // to the Button itself the default style tinted the text and drew its own
+                    // background over the fill, which is what made these look wrong (42013da7).
                     HStack(spacing: Theme.spacing12) {
-                        Button("Clear") {
+                        Button {
                             clearTime()
+                        } label: {
+                            Text(NSLocalizedString("actions.clear", comment: "Clear"))
+                                .foregroundColor(Theme.error)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Theme.spacing12)
+                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                         }
-                        .foregroundColor(Theme.error)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Theme.spacing8)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                        .buttonStyle(.plain)
 
-                        Button("Set") {
+                        Button {
                             saveTime()
+                        } label: {
+                            Text(NSLocalizedString("actions.set", comment: "Set"))
+                                .bold()
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Theme.spacing12)
+                                .background(Theme.accent)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                         }
-                        .bold()
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, Theme.spacing8)
-                        .background(Theme.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(compact ? 0 : Theme.spacing12)

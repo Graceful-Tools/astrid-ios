@@ -1171,3 +1171,4 @@
 "comments.streak_summary" = "%2$d日間で%1$d回完了";
 "comments.streak_summary_no_span" = "%1$d回完了";
 "comments.streak_expand_hint" = "各完了日を表示";
+"actions.set" = "設定";

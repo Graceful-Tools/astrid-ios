@@ -1187,3 +1187,4 @@
 "comments.streak_summary" = "Terminée %1$d fois en %2$d jours";
 "comments.streak_summary_no_span" = "Terminée %1$d fois";
 "comments.streak_expand_hint" = "Afficher chaque date d'achèvement";
+"actions.set" = "Définir";

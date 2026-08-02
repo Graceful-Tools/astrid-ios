@@ -1173,3 +1173,4 @@
 "comments.streak_summary" = "%2$d일 동안 %1$d회 완료";
 "comments.streak_summary_no_span" = "%1$d회 완료";
 "comments.streak_expand_hint" = "각 완료 날짜 표시";
+"actions.set" = "설정";

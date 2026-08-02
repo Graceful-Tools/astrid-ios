@@ -59,9 +59,16 @@ struct InlineRepeatPicker: View {
         .sheet(isPresented: Binding(get: { compact && isEditing && !showingCustomEditor },
                                     set: { isEditing = $0 })) {
             NavigationStack {
-                ScrollView { editor.padding(Theme.spacing16) }
-                    .navigationTitle(label)
-                    .navigationBarTitleDisplayMode(.inline)
+                ScrollView {
+                    editor
+                        .padding(Theme.spacing16)
+                        // Without this the ScrollView hands the content its IDEAL width, which
+                        // for a VStack of text rows is the widest word — the sheet was full
+                        // width, the rows inside it were not (42013da7).
+                        .frame(maxWidth: .infinity)
+                }
+                .navigationTitle(label)
+                .navigationBarTitleDisplayMode(.inline)
             }
             .presentationDetents([.medium, .large])
         }
@@ -111,19 +118,28 @@ struct InlineRepeatPicker: View {
                                     savePattern()
                                 }
                             } label: {
+                                let isSelected = selectedPattern == pattern
                                 HStack {
                                     Text(pattern.displayName)
                                         .font(Theme.Typography.body())
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                     Spacer()
-                                    if selectedPattern == pattern {
+                                    if isSelected {
                                         Image(systemName: "checkmark")
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
                                 .padding(.horizontal, Theme.spacing12)
-                                .padding(.vertical, Theme.spacing8)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .padding(.vertical, Theme.spacing12)
+                                // Fill the sheet: a VStack inside a ScrollView otherwise shrinks
+                                // to its widest word, which is why this never looked full width.
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                // Tinted, not just ticked — the checkmark alone at the far edge
+                                // of a full-width row was easy to miss (42013da7).
+                                .background(isSelected ? Theme.accent.opacity(0.15)
+                                                       : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                                .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                                    .stroke(isSelected ? Theme.accent : .clear, lineWidth: 1.5))
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)

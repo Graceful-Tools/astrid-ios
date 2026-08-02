@@ -1171,3 +1171,4 @@
 "comments.streak_summary" = "%1$d keer voltooid in %2$d dagen";
 "comments.streak_summary_no_span" = "%1$d keer voltooid";
 "comments.streak_expand_hint" = "Toon elke voltooiingsdatum";
+"actions.set" = "Instellen";
