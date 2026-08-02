@@ -160,7 +160,7 @@ struct MacTaskDetailView: View {
                     HStack(spacing: 10) {
                         MacPriorityPicker(selection: $priority, compact: true)
                             .onChange(of: priority) { savePriority() }
-                            .fixedSize()
+                            .frame(minWidth: MacDetailRowFit.priorityRowMinimums[0])
                         Picker("", selection: Binding(
                             get: { task.assigneeId ?? "" },
                             set: { setAssignee($0.isEmpty ? nil : $0) }
@@ -169,7 +169,10 @@ struct MacTaskDetailView: View {
                             ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
                         }
                         .labelsHidden()
-                        .fixedSize()
+                        // A MINIMUM, not a fixed size: fixedSize refuses to compress, which is
+                        // what pushed this row past the 380pt panel and clipped the whole detail
+                        // off its left edge (42013da7).
+                        .frame(minWidth: MacDetailRowFit.priorityRowMinimums[1])
                     }
                 }
                 labeled(NSLocalizedString("tasks.when", comment: "")) {
@@ -179,13 +182,13 @@ struct MacTaskDetailView: View {
                         HStack(spacing: 10) {
                             Toggle(NSLocalizedString("lists.due_date", comment: ""), isOn: $hasDue)
                                 .onChange(of: hasDue) { saveDue() }
-                                .fixedSize()
+                                .frame(minWidth: MacDetailRowFit.whenRowMinimums[0])
                             if hasDue {
                                 DatePicker("", selection: $due,
                                            displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
                                     .labelsHidden()
                                     .onChange(of: due) { saveDue() }
-                                    .fixedSize()
+                                    .frame(minWidth: MacDetailRowFit.whenRowMinimums[1])
                                 Picker("", selection: $repeating) {
                                     ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
                                         Text($0.displayName).tag($0)
@@ -193,7 +196,7 @@ struct MacTaskDetailView: View {
                                 }
                                 .labelsHidden()
                                 .onChange(of: repeating) { handleRepeatChange() }
-                                .fixedSize()
+                                .frame(minWidth: MacDetailRowFit.whenRowMinimums[2])
                             }
                         }
                         if hasDue {
