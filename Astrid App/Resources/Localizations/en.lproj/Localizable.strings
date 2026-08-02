@@ -1181,3 +1181,6 @@
 "comments.streak_expand_hint" = "Show each completion date";
 "actions.set" = "Set";
 "repeating.title" = "Repeat";
+"assignee.someone_else" = "Someone else";
+"actions.assign" = "Assign";
+"assignee.needs_a_list" = "Add this task to a list first, then you can assign it to someone new.";

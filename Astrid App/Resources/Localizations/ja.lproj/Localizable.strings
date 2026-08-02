@@ -1173,3 +1173,6 @@
 "comments.streak_expand_hint" = "各完了日を表示";
 "actions.set" = "設定";
 "repeating.title" = "繰り返し";
+"assignee.someone_else" = "ほかの人";
+"actions.assign" = "割り当て";
+"assignee.needs_a_list" = "先にこのタスクをリストに追加すると、新しい人に割り当てられます。";

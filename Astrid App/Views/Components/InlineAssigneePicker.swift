@@ -16,6 +16,10 @@ struct InlineAssigneePicker: View {
     var compact: Bool = false
 
     @State private var isEditing = false
+    // "Someone else": assign to a person who is not on the list yet (42013da7).
+    @State private var someoneElseQuery = ""
+    @State private var contactSuggestions: [ContactSearchResult] = []
+    @State private var someoneElseError: String?
     // Initialize with cached agents to prevent flash on first render
     @State private var aiAgents: [User] = AIAgentCache.shared.load() ?? []
     @State private var isLoadingAgents = false
@@ -162,6 +166,110 @@ struct InlineAssigneePicker: View {
         }
     }
 
+    /// Assign to someone who is not a member of this list yet: type an email, or pick from your
+    /// server-synced contacts (the same source the Mac's invite field searches).
+    @ViewBuilder private var someoneElseSection: some View {
+        VStack(alignment: .leading, spacing: Theme.spacing8) {
+            Text(NSLocalizedString("assignee.someone_else", comment: "Someone else"))
+                .font(Theme.Typography.caption1())
+                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+
+            HStack(spacing: Theme.spacing8) {
+                TextField(NSLocalizedString("members.invite_email", comment: ""), text: $someoneElseQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.emailAddress)
+                    .onChange(of: someoneElseQuery) { _, _ in searchContacts() }
+
+                Button(NSLocalizedString("actions.assign", comment: "Assign")) {
+                    assignByEmail(someoneElseQuery)
+                }
+                .disabled(!isAssignableEmail(someoneElseQuery))
+            }
+
+            ForEach(contactSuggestions) { contact in
+                Button {
+                    assignByEmail(contact.email)
+                } label: {
+                    HStack(spacing: Theme.spacing8) {
+                        Image(systemName: "person.crop.circle")
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(contact.name ?? contact.email)
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            if contact.name != nil {
+                                Text(contact.email)
+                                    .font(Theme.Typography.caption1())
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, Theme.spacing12)
+                    .padding(.vertical, Theme.spacing8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if let someoneElseError {
+                Text(someoneElseError)
+                    .font(Theme.Typography.caption1())
+                    .foregroundColor(Theme.error)
+            }
+        }
+    }
+
+    private func isAssignableEmail(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        return trimmed.contains("@") && trimmed.contains(".")
+    }
+
+    private func searchContacts() {
+        let query = someoneElseQuery.trimmingCharacters(in: .whitespaces)
+        guard query.count >= 2, !query.contains("@") else { contactSuggestions = []; return }
+        _Concurrency.Task {
+            let hits = (try? await ContactsService.shared.searchContacts(query: query,
+                                                                        excludeListId: nil)) ?? []
+            await MainActor.run { contactSuggestions = Array(hits.prefix(5)) }
+        }
+    }
+
+    /// Adds the person to the task's list, then assigns — a task cannot be assigned to someone
+    /// with no access to it, so the membership has to come first. The error is surfaced rather
+    /// than swallowed: silently not assigning is the worst outcome here.
+    private func assignByEmail(_ rawEmail: String) {
+        let email = rawEmail.trimmingCharacters(in: .whitespaces)
+        guard isAssignableEmail(email) else { return }
+        guard let listId = taskListIds.first else {
+            someoneElseError = NSLocalizedString("assignee.needs_a_list", comment: "")
+            return
+        }
+        someoneElseError = nil
+        _Concurrency.Task {
+            do {
+                let member = try await ListMemberService.shared.addMember(listId: listId,
+                                                                          email: email,
+                                                                          role: "member")
+                await MainActor.run {
+                    assigneeId = member.userId
+                    someoneElseQuery = ""
+                    contactSuggestions = []
+                    isEditing = false
+                }
+                await onSave?(member.userId)
+            } catch {
+                await MainActor.run {
+                    someoneElseError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     @ViewBuilder private var editor: some View {
                 VStack(spacing: Theme.spacing12) {
                     // Unassigned option
@@ -197,6 +305,13 @@ struct InlineAssigneePicker: View {
                             isAIAgent: member.isAIAgent == true
                         )
                     }
+
+                    // Someone else — assign to a person who is not on this list yet, by email or
+                    // from your contacts (42013da7). Web has had this; iOS only ever offered the
+                    // list's existing members, so the answer to "assign this to Dana" was to go
+                    // and share the list first.
+                    Divider()
+                    someoneElseSection
                 }
                 .padding(compact ? 0 : Theme.spacing12)
                 .background(compact ? Color.clear

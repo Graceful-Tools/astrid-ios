@@ -1173,3 +1173,6 @@
 "comments.streak_expand_hint" = "Toon elke voltooiingsdatum";
 "actions.set" = "Instellen";
 "repeating.title" = "Herhalen";
+"assignee.someone_else" = "Iemand anders";
+"actions.assign" = "Toewijzen";
+"assignee.needs_a_list" = "Voeg deze taak eerst toe aan een lijst, daarna kun je die aan iemand nieuw toewijzen.";

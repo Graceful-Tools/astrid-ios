@@ -1173,3 +1173,6 @@
 "comments.streak_expand_hint" = "Mostrar cada data de conclusão";
 "actions.set" = "Definir";
 "repeating.title" = "Repetir";
+"assignee.someone_else" = "Outra pessoa";
+"actions.assign" = "Atribuir";
+"assignee.needs_a_list" = "Adicione esta tarefa a uma lista primeiro e depois poderá atribuí-la a alguém novo.";

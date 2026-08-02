@@ -1189,3 +1189,6 @@
 "comments.streak_expand_hint" = "Mostrar cada fecha de finalización";
 "actions.set" = "Establecer";
 "repeating.title" = "Repetir";
+"assignee.someone_else" = "Otra persona";
+"actions.assign" = "Asignar";
+"assignee.needs_a_list" = "Añade esta tarea a una lista primero y luego podrás asignarla a alguien nuevo.";

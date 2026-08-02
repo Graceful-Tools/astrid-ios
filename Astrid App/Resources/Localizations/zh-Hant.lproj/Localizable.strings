@@ -1175,3 +1175,6 @@
 "comments.streak_expand_hint" = "顯示每個完成日期";
 "actions.set" = "設定";
 "repeating.title" = "重複";
+"assignee.someone_else" = "其他人";
+"actions.assign" = "指派";
+"assignee.needs_a_list" = "請先將此任務加入某個清單，然後即可指派給新的人。";

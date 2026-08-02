@@ -1173,3 +1173,6 @@
 "comments.streak_expand_hint" = "显示每个完成日期";
 "actions.set" = "设定";
 "repeating.title" = "重复";
+"assignee.someone_else" = "其他人";
+"actions.assign" = "分配";
+"assignee.needs_a_list" = "请先将此任务加入某个列表，然后即可分配给新的人。";

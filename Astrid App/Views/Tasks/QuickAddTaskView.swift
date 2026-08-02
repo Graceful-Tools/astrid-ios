@@ -237,11 +237,16 @@ struct QuickAddTaskView: View {
     /// Checkbox view showing priority color or assignee avatar
     @ViewBuilder
     private var quickAddCheckbox: some View {
-        if let assigneeId = selectedAssigneeId,
-           let assignee = availableMembers.first(where: { $0.id == assigneeId }),
-           assignee.id != authManager.currentUser?.id {
+        // Resolve through availableMembers when we have them, but fall back to a minimal User —
+        // exactly as TaskRowView does. Without the fallback, assigning to someone the picker has
+        // not loaded (another list's member, or someone added by email) silently reverted the
+        // checkbox to a plain box, as though the task were unassigned (42013da7).
+        if let assigneeId = selectedAssigneeId, !assigneeId.isEmpty,
+           assigneeId != authManager.currentUser?.id {
+            let assignee = availableMembers.first(where: { $0.id == assigneeId })
+                ?? User(id: assigneeId, email: nil, name: nil, image: nil)
             // Show assignee avatar with priority-colored border
-            CachedAsyncImage(url: assignee.image.flatMap { URL(string: $0) }) { image in
+            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -249,12 +254,13 @@ struct QuickAddTaskView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Theme.accent)
-                    Text(assignee.name?.prefix(1).uppercased() ?? assignee.email?.prefix(1).uppercased() ?? "?")
+                    Text(assignee.initials)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Theme.accentText)
                 }
             }
-            .frame(width: 30, height: 30)
+            // 34pt, the same as the task row's — this control is meant to read as that control.
+            .frame(width: 34, height: 34)
             // Rounded rectangle with a priority-colored border — matches the
             // web's assigned-task avatar (rounded-lg square, border-2).
             .clipShape(RoundedRectangle(cornerRadius: 8))
