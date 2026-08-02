@@ -57,6 +57,14 @@ struct InlineTimePicker: View {
                 }
                 .navigationTitle(label)
                 .navigationBarTitleDisplayMode(.inline)
+                // Every picker sheet closes the same way (42013da7) — one word, same place.
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(NSLocalizedString("actions.close", comment: "Close")) {
+                            isEditing = false
+                        }
+                    }
+                }
             }
             .presentationDetents([.large])
         }
@@ -66,6 +74,29 @@ struct InlineTimePicker: View {
                 VStack(spacing: Theme.spacing12) {
                     // Quick options
                     VStack(spacing: Theme.spacing4) {
+                        // "All day" is a CHOICE and belongs with the other quick picks, above
+                        // Morning/Afternoon/Evening, in red as the one that removes the time
+                        // (42013da7). It was a "Clear" button sat under the wheel.
+                        Button {
+                            clearTime()
+                        } label: {
+                            HStack {
+                                Text(NSLocalizedString("picker.all_day", comment: "All day"))
+                                    .font(Theme.Typography.body())
+                                    .foregroundColor(Theme.error)
+                                Spacer()
+                                if time == nil {
+                                    Image(systemName: "checkmark").foregroundColor(Theme.error)
+                                }
+                            }
+                            .padding(.horizontal, Theme.spacing12)
+                            .padding(.vertical, Theme.spacing12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                        }
+                        .buttonStyle(.plain)
+
                         ForEach(quickOptions, id: \.1) { option in
                             Button {
                                 setQuickTime(hour: option.1)
@@ -122,38 +153,22 @@ struct InlineTimePicker: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Actions. The styling goes on the LABEL, under .buttonStyle(.plain) — applied
-                    // to the Button itself the default style tinted the text and drew its own
-                    // background over the fill, which is what made these look wrong (42013da7).
-                    HStack(spacing: Theme.spacing12) {
-                        Button {
-                            clearTime()
-                        } label: {
-                            // "All day", not "Clear" — name the OUTCOME, not the mechanic. A task
-                            // with no time is an all-day task; "Clear" describes what happens to
-                            // the field rather than what happens to the task (42013da7).
-                            Text(NSLocalizedString("picker.all_day", comment: "All day"))
-                                .foregroundColor(Theme.error)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, Theme.spacing12)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            saveTime()
-                        } label: {
-                            Text(NSLocalizedString("actions.set", comment: "Set"))
-                                .bold()
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, Theme.spacing12)
-                                .background(Theme.accent)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        }
-                        .buttonStyle(.plain)
+                    // "All day" moved up into the quick picks, so Set is the only action left.
+                    // The styling goes on the LABEL, under .buttonStyle(.plain) — applied to the
+                    // Button itself the default style tinted the text and drew its own background
+                    // over the fill, which is what made these look wrong (42013da7).
+                    Button {
+                        saveTime()
+                    } label: {
+                        Text(NSLocalizedString("actions.set", comment: "Set"))
+                            .bold()
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.spacing12)
+                            .background(Theme.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(compact ? 0 : Theme.spacing12)
                 .background(compact ? Color.clear

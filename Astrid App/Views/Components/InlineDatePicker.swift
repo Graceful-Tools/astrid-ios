@@ -68,6 +68,31 @@ struct InlineDatePicker: View {
                     VStack(spacing: Theme.spacing16) {
                         // Quick date options
                         VStack(spacing: Theme.spacing8) {
+                            // "No due date" is a CHOICE, not a toolbar escape hatch — it sits with
+                            // the other quick picks, first, in red so it reads as the one that
+                            // takes a value away (42013da7).
+                            Button {
+                                date = nil
+                                showingPicker = false
+                                onSave?()
+                            } label: {
+                                HStack {
+                                    Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(Theme.error)
+                                    Spacer()
+                                    if date == nil {
+                                        Image(systemName: "checkmark").foregroundColor(Theme.error)
+                                    }
+                                }
+                                .padding(.horizontal, Theme.spacing16)
+                                .padding(.vertical, Theme.spacing12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
+                            }
+                            .buttonStyle(.plain)
+
                             ForEach(quickOptions, id: \.1) { option in
                                 Button {
                                     setQuickDate(daysFromNow: option.1)
@@ -184,12 +209,10 @@ struct InlineDatePicker: View {
                     .navigationTitle(label)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
+                        // "No due date" moved into the quick picks; this is just the way out.
                         ToolbarItem(placement: .cancellationAction) {
-                            // "No date", not "Clear" — the outcome, not the mechanic (42013da7).
-                            Button(NSLocalizedString("picker.no_due_date", comment: "No date")) {
-                                date = nil
+                            Button(NSLocalizedString("actions.close", comment: "Close")) {
                                 showingPicker = false
-                                onSave?()
                             }
                         }
                     }

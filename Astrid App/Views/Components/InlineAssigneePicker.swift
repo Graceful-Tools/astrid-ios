@@ -158,9 +158,17 @@ struct InlineAssigneePicker: View {
         .sheet(isPresented: Binding(get: { compact && isEditing },
                                     set: { isEditing = $0 })) {
             NavigationStack {
-                ScrollView { editor.padding(Theme.spacing16) }
+                ScrollView { editor.padding(Theme.spacing16).frame(maxWidth: .infinity) }
                     .navigationTitle(label)
                     .navigationBarTitleDisplayMode(.inline)
+                    // Same close affordance as every other picker sheet (42013da7).
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(NSLocalizedString("actions.close", comment: "Close")) {
+                                isEditing = false
+                            }
+                        }
+                    }
             }
             .presentationDetents([.medium, .large])
         }

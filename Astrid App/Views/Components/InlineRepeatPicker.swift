@@ -79,6 +79,17 @@ struct InlineRepeatPicker: View {
                 }
                 .navigationTitle(label)
                 .navigationBarTitleDisplayMode(.inline)
+                // Every picker sheet closes the same way (42013da7) — one word, same place.
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(NSLocalizedString("actions.close", comment: "Close")) {
+                            // BOTH flags — the sheet shows the custom editor too, and clearing
+                            // only `isEditing` would leave it up.
+                            isEditing = false
+                            showingCustomEditor = false
+                        }
+                    }
+                }
             }
             .presentationDetents([.large])
         }
