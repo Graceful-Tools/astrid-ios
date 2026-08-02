@@ -31,46 +31,56 @@ struct InlineRepeatPicker: View {
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
             }
 
-            if showingCustomEditor {
-                // Custom repeating pattern editor (inline)
-                CustomRepeatingPatternEditor(
-                    pattern: Binding(
-                        get: { tempRepeatingData ?? createDefaultPattern() },
-                        set: { tempRepeatingData = $0 }
-                    ),
-                    repeatFrom: $selectedRepeatFrom,
-                    onSave: {
-                        saveCustomPattern()
-                    },
-                    onCancel: {
-                        wasCancelled = true
-                        showingCustomEditor = false
-                        isEditing = true
-                    }
-                )
-            } else if isEditing && !compact {
-                editor
-            } else {
+            // One decision for both editors (42013da7): a chip-sized trigger presents EITHER of
+            // them as a sheet. Only a full-width caller renders in place.
+            switch RepeatEditorPresentation.of(compact: compact,
+                                               isEditing: isEditing,
+                                               showingCustom: showingCustomEditor) {
+            case .inline:
+                if RepeatEditorPresentation.showsCustomEditor(isEditing: isEditing,
+                                                              showingCustom: showingCustomEditor) {
+                    customEditor
+                } else {
+                    editor
+                }
+            case .sheet, .trigger:
                 trigger
             }
         }
-        // Compact triggers are chip-sized; the editor goes in a sheet so it gets the full width
-        // the date picker's has always had (42013da7).
-        .sheet(isPresented: Binding(get: { compact && isEditing && !showingCustomEditor },
-                                    set: { isEditing = $0 })) {
+        .sheet(isPresented: Binding(
+            get: {
+                RepeatEditorPresentation.of(compact: compact,
+                                            isEditing: isEditing,
+                                            showingCustom: showingCustomEditor) == .sheet
+            },
+            set: { presenting in
+                if !presenting {
+                    isEditing = false
+                    showingCustomEditor = false
+                }
+            })) {
             NavigationStack {
                 ScrollView {
-                    editor
-                        .padding(Theme.spacing16)
-                        // Without this the ScrollView hands the content its IDEAL width, which
-                        // for a VStack of text rows is the widest word — the sheet was full
-                        // width, the rows inside it were not (42013da7).
-                        .frame(maxWidth: .infinity)
+                    Group {
+                        // The custom editor is the one that was squeezed into a chip's column,
+                        // wrapping "Repeat from comple-tion date" mid-word.
+                        if RepeatEditorPresentation.showsCustomEditor(isEditing: isEditing,
+                                                                      showingCustom: showingCustomEditor) {
+                            customEditor
+                        } else {
+                            editor
+                        }
+                    }
+                    .padding(Theme.spacing16)
+                    // Without this the ScrollView hands the content its IDEAL width, which
+                    // for a VStack of text rows is the widest word — the sheet was full
+                    // width, the rows inside it were not (42013da7).
+                    .frame(maxWidth: .infinity)
                 }
                 .navigationTitle(label)
                 .navigationBarTitleDisplayMode(.inline)
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
         }
         .onChange(of: isEditing) { _, nowEditing in
             // Reset cancelled flag when opening
@@ -99,6 +109,25 @@ struct InlineRepeatPicker: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder private var customEditor: some View {
+        CustomRepeatingPatternEditor(
+            pattern: Binding(
+                get: { tempRepeatingData ?? createDefaultPattern() },
+                set: { tempRepeatingData = $0 }
+            ),
+            repeatFrom: $selectedRepeatFrom,
+            onSave: {
+                saveCustomPattern()
+            },
+            onCancel: {
+                wasCancelled = true
+                showingCustomEditor = false
+                // Compact returns to the preset SHEET; full-width returns to the inline list.
+                isEditing = true
+            }
+        )
     }
 
     @ViewBuilder private var editor: some View {
