@@ -321,7 +321,8 @@ struct TaskDetailViewNew: View {
                 // 2. Priority + Assignee on ONE row (Task 42013da7). A public-list task shows its
                 // creator here instead — that is who the row is about, and it is not editable.
                 if isPublicListTask || !AuthManager.shared.isLocalOnlyMode {
-                    TwoColumnRow(label: isPublicListTask ? NSLocalizedString("tasks.created_by", comment: "") : NSLocalizedString("tasks.priority", comment: "")) {
+                    TwoColumnRow(label: isPublicListTask ? NSLocalizedString("tasks.created_by", comment: "") : NSLocalizedString("tasks.priority", comment: ""),
+                                 icon: isPublicListTask ? "person.crop.circle" : "flag") {
                         HStack(spacing: Theme.spacing8) {
                         if !isPublicListTask {
                             // Priority leads: it is the row's label, and the colour reads at a glance.
@@ -402,7 +403,7 @@ struct TaskDetailViewNew: View {
                 // for it comes from. Time and Repeat stay conditional on a date, so with no date
                 // the row is a single "Add date" chip rather than three empty controls.
                 if editedDueDate != nil || !isReadOnly {
-                    TwoColumnRow(label: NSLocalizedString("tasks.when", comment: "")) {
+                    TwoColumnRow(label: NSLocalizedString("tasks.when", comment: ""), icon: "calendar") {
                         if isReadOnly {
                             HStack(spacing: Theme.spacing8) {
                                 if let date = editedDueDate {
@@ -456,7 +457,8 @@ struct TaskDetailViewNew: View {
                 }
 
                 // 7. Lists
-                TwoColumnRow(label: "Lists") {
+                TwoColumnRow(label: NSLocalizedString("navigation.lists", comment: "Lists"),
+                             icon: "list.bullet") {
                     if isReadOnly {
                         if let lists = task.lists, !lists.isEmpty {
                             VStack(alignment: .leading, spacing: Theme.spacing4) {

@@ -117,8 +117,13 @@ struct MacPriorityPicker: View {
             Menu {
                 ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                     Button { selection = p } label: {
-                        Label(MacTaskVisuals.priorityLabel(p),
-                              systemImage: selection == p ? "checkmark" : "")
+                        // `systemImage: ""` renders as a MISSING image — the menu came up blank.
+                        if selection == p {
+                            Label("\(MacTaskVisuals.prioritySymbol(p))  \(MacTaskVisuals.priorityLabel(p))",
+                                  systemImage: "checkmark")
+                        } else {
+                            Text("\(MacTaskVisuals.prioritySymbol(p))  \(MacTaskVisuals.priorityLabel(p))")
+                        }
                     }
                 }
             } label: {

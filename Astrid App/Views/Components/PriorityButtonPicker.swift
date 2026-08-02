@@ -19,7 +19,15 @@ struct PriorityButtonPicker: View {
                     Button {
                         _Concurrency.Task { await handlePriorityChange(level) }
                     } label: {
-                        Label(level.pickerTitle, systemImage: priority == level ? "checkmark" : "")
+                        // `systemImage: ""` renders as a MISSING image, which is why the menu
+                        // came up blank. Only the selected row carries an image at all, and the
+                        // priority's own symbol goes in the title so the menu reads like the
+                        // chips it replaced.
+                        if priority == level {
+                            Label("\(level.symbol)  \(level.pickerTitle)", systemImage: "checkmark")
+                        } else {
+                            Text("\(level.symbol)  \(level.pickerTitle)")
+                        }
                     }
                 }
             } label: {

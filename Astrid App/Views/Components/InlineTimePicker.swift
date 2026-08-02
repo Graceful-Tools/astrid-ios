@@ -36,7 +36,27 @@ struct InlineTimePicker: View {
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
             }
 
-            if isEditing {
+            // Compact triggers are chip-sized, so the inline editor would be squeezed into a few
+            // points of width. It goes in a sheet instead — the same full-width presentation the
+            // date picker has always used (42013da7).
+            if isEditing && !compact {
+                editor
+            } else {
+                trigger
+            }
+        }
+        .sheet(isPresented: Binding(get: { compact && isEditing },
+                                    set: { isEditing = $0 })) {
+            NavigationStack {
+                ScrollView { editor.padding(Theme.spacing16) }
+                    .navigationTitle(label)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    @ViewBuilder private var editor: some View {
                 VStack(spacing: Theme.spacing12) {
                     // Quick options
                     VStack(spacing: Theme.spacing4) {
@@ -141,10 +161,13 @@ struct InlineTimePicker: View {
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     }
                 }
-                .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .padding(compact ? 0 : Theme.spacing12)
+                .background(compact ? Color.clear
+                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-            } else {
+    }
+
+    @ViewBuilder private var trigger: some View {
                 Button {
                     selectedTime = time ?? Date()
                     initializePickerValues()
@@ -185,8 +208,6 @@ struct InlineTimePicker: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
-            }
-        }
     }
 
     private func setQuickTime(hour: Int) {

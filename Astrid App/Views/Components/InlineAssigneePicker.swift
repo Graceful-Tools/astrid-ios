@@ -143,7 +143,26 @@ struct InlineAssigneePicker: View {
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
             }
 
-            if isEditing {
+            if isEditing && !compact {
+                editor
+            } else {
+                trigger
+            }
+        }
+        // The compact trigger is a 26pt avatar; its editor belongs in a sheet, at the full width
+        // the date picker's has always had (42013da7).
+        .sheet(isPresented: Binding(get: { compact && isEditing },
+                                    set: { isEditing = $0 })) {
+            NavigationStack {
+                ScrollView { editor.padding(Theme.spacing16) }
+                    .navigationTitle(label)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+
+    @ViewBuilder private var editor: some View {
                 VStack(spacing: Theme.spacing12) {
                     // Unassigned option
                     assigneeOption(
@@ -179,14 +198,17 @@ struct InlineAssigneePicker: View {
                         )
                     }
                 }
-                .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .padding(compact ? 0 : Theme.spacing12)
+                .background(compact ? Color.clear
+                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 .task {
                     // Fetch AI agents when picker opens
                     await fetchAIAgents()
                 }
-            } else {
+    }
+
+    @ViewBuilder private var trigger: some View {
                 Button {
                     isEditing = true
                 } label: {
@@ -262,8 +284,6 @@ struct InlineAssigneePicker: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
-            }
-        }
         // Note: aiAgents initialized from cache at declaration to prevent flash on first render
     }
 

@@ -48,7 +48,53 @@ struct InlineRepeatPicker: View {
                         isEditing = true
                     }
                 )
-            } else if isEditing {
+            } else if isEditing && !compact {
+                editor
+            } else {
+                trigger
+            }
+        }
+        // Compact triggers are chip-sized; the editor goes in a sheet so it gets the full width
+        // the date picker's has always had (42013da7).
+        .sheet(isPresented: Binding(get: { compact && isEditing && !showingCustomEditor },
+                                    set: { isEditing = $0 })) {
+            NavigationStack {
+                ScrollView { editor.padding(Theme.spacing16) }
+                    .navigationTitle(label)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .onChange(of: isEditing) { _, nowEditing in
+            // Reset cancelled flag when opening
+            if nowEditing {
+                wasCancelled = false
+            }
+        }
+        .onChange(of: showingCustomEditor) { wasShowing, nowShowing in
+            // Auto-save custom pattern when editor closes (unless cancelled)
+            if wasShowing && !nowShowing && !wasCancelled && !isSaving {
+                // User closed custom editor without pressing Cancel - auto-save
+                if tempRepeatingData != nil {
+                    saveCustomPattern()
+                }
+            }
+            // Reset cancelled flag when opening
+            if nowShowing {
+                wasCancelled = false
+            }
+        }
+        .onDisappear {
+            // Auto-save if view disappears while still editing (e.g., parent dismissed)
+            if showingCustomEditor && !wasCancelled && !isSaving {
+                if tempRepeatingData != nil {
+                    saveCustomPattern()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var editor: some View {
                 VStack(spacing: Theme.spacing12) {
                     // Preset options
                     VStack(spacing: Theme.spacing4) {
@@ -95,10 +141,13 @@ struct InlineRepeatPicker: View {
                     .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
-                .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .padding(compact ? 0 : Theme.spacing12)
+                .background(compact ? Color.clear
+                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-            } else {
+    }
+
+    @ViewBuilder private var trigger: some View {
                 Button {
                     selectedPattern = repeatPattern ?? .never
                     selectedRepeatFrom = repeatFrom ?? .COMPLETION_DATE
@@ -143,35 +192,6 @@ struct InlineRepeatPicker: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
-            }
-        }
-        .onChange(of: isEditing) { wasEditing, nowEditing in
-            // Reset cancelled flag when opening
-            if nowEditing {
-                wasCancelled = false
-            }
-        }
-        .onChange(of: showingCustomEditor) { wasShowing, nowShowing in
-            // Auto-save custom pattern when editor closes (unless cancelled)
-            if wasShowing && !nowShowing && !wasCancelled && !isSaving {
-                // User closed custom editor without pressing Cancel - auto-save
-                if tempRepeatingData != nil {
-                    saveCustomPattern()
-                }
-            }
-            // Reset cancelled flag when opening
-            if nowShowing {
-                wasCancelled = false
-            }
-        }
-        .onDisappear {
-            // Auto-save if view disappears while still editing (e.g., parent dismissed)
-            if showingCustomEditor && !wasCancelled && !isSaving {
-                if tempRepeatingData != nil {
-                    saveCustomPattern()
-                }
-            }
-        }
     }
 
     // MARK: - Helper Functions
