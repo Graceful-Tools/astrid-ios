@@ -1172,3 +1172,4 @@
 "comments.streak_summary_no_span" = "Выполнено %1$d раз";
 "comments.streak_expand_hint" = "Показать все даты выполнения";
 "actions.set" = "Задать";
+"repeating.title" = "Повтор";

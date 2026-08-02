@@ -247,64 +247,10 @@ struct InlineRepeatPicker: View {
         return summary
     }
 
+    /// Delegates to the SHARED summary so the picker and the task-detail row cannot word the
+    /// same custom repeat differently (42013da7).
     private func getCustomPatternSummary(_ pattern: CustomRepeatingPattern) -> String {
-        let interval = pattern.interval ?? 1
-        let unit = pattern.unit ?? "days"
-
-        var summary = "Every \(interval) \(unit)"
-
-        switch unit {
-        case "weeks":
-            if let weekdays = pattern.weekdays, !weekdays.isEmpty {
-                let dayNames = weekdays.map { $0.capitalized }.joined(separator: ", ")
-                summary += " on \(dayNames)"
-            }
-
-        case "months":
-            if pattern.monthRepeatType == "same_date", let day = pattern.monthDay {
-                summary += " on the \(ordinal(day))"
-            } else if pattern.monthRepeatType == "same_weekday", let monthWeekday = pattern.monthWeekday {
-                summary += " on the \(ordinal(monthWeekday.weekOfMonth)) \(monthWeekday.weekday.capitalized)"
-            }
-
-        case "years":
-            if let month = pattern.month, let day = pattern.day {
-                let months = [
-                    "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                ]
-                let monthName = months[safe: month - 1] ?? "January"
-                summary += " on \(monthName) \(ordinal(day))"
-            }
-
-        default:
-            break
-        }
-
-        if pattern.endCondition == "after_occurrences", let count = pattern.endAfterOccurrences {
-            summary += " (\(count)x)"
-        } else if pattern.endCondition == "until_date", let endDate = pattern.endUntilDate {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            summary += " until \(formatter.string(from: endDate))"
-        }
-
-        // Add repeat mode
-        if repeatFrom == .DUE_DATE {
-            summary += ", from due date"
-        }
-
-        return summary
-    }
-
-    private func ordinal(_ num: Int) -> String {
-        if num >= 11 && num <= 13 { return "\(num)th" }
-        switch num % 10 {
-        case 1: return "\(num)st"
-        case 2: return "\(num)nd"
-        case 3: return "\(num)rd"
-        default: return "\(num)th"
-        }
+        CustomRepeatSummary.text(for: pattern, repeatFrom: repeatFrom)
     }
 
     private func savePattern() {

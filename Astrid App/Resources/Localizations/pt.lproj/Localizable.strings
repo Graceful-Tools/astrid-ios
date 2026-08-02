@@ -1172,3 +1172,4 @@
 "comments.streak_summary_no_span" = "Concluída %1$d vezes";
 "comments.streak_expand_hint" = "Mostrar cada data de conclusão";
 "actions.set" = "Definir";
+"repeating.title" = "Repetir";

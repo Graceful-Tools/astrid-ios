@@ -36,6 +36,8 @@ struct TaskDetailViewNew: View {
     @State private var editedAssigneeId: String?
     @State private var isCompleted: Bool
     @State private var showingCompleteSubtasksPrompt = false
+    /// Priority / assignee / Complete, presented from the leading checkbox (42013da7).
+    @State private var showingLeadingPicker = false
     @State private var isAllDay: Bool  // Track all-day state independently
     @State private var showTimer: Bool = false // New state for timer
     // Comment bar visibility: the bar lives in a bottom safeAreaInset, so it
@@ -273,12 +275,18 @@ struct TaskDetailViewNew: View {
 
                     // 1. Title and Completion Checkbox
                     HStack(alignment: .center, spacing: Theme.spacing12) {
-                    // Checkbox using custom images matching task row (hide for read-only)
+                    // The SAME leading control the task row shows — checkbox, or the assignee's
+                    // photo in a priority-coloured square when it belongs to someone else — and
+                    // it now holds priority, assignee and Complete behind it (42013da7).
                     if !isReadOnly {
-                        Button(action: toggleCompletion) {
-                            checkboxImage
+                        Button { showingLeadingPicker = true } label: {
+                            detailLeadingControl
                         }
                         .buttonStyle(.plain)
+                        .popover(isPresented: $showingLeadingPicker) {
+                            leadingPickerContent
+                                .presentationCompactAdaptation(.popover)
+                        }
                         .confirmationDialog(
                             NSLocalizedString("task_detail.complete_subtasks_title", comment: "Complete sub-tasks?"),
                             isPresented: $showingCompleteSubtasksPrompt,
@@ -318,83 +326,33 @@ struct TaskDetailViewNew: View {
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
 
-                // 2. Priority + Assignee on ONE row (Task 42013da7). A public-list task shows its
-                // creator here instead — that is who the row is about, and it is not editable.
-                if isPublicListTask || !AuthManager.shared.isLocalOnlyMode {
-                    TwoColumnRow(label: isPublicListTask ? NSLocalizedString("tasks.created_by", comment: "") : NSLocalizedString("tasks.priority", comment: ""),
-                                 icon: isPublicListTask ? "person.crop.circle" : "flag") {
-                        HStack(spacing: Theme.spacing8) {
-                        if !isPublicListTask {
-                            // Priority leads: it is the row's label, and the colour reads at a glance.
-                            if isReadOnly {
-                                HStack(spacing: Theme.spacing4) {
-                                    Circle()
-                                        .fill(priorityColor(editedPriority))
-                                        .frame(width: 12, height: 12)
-                                    Text(priorityText(editedPriority))
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                }
-                            } else {
-                                PriorityButtonPicker(priority: $editedPriority, onSave: { newPriority in
-                                    _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
-                                }, compact: true)
-                            }
-                        }
-                        if isPublicListTask {
-                            // Show creator with avatar for public list tasks (tappable to view profile)
-                            if let creator = task.creator {
-                                NavigationLink(destination: UserProfileView(userId: creator.id)) {
-                                    HStack(spacing: Theme.spacing8) {
-                                        // Creator avatar
-                                        CachedAsyncImage(url: creator.image.flatMap { URL(string: $0) }) { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Theme.accent)
-                                                Text(creator.name?.prefix(1).uppercased() ?? creator.email?.prefix(1).uppercased() ?? "?")
-                                                    .font(.system(size: 14, weight: .semibold))
-                                                    .foregroundColor(Theme.accentText)
-                                            }
-                                        }
-                                        .frame(width: 28, height: 28)
-                                        .clipShape(Circle())
-
-                                        Text(creator.displayName)
-                                            .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                // 2. Creator, for a public list task only. Priority and assignee moved BEHIND
+                // the checkbox (42013da7) — that control already depicts both, so a row
+                // repeating them was spending vertical space the description wanted.
+                if isPublicListTask, let creator = task.creator {
+                    TwoColumnRow(label: NSLocalizedString("tasks.created_by", comment: ""),
+                                 icon: "person.crop.circle") {
+                        NavigationLink(destination: UserProfileView(userId: creator.id)) {
+                            HStack(spacing: Theme.spacing8) {
+                                CachedAsyncImage(url: creator.image.flatMap { URL(string: $0) }) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    ZStack {
+                                        Circle().fill(Theme.accent)
+                                        Text(creator.initials)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(Theme.accentText)
                                     }
                                 }
-                                .buttonStyle(.plain)
-                            }
-                        } else if isReadOnly {
-                            // Show assignee for read-only regular tasks
-                            if let assignee = task.assignee {
-                                Text(assignee.displayName)
+                                .frame(width: 28, height: 28)
+                                .clipShape(Circle())
+
+                                Text(creator.displayName)
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                            } else {
-                                Text(NSLocalizedString("assignee.unassigned", comment: ""))
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
-                        } else {
-                            // Show assignee picker for editable regular tasks
-                            InlineAssigneePicker(
-                                label: NSLocalizedString("tasks.assignee", comment: ""),
-                                assigneeId: $editedAssigneeId,
-                                taskListIds: editedListIds,
-                                taskId: task.id,
-                                availableLists: listService.lists,
-                                onSave: saveAssignee,
-                                showLabel: false,
-                                compact: true
-                            )
                         }
-                        }
+                        .buttonStyle(.plain)
                     }
                 }
 
@@ -452,6 +410,21 @@ struct TaskDetailViewNew: View {
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    // A CUSTOM repeat cannot say what it is in a chip — "Custom" tells you
+                    // nothing, and the real pattern ("Every 2 weeks on Mon, Wed") does not fit
+                    // beside a date and a time. It gets the next row to itself (42013da7).
+                    if let repeating = editedRepeating, repeating == .custom,
+                       let pattern = editedRepeatingData {
+                        TwoColumnRow(label: NSLocalizedString("repeating.title", comment: "Repeat"),
+                                     icon: "repeat") {
+                            Text(CustomRepeatSummary.text(for: pattern, repeatFrom: editedRepeatFrom))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
@@ -1296,6 +1269,82 @@ struct TaskDetailViewNew: View {
     }
 
     /// Custom checkbox image matching task row design
+    /// Mirrors TaskRowView's leading control: the assignee's photo in a priority-coloured square
+    /// when the task belongs to someone else, the completion checkbox otherwise (42013da7).
+    @ViewBuilder private var detailLeadingControl: some View {
+        if let assignee = effectiveAssignee,
+           let currentUser = AuthManager.shared.currentUser,
+           assignee.id != currentUser.id {
+            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8).fill(Theme.accent)
+                    Text(assignee.initials)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(width: 34, height: 34)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(priorityColor(editedPriority), lineWidth: 2))
+            .accessibilityLabel(Text(assignee.displayName))
+        } else {
+            checkboxImage
+        }
+    }
+
+    /// Priority, assignee and Complete — everything that used to be its own row, behind the
+    /// control that already depicts all three (42013da7).
+    @ViewBuilder private var leadingPickerContent: some View {
+        VStack(alignment: .leading, spacing: Theme.spacing16) {
+            PriorityButtonPicker(priority: $editedPriority, onSave: { newPriority in
+                _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
+            })
+
+            InlineAssigneePicker(
+                label: NSLocalizedString("tasks.assignee", comment: ""),
+                assigneeId: $editedAssigneeId,
+                taskListIds: editedListIds,
+                taskId: task.id,
+                availableLists: listService.lists,
+                onSave: saveAssignee,
+                showLabel: false
+            )
+
+            Divider()
+
+            Button {
+                showingLeadingPicker = false
+                toggleCompletion()
+            } label: {
+                Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
+                                  : NSLocalizedString("tasks.complete_task", comment: ""),
+                      systemImage: isCompleted ? "arrow.uturn.backward" : "checkmark.circle.fill")
+                    .font(Theme.Typography.body())
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.spacing12)
+                    .background(Theme.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(Theme.spacing16)
+        .frame(width: 320)
+    }
+
+    /// The assignee to depict — the full object when we have it, otherwise a minimal User built
+    /// from the id so UserImageCache can still resolve a photo (same as TaskRowView).
+    private var effectiveAssignee: User? {
+        if let assignee = task.assignee, assignee.id == editedAssigneeId { return assignee }
+        guard let id = editedAssigneeId, !id.isEmpty else { return nil }
+        // A minimal User still resolves a photo through UserImageCache, which is how the row
+        // shows an avatar for a task loaded from Core Data (only the id is stored there).
+        return User(id: id, email: nil, name: nil, image: nil)
+    }
+
     private var checkboxImage: some View {
         let priorityValue = editedPriority.rawValue
         let isRepeating = editedRepeating != nil && editedRepeating != .never

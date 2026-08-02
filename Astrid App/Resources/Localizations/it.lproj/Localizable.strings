@@ -1172,3 +1172,4 @@
 "comments.streak_summary_no_span" = "Completata %1$d volte";
 "comments.streak_expand_hint" = "Mostra ogni data di completamento";
 "actions.set" = "Imposta";
+"repeating.title" = "Ripeti";
