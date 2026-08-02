@@ -65,9 +65,9 @@ struct InlineDatePicker: View {
             .buttonStyle(.plain)
             .sheet(isPresented: $showingPicker) {
                 NavigationStack {
-                    VStack(spacing: Theme.spacing16) {
+                    VStack(spacing: PickerRowMetrics.sectionSpacing) {
                         // Quick date options
-                        VStack(spacing: Theme.spacing8) {
+                        VStack(spacing: PickerRowMetrics.rowSpacing) {
                             // "No due date" is a CHOICE, not a toolbar escape hatch — it sits with
                             // the other quick picks, first, in red so it reads as the one that
                             // takes a value away (42013da7).
@@ -85,8 +85,8 @@ struct InlineDatePicker: View {
                                         Image(systemName: "checkmark").foregroundColor(Theme.error)
                                     }
                                 }
-                                .padding(.horizontal, Theme.spacing16)
-                                .padding(.vertical, Theme.spacing12)
+                                .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
+                                .padding(.vertical, PickerRowMetrics.clearRowVerticalPadding)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
@@ -107,8 +107,8 @@ struct InlineDatePicker: View {
                                                 .foregroundColor(Theme.accent)
                                         }
                                     }
-                                    .padding(.horizontal, Theme.spacing16)
-                                    .padding(.vertical, Theme.spacing12)
+                                    .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
+                                    .padding(.vertical, PickerRowMetrics.rowVerticalPadding)
                                     .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                                 }
@@ -121,13 +121,10 @@ struct InlineDatePicker: View {
                             .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
                             .padding(.horizontal, Theme.spacing16)
 
-                        // Custom date picker
-                        VStack(alignment: .leading, spacing: Theme.spacing8) {
-                            Text(NSLocalizedString("picker.custom_date", comment: "Custom Date"))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                .padding(.horizontal, Theme.spacing16)
-
+                        // Custom date picker. No header: the calendar below is self-evident, and
+                        // the label only added a line between the quick picks and the thing it
+                        // was describing (42013da7).
+                        VStack(alignment: .leading, spacing: PickerRowMetrics.rowSpacing) {
                             DatePicker(
                                 "Select Date",
                                 selection: Binding(

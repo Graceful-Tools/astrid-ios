@@ -71,9 +71,9 @@ struct InlineTimePicker: View {
     }
 
     @ViewBuilder private var editor: some View {
-                VStack(spacing: Theme.spacing12) {
+                VStack(spacing: PickerRowMetrics.sectionSpacing) {
                     // Quick options
-                    VStack(spacing: Theme.spacing4) {
+                    VStack(spacing: PickerRowMetrics.rowSpacing) {
                         // "All day" is a CHOICE and belongs with the other quick picks, above
                         // Morning/Afternoon/Evening, in red as the one that removes the time
                         // (42013da7). It was a "Clear" button sat under the wheel.
@@ -89,8 +89,8 @@ struct InlineTimePicker: View {
                                     Image(systemName: "checkmark").foregroundColor(Theme.error)
                                 }
                             }
-                            .padding(.horizontal, Theme.spacing12)
-                            .padding(.vertical, Theme.spacing12)
+                            .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
+                            .padding(.vertical, PickerRowMetrics.clearRowVerticalPadding)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
@@ -115,8 +115,8 @@ struct InlineTimePicker: View {
                                             .foregroundColor(Theme.accent)
                                     }
                                 }
-                                .padding(.horizontal, Theme.spacing12)
-                                .padding(.vertical, Theme.spacing8)
+                                .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
+                                .padding(.vertical, PickerRowMetrics.rowVerticalPadding)
                                 // The row has to FILL the sheet, or a VStack inside a ScrollView
                                 // shrinks to its text and the list reads as a narrow column.
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,11 +136,9 @@ struct InlineTimePicker: View {
                         .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
 
                     // Custom time picker - compact with hours, minutes, AM/PM
-                    VStack(alignment: .leading, spacing: Theme.spacing8) {
-                        Text(NSLocalizedString("picker.custom_time", comment: "Custom Time"))
-                            .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-
+                    // No header, matching the date picker: a time wheel does not need a label
+                    // telling you it is a time (42013da7).
+                    VStack(alignment: .leading, spacing: PickerRowMetrics.rowSpacing) {
                         // The system time picker, not three 50pt-wide wheels clipped to 100pt
                         // (42013da7). Those were unreadably small, and the hour/minute/AM-PM
                         // triple had to be re-derived into `selectedTime` on every change —
