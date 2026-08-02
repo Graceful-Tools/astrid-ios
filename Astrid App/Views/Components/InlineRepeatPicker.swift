@@ -205,9 +205,16 @@ struct InlineRepeatPicker: View {
                                 Image(systemName: "repeat")
                                     .font(.system(size: 14))
                                     .foregroundColor(Theme.accent)
-                                // Compact drops the "(from due date)" qualifier — in a shared row
-                                // it truncated the whole chip to "Ever…" (42013da7).
-                                Text(compact ? pattern.displayName : getRepeatingSummary())
+                                // A CUSTOM pattern names itself in full ("Every 1 days"): the word
+                                // "Custom" says nothing, and this trigger has its own row when it
+                                // is custom, so there is space for the real sentence (42013da7).
+                                // Other patterns stay short — compact drops the "(from due date)"
+                                // qualifier that truncated the chip to "Ever…".
+                                Text(compact
+                                     ? (pattern == .custom && repeatingData != nil
+                                        ? CustomRepeatSummary.text(for: repeatingData!, repeatFrom: repeatFrom)
+                                        : pattern.displayName)
+                                     : getRepeatingSummary())
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                     .lineLimit(compact ? 1 : 2)

@@ -405,16 +405,21 @@ struct TaskDetailViewNew: View {
                                         showLabel: false,
                                         compact: true
                                     )
-                                    InlineRepeatPicker(
-                                        label: "Repeat",
-                                        repeatPattern: $editedRepeating,
-                                        repeatFrom: $editedRepeatFrom,
-                                        repeatingData: $editedRepeatingData,
-                                        onSave: saveRepeating,
-                                        onSaveCustom: saveCustomRepeating,
-                                        showLabel: false,
-                                        compact: true
-                                    )
+                                    // A custom repeat moves to its OWN row below, where the real
+                                    // pattern fits. A "Custom" chip here would just be a second,
+                                    // less informative control for the same thing (42013da7).
+                                    if editedRepeating != .custom {
+                                        InlineRepeatPicker(
+                                            label: NSLocalizedString("repeating.title", comment: ""),
+                                            repeatPattern: $editedRepeating,
+                                            repeatFrom: $editedRepeatFrom,
+                                            repeatingData: $editedRepeatingData,
+                                            onSave: saveRepeating,
+                                            onSaveCustom: saveCustomRepeating,
+                                            showLabel: false,
+                                            compact: true
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -427,11 +432,20 @@ struct TaskDetailViewNew: View {
                        let pattern = editedRepeatingData {
                         TwoColumnRow(label: NSLocalizedString("repeating.title", comment: "Repeat"),
                                      icon: "repeat") {
-                            Text(CustomRepeatSummary.text(for: pattern, repeatFrom: editedRepeatFrom))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            // The row IS the picker: its trigger renders the full pattern, so
+                            // tapping the summary opens the repeat options rather than being
+                            // dead text next to a separate control (42013da7).
+                            InlineRepeatPicker(
+                                label: NSLocalizedString("repeating.title", comment: ""),
+                                repeatPattern: $editedRepeating,
+                                repeatFrom: $editedRepeatFrom,
+                                repeatingData: $editedRepeatingData,
+                                onSave: saveRepeating,
+                                onSaveCustom: saveCustomRepeating,
+                                showLabel: false,
+                                compact: true
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
