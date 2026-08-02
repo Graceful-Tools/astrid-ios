@@ -71,6 +71,28 @@ struct MacTaskRow: View {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
+            } else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
+                                              currentUserId: AuthManager.shared.userId) == .unassigned {
+                // Nobody assigned → "U", not the checkbox (42013da7). Same three-state rule as
+                // iOS, from the same shared helper, so a task cannot look different per platform.
+                // Clicking still completes: the mark changes, the action does not. A tap gesture
+                // rather than a Button for the same reason as the checkbox below.
+                Text(TaskLeadingControl.unassignedGlyph)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MacTaskVisuals.priorityColor(task.priority))
+                    .frame(width: MacTaskVisuals.rowCheckboxSize, height: MacTaskVisuals.rowCheckboxSize)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                        .stroke(MacTaskVisuals.priorityColor(task.priority), lineWidth: 1.5))
+                    .strikethrough(task.completed)
+                    .opacity(task.completed ? 0.5 : 1)
+                    .scaleEffect(checkPop ? 1.28 : 1)
+                    .animation(MacMotion.spring, value: checkPop)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        checkPop = true
+                        onToggle()
+                    }
+                    .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
             } else {
                 // A `Button` here NEVER fires: inside a macOS `List` row the cell's own click
                 // handling swallows it, so the checkbox was dead (task 652edb22). Gestures DO
