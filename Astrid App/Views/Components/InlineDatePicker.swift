@@ -39,11 +39,15 @@ struct InlineDatePicker: View {
                             .lineLimit(1)
                             // Never truncate in a shared row — "Jul…" is not a date (42013da7).
                             .fixedSize(horizontal: compact, vertical: false)
-                    } else if !compact {
+                    } else {
+                        // Words, not a bare calendar glyph: "no date" has to SAY so (42013da7).
+                        // The slashed clock and repeat symbols stay — those are states you scan
+                        // past, whereas an empty date is a thing you are being asked to fill in.
                         Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             .lineLimit(1)
+                            .fixedSize(horizontal: compact, vertical: false)
                     }
                     if !compact { Spacer() }
                     // With a date set, compact shows the date alone — the calendar glyph is only

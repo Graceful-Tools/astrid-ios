@@ -3,12 +3,20 @@ import SwiftUI
 /// SwiftUI's `.paging` and `.viewAligned` scroll-target behaviors are
 /// different opaque types, so we can't switch between them via a
 /// ternary. A small ViewModifier picks the right one at apply time.
+///
+/// `.alwaysByOne` is what makes ONE swipe move ONE column. Plain `.viewAligned`
+/// snaps to whichever column edge the fling happens to land nearest, so on a
+/// multi-column board a normal-length swipe often does not travel far enough to
+/// reach the next edge and springs back to where it started — which reads as the
+/// board ignoring you until you swipe several times.
 private struct BoardScrollSnapModifier: ViewModifier {
     let multiColumn: Bool
     func body(content: Content) -> some View {
         if multiColumn {
-            content.scrollTargetBehavior(.viewAligned)
+            content.scrollTargetBehavior(.viewAligned(limitBehavior: .alwaysByOne))
         } else {
+            // Single column: the column IS the container width, so a page and a
+            // column are the same distance and paging already moves exactly one.
             content.scrollTargetBehavior(.paging)
         }
     }

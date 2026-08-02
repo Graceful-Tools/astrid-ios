@@ -239,10 +239,18 @@ struct InlineAssigneePicker: View {
                                 .accessibilityElement(children: .combine)
                                 .accessibilityLabel(Text(assignee.displayName))
                             } else {
-                                SlashedSymbol(systemName: "person",
-                                              color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                    .frame(width: 26, height: 26)
-                                    .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
+                                // "Unassigned" in words (42013da7) — a crossed-out person is a
+                                // guess unless you already know what it means, and unlike time
+                                // or repeat this is a field you are being invited to fill in.
+                                HStack(spacing: Theme.spacing4) {
+                                    Image(systemName: "person.slash")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    Text(NSLocalizedString("assignee.unassigned", comment: ""))
+                                        .font(Theme.Typography.body())
+                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .lineLimit(1)
+                                }
                             }
                         } else if let assignee = currentAssignee {
                             HStack(spacing: Theme.spacing8) {
