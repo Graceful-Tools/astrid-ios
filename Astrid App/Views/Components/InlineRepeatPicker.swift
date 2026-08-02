@@ -111,17 +111,20 @@ struct InlineRepeatPicker: View {
                                 Image(systemName: "repeat")
                                     .font(.system(size: 14))
                                     .foregroundColor(Theme.accent)
-                                Text(getRepeatingSummary())
+                                // Compact drops the "(from due date)" qualifier — in a shared row
+                                // it truncated the whole chip to "Ever…" (42013da7).
+                                Text(compact ? pattern.displayName : getRepeatingSummary())
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                     .lineLimit(compact ? 1 : 2)
+                                    .fixedSize(horizontal: compact, vertical: false)
                             }
                         } else if compact {
-                            // Compact shows the icon alone when off — "No repeat" spelled out would
-                            // crowd the row it now shares with Date and Time (42013da7).
-                            Image(systemName: "repeat")
-                                .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            // Not repeating: a crossed-out repeat symbol. Spelled out it needed a
+                            // chip wide enough to truncate to "Ever…", which reads as nothing.
+                            SlashedSymbol(systemName: "repeat",
+                                          color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .accessibilityLabel(Text(NSLocalizedString("repeating.no_repeat", comment: "")))
                         } else {
                             Text(NSLocalizedString("repeating.no_repeat", comment: "No repeat"))
                                 .font(Theme.Typography.body())

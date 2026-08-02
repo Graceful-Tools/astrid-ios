@@ -158,7 +158,7 @@ struct MacTaskDetailView: View {
                 // panel; this is where the room for it comes from.
                 labeled(NSLocalizedString("tasks.priority", comment: "")) {
                     HStack(spacing: 10) {
-                        MacPriorityPicker(selection: $priority)
+                        MacPriorityPicker(selection: $priority, compact: true)
                             .onChange(of: priority) { savePriority() }
                             .fixedSize()
                         Picker("", selection: Binding(

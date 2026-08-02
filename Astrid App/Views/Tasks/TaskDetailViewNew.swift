@@ -335,9 +335,9 @@ struct TaskDetailViewNew: View {
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 }
                             } else {
-                                PriorityButtonPicker(priority: $editedPriority) { newPriority in
+                                PriorityButtonPicker(priority: $editedPriority, onSave: { newPriority in
                                     _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
-                                }
+                                }, compact: true)
                             }
                         }
                         if isPublicListTask {
@@ -389,7 +389,8 @@ struct TaskDetailViewNew: View {
                                 taskId: task.id,
                                 availableLists: listService.lists,
                                 onSave: saveAssignee,
-                                showLabel: false
+                                showLabel: false,
+                                compact: true
                             )
                         }
                         }

@@ -156,16 +156,28 @@ struct InlineTimePicker: View {
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                 .lineLimit(1)
+                            if !compact { Spacer() }
+                            if !compact {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            }
+                        } else if compact {
+                            // All-day: a crossed-out clock, not the words "Add time" squeezed
+                            // into a chip narrow enough to render as "Add…" (42013da7).
+                            SlashedSymbol(systemName: "clock",
+                                          color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .accessibilityLabel(Text(NSLocalizedString("picker.add_time", comment: "")))
                         } else {
                             Text(NSLocalizedString("picker.add_time", comment: "Add time"))
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                 .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14))
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                         }
-                        if !compact { Spacer() }
-                        Image(systemName: compact ? "clock" : "chevron.right")
-                            .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     }
                     .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
                     .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)

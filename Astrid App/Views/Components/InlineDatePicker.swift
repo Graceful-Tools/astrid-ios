@@ -37,15 +37,21 @@ struct InlineDatePicker: View {
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                             .lineLimit(1)
-                    } else {
-                        Text(NSLocalizedString(compact ? "picker.add_date" : "picker.no_due_date", comment: "No due date"))
+                            // Never truncate in a shared row — "Jul…" is not a date (42013da7).
+                            .fixedSize(horizontal: compact, vertical: false)
+                    } else if !compact {
+                        Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
                             .font(Theme.Typography.body())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             .lineLimit(1)
                     }
                     if !compact { Spacer() }
-                    Image(systemName: "calendar")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    // With a date set, compact shows the date alone — the calendar glyph is only
+                    // needed as the "no date yet" affordance.
+                    if !compact || date == nil {
+                        Image(systemName: "calendar")
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
                 }
                 .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
                 .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)

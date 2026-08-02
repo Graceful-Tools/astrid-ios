@@ -105,11 +105,44 @@ struct MacTaskCheckbox: View {
 /// 4-button priority picker mirroring iOS PriorityButtonPicker. Desktop-compact (0c1c83d4).
 struct MacPriorityPicker: View {
     @Binding var selection: Task.Priority
+    /// Shows ONLY the selected priority; click to change (Task 42013da7). Four buttons spend a
+    /// row displaying three options the task is not set to.
+    var compact: Bool = false
 
     static let buttonWidth: CGFloat = 28
     static let buttonHeight: CGFloat = 22
 
     var body: some View {
+        if compact {
+            Menu {
+                ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
+                    Button { selection = p } label: {
+                        Label(MacTaskVisuals.priorityLabel(p),
+                              systemImage: selection == p ? "checkmark" : "")
+                    }
+                }
+            } label: {
+                let color = MacTaskVisuals.priorityColor(selection)
+                Text(MacTaskVisuals.prioritySymbol(selection))
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: Self.buttonWidth, height: Self.buttonHeight)
+                    .foregroundStyle(selection == .none ? color : .white)
+                    .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                        .fill(selection == .none ? Color.clear : color))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                        .stroke(color, lineWidth: 1.2))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .macPointingHand()
+            .help(MacTaskVisuals.priorityLabel(selection))
+        } else {
+            expanded
+        }
+    }
+
+    private var expanded: some View {
         HStack(spacing: 6) {
             ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                 let color = MacTaskVisuals.priorityColor(p)

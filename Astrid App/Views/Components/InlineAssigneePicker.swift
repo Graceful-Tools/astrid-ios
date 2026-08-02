@@ -12,6 +12,8 @@ struct InlineAssigneePicker: View {
     let availableLists: [TaskList]
     let onSave: ((String?) async -> Void)?
     var showLabel: Bool = true
+    /// Avatar only, no name and no chevron — tap to change (Task 42013da7).
+    var compact: Bool = false
 
     @State private var isEditing = false
     // Initialize with cached agents to prevent flash on first render
@@ -189,7 +191,30 @@ struct InlineAssigneePicker: View {
                     isEditing = true
                 } label: {
                     HStack {
-                        if let assignee = currentAssignee {
+                        if compact {
+                            // Just who it is — avatar, or a crossed-out person when nobody
+                            // (42013da7). The name repeats what the face already says.
+                            if let assignee = currentAssignee {
+                                CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    ZStack {
+                                        Circle().fill(Theme.accent)
+                                        Text(assignee.initials)
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                                .frame(width: 26, height: 26)
+                                .clipShape(Circle())
+                                .accessibilityLabel(Text(assignee.displayName))
+                            } else {
+                                SlashedSymbol(systemName: "person",
+                                              color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .frame(width: 26, height: 26)
+                                    .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
+                            }
+                        } else if let assignee = currentAssignee {
                             HStack(spacing: Theme.spacing8) {
                                 // Avatar - use cachedImageURL to leverage UserImageCache
                                 CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
@@ -223,13 +248,17 @@ struct InlineAssigneePicker: View {
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        if !compact {
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14))
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        }
                     }
-                    .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .padding(.horizontal, compact ? Theme.spacing4 : Theme.spacing12)
+                    .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
+                    .background(compact ? Color.clear
+                                        : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)

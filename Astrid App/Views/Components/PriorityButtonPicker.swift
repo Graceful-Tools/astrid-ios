@@ -6,18 +6,49 @@ struct PriorityButtonPicker: View {
     @Environment(\.colorScheme) var colorScheme
     @Binding var priority: Task.Priority
     let onSave: ((Task.Priority) async throws -> Void)?
+    /// Shows ONLY the selected priority; tap to change (Task 42013da7). Four 40pt buttons ate a
+    /// whole row to display three options the task is not set to.
+    var compact: Bool = false
 
     private let priorities: [Task.Priority] = [.none, .low, .medium, .high]
 
     var body: some View {
-        HStack(spacing: Theme.spacing12) {
-            ForEach(priorities, id: \.self) { priorityLevel in
-                PriorityButton(
-                    priority: priorityLevel,
-                    isSelected: priority == priorityLevel,
-                    colorScheme: colorScheme
-                ) {
-                    await handlePriorityChange(priorityLevel)
+        if compact {
+            Menu {
+                ForEach(priorities, id: \.self) { level in
+                    Button {
+                        _Concurrency.Task { await handlePriorityChange(level) }
+                    } label: {
+                        Label(level.pickerTitle, systemImage: priority == level ? "checkmark" : "")
+                    }
+                }
+            } label: {
+                Text(priority.symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(minWidth: 30, minHeight: 28)
+                    .foregroundColor(priority == .none ? priority.themeColor : .white)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                            .fill(priority == .none ? Color.clear : priority.themeColor)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                            .stroke(priority.themeColor, lineWidth: 1.5)
+                    )
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .accessibilityLabel(Text(priority.pickerTitle))
+        } else {
+            HStack(spacing: Theme.spacing12) {
+                ForEach(priorities, id: \.self) { priorityLevel in
+                    PriorityButton(
+                        priority: priorityLevel,
+                        isSelected: priority == priorityLevel,
+                        colorScheme: colorScheme
+                    ) {
+                        await handlePriorityChange(priorityLevel)
+                    }
                 }
             }
         }
@@ -104,6 +135,16 @@ extension Task.Priority {
         case .low: return "!"
         case .medium: return "!!"
         case .high: return "!!!"
+        }
+    }
+
+    /// Spoken/menu name — the ! symbols are unreadable in a menu and to VoiceOver.
+    var pickerTitle: String {
+        switch self {
+        case .none:   return NSLocalizedString("priority.none", comment: "")
+        case .low:    return NSLocalizedString("priority.low", comment: "")
+        case .medium: return NSLocalizedString("priority.medium", comment: "")
+        case .high:   return NSLocalizedString("priority.high", comment: "")
         }
     }
 
