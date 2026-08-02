@@ -1314,6 +1314,16 @@ struct TaskDetailViewNew: View {
             // is the other half of "the photo didn't change" (42013da7).
             .id(AssigneeResolver.avatarIdentity(for: editedAssigneeId))
             .accessibilityLabel(Text(assignee.displayName))
+        } else if TaskLeadingControl.kind(assigneeId: editedAssigneeId,
+                                          currentUserId: AuthManager.shared.currentUser?.id) == .unassigned {
+            // Nobody assigned gets "U", the same mark the assignee list uses (42013da7).
+            Text(TaskLeadingControl.unassignedGlyph)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(priorityColor(editedPriority))
+                .frame(width: 34, height: 34)
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .stroke(priorityColor(editedPriority), lineWidth: 2))
+                .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
         } else {
             checkboxImage
         }

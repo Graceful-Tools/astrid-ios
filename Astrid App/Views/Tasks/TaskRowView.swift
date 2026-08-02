@@ -111,8 +111,33 @@ struct TaskRowView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(priorityColor, lineWidth: 2)
                 )
+            }
+            // Nobody assigned: "U", not the checkbox (42013da7). Unassigned had been folded in
+            // with "mine", so a task nobody owns looked exactly like a task you own. Tapping it
+            // still completes the task — the mark changes, the action does not.
+            else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
+                                            currentUserId: authManager.currentUser?.id) == .unassigned {
+                Button(action: {
+                    if task.completed {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    } else {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                    onToggle()
+                }) {
+                    Text(TaskLeadingControl.unassignedGlyph)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(priorityColor)
+                        .frame(width: 34, height: 34)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(priorityColor, lineWidth: 2))
+                        .strikethrough(task.completed)
+                        .opacity(task.completed ? 0.5 : 1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
             } else {
-                // Show completion checkbox for own tasks or unassigned tasks
+                // Show completion checkbox for own tasks
                 // Using custom checkbox images matching mobile web
                 Button(action: {
                     // Haptic feedback based on completion state
