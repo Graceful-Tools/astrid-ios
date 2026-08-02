@@ -358,9 +358,15 @@ struct InlineAssigneePicker: View {
                                 // guess unless you already know what it means, and unlike time
                                 // or repeat this is a field you are being invited to fill in.
                                 HStack(spacing: Theme.spacing4) {
-                                    Image(systemName: "person.slash")
-                                        .font(.system(size: 14))
+                                    // "U", not a checkbox or a crossed-out person: unassigned is
+                                    // its own state and gets its own mark (42013da7).
+                                    Text(AssigneeResolver.unassignedGlyph)
+                                        .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .frame(width: 26, height: 26)
+                                        .overlay(RoundedRectangle(cornerRadius: 8)
+                                            .stroke(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
+                                                    lineWidth: 1.5))
                                     Text(NSLocalizedString("assignee.unassigned", comment: ""))
                                         .font(Theme.Typography.body())
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)

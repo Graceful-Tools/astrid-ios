@@ -29,7 +29,9 @@ struct User: Identifiable, Codable, Equatable, Hashable {
                 return String(name.prefix(2)).uppercased()
             }
         }
-        return email.map { String($0.prefix(2)).uppercased() } ?? "??"
+        // A single neutral glyph, not "??" — two question marks read as an error, and this is
+        // simply a person (or agent) we have an id for and nothing else yet (42013da7).
+        return email.map { String($0.prefix(2)).uppercased() } ?? "•"
     }
 
     /// Returns the avatar URL - AI agents have their logos stored in the image field

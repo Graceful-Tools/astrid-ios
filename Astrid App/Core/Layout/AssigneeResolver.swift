@@ -12,13 +12,25 @@ import Foundation
 /// on screen.
 enum AssigneeResolver {
 
-    static func resolve(id: String?, members: [User], taskAssignee: User?) -> User? {
+    /// Shown where a task has no assignee. Its own glyph, because "unassigned" is a state in its
+    /// own right — drawing the completion checkbox there says something entirely different.
+    static let unassignedGlyph = "U"
+
+    /// `agents` is consulted too: an AI agent assignee is not a list member, so without it an
+    /// agent resolved to a bare id and its avatar fell back to a placeholder (42013da7).
+    static func resolve(id: String?,
+                        members: [User],
+                        taskAssignee: User?,
+                        agents: [User] = []) -> User? {
         guard let id, !id.isEmpty else { return nil }
 
         // 1. The member record: has name and photo.
         if let member = members.first(where: { $0.id == id }) { return member }
 
-        // 2. The task's own assignee — but ONLY when it is the same person.
+        // 2. A known agent — same reason, different pool.
+        if let agent = agents.first(where: { $0.id == id }) { return agent }
+
+        // 3. The task's own assignee — but ONLY when it is the same person.
         if let taskAssignee, taskAssignee.id == id { return taskAssignee }
 
         // 3. Nothing loaded yet: a minimal User still resolves a photo through UserImageCache,

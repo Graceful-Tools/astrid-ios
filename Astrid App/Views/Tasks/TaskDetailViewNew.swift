@@ -1356,7 +1356,8 @@ struct TaskDetailViewNew: View {
     private var effectiveAssignee: User? {
         // No member list here — the picker fetches its own — so the resolver falls through to the
         // task's assignee, then to a minimal User that UserImageCache can still supply a photo for.
-        AssigneeResolver.resolve(id: editedAssigneeId, members: [], taskAssignee: task.assignee)
+        AssigneeResolver.resolve(id: editedAssigneeId, members: [], taskAssignee: task.assignee,
+                                 agents: AIAgentCache.shared.load() ?? [])
     }
 
     private var checkboxImage: some View {

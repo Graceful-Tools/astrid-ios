@@ -62,6 +62,44 @@ final class AssigneeResolverTests: XCTestCase {
                      "an empty id is unassigned, not a user whose id is empty string")
     }
 
+    // MARK: what the avatar shows when there is no photo
+
+    /// "??" is not initials, it is the absence of them leaking into the UI. A person we know
+    /// nothing about but an id gets a single neutral glyph.
+    func testNoProfileShowsOneGlyphNotDoubleQuestionMark() {
+        let unknown = User(id: "u1", email: nil, name: nil, image: nil)
+        XCTAssertNotEqual(unknown.initials, "??")
+        XCTAssertEqual(unknown.initials.count, 1, "a placeholder is one character, not two")
+    }
+
+    /// A name still wins, for people and agents alike.
+    func testInitialsComeFromTheNameWhenThereIsOne() {
+        XCTAssertEqual(user("u1", name: "Dana Scully").initials, "DS")
+        XCTAssertEqual(user("a1", name: "Astrid").initials, "AS")
+    }
+
+    /// No name, but an email, still beats a placeholder.
+    func testInitialsFallBackToTheEmail() {
+        let byEmail = User(id: "u1", email: "dana@astrid.cc", name: nil, image: nil)
+        XCTAssertEqual(byEmail.initials, "DA")
+    }
+
+    /// The resolver enriches a bare id from whatever pools it is given, so the avatar has a name
+    /// to draw initials from instead of falling back to a glyph. Agents are one such pool.
+    func testResolverEnrichesFromTheAgentPool() {
+        var agent = user("agent-1", name: "Astrid")
+        agent.isAIAgent = true
+        let resolved = AssigneeResolver.resolve(id: "agent-1", members: [], taskAssignee: nil,
+                                                agents: [agent])
+        XCTAssertEqual(resolved?.initials, "AS")
+    }
+
+    /// Unassigned is its own state and must READ as one — "U", not the completion checkbox,
+    /// which means something entirely different.
+    func testUnassignedHasItsOwnGlyph() {
+        XCTAssertEqual(AssigneeResolver.unassignedGlyph, "U")
+    }
+
     /// The identity the view keys its avatar on has to CHANGE when the assignee changes, or
     /// SwiftUI reuses the previous image view and the photo appears stuck.
     func testAvatarIdentityChangesWithTheAssignee() {

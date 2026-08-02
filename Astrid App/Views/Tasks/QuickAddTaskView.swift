@@ -249,7 +249,8 @@ struct QuickAddTaskView: View {
            assigneeId != authManager.currentUser?.id,
            let assignee = AssigneeResolver.resolve(id: assigneeId,
                                                    members: availableMembers,
-                                                   taskAssignee: nil) {
+                                                   taskAssignee: nil,
+                                                   agents: AIAgentCache.shared.load() ?? []) {
             // Show assignee avatar with priority-colored border
             CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
                 image

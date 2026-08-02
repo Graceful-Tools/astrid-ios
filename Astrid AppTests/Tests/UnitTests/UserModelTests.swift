@@ -127,7 +127,10 @@ final class UserModelTests: XCTestCase {
             isAIAgent: nil,
             aiAgentType: nil
         )
-        XCTAssertEqual(user.initials, "??")
+        // A single neutral glyph, not "??" (42013da7). Two question marks read as an error
+        // rather than as a person we simply have no profile for yet.
+        XCTAssertEqual(user.initials, "•")
+        XCTAssertEqual(user.initials.count, 1)
     }
 
     func testInitialsAreLowercase() {
