@@ -279,7 +279,14 @@ struct TaskDetailViewNew: View {
                     // photo in a priority-coloured square when it belongs to someone else — and
                     // it now holds priority, assignee and Complete behind it (42013da7).
                     if !isReadOnly {
-                        Button { showingLeadingPicker = true } label: {
+                        Button {
+                            // Dismiss the keyboard first — otherwise the popover opens above it
+                            // and the picker is squeezed into whatever is left (42013da7).
+                            isTitleFocused = false
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                            to: nil, from: nil, for: nil)
+                            showingLeadingPicker = true
+                        } label: {
                             detailLeadingControl
                         }
                         .buttonStyle(.plain)
@@ -1289,6 +1296,9 @@ struct TaskDetailViewNew: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .stroke(priorityColor(editedPriority), lineWidth: 2))
+            // Keyed on the assignee: SwiftUI reuses a view whose identity has not changed, which
+            // is the other half of "the photo didn't change" (42013da7).
+            .id(AssigneeResolver.avatarIdentity(for: editedAssigneeId))
             .accessibilityLabel(Text(assignee.displayName))
         } else {
             checkboxImage
@@ -1344,11 +1354,9 @@ struct TaskDetailViewNew: View {
     /// The assignee to depict — the full object when we have it, otherwise a minimal User built
     /// from the id so UserImageCache can still resolve a photo (same as TaskRowView).
     private var effectiveAssignee: User? {
-        if let assignee = task.assignee, assignee.id == editedAssigneeId { return assignee }
-        guard let id = editedAssigneeId, !id.isEmpty else { return nil }
-        // A minimal User still resolves a photo through UserImageCache, which is how the row
-        // shows an avatar for a task loaded from Core Data (only the id is stored there).
-        return User(id: id, email: nil, name: nil, image: nil)
+        // No member list here — the picker fetches its own — so the resolver falls through to the
+        // task's assignee, then to a minimal User that UserImageCache can still supply a photo for.
+        AssigneeResolver.resolve(id: editedAssigneeId, members: [], taskAssignee: task.assignee)
     }
 
     private var checkboxImage: some View {

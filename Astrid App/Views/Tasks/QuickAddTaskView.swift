@@ -76,6 +76,10 @@ struct QuickAddTaskView: View {
             Button(action: {
                 let impact = UIImpactFeedbackGenerator(style: .light)
                 impact.impactOccurred()
+                // Close the keyboard first — the picker opens over it otherwise (42013da7).
+                isFocused = false
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                to: nil, from: nil, for: nil)
                 showingPicker = true
             }) {
                 quickAddCheckbox
@@ -242,9 +246,10 @@ struct QuickAddTaskView: View {
         // not loaded (another list's member, or someone added by email) silently reverted the
         // checkbox to a plain box, as though the task were unassigned (42013da7).
         if let assigneeId = selectedAssigneeId, !assigneeId.isEmpty,
-           assigneeId != authManager.currentUser?.id {
-            let assignee = availableMembers.first(where: { $0.id == assigneeId })
-                ?? User(id: assigneeId, email: nil, name: nil, image: nil)
+           assigneeId != authManager.currentUser?.id,
+           let assignee = AssigneeResolver.resolve(id: assigneeId,
+                                                   members: availableMembers,
+                                                   taskAssignee: nil) {
             // Show assignee avatar with priority-colored border
             CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
                 image
@@ -261,6 +266,8 @@ struct QuickAddTaskView: View {
             }
             // 34pt, the same as the task row's — this control is meant to read as that control.
             .frame(width: 34, height: 34)
+            // Keyed on the assignee so SwiftUI redraws it when the person changes (42013da7).
+            .id(AssigneeResolver.avatarIdentity(for: selectedAssigneeId))
             // Rounded rectangle with a priority-colored border — matches the
             // web's assigned-task avatar (rounded-lg square, border-2).
             .clipShape(RoundedRectangle(cornerRadius: 8))
