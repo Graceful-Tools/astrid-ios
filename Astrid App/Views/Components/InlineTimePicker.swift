@@ -129,7 +129,10 @@ struct InlineTimePicker: View {
                         Button {
                             clearTime()
                         } label: {
-                            Text(NSLocalizedString("actions.clear", comment: "Clear"))
+                            // "All day", not "Clear" — name the OUTCOME, not the mechanic. A task
+                            // with no time is an all-day task; "Clear" describes what happens to
+                            // the field rather than what happens to the task (42013da7).
+                            Text(NSLocalizedString("picker.all_day", comment: "All day"))
                                 .foregroundColor(Theme.error)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, Theme.spacing12)

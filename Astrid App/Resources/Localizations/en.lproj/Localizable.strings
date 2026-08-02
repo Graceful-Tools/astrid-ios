@@ -1184,3 +1184,10 @@
 "assignee.someone_else" = "Someone else";
 "actions.assign" = "Assign";
 "assignee.needs_a_list" = "Add this task to a list first, then you can assign it to someone new.";
+"picker.all_day" = "All day";
+"repeating.one_time_only" = "One time only";
+"repeating.daily" = "Daily";
+"repeating.weekly" = "Weekly";
+"repeating.monthly" = "Monthly";
+"repeating.yearly" = "Yearly";
+"repeating.custom" = "Custom";

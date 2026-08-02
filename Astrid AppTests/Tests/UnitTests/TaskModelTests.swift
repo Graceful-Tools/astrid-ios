@@ -49,12 +49,28 @@ final class TaskModelTests: XCTestCase {
     }
 
     func testRepeatingDisplayNames() {
-        XCTAssertEqual(Task.Repeating.never.displayName, "Never")
-        XCTAssertEqual(Task.Repeating.daily.displayName, "Daily")
-        XCTAssertEqual(Task.Repeating.weekly.displayName, "Weekly")
-        XCTAssertEqual(Task.Repeating.monthly.displayName, "Monthly")
-        XCTAssertEqual(Task.Repeating.yearly.displayName, "Yearly")
-        XCTAssertEqual(Task.Repeating.custom.displayName, "Custom")
+        // Assert against the LOCALIZED value, not an English literal: the enum is localized now
+        // (1d149492), and a literal assertion only passes in an English simulator — which is
+        // exactly how the missing translations went unnoticed.
+        XCTAssertEqual(Task.Repeating.never.displayName,
+                       NSLocalizedString("repeating.one_time_only", comment: ""))
+        XCTAssertEqual(Task.Repeating.daily.displayName,
+                       NSLocalizedString("repeating.daily", comment: ""))
+        XCTAssertEqual(Task.Repeating.weekly.displayName,
+                       NSLocalizedString("repeating.weekly", comment: ""))
+        XCTAssertEqual(Task.Repeating.monthly.displayName,
+                       NSLocalizedString("repeating.monthly", comment: ""))
+        XCTAssertEqual(Task.Repeating.yearly.displayName,
+                       NSLocalizedString("repeating.yearly", comment: ""))
+        XCTAssertEqual(Task.Repeating.custom.displayName,
+                       NSLocalizedString("repeating.custom", comment: ""))
+
+        // And every one of them RESOLVES — an unresolved key returns the key itself, which is
+        // the failure this test exists to catch.
+        for pattern in Task.Repeating.allCases {
+            XCTAssertFalse(pattern.displayName.hasPrefix("repeating."),
+                           "\(pattern.rawValue) has no translation")
+        }
     }
 
     func testRepeatingAllCases() {

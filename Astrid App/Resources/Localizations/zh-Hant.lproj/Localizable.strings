@@ -1178,3 +1178,10 @@
 "assignee.someone_else" = "其他人";
 "actions.assign" = "指派";
 "assignee.needs_a_list" = "請先將此任務加入某個清單，然後即可指派給新的人。";
+"picker.all_day" = "全天";
+"repeating.one_time_only" = "僅一次";
+"repeating.daily" = "每天";
+"repeating.weekly" = "每週";
+"repeating.monthly" = "每月";
+"repeating.yearly" = "每年";
+"repeating.custom" = "自訂";

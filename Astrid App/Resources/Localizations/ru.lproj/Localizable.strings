@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "Кто-то другой";
 "actions.assign" = "Назначить";
 "assignee.needs_a_list" = "Сначала добавьте задачу в список, затем её можно будет назначить новому человеку.";
+"picker.all_day" = "Весь день";
+"repeating.one_time_only" = "Только один раз";
+"repeating.daily" = "Ежедневно";
+"repeating.weekly" = "Еженедельно";
+"repeating.monthly" = "Ежемесячно";
+"repeating.yearly" = "Ежегодно";
+"repeating.custom" = "Настраиваемый";

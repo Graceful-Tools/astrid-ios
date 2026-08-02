@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "Jemand anderes";
 "actions.assign" = "Zuweisen";
 "assignee.needs_a_list" = "Füge diese Aufgabe zuerst einer Liste hinzu, dann kannst du sie jemand Neuem zuweisen.";
+"picker.all_day" = "Ganztägig";
+"repeating.one_time_only" = "Nur einmal";
+"repeating.daily" = "Täglich";
+"repeating.weekly" = "Wöchentlich";
+"repeating.monthly" = "Monatlich";
+"repeating.yearly" = "Jährlich";
+"repeating.custom" = "Benutzerdefiniert";

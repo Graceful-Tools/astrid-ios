@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "Outra pessoa";
 "actions.assign" = "Atribuir";
 "assignee.needs_a_list" = "Adicione esta tarefa a uma lista primeiro e depois poderá atribuí-la a alguém novo.";
+"picker.all_day" = "Dia inteiro";
+"repeating.one_time_only" = "Apenas uma vez";
+"repeating.daily" = "Diário";
+"repeating.weekly" = "Semanal";
+"repeating.monthly" = "Mensal";
+"repeating.yearly" = "Anual";
+"repeating.custom" = "Personalizado";

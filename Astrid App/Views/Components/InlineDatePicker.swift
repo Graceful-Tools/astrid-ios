@@ -185,7 +185,8 @@ struct InlineDatePicker: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Clear") {
+                            // "No date", not "Clear" — the outcome, not the mechanic (42013da7).
+                            Button(NSLocalizedString("picker.no_due_date", comment: "No date")) {
                                 date = nil
                                 showingPicker = false
                                 onSave?()

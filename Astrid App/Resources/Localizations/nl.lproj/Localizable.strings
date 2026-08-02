@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "Iemand anders";
 "actions.assign" = "Toewijzen";
 "assignee.needs_a_list" = "Voeg deze taak eerst toe aan een lijst, daarna kun je die aan iemand nieuw toewijzen.";
+"picker.all_day" = "Hele dag";
+"repeating.one_time_only" = "Eenmalig";
+"repeating.daily" = "Dagelijks";
+"repeating.weekly" = "Wekelijks";
+"repeating.monthly" = "Maandelijks";
+"repeating.yearly" = "Jaarlijks";
+"repeating.custom" = "Aangepast";

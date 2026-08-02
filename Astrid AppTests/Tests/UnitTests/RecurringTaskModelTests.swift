@@ -23,7 +23,7 @@ final class RecurringTaskModelTests: XCTestCase {
         // Then: Repeating should be never
         XCTAssertEqual(task.repeating, .never)
         XCTAssertEqual(task.repeating?.rawValue, "never")
-        XCTAssertEqual(task.repeating?.displayName, "Never")
+        XCTAssertEqual(task.repeating?.displayName, NSLocalizedString("repeating.one_time_only", comment: ""))
     }
 
     func testDailyRepeatingTask() {

@@ -85,12 +85,18 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         
         var displayName: String {
             switch self {
-            case .never: return "Never"
-            case .daily: return "Daily"
-            case .weekly: return "Weekly"
-            case .monthly: return "Monthly"
-            case .yearly: return "Yearly"
-            case .custom: return "Custom"
+            // Every case is localized (1d149492). These were hardcoded English, so the repeat
+            // preset list and chip read as English in all 12 languages — invisible to the
+            // localization check, because a key that does not exist cannot be reported missing.
+            //
+            // "One time only" rather than "Never": this is a repeat picker, and the reader is
+            // choosing what the TASK does, not answering "how often?" with a negative (42013da7).
+            case .never: return NSLocalizedString("repeating.one_time_only", comment: "One time only")
+            case .daily: return NSLocalizedString("repeating.daily", comment: "Daily")
+            case .weekly: return NSLocalizedString("repeating.weekly", comment: "Weekly")
+            case .monthly: return NSLocalizedString("repeating.monthly", comment: "Monthly")
+            case .yearly: return NSLocalizedString("repeating.yearly", comment: "Yearly")
+            case .custom: return NSLocalizedString("repeating.custom", comment: "Custom")
             }
         }
     }

@@ -1192,3 +1192,10 @@
 "assignee.someone_else" = "Quelqu'un d'autre";
 "actions.assign" = "Attribuer";
 "assignee.needs_a_list" = "Ajoutez d'abord cette tâche à une liste, puis vous pourrez l'attribuer à quelqu'un de nouveau.";
+"picker.all_day" = "Toute la journée";
+"repeating.one_time_only" = "Une seule fois";
+"repeating.daily" = "Quotidien";
+"repeating.weekly" = "Hebdomadaire";
+"repeating.monthly" = "Mensuel";
+"repeating.yearly" = "Annuel";
+"repeating.custom" = "Personnalisé";

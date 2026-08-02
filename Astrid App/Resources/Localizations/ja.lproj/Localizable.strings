@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "ほかの人";
 "actions.assign" = "割り当て";
 "assignee.needs_a_list" = "先にこのタスクをリストに追加すると、新しい人に割り当てられます。";
+"picker.all_day" = "終日";
+"repeating.one_time_only" = "1回のみ";
+"repeating.daily" = "毎日";
+"repeating.weekly" = "毎週";
+"repeating.monthly" = "毎月";
+"repeating.yearly" = "毎年";
+"repeating.custom" = "カスタム";

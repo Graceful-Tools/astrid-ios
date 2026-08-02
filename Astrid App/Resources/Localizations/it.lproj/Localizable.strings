@@ -1176,3 +1176,10 @@
 "assignee.someone_else" = "Qualcun altro";
 "actions.assign" = "Assegna";
 "assignee.needs_a_list" = "Aggiungi prima questa attività a un elenco, poi potrai assegnarla a qualcuno di nuovo.";
+"picker.all_day" = "Tutto il giorno";
+"repeating.one_time_only" = "Solo una volta";
+"repeating.daily" = "Giornaliero";
+"repeating.weekly" = "Settimanale";
+"repeating.monthly" = "Mensile";
+"repeating.yearly" = "Annuale";
+"repeating.custom" = "Personalizzato";

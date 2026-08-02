@@ -218,9 +218,9 @@ struct InlineRepeatPicker: View {
                             // chip wide enough to truncate to "Ever…", which reads as nothing.
                             SlashedSymbol(systemName: "repeat",
                                           color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                .accessibilityLabel(Text(NSLocalizedString("repeating.no_repeat", comment: "")))
+                                .accessibilityLabel(Text(NSLocalizedString("repeating.one_time_only", comment: "")))
                         } else {
-                            Text(NSLocalizedString("repeating.no_repeat", comment: "No repeat"))
+                            Text(NSLocalizedString("repeating.one_time_only", comment: "One time only"))
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                         }
