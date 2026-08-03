@@ -50,5 +50,6 @@
 	<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string></array>
 	<key>ITSAppUsesNonExemptEncryption</key><false/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>cc.astrid.app.sync</string></array>
+	<key>UTExportedTypeDeclarations</key><array><dict><key>UTTypeIdentifier</key><string>cc.astrid.board-card</string><key>UTTypeDescription</key><string>Board card</string><key>UTTypeConformsTo</key><array><string>public.data</string></array><key>UTTypeTagSpecification</key><dict/></dict></array>
 </dict>
 </plist>
