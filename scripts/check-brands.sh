@@ -48,17 +48,26 @@ restore_plists() {
         [[ -f "$plist" ]] && git checkout -- "$plist" 2>/dev/null || true
     done
 }
-trap restore_plists EXIT INT TERM
 
 # Refuse to start with uncommitted plist edits: the restore below is `git checkout --`,
 # which would throw them away.
+#
+# This guard runs BEFORE the trap is installed, and must stay that way. When the trap was
+# armed first, the guard's own `exit 1` fired it — so the check that exists to protect
+# uncommitted plist edits was itself deleting them, and the run that added
+# NSCameraUsageDescription lost the key with only a passing message to show for it.
 for plist in "${PLISTS[@]}"; do
     if [[ -f "$plist" ]] && ! git diff --quiet -- "$plist" 2>/dev/null; then
         echo -e "${RED}✗ $plist has uncommitted changes.${NC}"
         echo "  This script reverts plists with 'git checkout --', which would discard them."
+        echo "  Commit them first, then re-run."
         exit 1
     fi
 done
+
+# ALWAYS restore from here on, however this exits — an interrupted run must never leave a
+# partner's brand written into the working tree, where the next build would pick it up.
+trap restore_plists EXIT INT TERM
 
 WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || {
     echo -e "${YELLOW}No astrid-web checkout beside $(basename "$PROJECT_DIR") — skipping.${NC}"

@@ -39,6 +39,7 @@ struct RichTextInput: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingPhotoPicker = false
     @State private var showingDocumentPicker = false
+    @State private var showingCamera = false
     @State private var attachedFile: AttachedFileInfo?
     @State private var isUploadingFile = false
     @State private var uploadError: String?
@@ -126,13 +127,19 @@ struct RichTextInput: View {
                         .stroke(inputBorderColor, lineWidth: 1)
                 )
 
-                // Paperclip
+                // Paperclip — same three sources as the task comment picker (Task a72e09ca).
+                // This input sends one file per message, so it is single-select.
                 Menu {
                     Button { showingPhotoPicker = true } label: {
-                        Label(NSLocalizedString("attachments.choose_photo", comment: "Choose Photo"), systemImage: "photo")
+                        Label(NSLocalizedString("attachments.from_photos", comment: "From Photos"), systemImage: "photo.on.rectangle")
                     }
                     Button { showingDocumentPicker = true } label: {
-                        Label(NSLocalizedString("attachments.choose_document", comment: "Choose Document"), systemImage: "doc")
+                        Label(NSLocalizedString("attachments.from_documents", comment: "From Documents"), systemImage: "doc")
+                    }
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { showingCamera = true } label: {
+                            Label(NSLocalizedString("attachments.from_camera", comment: "From Camera"), systemImage: "camera")
+                        }
                     }
                 } label: {
                     Image(systemName: isUploadingFile ? "arrow.up.circle" : "paperclip")
@@ -216,6 +223,12 @@ struct RichTextInput: View {
             if case .success(let url) = result {
                 _Concurrency.Task { await handleDocumentSelection(url) }
             }
+        }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraCapturePicker { image in
+                _Concurrency.Task { await handleCapturedPhoto(image) }
+            }
+            .ignoresSafeArea()
         }
     }
 
@@ -404,6 +417,22 @@ struct RichTextInput: View {
             uploadError = photoData == nil
                 ? OfflinePhotoPolicy.unavailableMessage(isConnected: online)
                 : "File size cannot exceed 100MB"
+            return
+        }
+
+        let fileName = "photo_\(Int(Date().timeIntervalSince1970)).jpg"
+        let tempFileId = attachmentService.saveLocallyAndUploadAsync(fileData: data, fileName: fileName, mimeType: "image/jpeg", context: uploadContext)
+        attachedFile = AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: "image/jpeg", imageData: data)
+    }
+
+    /// A photo straight from the camera.
+    private func handleCapturedPhoto(_ image: UIImage) async {
+        isUploadingFile = true
+        uploadError = nil
+        defer { isUploadingFile = false }
+
+        guard let data = image.jpegData(compressionQuality: 0.85), data.count <= 100 * 1024 * 1024 else {
+            uploadError = "File size cannot exceed 100MB"
             return
         }
 

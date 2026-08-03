@@ -668,6 +668,9 @@
 "attachments.choose_photo" = "写真を選択";
 "attachments.choose_video" = "ビデオを選択";
 "attachments.choose_document" = "書類を選択";
+"attachments.from_photos" = "写真から";
+"attachments.from_documents" = "ファイルから";
+"attachments.from_camera" = "カメラで撮影";
 "attachments.count" = "添付ファイル (%d)";
 
 /* Image Picker */

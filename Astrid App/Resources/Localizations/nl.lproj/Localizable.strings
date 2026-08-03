@@ -668,6 +668,9 @@
 "attachments.choose_photo" = "Kies foto";
 "attachments.choose_video" = "Kies video";
 "attachments.choose_document" = "Kies document";
+"attachments.from_photos" = "Uit Foto's";
+"attachments.from_documents" = "Uit Bestanden";
+"attachments.from_camera" = "Met camera";
 "attachments.count" = "Bijlagen (%d)";
 
 /* Image Picker */

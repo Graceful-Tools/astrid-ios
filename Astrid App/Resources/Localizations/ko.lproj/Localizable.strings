@@ -670,6 +670,9 @@
 "attachments.choose_photo" = "사진 선택";
 "attachments.choose_video" = "비디오 선택";
 "attachments.choose_document" = "문서 선택";
+"attachments.from_photos" = "사진에서";
+"attachments.from_documents" = "파일에서";
+"attachments.from_camera" = "카메라로 촬영";
 "attachments.count" = "첨부 파일 (%d)";
 
 /* Image Picker */

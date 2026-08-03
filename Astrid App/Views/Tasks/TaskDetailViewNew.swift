@@ -77,13 +77,12 @@ struct TaskDetailViewNew: View {
     @State private var insertedReferences: [InsertedReference] = []
 
     // Attachment state for comment input
-    @State private var attachedFile: AttachedFileInfo?
+    @State private var attachedFiles: [AttachedFileInfo] = []
     @State private var isUploadingFile = false
     @State private var showingPhotoPicker = false
-    @State private var showingVideoPicker = false
     @State private var showingDocumentPicker = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var selectedVideoItem: PhotosPickerItem?
+    @State private var showingCamera = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var uploadError: String?
 
     // Scroll actions (set by ScrollViewReader)
@@ -709,66 +708,42 @@ struct TaskDetailViewNew: View {
                 )
             }
 
-            // File attachment preview
-            if let file = attachedFile {
-                HStack(alignment: .bottom, spacing: Theme.spacing8) {
-                    ZStack(alignment: .topTrailing) {
-                        if file.isImage, let imageData = file.imageData, let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                        } else {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                                    .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
-                                    .frame(width: 64, height: 64)
-                                VStack(spacing: 4) {
-                                    Image(systemName: fileIcon(for: file.mimeType))
-                                        .font(.system(size: 24))
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                    Text(file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
-                                        .font(.system(size: 9, weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                }
-                            }
+            // Attachment previews — several files can be queued at once (Task a72e09ca)
+            if !attachedFiles.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .bottom, spacing: Theme.spacing8) {
+                        ForEach(attachedFiles, id: \.fileId) { file in
+                            attachmentThumbnail(file)
                         }
-
-                        Button {
-                            if file.fileId.hasPrefix("temp_") {
-                                AttachmentService.shared.cancelUpload(tempFileId: file.fileId)
-                            }
-                            attachedFile = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white, Color.black.opacity(0.6))
-                                .background(Circle().fill(Color.black.opacity(0.3)))
-                        }
-                        .offset(x: 6, y: -6)
                     }
-                    Spacer()
+                    // Room for the X buttons, which overhang the top-trailing corner
+                    .padding(.top, 8)
+                    .padding(.trailing, 8)
                 }
             }
 
             HStack(alignment: .center, spacing: Theme.spacing12) {
                 // Attachment menu button
+                // Three sources (Task a72e09ca). Photos covers images and videos together.
                 Menu {
                     Button {
                         showingPhotoPicker = true
                     } label: {
-                        Label(NSLocalizedString("attachments.choose_photo", comment: ""), systemImage: "photo")
-                    }
-                    Button {
-                        showingVideoPicker = true
-                    } label: {
-                        Label(NSLocalizedString("attachments.choose_video", comment: ""), systemImage: "video")
+                        Label(NSLocalizedString("attachments.from_photos", comment: "From Photos"), systemImage: "photo.on.rectangle")
                     }
                     Button {
                         showingDocumentPicker = true
                     } label: {
-                        Label(NSLocalizedString("attachments.choose_document", comment: ""), systemImage: "doc")
+                        Label(NSLocalizedString("attachments.from_documents", comment: "From Documents"), systemImage: "doc")
+                    }
+                    // Only where a camera exists — otherwise the sheet would be dead.
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button {
+                            isCommentFocused = false
+                            showingCamera = true
+                        } label: {
+                            Label(NSLocalizedString("attachments.from_camera", comment: "From Camera"), systemImage: "camera")
+                        }
                     }
                 } label: {
                     Image(systemName: isUploadingFile ? "arrow.up.circle" : "paperclip")
@@ -842,29 +817,39 @@ struct TaskDetailViewNew: View {
                 }
             }
         )
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
-        .photosPicker(isPresented: $showingVideoPicker, selection: $selectedVideoItem, matching: .videos, photoLibrary: .shared())
+        .photosPicker(isPresented: $showingPhotoPicker,
+                      selection: $selectedPhotoItems,
+                      maxSelectionCount: CommentAttachmentBatch.maxSelection,
+                      matching: .any(of: [.images, .videos]),
+                      photoLibrary: .shared())
         .fileImporter(
             isPresented: $showingDocumentPicker,
             allowedContentTypes: [.pdf, .plainText, .zip, .image, .movie, .video, .mpeg4Movie, .quickTimeMovie, .avi, UTType(filenameExtension: "doc")!, UTType(filenameExtension: "docx")!, UTType(filenameExtension: "mkv")!],
-            allowsMultipleSelection: false
+            allowsMultipleSelection: true
         ) { result in
             switch result {
             case .success(let urls):
-                guard let url = urls.first else { return }
-                _Concurrency.Task { await uploadDocument(url) }
+                guard !urls.isEmpty else { return }
+                _Concurrency.Task {
+                    for url in urls { await uploadDocument(url) }
+                }
             case .failure(let error):
                 print("❌ Document picker error: \(error)")
                 uploadError = "Failed to select document: \(error.localizedDescription)"
             }
         }
-        .onChange(of: selectedPhotoItem) { _, newValue in
-            guard let photoItem = newValue else { return }
-            _Concurrency.Task { await uploadPhotoItem(photoItem) }
+        .onChange(of: selectedPhotoItems) { _, newValue in
+            guard !newValue.isEmpty else { return }
+            _Concurrency.Task {
+                for item in newValue { await uploadPhotoItem(item) }
+                await MainActor.run { selectedPhotoItems = [] }
+            }
         }
-        .onChange(of: selectedVideoItem) { _, newValue in
-            guard let videoItem = newValue else { return }
-            _Concurrency.Task { await uploadVideoItem(videoItem) }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraCapturePicker { image in
+                _Concurrency.Task { await uploadCapturedPhoto(image) }
+            }
+            .ignoresSafeArea()
         }
         .alert("Upload Error", isPresented: .init(
             get: { uploadError != nil },
@@ -879,7 +864,7 @@ struct TaskDetailViewNew: View {
     // MARK: - Comment Input Theme Helpers
 
     private var canSubmitComment: Bool {
-        !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || attachedFile != nil
+        !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachedFiles.isEmpty
     }
 
     private var commentInputTextColor: Color {
@@ -1020,54 +1005,58 @@ struct TaskDetailViewNew: View {
         // Reconstruct @[Name](id) format from display text before sending
         let reconstructed = reconstructReferencesInText(newCommentText, references: insertedReferences)
         let trimmedText = reconstructed.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedText.isEmpty || attachedFile != nil else { return }
+
+        // Resolve temp ids to real ones where the upload already landed; otherwise keep the
+        // temp id — the enqueued upload→comment chain resolves it, and waiting here would
+        // deadlock.
+        let fileIdsToSend = attachedFiles.map { file -> String in
+            if file.fileId.hasPrefix("temp_"), let real = AttachmentService.shared.getRealFileId(for: file.fileId) {
+                return real
+            }
+            return file.fileId
+        }
+
+        // One comment per file (the API takes a single fileId); the text rides the first.
+        let drafts = CommentAttachmentBatch.drafts(text: trimmedText,
+                                                   fileIds: fileIdsToSend,
+                                                   useMarkdown: true)
+        guard !drafts.isEmpty else { return }
+
         insertedReferences = []
         clearCommentAutocomplete()
 
         isSubmittingComment = true
 
-        // Determine comment type
-        let commentType: Comment.CommentType = attachedFile != nil ? .ATTACHMENT : .MARKDOWN
-
-        // Get file ID (wait for upload if needed, unless offline/authoritative)
-        var fileIdToSend = attachedFile?.fileId
-        if let tempFileId = fileIdToSend, tempFileId.hasPrefix("temp_") {
-            if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
-                fileIdToSend = realFileId
-            }
-            // Otherwise keep the temp fileId: the upload only starts with the
-            // enqueued upload→comment chain, which resolves the real id itself —
-            // waiting here would deadlock.
+        // Clear the input up front so it feels instant and a slow send can't double-post.
+        await MainActor.run {
+            newCommentText = ""
+            attachedFiles = []
+            // Keep focus on input for quick follow-up comments (like texting apps)
         }
 
-        do {
-            _ = try await CommentService.shared.createComment(
-                taskId: task.id,
-                content: trimmedText,
-                type: commentType,
-                fileId: fileIdToSend,
-                parentCommentId: nil,
-                authorId: AuthManager.shared.userId
-            )
-
-            // Clear input on success
-            await MainActor.run {
-                newCommentText = ""
-                attachedFile = nil
-                // Keep focus on input for quick follow-up comments (like texting apps)
+        // Each send is caught on its own: one failure must not abandon the files after it.
+        for draft in drafts {
+            do {
+                _ = try await CommentService.shared.createComment(
+                    taskId: task.id,
+                    content: draft.content,
+                    type: draft.type,
+                    fileId: draft.fileId,
+                    parentCommentId: nil,
+                    authorId: AuthManager.shared.userId
+                )
+            } catch {
+                print("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
             }
+        }
 
-            // Notify CommentSectionViewEnhanced to refresh
-            NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": task.id])
+        // Notify CommentSectionViewEnhanced to refresh
+        NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": task.id])
 
-            // Scroll to bottom to show the new comment (after a brief delay for UI to update)
-            try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)  // 200ms
-            await MainActor.run {
-                scrollToBottomAction?()
-            }
-
-        } catch {
-            print("❌ [TaskDetailViewNew] Failed to submit comment: \(error)")
+        // Scroll to bottom to show the new comment (after a brief delay for UI to update)
+        try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)  // 200ms
+        await MainActor.run {
+            scrollToBottomAction?()
         }
 
         isSubmittingComment = false
@@ -1075,9 +1064,61 @@ struct TaskDetailViewNew: View {
 
     // MARK: - File Upload Helpers
 
+    /// One queued attachment: image thumbnail or typed file card, with a remove button.
+    /// Extracted rather than inlined in the ForEach — inline, the type-checker gave up on it.
+    @ViewBuilder
+    private func attachmentThumbnail(_ file: AttachedFileInfo) -> some View {
+        let mutedColor: Color = colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted
+        let cardColor: Color = colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary
+        let fileExtension: String = file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE"
+
+        ZStack(alignment: .topTrailing) {
+            if file.isImage, let imageData = file.imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.radiusMedium)
+                        .fill(cardColor)
+                        .frame(width: 64, height: 64)
+                    VStack(spacing: 4) {
+                        Image(systemName: fileIcon(for: file.mimeType))
+                            .font(.system(size: 24))
+                            .foregroundColor(mutedColor)
+                        Text(fileExtension)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(mutedColor)
+                    }
+                }
+            }
+
+            Button {
+                if file.fileId.hasPrefix("temp_") {
+                    AttachmentService.shared.cancelUpload(tempFileId: file.fileId)
+                }
+                attachedFiles.removeAll { $0.fileId == file.fileId }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white, Color.black.opacity(0.6))
+                    .background(Circle().fill(Color.black.opacity(0.3)))
+            }
+            .offset(x: 6, y: -6)
+        }
+    }
+
     private let maxFileSize = 100 * 1024 * 1024  // 100 MB
 
     private func uploadPhotoItem(_ photoItem: PhotosPickerItem) async {
+        // One sheet now offers images and videos, so route by content type.
+        if photoItem.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+            await uploadVideoItem(photoItem)
+            return
+        }
+
         isUploadingFile = true
         defer { isUploadingFile = false }
 
@@ -1113,18 +1154,54 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFile = AttachedFileInfo(
+                attachedFiles.append(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: imageData.count,
                     mimeType: mimeType,
                     imageData: imageData
-                )
+                ))
                 if let uiImage = UIImage(data: imageData) {
                     ThumbnailCache.shared.set(uiImage, for: tempFileId)
                 }
-                selectedPhotoItem = nil
             }
+        }
+    }
+
+    /// A photo straight from the camera — already a UIImage, so no PhotoKit round trip.
+    private func uploadCapturedPhoto(_ image: UIImage) async {
+        isUploadingFile = true
+        defer { isUploadingFile = false }
+
+        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
+            await MainActor.run { uploadError = "Could not read the photo you just took. Please try again." }
+            return
+        }
+
+        if imageData.count > maxFileSize {
+            await MainActor.run { uploadError = "Photo is too large. Maximum size is 100 MB." }
+            return
+        }
+
+        let fileName = "photo_\(UUID().uuidString).jpg"
+        let mimeType = "image/jpeg"
+
+        let tempFileId = AttachmentService.shared.saveLocallyAndUploadAsync(
+            fileData: imageData,
+            fileName: fileName,
+            mimeType: mimeType,
+            taskId: task.id
+        )
+
+        await MainActor.run {
+            attachedFiles.append(AttachedFileInfo(
+                fileId: tempFileId,
+                fileName: fileName,
+                fileSize: imageData.count,
+                mimeType: mimeType,
+                imageData: imageData
+            ))
+            ThumbnailCache.shared.set(image, for: tempFileId)
         }
     }
 
@@ -1154,14 +1231,13 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFile = AttachedFileInfo(
+                attachedFiles.append(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: videoData.count,
                     mimeType: mimeType,
                     imageData: nil
-                )
-                selectedVideoItem = nil
+                ))
             }
         } catch {
             await MainActor.run { uploadError = "Failed to load video: \(error.localizedDescription)" }
@@ -1196,13 +1272,14 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFile = AttachedFileInfo(
+                attachedFiles.append(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: fileData.count,
                     mimeType: mimeType,
-                    imageData: nil
-                )
+                    // An image picked from Documents should still preview as one.
+                    imageData: mimeType.lowercased().hasPrefix("image/") ? fileData : nil
+                ))
             }
         } catch {
             await MainActor.run { uploadError = "Failed to load document: \(error.localizedDescription)" }

@@ -668,6 +668,9 @@
 "attachments.choose_photo" = "Escolher foto";
 "attachments.choose_video" = "Escolher vídeo";
 "attachments.choose_document" = "Escolher documento";
+"attachments.from_photos" = "De Fotos";
+"attachments.from_documents" = "De Arquivos";
+"attachments.from_camera" = "Da câmera";
 "attachments.count" = "Anexos (%d)";
 
 /* Image Picker */

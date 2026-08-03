@@ -668,6 +668,9 @@
 "attachments.choose_photo" = "选择照片";
 "attachments.choose_video" = "选择视频";
 "attachments.choose_document" = "选择文档";
+"attachments.from_photos" = "从照片选取";
+"attachments.from_documents" = "从文件选取";
+"attachments.from_camera" = "用相机拍摄";
 "attachments.count" = "附件（%d）";
 
 /* Image Picker */

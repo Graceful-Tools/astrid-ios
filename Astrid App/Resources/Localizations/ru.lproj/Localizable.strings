@@ -668,6 +668,9 @@
 "attachments.choose_photo" = "Выбрать фото";
 "attachments.choose_video" = "Выбрать видео";
 "attachments.choose_document" = "Выбрать документ";
+"attachments.from_photos" = "Из «Фото»";
+"attachments.from_documents" = "Из «Файлов»";
+"attachments.from_camera" = "С камеры";
 "attachments.count" = "Вложения (%d)";
 
 /* Image Picker */

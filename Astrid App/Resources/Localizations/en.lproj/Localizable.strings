@@ -709,6 +709,9 @@
 "attachments.choose_photo" = "Choose Photo";
 "attachments.choose_video" = "Choose Video";
 "attachments.choose_document" = "Choose Document";
+"attachments.from_photos" = "From Photos";
+"attachments.from_documents" = "From Documents";
+"attachments.from_camera" = "From Camera";
 "attachments.count" = "Attachments (%d)";
 
 /* Image Picker */

@@ -5,6 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key><string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key><string>Astrid</string>
 	<key>NSPhotoLibraryUsageDescription</key><string>Astrid needs access to your photos to attach them to tasks and comments, and to detect which photos are stored on your device so they can be attached while you're offline.</string>
+	<key>NSCameraUsageDescription</key><string>Astrid uses your camera so you can take a photo and attach it to a task or comment.</string>
 	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
