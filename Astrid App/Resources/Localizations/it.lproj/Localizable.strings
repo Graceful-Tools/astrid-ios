@@ -85,6 +85,7 @@
 "tasks.reminders" = "Promemoria";
 "tasks.priority" = "Priorità";
 "tasks.assignee" = "Chi";
+"mac.you" = "(tu)";
 "tasks.completed" = "Completato";
 "tasks.incomplete" = "Incompleto";
 "tasks.overdue" = "In ritardo";

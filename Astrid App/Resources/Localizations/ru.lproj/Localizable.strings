@@ -86,6 +86,7 @@
 "tasks.reminders" = "Напоминания";
 "tasks.priority" = "Приоритет";
 "tasks.assignee" = "Кто";
+"mac.you" = "(вы)";
 "tasks.completed" = "Завершено";
 "tasks.incomplete" = "Не завершено";
 "tasks.overdue" = "Просрочено";

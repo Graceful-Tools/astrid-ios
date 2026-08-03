@@ -109,24 +109,19 @@ struct MacPriorityPicker: View {
     /// row displaying three options the task is not set to.
     var compact: Bool = false
 
+    @State private var showingPicker = false
+
     static let buttonWidth: CGFloat = 28
     static let buttonHeight: CGFloat = 22
 
     var body: some View {
         if compact {
-            Menu {
-                ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
-                    Button { selection = p } label: {
-                        // `systemImage: ""` renders as a MISSING image — the menu came up blank.
-                        if selection == p {
-                            Label("\(MacTaskVisuals.prioritySymbol(p))  \(MacTaskVisuals.priorityLabel(p))",
-                                  systemImage: "checkmark")
-                        } else {
-                            Text("\(MacTaskVisuals.prioritySymbol(p))  \(MacTaskVisuals.priorityLabel(p))")
-                        }
-                    }
-                }
-            } label: {
+            // A POPOVER of the real buttons, not a Menu — the same conclusion iOS reached.
+            // AppKit draws menu items in the system's own style, so the priority COLOURS, which
+            // are the entire point of this control, never appeared: the menu showed four lines
+            // of identical grey text. The popover shows the same coloured buttons the
+            // full-width picker has always had.
+            Button { showingPicker = true } label: {
                 let color = MacTaskVisuals.priorityColor(selection)
                 Text(MacTaskVisuals.prioritySymbol(selection))
                     .font(.system(size: 11, weight: .semibold))
@@ -137,11 +132,22 @@ struct MacPriorityPicker: View {
                     .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
                         .stroke(color, lineWidth: 1.2))
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
+            .buttonStyle(.plain)
             .fixedSize()
             .macPointingHand()
             .help(MacTaskVisuals.priorityLabel(selection))
+            .accessibilityLabel(Text(MacTaskVisuals.priorityLabel(selection)))
+            .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
+                HStack(spacing: 8) {
+                    ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
+                        priorityButton(p) {
+                            selection = p
+                            showingPicker = false
+                        }
+                    }
+                }
+                .padding(12)
+            }
         } else {
             expanded
         }
@@ -150,23 +156,29 @@ struct MacPriorityPicker: View {
     private var expanded: some View {
         HStack(spacing: 6) {
             ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
-                let color = MacTaskVisuals.priorityColor(p)
-                let isSelected = selection == p
-                Button { selection = p } label: {
-                    Text(MacTaskVisuals.prioritySymbol(p))
-                        .font(.system(size: 11, weight: .semibold))
-                        .frame(width: Self.buttonWidth, height: Self.buttonHeight)
-                        .foregroundStyle(isSelected ? .white : color)
-                        .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                            .fill(isSelected ? color : Color.clear))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                            .stroke(color, lineWidth: 1.2))
-                }
-                .buttonStyle(.plain)
-                .macPointingHand()
-                .help(MacTaskVisuals.priorityLabel(p))
+                priorityButton(p) { selection = p }
             }
         }
+    }
+
+    /// One coloured priority button. Shared by the inline row and the compact popover so the
+    /// two can't drift into looking like different controls.
+    private func priorityButton(_ p: Task.Priority, action: @escaping () -> Void) -> some View {
+        let color = MacTaskVisuals.priorityColor(p)
+        let isSelected = selection == p
+        return Button(action: action) {
+            Text(MacTaskVisuals.prioritySymbol(p))
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: Self.buttonWidth, height: Self.buttonHeight)
+                .foregroundStyle(isSelected ? .white : color)
+                .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                    .fill(isSelected ? color : Color.clear))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                    .stroke(color, lineWidth: 1.2))
+        }
+        .buttonStyle(.plain)
+        .macPointingHand()
+        .help(MacTaskVisuals.priorityLabel(p))
     }
 }
 #endif

@@ -86,6 +86,7 @@
 "tasks.reminders" = "Herinneringen";
 "tasks.priority" = "Prioriteit";
 "tasks.assignee" = "Wie";
+"mac.you" = "(jij)";
 "tasks.completed" = "Voltooid";
 "tasks.incomplete" = "Onvoltooid";
 "tasks.overdue" = "Verlopen";

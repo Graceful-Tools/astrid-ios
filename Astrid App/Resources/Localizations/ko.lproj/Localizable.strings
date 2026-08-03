@@ -86,6 +86,7 @@
 "tasks.reminders" = "알림";
 "tasks.priority" = "우선순위";
 "tasks.assignee" = "누구";
+"mac.you" = "(나)";
 "tasks.completed" = "완료됨";
 "tasks.incomplete" = "미완료";
 "tasks.overdue" = "기한 지남";

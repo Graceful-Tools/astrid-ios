@@ -161,14 +161,17 @@ struct MacTaskDetailView: View {
                         MacPriorityPicker(selection: $priority, compact: true)
                             .onChange(of: priority) { savePriority() }
                             .frame(minWidth: MacDetailRowFit.priorityRowMinimums[0])
-                        Picker("", selection: Binding(
-                            get: { task.assigneeId ?? "" },
-                            set: { setAssignee($0.isEmpty ? nil : $0) }
-                        )) {
-                            Text(NSLocalizedString("No one", comment: "")).tag("")
-                            ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
-                        }
-                        .labelsHidden()
+                        // Faces, not a name-and-stepper: the Mac had MacAssigneeAvatar all along
+                        // and this picker was the one place that never used it.
+                        MacAssigneePicker(
+                            options: MacAssigneeOptions.build(
+                                members: members,
+                                currentUserId: AuthManager.shared.userId,
+                                taskAssignee: task.assignee),
+                            selectedId: task.assigneeId,
+                            priority: priority,
+                            onSelect: { setAssignee($0) }
+                        )
                         // A MINIMUM, not a fixed size: fixedSize refuses to compress, which is
                         // what pushed this row past the 380pt panel and clipped the whole detail
                         // off its left edge (42013da7).

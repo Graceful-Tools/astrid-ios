@@ -86,6 +86,7 @@
 "tasks.reminders" = "リマインダー";
 "tasks.priority" = "優先度";
 "tasks.assignee" = "誰";
+"mac.you" = "（自分）";
 "tasks.completed" = "完了済み";
 "tasks.incomplete" = "未完了";
 "tasks.overdue" = "期限切れ";

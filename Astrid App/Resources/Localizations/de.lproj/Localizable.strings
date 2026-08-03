@@ -95,6 +95,7 @@
 "tasks.reminders" = "Erinnerungen";
 "tasks.priority" = "Priorität";
 "tasks.assignee" = "Wer";
+"mac.you" = "(du)";
 "tasks.completed" = "Abgeschlossen";
 "tasks.incomplete" = "Unvollständig";
 "tasks.overdue" = "Überfällig";

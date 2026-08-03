@@ -110,6 +110,7 @@
 "tasks.reminders" = "Reminders";
 "tasks.priority" = "Priority";
 "tasks.assignee" = "Who";
+"mac.you" = "(you)";
 "tasks.completed" = "Completed";
 "tasks.incomplete" = "Incomplete";
 "tasks.overdue" = "Overdue";
