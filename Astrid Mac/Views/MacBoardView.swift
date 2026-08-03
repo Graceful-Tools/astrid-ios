@@ -195,14 +195,14 @@ struct MacBoardView: View {
             switch plan {
             case .none:
                 break
-            case .setLists(let ids):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task)
-            case .complete(let ids):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task)
+            case .setLists(let ids, let role):
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
+            case .complete(let ids, let role):
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
                 _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
-            case .uncomplete(let ids):
+            case .uncomplete(let ids, let role):
                 _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task)
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
             }
         }
     }

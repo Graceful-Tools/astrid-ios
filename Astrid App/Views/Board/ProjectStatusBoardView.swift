@@ -241,7 +241,11 @@ struct ProjectStatusBoardView: View {
                 _ = try await taskService.updateTask(
                     taskId: task.id,
                     completed: reorder.completed,
-                    listIds: reorder.listIds
+                    listIds: reorder.listIds,
+                    // "" CLEARS the role — Inbox and Done carry no status. Omitting this is
+                    // what pinned cards to their column: the board prefers `statusRole` when
+                    // resolving, so dropping the membership alone changed nothing (AWTD-566).
+                    statusRole: reorder.statusRole ?? ""
                 )
                 // Then persist the new manualSortOrder on the project's
                 // domain list so the order survives across launches.

@@ -74,6 +74,10 @@ nonisolated struct UpdateTaskRequest: Codable {
     var completedAt: String?      // ISO8601 — backdates completion (sync)
     var completedSource: String?  // astrid | google | github | apple
     var parentTaskId: String?     // reparent (drag-to-indent → subtask); nil = no change
+    /// Board status as a state on the task (AWTD-566). Empty string CLEARS it — the server
+    /// reads `body.statusRole || null` — which is how a card moves to Inbox or Done, columns
+    /// that carry no status. nil means "leave it alone", as everywhere else here.
+    var statusRole: String?
 
     // Track which fields were explicitly set (including to nil)
     private var explicitlySetFields: Set<String> = []
@@ -86,6 +90,7 @@ nonisolated struct UpdateTaskRequest: Codable {
         case listIds, assigneeId, timerDuration, lastTimerValue
         case completedAt, completedSource
         case parentTaskId
+        case statusRole
     }
 
     init(
@@ -107,7 +112,8 @@ nonisolated struct UpdateTaskRequest: Codable {
         lastTimerValue: String? = nil,
         completedAt: String? = nil,
         completedSource: String? = nil,
-        parentTaskId: String? = nil
+        parentTaskId: String? = nil,
+        statusRole: String? = nil
     ) {
         self.title = title
         self.description = description
@@ -128,6 +134,7 @@ nonisolated struct UpdateTaskRequest: Codable {
         self.completedAt = completedAt
         self.completedSource = completedSource
         self.parentTaskId = parentTaskId
+        self.statusRole = statusRole
     }
 
     // Custom encode to include explicit nil values
@@ -168,6 +175,14 @@ nonisolated struct UpdateTaskRequest: Codable {
         try container.encodeIfPresent(completedAt, forKey: .completedAt)
         try container.encodeIfPresent(completedSource, forKey: .completedSource)
         try container.encodeIfPresent(parentTaskId, forKey: .parentTaskId)
+
+        // Encoded whenever it was set, INCLUDING the empty string — `encodeIfPresent` would
+        // still emit "" here, but the point is that "" must reach the server rather than be
+        // normalised away: that is the signal that clears the role and lets a card leave
+        // Ready for Inbox or Done (AWTD-566).
+        if let statusRole {
+            try container.encode(statusRole, forKey: .statusRole)
+        }
     }
 }
 

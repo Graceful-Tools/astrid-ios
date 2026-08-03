@@ -530,7 +530,12 @@ class TaskService: ObservableObject {
         task: Task? = nil,  // Optional: provide task if not in cache (e.g., from featured lists)
         source: SyncSource? = nil,
         completedAt: Date? = nil,  // Origin tag for provider echo suppression (persisted on the Outbox payload)
-        parentTaskId: String? = nil  // Reparent (drag-to-indent → subtask); nil = no change
+        parentTaskId: String? = nil,  // Reparent (drag-to-indent → subtask); nil = no change
+        // Board status as a state on the task (AWTD-566). Empty string CLEARS it, which is
+        // how a card reaches Inbox or Done; nil leaves it untouched, as with every other
+        // optional here. Without this the board computed the new role and had nowhere to
+        // send it, so a card with a role could never leave its column.
+        statusRole: String? = nil
     ) async throws -> Task {
         // Resolve stale temp ID → real server ID.
         // When a user opens a task detail view for a newly created task, the view
@@ -583,6 +588,14 @@ class TaskService: ObservableObject {
         if let timerDuration = timerDuration { optimisticTask.timerDuration = timerDuration }
         if let lastTimerValue = lastTimerValue { optimisticTask.lastTimerValue = lastTimerValue }
         if let listIds = listIds { optimisticTask.listIds = listIds }
+        if let statusRole = statusRole {
+            optimisticTask.statusRole = statusRole.isEmpty ? nil : statusRole
+            // `lists` is the hydrated mirror the board also reads through; leaving it
+            // stale lets the OLD membership resolve the column right back.
+            if let listIds = listIds {
+                optimisticTask.lists = optimisticTask.lists?.filter { listIds.contains($0.id) }
+            }
+        }
         if let parentTaskId = parentTaskId { optimisticTask.parentTaskId = parentTaskId }
 
         // CRITICAL: Update updatedAt to current time for optimistic update
@@ -705,7 +718,8 @@ class TaskService: ObservableObject {
                 completedAt: (completed == true)
                     ? ISO8601DateFormatter().string(from: completedAt ?? Date()) : nil,
                 completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil,
-                parentTaskId: parentTaskId
+                parentTaskId: parentTaskId,
+                statusRole: statusRole
             )
 
             // The Outbox is authoritative for updates: its handler performs the

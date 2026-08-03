@@ -8,20 +8,20 @@ import XCTest
 final class MacBoardAddTests: XCTestCase {
 
     func testStatusMovePlacesListsNoComplete() {
-        let (ids, complete) = MacBoardAdd.apply(.setLists(["domain", "status"]))
+        let (ids, complete) = MacBoardAdd.apply(.setLists(["domain", "status"], statusRole: "ready"))
         XCTAssertEqual(ids, ["domain", "status"])
         XCTAssertFalse(complete)
     }
 
     func testDonePlanCompletes() {
-        let (ids, complete) = MacBoardAdd.apply(.complete(["domain"]))
+        let (ids, complete) = MacBoardAdd.apply(.complete(["domain"], statusRole: ""))
         XCTAssertEqual(ids, ["domain"])
         XCTAssertTrue(complete)
     }
 
     func testUncompleteNeverCompletesNewCard() {
         // A brand-new task is already incomplete, so an .uncomplete plan just sets lists.
-        let (ids, complete) = MacBoardAdd.apply(.uncomplete(["domain"]))
+        let (ids, complete) = MacBoardAdd.apply(.uncomplete(["domain"], statusRole: ""))
         XCTAssertEqual(ids, ["domain"])
         XCTAssertFalse(complete)
     }

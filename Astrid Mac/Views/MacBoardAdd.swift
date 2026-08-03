@@ -12,9 +12,9 @@ enum MacBoardAdd {
     static func apply(_ plan: MacBoardMove.Plan) -> (listIds: [String]?, complete: Bool) {
         switch plan {
         case .none:                        return (nil, false)
-        case .setLists(let ids):           return (ids, false)
-        case .uncomplete(let ids):         return (ids, false)   // a new task is already incomplete
-        case .complete(let ids):           return (ids, true)
+        case .setLists(let ids, _):        return (ids, false)
+        case .uncomplete(let ids, _):      return (ids, false)   // a new task is already incomplete
+        case .complete(let ids, _):        return (ids, true)
         }
     }
 }

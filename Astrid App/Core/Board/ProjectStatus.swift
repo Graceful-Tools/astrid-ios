@@ -328,6 +328,10 @@ struct BoardReorder: Equatable {
     let listIds: [String]
     let completed: Bool
     let newManualOrder: [String]
+    /// Carried through from `ProjectColumnMove` so the drop handler can actually write it.
+    /// It used to stop at the inner type, which is how the board came to compute the new
+    /// status role and then send only the membership (AWTD-566). nil for Inbox and Done.
+    let statusRole: String?
 }
 
 /// Compute the persisted state for a drag-drop reorder onto a board
@@ -405,7 +409,8 @@ func resolveBoardReorder(
     return BoardReorder(
         listIds: move.listIds,
         completed: move.completed,
-        newManualOrder: newOrder
+        newManualOrder: newOrder,
+        statusRole: move.statusRole
     )
 }
 
@@ -516,5 +521,34 @@ func applyProjectDeletion(_ lists: [TaskList], deletedProjectId: String) -> [Tas
         var detached = list
         detached.projectId = nil                      // domain list — detached, kept
         return detached
+    }
+}
+
+// MARK: - Applying a move
+
+extension Task {
+    /// The task as it will be once a board move is persisted.
+    ///
+    /// This exists because nothing joined the two halves of a card move. `resolveProjectColumnMove`
+    /// computed the new `statusRole`, `getTaskProjectColumnId` preferred that field when picking a
+    /// column, and in between, the board's drop handler wrote only `completed` and `listIds` — so
+    /// the role never changed. Dragging out of Ready removed the membership, left the role, and the
+    /// resolver put the card back where it came from ("moving from Ready to Inbox doesn't always
+    /// work" — only tasks that HAD a role were stuck).
+    ///
+    /// Having the move expressed as a function means the round trip is checkable: apply it, then
+    /// ask which column the task is in. Tests do exactly that, in both directions, for every pair
+    /// of columns.
+    func applyingBoardMove(_ move: ProjectColumnMove) -> Task {
+        var moved = self
+        moved.listIds = move.listIds
+        // `lists` is the hydrated mirror of `listIds`; leaving it stale would let the resolver
+        // read the OLD membership back out through taskListMembershipIds.
+        moved.lists = lists?.filter { move.listIds.contains($0.id) }
+        moved.completed = move.completed
+        // Inbox and Done carry no status, so this CLEARS the role rather than leaving it.
+        // That clearing is the whole fix.
+        moved.statusRole = move.statusRole
+        return moved
     }
 }
