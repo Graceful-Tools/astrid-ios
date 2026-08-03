@@ -73,6 +73,26 @@ struct ServerCapabilities: Codable, Equatable {
         }
     }
 
+    /// Product surfaces this deployment ships at all.
+    ///
+    /// Distinct from the per-user grant in FeatureFlagService: this says the
+    /// feature EXISTS on this server, the flag says whether THIS USER has it.
+    /// A client needs both — capability false hides the surface entirely,
+    /// capability true with the flag false shows request-access.
+    ///
+    /// Defaults to true so a deployment older than the field is treated as
+    /// shipping it, matching how every other capability here degrades.
+    struct Product: Codable, Equatable {
+        var projectMode = true
+
+        init() {}
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            projectMode = try c.decodeIfPresent(Bool.self, forKey: .projectMode) ?? true
+        }
+    }
+
     /// The brand the connected deployment presents itself as.
     ///
     /// One binary can point at several deployments, so the brand cannot be purely a
@@ -190,6 +210,7 @@ struct ServerCapabilities: Codable, Equatable {
     var sync = Sync()
     var integrations = Integrations()
     var services = Services()
+    var product = Product()
     var brand = BrandInfo()
     var copy: BrandCopy?
 
@@ -209,6 +230,7 @@ struct ServerCapabilities: Codable, Equatable {
         sync = try c.decodeIfPresent(Sync.self, forKey: .sync) ?? Sync()
         integrations = try c.decodeIfPresent(Integrations.self, forKey: .integrations) ?? Integrations()
         services = try c.decodeIfPresent(Services.self, forKey: .services) ?? Services()
+        product = try c.decodeIfPresent(Product.self, forKey: .product) ?? Product()
         brand = try c.decodeIfPresent(BrandInfo.self, forKey: .brand) ?? BrandInfo()
         copy = try c.decodeIfPresent(BrandCopy.self, forKey: .copy)
     }

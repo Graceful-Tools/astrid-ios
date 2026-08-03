@@ -3,6 +3,11 @@ import Combine
 
 enum AstridFeature: String, Codable, CaseIterable {
     case googleTasks = "google_tasks"
+    /// Projects and status boards. Granted per user by an admin, so the phone
+    /// must ask the server rather than assume (AWTD-566). Pairs with
+    /// ServerCapabilities.product.projectMode, which says whether the
+    /// deployment ships it at all.
+    case projectMode = "project_mode"
 }
 
 struct FeatureFlagSnapshot: Codable, Equatable {
@@ -13,6 +18,10 @@ struct FeatureFlagSnapshot: Codable, Equatable {
     static func defaultValue(for feature: AstridFeature) -> Bool {
         switch feature {
         case .googleTasks: false
+        // Off until the server says otherwise. Project Mode is granted per
+        // user by an admin, so defaulting to true would show Projects to
+        // someone who has not been granted them and then 403 on every write.
+        case .projectMode: false
         }
     }
 
