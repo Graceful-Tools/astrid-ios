@@ -1056,13 +1056,14 @@ struct CommentSectionViewEnhanced: View {
             // Set attached file immediately (no waiting for upload!)
             // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: imageData.count,
                     mimeType: mimeType,
                     imageData: imageData  // For thumbnail preview
-                ))
+                ),
+                to: attachedFiles)
 
                 // Pre-cache thumbnail for when comment is posted
                 // Already on MainActor, so UIImage(data:) is safe here
@@ -1105,13 +1106,14 @@ struct CommentSectionViewEnhanced: View {
         )
 
         await MainActor.run {
-            attachedFiles.append(AttachedFileInfo(
+            attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                 fileId: tempFileId,
                 fileName: fileName,
                 fileSize: imageData.count,
                 mimeType: mimeType,
                 imageData: imageData
-            ))
+            ),
+                to: attachedFiles)
             ThumbnailCache.shared.set(image, for: tempFileId)
             print("📷 [CommentSection] Captured photo attached: \(tempFileId), queued=\(attachedFiles.count)")
         }
@@ -1160,13 +1162,14 @@ struct CommentSectionViewEnhanced: View {
 
             // Set attached file immediately (no waiting for upload!)
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: videoData.count,
                     mimeType: mimeType,
                     imageData: nil  // No thumbnail for videos
-                ))
+                ),
+                to: attachedFiles)
             }
 
         } catch {
@@ -1216,14 +1219,15 @@ struct CommentSectionViewEnhanced: View {
 
             // Set attached file immediately (no waiting for upload!)
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     // An image picked from Documents should still preview as one.
                     fileSize: fileData.count,
                     mimeType: mimeType,
                     imageData: mimeType.lowercased().hasPrefix("image/") ? fileData : nil
-                ))
+                ),
+                to: attachedFiles)
             }
 
         } catch {
@@ -1279,7 +1283,7 @@ struct CommentSectionViewEnhanced: View {
         if file.fileId.hasPrefix("temp_") {
             attachmentService.cancelUpload(tempFileId: file.fileId)
         }
-        attachedFiles.removeAll { $0.fileId == file.fileId }
+        attachedFiles = AttachmentQueue.removing(fileId: file.fileId, from: attachedFiles)
     }
 
     private func fileIcon(for mimeType: String) -> String {

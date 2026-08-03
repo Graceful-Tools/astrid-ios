@@ -18,7 +18,9 @@ struct RichTextInput: View {
     var uploadContext: [String: String] = [:]  // For attachment uploads
 
     // Callbacks
-    var onSend: ((_ content: String, _ type: Comment.CommentType, _ fileId: String?) -> Void)?
+    /// Several files can be staged at once, so this hands back a LIST. The host decides how
+    /// to spend them — for comments that is one comment per file, via CommentAttachmentBatch.
+    var onSend: ((_ content: String, _ type: Comment.CommentType, _ fileIds: [String]) -> Void)?
     var onTimerTap: (() -> Void)? = nil    // Task detail only: timer in the send slot while input is empty
     var focusReport: Binding<Bool>? = nil  // Reports the text field's focus to the host view
 
@@ -36,11 +38,11 @@ struct RichTextInput: View {
 
     // Attachment state
     @StateObject private var attachmentService = AttachmentService.shared
-    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var showingPhotoPicker = false
     @State private var showingDocumentPicker = false
     @State private var showingCamera = false
-    @State private var attachedFile: AttachedFileInfo?
+    @State private var attachedFiles: [AttachedFileInfo] = []
     @State private var isUploadingFile = false
     @State private var uploadError: String?
 
@@ -52,9 +54,17 @@ struct RichTextInput: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Attachment preview
-            if let file = attachedFile {
-                attachmentPreview(file: file)
+            // Attachment previews — a strip, since several files can be staged at once.
+            if !attachedFiles.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.spacing8) {
+                        ForEach(attachedFiles, id: \.fileId) { file in
+                            attachmentPreview(file: file)
+                        }
+                    }
+                    .padding(.horizontal, Theme.spacing12)
+                    .padding(.bottom, Theme.spacing4)
+                }
             }
 
             // Upload error
@@ -127,8 +137,7 @@ struct RichTextInput: View {
                         .stroke(inputBorderColor, lineWidth: 1)
                 )
 
-                // Paperclip — same three sources as the task comment picker (Task a72e09ca).
-                // This input sends one file per message, so it is single-select.
+                // Paperclip — three sources, both pickers multi-select (Task a72e09ca).
                 Menu {
                     Button { showingPhotoPicker = true } label: {
                         Label(NSLocalizedString("attachments.from_photos", comment: "From Photos"), systemImage: "photo.on.rectangle")
@@ -213,15 +222,25 @@ struct RichTextInput: View {
                 }
             }
         }
-        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
-        .onChange(of: selectedPhotoItem) { _, item in
-            if let item = item {
-                _Concurrency.Task { await handlePhotoSelection(item) }
+        .photosPicker(isPresented: $showingPhotoPicker,
+                      selection: $selectedPhotoItems,
+                      maxSelectionCount: AttachmentQueue.maxAttachments,
+                      matching: .any(of: [.images, .videos]),
+                      photoLibrary: .shared())
+        .onChange(of: selectedPhotoItems) { _, items in
+            guard !items.isEmpty else { return }
+            _Concurrency.Task {
+                for item in items { await handlePhotoSelection(item) }
+                await MainActor.run { selectedPhotoItems = [] }
             }
         }
-        .fileImporter(isPresented: $showingDocumentPicker, allowedContentTypes: [.data]) { result in
-            if case .success(let url) = result {
-                _Concurrency.Task { await handleDocumentSelection(url) }
+        .fileImporter(isPresented: $showingDocumentPicker,
+                      allowedContentTypes: [.data],
+                      allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result {
+                _Concurrency.Task {
+                    for url in urls { await handleDocumentSelection(url) }
+                }
             }
         }
         .fullScreenCover(isPresented: $showingCamera) {
@@ -235,7 +254,7 @@ struct RichTextInput: View {
     // MARK: - Computed
 
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || attachedFile != nil
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachedFiles.isEmpty
     }
 
     // MARK: - Send
@@ -252,23 +271,23 @@ struct RichTextInput: View {
         }
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !content.isEmpty || attachedFile != nil else { return }
+        guard !content.isEmpty || !attachedFiles.isEmpty else { return }
         guard !isSubmitting else { return }
 
         isSubmitting = true
         defer { isSubmitting = false }
 
-        let fileId = attachedFile?.fileId
-        let messageType: Comment.CommentType = attachedFile != nil ? .ATTACHMENT : .TEXT
+        let fileIds = attachedFiles.map(\.fileId)
+        let messageType: Comment.CommentType = attachedFiles.isEmpty ? .TEXT : .ATTACHMENT
 
         text = ""
         insertedReferences = []
-        attachedFile = nil
+        attachedFiles = []
         uploadError = nil
         clearAutocomplete()
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onSend?(content, messageType, fileId)
+        onSend?(content, messageType, fileIds)
     }
 
     // MARK: - Autocomplete
@@ -348,8 +367,12 @@ struct RichTextInput: View {
     // MARK: - Attachment Preview
 
     @ViewBuilder
+    /// One staged file. A compact square rather than a full-width row, because several of
+    /// these now sit side by side in a scrolling strip.
     private func attachmentPreview(file: AttachedFileInfo) -> some View {
-        HStack(spacing: Theme.spacing8) {
+        let fileExtension: String = file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE"
+
+        return ZStack(alignment: .topTrailing) {
             if file.isImage, let imageData = file.imageData, let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
                     .resizable()
@@ -361,26 +384,30 @@ struct RichTextInput: View {
                     RoundedRectangle(cornerRadius: Theme.radiusSmall)
                         .fill(inputBackgroundColor)
                         .frame(width: 56, height: 56)
-                    Image(systemName: "doc")
-                        .font(.system(size: 20))
-                        .foregroundColor(mutedTextColor)
+                    VStack(spacing: 2) {
+                        Image(systemName: "doc")
+                            .font(.system(size: 18))
+                            .foregroundColor(mutedTextColor)
+                        Text(fileExtension)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(mutedTextColor)
+                    }
                 }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(file.fileName).font(Theme.Typography.caption1()).foregroundColor(textColor).lineLimit(1)
-                Text(formatFileSize(file.fileSize)).font(Theme.Typography.caption2()).foregroundColor(mutedTextColor)
-            }
-            Spacer()
+
             Button {
                 if file.fileId.hasPrefix("temp_") { attachmentService.cancelUpload(tempFileId: file.fileId) }
-                attachedFile = nil
+                attachedFiles = AttachmentQueue.removing(fileId: file.fileId, from: attachedFiles)
             } label: {
-                Image(systemName: "xmark.circle.fill").font(.system(size: 18)).foregroundColor(mutedTextColor)
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white, Color.black.opacity(0.6))
+                    .background(Circle().fill(Color.black.opacity(0.3)))
             }
             .buttonStyle(.plain)
+            .offset(x: 6, y: -6)
         }
-        .padding(.horizontal, Theme.spacing12)
-        .padding(.bottom, Theme.spacing4)
+        .padding(.top, 8)
     }
 
     // MARK: - File Handling
@@ -388,7 +415,7 @@ struct RichTextInput: View {
     private func handlePhotoSelection(_ item: PhotosPickerItem) async {
         isUploadingFile = true
         uploadError = nil
-        defer { isUploadingFile = false; selectedPhotoItem = nil }
+        defer { isUploadingFile = false }
 
         let online = NetworkMonitor.shared.isConnected
         var photoData: Data?
@@ -422,7 +449,9 @@ struct RichTextInput: View {
 
         let fileName = "photo_\(Int(Date().timeIntervalSince1970)).jpg"
         let tempFileId = attachmentService.saveLocallyAndUploadAsync(fileData: data, fileName: fileName, mimeType: "image/jpeg", context: uploadContext)
-        attachedFile = AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: "image/jpeg", imageData: data)
+        attachedFiles = AttachmentQueue.adding(
+            AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: "image/jpeg", imageData: data),
+            to: attachedFiles)
     }
 
     /// A photo straight from the camera.
@@ -438,7 +467,9 @@ struct RichTextInput: View {
 
         let fileName = "photo_\(Int(Date().timeIntervalSince1970)).jpg"
         let tempFileId = attachmentService.saveLocallyAndUploadAsync(fileData: data, fileName: fileName, mimeType: "image/jpeg", context: uploadContext)
-        attachedFile = AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: "image/jpeg", imageData: data)
+        attachedFiles = AttachmentQueue.adding(
+            AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: "image/jpeg", imageData: data),
+            to: attachedFiles)
     }
 
     private func handleDocumentSelection(_ url: URL) async {
@@ -455,7 +486,9 @@ struct RichTextInput: View {
         let fileName = url.lastPathComponent
         let mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         let tempFileId = attachmentService.saveLocallyAndUploadAsync(fileData: data, fileName: fileName, mimeType: mimeType, context: uploadContext)
-        attachedFile = AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: mimeType, imageData: mimeType.hasPrefix("image/") ? data : nil)
+        attachedFiles = AttachmentQueue.adding(
+            AttachedFileInfo(fileId: tempFileId, fileName: fileName, fileSize: data.count, mimeType: mimeType, imageData: mimeType.hasPrefix("image/") ? data : nil),
+            to: attachedFiles)
     }
 
     private func formatFileSize(_ bytes: Int) -> String {

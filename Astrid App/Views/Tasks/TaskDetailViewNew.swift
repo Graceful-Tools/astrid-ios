@@ -623,8 +623,8 @@ struct TaskDetailViewNew: View {
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
                         uploadContext: task.listIds?.first != nil ? ["listId": task.listIds!.first!] : ["taskId": task.id],
-                        onSend: { content, type, fileId in
-                            _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileId: fileId) }
+                        onSend: { content, type, fileIds in
+                            _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileIds: fileIds) }
                         },
                         onTimerTap: { showTimer = true },
                         focusReport: $commentInputFocused
@@ -968,37 +968,45 @@ struct TaskDetailViewNew: View {
     }
 
     /// Called by RichTextInput when user sends a comment
-    private func submitCommentFromRichInput(content: String, type: Comment.CommentType, fileId: String?) async {
-        guard !content.isEmpty || fileId != nil else { return }
-
-        // Resolve temp fileId if needed
-        var resolvedFileId = fileId
-        if let tempFileId = fileId, tempFileId.hasPrefix("temp_") {
-            if let realFileId = AttachmentService.shared.getRealFileId(for: tempFileId) {
-                resolvedFileId = realFileId
+    private func submitCommentFromRichInput(content: String, type: Comment.CommentType, fileIds: [String]) async {
+        // Resolve temp ids to real ones where the upload already landed; otherwise keep the
+        // temp id — the enqueued upload→comment chain resolves it, and waiting here would
+        // deadlock.
+        let resolvedFileIds = fileIds.map { fileId -> String in
+            if fileId.hasPrefix("temp_"), let real = AttachmentService.shared.getRealFileId(for: fileId) {
+                return real
             }
-            // Otherwise keep the temp fileId: the upload only starts with the
-            // enqueued upload→comment chain, which resolves the real id itself —
-            // waiting here would deadlock.
+            return fileId
         }
 
-        do {
-            _ = try await CommentService.shared.createComment(
-                taskId: task.id,
-                content: content,
-                type: type,
-                fileId: resolvedFileId,
-                parentCommentId: nil,
-                authorId: AuthManager.shared.userId
-            )
+        // The API carries one fileId per comment, so several files become several comments;
+        // the text rides the first. `type` from the input is ignored in favour of what the
+        // batch decides, which is the same rule every input uses.
+        let drafts = CommentAttachmentBatch.drafts(text: content,
+                                                   fileIds: resolvedFileIds,
+                                                   useMarkdown: type != .TEXT)
+        guard !drafts.isEmpty else { return }
 
-            NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": task.id])
-
-            try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
-            await MainActor.run { scrollToBottomAction?() }
-        } catch {
-            print("❌ [TaskDetailViewNew] Failed to submit comment: \(error)")
+        // Each send is caught on its own: one failure must not abandon the files behind it.
+        for draft in drafts {
+            do {
+                _ = try await CommentService.shared.createComment(
+                    taskId: task.id,
+                    content: draft.content,
+                    type: draft.type,
+                    fileId: draft.fileId,
+                    parentCommentId: nil,
+                    authorId: AuthManager.shared.userId
+                )
+            } catch {
+                print("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
+            }
         }
+
+        NotificationCenter.default.post(name: .commentDidSync, object: nil, userInfo: ["taskId": task.id])
+
+        try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
+        await MainActor.run { scrollToBottomAction?() }
     }
 
     private func submitComment() async {
@@ -1099,7 +1107,7 @@ struct TaskDetailViewNew: View {
                 if file.fileId.hasPrefix("temp_") {
                     AttachmentService.shared.cancelUpload(tempFileId: file.fileId)
                 }
-                attachedFiles.removeAll { $0.fileId == file.fileId }
+                attachedFiles = AttachmentQueue.removing(fileId: file.fileId, from: attachedFiles)
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 20))
@@ -1154,13 +1162,14 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: imageData.count,
                     mimeType: mimeType,
                     imageData: imageData
-                ))
+                ),
+                to: attachedFiles)
                 if let uiImage = UIImage(data: imageData) {
                     ThumbnailCache.shared.set(uiImage, for: tempFileId)
                 }
@@ -1194,13 +1203,14 @@ struct TaskDetailViewNew: View {
         )
 
         await MainActor.run {
-            attachedFiles.append(AttachedFileInfo(
+            attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                 fileId: tempFileId,
                 fileName: fileName,
                 fileSize: imageData.count,
                 mimeType: mimeType,
                 imageData: imageData
-            ))
+            ),
+                to: attachedFiles)
             ThumbnailCache.shared.set(image, for: tempFileId)
         }
     }
@@ -1231,13 +1241,14 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: videoData.count,
                     mimeType: mimeType,
                     imageData: nil
-                ))
+                ),
+                to: attachedFiles)
             }
         } catch {
             await MainActor.run { uploadError = "Failed to load video: \(error.localizedDescription)" }
@@ -1272,14 +1283,15 @@ struct TaskDetailViewNew: View {
             )
 
             await MainActor.run {
-                attachedFiles.append(AttachedFileInfo(
+                attachedFiles = AttachmentQueue.adding(AttachedFileInfo(
                     fileId: tempFileId,
                     fileName: fileName,
                     fileSize: fileData.count,
                     mimeType: mimeType,
                     // An image picked from Documents should still preview as one.
                     imageData: mimeType.lowercased().hasPrefix("image/") ? fileData : nil
-                ))
+                ),
+                to: attachedFiles)
             }
         } catch {
             await MainActor.run { uploadError = "Failed to load document: \(error.localizedDescription)" }

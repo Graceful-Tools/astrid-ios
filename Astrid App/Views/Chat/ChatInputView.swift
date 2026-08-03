@@ -49,33 +49,44 @@ struct ChatInputView: View {
                 listId: listId,
                 availableAgents: availableAgents,
                 uploadContext: uploadContext,
-                onSend: { content, type, fileId in
-                    sendChatMessage(content: content, type: type, fileId: fileId)
+                onSend: { content, type, fileIds in
+                    sendChatMessage(content: content, type: type, fileIds: fileIds)
                 }
             )
         }
     }
 
-    private func sendChatMessage(content: String, type: Comment.CommentType, fileId: String?) {
+    private func sendChatMessage(content: String, type: Comment.CommentType, fileIds: [String]) {
         let currentUserId = AuthManager.shared.userId
 
-        _Concurrency.Task {
-            do {
-                _ = try await ChatService.shared.sendMessage(
-                    channelId: channelId,
-                    content: content,
-                    type: type,
-                    fileId: fileId,
-                    replyToId: replyingTo?.id,
-                    authorId: currentUserId
-                )
-                await MainActor.run { onCancelReply?() }
+        // A chat message carries one file, so several attachments become several messages —
+        // the same rule comments use, via the same tested split. Text rides the first.
+        let drafts = CommentAttachmentBatch.drafts(text: content,
+                                                   fileIds: fileIds,
+                                                   useMarkdown: type != .TEXT)
+        guard !drafts.isEmpty else { return }
 
-                // Check if @Astrid was mentioned and we have on-device model selected
-                await handleOnDeviceAstridMention(content: content)
-            } catch {
-                logger.error("Failed to send chat message: \(error.localizedDescription, privacy: .public)")
+        _Concurrency.Task {
+            // Sent one at a time so they land in the order they were picked. Each is caught
+            // on its own: one failure must not abandon the attachments behind it.
+            for draft in drafts {
+                do {
+                    _ = try await ChatService.shared.sendMessage(
+                        channelId: channelId,
+                        content: draft.content,
+                        type: draft.type,
+                        fileId: draft.fileId,
+                        replyToId: replyingTo?.id,
+                        authorId: currentUserId
+                    )
+                } catch {
+                    logger.error("Failed to send chat message: \(error.localizedDescription, privacy: .public)")
+                }
             }
+            await MainActor.run { onCancelReply?() }
+
+            // Check if @Astrid was mentioned and we have on-device model selected
+            await handleOnDeviceAstridMention(content: content)
         }
     }
 
