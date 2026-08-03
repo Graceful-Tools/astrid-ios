@@ -137,6 +137,27 @@ func getTaskProjectColumnId(_ task: Task, lists: [TaskList]) -> String {
 /// instead of rescanning all lists for every task. Same contract, shared by both platforms.
 func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
     if task.completed { return VIRTUAL_DONE_COLUMN_ID }
+
+    // Status is a STATE on the task (AWTD-562). Prefer the field: it lives on
+    // the shared task, so two members of a board cannot resolve different
+    // columns — the failure that status-as-list-membership could not fix
+    // without duplicating a Ready/Doing/Waiting set per project.
+    //
+    // Falls back to Inbox rather than the bare role when no column matches:
+    // columns are keyed by LIST id during the transition, so an unmatched role
+    // would match no column and the card would vanish from the board while
+    // still existing in the list view. Showing a card in the wrong column is
+    // recoverable; losing it is not.
+    if let role = task.statusRole, !role.isEmpty {
+        if let match = statusLists.first(where: { $0.statusRole == role }) {
+            return match.id
+        }
+        return VIRTUAL_INBOX_COLUMN_ID
+    }
+
+    // BACKWARDS COMPATIBILITY: a server older than the field does not send it,
+    // and a task loaded from Core Data before this build wrote one has it nil.
+    // Membership still answers the question for both.
     let taskListIds = taskListMembershipIds(task)
     if let explicit = statusLists.first(where: { taskListIds.contains($0.id) }) {
         return explicit.id
@@ -149,6 +170,14 @@ func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
 struct ProjectColumnMove: Equatable {
     let listIds: [String]
     let completed: Bool
+    /// The status to write to `Task.statusRole`. Nil for Inbox and Done, which
+    /// carry no status.
+    ///
+    /// Written ALONGSIDE the list membership, not instead of it: an older
+    /// server still resolves boards from membership, so dropping it here would
+    /// break this build against an unmigrated deployment. Dual-write, not
+    /// dual-truth — the field is authoritative wherever it exists.
+    let statusRole: String?
 }
 
 /// Compute the post-move task state when dragging a task onto a board column.
@@ -176,11 +205,18 @@ func resolveProjectColumnMove(
 
     switch targetColumn.kind {
     case .inbox:
-        return ProjectColumnMove(listIds: retainedListIds, completed: false)
+        return ProjectColumnMove(listIds: retainedListIds, completed: false, statusRole: nil)
     case .done:
-        return ProjectColumnMove(listIds: retainedListIds, completed: true)
+        return ProjectColumnMove(listIds: retainedListIds, completed: true, statusRole: nil)
     case .status:
-        return ProjectColumnMove(listIds: retainedListIds + [targetColumn.id], completed: false)
+        // The role comes from the column's backing list during the transition;
+        // once status lists are gone the column id IS the role.
+        let role = lists.first(where: { $0.id == targetColumn.id })?.statusRole
+        return ProjectColumnMove(
+            listIds: retainedListIds + [targetColumn.id],
+            completed: false,
+            statusRole: role
+        )
     }
 }
 

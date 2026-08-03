@@ -51,7 +51,8 @@ final class ProjectStatusTests: XCTestCase {
     private func makeTask(
         id: String = "task-1",
         lists: [TaskList],
-        completed: Bool = false
+        completed: Bool = false,
+        statusRole: String? = nil
     ) -> Task {
         Task(
             id: id,
@@ -61,7 +62,8 @@ final class ProjectStatusTests: XCTestCase {
             priority: .none,
             lists: lists,
             isPrivate: true,
-            completed: completed
+            completed: completed,
+            statusRole: statusRole
         )
     }
 
@@ -603,5 +605,116 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertNil(result.first { $0.id == "groc" }?.projectId)
         XCTAssertNil(result.first { $0.id == "dd" }?.projectId,
                      "p-1's domain list detached, not deleted")
+    }
+
+    // MARK: - Status as a state on the task (AWTD-562)
+
+    /// Swift port of the web tests added with `Task.statusRole`. Status stopped
+    /// being list membership because that model could not be both per-user (or
+    /// pickers filled with duplicate Ready/Doing/Waiting) and shared (or two
+    /// members of a board resolved different columns). As a field on the shared
+    /// task both hold.
+    ///
+    /// These also pin the BACKWARDS COMPATIBILITY this build depends on: a
+    /// deployment older than the field does not send it, so membership must
+    /// still resolve the column.
+
+    func test_statusRoleField_winsOverMembership() {
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
+        // Membership says Ready, the field says Doing. The field is authoritative.
+        let task = makeTask(lists: [ready], statusRole: "doing")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready, doing]), "doing")
+    }
+
+    func test_backwardsCompatible_membershipStillResolvesWhenFieldIsAbsent() {
+        // An older server sends no statusRole at all. The board must still work.
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let task = makeTask(lists: [ready], statusRole: nil)
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), "ready")
+    }
+
+    func test_emptyStatusRoleIsTreatedAsAbsent() {
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let task = makeTask(lists: [ready], statusRole: "")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), "ready")
+    }
+
+    func test_completedWinsOverStatusRole() {
+        let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
+        let task = makeTask(lists: [doing], completed: true, statusRole: "doing")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [doing]), VIRTUAL_DONE_COLUMN_ID)
+    }
+
+    func test_unrenderableStatusFallsBackToInboxRatherThanVanishing() {
+        // 'blocked' has no backing status list, which is every custom state
+        // until they have one. Returning the bare role would match no column
+        // and the card would disappear from the board entirely.
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let task = makeTask(lists: [ready], statusRole: "blocked")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
+    }
+
+    func test_everyResolvedColumnIdIsOneTheBoardRenders() {
+        // The invariant behind the fallback above.
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let lists = [ready]
+        let columnIds = Set(getProjectBoardColumns(lists).map { $0.id })
+        for role in ["ready", "blocked", "doing"] {
+            let task = makeTask(lists: lists, statusRole: role)
+            XCTAssertTrue(
+                columnIds.contains(getTaskProjectColumnId(task, lists: lists)),
+                "resolved a column the board does not render for role \(role)"
+            )
+        }
+    }
+
+    // MARK: - Move writes the field as well as the membership
+
+    func test_moveToStatusReportsTheRoleToWrite() {
+        let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
+        let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
+        let domain = makeList(id: "domain", name: "Board", projectId: "p1")
+        let task = makeTask(lists: [domain, ready])
+
+        let columns = getProjectBoardColumns([ready, doing])
+        let target = columns.first { $0.id == "doing" }!
+        let move = resolveProjectColumnMove(task, targetColumn: target, lists: [ready, doing, domain])
+
+        XCTAssertEqual(move.statusRole, "doing")
+        // Dual-write: membership is still updated for older servers.
+        XCTAssertTrue(move.listIds.contains("doing"))
+        XCTAssertFalse(move.listIds.contains("ready"))
+        XCTAssertTrue(move.listIds.contains("domain"))
+        XCTAssertFalse(move.completed)
+    }
+
+    func test_moveToInboxClearsTheRole() {
+        let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
+        let domain = makeList(id: "domain", name: "Board", projectId: "p1")
+        let task = makeTask(lists: [domain, doing])
+
+        let columns = getProjectBoardColumns([doing])
+        let inbox = columns.first { $0.kind == .inbox }!
+        let move = resolveProjectColumnMove(task, targetColumn: inbox, lists: [doing, domain])
+
+        XCTAssertNil(move.statusRole)
+        XCTAssertFalse(move.listIds.contains("doing"))
+        XCTAssertFalse(move.completed)
+    }
+
+    func test_moveToDoneClearsTheRoleAndCompletes() {
+        // Done carries no status — the same invariant the server enforces.
+        let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
+        let domain = makeList(id: "domain", name: "Board", projectId: "p1")
+        let task = makeTask(lists: [domain, doing])
+
+        let columns = getProjectBoardColumns([doing])
+        let done = columns.first { $0.kind == .done }!
+        let move = resolveProjectColumnMove(task, targetColumn: done, lists: [doing, domain])
+
+        XCTAssertNil(move.statusRole)
+        XCTAssertFalse(move.listIds.contains("doing"))
+        XCTAssertTrue(move.completed)
     }
 }

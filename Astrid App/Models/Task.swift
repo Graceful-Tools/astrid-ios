@@ -26,6 +26,15 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
     var completed: Bool
     var completedAt: Date?        // real completion time (backdatable by sync)
     var completedSource: String?  // astrid | google | github | apple
+    /// Board status as a STATE on the task: ready | doing | waiting | a
+    /// project's custom role. Nil means Inbox; Done is derived from
+    /// `completed`, so neither is ever stored.
+    ///
+    /// Replaces status-as-list-membership (AWTD-562). Optional and tolerated
+    /// as absent on purpose: a deployment older than the field simply does not
+    /// send it, and the board falls back to membership — which is what keeps
+    /// this build working against an unmigrated server.
+    var statusRole: String?
     var attachments: [Attachment]?
     var secureFiles: [SecureFile]?
     var comments: [Comment]?
@@ -124,7 +133,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, completedAt, completedSource, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, statusRole, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
@@ -155,6 +164,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         completed: Bool = false,
         completedAt: Date? = nil,
         completedSource: String? = nil,
+        statusRole: String? = nil,
         attachments: [Attachment]? = nil,
         secureFiles: [SecureFile]? = nil,
         comments: [Comment]? = nil,
@@ -190,6 +200,7 @@ struct Task: Identifiable, Codable, Equatable, Hashable {
         self.completed = completed
         self.completedAt = completedAt
         self.completedSource = completedSource
+        self.statusRole = statusRole
         self.attachments = attachments
         self.secureFiles = secureFiles
         self.comments = comments
