@@ -184,6 +184,11 @@ struct MacTaskRow: View {
             .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id,
                                          isSelected: isSelected, onSelect: onSelect))
         }
+        // A floor so a title-only task stands as tall as one carrying a date or a list chip —
+        // without it height followed content and a mixed list read as a ragged column
+        // (Task 7c5cd097). Applied to the card, so the whole surface grows: the two columns'
+        // hit areas already fill it, and a taller card means a taller click target.
+        .frame(minHeight: MacRowHitArea.minRowHeight)
         // No outer padding: both columns carry it inside their own hit areas (b556c6a9).
         // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
         // card on dark). Selection is a SUBTLE thin accent (b8d1ec16); hover a lighter wash (77225941).

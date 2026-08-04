@@ -31,8 +31,18 @@ enum MacRowHitArea {
         rowWidth - checkboxColumnWidth(glyph: glyph) - columnSpacing
     }
 
+    /// Floor for a row, so a task with only a title stands as tall as one carrying a date or a
+    /// list chip and a mixed list reads as an even column (Task 7c5cd097).
+    ///
+    /// Derived from Mac's own type rather than copied from iOS, which pins 76 for 19pt titles —
+    /// at Mac's 14pt that row would be oversized. Same arithmetic iOS used, Mac's numbers:
+    /// title line (~17) + spacing (2) + metadata line (~14) + padding (18) = 51, rounded to 52.
+    static let minRowHeight: CGFloat = 52
+
+    /// A floor, not a fixed height: a wrapped two-line title still grows past it, because
+    /// clamping tall rows would truncate the very titles that need the room.
     static func rowHeight(contentHeight: CGFloat) -> CGFloat {
-        contentHeight + verticalPadding * 2
+        max(minRowHeight, contentHeight + verticalPadding * 2)
     }
 
     /// Per-level subtask indent, capped so deep nesting cannot squeeze the row away.

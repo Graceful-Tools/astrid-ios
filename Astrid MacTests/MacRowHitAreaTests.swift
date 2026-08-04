@@ -28,6 +28,50 @@ final class MacRowHitAreaTests: XCTestCase {
                        40 + MacRowHitArea.verticalPadding * 2, accuracy: 0.01)
     }
 
+    // MARK: - Minimum height (Task 7c5cd097)
+
+    /// THE BUG: Mac rows had no floor, so height simply followed content. A bare title came out
+    /// around 35pt against ~51pt for a row carrying a date or a list chip, and a list mixing the
+    /// two had a visibly uneven rhythm. iOS pins `minHeight: 76` and the web virtualiser assumes
+    /// 84px; Mac assumed nothing.
+    func testARowIsNeverShorterThanTheMinimum() {
+        // A single short title with no metadata — the shortest a row can legitimately be.
+        let bare = MacRowHitArea.rowHeight(contentHeight: 17)
+
+        XCTAssertGreaterThanOrEqual(bare, MacRowHitArea.minRowHeight,
+                                    "a title-only row collapsed below the floor")
+    }
+
+    /// The point of the floor: a task with nothing but a title stands as tall as one with
+    /// metadata, so a mixed list reads as an even column rather than a ragged one.
+    func testABareRowMatchesARowThatCarriesMetadata() {
+        let titleOnly = MacRowHitArea.rowHeight(contentHeight: 17)
+        // title line + spacing + metadata line
+        let withMetadata = MacRowHitArea.rowHeight(contentHeight: 17 + 2 + 14)
+
+        XCTAssertEqual(titleOnly, withMetadata, accuracy: 0.01,
+                       "these are the two common row shapes; if they differ the list looks ragged")
+    }
+
+    /// The floor is a FLOOR, not a fixed height — a wrapped two-line title still grows.
+    func testATallRowStillGrowsPastTheMinimum() {
+        // Two title lines plus a metadata line.
+        let tall = MacRowHitArea.rowHeight(contentHeight: 17 * 2 + 2 + 14)
+
+        XCTAssertGreaterThan(tall, MacRowHitArea.minRowHeight,
+                             "clamping tall rows would truncate wrapped titles")
+        XCTAssertEqual(tall, 17 * 2 + 2 + 14 + MacRowHitArea.verticalPadding * 2, accuracy: 0.01)
+    }
+
+    /// Mac is denser than iOS by design — its title is 14pt where iOS is 19pt — so the minimum is
+    /// derived from Mac's own type, not copied across. It must still be a real minimum.
+    func testTheMinimumSuitsMacDensity() {
+        XCTAssertGreaterThan(MacRowHitArea.minRowHeight, MacRowHitArea.verticalPadding * 2,
+                             "a floor at or below the padding is no floor at all")
+        XCTAssertLessThan(MacRowHitArea.minRowHeight, 76,
+                          "76 is iOS's number for 19pt type; that row would be oversized here")
+    }
+
     /// The checkbox column is wider than the glyph, so the strip around the checkbox selects the
     /// row rather than doing nothing — while the glyph itself keeps completing the task.
     func testCheckboxColumnIsWiderThanTheGlyph() {
