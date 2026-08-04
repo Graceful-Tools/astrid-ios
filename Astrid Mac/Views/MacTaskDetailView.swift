@@ -26,6 +26,13 @@ struct MacTaskDetailView: View {
 
     @State private var title = ""
     @State private var notes = ""
+    /// One editor at a time, one save rule (55010e29). The session decides WHICH editor is
+    /// live; each field still saves on blur, so exclusivity and saving stay separable.
+    @StateObject private var editing = EditingSession()
+    private static let titleEditor: EditorID = "mac.detail.title"
+    private static let notesEditor: EditorID = "mac.detail.notes"
+    private static let commentEditor: EditorID = "mac.detail.comment"
+
     @FocusState private var titleFocused: Bool
     @FocusState private var notesFocused: Bool
     @FocusState private var commentFocused: Bool
@@ -147,6 +154,13 @@ struct MacTaskDetailView: View {
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                         .focused($titleFocused)
                         .onSubmit(saveTitle)
+                        // Was Return-only, so clicking away DISCARDED the title edit while the
+                        // notes field beside it saved on blur — the inconsistency this task is
+                        // about. Now both resign-to-save, like every other editor (55010e29).
+                        .onChange(of: titleFocused) { _, focused in
+                            if focused { editing.begin(Self.titleEditor) }
+                            else { editing.end(Self.titleEditor); saveTitle() }
+                        }
                 }
             }
 
@@ -192,13 +206,29 @@ struct MacTaskDetailView: View {
                                     .labelsHidden()
                                     .onChange(of: due) { saveDue() }
                                     .frame(minWidth: MacDetailRowFit.whenRowMinimums[1])
-                                Picker("", selection: $repeating) {
-                                    ForEach([Task.Repeating.never, .daily, .weekly, .monthly, .yearly, .custom], id: \.self) {
-                                        Text($0.displayName).tag($0)
+                                // A MENU, not a Picker: a Picker renders as a segmented/wheel
+                                // control here and the six repeat options do not fit the panel.
+                                // The label shows the CURRENT choice — iOS shows the chosen
+                                // repeat, not the word "Repeat" (ea4f5124).
+                                Menu {
+                                    ForEach(Task.Repeating.allCases, id: \.self) { option in
+                                        Button {
+                                            repeating = option
+                                            handleRepeatChange()
+                                        } label: {
+                                            if option == repeating {
+                                                Label(option.displayName, systemImage: "checkmark")
+                                            } else {
+                                                Text(option.displayName)
+                                            }
+                                        }
                                     }
+                                } label: {
+                                    Text(repeating.displayName)
+                                        .font(.system(size: 11))
+                                        .lineLimit(1)
                                 }
-                                .labelsHidden()
-                                .onChange(of: repeating) { handleRepeatChange() }
+                                .menuStyle(.borderlessButton)
                                 .frame(minWidth: MacDetailRowFit.whenRowMinimums[2])
                             }
                         }
@@ -258,7 +288,10 @@ struct MacTaskDetailView: View {
                         .frame(minHeight: 70)
                         .frame(maxWidth: .infinity)
                         .focused($notesFocused)
-                        .onChange(of: notesFocused) { if !notesFocused { saveNotes() } }
+                        .onChange(of: notesFocused) { _, focused in
+                            if focused { editing.begin(Self.notesEditor) }
+                            else { editing.end(Self.notesEditor); saveNotes() }
+                        }
                         .overlay(alignment: .topLeading) {
                             if notes.isEmpty && !notesFocused {
                                 Text(NSLocalizedString("mac.click_add_description", comment: ""))
@@ -444,6 +477,9 @@ struct MacTaskDetailView: View {
             TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
                 .textFieldStyle(.plain)
                 .focused($commentFocused)
+                .onChange(of: commentFocused) { _, focused in
+                    if focused { editing.begin(Self.commentEditor) } else { editing.end(Self.commentEditor) }
+                }
                 .onChange(of: newComment) { updateCommentSuggestions() }
                 .onSubmit(addComment)
             TimelineView(.periodic(from: .now, by: 1)) { _ in
@@ -472,6 +508,17 @@ struct MacTaskDetailView: View {
             }
         }
         .task(id: task.id) { load() }
+        // Exclusivity, applied: when the session hands the editor over, the fields that lost it
+        // actually resign — and resigning is what saves, so the displaced edit is committed
+        // rather than dropped (55010e29).
+        .onChange(of: editing.activeEditor) { _, active in
+            if active != Self.titleEditor { titleFocused = false }
+            if active != Self.notesEditor { notesFocused = false }
+            if active != Self.commentEditor { commentFocused = false }
+        }
+        // Leaving the detail — closing it, or switching to another task — commits whatever was
+        // open. Same click-out rule, applied to the view going away.
+        .onDisappear { editing.commitAll() }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
         .sheet(item: $editingComment) { _ in editSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: NSLocalizedString("mac.rename_subtask", comment: ""), text: $editingSubtaskText, onSave: renameSubtask) }
