@@ -1,13 +1,106 @@
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// Collects each card's vertical extent in the column's coordinate space so
+/// the drop handler can resolve a release point to a slot.
+private struct BoardCardSlotsKey: PreferenceKey {
+    static var defaultValue: [BoardCardSlot] { [] }
+    static func reduce(value: inout [BoardCardSlot], nextValue: () -> [BoardCardSlot]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+/// The column's origin in global space, so a drag point reported in column
+/// coordinates can be placed on the board.
+private struct BoardColumnOriginKey: PreferenceKey {
+    static var defaultValue: CGPoint { .zero }
+    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
+        value = nextValue()
+    }
+}
+
+/// The column's single drop target.
+///
+/// A `DropDelegate` rather than `.dropDestination` because it reports the
+/// drag's live LOCATION (`dropUpdated`), not just a hovering flag — and the
+/// location is the whole fix: it's what lets any point in the column resolve to
+/// the slot the user is aiming at.
+private struct BoardColumnDropDelegate: DropDelegate {
+    let slots: [BoardCardSlot]
+    @Binding var hoveringIndex: Int?
+    @Binding var isTargeted: Bool
+    /// Reports the drag point in GLOBAL coordinates (nil once the drag leaves
+    /// or lands) so the board can auto-advance columns at its edges.
+    let onDragMoved: (CGPoint?) -> Void
+    /// The column's origin in global space, for that conversion.
+    let columnOrigin: CGPoint
+    let onDrop: (BoardCardPayload, Int) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [BoardCardPayload.contentType])
+    }
+
+    func dropEntered(info: DropInfo) {
+        isTargeted = true
+        track(info)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        track(info)
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        isTargeted = false
+        hoveringIndex = nil
+        onDragMoved(nil)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let index = boardDropInsertionIndex(dropY: info.location.y, slots: slots)
+        isTargeted = false
+        hoveringIndex = nil
+        onDragMoved(nil)
+
+        guard let provider = info.itemProviders(for: [BoardCardPayload.contentType]).first else {
+            return false
+        }
+        provider.loadDataRepresentation(
+            forTypeIdentifier: BoardCardPayload.contentType.identifier
+        ) { data, _ in
+            guard let data, let payload = try? BoardCardPayload(data: data) else { return }
+            DispatchQueue.main.async { onDrop(payload, index) }
+        }
+        return true
+    }
+
+    private func track(_ info: DropInfo) {
+        let index = boardDropInsertionIndex(dropY: info.location.y, slots: slots)
+        if hoveringIndex != index {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
+                hoveringIndex = index
+            }
+        }
+        onDragMoved(CGPoint(x: columnOrigin.x + info.location.x,
+                            y: columnOrigin.y + info.location.y))
+    }
+}
 
 /// One board column: header + scrollable card list + inline "Add task"
 /// footer.
 ///
-/// Drag-drop uses custom `.draggable` + `.dropDestination` (not List +
-/// `.onMove`) so a card can be dragged ACROSS columns — which is the
+/// Drag-drop uses a custom `.draggable` + a column-wide `DropDelegate` (not
+/// List + `.onMove`) so a card can be dragged ACROSS columns — which is the
 /// board's whole point. List's `.onMove` captures the long-press
 /// gesture exclusively and blocks `.draggable` from escaping the list
 /// bounds.
+///
+/// The column has exactly ONE drop target, covering header, cards, gaps and
+/// footer alike; the release point is resolved against the cards' measured
+/// frames by `boardDropInsertionIndex`. It used to scatter a target per card
+/// plus a column-wide fallback pinned to index 0, so every uncovered point —
+/// the 6pt gaps, the header, the footer — silently sent the card to the top
+/// (task 2b2c9ee2).
 ///
 /// To kill the "card refreshes after drop" flicker, the column keeps
 /// a **local** `@State pendingTaskOrder` that survives parent
@@ -35,11 +128,20 @@ struct BoardColumnView: View {
     var onTaskTap: ((Task) -> Void)?
     /// The task currently open in the detail panel (for the selected highlight).
     var selectedTaskId: String?
+    /// Live drag point in global coordinates while a card hovers this column
+    /// (nil when it leaves or lands). The board uses it to auto-advance columns
+    /// when the drag reaches its edges — task 233ec244.
+    var onDragMoved: ((CGPoint?) -> Void)?
 
     @State private var isTargeted = false
-    /// Slot index currently being hovered over, if any. Drives the
-    /// "tasks move out of the way" drop indicator.
+    /// Insertion index the drag is currently aiming at, if any. Drives the
+    /// drop indicator.
     @State private var hoveringIndex: Int?
+    /// Card extents in this column's coordinate space, reported by the cards
+    /// as they lay out.
+    @State private var slotFrames: [BoardCardSlot] = []
+    /// This column's origin in global space, for converting the drag point.
+    @State private var columnOrigin: CGPoint = .zero
     /// Local override for this column's task order. Set on drop so
     /// the user sees the card land at its final slot immediately;
     /// auto-cleared once the parent's `tasks` prop catches up.
@@ -82,6 +184,11 @@ struct BoardColumnView: View {
     /// Width of the white side border between the column edge and the
     /// cyan interior — roughly double the previous 3pt stroke.
     private let columnBorderWidth: CGFloat = 6
+
+    /// The column's own coordinate space. Card frames and the drag location are
+    /// both measured in it, so they can be compared directly — and because it
+    /// scrolls with the cards, the comparison stays right mid-scroll.
+    private var columnSpaceName: String { "board-column-\(column.id)" }
 
     private var footerStatusListIds: [String] {
         guard column.kind == .status, let statusList = column.statusList else { return [] }
@@ -175,18 +282,37 @@ struct BoardColumnView: View {
                 .strokeBorder(isTargeted ? Color.accentColor : Color.clear,
                               lineWidth: 3)
         )
-        // Column-level drop is the fallback when a drag releases over
-        // the header / footer chrome (above or below the cards). Defaults
-        // to inserting at the top of the column. Per-slot drops below
-        // handle precise positioning when the user releases over a card.
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .dropDestination(for: BoardCardPayload.self) { items, _ in
-            guard let payload = items.first else { return false }
-            handleDrop(payload: payload, at: 0)
-            return true
-        } isTargeted: { hovering in
-            isTargeted = hovering
+        // The drop indicator, drawn OVER the cards rather than inserted
+        // between them. As a sibling in the card stack it pushed the hovered
+        // card down and out from under the pointer, which ended the hover,
+        // which hid the indicator, which moved the card back — the flicker
+        // reported as "finiky" (task 2b2c9ee2).
+        .overlay(alignment: .top) { dropIndicator }
+        .coordinateSpace(name: columnSpaceName)
+        // Collect the card frames the drop resolution needs, and this column's
+        // global origin so the board can locate the drag across columns.
+        .onPreferenceChange(BoardCardSlotsKey.self) { frames in
+            slotFrames = frames.sorted { $0.minY < $1.minY }
         }
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: BoardColumnOriginKey.self,
+                                       value: proxy.frame(in: .global).origin)
+            }
+        )
+        .onPreferenceChange(BoardColumnOriginKey.self) { columnOrigin = $0 }
+        // ONE drop target for the whole column — header, cards, gaps and
+        // footer alike. Every point resolves to a slot.
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onDrop(of: [BoardCardPayload.contentType],
+                delegate: BoardColumnDropDelegate(
+                    slots: slotFrames,
+                    hoveringIndex: $hoveringIndex,
+                    isTargeted: $isTargeted,
+                    onDragMoved: { onDragMoved?($0) },
+                    columnOrigin: columnOrigin,
+                    onDrop: { payload, index in handleDrop(payload: payload, at: index) }
+                ))
         // Auto-clear the local override once the parent's tasks have
         // caught up to the pending order. Comparing id-arrays directly
         // avoids holding the override stale forever in edge cases.
@@ -200,22 +326,27 @@ struct BoardColumnView: View {
         }
     }
 
-    /// One card with a hover-aware drop indicator above it. Mirrors
-    /// the list view's drag-handle behavior — long-press to drag, drop
-    /// on another card to insert above it.
+    /// The drop indicator: a line at the slot the drag is aiming at, positioned
+    /// from the cards' measured frames so it costs the layout nothing.
+    @ViewBuilder
+    private var dropIndicator: some View {
+        if let hoveringIndex, !slotFrames.isEmpty {
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(height: 3)
+                .padding(.horizontal, 14)
+                .offset(y: boardDropIndicatorOffset(forInsertionIndex: hoveringIndex,
+                                                    slots: slotFrames) - 1.5)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+        }
+    }
+
+    /// One card. Long-press to drag; the column's single drop target decides
+    /// where a release lands. The card reports its own extent so it can.
     @ViewBuilder
     private func cardSlot(for task: Task, at index: Int) -> some View {
         VStack(spacing: 0) {
-            if hoveringIndex == index {
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 2)
-                    .transition(.scale.combined(with: .opacity))
-            }
-
             BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
                               isSelected: task.id == selectedTaskId)
                 // Tap opens the task detail — same as tapping a row in
@@ -246,14 +377,17 @@ struct BoardColumnView: View {
                         )
                         .opacity(0.92)
                 }
-                .dropDestination(for: BoardCardPayload.self) { items, _ in
-                    guard let payload = items.first else { return false }
-                    hoveringIndex = nil
-                    handleDrop(payload: payload, at: index)
-                    return true
-                } isTargeted: { hovering in
-                    hoveringIndex = hovering ? index : (hoveringIndex == index ? nil : hoveringIndex)
-                }
+                .background(
+                    GeometryReader { proxy in
+                        let frame = proxy.frame(in: .named(columnSpaceName))
+                        Color.clear.preference(
+                            key: BoardCardSlotsKey.self,
+                            value: [BoardCardSlot(taskId: task.id,
+                                                  minY: frame.minY,
+                                                  maxY: frame.maxY)]
+                        )
+                    }
+                )
         }
     }
 
@@ -264,19 +398,13 @@ struct BoardColumnView: View {
         NSLocalizedString("empty_state.default", comment: "")
     }
 
-    /// Drop slot at the bottom of the column for "append at end" drops.
+    /// Breathing room under the last card. Releases here resolve to "append"
+    /// through the column's single drop target — the empty-state art is all
+    /// this view is still responsible for.
     @ViewBuilder
     private var appendSlot: some View {
-        let appendIndex = displayedTasks.count
         ZStack(alignment: .top) {
-            if hoveringIndex == appendIndex {
-                Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
-                    .transition(.scale.combined(with: .opacity))
-            }
-            if displayedTasks.isEmpty && hoveringIndex == nil {
+            if displayedTasks.isEmpty && !isTargeted {
                 // Same EmptyStateView (Astrid + speech bubble) the flat
                 // list view uses — board columns get the same friendly
                 // empty state instead of a bare "No tasks" label.
@@ -285,15 +413,7 @@ struct BoardColumnView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: displayedTasks.isEmpty ? 260 : 24)
-        .contentShape(Rectangle())
-        .dropDestination(for: BoardCardPayload.self) { items, _ in
-            guard let payload = items.first else { return false }
-            hoveringIndex = nil
-            handleDrop(payload: payload, at: appendIndex)
-            return true
-        } isTargeted: { hovering in
-            hoveringIndex = hovering ? appendIndex : (hoveringIndex == appendIndex ? nil : hoveringIndex)
-        }
+        .allowsHitTesting(false)
     }
 
     /// On drop: update the local override immediately so the card

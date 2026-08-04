@@ -33,7 +33,27 @@ struct BoardCardPayload: Codable, Transferable, Equatable {
     /// Spelled once, so the test can compare it against what Info.plist exports.
     static var contentType: UTType { .astridBoardCard }
 
+    /// The wire bytes, spelled once. The board's drop handling reads item
+    /// providers directly (it needs the drag's live location, which
+    /// `.dropDestination` doesn't report), so the decode is no longer done for
+    /// us by the Transferable machinery — this pair keeps the two halves of the
+    /// drag from drifting apart, which is exactly how this payload broke before.
+    func encoded() throws -> Data {
+        try JSONEncoder().encode(self)
+    }
+
     static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: contentType)
+        DataRepresentation(contentType: contentType) { payload in
+            try payload.encoded()
+        } importing: { data in
+            try BoardCardPayload(data: data)
+        }
+    }
+}
+
+extension BoardCardPayload {
+    /// Declared in an extension so the memberwise `init(taskId:)` survives.
+    init(data: Data) throws {
+        self = try JSONDecoder().decode(BoardCardPayload.self, from: data)
     }
 }

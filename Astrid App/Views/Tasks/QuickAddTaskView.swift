@@ -32,6 +32,8 @@ struct QuickAddTaskView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Live keyboard geometry — the input's height ceiling tracks it.
+    @StateObject private var keyboardLayout = KeyboardLayoutObserver.shared
 
     let selectedList: TaskList?
     var onTaskCreated: ((Task) -> Void)?
@@ -60,7 +62,29 @@ struct QuickAddTaskView: View {
 
     // Height constraints for expandable input
     private let minHeight: CGFloat = 36
-    private let maxHeight: CGFloat = 200  // Allow for longer task titles (~8-10 lines)
+
+    /// The bar's own vertical trim around the input: 12pt padding top and
+    /// bottom, plus a little breathing room so a maxed-out field doesn't butt
+    /// against the top safe area.
+    private let barChromeHeight: CGFloat = 24 + 24
+
+    /// A board column footer can't take the whole screen — the column header
+    /// and a usable slice of the card well have to survive above it.
+    private let boardColumnReservedHeight: CGFloat = 220
+
+    /// The tallest the input may grow: the room that actually exists above the
+    /// keyboard. This was a hardcoded 200pt, so a long title stopped growing at
+    /// ~8 lines and scrolled inside itself with the screen half empty
+    /// (task 5dd9941b).
+    private var maxHeight: CGFloat {
+        quickAddMaxInputHeight(
+            keyboardTopY: keyboardLayout.keyboardTopY,
+            topSafeAreaInset: keyboardLayout.topSafeAreaInset,
+            barChromeHeight: barChromeHeight
+                + (boardFooterStyle ? boardColumnReservedHeight : 0),
+            minHeight: minHeight
+        )
+    }
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: ThemeMode {
