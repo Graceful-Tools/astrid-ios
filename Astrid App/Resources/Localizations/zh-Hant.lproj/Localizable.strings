@@ -687,6 +687,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "無截止日期";
+"picker.today" = "今天";
+"picker.tomorrow" = "明天";
+"picker.in_3_days" = "3 天後";
+"picker.next_week" = "下週";
+"picker.morning" = "早上（9:00）";
+"picker.afternoon" = "下午（14:00）";
+"picker.evening" = "傍晚（18:00）";
+"picker.night" = "晚上（21:00）";
 "picker.custom_date" = "自訂日期";
 "picker.custom_time" = "自訂時間";
 "picker.add_time" = "新增時間";

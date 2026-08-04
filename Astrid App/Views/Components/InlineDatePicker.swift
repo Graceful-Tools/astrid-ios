@@ -14,13 +14,12 @@ struct InlineDatePicker: View {
 
     @State private var showingPicker = false
 
-    // Quick date options (matching mobile web)
-    private let quickOptions: [(String, Int)] = [
-        ("Today", 0),
-        ("Tomorrow", 1),
-        ("In 3 days", 3),
-        ("Next week", 7)
-    ]
+    // Quick date options — from the SHARED source so Mac offers the same set in the same
+    // order. They used to be a private array here, which is exactly why the Mac had none
+    // (ea4f5124).
+    private var quickOptions: [(String, Int)] {
+        DueDateQuickPicks.dateOptions.map { (NSLocalizedString($0.titleKey, comment: ""), $0.daysFromToday) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing8) {

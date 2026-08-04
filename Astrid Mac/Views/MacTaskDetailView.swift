@@ -203,6 +203,24 @@ struct MacTaskDetailView: View {
                             }
                         }
                         if hasDue {
+                            // Quick picks, the way iOS has always had them (ea4f5124). The Mac
+                            // offered a bare DatePicker, so setting "tomorrow" meant opening a
+                            // calendar and finding it. Options come from the SHARED
+                            // DueDateQuickPicks so the two platforms cannot disagree about what
+                            // "Next week" means.
+                            quickPickRow(DueDateQuickPicks.dateOptions.map(\.titleKey)) { index in
+                                due = DueDateQuickPicks.date(
+                                    daysFromToday: DueDateQuickPicks.dateOptions[index].daysFromToday,
+                                    from: due)
+                                saveDue()
+                            }
+                            if !isAllDay {
+                                quickPickRow(DueDateQuickPicks.timeOptions.map(\.titleKey)) { index in
+                                    due = DueDateQuickPicks.applying(
+                                        hour: DueDateQuickPicks.timeOptions[index].hour, to: due)
+                                    saveDue()
+                                }
+                            }
                             Toggle(NSLocalizedString("All day", comment: ""), isOn: $isAllDay)
                                 .onChange(of: isAllDay) { saveDue() }
                             if repeating == .custom {
@@ -549,6 +567,23 @@ struct MacTaskDetailView: View {
     }
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
+    /// A row of quick-pick chips — the Mac equivalent of the iOS inline pickers' preset buttons.
+    /// Titles are localisation keys from DueDateQuickPicks, so the two platforms offer the same
+    /// options in the same order by construction (ea4f5124).
+    private func quickPickRow(_ titleKeys: [String], onPick: @escaping (Int) -> Void) -> some View {
+        HStack(spacing: 6) {
+            ForEach(Array(titleKeys.enumerated()), id: \.offset) { index, key in
+                Button(NSLocalizedString(key, comment: "")) { onPick(index) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.bgSecondary, in: Capsule())
+                    .macPointingHand()
+            }
+        }
+    }
+
     private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(label).font(MacTypography.label).foregroundStyle(Theme.textMuted)

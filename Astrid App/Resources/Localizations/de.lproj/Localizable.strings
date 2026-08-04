@@ -685,6 +685,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "Kein Fälligkeitsdatum";
+"picker.today" = "Heute";
+"picker.tomorrow" = "Morgen";
+"picker.in_3_days" = "In 3 Tagen";
+"picker.next_week" = "Nächste Woche";
+"picker.morning" = "Morgens (9 Uhr)";
+"picker.afternoon" = "Nachmittags (14 Uhr)";
+"picker.evening" = "Abends (18 Uhr)";
+"picker.night" = "Nachts (21 Uhr)";
 "picker.custom_date" = "Benutzerdefiniertes Datum";
 "picker.custom_time" = "Benutzerdefinierte Zeit";
 "picker.add_time" = "Zeit hinzufügen";

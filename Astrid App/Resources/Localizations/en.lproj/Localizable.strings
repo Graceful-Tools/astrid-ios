@@ -726,6 +726,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "No due date";
+"picker.today" = "Today";
+"picker.tomorrow" = "Tomorrow";
+"picker.in_3_days" = "In 3 days";
+"picker.next_week" = "Next week";
+"picker.morning" = "Morning (9 AM)";
+"picker.afternoon" = "Afternoon (2 PM)";
+"picker.evening" = "Evening (6 PM)";
+"picker.night" = "Night (9 PM)";
 "picker.custom_date" = "Custom Date";
 "picker.custom_time" = "Custom Time";
 "picker.add_time" = "Add time";

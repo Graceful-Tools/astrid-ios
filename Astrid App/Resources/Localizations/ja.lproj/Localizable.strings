@@ -685,6 +685,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "期限なし";
+"picker.today" = "今日";
+"picker.tomorrow" = "明日";
+"picker.in_3_days" = "3日後";
+"picker.next_week" = "来週";
+"picker.morning" = "朝（9時）";
+"picker.afternoon" = "午後（14時）";
+"picker.evening" = "夕方（18時）";
+"picker.night" = "夜（21時）";
 "picker.custom_date" = "カスタム日付";
 "picker.custom_time" = "カスタム時刻";
 "picker.add_time" = "時刻を追加";

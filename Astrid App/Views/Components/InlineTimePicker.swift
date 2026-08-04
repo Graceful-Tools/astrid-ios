@@ -20,13 +20,10 @@ struct InlineTimePicker: View {
     @State private var pickerMinute: Int = 0
     @State private var pickerPeriod: Int = 0 // 0 = AM, 1 = PM
 
-    // Quick time options (matching mobile web)
-    private let quickOptions: [(String, Int)] = [
-        ("Morning (9 AM)", 9),
-        ("Afternoon (2 PM)", 14),
-        ("Evening (6 PM)", 18),
-        ("Night (9 PM)", 21)
-    ]
+    // Quick time options — from the SHARED source, same reason as the date picker (ea4f5124).
+    private var quickOptions: [(String, Int)] {
+        DueDateQuickPicks.timeOptions.map { (NSLocalizedString($0.titleKey, comment: ""), $0.hour) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing8) {

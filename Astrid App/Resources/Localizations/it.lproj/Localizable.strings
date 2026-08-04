@@ -685,6 +685,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "Nessuna scadenza";
+"picker.today" = "Oggi";
+"picker.tomorrow" = "Domani";
+"picker.in_3_days" = "Tra 3 giorni";
+"picker.next_week" = "Prossima settimana";
+"picker.morning" = "Mattina (9:00)";
+"picker.afternoon" = "Pomeriggio (14:00)";
+"picker.evening" = "Sera (18:00)";
+"picker.night" = "Notte (21:00)";
 "picker.custom_date" = "Data personalizzata";
 "picker.custom_time" = "Ora personalizzata";
 "picker.add_time" = "Aggiungi ora";

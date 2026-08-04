@@ -685,6 +685,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "Geen deadline";
+"picker.today" = "Vandaag";
+"picker.tomorrow" = "Morgen";
+"picker.in_3_days" = "Over 3 dagen";
+"picker.next_week" = "Volgende week";
+"picker.morning" = "Ochtend (9:00)";
+"picker.afternoon" = "Middag (14:00)";
+"picker.evening" = "Avond (18:00)";
+"picker.night" = "Nacht (21:00)";
 "picker.custom_date" = "Aangepaste datum";
 "picker.custom_time" = "Aangepaste tijd";
 "picker.add_time" = "Tijd toevoegen";

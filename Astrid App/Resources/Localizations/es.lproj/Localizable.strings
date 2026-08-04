@@ -701,6 +701,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "Sin fecha límite";
+"picker.today" = "Hoy";
+"picker.tomorrow" = "Mañana";
+"picker.in_3_days" = "En 3 días";
+"picker.next_week" = "Próxima semana";
+"picker.morning" = "Mañana (9:00)";
+"picker.afternoon" = "Tarde (14:00)";
+"picker.evening" = "Noche (18:00)";
+"picker.night" = "Madrugada (21:00)";
 "picker.custom_date" = "Fecha personalizada";
 "picker.custom_time" = "Hora personalizada";
 "picker.add_time" = "Añadir hora";

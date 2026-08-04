@@ -687,6 +687,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "마감일 없음";
+"picker.today" = "오늘";
+"picker.tomorrow" = "내일";
+"picker.in_3_days" = "3일 후";
+"picker.next_week" = "다음 주";
+"picker.morning" = "아침 (오전 9시)";
+"picker.afternoon" = "오후 (오후 2시)";
+"picker.evening" = "저녁 (오후 6시)";
+"picker.night" = "밤 (오후 9시)";
 "picker.custom_date" = "사용자 지정 날짜";
 "picker.custom_time" = "사용자 지정 시간";
 "picker.add_time" = "시간 추가";

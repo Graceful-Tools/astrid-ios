@@ -685,6 +685,14 @@
 
 /* Inline Pickers */
 "picker.no_due_date" = "Без срока";
+"picker.today" = "Сегодня";
+"picker.tomorrow" = "Завтра";
+"picker.in_3_days" = "Через 3 дня";
+"picker.next_week" = "Следующая неделя";
+"picker.morning" = "Утро (9:00)";
+"picker.afternoon" = "День (14:00)";
+"picker.evening" = "Вечер (18:00)";
+"picker.night" = "Ночь (21:00)";
 "picker.custom_date" = "Своя дата";
 "picker.custom_time" = "Своё время";
 "picker.add_time" = "Добавить время";
