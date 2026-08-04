@@ -58,6 +58,13 @@ struct TaskDetailViewNew: View {
             }
         }
     }
+    /// One editor at a time, one save rule — the same coordinator the Mac detail uses
+    /// (55010e29). iOS already saved the title on blur; what it lacked was exclusivity, so
+    /// the title and the comment box could both be live at once.
+    @StateObject private var editing = EditingSession()
+    private static let titleEditor: EditorID = "ios.detail.title"
+    private static let commentEditor: EditorID = "ios.detail.comment"
+
     @FocusState private var isTitleFocused: Bool  // Focus state for title field
 
     // Action menu state (moved from TaskActionsView)
@@ -323,9 +330,18 @@ struct TaskDetailViewNew: View {
                 }
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.top, Theme.spacing8)
+                .onChange(of: editing.activeEditor) { _, active in
+                    // Exclusivity applied: whoever lost the session resigns, and resigning saves.
+                    if active != Self.titleEditor { isTitleFocused = false }
+                    if active != Self.commentEditor { isCommentFocused = false }
+                }
+                .onDisappear { editing.commitAll() }
                 .onChange(of: isTitleFocused) {
-                    if !isTitleFocused && !isReadOnly {
-                        saveTitle()
+                    if isTitleFocused {
+                        editing.begin(Self.titleEditor)
+                    } else {
+                        editing.end(Self.titleEditor)
+                        if !isReadOnly { saveTitle() }
                     }
                 }
 
@@ -589,6 +605,9 @@ struct TaskDetailViewNew: View {
                 reevaluateCommentBar()
             }
             .onChange(of: isCommentFocused) { _, focused in
+                // Opening the comment box commits the title, so the two cannot be live at once
+                // (55010e29) — the same rule the Mac detail follows.
+                if focused { editing.begin(Self.commentEditor) } else { editing.end(Self.commentEditor) }
                 // Scroll to bottom when comment input is focused (like messaging apps)
                 if focused {
                     withAnimation(.easeInOut(duration: 0.3)) {
