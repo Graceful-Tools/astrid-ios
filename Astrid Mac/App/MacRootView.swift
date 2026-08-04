@@ -465,6 +465,13 @@ struct MacRootView: View {
                 .font(MacTypography.rowTitle)
                 .focused($addFieldFocused)
                 .onSubmit { commitDraft() }
+                // The caret was unreachable except by clicking the field: this FocusState was
+                // bound here and set by nothing, which is "add task didn't always have a cursor
+                // prompt" (b71850e6). Focus follows the bar becoming usable, and the rule for
+                // WHEN lives in MacAddTaskBar so it can be asserted.
+                .onAppear { focusAddFieldIfAppropriate() }
+                .onChange(of: selectedListId) { focusAddFieldIfAppropriate() }
+                .onChange(of: taskSearchQuery.isEmpty) { focusAddFieldIfAppropriate() }
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
 
@@ -866,6 +873,17 @@ struct MacRootView: View {
     }
 
     /// - Parameter openDetails: ⊕ opens the new task's details (iOS / web); Return does not.
+    /// Put the caret in the quick-add field when the rule says it belongs there.
+    private func focusAddFieldIfAppropriate() {
+        guard MacAddTaskBar.shouldTakeFocus(
+            isVisible: MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
+                                               hasSelection: selectedListId != nil,
+                                               isMyTasks: selectedListId == Self.myTasksId),
+            isSearchActive: !taskSearchQuery.isEmpty
+        ) else { return }
+        addFieldFocused = true
+    }
+
     private func commitDraft(openDetails: Bool = false) {
         guard let args = MacQuickAdd.makeArgs(rawText: draftTitle, selectedListId: selectedListId,
                                               lists: listService.lists,
@@ -874,6 +892,7 @@ struct MacRootView: View {
                                               priorityOverride: draftPriorityOverride,
                                               currentUserId: auth.userId) else { return }
         draftTitle = ""
+        if MacAddTaskBar.retainsFocusAfterCommit { addFieldFocused = true }
         let assigneeOverride = draftAssigneeOverride
         draftPriorityOverride = nil          // the overrides apply to one task, like iOS
         draftAssigneeOverride = nil

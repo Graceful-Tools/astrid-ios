@@ -15,5 +15,22 @@ enum MacAddTaskBar {
         guard hasSelection else { return false }
         return isMyTasks || !isVirtualSelection
     }
+
+    /// Whether the quick-add field should take the caret. (Task b71850e6)
+    ///
+    /// The view had a `@FocusState` bound to the field that nothing ever set, so the only way to
+    /// get a cursor was to click directly into it — "add task didn't always have a cursor
+    /// prompt". When focus is taken is a rule rather than a gesture, so it lives here with
+    /// `isVisible` where it can be asserted.
+    ///
+    /// Search is the exception that matters: grabbing the caret while someone is typing a query
+    /// would be worse than never focusing at all.
+    static func shouldTakeFocus(isVisible: Bool, isSearchActive: Bool) -> Bool {
+        isVisible && !isSearchActive
+    }
+
+    /// The caret stays in the field after a task is added, so several can be typed in a row
+    /// without clicking back in each time.
+    static let retainsFocusAfterCommit = true
 }
 #endif

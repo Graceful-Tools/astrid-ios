@@ -28,5 +28,31 @@ final class MacAddTaskBarTests: XCTestCase {
         XCTAssertFalse(MacAddTaskBar.isVisible(isVirtualSelection: true, hasSelection: false,
                                                isMyTasks: true), "Not even My Tasks without a selection")
     }
+
+    // MARK: - Focus (Task b71850e6)
+
+    /// THE BUG: `addFieldFocused` was bound to the field and never set by anything, so the bar
+    /// could only take focus from a direct click — "add task didn't always have a cursor prompt".
+    func testTakesFocusWhenTheBarIsShownForARealList() {
+        XCTAssertTrue(MacAddTaskBar.shouldTakeFocus(isVisible: true, isSearchActive: false))
+    }
+
+    /// A hidden bar must not grab the caret — there is no field on screen to put it in.
+    func testDoesNotTakeFocusWhenHidden() {
+        XCTAssertFalse(MacAddTaskBar.shouldTakeFocus(isVisible: false, isSearchActive: false))
+    }
+
+    /// The one case that must NOT steal focus: typing a search query has to stay in the search
+    /// field. A quick-add that grabs the caret mid-search is worse than one that never focuses.
+    func testDoesNotStealFocusFromSearch() {
+        XCTAssertFalse(MacAddTaskBar.shouldTakeFocus(isVisible: true, isSearchActive: true),
+                       "focus jumped out of the search field and into quick-add")
+    }
+
+    /// Adding several tasks in a row is the common case, so the caret stays put after a commit
+    /// rather than making you click back in each time.
+    func testKeepsFocusAfterAddingATask() {
+        XCTAssertTrue(MacAddTaskBar.retainsFocusAfterCommit)
+    }
 }
 #endif

@@ -583,8 +583,10 @@ struct MacTaskDetailView: View {
         repeating = task.repeating ?? .never
         customPattern = task.repeatingData
         if let d = task.dueDateTime { hasDue = true; due = d } else { hasDue = false }
-        subtasks = (task.listIds ?? []).flatMap { taskService.getTasksForList($0) }
-            .filter { $0.parentTaskId == task.id }
+        // Ask parentage directly. Walking the parent's lists could not see a child of a listless
+        // task at all — every task added from My Tasks — and duplicated children when the parent
+        // sat in several lists (effc7112).
+        subtasks = MacSubtasks.of(parent: task, in: taskService.tasks)
         _Concurrency.Task {
             if let listId = task.listIds?.first {
                 try? await ListMemberService.shared.fetchMembers(listId: listId)
