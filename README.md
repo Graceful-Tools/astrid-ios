@@ -198,20 +198,28 @@ See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) for the full API specificatio
 
 ## Deployment
 
-Push to main triggers Xcode Cloud build automatically:
+Day-to-day work ships from the dev branches; `main` is reserved for App Store releases:
 
 ```bash
 # Run predeploy checks first
 npm run predeploy
 
-# Then push
-git push origin main
+# Then push to the dev branch for the platform you changed
+git push origin iosdev     # or macdev for Mac-only work
 ```
 
-TestFlight builds are distributed via Xcode Cloud — two workflows, `iOS Internal testers` and
-`Mac app internal testers`, both triggered by a push to `main`. Bump `CURRENT_PROJECT_VERSION`
-before pushing; Xcode Cloud stamps its own build number on CI archives, but local archives (the
-DMG) use this one.
+Xcode Cloud runs four workflows:
+
+| Branch | Workflow | Scheme | Goes to |
+|--------|----------|--------|---------|
+| `iosdev` | `iOS Internal testers` | `Astrid App` | TestFlight (internal) |
+| `macdev` | `Mac app internal testers` | `Astrid Mac` | TestFlight (internal) |
+| `main` | `iOS Release` | `Astrid App` | App Store submission |
+| `main` | `Mac Release` | `Astrid Mac` | App Store submission |
+
+Merge into `main` only when cutting an actual App Store release. Bump
+`CURRENT_PROJECT_VERSION` before pushing; Xcode Cloud stamps its own build number on CI
+archives, but local archives (the DMG) use this one.
 
 Publishing a Mac release:
 

@@ -84,13 +84,23 @@ xcodebuild test  -scheme "Astrid App" -destination "platform=iOS Simulator,name=
 
 ## Deployment
 
-**Pushing to `main` triggers an Xcode Cloud build automatically; TestFlight distributes it.**
+**Day-to-day work ships from `iosdev` / `macdev`. `main` is the App Store branch.**
+
+| Branch | Xcode Cloud workflow | Scheme | Goes to |
+|--------|---------------------|--------|---------|
+| `iosdev` | iOS Internal testers | `Astrid App` | TestFlight (internal) |
+| `macdev` | Mac app internal testers | `Astrid Mac` | TestFlight (internal) |
+| `main` | iOS Release + Mac Release | both | **App Store submission** |
 
 ```bash
-npm run predeploy          # 1. Verify (must pass)
-git add -A && git commit   # 2. Commit (message includes task id if applicable)
-git push origin main       # 3. Push → triggers Xcode Cloud → TestFlight
+npm run predeploy               # 1. Verify (must pass)
+git add -A && git commit        # 2. Commit (message includes task id if applicable)
+git push origin iosdev          # 3. Push → Xcode Cloud → TestFlight
 ```
+
+Use `macdev` for Mac-only work; push to both when a change spans the shared
+`Core/` tree. Merge into `main` **only** when cutting an actual App Store
+release — a push to `main` starts a build intended for submission.
 
 After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
 Check build status in App Store Connect.
@@ -99,11 +109,11 @@ Check build status in App Store Connect.
 
 ## Approvals
 
-**Always ask the user before:** pushing to `main` (triggers a production build),
-significant architecture/API changes, or deleting files.
+**Always ask the user before:** pushing to `main` (starts an App Store release
+build), significant architecture/API changes, or deleting files.
 
 **Autonomous (no approval needed):** code analysis, local builds/tests, implementation,
-local commits, documentation updates.
+local commits, documentation updates, pushing to `iosdev` / `macdev`.
 
 ---
 

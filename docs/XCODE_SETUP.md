@@ -34,7 +34,8 @@ xcodebuild build -scheme "Astrid App" \
 ```
 
 See the root `CLAUDE.md` for the full quality-gate commands and the deploy
-workflow (push to `main` triggers an Xcode Cloud build → TestFlight).
+workflow (push to `iosdev` / `macdev` → Xcode Cloud → TestFlight; `main` is
+reserved for App Store release builds).
 
 ## Targets
 

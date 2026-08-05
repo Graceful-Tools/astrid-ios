@@ -34,5 +34,7 @@ Pull tasks from the Astrid iOS to-do list and work through them until the list i
    means the previous fix missed — re-read it and find a different cause rather
    than re-closing it on the same reasoning.
 
-6. **When the list is empty**, say so and ask whether to ship. Pushing to `main`
-   triggers a production build, so that always waits for an explicit go-ahead.
+6. **When the list is empty**, say so and ask whether to ship. Shipping means
+   pushing to `iosdev` (or `macdev` for Mac work), which builds to TestFlight.
+   `main` is the App Store branch — pushing there starts a release build, so
+   that always waits for an explicit go-ahead.
