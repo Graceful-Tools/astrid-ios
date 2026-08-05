@@ -66,21 +66,54 @@ enum BoardAutoAdvanceEdge {
     case trailing
 }
 
-/// How long a dragged card must sit in an edge zone before the board moves,
-/// and the interval between subsequent moves while it stays there.
+/// How long a dragged card must sit in an edge zone before the board moves.
 ///
-/// Short enough to read as a response to the drag (the report is "it doesn't
-/// respond quickly"), long enough that a card merely crossing the edge on its
-/// way to a nearer column doesn't launch the board.
+/// Short enough to read as a response to the drag (task 233ec244 reported "it
+/// doesn't respond quickly"), long enough that a card merely crossing the edge
+/// on its way to a nearer column doesn't launch the board. It is a debounce
+/// only — it is NOT a repeat interval. See `boardShouldAutoAdvance`.
 let boardAutoAdvanceDwell: TimeInterval = 0.3
 
+/// How far a drag must travel horizontally toward an edge before that edge will
+/// move the board — the "meaningful movement" the feature was asked for.
+///
+/// Without it, a card picked up inside an edge zone and held still scrolled the
+/// board although the user had not moved at all (task 84595f3c).
+let boardAutoAdvanceTravelThreshold: CGFloat = 44
+
 /// Width of the leading/trailing hot zones. A proportion of the board width so
-/// it scales, floored at a touch target so it stays hittable mid-drag, and
-/// capped so a wide iPad board doesn't turn a quarter of the screen into a
-/// scroll trigger.
+/// it scales, floored so it stays reachable mid-drag, and capped so a wide iPad
+/// board doesn't turn a strip of the screen into a scroll trigger.
+///
+/// The floor used to be 44pt, reasoned as a touch target. That was the wrong
+/// model: this is a region you drag THROUGH, not one you tap, and on a 390pt
+/// phone — where a column IS the screen — a 44pt floor made 36% of the width a
+/// scroll trigger, so a card dragged near either side set the board moving
+/// (task 84595f3c).
 func boardAutoAdvanceEdgeWidth(containerWidth: CGFloat) -> CGFloat {
-    let proportional = max(0, containerWidth) * 0.18
-    return min(96, max(44, proportional))
+    let proportional = max(0, containerWidth) * 0.10
+    return min(64, max(32, proportional))
+}
+
+/// Whether a drag should advance the board right now.
+///
+/// Three conditions, each one a fault found in the first version:
+/// - the drag point is in an edge zone at all;
+/// - it has NOT already advanced during this stay in the zone — the drag must
+///   leave and re-enter to move another column. The first version repeated
+///   every `boardAutoAdvanceDwell` for as long as the point stayed put, which
+///   walked the board across every column from a single entry;
+/// - it has travelled `boardAutoAdvanceTravelThreshold` *toward that edge*
+///   since the card was picked up. Travel is signed, so drifting into the
+///   leading zone never triggers a rightward advance.
+func boardShouldAutoAdvance(edge: BoardAutoAdvanceEdge?,
+                            travelSincePickup: CGFloat,
+                            hasFiredForThisEntry: Bool) -> Bool {
+    guard let edge, !hasFiredForThisEntry else { return false }
+    switch edge {
+    case .leading:  return travelSincePickup <= -boardAutoAdvanceTravelThreshold
+    case .trailing: return travelSincePickup >= boardAutoAdvanceTravelThreshold
+    }
 }
 
 /// The edge zone containing `dragX`, or nil when the drag is over the cards.

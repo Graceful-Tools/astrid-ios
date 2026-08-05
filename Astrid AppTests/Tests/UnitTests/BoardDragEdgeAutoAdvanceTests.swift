@@ -22,24 +22,31 @@ import CoreGraphics
 final class BoardDragEdgeAutoAdvanceTests: XCTestCase {
 
     // MARK: - Hot zone size
+    //
+    // The three assertions below originally required a 44pt *minimum*, reasoning
+    // that a smaller zone would be an unhittable touch target. That was wrong,
+    // and task 84595f3c is the bill for it: an edge zone is a region you drag
+    // THROUGH, not one you tap, and the 44pt floor made 36% of a 390pt phone a
+    // scroll trigger. The numbers were revised deliberately — see
+    // BoardAutoAdvanceRunawayTests.
 
-    /// Wide enough to hit while dragging one-handed on a phone, without eating
-    /// the card area you're trying to drop into.
+    /// Reachable while dragging one-handed, without eating the card area you're
+    /// trying to drop into.
     func testEdgeZoneIsAReachableFractionOfAPhoneWidth() {
         let zone = boardAutoAdvanceEdgeWidth(containerWidth: 390)
-        XCTAssertGreaterThanOrEqual(zone, 44, "smaller than a touch target is unhittable mid-drag")
-        XCTAssertLessThanOrEqual(zone, 390 * 0.25, "the zone must not swallow the drop area")
+        XCTAssertGreaterThanOrEqual(zone, 32, "too narrow to reach mid-drag")
+        XCTAssertLessThanOrEqual(zone, 390 * 0.125, "the zone must not swallow the drop area")
     }
 
     /// On an iPad the same fraction would be a huge strip, so it's capped.
     func testEdgeZoneIsCappedOnWideBoards() {
-        XCTAssertLessThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: 1366), 96)
+        XCTAssertLessThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: 1366), 64)
     }
 
     /// Degenerate widths still leave a usable target rather than a zero-width one.
     func testEdgeZoneNeverCollapses() {
-        XCTAssertGreaterThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: 0), 44)
-        XCTAssertGreaterThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: -10), 44)
+        XCTAssertGreaterThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: 0), 32)
+        XCTAssertGreaterThanOrEqual(boardAutoAdvanceEdgeWidth(containerWidth: -10), 32)
     }
 
     // MARK: - Which edge a drag point is in
