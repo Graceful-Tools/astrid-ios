@@ -403,21 +403,17 @@ struct TaskDetailViewNew: View {
                                 }
                             }
                         } else {
-                            // Repeat WRAPS to its own line. All three chips on one line
-                            // demanded the sum of three fixed-size controls, which is more
-                            // than a phone row has — the last was pushed off, and once the
-                            // date grew a weekday it was the TIME that vanished.
-                            // TaskWhenRowLayout states the lines; its tests pin them.
-                            VStack(alignment: .leading, spacing: Theme.spacing8) {
-                                ForEach(Array(TaskWhenRowLayout.lines(
+                            // WRAPS when it has to, and only then. One HStack demanded the
+                            // sum of three fixed-size chips — more than a phone row has —
+                            // so the last was pushed off, and once the date grew a weekday
+                            // it was the TIME that vanished. FlowLayout keeps them on one
+                            // line while they fit and wraps when they do not.
+                            FlowLayout(spacing: Theme.spacing8, rowSpacing: Theme.spacing8) {
+                                ForEach(Array(TaskWhenRowLayout.controls(
                                     hasDate: editedDueDate != nil,
                                     isCustomRepeat: editedRepeating == .custom
-                                ).enumerated()), id: \.offset) { _, line in
-                                    HStack(spacing: Theme.spacing8) {
-                                        ForEach(Array(line.enumerated()), id: \.offset) { _, control in
-                                            whenControl(control)
-                                        }
-                                    }
+                                ).enumerated()), id: \.offset) { _, control in
+                                    whenControl(control)
                                 }
                             }
                         }

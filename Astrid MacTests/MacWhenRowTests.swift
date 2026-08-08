@@ -21,42 +21,31 @@ import XCTest
 
 final class MacWhenRowTests: XCTestCase {
 
-    // MARK: - THE BUG: the row led with a toggle
+    // MARK: - The row's composition is the SHARED one
 
-    /// An undated task offers ONE control — the trigger. Not a toggle, and not
-    /// a time or repeat control with nothing to attach to.
+    /// The Mac renders the same lines iOS does. Its own `MacWhenControl` — which
+    /// existed partly so the retired due-date toggle and inline quick-pick rows
+    /// could be asserted absent — is gone: the shared enum has no cases for
+    /// them, which is a stronger guarantee than a test.
     func testUndatedTaskShowsOnlyTheDateTrigger() {
-        XCTAssertEqual(MacWhenRow.controls(hasDate: false), [.date])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: false), [.date])
     }
 
-    /// With a date, time and repeat join it — the iOS row, in the iOS order.
-    func testDatedTaskShowsDateThenTimeThenRepeat() {
-        XCTAssertEqual(MacWhenRow.controls(hasDate: true), [.date, .time, .repeatPattern])
+    /// THE BUG: the three controls were forced onto one line, each with a
+    /// minimum width so they would all fit a 380pt panel — which is exactly what
+    /// truncated the date to "Sat, Aug 15,…". They wrap now, and only when they
+    /// must: given room, all three stay on one line.
+    func testControlsShareALineWhenTheyFitAndWrapWhenTheyDoNot() {
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 380, spacing: 10).count, 1)
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 280, spacing: 10).count, 2)
     }
 
-    /// The toggle is gone in both states. It is not a control the row can offer.
-    func testNoDueDateToggleInEitherState() {
-        for hasDate in [true, false] {
-            XCTAssertFalse(MacWhenRow.controls(hasDate: hasDate).contains(.dueDateToggle),
-                           "the row must never lead with a toggle again (hasDate: \(hasDate))")
-        }
-    }
-
-    /// THE BUG, stated directly: quick picks must not be laid out in the detail
-    /// pane. They belong to the popover.
-    func testQuickPicksAreNeverInlineInTheDetailPane() {
-        for hasDate in [true, false] {
-            let controls = MacWhenRow.controls(hasDate: hasDate)
-            XCTAssertFalse(controls.contains(.dateQuickPicks))
-            XCTAssertFalse(controls.contains(.timeQuickPicks))
-            XCTAssertFalse(controls.contains(.allDayToggle))
-        }
-    }
-
-    /// The pane's shape must not depend on whether a task has a date — the row
-    /// grows by controls on one line, never by unfolding extra rows.
-    func testTheRowIsAlwaysASingleLine() {
-        XCTAssertLessThanOrEqual(MacWhenRow.controls(hasDate: true).count, 3)
+    /// A custom repeat gets no chip: its real pattern is on its own line below,
+    /// and that summary is now the control itself rather than dead text beside
+    /// a separate "Edit" button.
+    func testCustomRepeatGetsNoChipOnTheRow() {
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: true),
+                       [.date, .time])
     }
 
     // MARK: - The popover carries what the pane used to
@@ -138,10 +127,12 @@ final class MacWhenRowTests: XCTestCase {
                       + "of a \(MacLayout.detailPanelWidth)pt panel")
     }
 
-    /// One minimum per control actually on the row.
-    func testRowMinimumsCoverExactlyTheControlsOnTheRow() {
-        XCTAssertEqual(MacDetailRowFit.whenRowMinimums.count,
-                       MacWhenRow.controls(hasDate: true).count)
+    /// The recorded minimums describe the date/time pair — the two controls that
+    /// must share a line for the row to be usable at all. Repeat may wrap.
+    func testRowMinimumsDescribeTheDateAndTimePair() {
+        XCTAssertEqual(MacDetailRowFit.whenRowMinimums.count, 2)
+        XCTAssertTrue(MacDetailRowFit.fits(MacDetailRowFit.whenRowMinimums,
+                                           in: MacLayout.detailPanelWidth))
     }
 
     // MARK: - Storage conversion

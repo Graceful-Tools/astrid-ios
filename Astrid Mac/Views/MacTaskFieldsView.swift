@@ -130,28 +130,39 @@ struct MacTaskFieldsView: View {
 
     private var whenRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                ForEach(Array(MacWhenRow.controls(hasDate: hasDue).enumerated()),
-                        id: \.offset) { index, control in
+            // The SHARED wrapping layout iOS uses: the controls stay on one line
+            // while they fit and wrap when they do not. The Mac used to force a
+            // minimum width on each so all three would fit one line, which is
+            // exactly what truncated the date to "Sat, Aug 15,…".
+            FlowLayout(spacing: 10, rowSpacing: 6) {
+                ForEach(Array(TaskWhenRowLayout.controls(
+                    hasDate: hasDue, isCustomRepeat: repeating == .custom
+                ).enumerated()), id: \.offset) { _, control in
                     whenControl(control)
-                        .frame(minWidth: MacDetailRowFit.whenRowMinimums[index])
                 }
             }
             // A custom repeat cannot say what it is in a chip, so its pattern gets
-            // its own line — the one place the row is allowed to grow (42013da7).
+            // its own line. The summary IS the control: it used to be dead text
+            // beside a separate "Edit" button, which is a second thing to aim at
+            // for one action — iOS made the summary itself the trigger (42013da7).
             if hasDue, repeating == .custom {
-                HStack {
-                    Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
-                        .foregroundStyle(Theme.textSecondary).font(.callout)
-                    Spacer()
-                    Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
+                Button { showCustomRepeat = true } label: {
+                    Text(customPattern.map(MacCustomRepeat.summary)
+                         ?? NSLocalizedString("repeating.custom", comment: "Custom"))
+                        .font(.callout)
+                        .foregroundStyle(Theme.accent)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .macPointingHand()
             }
         }
     }
 
     @ViewBuilder
-    private func whenControl(_ control: MacWhenControl) -> some View {
+    private func whenControl(_ control: TaskWhenControl) -> some View {
         switch control {
         case .date:
             MacDueDatePicker(date: dueDateBinding, isAllDay: isAllDay) { saveDue() }
@@ -175,11 +186,10 @@ struct MacTaskFieldsView: View {
                     }
                 }
             } label: {
-                Text(repeating.displayName).font(.system(size: 11)).lineLimit(1)
+                Text(repeating.displayName).font(.system(size: 11)).fixedSize()
             }
             .menuStyle(.borderlessButton)
-        case .dueDateToggle, .dateQuickPicks, .timeQuickPicks, .allDayToggle:
-            EmptyView()
+            .fixedSize()
         }
     }
 

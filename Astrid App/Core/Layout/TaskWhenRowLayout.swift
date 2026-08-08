@@ -10,8 +10,11 @@
 //  weekday ("Wed, Aug 12, 2026") is what tipped it over, and the TIME vanished.
 //  A layout that holds only while the content stays small is not holding.
 //
-//  Repeat now wraps to its own line — the way a custom repeat's pattern already
-//  did — so date and time keep the first line and the time can't be crowded out.
+//  The controls now WRAP: they share a line while there is room and fall to the
+//  next when there is not (FlowLayout / FlowRows). An earlier version of this fix
+//  assigned repeat to line two unconditionally — which cured the squeeze but spent
+//  a second line even on a panel with space to spare. Where a control sits is a
+//  function of the width available, not something to decide in advance.
 
 import Foundation
 
@@ -23,16 +26,16 @@ enum TaskWhenControl: Equatable {
 }
 
 enum TaskWhenRowLayout {
-    /// The controls, grouped into lines.
+    /// The controls the row shows, in order. How they fall across lines is the
+    /// layout's job, not this function's.
     ///
     /// Time and repeat need a date to attach to, so an undated task is a single
     /// "add a date" control rather than three inert ones. A CUSTOM repeat is
-    /// omitted here: it already has a row of its own below showing the real
-    /// pattern, and a "Custom" chip would be a second, less informative control
-    /// for the same thing (42013da7).
-    static func lines(hasDate: Bool, isCustomRepeat: Bool) -> [[TaskWhenControl]] {
-        guard hasDate else { return [[.date]] }
-        let first: [TaskWhenControl] = [.date, .time]
-        return isCustomRepeat ? [first] : [first, [.repeatPattern]]
+    /// omitted: it already has a row of its own below showing the real pattern,
+    /// and a "Custom" chip would be a second, less informative control for the
+    /// same thing (42013da7).
+    static func controls(hasDate: Bool, isCustomRepeat: Bool) -> [TaskWhenControl] {
+        guard hasDate else { return [.date] }
+        return isCustomRepeat ? [.date, .time] : [.date, .time, .repeatPattern]
     }
 }

@@ -1,91 +1,113 @@
 //  TaskWhenRowLayoutTests.swift
-//  How the task detail's "When" controls are laid out across lines.
+//  Which controls the task detail's "When" row shows, and how they wrap.
 //
 //  THE BUG: date, time and repeat were one HStack. Each chip sizes to its own
-//  content and refuses to compress (`.fixedSize`), so the row's width is the sum
-//  of three chips — and on a phone, inside a labelled row, that is more than
-//  there is. Whichever chip came last got pushed off.
+//  content and refuses to compress, so the row demanded the sum of three fixed
+//  controls — more than a phone row has. Whichever came last was pushed off, and
+//  once the date grew a weekday ("Wed, Aug 12, 2026") it was the TIME that
+//  vanished.
 //
-//  It was already tight; giving the date its weekday ("Wed, Aug 12, 2026"
-//  instead of "Aug 12, 2026") is what pushed it over, and the TIME disappeared.
-//  A layout that only works while the text stays short is not working.
-//
-//  So repeat wraps to its own line — the way a custom repeat's pattern already
-//  did — and date and time keep the first line to themselves.
+//  My first fix put repeat on its own line unconditionally. That cured the
+//  squeeze but spent a second line even where there was room for all three —
+//  wrapping is a function of the width available, not a decision to take in
+//  advance. So the controls are a flat list and FlowRows packs them.
 
 import XCTest
+import CoreGraphics
 @testable import Astrid_App
 
 final class TaskWhenRowLayoutTests: XCTestCase {
 
-    // MARK: - THE BUG: the time must always have room
-
-    /// Date and time share the first line, and nothing else competes with them.
-    func testDateAndTimeShareTheFirstLine() {
-        let lines = TaskWhenRowLayout.lines(hasDate: true, isCustomRepeat: false)
-        XCTAssertEqual(lines.first, [.date, .time])
-    }
+    // MARK: - Which controls are on the row
 
     /// Stated as its own case because this is the actual report: the time went
-    /// missing. It must be on the row for any dated task, whatever the repeat.
+    /// missing. It is on the row for every dated task, custom repeat or not.
     func testTimeIsPresentForEveryDatedTask() {
         for isCustom in [true, false] {
-            let controls = TaskWhenRowLayout.lines(hasDate: true, isCustomRepeat: isCustom).flatMap { $0 }
-            XCTAssertTrue(controls.contains(.time),
-                          "the time must not be squeezed off the row (custom repeat: \(isCustom))")
+            XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: isCustom)
+                            .contains(.time),
+                          "the time must not be squeezed off (custom repeat: \(isCustom))")
         }
     }
 
-    /// Three chips on one line is what caused this. Never again.
-    func testNoLineCarriesMoreThanTwoControls() {
-        for hasDate in [true, false] {
-            for isCustom in [true, false] {
-                for line in TaskWhenRowLayout.lines(hasDate: hasDate, isCustomRepeat: isCustom) {
-                    XCTAssertLessThanOrEqual(line.count, 2,
-                                             "a third chip is what pushed the time off the row")
-                }
-            }
-        }
+    func testDatedTaskShowsDateTimeAndRepeat() {
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: false),
+                       [.date, .time, .repeatPattern])
     }
 
-    // MARK: - Repeat wraps
-
-    /// Repeat gets its own line rather than competing for the first one.
-    func testRepeatWrapsToItsOwnLine() {
-        let lines = TaskWhenRowLayout.lines(hasDate: true, isCustomRepeat: false)
-        XCTAssertEqual(lines.count, 2)
-        XCTAssertEqual(lines.last, [.repeatPattern])
+    /// A CUSTOM repeat gets no chip: its real pattern has a line of its own
+    /// below, and "Custom" would be a second, less informative control for the
+    /// same thing.
+    func testCustomRepeatGetsNoChip() {
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: true),
+                       [.date, .time])
     }
 
-    /// A CUSTOM repeat already had its own row below, showing the real pattern
-    /// ("Every 2 weeks on Mon, Wed"). It must not also get a chip here — that
-    /// would be a second, less informative control for the same thing.
-    func testCustomRepeatDoesNotAlsoGetAChip() {
-        let controls = TaskWhenRowLayout.lines(hasDate: true, isCustomRepeat: true).flatMap { $0 }
-        XCTAssertFalse(controls.contains(.repeatPattern))
-        XCTAssertEqual(controls, [.date, .time])
-    }
-
-    // MARK: - Undated tasks
-
-    /// With no date there is nothing for a time or a repeat to attach to, so the
-    /// row is a single "add a date" control rather than three inert ones.
+    /// With no date there is nothing for a time or repeat to attach to.
     func testUndatedTaskShowsOnlyTheDateControl() {
-        XCTAssertEqual(TaskWhenRowLayout.lines(hasDate: false, isCustomRepeat: false), [[.date]])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: false), [.date])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: true), [.date])
     }
 
-    func testUndatedTaskIsOneLine() {
-        XCTAssertEqual(TaskWhenRowLayout.lines(hasDate: false, isCustomRepeat: true).count, 1)
+    // MARK: - Wrapping happens only when it must
+
+    /// THE CORRECTION: with room for all three, they stay on ONE line. The
+    /// interim fix always pushed repeat down, which wasted a line on a wide panel.
+    func testControlsStayOnOneLineWhenThereIsRoom() {
+        let rows = FlowRows.rows(itemWidths: [150, 90, 80], maxWidth: 400, spacing: 8)
+        XCTAssertEqual(rows.count, 1, "they fit — nothing should wrap")
+        XCTAssertEqual(rows.first, [0, 1, 2])
     }
 
-    /// No layout ever produces an empty line — that would render as a blank gap.
-    func testNoEmptyLines() {
-        for hasDate in [true, false] {
-            for isCustom in [true, false] {
-                for line in TaskWhenRowLayout.lines(hasDate: hasDate, isCustomRepeat: isCustom) {
-                    XCTAssertFalse(line.isEmpty)
-                }
+    /// And they wrap when they genuinely do not fit.
+    func testTheLastControlWrapsWhenItDoesNotFit() {
+        let rows = FlowRows.rows(itemWidths: [150, 90, 80], maxWidth: 260, spacing: 8)
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.first, [0, 1])
+        XCTAssertEqual(rows.last, [2])
+    }
+
+    /// The gap only exists BETWEEN items, so it must not be charged to the first
+    /// one — counting it there wraps a row that actually fits.
+    func testSpacingIsNotChargedToTheFirstItemOnARow() {
+        // 150 + 8 + 90 = 248, exactly the width available.
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 90], maxWidth: 248, spacing: 8).count, 1)
+        // One point less and it cannot fit.
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 90], maxWidth: 247, spacing: 8).count, 2)
+    }
+
+    /// A control wider than the row still gets placed. A row that overflows is
+    /// bad; a control that disappears is the bug this whole area keeps producing.
+    func testAnOverWideControlStillGetsARow() {
+        let rows = FlowRows.rows(itemWidths: [500], maxWidth: 200, spacing: 8)
+        XCTAssertEqual(rows, [[0]])
+    }
+
+    func testEveryControlIsPlacedExactlyOnce() {
+        for maxWidth in stride(from: CGFloat(60), through: 600, by: 20) {
+            let rows = FlowRows.rows(itemWidths: [150, 90, 80], maxWidth: maxWidth, spacing: 8)
+            XCTAssertEqual(rows.flatMap { $0 }.sorted(), [0, 1, 2],
+                           "width \(maxWidth) lost or duplicated a control")
+        }
+    }
+
+    func testNoEmptyRows() {
+        for maxWidth in stride(from: CGFloat(20), through: 600, by: 20) {
+            for row in FlowRows.rows(itemWidths: [150, 90, 80], maxWidth: maxWidth, spacing: 8) {
+                XCTAssertFalse(row.isEmpty)
             }
         }
+    }
+
+    func testNoItemsMeansNoRows() {
+        XCTAssertTrue(FlowRows.rows(itemWidths: [], maxWidth: 300, spacing: 8).isEmpty)
+    }
+
+    // MARK: - Height
+
+    func testHeightCountsRowSpacingBetweenRowsOnly() {
+        XCTAssertEqual(FlowRows.height(rowCount: 1, rowHeight: 20, spacing: 8), 20)
+        XCTAssertEqual(FlowRows.height(rowCount: 2, rowHeight: 20, spacing: 8), 48)
+        XCTAssertEqual(FlowRows.height(rowCount: 0, rowHeight: 20, spacing: 8), 0)
     }
 }

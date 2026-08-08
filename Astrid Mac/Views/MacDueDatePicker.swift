@@ -28,11 +28,15 @@ private struct MacWhenTriggerLabel: View {
             }
             Text(text)
                 .font(.system(size: 11))
-                .lineLimit(1)
+                // NOT lineLimit(1): a truncated date is not a date. "Sat, Aug 15,…"
+                // told you less than the bare date it replaced. The trigger sizes to
+                // its content and the ROW wraps instead (TaskWhenRowLayout).
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(isPlaceholder ? Theme.textMuted : Theme.textPrimary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
+        .fixedSize(horizontal: true, vertical: false)
         .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 6))
         .contentShape(RoundedRectangle(cornerRadius: 6))
     }

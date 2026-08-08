@@ -18,28 +18,12 @@
 #if os(macOS)
 import Foundation
 
-/// A control the When row may show. The cases the row must NEVER contain are
-/// declared too — a test asserting the absence of something needs a name for it.
-enum MacWhenControl: Equatable {
-    case date
-    case time
-    case repeatPattern
-
-    // Retired. Present so their absence is checkable, and so re-adding one is a
-    // deliberate act with a failing test attached.
-    case dueDateToggle
-    case dateQuickPicks
-    case timeQuickPicks
-    case allDayToggle
-}
-
-enum MacWhenRow {
-    /// The controls on the row, in order. Time and repeat need a date to attach
-    /// to, so an undated task shows one trigger rather than three inert controls.
-    static func controls(hasDate: Bool) -> [MacWhenControl] {
-        hasDate ? [.date, .time, .repeatPattern] : [.date]
-    }
-}
+//  The row's composition now comes from the SHARED `TaskWhenRowLayout`, which iOS
+//  uses too — so the two platforms cannot disagree about what is on the row or
+//  which line it sits on. The Mac's own `MacWhenControl` listed retired controls
+//  (a due-date toggle, inline quick-pick rows, an All-day toggle) so their
+//  absence could be asserted; the shared enum simply has no cases for them,
+//  which is a stronger guarantee than a test.
 
 // MARK: - Popover contents
 
