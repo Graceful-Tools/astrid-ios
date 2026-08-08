@@ -48,6 +48,13 @@ public class CDTask: NSManagedObject {
     // Idempotency key for dedup on server retry
     @NSManaged public var clientRequestId: String?
 
+    /// Board status as a STATE on the task (task 2e41c645): ready | doing |
+    /// waiting | a custom role. Nil means Inbox; Done is derived from
+    /// `completed`. Persisted because the board prefers this over list
+    /// membership — unstored, it read back nil on every cold start and every
+    /// card fell to Inbox once the status lists went away.
+    @NSManaged public var statusRole: String?
+
     // MARK: - Conversion to Domain Model
     
     func toDomainModel() -> Task {
@@ -75,6 +82,7 @@ public class CDTask: NSManagedObject {
             listIds: listIds,
             isPrivate: isPrivate,
             completed: completed,
+            statusRole: statusRole,
             attachments: nil,
             comments: nil,
             createdAt: createdAt,
@@ -103,6 +111,10 @@ public class CDTask: NSManagedObject {
         self.assigneeId = task.assigneeId
         self.creatorId = task.creatorId ?? task.creator?.id ?? ""  // Use creator.id if creatorId not available
         self.listIds = task.listIds ?? task.lists?.map { $0.id }
+        // Assigned unconditionally: moving a card to Inbox or Done clears the
+        // role, and a `??  self.statusRole` fallback here would keep the old one
+        // and snap the card back to the column it just left.
+        self.statusRole = task.statusRole
         // Preserve createdAt: use task value if present, otherwise keep existing (or set to now for new entries)
         self.createdAt = task.createdAt ?? self.createdAt ?? Date()
         self.updatedAt = task.updatedAt ?? Date()

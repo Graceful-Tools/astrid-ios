@@ -33,6 +33,10 @@
         <attribute name="parentTaskId" optional="YES" attributeType="String"/>
         <attribute name="sourceListId" optional="YES" attributeType="String"/>
         <attribute name="clientRequestId" optional="YES" attributeType="String"/>
+        <!-- Board status as a STATE on the task (task 2e41c645). Optional, so
+             adding it stays a lightweight migration. Without it the role was
+             dropped on every persist and the board fell back to membership. -->
+        <attribute name="statusRole" optional="YES" attributeType="String"/>
     </entity>
     <entity name="CDTaskList" representedClassName="CDTaskList" syncable="YES">
         <attribute name="color" optional="YES" attributeType="String"/>
