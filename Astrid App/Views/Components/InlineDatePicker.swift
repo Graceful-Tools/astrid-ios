@@ -49,9 +49,11 @@ struct InlineDatePicker: View {
                             .fixedSize(horizontal: compact, vertical: false)
                     }
                     if !compact { Spacer() }
-                    // With a date set, compact shows the date alone — the calendar glyph is only
-                    // needed as the "no date yet" affordance.
-                    if !compact || date == nil {
+                    // No glyph on the empty state. The calendar icon used to stand in as the
+                    // "no date yet" affordance, but the words "No due date" already say that,
+                    // and the row leads with a calendar icon of its own — so the placeholder
+                    // was carrying two of them.
+                    if !compact, date != nil {
                         Image(systemName: "calendar")
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                     }

@@ -147,11 +147,17 @@ struct MacTaskDetailView: View {
 
             Section(NSLocalizedString("Subtasks", comment: "")) {
                 ForEach(subtasks) { st in
-                    HStack {
+                    HStack(spacing: MacSubtaskRow.checkboxGap) {
+                        // The app's own checkbox artwork, in the subtask's priority — not a
+                        // green SF-Symbol circle, which was the one checkbox in the app that
+                        // did not look like the others.
                         Button { toggleSubtask(st) } label: {
-                            Image(systemName: st.completed ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(st.completed ? Theme.success : Theme.textMuted)
-                        }.buttonStyle(.plain)
+                            MacTaskCheckbox(completed: st.completed, priority: st.priority,
+                                            size: MacSubtaskRow.checkboxSize,
+                                            repeating: MacCheckboxAsset.isRepeating(st.repeating ?? .never))
+                        }
+                        .buttonStyle(.plain)
+                        .macPointingHand()
                         Text(st.title)
                             .font(MacTypography.detailBody)
                             .strikethrough(st.completed)
@@ -164,9 +170,20 @@ struct MacTaskDetailView: View {
                         Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteSubtask(st) }
                     }
                 }
-                HStack {
-                    TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask).onSubmit(addSubtask)
-                    Button(NSLocalizedString("actions.add", comment: ""), action: addSubtask).disabled(newSubtask.trimmingCharacters(in: .whitespaces).isEmpty)
+                // The add row IS a subtask row: same checkbox column, same text position.
+                // It was a labelled field plus an "Add" button, which lined up with neither
+                // the rows above it nor anything else in the panel.
+                HStack(spacing: MacSubtaskRow.checkboxGap) {
+                    MacTaskCheckbox(completed: false,
+                                    priority: MacSubtaskRow.placeholderPriority(
+                                        for: task, lists: listService.listsById),
+                                    size: MacSubtaskRow.checkboxSize)
+                        .opacity(MacSubtaskRow.placeholderOpacity)
+                        .accessibilityHidden(true)
+                    TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask)
+                        .textFieldStyle(.plain)
+                        .font(MacTypography.detailBody)
+                        .onSubmit(addSubtask)
                 }
             }
 

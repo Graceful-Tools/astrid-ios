@@ -7,6 +7,7 @@
 
 #if os(macOS)
 import SwiftUI
+import UniformTypeIdentifiers
 import AppKit
 
 struct MacRootView: View {
@@ -219,6 +220,9 @@ struct MacRootView: View {
         guard !new.isEmpty, new != t.title else { return }
         MacActions.perform("Rename task") { _ = try await taskService.updateTask(taskId: t.id, title: new, task: t) }
     }
+
+    /// Row currently under a drag-to-indent drop, for the highlight.
+    @State private var indentDropTargetId: String?
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
 
@@ -595,10 +599,33 @@ struct MacRootView: View {
         )
         // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
-        .dropDestination(for: String.self) { droppedIds, _ in
-            guard let dropped = droppedIds.first else { return false }
-            return makeSubtask(dropped, of: task)
+        //
+        // `.onDrop`, not `.dropDestination`: inside a List, the row's own handling swallows the
+        // higher-level modifier — the same defect that left the checkbox Button dead (652edb22)
+        // and `.draggable` unable to start a drag (83f45d49). `.onDrop` is the lower-level API
+        // that actually receives the event, and it also reports hover, which this had none of:
+        // with no highlight there was nothing to tell you a row would accept the drop.
+        .onDrop(of: [.text], isTargeted: Binding(
+            get: { indentDropTargetId == task.id },
+            set: { hovering in
+                indentDropTargetId = hovering ? task.id : (indentDropTargetId == task.id ? nil : indentDropTargetId)
+            }
+        )) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                guard let dropped = value as? String else { return }
+                DispatchQueue.main.async {
+                    indentDropTargetId = nil
+                    makeSubtask(dropped, of: task)
+                }
+            }
+            return true
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(indentDropTargetId == task.id ? Theme.accent : .clear, lineWidth: 2)
+                .allowsHitTesting(false)
+        )
         .contextMenu {
             let targets = actionTargets(task)
             Button(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "")

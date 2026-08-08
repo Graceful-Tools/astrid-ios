@@ -12,15 +12,20 @@ import SwiftUI
 /// one control each rather than three different kinds of button.
 private struct MacWhenTriggerLabel: View {
     let text: String
-    let systemImage: String
+    /// nil draws no glyph. The empty date state passes nil: the words "No due
+    /// date" already say there is no date, and the row leads with a calendar
+    /// icon of its own, so the placeholder was carrying two of them.
+    let systemImage: String?
     /// Muted when the control has no value — "No due date" is a prompt, not data.
     let isPlaceholder: Bool
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textMuted)
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textMuted)
+            }
             Text(text)
                 .font(.system(size: 11))
                 .lineLimit(1)
@@ -95,7 +100,7 @@ struct MacDueDatePicker: View {
         Button { isPresented = true } label: {
             MacWhenTriggerLabel(
                 text: DueDateLabel.text(for: date, isAllDay: isAllDay),
-                systemImage: "calendar",
+                systemImage: date == nil ? nil : "calendar",
                 isPlaceholder: date == nil
             )
         }
