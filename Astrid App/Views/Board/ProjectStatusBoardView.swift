@@ -77,7 +77,7 @@ struct ProjectStatusBoardView: View {
     @State private var hasAdvancedForThisEntry = false
 
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists)
+        getProjectBoardColumns(listService.lists, projectId: projectId)
     }
 
     /// The project's regular (domain) list. Cached lookup so the per-

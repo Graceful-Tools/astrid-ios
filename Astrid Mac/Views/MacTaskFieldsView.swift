@@ -37,7 +37,6 @@ struct MacTaskFieldsView: View {
     @State private var isAllDay = false
     @State private var repeating: Task.Repeating = .never
     @State private var customPattern: CustomRepeatingPattern?
-    @State private var showCustomRepeat = false
     @State private var members: [ListMember] = []
     /// Drives the list popover, so the "focus lists" shortcut can open it. The
     /// detail used to route that key at the DATE area, because there was no
@@ -67,12 +66,6 @@ struct MacTaskFieldsView: View {
             case .lists:       showListPicker = true
             case .date:        if !hasDue { hasDue = true; saveDue() }
             case .comment:     break   // the detail owns the comment field
-            }
-        }
-        .sheet(isPresented: $showCustomRepeat) {
-            MacCustomRepeatEditor(initial: customPattern) { pattern in
-                customPattern = pattern
-                saveRepeat()
             }
         }
     }
@@ -134,29 +127,12 @@ struct MacTaskFieldsView: View {
             // while they fit and wrap when they do not. The Mac used to force a
             // minimum width on each so all three would fit one line, which is
             // exactly what truncated the date to "Sat, Aug 15,…".
-            FlowLayout(spacing: 10, rowSpacing: 6) {
+            FlowLayout(spacing: MacTaskFields.chipSpacing, rowSpacing: 6) {
                 ForEach(Array(TaskWhenRowLayout.controls(
                     hasDate: hasDue, isCustomRepeat: repeating == .custom
                 ).enumerated()), id: \.offset) { _, control in
                     whenControl(control)
                 }
-            }
-            // A custom repeat cannot say what it is in a chip, so its pattern gets
-            // its own line. The summary IS the control: it used to be dead text
-            // beside a separate "Edit" button, which is a second thing to aim at
-            // for one action — iOS made the summary itself the trigger (42013da7).
-            if hasDue, repeating == .custom {
-                Button { showCustomRepeat = true } label: {
-                    Text(customPattern.map(MacCustomRepeat.summary)
-                         ?? NSLocalizedString("repeating.custom", comment: "Custom"))
-                        .font(.callout)
-                        .foregroundStyle(Theme.accent)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .macPointingHand()
             }
         }
     }
@@ -169,28 +145,18 @@ struct MacTaskFieldsView: View {
         case .time:
             MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
         case .repeatPattern:
-            // A MENU, not a Picker: a Picker renders as a segmented/wheel control here
-            // and the six repeat options do not fit the panel. The label shows the
-            // CURRENT choice — iOS shows the chosen repeat, not the word "Repeat".
-            Menu {
-                ForEach(Task.Repeating.allCases, id: \.self) { option in
-                    Button {
-                        repeating = option
-                        handleRepeatChange()
-                    } label: {
-                        if option == repeating {
-                            Label(option.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(option.displayName)
-                        }
-                    }
-                }
-            } label: {
-                Text(repeating.displayName).font(.system(size: 11)).fixedSize()
+            MacRepeatPicker(repeating: $repeating, customPattern: $customPattern) {
+                saveRepeat()
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
         }
+    }
+
+    /// The list's default time of day, if it has one.
+    private var listDefaultTimeOfDay: (hour: Int, minute: Int)? {
+        (task.listIds ?? [])
+            .compactMap { listService.listsById[$0]?.defaultDueTime }
+            .compactMap { NewTaskDefaults.timeOfDay($0) }
+            .first
     }
 
     private var dueDateBinding: Binding<Date?> {
@@ -198,7 +164,20 @@ struct MacTaskFieldsView: View {
             get: { hasDue ? due : nil },
             set: { newValue in
                 if let newValue {
-                    due = newValue
+                    // FIRST date on this task: the time comes from the LIST's default,
+                    // not the clock. `due` starts at Date(), so dating a task at 4pm
+                    // was making it due at 4pm — the shared NewTaskDefaults is what
+                    // iOS resolves this from.
+                    if !hasDue, let time = listDefaultTimeOfDay {
+                        let day = isAllDay ? MacWhenDate.localDay(ofAllDay: newValue) : newValue
+                        due = Calendar.current.date(bySettingHour: time.hour,
+                                                    minute: time.minute,
+                                                    second: 0,
+                                                    of: day) ?? newValue
+                        isAllDay = false
+                    } else {
+                        due = newValue
+                    }
                     hasDue = true
                 } else {
                     hasDue = false
@@ -379,7 +358,9 @@ struct MacTaskFieldsView: View {
     /// Custom opens the editor (persist happens on Save); everything else saves now.
     private func handleRepeatChange() {
         if repeating == .custom {
-            if customPattern == nil { showCustomRepeat = true } else { saveRepeat() }
+            // The repeat picker owns the custom editor now, so reaching Custom
+            // here means a pattern already exists.
+            saveRepeat()
         } else {
             customPattern = nil
             saveRepeat()

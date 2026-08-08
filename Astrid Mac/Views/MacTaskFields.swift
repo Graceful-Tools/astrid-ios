@@ -65,6 +65,13 @@ enum MacTaskFields {
         return trimmed.isEmpty ? .placeholder : .body(text)
     }
 
+    /// Gap between the chips on the When row.
+    ///
+    /// Was 10, which read as a gulf between the date and the time and cost the
+    /// row width it did not have — enough to push a chip onto a second line that
+    /// would otherwise have fitted.
+    static var chipSpacing: CGFloat { 5 }
+
     /// How tightly the fields are packed. A board card is a ~250pt column; the
     /// detail is a 380pt panel. One view, two densities — not two views.
     enum Density {

@@ -85,8 +85,30 @@ func getProjectStatusLists(_ lists: [TaskList]) -> [TaskList] {
         }
 }
 
-/// Build the ordered board columns: [virtual Inbox, ...real statuses, virtual Done].
-func getProjectBoardColumns(_ lists: [TaskList]) -> [ProjectBoardColumn] {
+/// The roles that always have a column, whether a list backs them or not.
+let DEFAULT_STATUS_ROLES: Set<String> = Set(DEFAULT_PROJECT_STATUSES.map { $0.role.rawValue })
+
+/// Build the ordered board columns: [virtual Inbox, ...statuses, virtual Done].
+///
+/// The three defaults come from CONFIG, backed by a status list when one
+/// exists (task 2e41c645, mirroring web's a1722040 step 4). Deriving the whole
+/// board from the rows meant the day they are deleted the board would render
+/// Inbox and Done and nothing else — so those rows could not be deleted at all
+/// while iOS depended on them. Now the deletion is a no-op here.
+///
+/// The column id stays the LIST id while a list backs the role, because the
+/// membership dual-write keys off it and older servers still read membership.
+/// Once the rows are gone the id is the role itself.
+///
+/// Custom states are per-project (task 109d8a91): a custom column belongs to
+/// one board and must not leak onto another, so `projectId` filters them.
+func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [ProjectBoardColumn] {
+    let statuses = getProjectStatusLists(lists)
+    var byRole: [String: TaskList] = [:]
+    for status in statuses {
+        if let role = status.statusRole { byRole[role] = status }
+    }
+
     var result: [ProjectBoardColumn] = [
         ProjectBoardColumn(
             id: VIRTUAL_INBOX_COLUMN_ID,
@@ -96,18 +118,34 @@ func getProjectBoardColumns(_ lists: [TaskList]) -> [ProjectBoardColumn] {
             statusList: nil
         )
     ]
-    for status in getProjectStatusLists(lists) {
-        let description = status.statusDescription
-            ?? status.description
-            ?? ""
+
+    for state in DEFAULT_PROJECT_STATUSES {
+        let backing = byRole[state.role.rawValue]
+        result.append(ProjectBoardColumn(
+            // A renamed default is a PUT on the list, so its name wins while
+            // the rows exist.
+            id: backing?.id ?? state.role.rawValue,
+            name: backing?.name ?? state.name,
+            description: backing?.statusDescription ?? backing?.description ?? state.description,
+            kind: .status,
+            statusList: backing
+        ))
+    }
+
+    // Custom states have no config entry, so they still come from the rows —
+    // and only this board's.
+    for status in statuses {
+        guard let role = status.statusRole, !DEFAULT_STATUS_ROLES.contains(role) else { continue }
+        guard let projectId, status.projectId == projectId else { continue }
         result.append(ProjectBoardColumn(
             id: status.id,
             name: status.name,
-            description: description,
+            description: status.statusDescription ?? status.description ?? "",
             kind: .status,
             statusList: status
         ))
     }
+
     result.append(ProjectBoardColumn(
         id: VIRTUAL_DONE_COLUMN_ID,
         name: "Done",
@@ -152,6 +190,10 @@ func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
         if let match = statusLists.first(where: { $0.statusRole == role }) {
             return match.id
         }
+        // A default role always has a column now, backed or not, so a card no
+        // longer falls to Inbox merely because the rows are missing or have not
+        // loaded yet. Only an unknown custom role does.
+        if DEFAULT_STATUS_ROLES.contains(role) { return role }
         return VIRTUAL_INBOX_COLUMN_ID
     }
 
@@ -211,11 +253,14 @@ func resolveProjectColumnMove(
     case .status:
         // The role comes from the column's backing list during the transition;
         // once status lists are gone the column id IS the role.
-        let role = lists.first(where: { $0.id == targetColumn.id })?.statusRole
+        let backing = lists.first(where: { $0.id == targetColumn.id })
         return ProjectColumnMove(
-            listIds: retainedListIds + [targetColumn.id],
+            // Only append a membership when a real list backs the column.
+            // Otherwise the id is a ROLE, and persisting it would be a
+            // membership in a list that does not exist.
+            listIds: backing == nil ? retainedListIds : retainedListIds + [targetColumn.id],
             completed: false,
-            statusRole: role
+            statusRole: backing?.statusRole ?? targetColumn.id
         )
     }
 }
