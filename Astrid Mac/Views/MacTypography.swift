@@ -17,9 +17,16 @@ enum MacTypography {
     static let detailTitleSize: CGFloat = 17    // detail header — clearly above the row title
     static let labelSize: CGFloat = 11          // field labels (Who/Date/…)
 
+    /// Body text INSIDE the detail: the description, and the subtask titles that
+    /// sit under it. One token for both, because "the subtasks should read like
+    /// the description" is a decision, and two independent defaults are how it
+    /// stops being true.
+    static let detailBodySize: CGFloat = 13     // macOS body
+
     static var rowTitle: Font { .system(size: rowTitleSize, weight: .medium) }
     static var rowMeta: Font { .system(size: rowMetaSize) }
     static var detailTitle: Font { .system(size: detailTitleSize, weight: .semibold) }
     static var label: Font { .system(size: labelSize) }
+    static var detailBody: Font { .system(size: detailBodySize, weight: .regular) }
 }
 #endif

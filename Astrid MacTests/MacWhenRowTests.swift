@@ -61,10 +61,24 @@ final class MacWhenRowTests: XCTestCase {
 
     // MARK: - The popover carries what the pane used to
 
-    /// "No due date" is the FIRST row, not a toolbar escape hatch — the order
-    /// iOS deliberately chose and DueDateQuickPicks documents as contractual.
+    /// "No due date" comes before every quick pick — not a toolbar escape hatch.
+    /// The order iOS deliberately chose and DueDateQuickPicks documents as
+    /// contractual. (The typed field precedes it, but that is a text input, not
+    /// one of the choices.)
     func testClearingIsTheFirstChoiceInThePopover() {
-        XCTAssertEqual(MacDueDatePopover.rows.first, .clear)
+        let rows = MacDueDatePopover.rows
+        let clearIndex = rows.firstIndex(of: .clear)
+        let firstPickIndex = rows.firstIndex { if case .quickPick = $0 { return true }; return false }
+        XCTAssertNotNil(clearIndex)
+        XCTAssertNotNil(firstPickIndex)
+        XCTAssertLessThan(clearIndex!, firstPickIndex!,
+                          "clearing must precede the quick picks")
+    }
+
+    /// This is a Mac: there is a keyboard, so a date can be TYPED rather than
+    /// hunted for in a grid — and the field leads the popover.
+    func testPopoverOffersATypableDateField() {
+        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
     }
 
     /// The popover offers exactly the shared quick picks, in the shared order —

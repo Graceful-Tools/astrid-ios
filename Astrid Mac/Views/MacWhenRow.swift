@@ -43,9 +43,14 @@ enum MacWhenRow {
 
 // MARK: - Popover contents
 
-/// A row in the due-date popover. Order is contractual: the CLEARING choice
-/// comes first, matching iOS and the note in DueDateQuickPicks.
+/// A row in the due-date popover.
+///
+/// Order is contractual in one respect: among the CHOICES, clearing comes first
+/// — matching iOS and the note in DueDateQuickPicks. The typed field leads the
+/// popover because this is a Mac: there is a keyboard, and typing a date is
+/// faster than hunting for it in a grid.
 enum MacDueDatePopoverRow: Equatable {
+    case typedEntry
     case clear
     case quickPick(DueDateQuickPicks.DateOption)
     case calendar
@@ -53,7 +58,7 @@ enum MacDueDatePopoverRow: Equatable {
 
 enum MacDueDatePopover {
     static var rows: [MacDueDatePopoverRow] {
-        [.clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) } + [.calendar]
+        [.typedEntry, .clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) } + [.calendar]
     }
 }
 

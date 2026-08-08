@@ -11,11 +11,33 @@
 #if os(macOS)
 import CoreGraphics
 
+/// Where a detail row's leading icon and its content sit.
+///
+/// The title row is `[checkbox][gap][title]`; every field row below it is
+/// `[icon][gap][content]`. Both are built from THESE constants, so the icons sit
+/// in the checkbox's column and the content starts exactly where the title text
+/// does. Written down because the previous layout used an 80pt text label —
+/// "Priority", "When", "Lists" — which lined up with nothing and cost the row
+/// 51pt of the 380pt panel.
+enum MacDetailRowMetrics {
+    /// The leading column. Exactly the checkbox's width, which is the point.
+    static var leadingColumnWidth: CGFloat { MacTaskVisuals.detailCheckboxSize }
+    /// Gap between the leading column and the content.
+    static var columnGap: CGFloat { 10 }
+    /// Where content begins, measured from the row's leading edge.
+    static var contentInset: CGFloat { leadingColumnWidth + columnGap }
+}
+
 enum MacDetailRowFit {
     /// Gap between controls in a detail row.
     static var spacing: CGFloat { 10 }
-    /// The row's own leading + trailing inset inside the Form.
-    static var rowInsets: CGFloat { 24 }
+    /// Everything a row spends before its controls get any width: the Form's own
+    /// leading + trailing inset, plus the leading icon column.
+    ///
+    /// This used to be 24 — the Form insets alone — which quietly ignored the
+    /// 80pt label column the controls actually had to share the row with. The
+    /// arithmetic was optimistic by the width of the label.
+    static var rowInsets: CGFloat { 24 + MacDetailRowMetrics.contentInset }
 
     /// Minimum widths for the "When" row: the date trigger, the time trigger, the repeat menu.
     /// These are MINIMUMS the controls may shrink to — not their ideal sizes, which is exactly

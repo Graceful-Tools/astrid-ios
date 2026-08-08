@@ -128,7 +128,10 @@ struct MacTaskDetailView: View {
 
         Form {
             Section {
-                HStack(spacing: 10) {
+                // The gap is the SAME constant the field rows use, so the title text and
+                // every field below it start at one x, and the field icons sit in this
+                // checkbox's column (MacDetailRowMetrics).
+                HStack(spacing: MacDetailRowMetrics.columnGap) {
                     // A `Button` here does not fire: inside a Form row (as inside a List row) the
                     // row's own click handling swallows it — the same defect that left the task-row
                     // checkbox dead in 652edb22. A tap gesture DOES receive the click, and keeps
@@ -170,7 +173,7 @@ struct MacTaskDetailView: View {
                 // Priority + Who on ONE row, and Date/Time/Repeat on ONE row below it
                 // (Task 42013da7). Four stacked rows were what pushed the description down the
                 // panel; this is where the room for it comes from.
-                labeled(NSLocalizedString("tasks.priority", comment: "")) {
+                labeled(icon: "flag", NSLocalizedString("tasks.priority", comment: "")) {
                     HStack(spacing: 10) {
                         MacPriorityPicker(selection: $priority, compact: true)
                             .onChange(of: priority) { savePriority() }
@@ -192,7 +195,7 @@ struct MacTaskDetailView: View {
                         .frame(minWidth: MacDetailRowFit.priorityRowMinimums[1])
                     }
                 }
-                labeled(NSLocalizedString("tasks.when", comment: "")) {
+                labeled(icon: "calendar", NSLocalizedString("tasks.when", comment: "")) {
                     // ONE line, always. The row used to lead with a "Due Date" toggle whose
                     // ON state unfolded a date picker, two rows of quick-pick chips and an
                     // "All day" toggle INTO the pane, so the panel changed shape with every
@@ -220,7 +223,7 @@ struct MacTaskDetailView: View {
                         }
                     }
                 }
-                labeled("Lists") {
+                labeled(icon: "list.bullet", NSLocalizedString("navigation.lists", comment: "Lists")) {
                     HStack(spacing: 4) {
                         let chips = (task.listIds ?? []).compactMap { listService.listsById[$0] }
                         ForEach(chips) { l in
@@ -241,6 +244,7 @@ struct MacTaskDetailView: View {
                         .font(MacTypography.label)
                         .foregroundStyle(Theme.textMuted)
                     TextEditor(text: $notes)
+                        .font(MacTypography.detailBody)
                         .frame(minHeight: 70)
                         .frame(maxWidth: .infinity)
                         .focused($notesFocused)
@@ -272,7 +276,9 @@ struct MacTaskDetailView: View {
                             Image(systemName: st.completed ? "checkmark.circle.fill" : "circle")
                                 .foregroundStyle(st.completed ? Theme.success : Theme.textMuted)
                         }.buttonStyle(.plain)
-                        Text(st.title).strikethrough(st.completed)
+                        Text(st.title)
+                            .font(MacTypography.detailBody)
+                            .strikethrough(st.completed)
                             .foregroundStyle(st.completed ? Theme.textMuted : Theme.textPrimary)
                         Spacer()
                     }
@@ -634,10 +640,26 @@ struct MacTaskDetailView: View {
         )
     }
 
-    private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(label).font(MacTypography.label).foregroundStyle(Theme.textMuted)
-                .frame(width: 80, alignment: .leading)
+    /// A field row: an icon in the checkbox's column, then the content, starting
+    /// exactly where the task title starts.
+    ///
+    /// This used to be an 80pt TEXT label — "Priority", "When", "Lists" — which
+    /// lined up with nothing above it and spent a fifth of the panel restating
+    /// what the control already showed. iOS has always used an icon here.
+    /// `accessibilityLabel` keeps the words for VoiceOver, which is the one
+    /// place they were carrying weight.
+    private func labeled<V: View>(icon: String,
+                                  _ accessibilityLabel: String,
+                                  @ViewBuilder _ content: () -> V) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: MacDetailRowMetrics.columnGap) {
+            // `Text(Image(…))` rather than a bare Image: only Text participates in
+            // firstTextBaseline alignment, so this is what keeps the glyph sitting
+            // on the same line as the control beside it.
+            Text(Image(systemName: icon))
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textMuted)
+                .frame(width: MacDetailRowMetrics.leadingColumnWidth)
+                .accessibilityLabel(accessibilityLabel)
             content()
             Spacer(minLength: 0)
         }
