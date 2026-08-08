@@ -47,7 +47,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
     func testRendersTheThreeDefaultsWithNoStatusListsAtAll() {
         let columns = getProjectBoardColumns([domainList()], projectId: project)
 
-        XCTAssertEqual(columns.map(\.name), ["Inbox", "Ready", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
     }
 
     func testPlacesACardByItsRoleAloneWithNoListsAndNoMembership() {
@@ -104,7 +104,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         let renamed = statusList("ready", "l-ready", "Backlog")
         let columns = getProjectBoardColumns([domainList(), renamed], projectId: project)
 
-        XCTAssertEqual(columns.map(\.name), ["Inbox", "Backlog", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Backlog", "Doing", "Waiting", "Done"])
     }
 
     // MARK: - Custom states belong to one board
@@ -113,7 +113,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         let blocked = statusList("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: project)
         let columns = getProjectBoardColumns([domainList(), blocked], projectId: project)
 
-        XCTAssertEqual(columns.map(\.name), ["Inbox", "Ready", "Doing", "Waiting", "Blocked", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Blocked", "Done"])
     }
 
     func testACustomStateDoesNotLeakOntoAnotherBoard() {
@@ -122,6 +122,6 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         let blocked = statusList("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: "other-project")
         let columns = getProjectBoardColumns([domainList(), blocked], projectId: project)
 
-        XCTAssertEqual(columns.map(\.name), ["Inbox", "Ready", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
     }
 }
