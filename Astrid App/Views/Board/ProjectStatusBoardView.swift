@@ -69,6 +69,12 @@ struct ProjectStatusBoardView: View {
     /// column that currently owns the drag.
     @State private var dragReporterColumnId: String?
     @State private var autoAdvanceTask: _Concurrency.Task<Void, Never>?
+    /// Global x where the current drag was first seen — the baseline for
+    /// "meaningful movement". Nil when no drag is in flight.
+    @State private var dragOriginX: CGFloat?
+    /// Whether this stay in the current edge zone has already moved the board.
+    /// One advance per entry; the drag must leave and re-enter for another.
+    @State private var hasAdvancedForThisEntry = false
 
     private var columns: [ProjectBoardColumn] {
         getProjectBoardColumns(listService.lists)
@@ -170,12 +176,9 @@ struct ProjectStatusBoardView: View {
                 }
             }
             .onDisappear {
-                // A drag can be interrupted by navigation; don't leave the
-                // advance loop scrolling a board nobody is looking at.
-                autoAdvanceTask?.cancel()
-                autoAdvanceTask = nil
-                autoAdvanceEdge = nil
-                dragReporterColumnId = nil
+                // A drag can be interrupted by navigation; don't leave a pending
+                // advance to scroll a board nobody is looking at.
+                endDrag()
             }
             .onChange(of: visibleColumnId) { _, newId in
                 // Light haptic on snap-into-place — mirrors the sidebar's
@@ -231,14 +234,14 @@ struct ProjectStatusBoardView: View {
         }
     }
 
-    // MARK: - Edge auto-advance (task 233ec244)
+    // MARK: - Edge auto-advance (tasks 233ec244, 84595f3c)
 
     /// A dragged card reported a new position (or left the board entirely).
     ///
     /// On iPhone one column fills the screen, so the column you want is almost
     /// never visible when you pick a card up — and the drag session owns the
-    /// gesture, so the carousel's swipe can't help. Holding the card at either
-    /// edge walks the board across instead.
+    /// gesture, so the carousel's swipe can't help. A deliberate sideways drag
+    /// moves the board one column instead.
     private func handleDragMoved(_ globalPoint: CGPoint?,
                                  from columnId: String,
                                  boardFrame: CGRect,
@@ -246,49 +249,67 @@ struct ProjectStatusBoardView: View {
         guard let globalPoint else {
             // Only the column that currently owns the drag may end it — the
             // incoming column can report before the outgoing one exits.
-            if dragReporterColumnId == columnId { setAutoAdvance(nil, proxy: proxy) }
+            if dragReporterColumnId == columnId { endDrag() }
             return
         }
         dragReporterColumnId = columnId
-        setAutoAdvance(boardAutoAdvanceEdge(dragX: globalPoint.x - boardFrame.minX,
-                                            containerWidth: boardFrame.width),
-                       proxy: proxy)
+
+        // Where the card was picked up, against which "meaningful movement" is
+        // measured. Set once per drag and cleared when it ends.
+        let originX = dragOriginX ?? globalPoint.x
+        if dragOriginX == nil { dragOriginX = originX }
+
+        let edge = boardAutoAdvanceEdge(dragX: globalPoint.x - boardFrame.minX,
+                                        containerWidth: boardFrame.width)
+
+        // Leaving the zone re-arms it: the next entry may advance again. This is
+        // what keeps a multi-column move to one gesture per column instead of a
+        // single entry walking the whole board (task 84595f3c).
+        if edge != autoAdvanceEdge {
+            autoAdvanceEdge = edge
+            hasAdvancedForThisEntry = false
+            autoAdvanceTask?.cancel()
+            autoAdvanceTask = nil
+        }
+
+        guard boardShouldAutoAdvance(edge: edge,
+                                     travelSincePickup: globalPoint.x - originX,
+                                     hasFiredForThisEntry: hasAdvancedForThisEntry),
+              let edge,
+              autoAdvanceTask == nil
+        else { return }
+
+        // Dwell is a debounce on this ONE advance, not a repeat interval.
+        autoAdvanceTask = _Concurrency.Task { @MainActor in
+            try? await _Concurrency.Task.sleep(
+                nanoseconds: UInt64(boardAutoAdvanceDwell * 1_000_000_000))
+            guard !_Concurrency.Task.isCancelled else { return }
+
+            let snapshot = columns
+            guard let currentIndex = snapshot.firstIndex(where: { $0.id == visibleColumnId }),
+                  let targetIndex = boardAutoAdvanceTarget(currentIndex: currentIndex,
+                                                           edge: edge,
+                                                           columnCount: snapshot.count)
+            else { return }  // at the end of the board — stop, don't wrap
+
+            hasAdvancedForThisEntry = true
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                proxy.scrollTo(snapshot[targetIndex].id, anchor: .leading)
+            }
+            // Keep the snap binding in step; its onChange supplies the haptic.
+            visibleColumnId = snapshot[targetIndex].id
+        }
     }
 
-    /// Starts, keeps or stops the advance loop. Re-entrant: an unchanged edge
-    /// leaves the running loop alone, so a card held still keeps walking rather
-    /// than restarting its dwell on every reported point.
-    private func setAutoAdvance(_ edge: BoardAutoAdvanceEdge?, proxy: ScrollViewProxy) {
-        guard edge != autoAdvanceEdge else { return }
-        autoAdvanceEdge = edge
+    /// The drag ended (dropped, or left the board). Clear everything so the next
+    /// pickup starts from a clean baseline.
+    private func endDrag() {
         autoAdvanceTask?.cancel()
-
-        guard let edge else {
-            autoAdvanceTask = nil
-            dragReporterColumnId = nil
-            return
-        }
-
-        autoAdvanceTask = _Concurrency.Task { @MainActor in
-            while !_Concurrency.Task.isCancelled {
-                try? await _Concurrency.Task.sleep(
-                    nanoseconds: UInt64(boardAutoAdvanceDwell * 1_000_000_000))
-                guard !_Concurrency.Task.isCancelled else { return }
-
-                let snapshot = columns
-                guard let currentIndex = snapshot.firstIndex(where: { $0.id == visibleColumnId }),
-                      let targetIndex = boardAutoAdvanceTarget(currentIndex: currentIndex,
-                                                               edge: edge,
-                                                               columnCount: snapshot.count)
-                else { return }  // at the end of the board — stop, don't wrap
-
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    proxy.scrollTo(snapshot[targetIndex].id, anchor: .leading)
-                }
-                // Keep the snap binding in step; its onChange supplies the haptic.
-                visibleColumnId = snapshot[targetIndex].id
-            }
-        }
+        autoAdvanceTask = nil
+        autoAdvanceEdge = nil
+        dragReporterColumnId = nil
+        dragOriginX = nil
+        hasAdvancedForThisEntry = false
     }
 
     private func handleDrop(payload: BoardCardPayload,
