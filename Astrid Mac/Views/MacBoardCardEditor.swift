@@ -45,14 +45,12 @@ struct MacBoardCardEditor: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    labeled("Who") { whoControl }
-                    labeled("Date") { dateControl }
-                    labeled("Priority") { MacPriorityPicker(selection: $priority).onChange(of: priority) { savePriority() } }
-                    labeled("Lists") { listChips }
-                    labeled("Description") {
-                        TextField(NSLocalizedString("tasks.placeholder.description", comment: ""), text: $notes, axis: .vertical)
-                            .lineLimit(2...6).textFieldStyle(.roundedBorder).onSubmit(saveNotes)
-                    }
+                    // The SAME fields the detail panel renders — not a second set of rows.
+                    // This card used to carry its own labels, its own "Who" Picker and the
+                    // date TOGGLE the detail had already replaced, which is exactly the
+                    // drift that comes of two implementations of one screen. The title is
+                    // omitted: the card face above already shows it.
+                    MacTaskFieldsView(task: task, density: .boardCard, showsTitle: false)
                     Divider()
                     commentsSection
                 }
@@ -81,50 +79,6 @@ struct MacBoardCardEditor: View {
     }
 
     // MARK: rows
-
-    private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
-        // Compact 56pt label so the row fits within a ~250pt board column (vs popping out).
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.caption).foregroundStyle(Theme.textMuted).frame(width: 56, alignment: .leading)
-            content()
-            Spacer(minLength: 0)
-        }
-    }
-
-    @ViewBuilder private var whoControl: some View {
-        Picker("", selection: Binding(
-            get: { task.assigneeId ?? "" },
-            set: { setAssignee($0.isEmpty ? nil : $0) }
-        )) {
-            Text(NSLocalizedString("assignee.unassigned", comment: "")).tag("")
-            ForEach(members) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
-        }
-        .labelsHidden()   // no fixedSize — let it shrink to the column width
-    }
-
-    @ViewBuilder private var dateControl: some View {
-        HStack(spacing: 6) {
-            Toggle("", isOn: $hasDue).labelsHidden().onChange(of: hasDue) { saveDue() }
-            if hasDue {
-                DatePicker("", selection: $due, displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden().onChange(of: due) { saveDue() }
-            } else {
-                Text(NSLocalizedString("lists.no_date", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
-            }
-        }
-    }
-
-    @ViewBuilder private var listChips: some View {
-        HStack(spacing: 4) {
-            ForEach(taskLists) { l in
-                HStack(spacing: 4) { MacListIcon(list: l, size: 11); Text(l.name).font(.caption) }
-                    .padding(.horizontal, 7).padding(.vertical, 2)
-                    .foregroundStyle(Theme.accent)
-                    .background(Theme.accent.opacity(0.15), in: Capsule())
-            }
-            if taskLists.isEmpty { Text("—").foregroundStyle(Theme.textMuted) }
-        }
-    }
 
     @ViewBuilder private var commentsSection: some View {
         Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count)).font(.caption).bold().foregroundStyle(Theme.textSecondary)

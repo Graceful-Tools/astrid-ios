@@ -127,136 +127,16 @@ struct MacTaskDetailView: View {
         .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
 
         Form {
+            // The task's fields — title, when, lists, description — and the leading
+            // control that holds priority, assignee and completion. The SAME view the
+            // board's inline card editor renders, so the two cannot drift apart the way
+            // they did when this panel's date control was rebuilt and the board kept the
+            // old toggle (MacTaskFieldsView).
             Section {
-                HStack(spacing: 10) {
-                    // A `Button` here does not fire: inside a Form row (as inside a List row) the
-                    // row's own click handling swallows it — the same defect that left the task-row
-                    // checkbox dead in 652edb22. A tap gesture DOES receive the click, and keeps
-                    // full button semantics for VoiceOver and UI tests.
-                    MacTaskCheckbox(completed: task.completed, priority: priority,
-                                    size: MacTaskVisuals.detailCheckboxSize,
-                                    repeating: MacCheckboxAsset.isRepeating(repeating))
-                        .contentShape(Rectangle())
-                        .onTapGesture { setCompleted(!task.completed) }
-                        .macPointingHand()
-                        .help(task.completed ? "Mark incomplete" : "Mark complete")
-                        .accessibilityElement()
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
-                        .accessibilityAction { setCompleted(!task.completed) }
-                    // `labelsHidden()`: inside a Form, macOS renders a TextField's first argument
-                    // as a leading label — the stray "Title" prefix on the detail header
-                    // (task 4a3360c3). It stays as the empty-state placeholder.
-                    TextField(NSLocalizedString("mac.title", comment: ""), text: $title)
-                        .labelsHidden()
-                        .font(MacTypography.detailTitle)
-                        .strikethrough(task.completed)
-                        .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
-                        .focused($titleFocused)
-                        .onSubmit(saveTitle)
-                        // Was Return-only, so clicking away DISCARDED the title edit while the
-                        // notes field beside it saved on blur — the inconsistency this task is
-                        // about. Now both resign-to-save, like every other editor (55010e29).
-                        .onChange(of: titleFocused) { _, focused in
-                            if focused { editing.begin(Self.titleEditor) }
-                            else { editing.end(Self.titleEditor); saveTitle() }
-                        }
-                }
+                MacTaskFieldsView(task: task, density: .detail, showsTitle: true)
             }
 
-            // Web-order labeled fields (913216a9) — same design language as the board's inline
-            // editor: Who / Date / Priority / Lists / Repeat / Description.
             Section {
-                // Priority + Who on ONE row, and Date/Time/Repeat on ONE row below it
-                // (Task 42013da7). Four stacked rows were what pushed the description down the
-                // panel; this is where the room for it comes from.
-                labeled(NSLocalizedString("tasks.priority", comment: "")) {
-                    HStack(spacing: 10) {
-                        MacPriorityPicker(selection: $priority, compact: true)
-                            .onChange(of: priority) { savePriority() }
-                            .frame(minWidth: MacDetailRowFit.priorityRowMinimums[0])
-                        // Faces, not a name-and-stepper: the Mac had MacAssigneeAvatar all along
-                        // and this picker was the one place that never used it.
-                        MacAssigneePicker(
-                            options: MacAssigneeOptions.build(
-                                members: members,
-                                currentUserId: AuthManager.shared.userId,
-                                taskAssignee: task.assignee),
-                            selectedId: task.assigneeId,
-                            priority: priority,
-                            onSelect: { setAssignee($0) }
-                        )
-                        // A MINIMUM, not a fixed size: fixedSize refuses to compress, which is
-                        // what pushed this row past the 380pt panel and clipped the whole detail
-                        // off its left edge (42013da7).
-                        .frame(minWidth: MacDetailRowFit.priorityRowMinimums[1])
-                    }
-                }
-                labeled(NSLocalizedString("tasks.when", comment: "")) {
-                    // ONE line, always. The row used to lead with a "Due Date" toggle whose
-                    // ON state unfolded a date picker, two rows of quick-pick chips and an
-                    // "All day" toggle INTO the pane, so the panel changed shape with every
-                    // task. iOS shows a calendar glyph and a single trigger, with the picks
-                    // inside the popover it opens — this is that design. MacWhenRow states
-                    // the composition; MacWhenRowTests pins it.
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 10) {
-                            ForEach(Array(MacWhenRow.controls(hasDate: hasDue).enumerated()),
-                                    id: \.offset) { index, control in
-                                whenControl(control)
-                                    .frame(minWidth: MacDetailRowFit.whenRowMinimums[index])
-                            }
-                        }
-                        // A custom repeat cannot say what it is in a chip, so its pattern gets
-                        // its own line — the one place the row is still allowed to grow (iOS
-                        // does the same, 42013da7).
-                        if hasDue, repeating == .custom {
-                            HStack {
-                                Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
-                                    .foregroundStyle(Theme.textSecondary).font(.callout)
-                                Spacer()
-                                Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
-                            }
-                        }
-                    }
-                }
-                labeled("Lists") {
-                    HStack(spacing: 4) {
-                        let chips = (task.listIds ?? []).compactMap { listService.listsById[$0] }
-                        ForEach(chips) { l in
-                            HStack(spacing: 4) { MacListIcon(list: l, size: 11); Text(l.name).font(MacTypography.rowMeta) }
-                                .padding(.horizontal, 7).padding(.vertical, 2)
-                                .foregroundStyle(Theme.accent)
-                                .background(Theme.accent.opacity(0.15), in: Capsule())
-                        }
-                        if chips.isEmpty { Text("—").foregroundStyle(Theme.textMuted) }
-                    }
-                }
-                // (Repeat moved into the "When" row above — 42013da7.)
-                // Description spans the FULL width below its own label (web/iOS parity —
-                // task e4b4f87c). The inline `labeled` row shape squeezed the editor into the
-                // ~2/3 left over beside the 80pt label column.
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("tasks.description", comment: ""))
-                        .font(MacTypography.label)
-                        .foregroundStyle(Theme.textMuted)
-                    TextEditor(text: $notes)
-                        .frame(minHeight: 70)
-                        .frame(maxWidth: .infinity)
-                        .focused($notesFocused)
-                        .onChange(of: notesFocused) { _, focused in
-                            if focused { editing.begin(Self.notesEditor) }
-                            else { editing.end(Self.notesEditor); saveNotes() }
-                        }
-                        .overlay(alignment: .topLeading) {
-                            if notes.isEmpty && !notesFocused {
-                                Text(NSLocalizedString("mac.click_add_description", comment: ""))
-                                    .foregroundStyle(Theme.textMuted)
-                                    .padding(.top, 8).padding(.leading, 5)
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                }
                 // "Last: …" timer caption under the description (web parity — df22157f).
                 if let last = task.lastTimerValue, !last.isEmpty {
                     Text(String(format: NSLocalizedString("mac.last_timer", comment: ""), last))
@@ -267,12 +147,20 @@ struct MacTaskDetailView: View {
 
             Section(NSLocalizedString("Subtasks", comment: "")) {
                 ForEach(subtasks) { st in
-                    HStack {
+                    HStack(spacing: MacSubtaskRow.checkboxGap) {
+                        // The app's own checkbox artwork, in the subtask's priority — not a
+                        // green SF-Symbol circle, which was the one checkbox in the app that
+                        // did not look like the others.
                         Button { toggleSubtask(st) } label: {
-                            Image(systemName: st.completed ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(st.completed ? Theme.success : Theme.textMuted)
-                        }.buttonStyle(.plain)
-                        Text(st.title).strikethrough(st.completed)
+                            MacTaskCheckbox(completed: st.completed, priority: st.priority,
+                                            size: MacSubtaskRow.checkboxSize,
+                                            repeating: MacCheckboxAsset.isRepeating(st.repeating ?? .never))
+                        }
+                        .buttonStyle(.plain)
+                        .macPointingHand()
+                        Text(st.title)
+                            .font(MacTypography.detailBody)
+                            .strikethrough(st.completed)
                             .foregroundStyle(st.completed ? Theme.textMuted : Theme.textPrimary)
                         Spacer()
                     }
@@ -282,9 +170,20 @@ struct MacTaskDetailView: View {
                         Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteSubtask(st) }
                     }
                 }
-                HStack {
-                    TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask).onSubmit(addSubtask)
-                    Button(NSLocalizedString("actions.add", comment: ""), action: addSubtask).disabled(newSubtask.trimmingCharacters(in: .whitespaces).isEmpty)
+                // The add row IS a subtask row: same checkbox column, same text position.
+                // It was a labelled field plus an "Add" button, which lined up with neither
+                // the rows above it nor anything else in the panel.
+                HStack(spacing: MacSubtaskRow.checkboxGap) {
+                    MacTaskCheckbox(completed: false,
+                                    priority: MacSubtaskRow.placeholderPriority(
+                                        for: task, lists: listService.listsById),
+                                    size: MacSubtaskRow.checkboxSize)
+                        .opacity(MacSubtaskRow.placeholderOpacity)
+                        .accessibilityHidden(true)
+                    TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask)
+                        .textFieldStyle(.plain)
+                        .font(MacTypography.detailBody)
+                        .onSubmit(addSubtask)
                 }
             }
 
@@ -452,16 +351,12 @@ struct MacTaskDetailView: View {
         }
         .background(MacDetailChrome.background)
         .quickLookPreview($previewURL)   // native macOS Quick Look for a downloaded attachment
-        // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Mac task detail has no
-        // dedicated lists editor yet, so `lists` reveals the schedule/date area as the closest control.
+        // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Only the
+        // comment field still lives here — description, date and lists moved into
+        // MacTaskFieldsView, which handles their half of the same request.
         .onChange(of: appModel.shortcutRequest) { _, req in
             guard let req, case .focus(let field) = req.kind else { return }
-            switch field {
-            case .description: notesFocused = true
-            case .comment:     commentFocused = true
-            case .date:        if !hasDue { hasDue = true; saveDue() }
-            case .lists:       titleFocused = true
-            }
+            if field == .comment { commentFocused = true }
         }
         .task(id: task.id) { load() }
         // Exclusivity, applied: when the session hands the editor over, the fields that lost it
@@ -570,78 +465,6 @@ struct MacTaskDetailView: View {
     }
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
-
-    /// One control of the When row. The row's composition is decided by
-    /// `MacWhenRow.controls`; this renders whichever control it named.
-    @ViewBuilder
-    private func whenControl(_ control: MacWhenControl) -> some View {
-        switch control {
-        case .date:
-            MacDueDatePicker(date: dueDateBinding, isAllDay: isAllDay) { saveDue() }
-        case .time:
-            MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
-        case .repeatPattern:
-            // A MENU, not a Picker: a Picker renders as a segmented/wheel control here
-            // and the six repeat options do not fit the panel. The label shows the
-            // CURRENT choice — iOS shows the chosen repeat, not the word "Repeat"
-            // (ea4f5124).
-            Menu {
-                ForEach(Task.Repeating.allCases, id: \.self) { option in
-                    Button {
-                        repeating = option
-                        handleRepeatChange()
-                    } label: {
-                        if option == repeating {
-                            Label(option.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(option.displayName)
-                        }
-                    }
-                }
-            } label: {
-                Text(repeating.displayName)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-            }
-            .menuStyle(.borderlessButton)
-        case .dueDateToggle, .dateQuickPicks, .timeQuickPicks, .allDayToggle:
-            // Retired controls. `MacWhenRow.controls` never names them and
-            // MacWhenRowTests keeps it that way; this arm exists only so the
-            // switch stays exhaustive.
-            EmptyView()
-        }
-    }
-
-    /// The detail's `hasDue` / `due` pair as the optional the picker speaks.
-    /// Storage conversion (all-day dates live at midnight UTC) belongs to the
-    /// picker, which knows `isAllDay`; this just bridges the two fields.
-    private var dueDateBinding: Binding<Date?> {
-        Binding(
-            get: { hasDue ? due : nil },
-            set: { newValue in
-                if let newValue {
-                    due = newValue
-                    hasDue = true
-                } else {
-                    hasDue = false
-                    // Clearing the date clears the repeat too — matching iOS, and
-                    // because a repeat with no date to repeat from is the state
-                    // that produces phantom rollovers.
-                    repeating = .never
-                    customPattern = nil
-                }
-            }
-        )
-    }
-
-    private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(label).font(MacTypography.label).foregroundStyle(Theme.textMuted)
-                .frame(width: 80, alignment: .leading)
-            content()
-            Spacer(minLength: 0)
-        }
-    }
 
     /// Small reusable edit sheet for a single text value.
     private func editSheet(title: String, text: Binding<String>, onSave: @escaping () -> Void) -> some View {
@@ -759,31 +582,6 @@ struct MacTaskDetailView: View {
     /// comment paperclip: persist locally, then post an attachment comment that owns the upload.
     private func addFile() {
         attachComment()
-    }
-
-    private func saveTitle() {
-        let t = title.trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty, t != task.title else { return }
-        MacActions.perform("Save title") { _ = try await taskService.updateTask(taskId: task.id, title: t, task: task) }
-    }
-
-    private func saveNotes() {
-        guard notes != task.description else { return }
-        MacActions.perform("Save notes") { _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task) }
-    }
-
-    private func savePriority() {
-        guard priority != task.priority else { return }
-        MacActions.perform("Save priority") { _ = try await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
-    }
-
-    private func saveDue() {
-        // hasDue OFF sends Date.distantPast (the shared clear sentinel) so the due date is cleared.
-        MacActions.perform("Save due date") {
-            _ = try await taskService.updateTask(taskId: task.id,
-                                                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due),
-                                                 isAllDay: isAllDay, task: task)
-        }
     }
 
     private func setCompleted(_ value: Bool) {

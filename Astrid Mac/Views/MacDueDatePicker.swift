@@ -12,15 +12,20 @@ import SwiftUI
 /// one control each rather than three different kinds of button.
 private struct MacWhenTriggerLabel: View {
     let text: String
-    let systemImage: String
+    /// nil draws no glyph. The empty date state passes nil: the words "No due
+    /// date" already say there is no date, and the row leads with a calendar
+    /// icon of its own, so the placeholder was carrying two of them.
+    let systemImage: String?
     /// Muted when the control has no value — "No due date" is a prompt, not data.
     let isPlaceholder: Bool
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textMuted)
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textMuted)
+            }
             Text(text)
                 .font(.system(size: 11))
                 .lineLimit(1)
@@ -34,32 +39,51 @@ private struct MacWhenTriggerLabel: View {
 }
 
 /// One selectable row inside a picker popover.
+///
+/// Outlined, not bare text. The first version drew these with `.buttonStyle(.plain)`
+/// and no border, so a column of choices read as a list of labels with no
+/// indication that any of it was clickable.
 private struct MacPickerRow: View {
     let title: String
     var isDestructive: Bool = false
     var isChecked: Bool = false
     let action: () -> Void
 
+    @State private var isHovering = false
+
+    private var tint: Color { isDestructive ? Theme.error : Theme.textPrimary }
+
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isDestructive ? Theme.error : Theme.textPrimary)
-                Spacer()
+                    .foregroundStyle(tint)
+                Spacer(minLength: 0)
                 if isChecked {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isHovering ? Theme.accent.opacity(0.10) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(isChecked ? (isDestructive ? Theme.error : Theme.accent)
+                                            : Theme.border,
+                                  lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
         .macPointingHand()
+        .onHover { isHovering = $0 }
     }
 }
 
@@ -76,16 +100,25 @@ struct MacDueDatePicker: View {
         Button { isPresented = true } label: {
             MacWhenTriggerLabel(
                 text: DueDateLabel.text(for: date, isAllDay: isAllDay),
-                systemImage: "calendar",
+                systemImage: date == nil ? nil : "calendar",
                 isPlaceholder: date == nil
             )
         }
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(MacDueDatePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
+                    case .typedEntry:
+                        // This is a Mac — there is a keyboard. `.field` gives a
+                        // typable, steppable date field, so setting a date six
+                        // months out doesn't mean paging a calendar to it.
+                        DatePicker("", selection: calendarSelection,
+                                   displayedComponents: [.date])
+                            .datePickerStyle(.field)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     case .clear:
                         // A CHOICE, first, in red — not a toolbar escape hatch.
                         MacPickerRow(title: NSLocalizedString("picker.no_due_date", comment: ""),
@@ -106,17 +139,13 @@ struct MacDueDatePicker: View {
                             isPresented = false
                         }
                     case .calendar:
-                        Divider().padding(.vertical, 4)
-                        DatePicker("", selection: calendarSelection,
-                                   displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .labelsHidden()
-                            .frame(maxWidth: 260)
+                        // Not in `rows` — the typed field carries its own calendar.
+                        EmptyView()
                     }
                 }
             }
-            .padding(10)
-            .frame(width: 280)
+            .padding(12)
+            .frame(width: 300)
         }
     }
 
@@ -198,7 +227,7 @@ struct MacDueTimePicker: View {
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(MacDueTimePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .clear:
@@ -217,16 +246,18 @@ struct MacDueTimePicker: View {
                         }
                     case .clock:
                         Divider().padding(.vertical, 4)
+                        // Typable here too, for the same reason.
                         DatePicker("", selection: Binding(get: { time ?? Date() },
                                                           set: { setTime($0) }),
                                    displayedComponents: [.hourAndMinute])
+                            .datePickerStyle(.field)
                             .labelsHidden()
-                            .padding(.horizontal, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
-            .padding(10)
-            .frame(width: 220)
+            .padding(12)
+            .frame(width: 210)
         }
     }
 

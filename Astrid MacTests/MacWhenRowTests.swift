@@ -61,10 +61,24 @@ final class MacWhenRowTests: XCTestCase {
 
     // MARK: - The popover carries what the pane used to
 
-    /// "No due date" is the FIRST row, not a toolbar escape hatch — the order
-    /// iOS deliberately chose and DueDateQuickPicks documents as contractual.
+    /// "No due date" comes before every quick pick — not a toolbar escape hatch.
+    /// The order iOS deliberately chose and DueDateQuickPicks documents as
+    /// contractual. (The typed field precedes it, but that is a text input, not
+    /// one of the choices.)
     func testClearingIsTheFirstChoiceInThePopover() {
-        XCTAssertEqual(MacDueDatePopover.rows.first, .clear)
+        let rows = MacDueDatePopover.rows
+        let clearIndex = rows.firstIndex(of: .clear)
+        let firstPickIndex = rows.firstIndex { if case .quickPick = $0 { return true }; return false }
+        XCTAssertNotNil(clearIndex)
+        XCTAssertNotNil(firstPickIndex)
+        XCTAssertLessThan(clearIndex!, firstPickIndex!,
+                          "clearing must precede the quick picks")
+    }
+
+    /// This is a Mac: there is a keyboard, so a date can be TYPED rather than
+    /// hunted for in a grid — and the field leads the popover.
+    func testPopoverOffersATypableDateField() {
+        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
     }
 
     /// The popover offers exactly the shared quick picks, in the shared order —
@@ -77,10 +91,23 @@ final class MacWhenRowTests: XCTestCase {
         XCTAssertEqual(picks, DueDateQuickPicks.dateOptions)
     }
 
-    /// And the calendar itself is there, last — tapping the trigger opens the
-    /// picker, which is the whole point of the control.
-    func testPopoverEndsWithTheCalendar() {
-        XCTAssertEqual(MacDueDatePopover.rows.last, .calendar)
+    /// THE BUG: the popover showed a typable field AND a graphical calendar.
+    /// The field brings a calendar of its own when you use it, so choosing a
+    /// date put two calendars on screen, one overlapping the other.
+    func testPopoverOffersExactlyOneDateEntryControl() {
+        XCTAssertEqual(MacDueDatePopover.dateEntryControls.count, 1,
+                       "a typable field plus a graphical calendar is two calendars, "
+                       + "because the field carries one")
+    }
+
+    /// And the one it keeps is the typable field — this is a Mac.
+    func testTheDateEntryControlIsTheTypableField() {
+        XCTAssertEqual(MacDueDatePopover.dateEntryControls, [.typedEntry])
+    }
+
+    /// The standalone graphical calendar is gone from the popover.
+    func testThePopoverHasNoStandaloneCalendar() {
+        XCTAssertFalse(MacDueDatePopover.rows.contains(.calendar))
     }
 
     // MARK: - The time popover mirrors it

@@ -109,6 +109,27 @@ final class DueDateLabelTests: XCTestCase {
         XCTAssertFalse(label.isEmpty)
     }
 
+    /// THE ASK: a formatted date carries its day of week. "Aug 12, 2026" tells
+    /// you when in the abstract; whether that is a Wednesday is the thing you
+    /// actually need when scheduling, and nothing else on the row says it.
+    func testFormattedDatesCarryTheDayOfWeek() {
+        let now = localTime(2026, 8, 8, 12, zone: losAngeles)
+        // 12 Aug 2026 is a Wednesday.
+        let label = DueDateLabel.text(for: utcMidnight(2026, 8, 12), isAllDay: true,
+                                      now: now, localCalendar: localCalendar(losAngeles))
+        XCTAssertTrue(label.contains("Wed"),
+                      "expected the weekday in \(label)")
+    }
+
+    /// Today/Tomorrow/Yesterday already answer "when", so they stay as they are
+    /// rather than growing a redundant weekday.
+    func testNamedDaysDoNotGainAWeekday() {
+        let now = localTime(2026, 8, 8, 12, zone: losAngeles)
+        XCTAssertEqual(DueDateLabel.text(for: utcMidnight(2026, 8, 8), isAllDay: true,
+                                         now: now, localCalendar: localCalendar(losAngeles)),
+                       NSLocalizedString("picker.today", comment: ""))
+    }
+
     /// A formatted all-day date must render in UTC too, or a December 25th task
     /// displays as the 24th for anyone west of UTC.
     func testFormattedAllDayDateDoesNotDriftAcrossTheDateLine() {

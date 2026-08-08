@@ -43,9 +43,20 @@ enum MacWhenRow {
 
 // MARK: - Popover contents
 
-/// A row in the due-date popover. Order is contractual: the CLEARING choice
-/// comes first, matching iOS and the note in DueDateQuickPicks.
+/// A row in the due-date popover.
+///
+/// Order is contractual in one respect: among the CHOICES, clearing comes first
+/// — matching iOS and the note in DueDateQuickPicks. The typed field leads the
+/// popover because this is a Mac: there is a keyboard, and typing a date is
+/// faster than hunting for it in a grid.
+///
+/// EXACTLY ONE date-entry control. The first version showed a typable field AND
+/// a graphical calendar, not realising the field brings a calendar of its own
+/// when you use it — so picking a date put two calendars on screen at once, one
+/// on top of the other. `.calendar` is kept as a case so its absence is
+/// checkable, and so putting it back is a deliberate act with a failing test.
 enum MacDueDatePopoverRow: Equatable {
+    case typedEntry
     case clear
     case quickPick(DueDateQuickPicks.DateOption)
     case calendar
@@ -53,7 +64,13 @@ enum MacDueDatePopoverRow: Equatable {
 
 enum MacDueDatePopover {
     static var rows: [MacDueDatePopoverRow] {
-        [.clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) } + [.calendar]
+        [.typedEntry, .clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
+    }
+
+    /// Controls through which a specific date can be entered, as opposed to
+    /// picked from a shortcut. There must be one.
+    static var dateEntryControls: [MacDueDatePopoverRow] {
+        rows.filter { $0 == .typedEntry || $0 == .calendar }
     }
 }
 
