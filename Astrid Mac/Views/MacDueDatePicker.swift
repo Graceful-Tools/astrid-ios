@@ -139,16 +139,8 @@ struct MacDueDatePicker: View {
                             isPresented = false
                         }
                     case .calendar:
-                        Divider().padding(.vertical, 4)
-                        // Fills the popover rather than sitting in a 260pt box
-                        // inside it — the calendar was the one thing here that
-                        // actually wants the room.
-                        DatePicker("", selection: calendarSelection,
-                                   displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .labelsHidden()
-                            .frame(maxWidth: .infinity)
-                            .fixedSize(horizontal: false, vertical: true)
+                        // Not in `rows` — the typed field carries its own calendar.
+                        EmptyView()
                     }
                 }
             }

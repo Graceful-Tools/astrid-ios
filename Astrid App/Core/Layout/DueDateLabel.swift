@@ -75,13 +75,21 @@ enum DueDateLabel {
         return utc.dateComponents([.day], from: todayUTC, to: storedUTC).day ?? 0
     }
 
-    /// A date far enough out to need its own name. All-day dates format in UTC
-    /// for the same reason they compare in it — otherwise a 25 December task
-    /// prints as the 24th west of UTC.
+    /// A date far enough out to need its own name.
+    ///
+    /// Carries the DAY OF WEEK: "Aug 12, 2026" tells you when in the abstract,
+    /// but what you actually want to know when scheduling is whether that's a
+    /// Wednesday or a Saturday, and nothing else on the row says so. Today,
+    /// Tomorrow and Yesterday don't need it — they already answer the question.
+    ///
+    /// The format comes from a localised TEMPLATE, not a literal pattern, so the
+    /// field order follows the user's locale rather than an American one.
+    ///
+    /// All-day dates format in UTC for the same reason they compare in it —
+    /// otherwise a 25 December task prints as the 24th west of UTC.
     private static func formatted(_ date: Date, isAllDay: Bool) -> String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        formatter.setLocalizedDateFormatFromTemplate("EEE MMM d yyyy")
         if isAllDay { formatter.timeZone = TimeZone(identifier: "UTC") }
         return formatter.string(from: date)
     }
