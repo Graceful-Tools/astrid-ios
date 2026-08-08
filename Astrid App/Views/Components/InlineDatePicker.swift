@@ -251,73 +251,10 @@ struct InlineDatePicker: View {
         }
     }
 
+    /// The shared label, so iOS and Mac cannot disagree about which day a task
+    /// is due. This was 70 lines of timezone arithmetic living privately here —
+    /// see DueDateLabel for why it moved.
     private func formatDate(_ date: Date) -> String {
-        // CRITICAL: Use UTC calendar for all-day tasks (stored at midnight UTC)
-        // Use local calendar for timed tasks (stored with specific time in UTC)
-        // This prevents timezone offset bugs (e.g., "Tomorrow" showing for "Today" when time is set)
-
-        if isAllDay {
-            // All-day tasks: Extract and compare UTC date components directly
-            var utcCalendar = Calendar(identifier: .gregorian)
-            utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-            // Get today in LOCAL calendar
-            let localCalendar = Calendar.current
-            let now = Date()
-            let todayLocal = localCalendar.dateComponents([.year, .month, .day], from: now)
-
-            // Create UTC midnight for today's LOCAL date
-            var todayUTCComponents = DateComponents()
-            todayUTCComponents.year = todayLocal.year
-            todayUTCComponents.month = todayLocal.month
-            todayUTCComponents.day = todayLocal.day
-            todayUTCComponents.hour = 0
-            todayUTCComponents.minute = 0
-            todayUTCComponents.second = 0
-
-            guard let todayUTC = utcCalendar.date(from: todayUTCComponents) else {
-                return date.description
-            }
-
-            // Extract UTC date components from the stored date
-            let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: date)
-
-            // Compare the components directly
-            let daysDiff = utcCalendar.dateComponents([.day], from: todayUTC, to: utcCalendar.date(from: dateComponents) ?? date).day ?? 0
-
-            if daysDiff == 0 {
-                return "Today"
-            } else if daysDiff == 1 {
-                return "Tomorrow"
-            } else if daysDiff == -1 {
-                return "Yesterday"
-            } else {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                formatter.timeStyle = .none
-                formatter.timeZone = TimeZone(identifier: "UTC")
-                return formatter.string(from: date)
-            }
-        } else {
-            // Timed tasks: Use local calendar
-            let localCalendar = Calendar.current
-            let today = localCalendar.startOfDay(for: Date())
-            let compareDate = localCalendar.startOfDay(for: date)
-
-            let daysDiff = localCalendar.dateComponents([.day], from: today, to: compareDate).day ?? 0
-
-            if daysDiff == 0 {
-                return "Today"
-            } else if daysDiff == 1 {
-                return "Tomorrow"
-            } else if daysDiff == -1 {
-                return "Yesterday"
-            } else {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                formatter.timeStyle = .none
-                return formatter.string(from: date)
-            }
-        }
+        DueDateLabel.text(for: date, isAllDay: isAllDay)
     }
 }
