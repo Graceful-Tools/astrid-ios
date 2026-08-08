@@ -193,73 +193,29 @@ struct MacTaskDetailView: View {
                     }
                 }
                 labeled(NSLocalizedString("tasks.when", comment: "")) {
-                    // The date toggle leads; time and repeat only appear once there IS a date,
-                    // so an undated task shows one control rather than three inert ones.
+                    // ONE line, always. The row used to lead with a "Due Date" toggle whose
+                    // ON state unfolded a date picker, two rows of quick-pick chips and an
+                    // "All day" toggle INTO the pane, so the panel changed shape with every
+                    // task. iOS shows a calendar glyph and a single trigger, with the picks
+                    // inside the popover it opens — this is that design. MacWhenRow states
+                    // the composition; MacWhenRowTests pins it.
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 10) {
-                            Toggle(NSLocalizedString("lists.due_date", comment: ""), isOn: $hasDue)
-                                .onChange(of: hasDue) { saveDue() }
-                                .frame(minWidth: MacDetailRowFit.whenRowMinimums[0])
-                            if hasDue {
-                                DatePicker("", selection: $due,
-                                           displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
-                                    .labelsHidden()
-                                    .onChange(of: due) { saveDue() }
-                                    .frame(minWidth: MacDetailRowFit.whenRowMinimums[1])
-                                // A MENU, not a Picker: a Picker renders as a segmented/wheel
-                                // control here and the six repeat options do not fit the panel.
-                                // The label shows the CURRENT choice — iOS shows the chosen
-                                // repeat, not the word "Repeat" (ea4f5124).
-                                Menu {
-                                    ForEach(Task.Repeating.allCases, id: \.self) { option in
-                                        Button {
-                                            repeating = option
-                                            handleRepeatChange()
-                                        } label: {
-                                            if option == repeating {
-                                                Label(option.displayName, systemImage: "checkmark")
-                                            } else {
-                                                Text(option.displayName)
-                                            }
-                                        }
-                                    }
-                                } label: {
-                                    Text(repeating.displayName)
-                                        .font(.system(size: 11))
-                                        .lineLimit(1)
-                                }
-                                .menuStyle(.borderlessButton)
-                                .frame(minWidth: MacDetailRowFit.whenRowMinimums[2])
+                            ForEach(Array(MacWhenRow.controls(hasDate: hasDue).enumerated()),
+                                    id: \.offset) { index, control in
+                                whenControl(control)
+                                    .frame(minWidth: MacDetailRowFit.whenRowMinimums[index])
                             }
                         }
-                        if hasDue {
-                            // Quick picks, the way iOS has always had them (ea4f5124). The Mac
-                            // offered a bare DatePicker, so setting "tomorrow" meant opening a
-                            // calendar and finding it. Options come from the SHARED
-                            // DueDateQuickPicks so the two platforms cannot disagree about what
-                            // "Next week" means.
-                            quickPickRow(DueDateQuickPicks.dateOptions.map(\.titleKey)) { index in
-                                due = DueDateQuickPicks.date(
-                                    daysFromToday: DueDateQuickPicks.dateOptions[index].daysFromToday,
-                                    from: due)
-                                saveDue()
-                            }
-                            if !isAllDay {
-                                quickPickRow(DueDateQuickPicks.timeOptions.map(\.titleKey)) { index in
-                                    due = DueDateQuickPicks.applying(
-                                        hour: DueDateQuickPicks.timeOptions[index].hour, to: due)
-                                    saveDue()
-                                }
-                            }
-                            Toggle(NSLocalizedString("All day", comment: ""), isOn: $isAllDay)
-                                .onChange(of: isAllDay) { saveDue() }
-                            if repeating == .custom {
-                                HStack {
-                                    Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
-                                        .foregroundStyle(Theme.textSecondary).font(.callout)
-                                    Spacer()
-                                    Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
-                                }
+                        // A custom repeat cannot say what it is in a chip, so its pattern gets
+                        // its own line — the one place the row is still allowed to grow (iOS
+                        // does the same, 42013da7).
+                        if hasDue, repeating == .custom {
+                            HStack {
+                                Text(customPattern.map(MacCustomRepeat.summary) ?? "Custom…")
+                                    .foregroundStyle(Theme.textSecondary).font(.callout)
+                                Spacer()
+                                Button(NSLocalizedString("actions.edit", comment: "")) { showCustomRepeat = true }
                             }
                         }
                     }
@@ -614,21 +570,68 @@ struct MacTaskDetailView: View {
     }
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
-    /// A row of quick-pick chips — the Mac equivalent of the iOS inline pickers' preset buttons.
-    /// Titles are localisation keys from DueDateQuickPicks, so the two platforms offer the same
-    /// options in the same order by construction (ea4f5124).
-    private func quickPickRow(_ titleKeys: [String], onPick: @escaping (Int) -> Void) -> some View {
-        HStack(spacing: 6) {
-            ForEach(Array(titleKeys.enumerated()), id: \.offset) { index, key in
-                Button(NSLocalizedString(key, comment: "")) { onPick(index) }
-                    .buttonStyle(.plain)
+
+    /// One control of the When row. The row's composition is decided by
+    /// `MacWhenRow.controls`; this renders whichever control it named.
+    @ViewBuilder
+    private func whenControl(_ control: MacWhenControl) -> some View {
+        switch control {
+        case .date:
+            MacDueDatePicker(date: dueDateBinding, isAllDay: isAllDay) { saveDue() }
+        case .time:
+            MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
+        case .repeatPattern:
+            // A MENU, not a Picker: a Picker renders as a segmented/wheel control here
+            // and the six repeat options do not fit the panel. The label shows the
+            // CURRENT choice — iOS shows the chosen repeat, not the word "Repeat"
+            // (ea4f5124).
+            Menu {
+                ForEach(Task.Repeating.allCases, id: \.self) { option in
+                    Button {
+                        repeating = option
+                        handleRepeatChange()
+                    } label: {
+                        if option == repeating {
+                            Label(option.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(option.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Text(repeating.displayName)
                     .font(.system(size: 11))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Theme.bgSecondary, in: Capsule())
-                    .macPointingHand()
+                    .lineLimit(1)
             }
+            .menuStyle(.borderlessButton)
+        case .dueDateToggle, .dateQuickPicks, .timeQuickPicks, .allDayToggle:
+            // Retired controls. `MacWhenRow.controls` never names them and
+            // MacWhenRowTests keeps it that way; this arm exists only so the
+            // switch stays exhaustive.
+            EmptyView()
         }
+    }
+
+    /// The detail's `hasDue` / `due` pair as the optional the picker speaks.
+    /// Storage conversion (all-day dates live at midnight UTC) belongs to the
+    /// picker, which knows `isAllDay`; this just bridges the two fields.
+    private var dueDateBinding: Binding<Date?> {
+        Binding(
+            get: { hasDue ? due : nil },
+            set: { newValue in
+                if let newValue {
+                    due = newValue
+                    hasDue = true
+                } else {
+                    hasDue = false
+                    // Clearing the date clears the repeat too — matching iOS, and
+                    // because a repeat with no date to repeat from is the state
+                    // that produces phantom rollovers.
+                    repeating = .never
+                    customPattern = nil
+                }
+            }
+        )
     }
 
     private func labeled<V: View>(_ label: String, @ViewBuilder _ content: () -> V) -> some View {

@@ -17,13 +17,15 @@ enum MacDetailRowFit {
     /// The row's own leading + trailing inset inside the Form.
     static var rowInsets: CGFloat { 24 }
 
-    /// Minimum widths for the "When" row: the due-date toggle, the date picker, the repeat menu.
+    /// Minimum widths for the "When" row: the date trigger, the time trigger, the repeat menu.
     /// These are MINIMUMS the controls may shrink to — not their ideal sizes, which is exactly
     /// the distinction `.fixedSize()` erased.
-    /// 84 + 132 + 88 = 304, plus 20 spacing and 24 insets = 348 against a 380pt panel — 32pt of
+    /// 110 + 80 + 88 = 278, plus 20 spacing and 24 insets = 322 against a 380pt panel — 58pt of
     /// headroom. My first attempt at these numbers came to 382 and the test caught it: a "fix"
     /// that still overflowed, by two points.
-    static var whenRowMinimums: [CGFloat] { [84, 132, 88] }
+    /// The date trigger is the widest because it renders a full date ("Dec 25, 2026"); the toggle
+    /// it replaced only ever had to fit the words "Due Date".
+    static var whenRowMinimums: [CGFloat] { [110, 80, 88] }
 
     /// Priority chip + assignee menu.
     static var priorityRowMinimums: [CGFloat] { [40, 140] }
