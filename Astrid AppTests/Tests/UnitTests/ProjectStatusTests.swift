@@ -108,9 +108,13 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing", statusOrder: 1)
         let projectA = makeList(id: "a", name: "Project A list", projectId: "project-a", listType: "regular")
 
+        // Waiting appears without a backing row: the three defaults come from
+        // config now, so the board survives the status lists going away
+        // (task 2e41c645). A backed role keeps the LIST id; an unbacked one is
+        // keyed on the role.
         let columns = getProjectBoardColumns([projectA, ready, doing])
         XCTAssertEqual(columns.map { $0.id }, [
-            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", VIRTUAL_DONE_COLUMN_ID,
+            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
         ])
     }
 
@@ -120,9 +124,10 @@ final class ProjectStatusTests: XCTestCase {
         let legacyDone = makeStatusList(id: "done", name: "Done", statusRole: "done",
                                         statusOrder: 9, statusCompleted: true)
 
+        // The legacy inbox/done rows stay hidden; the config defaults render.
         let columns = getProjectBoardColumns([legacyInbox, ready, legacyDone])
         XCTAssertEqual(columns.map { $0.id }, [
-            VIRTUAL_INBOX_COLUMN_ID, "ready", VIRTUAL_DONE_COLUMN_ID,
+            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
         ])
     }
 
