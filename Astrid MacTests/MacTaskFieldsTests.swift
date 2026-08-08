@@ -98,6 +98,31 @@ final class MacTaskFieldsTests: XCTestCase {
         XCTAssertEqual(twice, ["a"])
     }
 
+    // MARK: - The description reads as text until you click it
+
+    /// A real description renders as text.
+    func testDescriptionWithContentShowsThatContent() {
+        XCTAssertEqual(MacTaskFields.descriptionDisplay("Ship it"), .body("Ship it"))
+    }
+
+    /// Empty falls back to the prompt — otherwise the row is a blank clickable
+    /// gap with nothing saying what it is.
+    func testEmptyDescriptionShowsThePrompt() {
+        XCTAssertEqual(MacTaskFields.descriptionDisplay(""), .placeholder)
+    }
+
+    /// THE TRAP: whitespace is not content. A description of spaces and newlines
+    /// would render as an invisible body and lose the prompt entirely.
+    func testWhitespaceOnlyDescriptionShowsThePrompt() {
+        XCTAssertEqual(MacTaskFields.descriptionDisplay("   \n  \t "), .placeholder)
+    }
+
+    /// Content is shown verbatim, not trimmed — the user's leading indent is
+    /// theirs to keep; trimming is only how we DECIDE which state to show.
+    func testDescriptionContentIsNotRewritten() {
+        XCTAssertEqual(MacTaskFields.descriptionDisplay("  indented"), .body("  indented"))
+    }
+
     // MARK: - The board reuses the detail's fields
 
     /// THE ASK: one implementation. The board card asks for the same field set,

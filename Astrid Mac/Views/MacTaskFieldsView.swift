@@ -43,6 +43,8 @@ struct MacTaskFieldsView: View {
     /// detail used to route that key at the DATE area, because there was no
     /// lists editor to send it to.
     @State private var showListPicker = false
+    /// The description reads as text until clicked (iOS/web parity).
+    @State private var editingNotes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
@@ -57,7 +59,11 @@ struct MacTaskFieldsView: View {
         .onChange(of: MacAppModel.shared.shortcutRequest) { _, req in
             guard let req, case .focus(let field) = req.kind else { return }
             switch field {
-            case .description: notesFocused = true
+            case .description:
+                // The editor only EXISTS once the row is in edit mode now, so the
+                // shortcut has to open it before asking for focus.
+                editingNotes = true
+                notesFocused = true
             case .lists:       showListPicker = true
             case .date:        if !hasDue { hasDue = true; saveDue() }
             case .comment:     break   // the detail owns the comment field
@@ -210,29 +216,72 @@ struct MacTaskFieldsView: View {
 
     // MARK: - Description
 
+    /// Read until you click it, then an editor that GROWS instead of scrolling.
+    ///
+    /// It used to be a permanently-live TextEditor with a fixed minimum height:
+    /// an empty task showed an editing box with a scrollbar, and a long
+    /// description scrolled inside a 70pt window rather than taking the room the
+    /// panel had. iOS and web both read as text and become editable on tap.
     private var descriptionRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(NSLocalizedString("tasks.description", comment: ""))
                 .font(MacTypography.label)
                 .foregroundStyle(Theme.textMuted)
-            TextEditor(text: $notes)
-                .font(MacTypography.detailBody)
-                .frame(minHeight: density == .detail ? 70 : 44)
-                .frame(maxWidth: .infinity)
-                .focused($notesFocused)
-                .onChange(of: notesFocused) { _, focused in
-                    if focused { editing.begin(Self.notesEditor) }
-                    else { editing.end(Self.notesEditor); saveNotes() }
+
+            if editingNotes {
+                ZStack(alignment: .topLeading) {
+                    // A clear copy of the text sizes the row, so the editor is
+                    // always exactly as tall as its content — which is what
+                    // removes the scrollbar rather than just hiding it.
+                    Text(notes.isEmpty ? " " : notes)
+                        .font(MacTypography.detailBody)
+                        .foregroundStyle(.clear)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    TextEditor(text: $notes)
+                        .font(MacTypography.detailBody)
+                        .scrollDisabled(true)
+                        .scrollContentBackground(.hidden)
+                        .focused($notesFocused)
                 }
-                .overlay(alignment: .topLeading) {
-                    if notes.isEmpty && !notesFocused {
-                        Text(NSLocalizedString("mac.click_add_description", comment: ""))
-                            .font(MacTypography.detailBody)
-                            .foregroundStyle(Theme.textMuted)
-                            .padding(.top, 8).padding(.leading, 5)
-                            .allowsHitTesting(false)
+                .frame(minHeight: MacDescriptionRow.minEditorHeight)
+                .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 6))
+                .onChange(of: notesFocused) { _, focused in
+                    if focused {
+                        editing.begin(Self.notesEditor)
+                    } else {
+                        editing.end(Self.notesEditor)
+                        saveNotes()
+                        editingNotes = false
                     }
                 }
+            } else {
+                Button {
+                    editingNotes = true
+                    notesFocused = true
+                } label: {
+                    Group {
+                        switch MacTaskFields.descriptionDisplay(notes) {
+                        case .body(let text):
+                            Text(text)
+                                .font(MacTypography.detailBody)
+                                .foregroundStyle(Theme.textPrimary)
+                                .multilineTextAlignment(.leading)
+                        case .placeholder:
+                            Text(NSLocalizedString("mac.click_add_description", comment: ""))
+                                .font(MacTypography.detailBody)
+                                .foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .macPointingHand()
+            }
         }
     }
 

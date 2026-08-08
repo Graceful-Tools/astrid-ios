@@ -50,6 +50,21 @@ enum MacTaskFields {
         current.contains(listId) ? current.filter { $0 != listId } : current + [listId]
     }
 
+    /// What the description row shows when it is not being edited.
+    ///
+    /// A description of only whitespace is not a description — it has to fall
+    /// back to the prompt, or the row renders as a blank clickable gap with
+    /// nothing telling you what it is.
+    enum DescriptionDisplay: Equatable {
+        case body(String)
+        case placeholder
+    }
+
+    static func descriptionDisplay(_ text: String) -> DescriptionDisplay {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? .placeholder : .body(text)
+    }
+
     /// How tightly the fields are packed. A board card is a ~250pt column; the
     /// detail is a 380pt panel. One view, two densities — not two views.
     enum Density {

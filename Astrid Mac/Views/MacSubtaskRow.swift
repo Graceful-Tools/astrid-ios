@@ -42,3 +42,16 @@ enum MacSubtaskRow {
     }
 }
 #endif
+
+#if os(macOS)
+/// Metrics for the description row.
+///
+/// It was a permanently-live TextEditor with a 70pt floor: an empty task showed
+/// an editing box with a scrollbar, and a long description scrolled inside that
+/// window instead of taking the room the panel had.
+enum MacDescriptionRow {
+    /// Floor for the editor once open — a click should land you in something
+    /// with room to type, not a single line.
+    static var minEditorHeight: CGFloat { 56 }
+}
+#endif
