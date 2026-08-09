@@ -165,6 +165,7 @@ struct MacRootView: View {
         .tag(Optional(list.id))
         // Drop tasks here to MOVE them, or hold Option to COPY — the macOS convention (83f45d49).
         .dropDestination(for: String.self) { ids, _ in
+            draggingTaskId = nil                // the drag ended on a list; retire the strip
             switch MacDropAction.current {
             case .copy: copyTasks(Set(ids), to: list.id)
             case .move: move(Set(ids), to: list.id)
@@ -227,6 +228,60 @@ struct MacRootView: View {
 
     /// Row currently under a drag-to-indent drop, for the highlight.
     @State private var indentDropTargetId: String?
+
+    /// The task currently being dragged, if any. Needed because the promote-to-top-level
+    /// target is offered ONLY while a SUBTASK is in flight (task 2ed0d0de) — a permanent
+    /// unnest strip would be noise, since most tasks are not subtasks and most drags are
+    /// reorders. `.onDrag` firing on the row is the only moment this is knowable.
+    @State private var draggingTaskId: String?
+    /// Whether the promote strip is currently under the pointer, for its highlight.
+    @State private var promoteDropTargeted = false
+
+    /// The in-flight task, resolved for the promote decision.
+    private var draggingTask: Task? {
+        draggingTaskId.flatMap { id in taskService.tasks.first(where: { $0.id == id }) }
+    }
+
+    /// Drop on the promote strip: cut the link to the parent, leaving the task's own children
+    /// nested under it. The decision itself is shared with web via SubtaskPromotion.
+    private func promoteToTopLevel(_ droppedId: String) -> Bool {
+        guard let dropped = taskService.tasks.first(where: { $0.id == droppedId }),
+              let promotion = SubtaskPromotion.resolvePromotion(dropped) else { return false }
+        MacActions.perform("Move out of parent task") {
+            _ = try await taskService.updateTask(taskId: promotion.taskId, task: dropped,
+                                                 parentTaskId: SubtaskPromotion.clearParentValue)
+        }
+        return true
+    }
+
+    /// The strip that appears at the top of the list while a subtask is being dragged.
+    @ViewBuilder private var promoteDropTarget: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.up.left")
+            Text(NSLocalizedString("subtasks.promote_drop_target", comment: ""))
+        }
+        .font(MacTypography.label)
+        .foregroundStyle(promoteDropTargeted ? Theme.accent : Theme.textMuted)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(promoteDropTargeted ? Theme.accent : Theme.textMuted.opacity(0.4),
+                          style: StrokeStyle(lineWidth: promoteDropTargeted ? 2 : 1, dash: [4, 3])))
+        .onDrop(of: [.text], isTargeted: $promoteDropTargeted) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                guard let dropped = value as? String else { return }
+                DispatchQueue.main.async {
+                    promoteDropTargeted = false
+                    draggingTaskId = nil
+                    _ = promoteToTopLevel(dropped)
+                }
+            }
+            return true
+        }
+        .listRowSeparator(.hidden)
+        .accessibilityIdentifier(SubtaskPromotion.dropTargetId)
+    }
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
 
@@ -535,6 +590,12 @@ struct MacRootView: View {
         // macOS accent highlight never paints the whole row — the card stays white and only the
         // border shows selection (0f695ef2). Row taps select / re-tap closes / ⌘-click multi-selects.
         List {
+            // Offered ONLY while a subtask is in flight, at the top of the list where web puts
+            // it (task 2ed0d0de). A task with no parent has nothing to move out of, so it gets
+            // no target at all rather than a drop that would write a null over a null.
+            if SubtaskPromotion.shouldShowPromoteTarget(draggedTask: draggingTask) {
+                promoteDropTarget
+            }
             // Within-list drag-reorder is only meaningful under Manual sort (7b7a17d3), like iOS —
             // otherwise the shared sort would immediately re-order any manual arrangement.
             if isManualSort, currentRealList != nil {
@@ -599,7 +660,9 @@ struct MacRootView: View {
                 let cmd = NSEvent.modifierFlags.contains(.command)
                 selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
                 scrollAccum = 0
-            }
+            },
+            // Which task is in flight decides whether the promote strip is offered at all.
+            onDragBegan: { draggingTaskId = task.id }
         )
         // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
@@ -620,6 +683,7 @@ struct MacRootView: View {
                 guard let dropped = value as? String else { return }
                 DispatchQueue.main.async {
                     indentDropTargetId = nil
+                    draggingTaskId = nil        // the drag ended here; retire the promote strip
                     makeSubtask(dropped, of: task)
                 }
             }

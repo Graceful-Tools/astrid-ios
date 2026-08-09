@@ -35,4 +35,17 @@ enum MacSystemComments {
                           comment: "")
     }
 }
+
+/// The other half of the rule above: what the Mac must SEND so its own comments survive it.
+///
+/// `isSystem` hides anything without an authorId, so a comment posted without one is filtered
+/// straight back out of the thread — the comment you just typed disappears until the Outbox
+/// syncs and a refresh returns the server copy, which does carry an author (task a3f868b4).
+enum MacCommentPost {
+    /// The author a comment posted from this Mac must carry.
+    static func authorId(currentUserId: String?) -> String? { currentUserId }
+
+    /// Whether a comment posted with this author will actually be visible in the thread.
+    static func isVisibleInThread(authorId: String?) -> Bool { authorId != nil }
+}
 #endif
