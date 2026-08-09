@@ -410,8 +410,7 @@ struct TaskDetailViewNew: View {
                             // line while they fit and wraps when they do not.
                             FlowLayout(spacing: Theme.spacing8, rowSpacing: Theme.spacing8) {
                                 ForEach(Array(TaskWhenRowLayout.controls(
-                                    hasDate: editedDueDate != nil,
-                                    isCustomRepeat: editedRepeating == .custom
+                                    hasDate: editedDueDate != nil
                                 ).enumerated()), id: \.offset) { _, control in
                                     whenControl(control)
                                 }
@@ -419,29 +418,6 @@ struct TaskDetailViewNew: View {
                         }
                     }
 
-                    // A CUSTOM repeat cannot say what it is in a chip — "Custom" tells you
-                    // nothing, and the real pattern ("Every 2 weeks on Mon, Wed") does not fit
-                    // beside a date and a time. It gets the next row to itself (42013da7).
-                    if let repeating = editedRepeating, repeating == .custom,
-                       let pattern = editedRepeatingData {
-                        TwoColumnRow(label: NSLocalizedString("repeating.title", comment: "Repeat"),
-                                     icon: "repeat") {
-                            // The row IS the picker: its trigger renders the full pattern, so
-                            // tapping the summary opens the repeat options rather than being
-                            // dead text next to a separate control (42013da7).
-                            InlineRepeatPicker(
-                                label: NSLocalizedString("repeating.title", comment: ""),
-                                repeatPattern: $editedRepeating,
-                                repeatFrom: $editedRepeatFrom,
-                                repeatingData: $editedRepeatingData,
-                                onSave: saveRepeating,
-                                onSaveCustom: saveCustomRepeating,
-                                showLabel: false,
-                                compact: true
-                            )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
                 }
 
                 // 7. Lists

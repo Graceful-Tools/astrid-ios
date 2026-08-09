@@ -16,6 +16,18 @@ struct MacDueDatePicker: View {
     let onCommit: () -> Void
 
     @State private var isPresented = false
+    /// What the user has typed, mirrored from `date` while the popover is open.
+    @State private var typed = ""
+
+    /// Accept a typed date, or leave the field showing what is actually set.
+    private func commitTyped() {
+        if let parsed = MacDateEntry.parse(typed) {
+            select(localDay: parsed)
+            isPresented = false
+        } else {
+            typed = date.map { MacDateEntry.format($0) } ?? ""
+        }
+    }
 
     var body: some View {
         Button { isPresented = true } label: {
@@ -27,28 +39,25 @@ struct MacDueDatePicker: View {
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: MacFieldPicker.rowSpacing) {
+            VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
                 ForEach(Array(MacDueDatePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .typedEntry:
-                        // macOS's graphical picker draws a TYPABLE field with a
-                        // stepper above the grid, so this is both the keyboard
-                        // affordance and the calendar — one control, one calendar.
-                        // `.field` alone spawned the system's own small calendar
-                        // overlay on top of ours, which is how two appeared at once.
-                        //
-                        // Scaled up because the system grid is small for something
-                        // you aim a pointer at; there is no API to ask for a bigger
-                        // one, so it is scaled and given the room it then needs.
-                        DatePicker("", selection: calendarSelection,
-                                   displayedComponents: [.date])
-                            .datePickerStyle(.graphical)
-                            .labelsHidden()
-                            .scaleEffect(MacFieldPicker.calendarScale, anchor: .topLeading)
-                            .frame(width: 150 * MacFieldPicker.calendarScale,
-                                   height: 148 * MacFieldPicker.calendarScale,
-                                   alignment: .topLeading)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        // OUR field, not NSDatePicker's. `.field` types but drags
+                        // the system's own calendar overlay in on top of ours;
+                        // `.graphical` can be sized and centred but cannot be
+                        // typed into at all. Owning the text field decouples the
+                        // two, and MacDateEntry makes the parsing testable.
+                        TextField(MacDateEntry.format(Date()), text: $typed)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12))
+                            .multilineTextAlignment(.center)
+                            .onSubmit(commitTyped)
+                            .frame(maxWidth: .infinity)
+                            .onAppear { typed = date.map { MacDateEntry.format($0) } ?? "" }
+                            .onChange(of: date) { _, newValue in
+                                typed = newValue.map { MacDateEntry.format($0) } ?? ""
+                            }
                     case .clear:
                         // A CHOICE, first, in red — not a toolbar escape hatch.
                         MacPickerRow(title: NSLocalizedString("picker.no_due_date", comment: ""),

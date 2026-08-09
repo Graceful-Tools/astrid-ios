@@ -30,12 +30,15 @@ enum TaskWhenRowLayout {
     /// layout's job, not this function's.
     ///
     /// Time and repeat need a date to attach to, so an undated task is a single
-    /// "add a date" control rather than three inert ones. A CUSTOM repeat is
-    /// omitted: it already has a row of its own below showing the real pattern,
-    /// and a "Custom" chip would be a second, less informative control for the
-    /// same thing (42013da7).
-    static func controls(hasDate: Bool, isCustomRepeat: Bool) -> [TaskWhenControl] {
-        guard hasDate else { return [.date] }
-        return isCustomRepeat ? [.date, .time] : [.date, .time, .repeatPattern]
+    /// "add a date" control rather than three inert ones.
+    ///
+    /// Repeat is ALWAYS present for a dated task. It used to be dropped when the
+    /// repeat was custom, because the pattern then had a row of its own below —
+    /// but once the chip started showing the pattern itself, dropping it meant a
+    /// custom-repeating task displayed no repeat control at all. Both platforms'
+    /// chips render the pattern, so there is nothing left for the exception to
+    /// protect.
+    static func controls(hasDate: Bool) -> [TaskWhenControl] {
+        hasDate ? [.date, .time, .repeatPattern] : [.date]
     }
 }

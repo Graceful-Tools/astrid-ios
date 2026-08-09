@@ -20,33 +20,28 @@ final class TaskWhenRowLayoutTests: XCTestCase {
 
     // MARK: - Which controls are on the row
 
-    /// Stated as its own case because this is the actual report: the time went
-    /// missing. It is on the row for every dated task, custom repeat or not.
+    /// Stated as its own case because this was a report: the time went missing.
     func testTimeIsPresentForEveryDatedTask() {
-        for isCustom in [true, false] {
-            XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: isCustom)
-                            .contains(.time),
-                          "the time must not be squeezed off (custom repeat: \(isCustom))")
-        }
+        XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true).contains(.time))
     }
 
     func testDatedTaskShowsDateTimeAndRepeat() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: false),
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true),
                        [.date, .time, .repeatPattern])
     }
 
-    /// A CUSTOM repeat gets no chip: its real pattern has a line of its own
-    /// below, and "Custom" would be a second, less informative control for the
-    /// same thing.
-    func testCustomRepeatGetsNoChip() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: true),
-                       [.date, .time])
+    /// THE BUG: repeat used to be dropped when the repeat was CUSTOM, because
+    /// the pattern then had a row of its own. Once the chip started showing the
+    /// pattern itself, that exception meant a custom-repeating task displayed no
+    /// repeat control at all — no icon, no mention, nothing.
+    func testRepeatIsShownForEveryDatedTaskIncludingCustom() {
+        XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true).contains(.repeatPattern),
+                      "a custom-repeating task showed no repeat control at all")
     }
 
     /// With no date there is nothing for a time or repeat to attach to.
     func testUndatedTaskShowsOnlyTheDateControl() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: false), [.date])
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: true), [.date])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false), [.date])
     }
 
     // MARK: - Wrapping happens only when it must
