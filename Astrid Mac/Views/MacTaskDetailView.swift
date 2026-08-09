@@ -121,8 +121,17 @@ struct MacTaskDetailView: View {
                 Button(NSLocalizedString("mac.open_new_window", comment: "")) { openWindow(id: "task", value: task.id) }
                 Divider()
                 Button(NSLocalizedString("tasks.delete_task", comment: ""), role: .destructive) { deleteTask() }
-            } label: { Image(systemName: "ellipsis.vertical") }
-            .menuStyle(.borderlessButton).fixedSize()
+            } label: {
+                // A real symbol, stood on end: macOS has no "ellipsis.vertical", and asking for
+                // one rendered an empty label so only the menu's own chevron showed (59d51b80).
+                Image(systemName: MacSymbols.detailMenu)
+                    .rotationEffect(.degrees(MacSymbols.detailMenuRotation))
+            }
+            // Hide that chevron too — the ⋮ IS the affordance, and the indicator was half of
+            // what made the control read as "^".
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .foregroundStyle(Theme.textMuted)
+            .accessibilityIdentifier("taskDetail.overflowMenu")
         }
         .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 4)
 
