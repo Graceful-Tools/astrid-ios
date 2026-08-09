@@ -1195,3 +1195,6 @@
 "repeating.monthly" = "每月";
 "repeating.yearly" = "每年";
 "repeating.custom" = "自定义";
+
+/* Subtasks - TODO: translate, currently English */
+"subtasks.promote_drop_target" = "Drop here to move out of its parent task";

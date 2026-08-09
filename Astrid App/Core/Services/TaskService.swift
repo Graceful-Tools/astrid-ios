@@ -596,7 +596,12 @@ class TaskService: ObservableObject {
                 optimisticTask.lists = optimisticTask.lists?.filter { listIds.contains($0.id) }
             }
         }
-        if let parentTaskId = parentTaskId { optimisticTask.parentTaskId = parentTaskId }
+        // Empty string CLEARS the parent, the same convention assigneeId uses above. It must
+        // become nil locally, not "": SubtaskSplicing reads any non-nil parent as still
+        // nested, so a just-promoted task would vanish from the top level (task 2ed0d0de).
+        if let parentTaskId = parentTaskId {
+            optimisticTask.parentTaskId = SubtaskPromotion.localParentId(forWireValue: parentTaskId)
+        }
 
         // CRITICAL: Update updatedAt to current time for optimistic update
         // This ensures completed tasks immediately pass the "recently completed" filter

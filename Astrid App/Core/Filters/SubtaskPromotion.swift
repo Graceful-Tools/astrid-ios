@@ -54,6 +54,20 @@ enum SubtaskPromotion {
         guard canPromoteToTopLevel(task), let task else { return nil }
         return PromotionResult(taskId: task.id)
     }
+
+    /// The wire value that CLEARS a parent. `PUT /api/v1/tasks/[id]` accepts null or `''`
+    /// interchangeably, but the Swift client already spends nil on "leave this field
+    /// unchanged" — so `''` is the only spelling left that can say "clear".
+    static let clearParentValue = ""
+
+    /// The parent a LOCAL task should show for a given wire value.
+    ///
+    /// `''` must become nil, not an empty string: `SubtaskSplicing` reads any non-nil parent
+    /// as still nested, so an optimistic task carrying `''` would drop out of the top level
+    /// until the next refresh — the promotion would look like it failed.
+    static func localParentId(forWireValue wire: String) -> String? {
+        wire.isEmpty ? nil : wire
+    }
 }
 
 struct PromotionResult: Equatable {

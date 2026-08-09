@@ -1195,3 +1195,6 @@
 "repeating.monthly" = "Maandelijks";
 "repeating.yearly" = "Jaarlijks";
 "repeating.custom" = "Aangepast";
+
+/* Subtasks - TODO: translate, currently English */
+"subtasks.promote_drop_target" = "Drop here to move out of its parent task";

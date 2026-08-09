@@ -77,6 +77,25 @@ final class SubtaskPromotionTests: XCTestCase {
         XCTAssertEqual(SubtaskPromotion.dropTargetId, "promote-to-top-level")
     }
 
+    // MARK: clearing the parent over the wire
+
+    /// The Swift client already uses nil for "leave unchanged", so '' is the only spelling
+    /// left that can mean "clear". The API accepts null or '' interchangeably.
+    func testClearingAParentIsSpelledAsAnEmptyString() {
+        XCTAssertEqual(SubtaskPromotion.clearParentValue, "")
+    }
+
+    /// A just-promoted task must read as top level LOCALLY too. SubtaskSplicing treats any
+    /// non-nil parent as still nested, so leaving '' on the optimistic task would hide the
+    /// task from the top level until the next refresh.
+    func testAnEmptyWireValueBecomesNoParentLocally() {
+        XCTAssertNil(SubtaskPromotion.localParentId(forWireValue: ""))
+    }
+
+    func testARealWireValueIsKeptAsTheParent() {
+        XCTAssertEqual(SubtaskPromotion.localParentId(forWireValue: "p1"), "p1")
+    }
+
     // MARK: the real model conforms
 
     func testTaskItselfIsPromotable() {
