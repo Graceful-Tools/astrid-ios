@@ -133,7 +133,9 @@ struct MacBoardCardEditor: View {
     private func postComment() {
         let c = newComment.trimmingCharacters(in: .whitespaces); guard !c.isEmpty else { return }
         MacActions.perform("Post comment") {
-            _ = try await CommentService.shared.createComment(taskId: task.id, content: c)
+            _ = try await CommentService.shared.createComment(
+                taskId: task.id, content: c,
+                authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
             newComment = ""
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
@@ -158,7 +160,9 @@ struct MacBoardCardEditor: View {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(fileData: data, fileName: name, mimeType: mime, taskId: taskId)
                 attaching = false
                 MacActions.perform("Attach to comment") {
-                    _ = try await CommentService.shared.createComment(taskId: taskId, content: name, fileId: fileId)
+                    _ = try await CommentService.shared.createComment(
+                        taskId: taskId, content: name, fileId: fileId,
+                        authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
                     comments = (try? await CommentService.shared.fetchComments(taskId: taskId)) ?? []
                 }
             }
