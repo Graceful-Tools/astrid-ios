@@ -162,4 +162,45 @@ final class DragNestingTests: XCTestCase {
         let height: CGFloat = 20
         XCTAssertLessThan(DragNesting.lineBandHeight(rowHeight: height), height / 2)
     }
+
+    // MARK: indent — the other direction, for the keyboard
+
+    /// Indent nests a task under its PREVIOUS SIBLING, the outliner convention. The row above
+    /// is not always the right answer: it may be a deeper descendant of something else.
+    func testIndentNestsUnderThePreviousSibling() {
+        let byId = tree()
+        // rendered order: p, c, g, o — `o` is top level and `p` is its previous sibling.
+        let rows = ["p", "c", "g", "o"].map { byId[$0]! }
+        XCTAssertEqual(DragNesting.indent(byId["o"]!, in: rows, byId: byId),
+                       .makeSubtask(taskId: "o", parentId: "p"))
+    }
+
+    /// A first child has no previous sibling, so there is nothing to nest under.
+    func testTheFirstChildCannotIndentFurther() {
+        let byId = tree()
+        let rows = ["p", "c", "g", "o"].map { byId[$0]! }
+        XCTAssertEqual(DragNesting.indent(byId["c"]!, in: rows, byId: byId), .none)
+    }
+
+    /// The very first row has nothing above it at all.
+    func testTheFirstRowCannotIndent() {
+        let byId = tree()
+        let rows = ["p", "c", "g", "o"].map { byId[$0]! }
+        XCTAssertEqual(DragNesting.indent(byId["p"]!, in: rows, byId: byId), .none)
+    }
+
+    /// Indent and outdent must round-trip: nesting a task under its previous sibling and then
+    /// outdenting it puts the parent back exactly where it was.
+    func testIndentThenOutdentReturnsTheTaskToItsOriginalParent() {
+        let byId = tree()
+        let rows = ["p", "c", "g", "o"].map { byId[$0]! }
+        guard case .makeSubtask(_, let newParent) = DragNesting.indent(byId["o"]!, in: rows, byId: byId) else {
+            return XCTFail("expected o to indent under p")
+        }
+        var moved = byId["o"]!
+        moved.parentTaskId = newParent
+        var after = byId
+        after["o"] = moved
+        XCTAssertEqual(DragNesting.outdent(moved, byId: after), .moveToTopLevel(taskId: "o"))
+    }
 }

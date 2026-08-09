@@ -103,6 +103,25 @@ enum DragNesting {
         return .makeSubtask(taskId: task.id, parentId: grandparentId)
     }
 
+    /// The other direction: nest a task under its PREVIOUS SIBLING.
+    ///
+    /// The row directly above is not the right answer — it may be a deep descendant of
+    /// something else entirely, and nesting under it would jump the task several levels in.
+    /// The previous SIBLING (same parent, earlier in the rendered order) is what an outliner
+    /// indents into, and it is what keeps indent and outdent inverses of each other.
+    static func indent(_ task: PromotableTask, in rows: [Task], byId: [String: Task]) -> DragNestingOutcome {
+        guard let index = rows.firstIndex(where: { $0.id == task.id }), index > 0 else { return .none }
+        let parentId = task.parentTaskId?.isEmpty == true ? nil : task.parentTaskId
+        // Walk back for the nearest earlier row sharing this task's parent.
+        for row in rows[..<index].reversed() {
+            let rowParent = row.parentTaskId?.isEmpty == true ? nil : row.parentTaskId
+            guard rowParent == parentId else { continue }
+            guard canParent(childId: task.id, parentId: row.id, byId: byId) else { return .none }
+            return .makeSubtask(taskId: task.id, parentId: row.id)
+        }
+        return .none
+    }
+
     /// How tall the "line between rows" band is for a row of this height.
     ///
     /// A fixed 12pt would swallow a short row whole; a fixed fraction would be untappable on
