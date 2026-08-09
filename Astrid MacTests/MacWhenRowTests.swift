@@ -28,7 +28,7 @@ final class MacWhenRowTests: XCTestCase {
     /// could be asserted absent — is gone: the shared enum has no cases for
     /// them, which is a stronger guarantee than a test.
     func testUndatedTaskShowsOnlyTheDateTrigger() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false, isCustomRepeat: false), [.date])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false), [.date])
     }
 
     /// THE BUG: the three controls were forced onto one line, each with a
@@ -40,12 +40,11 @@ final class MacWhenRowTests: XCTestCase {
         XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 280, spacing: 10).count, 2)
     }
 
-    /// A custom repeat gets no chip: its real pattern is on its own line below,
-    /// and that summary is now the control itself rather than dead text beside
-    /// a separate "Edit" button.
-    func testCustomRepeatGetsNoChipOnTheRow() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: true, isCustomRepeat: true),
-                       [.date, .time])
+    /// THE BUG: a custom-repeating task showed no repeat control at all. The
+    /// chip renders the pattern itself now, so there is nothing for the old
+    /// exception to protect.
+    func testCustomRepeatStillGetsItsChip() {
+        XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true).contains(.repeatPattern))
     }
 
     // MARK: - The popover carries what the pane used to

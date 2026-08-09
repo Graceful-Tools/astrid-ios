@@ -128,9 +128,8 @@ struct MacTaskFieldsView: View {
             // minimum width on each so all three would fit one line, which is
             // exactly what truncated the date to "Sat, Aug 15,…".
             FlowLayout(spacing: MacTaskFields.chipSpacing, rowSpacing: 6) {
-                ForEach(Array(TaskWhenRowLayout.controls(
-                    hasDate: hasDue, isCustomRepeat: repeating == .custom
-                ).enumerated()), id: \.offset) { _, control in
+                ForEach(Array(TaskWhenRowLayout.controls(hasDate: hasDue)
+                    .enumerated()), id: \.offset) { _, control in
                     whenControl(control)
                 }
             }

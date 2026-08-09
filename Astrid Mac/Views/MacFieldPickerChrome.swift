@@ -116,6 +116,36 @@ struct MacPickerRow: View {
     }
 }
 
+/// Scales its content and reserves the room the scaled result needs.
+///
+/// `scaleEffect` alone does not change layout, so a scaled calendar either
+/// overlapped what sat below it or got clipped by a guessed frame. This measures
+/// the natural size and reserves scale x that.
+struct MacScaled<Content: View>: View {
+    let scale: CGFloat
+    @ViewBuilder var content: Content
+
+    @State private var natural: CGSize = .zero
+
+    private struct SizeKey: PreferenceKey {
+        static var defaultValue: CGSize { .zero }
+        static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+    }
+
+    var body: some View {
+        content
+            .fixedSize()
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: SizeKey.self, value: proxy.size)
+                }
+            )
+            .onPreferenceChange(SizeKey.self) { natural = $0 }
+            .scaleEffect(scale)
+            .frame(width: natural.width * scale, height: natural.height * scale)
+    }
+}
+
 /// Sizes shared by the field popovers, so they read as one family.
 enum MacFieldPicker {
     static var popoverWidth: CGFloat { 300 }
@@ -124,8 +154,8 @@ enum MacFieldPicker {
     static var rowSpacing: CGFloat { 5 }
 
     /// The graphical calendar is drawn at the system's own size, which is small
-    /// for a control you are meant to aim at. Scaled up rather than reproduced
-    /// by hand — roughly double, which is what a date grid wants to be.
-    static var calendarScale: CGFloat { 1.9 }
+    /// for something you aim a pointer at. Scaled up rather than reproduced by
+    /// hand. 1.9 overshot — big enough to crowd the popover — so it is eased back.
+    static var calendarScale: CGFloat { 1.5 }
 }
 #endif
