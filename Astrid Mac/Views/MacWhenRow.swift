@@ -34,11 +34,10 @@ import Foundation
 /// popover because this is a Mac: there is a keyboard, and typing a date is
 /// faster than hunting for it in a grid.
 ///
-/// EXACTLY ONE date-entry control. The first version showed a typable field AND
-/// a graphical calendar, not realising the field brings a calendar of its own
-/// when you use it — so picking a date put two calendars on screen at once, one
-/// on top of the other. `.calendar` is kept as a case so its absence is
-/// checkable, and so putting it back is a deliberate act with a failing test.
+/// EXACTLY ONE calendar. An early version paired NSDatePicker's `.field` with a
+/// graphical one, not realising `.field` brings a calendar of its own — two
+/// calendars, overlapping. The typed field is now ours (MacDateEntry), so it
+/// carries no calendar and the graphical one is the only one, sitting last.
 enum MacDueDatePopoverRow: Equatable {
     case typedEntry
     case clear
@@ -48,13 +47,15 @@ enum MacDueDatePopoverRow: Equatable {
 
 enum MacDueDatePopover {
     static var rows: [MacDueDatePopoverRow] {
-        [.typedEntry, .clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
+        [.typedEntry, .clear]
+            + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
+            + [.calendar]
     }
 
-    /// Controls through which a specific date can be entered, as opposed to
-    /// picked from a shortcut. There must be one.
-    static var dateEntryControls: [MacDueDatePopoverRow] {
-        rows.filter { $0 == .typedEntry || $0 == .calendar }
+    /// The calendars in the popover. There must be exactly one — two is a bug
+    /// this control has already shipped once.
+    static var calendars: [MacDueDatePopoverRow] {
+        rows.filter { $0 == .calendar }
     }
 }
 

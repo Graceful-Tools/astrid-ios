@@ -21,6 +21,10 @@ struct MacRootView: View {
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false   // 42013da7
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
+    /// One-shot: the shell lands on My Tasks when it appears. This view is built
+    /// fresh both on launch-with-a-session and immediately after signing in, so
+    /// the flag resets naturally and one rule covers both (MacLaunchSelection).
+    @State private var didApplyLandingSelection = false
     @State private var selectedTaskIds = Set<String>()
     // Sort applied to the task list. Empty = follow the list's own saved sortBy (shared logic);
     // otherwise this per-scene override wins so the user can re-sort like the old table headers.
@@ -1126,6 +1130,14 @@ struct MacRootView: View {
         // Measure the WINDOW, not the content area: the content shrinks when the sidebar opens,
         // which used to drop the window under the 3-column threshold and close the chat column.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
+        .onAppear {
+            guard !didApplyLandingSelection else { return }
+            didApplyLandingSelection = true
+            // A UI test asks for its own starting selection; don't fight it.
+            guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+            selectedListId = MacLaunchSelection.landingListId(restored: selectedListId,
+                                                             myTasksId: Self.myTasksId)
+        }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
             myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count

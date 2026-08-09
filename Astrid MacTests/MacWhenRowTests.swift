@@ -79,23 +79,31 @@ final class MacWhenRowTests: XCTestCase {
         XCTAssertEqual(picks, DueDateQuickPicks.dateOptions)
     }
 
-    /// THE BUG: the popover showed a typable field AND a graphical calendar.
-    /// The field brings a calendar of its own when you use it, so choosing a
-    /// date put two calendars on screen, one overlapping the other.
-    func testPopoverOffersExactlyOneDateEntryControl() {
-        XCTAssertEqual(MacDueDatePopover.dateEntryControls.count, 1,
-                       "a typable field plus a graphical calendar is two calendars, "
-                       + "because the field carries one")
+    /// THE BUG, once shipped: the popover paired NSDatePicker's `.field` with a
+    /// graphical calendar, not realising `.field` brings one of its own — two
+    /// calendars, overlapping. The typed field is ours now and carries none, so
+    /// there must be exactly one.
+    func testThePopoverHasExactlyOneCalendar() {
+        XCTAssertEqual(MacDueDatePopover.calendars.count, 1)
     }
 
-    /// And the one it keeps is the typable field — this is a Mac.
-    func testTheDateEntryControlIsTheTypableField() {
-        XCTAssertEqual(MacDueDatePopover.dateEntryControls, [.typedEntry])
+    /// A date can still be TYPED — this is a Mac, and the graphical picker on
+    /// its own cannot be typed into at all.
+    func testThePopoverOffersATypableField() {
+        XCTAssertTrue(MacDueDatePopover.rows.contains(.typedEntry))
+        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
     }
 
-    /// The standalone graphical calendar is gone from the popover.
-    func testThePopoverHasNoStandaloneCalendar() {
-        XCTAssertFalse(MacDueDatePopover.rows.contains(.calendar))
+    /// The calendar sits BELOW the shortcuts: the quick picks answer most cases
+    /// in one click, and the grid is there when they do not.
+    func testTheCalendarComesAfterTheQuickPicks() {
+        let rows = MacDueDatePopover.rows
+        let lastPick = rows.lastIndex { if case .quickPick = $0 { return true }; return false }
+        let calendar = rows.firstIndex(of: .calendar)
+        XCTAssertNotNil(lastPick)
+        XCTAssertNotNil(calendar)
+        XCTAssertGreaterThan(calendar!, lastPick!)
+        XCTAssertEqual(rows.last, .calendar)
     }
 
     // MARK: - The time popover mirrors it

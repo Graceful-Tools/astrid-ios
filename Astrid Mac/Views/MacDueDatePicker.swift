@@ -18,6 +18,9 @@ struct MacDueDatePicker: View {
     @State private var isPresented = false
     /// What the user has typed, mirrored from `date` while the popover is open.
     @State private var typed = ""
+    /// A parsed-but-uncommitted date, so the calendar can follow the typing
+    /// without saving on every keystroke.
+    @State private var preview: Date?
 
     /// Accept a typed date, or leave the field showing what is actually set.
     private func commitTyped() {
@@ -54,9 +57,20 @@ struct MacDueDatePicker: View {
                             .multilineTextAlignment(.center)
                             .onSubmit(commitTyped)
                             .frame(maxWidth: .infinity)
-                            .onAppear { typed = date.map { MacDateEntry.format($0) } ?? "" }
+                            .onAppear {
+                                typed = date.map { MacDateEntry.format($0) } ?? ""
+                                preview = nil
+                            }
                             .onChange(of: date) { _, newValue in
                                 typed = newValue.map { MacDateEntry.format($0) } ?? ""
+                                preview = nil
+                            }
+                            // The calendar FOLLOWS the typing: each keystroke that
+                            // parses moves the grid to that day, so you can see
+                            // where you are landing before committing. Nothing is
+                            // saved until Return or a click on the calendar.
+                            .onChange(of: typed) { _, text in
+                                if let parsed = MacDateEntry.parse(text) { preview = parsed }
                             }
                     case .clear:
                         // A CHOICE, first, in red — not a toolbar escape hatch.
@@ -78,8 +92,18 @@ struct MacDueDatePicker: View {
                             isPresented = false
                         }
                     case .calendar:
-                        // Not in `rows` — the typed field carries its own calendar.
-                        EmptyView()
+                        Divider().padding(.vertical, 2)
+                        // Scaled and centred. `scaleEffect` does not change layout,
+                        // so MacScaled measures the natural size and reserves
+                        // scale x that — otherwise the grid overlaps what sits
+                        // above it or gets clipped by a guessed frame.
+                        MacScaled(scale: MacFieldPicker.calendarScale) {
+                            DatePicker("", selection: calendarSelection,
+                                       displayedComponents: [.date])
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
@@ -93,10 +117,11 @@ struct MacDueDatePicker: View {
     private var calendarSelection: Binding<Date> {
         Binding(
             get: {
+                if let preview { return preview }
                 guard let date else { return Date() }
                 return isAllDay ? MacWhenDate.localDay(ofAllDay: date) : date
             },
-            set: { select(localDay: $0) }
+            set: { preview = nil; select(localDay: $0) }
         )
     }
 
