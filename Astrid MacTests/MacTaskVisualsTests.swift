@@ -30,6 +30,46 @@ final class MacTaskVisualsTests: XCTestCase {
         XCTAssertLessThanOrEqual(MacPriorityPicker.buttonHeight, 24)
         XCTAssertGreaterThanOrEqual(MacPriorityPicker.buttonHeight, 18, "Still clickable")
     }
+
+    /// Rounded SQUARES, like iOS. They were 28x22 — a wide rectangle that read as
+    /// a different control from the phone's. Squaring them stays inside the
+    /// compact bounds above, so the two decisions do not fight.
+    func testPriorityButtonsAreSquare() {
+        XCTAssertEqual(MacPriorityPicker.buttonWidth, MacPriorityPicker.buttonHeight)
+    }
+}
+
+// MARK: - Every tap is a selection (task: a6cd1367)
+
+extension MacTaskVisualsTests {
+
+    /// Task a6cd1367 — "tapping on the priority for the first time isn't responsive".
+    /// The picker used to report a selection only when the VALUE changed, so tapping the
+    /// priority the task already had produced nothing: no save, and the popover stayed
+    /// open looking dead. The first tap is exactly the one most likely to land on the
+    /// current priority, which is why it read as "the first time".
+    func testTapOnTheAlreadySelectedPriorityStillNotifies() {
+        for p in MacTaskVisuals.allPriorities {
+            XCTAssertTrue(MacPriorityTap.outcome(tapped: p, current: p).notify,
+                          "Tapping \(p) while already \(p) must still count as a selection")
+        }
+    }
+
+    func testTapOnADifferentPriorityNotifiesAndSelectsIt() {
+        let outcome = MacPriorityTap.outcome(tapped: .high, current: .none)
+        XCTAssertEqual(outcome.selection, .high)
+        XCTAssertTrue(outcome.notify)
+    }
+
+    /// A tap never resolves to anything but the priority that was tapped.
+    func testTapAlwaysSelectsWhatWasTapped() {
+        for tapped in MacTaskVisuals.allPriorities {
+            for current in MacTaskVisuals.allPriorities {
+                XCTAssertEqual(MacPriorityTap.outcome(tapped: tapped, current: current).selection,
+                               tapped)
+            }
+        }
+    }
 }
 
 // MARK: - Checkbox proportions (task: "checkbox size should be smaller relative to checkmark")

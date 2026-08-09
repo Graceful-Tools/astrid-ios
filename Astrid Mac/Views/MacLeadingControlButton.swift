@@ -83,11 +83,14 @@ struct MacLeadingControlButton: View {
                         // The real buttons, in their priority colours — not a Menu,
                         // which AppKit would draw in the system's own style and lose
                         // the colours that ARE the information.
-                        MacPriorityPicker(selection: $priority)
-                            .onChange(of: priority) { _, newValue in
-                                onPriority(newValue)
-                                isPresented = false
-                            }
+                        // Per-tap callback, NOT `.onChange(of: priority)`: watching for a
+                        // value change swallowed the tap that picked the priority the task
+                        // already had — no save, and the popover sat there looking dead
+                        // (task a6cd1367).
+                        MacPriorityPicker(selection: $priority, onSelect: { newValue in
+                            onPriority(newValue)
+                            isPresented = false
+                        })
                     }
                 case .assignee:
                     VStack(alignment: .leading, spacing: 5) {
