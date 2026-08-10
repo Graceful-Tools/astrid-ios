@@ -244,6 +244,51 @@ struct MacRootView: View {
         }
     }
 
+    /// Which row currently has its outdent band lit.
+    @State private var outdentBandRowId: String?
+
+    /// The leading edge band: pull a task out to the left and drop, and it moves ONE level
+    /// out of its parent. Long-press-and-drag is what starts this, so it never competes with
+    /// a click or a text selection — the gestures that this row has broken over before.
+    ///
+    /// Like the insertion line, it exists only while something is in flight.
+    @ViewBuilder private func outdentBand(for task: Task) -> some View {
+        GeometryReader { geo in
+            let lit = outdentBandRowId == task.id
+            RoundedRectangle(cornerRadius: 4)
+                .fill(lit ? Theme.accent.opacity(0.18) : Color.clear)
+                .overlay(alignment: .leading) {
+                    Image(systemName: "arrow.left.to.line")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(lit ? Theme.accent : Color.clear)
+                        .padding(.leading, 6)
+                }
+                .frame(width: DragNesting.outdentBandWidth(rowWidth: geo.size.width))
+                .contentShape(Rectangle())
+                .onDrop(of: [.text], isTargeted: Binding(
+                    get: { outdentBandRowId == task.id },
+                    set: { hovering in
+                        outdentBandRowId = hovering ? task.id
+                            : (outdentBandRowId == task.id ? nil : outdentBandRowId)
+                    }
+                )) { providers in
+                    guard let provider = providers.first else { return false }
+                    _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                        guard let droppedId = value as? String else { return }
+                        DispatchQueue.main.async {
+                            outdentBandRowId = nil
+                            draggingTaskId = nil
+                            guard let dragged = droppedTask(droppedId) else { return }
+                            applyNesting(DragNesting.outcome(for: .outdent, dragged: dragged,
+                                                             byId: taskService.tasksById),
+                                         droppedId: droppedId)
+                        }
+                    }
+                    return true
+                }
+        }
+    }
+
     /// The line between two rows. Dropping on it makes the dragged task TOP LEVEL, and the
     /// line is drawn flush left — at top-level indent — so the affordance shows where the
     /// task will end up rather than just saying so.
@@ -702,6 +747,10 @@ struct MacRootView: View {
         // drag, and with no drag there is no question to answer.
         .overlay(alignment: .top) {
             if draggingTaskId != nil { insertionLine(above: task) }
+        }
+        // "Out one level." Same rule: present only during a drag.
+        .overlay(alignment: .leading) {
+            if draggingTaskId != nil { outdentBand(for: task) }
         }
         .contextMenu {
             let targets = actionTargets(task)

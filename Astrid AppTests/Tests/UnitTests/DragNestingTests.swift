@@ -134,33 +134,56 @@ final class DragNestingTests: XCTestCase {
 
     // MARK: which zone a drop landed in
 
-    /// iOS has no separate line view — an overlay with a hit shape on every row is how you
-    /// swallow taps, which this codebase has paid for more than once. The drop location
-    /// picks the zone instead, so the row itself is the only target.
+    /// Three zones, resolved from WHERE in the row the drop landed. The row is the only drop
+    /// target — no overlay view per row waiting to swallow a tap, which this list has paid
+    /// for before. The drag is long-press-initiated, so none of this competes with the
+    /// swipe that deletes.
+    private let rowSize = CGSize(width: 320, height: 60)
+
     func testADropNearTheTopOfARowIsTheLineAboveIt() {
-        XCTAssertEqual(DragNesting.zone(forDropAtY: 2, rowHeight: 60, rowId: "c"),
+        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 160, y: 2), rowSize: rowSize, rowId: "c"),
                        .betweenRows(above: "c"))
     }
 
     func testADropInTheBodyOfARowNestsUnderIt() {
-        XCTAssertEqual(DragNesting.zone(forDropAtY: 30, rowHeight: 60, rowId: "c"),
-                       .onRow("c"))
-        XCTAssertEqual(DragNesting.zone(forDropAtY: 58, rowHeight: 60, rowId: "c"),
+        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 160, y: 30), rowSize: rowSize, rowId: "c"),
                        .onRow("c"))
     }
 
-    /// The band has to be reachable with a finger but must not eat the whole row.
-    func testTheLineBandIsAMinorityOfTheRow() {
-        let height: CGFloat = 60
-        let band = DragNesting.lineBandHeight(rowHeight: height)
+    /// Pulled left and dropped: outdent. This is the "move it sideways out of its parent"
+    /// gesture, expressed as a drop position rather than a competing drag gesture.
+    func testADropAtTheFarLeftIsAnOutdent() {
+        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 4, y: 30), rowSize: rowSize, rowId: "c"),
+                       .outdent)
+    }
+
+    /// The line wins over the outdent band where they overlap: a drop in the top-left corner
+    /// is between rows, which is the more specific statement of intent.
+    func testTheLineWinsInTheTopLeftCorner() {
+        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 4, y: 2), rowSize: rowSize, rowId: "c"),
+                       .betweenRows(above: "c"))
+    }
+
+    /// The bands must not eat the row. Most of it still has to mean "nest under this".
+    func testTheBandsLeaveTheRowAsTheBiggestTarget() {
+        let band = DragNesting.lineBandHeight(rowHeight: rowSize.height)
         XCTAssertGreaterThanOrEqual(band, 8, "Has to be hittable")
-        XCTAssertLessThan(band, height / 2, "The row itself must stay the bigger target")
+        XCTAssertLessThan(band, rowSize.height / 2, "The row body stays the bigger target")
+        XCTAssertLessThan(DragNesting.outdentBandWidth(rowWidth: rowSize.width), rowSize.width / 3,
+                          "A third of the row is already generous for an edge band")
     }
 
-    /// A very short row must still leave most of itself as the nest target.
     func testTheBandNeverSwallowsAShortRow() {
-        let height: CGFloat = 20
-        XCTAssertLessThan(DragNesting.lineBandHeight(rowHeight: height), height / 2)
+        XCTAssertLessThan(DragNesting.lineBandHeight(rowHeight: 20), 10)
+    }
+
+    /// The outdent zone resolves through the same outcome path as every other zone, so the
+    /// keyboard and the drag cannot disagree about what outdenting means.
+    func testTheOutdentZoneResolvesToTheSameOutcomeAsTheKeyboard() {
+        let byId = tree()
+        XCTAssertEqual(DragNesting.outcome(for: .outdent, dragged: byId["g"]!, byId: byId),
+                       DragNesting.outdent(byId["g"]!, byId: byId))
+        XCTAssertEqual(DragNesting.outcome(for: .outdent, dragged: byId["o"]!, byId: byId), .none)
     }
 
     // MARK: indent — the other direction, for the keyboard

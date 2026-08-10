@@ -23,6 +23,10 @@ enum DragNestingZone: Equatable {
     /// On the insertion line between two rows. `above` is the row the line sits directly
     /// above; nil means the line above the very first row.
     case betweenRows(above: String?)
+    /// Pulled out to the leading edge — move the dragged task one level out of its parent,
+    /// wherever it currently sits. Unlike the other two, this says nothing about the row it
+    /// was dropped over.
+    case outdent
 }
 
 /// What a drop should do to NESTING. Where the task lands in the ORDER is the caller's
@@ -88,6 +92,11 @@ enum DragNesting {
                 return .reorderOnly(taskId: dragged.id)
             }
             return .moveToTopLevel(taskId: dragged.id)
+
+        case .outdent:
+            // The SAME function the keyboard binding calls, so pulling a task left and
+            // pressing the outdent key cannot mean two different things.
+            return outdent(dragged, byId: byId)
         }
     }
 
@@ -131,13 +140,25 @@ enum DragNesting {
         min(12, rowHeight * 0.3)
     }
 
-    /// Which zone a drop at `y` within a row of `rowHeight` landed in.
+    /// How wide the leading "pull it out" band is. Generous enough to hit while dragging,
+    /// nowhere near wide enough to make nesting hard.
+    static func outdentBandWidth(rowWidth: CGFloat) -> CGFloat {
+        min(56, rowWidth * 0.2)
+    }
+
+    /// Which of the three zones a drop landed in.
     ///
-    /// Deriving the zone from the drop LOCATION means the row itself is the only drop target
-    /// — no overlay view sitting on top of every row waiting to swallow a tap, which is a
-    /// mistake this codebase has already paid for more than once.
-    static func zone(forDropAtY y: CGFloat, rowHeight: CGFloat, rowId: String) -> DragNestingZone {
-        y <= lineBandHeight(rowHeight: rowHeight) ? .betweenRows(above: rowId) : .onRow(rowId)
+    /// Deriving zones from the drop LOCATION means the row itself is the only drop target —
+    /// no overlay view sitting on top of every row waiting to swallow a tap, a mistake this
+    /// codebase has already paid for more than once. The drag is long-press-initiated, so
+    /// none of this competes with the swipe that deletes.
+    ///
+    /// The line is checked FIRST: a drop in the top-left corner is between rows, which is the
+    /// more specific statement of intent than "somewhere near the left".
+    static func zone(forDropAt point: CGPoint, rowSize: CGSize, rowId: String) -> DragNestingZone {
+        if point.y <= lineBandHeight(rowHeight: rowSize.height) { return .betweenRows(above: rowId) }
+        if point.x <= outdentBandWidth(rowWidth: rowSize.width) { return .outdent }
+        return .onRow(rowId)
     }
 
     /// The value to hand `TaskService.updateTask(parentTaskId:)`, or nil when the outcome
