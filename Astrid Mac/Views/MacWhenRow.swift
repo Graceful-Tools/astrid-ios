@@ -99,6 +99,26 @@ enum MacWhenDate {
                              of: day) ?? day
     }
 
+}
+
+/// Whether a newly picked day should be stored as ALL-DAY.
+///
+/// The picker used to ask the TASK whether it was all-day. A task with no date at all
+/// answered "no", so the day was combined with a time — and with no existing time to take,
+/// it kept the clock time of the `Date()` it was built from. Every task you dated quietly
+/// acquired a meaningless time like 3:55 AM (task 0b057b7a).
+enum MacNewDueDate {
+    static func isAllDay(existingDate: Date?, currentIsAllDay: Bool) -> Bool {
+        // No date yet → all-day. There is no time to preserve, and inventing one from the
+        // clock is never what picking a day meant.
+        guard existingDate != nil else { return true }
+        // Otherwise keep what the task already is: rescheduling a 9am meeting to tomorrow
+        // must leave it at 9am.
+        return currentIsAllDay
+    }
+}
+
+extension MacWhenDate {
     private static var utcCalendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "UTC")!

@@ -140,7 +140,7 @@ struct MacTaskFieldsView: View {
     private func whenControl(_ control: TaskWhenControl) -> some View {
         switch control {
         case .date:
-            MacDueDatePicker(date: dueDateBinding, isAllDay: isAllDay) { saveDue() }
+            MacDueDatePicker(date: dueDateBinding, isAllDay: $isAllDay) { saveDue() }
         case .time:
             MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
         case .repeatPattern:
@@ -252,10 +252,10 @@ struct MacTaskFieldsView: View {
                     Group {
                         switch MacTaskFields.descriptionDisplay(notes) {
                         case .body(let text):
-                            Text(text)
-                                .font(MacTypography.detailBody)
-                                .foregroundStyle(Theme.textPrimary)
-                                .multilineTextAlignment(.leading)
+                            // Rendered when you are LOOKING at it; the editor above stays
+                            // plain text, because what you edit has to be the characters you
+                            // typed (task f5520874).
+                            MacMarkdownText(source: text)
                         case .placeholder:
                             Text(NSLocalizedString("mac.click_add_description", comment: ""))
                                 .font(MacTypography.detailBody)
