@@ -12,7 +12,9 @@ import SwiftUI
 struct MacDueDatePicker: View {
     /// nil means the task has no due date.
     @Binding var date: Date?
-    let isAllDay: Bool
+    /// A binding, not a value: dating a task that had no date TURNS IT all-day, so the
+    /// picker has to be able to say so (task 0b057b7a).
+    @Binding var isAllDay: Bool
     let onCommit: () -> Void
 
     @State private var isPresented = false
@@ -129,7 +131,10 @@ struct MacDueDatePicker: View {
     /// holds: an all-day task keeps its UTC-midnight form, a timed one keeps
     /// its time.
     private func select(localDay day: Date) {
-        if isAllDay {
+        // Decide BEFORE writing the date, since the rule turns on whether one existed.
+        let allDay = MacNewDueDate.isAllDay(existingDate: date, currentIsAllDay: isAllDay)
+        isAllDay = allDay
+        if allDay {
             date = MacWhenDate.utcMidnight(ofLocalDay: day)
         } else {
             date = MacWhenDate.combining(day: day, timeFrom: date)

@@ -140,7 +140,7 @@ struct MacTaskFieldsView: View {
     private func whenControl(_ control: TaskWhenControl) -> some View {
         switch control {
         case .date:
-            MacDueDatePicker(date: dueDateBinding, isAllDay: isAllDay) { saveDue() }
+            MacDueDatePicker(date: dueDateBinding, isAllDay: $isAllDay) { saveDue() }
         case .time:
             MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
         case .repeatPattern:
