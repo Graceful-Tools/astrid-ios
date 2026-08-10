@@ -116,13 +116,36 @@ struct MacPickerRow: View {
     }
 }
 
+/// How much room a scaled child needs. Pure, so the rule can be tested without a view.
+enum MacScaledLayout {
+    /// Scale from the TOP, not the centre. Centre-anchored scaling sends any overflow
+    /// BOTH ways, which is how a calendar ends up drawn over the buttons above it
+    /// (task 010a7826); anchored to the top, overflow can only go downward.
+    static let anchor: UnitPoint = .top
+
+    /// The room to reserve for a child of natural size `natural` drawn at `scale`.
+    ///
+    /// An unmeasured axis falls back to an estimate rather than to ZERO. Zero is the
+    /// dangerous answer: a popover sizes itself on the first layout pass, and on that pass
+    /// the measurement has not arrived yet — so it would build itself too short and the
+    /// scaled content would draw outside its bounds, over its neighbours. Each axis falls
+    /// back independently, since one can be measured before the other.
+    static func reserved(natural: CGSize, scale: CGFloat, fallback: CGSize) -> CGSize {
+        CGSize(width: (natural.width > 0 ? natural.width : fallback.width) * scale,
+               height: (natural.height > 0 ? natural.height : fallback.height) * scale)
+    }
+}
+
 /// Scales its content and reserves the room the scaled result needs.
 ///
-/// `scaleEffect` alone does not change layout, so a scaled calendar either
-/// overlapped what sat below it or got clipped by a guessed frame. This measures
-/// the natural size and reserves scale x that.
+/// `scaleEffect` alone does not change layout, so a scaled calendar either overlapped what
+/// sat around it or got clipped by a guessed frame. This measures the natural size and
+/// reserves scale x that — falling back to an estimate until the measurement lands, because
+/// reserving zero for even one pass is what put the calendar on top of the buttons.
 struct MacScaled<Content: View>: View {
     let scale: CGFloat
+    /// Used until the child has been measured. Only the first layout pass sees it.
+    var fallback: CGSize = MacFieldPicker.calendarNaturalEstimate
     @ViewBuilder var content: Content
 
     @State private var natural: CGSize = .zero
@@ -133,7 +156,8 @@ struct MacScaled<Content: View>: View {
     }
 
     var body: some View {
-        content
+        let reserved = MacScaledLayout.reserved(natural: natural, scale: scale, fallback: fallback)
+        return content
             .fixedSize()
             .background(
                 GeometryReader { proxy in
@@ -141,8 +165,8 @@ struct MacScaled<Content: View>: View {
                 }
             )
             .onPreferenceChange(SizeKey.self) { natural = $0 }
-            .scaleEffect(scale)
-            .frame(width: natural.width * scale, height: natural.height * scale)
+            .scaleEffect(scale, anchor: MacScaledLayout.anchor)
+            .frame(width: reserved.width, height: reserved.height, alignment: .top)
     }
 }
 
@@ -157,5 +181,10 @@ enum MacFieldPicker {
     /// for something you aim a pointer at. Scaled up rather than reproduced by
     /// hand. 1.9 overshot — big enough to crowd the popover — so it is eased back.
     static var calendarScale: CGFloat { 1.5 }
+
+    /// Roughly what the graphical DatePicker measures before scaling. Only used for the
+    /// first layout pass, before the real measurement arrives — near enough that a popover
+    /// sizing itself on that pass leaves the calendar somewhere sensible.
+    static var calendarNaturalEstimate: CGSize { CGSize(width: 180, height: 190) }
 }
 #endif
