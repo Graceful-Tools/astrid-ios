@@ -43,6 +43,8 @@ final class KeyboardShortcutsParityTests: XCTestCase {
         .init(key: "↑", webAction: "onSelectPreviousTask", requiresSelection: false),
         .init(key: "j", webAction: "onSelectNextTask", requiresSelection: false),
         .init(key: "↓", webAction: "onSelectNextTask", requiresSelection: false),
+        .init(key: "[", webAction: "onOutdentTask", requiresSelection: true),
+        .init(key: "]", webAction: "onIndentTask", requiresSelection: true),
         .init(key: "?", webAction: "onShowHotkeyMenu", requiresSelection: false),
     ]
 
@@ -69,8 +71,8 @@ final class KeyboardShortcutsParityTests: XCTestCase {
 
     /// Action coverage is exactly the web set (no orphan/missing actions).
     func testActionCountMatchesWeb() {
-        // 25 web keys across 22 actions (Delete+Backspace share deleteTask; j/↓ and k/↑ alias).
-        XCTAssertEqual(KeyboardShortcuts.all.count, 22, "Unexpected number of Mac bindings")
-        XCTAssertEqual(Set(KeyboardShortcuts.all.map { $0.action }).count, 22, "Duplicate actions in Mac table")
+        // 27 web keys across 24 actions (Delete+Backspace share deleteTask; j/↓ and k/↑ alias).
+        XCTAssertEqual(KeyboardShortcuts.all.count, 24, "Unexpected number of Mac bindings")
+        XCTAssertEqual(Set(KeyboardShortcuts.all.map { $0.action }).count, 24, "Duplicate actions in Mac table")
     }
 }

@@ -20,6 +20,11 @@ enum MacShortcutEffect {
         case shiftDueDays(Int)    // ← -1, → +1, postpone +7
         case clearDueDate         // v  → sends the .distantPast clear sentinel
         case assignNoOne          // e  → sends "" (unassign sentinel)
+        // Nesting. The effect only names the DIRECTION: resolving it needs the rendered
+        // rows (indent nests under the previous SIBLING), which the applier has and this
+        // pure layer does not. The rules themselves are shared with iOS and web.
+        case outdent              // [  → one level out of its parent
+        case indent               // ]  → under the previous sibling
     }
 
     /// A detail field a key should focus (jumpToDate/editLists/editDescription/addComment).
@@ -39,6 +44,8 @@ enum MacShortcutEffect {
         case .postpone:       return .shiftDueDays(7)
         case .removeDueDate:  return .clearDueDate
         case .assignNoOne:    return .assignNoOne
+        case .outdentTask:    return .outdent
+        case .indentTask:     return .indent
         default:              return nil
         }
     }

@@ -1201,3 +1201,5 @@
 /* Subtasks - TODO: translate, currently English */
 "subtasks.promote_drop_target" = "Drop here to move out of its parent task";
 "subtasks.move_out_of_parent" = "Move out of parent task";
+"mac.shortcut.outdentTask" = "Move task out of its parent";
+"mac.shortcut.indentTask" = "Nest task under the task above";
