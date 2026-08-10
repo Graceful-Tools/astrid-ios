@@ -252,10 +252,10 @@ struct MacTaskFieldsView: View {
                     Group {
                         switch MacTaskFields.descriptionDisplay(notes) {
                         case .body(let text):
-                            Text(text)
-                                .font(MacTypography.detailBody)
-                                .foregroundStyle(Theme.textPrimary)
-                                .multilineTextAlignment(.leading)
+                            // Rendered when you are LOOKING at it; the editor above stays
+                            // plain text, because what you edit has to be the characters you
+                            // typed (task f5520874).
+                            MacMarkdownText(source: text)
                         case .placeholder:
                             Text(NSLocalizedString("mac.click_add_description", comment: ""))
                                 .font(MacTypography.detailBody)
