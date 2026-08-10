@@ -21,42 +21,30 @@ import XCTest
 
 final class MacWhenRowTests: XCTestCase {
 
-    // MARK: - THE BUG: the row led with a toggle
+    // MARK: - The row's composition is the SHARED one
 
-    /// An undated task offers ONE control — the trigger. Not a toggle, and not
-    /// a time or repeat control with nothing to attach to.
+    /// The Mac renders the same lines iOS does. Its own `MacWhenControl` — which
+    /// existed partly so the retired due-date toggle and inline quick-pick rows
+    /// could be asserted absent — is gone: the shared enum has no cases for
+    /// them, which is a stronger guarantee than a test.
     func testUndatedTaskShowsOnlyTheDateTrigger() {
-        XCTAssertEqual(MacWhenRow.controls(hasDate: false), [.date])
+        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false), [.date])
     }
 
-    /// With a date, time and repeat join it — the iOS row, in the iOS order.
-    func testDatedTaskShowsDateThenTimeThenRepeat() {
-        XCTAssertEqual(MacWhenRow.controls(hasDate: true), [.date, .time, .repeatPattern])
+    /// THE BUG: the three controls were forced onto one line, each with a
+    /// minimum width so they would all fit a 380pt panel — which is exactly what
+    /// truncated the date to "Sat, Aug 15,…". They wrap now, and only when they
+    /// must: given room, all three stay on one line.
+    func testControlsShareALineWhenTheyFitAndWrapWhenTheyDoNot() {
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 380, spacing: 10).count, 1)
+        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 280, spacing: 10).count, 2)
     }
 
-    /// The toggle is gone in both states. It is not a control the row can offer.
-    func testNoDueDateToggleInEitherState() {
-        for hasDate in [true, false] {
-            XCTAssertFalse(MacWhenRow.controls(hasDate: hasDate).contains(.dueDateToggle),
-                           "the row must never lead with a toggle again (hasDate: \(hasDate))")
-        }
-    }
-
-    /// THE BUG, stated directly: quick picks must not be laid out in the detail
-    /// pane. They belong to the popover.
-    func testQuickPicksAreNeverInlineInTheDetailPane() {
-        for hasDate in [true, false] {
-            let controls = MacWhenRow.controls(hasDate: hasDate)
-            XCTAssertFalse(controls.contains(.dateQuickPicks))
-            XCTAssertFalse(controls.contains(.timeQuickPicks))
-            XCTAssertFalse(controls.contains(.allDayToggle))
-        }
-    }
-
-    /// The pane's shape must not depend on whether a task has a date — the row
-    /// grows by controls on one line, never by unfolding extra rows.
-    func testTheRowIsAlwaysASingleLine() {
-        XCTAssertLessThanOrEqual(MacWhenRow.controls(hasDate: true).count, 3)
+    /// THE BUG: a custom-repeating task showed no repeat control at all. The
+    /// chip renders the pattern itself now, so there is nothing for the old
+    /// exception to protect.
+    func testCustomRepeatStillGetsItsChip() {
+        XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true).contains(.repeatPattern))
     }
 
     // MARK: - The popover carries what the pane used to
@@ -91,23 +79,31 @@ final class MacWhenRowTests: XCTestCase {
         XCTAssertEqual(picks, DueDateQuickPicks.dateOptions)
     }
 
-    /// THE BUG: the popover showed a typable field AND a graphical calendar.
-    /// The field brings a calendar of its own when you use it, so choosing a
-    /// date put two calendars on screen, one overlapping the other.
-    func testPopoverOffersExactlyOneDateEntryControl() {
-        XCTAssertEqual(MacDueDatePopover.dateEntryControls.count, 1,
-                       "a typable field plus a graphical calendar is two calendars, "
-                       + "because the field carries one")
+    /// THE BUG, once shipped: the popover paired NSDatePicker's `.field` with a
+    /// graphical calendar, not realising `.field` brings one of its own — two
+    /// calendars, overlapping. The typed field is ours now and carries none, so
+    /// there must be exactly one.
+    func testThePopoverHasExactlyOneCalendar() {
+        XCTAssertEqual(MacDueDatePopover.calendars.count, 1)
     }
 
-    /// And the one it keeps is the typable field — this is a Mac.
-    func testTheDateEntryControlIsTheTypableField() {
-        XCTAssertEqual(MacDueDatePopover.dateEntryControls, [.typedEntry])
+    /// A date can still be TYPED — this is a Mac, and the graphical picker on
+    /// its own cannot be typed into at all.
+    func testThePopoverOffersATypableField() {
+        XCTAssertTrue(MacDueDatePopover.rows.contains(.typedEntry))
+        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
     }
 
-    /// The standalone graphical calendar is gone from the popover.
-    func testThePopoverHasNoStandaloneCalendar() {
-        XCTAssertFalse(MacDueDatePopover.rows.contains(.calendar))
+    /// The calendar sits BELOW the shortcuts: the quick picks answer most cases
+    /// in one click, and the grid is there when they do not.
+    func testTheCalendarComesAfterTheQuickPicks() {
+        let rows = MacDueDatePopover.rows
+        let lastPick = rows.lastIndex { if case .quickPick = $0 { return true }; return false }
+        let calendar = rows.firstIndex(of: .calendar)
+        XCTAssertNotNil(lastPick)
+        XCTAssertNotNil(calendar)
+        XCTAssertGreaterThan(calendar!, lastPick!)
+        XCTAssertEqual(rows.last, .calendar)
     }
 
     // MARK: - The time popover mirrors it
@@ -138,10 +134,12 @@ final class MacWhenRowTests: XCTestCase {
                       + "of a \(MacLayout.detailPanelWidth)pt panel")
     }
 
-    /// One minimum per control actually on the row.
-    func testRowMinimumsCoverExactlyTheControlsOnTheRow() {
-        XCTAssertEqual(MacDetailRowFit.whenRowMinimums.count,
-                       MacWhenRow.controls(hasDate: true).count)
+    /// The recorded minimums describe the date/time pair — the two controls that
+    /// must share a line for the row to be usable at all. Repeat may wrap.
+    func testRowMinimumsDescribeTheDateAndTimePair() {
+        XCTAssertEqual(MacDetailRowFit.whenRowMinimums.count, 2)
+        XCTAssertTrue(MacDetailRowFit.fits(MacDetailRowFit.whenRowMinimums,
+                                           in: MacLayout.detailPanelWidth))
     }
 
     // MARK: - Storage conversion

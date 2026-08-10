@@ -39,15 +39,15 @@ enum MacDetailRowFit {
     /// arithmetic was optimistic by the width of the label.
     static var rowInsets: CGFloat { 24 + MacDetailRowMetrics.contentInset }
 
-    /// Minimum widths for the "When" row: the date trigger, the time trigger, the repeat menu.
+    /// Minimum widths for the "When" row's widest line: the date trigger and the time
+    /// trigger. Repeat wraps to a line of its own, so it is no longer competing for
+    /// this width — which is what let the date stop truncating.
     /// These are MINIMUMS the controls may shrink to — not their ideal sizes, which is exactly
     /// the distinction `.fixedSize()` erased.
-    /// 110 + 80 + 88 = 278, plus 20 spacing and 24 insets = 322 against a 380pt panel — 58pt of
-    /// headroom. My first attempt at these numbers came to 382 and the test caught it: a "fix"
-    /// that still overflowed, by two points.
-    /// The date trigger is the widest because it renders a full date ("Dec 25, 2026"); the toggle
-    /// it replaced only ever had to fit the words "Due Date".
-    static var whenRowMinimums: [CGFloat] { [110, 80, 88] }
+    /// 150 + 110 = 260, plus 10 spacing and the leading column = well inside a 380pt panel.
+    /// The date needs the larger share: it renders a full date WITH its weekday
+    /// ("Sat, Aug 15, 2026"), which is what overran the old three-control line.
+    static var whenRowMinimums: [CGFloat] { [150, 110] }
 
     /// Priority chip + assignee menu.
     static var priorityRowMinimums: [CGFloat] { [40, 140] }

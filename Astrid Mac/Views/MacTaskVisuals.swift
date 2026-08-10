@@ -102,16 +102,36 @@ struct MacTaskCheckbox: View {
     }
 }
 
+/// What one tap on a priority button produces. Extracted from the view so the rule that
+/// matters — a tap is a selection even when it picks the priority already set — is
+/// testable without a UI harness (task a6cd1367).
+enum MacPriorityTap {
+    /// A tap always resolves to the priority tapped, and always counts as a selection.
+    /// Observing a value CHANGE instead is what swallowed the tap that landed on the
+    /// task's current priority, which is most often the first one.
+    static func outcome(tapped: Task.Priority,
+                        current: Task.Priority) -> (selection: Task.Priority, notify: Bool) {
+        (selection: tapped, notify: true)
+    }
+}
+
 /// 4-button priority picker mirroring iOS PriorityButtonPicker. Desktop-compact (0c1c83d4).
 struct MacPriorityPicker: View {
     @Binding var selection: Task.Priority
     /// Shows ONLY the selected priority; click to change (Task 42013da7). Four buttons spend a
     /// row displaying three options the task is not set to.
     var compact: Bool = false
+    /// Called for EVERY tap, including one on the priority already selected. Owners that
+    /// need to save or dismiss must use this rather than watching `selection` change —
+    /// see `MacPriorityTap`.
+    var onSelect: ((Task.Priority) -> Void)? = nil
 
     @State private var showingPicker = false
 
-    static let buttonWidth: CGFloat = 28
+    // Rounded SQUARES, like iOS. 28×22 read as a wide rectangle — a different control
+    // from the phone's. 22 stays inside the desktop-compact bounds (0c1c83d4), so
+    // squaring them doesn't reopen that decision.
+    static let buttonWidth: CGFloat = 22
     static let buttonHeight: CGFloat = 22
 
     var body: some View {
@@ -141,7 +161,7 @@ struct MacPriorityPicker: View {
                 HStack(spacing: 8) {
                     ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                         priorityButton(p) {
-                            selection = p
+                            tap(p)
                             showingPicker = false
                         }
                     }
@@ -156,9 +176,17 @@ struct MacPriorityPicker: View {
     private var expanded: some View {
         HStack(spacing: 6) {
             ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
-                priorityButton(p) { selection = p }
+                priorityButton(p) { tap(p) }
             }
         }
+    }
+
+    /// The single place a tap is turned into a selection, so the inline row and the
+    /// compact popover cannot disagree about what a tap means.
+    private func tap(_ p: Task.Priority) {
+        let outcome = MacPriorityTap.outcome(tapped: p, current: selection)
+        selection = outcome.selection
+        if outcome.notify { onSelect?(outcome.selection) }
     }
 
     /// One coloured priority button. Shared by the inline row and the compact popover so the

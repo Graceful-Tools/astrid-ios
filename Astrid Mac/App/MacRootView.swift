@@ -21,6 +21,10 @@ struct MacRootView: View {
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false   // 42013da7
     // Persist the selected list per scene so the window restores its last list on relaunch (Task 84993a68).
     @SceneStorage("selectedListId") private var selectedListId: String?
+    /// One-shot: the shell lands on My Tasks when it appears. This view is built
+    /// fresh both on launch-with-a-session and immediately after signing in, so
+    /// the flag resets naturally and one rule covers both (MacLaunchSelection).
+    @State private var didApplyLandingSelection = false
     @State private var selectedTaskIds = Set<String>()
     // Sort applied to the task list. Empty = follow the list's own saved sortBy (shared logic);
     // otherwise this per-scene override wins so the user can re-sort like the old table headers.
@@ -161,6 +165,7 @@ struct MacRootView: View {
         .tag(Optional(list.id))
         // Drop tasks here to MOVE them, or hold Option to COPY — the macOS convention (83f45d49).
         .dropDestination(for: String.self) { ids, _ in
+            draggingTaskId = nil                // the drag ended on a list; retire the lines
             switch MacDropAction.current {
             case .copy: copyTasks(Set(ids), to: list.id)
             case .move: move(Set(ids), to: list.id)
@@ -203,16 +208,6 @@ struct MacRootView: View {
 
     /// Make `droppedId` a subtask of `parent` (drag-to-indent), guarding against cycles.
     @discardableResult
-    private func makeSubtask(_ droppedId: String, of parent: Task) -> Bool {
-        guard droppedId != parent.id,
-              MacSubtaskDrop.canParent(childId: droppedId, parentId: parent.id, allTasks: taskService.tasks),
-              let dropped = taskService.tasks.first(where: { $0.id == droppedId }) else { return false }
-        MacActions.perform("Make subtask") {
-            _ = try await taskService.updateTask(taskId: droppedId, task: dropped, parentTaskId: parent.id)
-        }
-        return true
-    }
-
     private func beginInlineEdit(_ t: Task) { editingTaskId = t.id; editingTaskTitle = t.title }
     private func commitInlineEdit(_ t: Task) {
         let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)
@@ -223,6 +218,119 @@ struct MacRootView: View {
 
     /// Row currently under a drag-to-indent drop, for the highlight.
     @State private var indentDropTargetId: String?
+
+    /// The task currently being dragged, if any. Needed because the promote-to-top-level
+    /// target is offered ONLY while a SUBTASK is in flight (task 2ed0d0de) — a permanent
+    /// unnest strip would be noise, since most tasks are not subtasks and most drags are
+    /// reorders. `.onDrag` firing on the row is the only moment this is knowable.
+    @State private var draggingTaskId: String?
+
+    /// Which row currently has its insertion line lit.
+    @State private var insertionLineAboveId: String?
+
+    private func droppedTask(_ id: String) -> Task? {
+        taskService.tasks.first(where: { $0.id == id })
+    }
+
+    /// Write whatever the shared rules resolved to. A reorder or a no-op writes nothing —
+    /// which is the whole point of routing every drop through `DragNesting` rather than
+    /// letting each drop zone decide for itself.
+    private func applyNesting(_ outcome: DragNestingOutcome, droppedId: String) {
+        guard let parentId = DragNesting.parentIdToWrite(for: outcome),
+              let dropped = droppedTask(droppedId) else { return }
+        MacActions.perform("Move task") {
+            _ = try await taskService.updateTask(taskId: droppedId, task: dropped,
+                                                 parentTaskId: parentId)
+        }
+    }
+
+    /// Which row currently has its outdent band lit.
+    @State private var outdentBandRowId: String?
+
+    /// The leading edge band: pull a task out to the left and drop, and it moves ONE level
+    /// out of its parent. Long-press-and-drag is what starts this, so it never competes with
+    /// a click or a text selection — the gestures that this row has broken over before.
+    ///
+    /// Like the insertion line, it exists only while something is in flight.
+    @ViewBuilder private func outdentBand(for task: Task) -> some View {
+        GeometryReader { geo in
+            let lit = outdentBandRowId == task.id
+            RoundedRectangle(cornerRadius: 4)
+                .fill(lit ? Theme.accent.opacity(0.18) : Color.clear)
+                .overlay(alignment: .leading) {
+                    Image(systemName: "arrow.left.to.line")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(lit ? Theme.accent : Color.clear)
+                        .padding(.leading, 6)
+                }
+                .frame(width: DragNesting.outdentBandWidth(rowWidth: geo.size.width))
+                .contentShape(Rectangle())
+                .onDrop(of: [.text], isTargeted: Binding(
+                    get: { outdentBandRowId == task.id },
+                    set: { hovering in
+                        outdentBandRowId = hovering ? task.id
+                            : (outdentBandRowId == task.id ? nil : outdentBandRowId)
+                    }
+                )) { providers in
+                    guard let provider = providers.first else { return false }
+                    _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                        guard let droppedId = value as? String else { return }
+                        DispatchQueue.main.async {
+                            outdentBandRowId = nil
+                            draggingTaskId = nil
+                            guard let dragged = droppedTask(droppedId) else { return }
+                            applyNesting(DragNesting.outcome(for: .outdent, dragged: dragged,
+                                                             byId: taskService.tasksById),
+                                         droppedId: droppedId)
+                        }
+                    }
+                    return true
+                }
+        }
+    }
+
+    /// The line between two rows. Dropping on it makes the dragged task TOP LEVEL, and the
+    /// line is drawn flush left — at top-level indent — so the affordance shows where the
+    /// task will end up rather than just saying so.
+    ///
+    /// It rides as a top-edge overlay on each row instead of being its own List row, because
+    /// the list's `.onMove` reorder indexes into the ForEach and interleaving rows would
+    /// shift every index out from under it.
+    @ViewBuilder private func insertionLine(above task: Task) -> some View {
+        let lit = insertionLineAboveId == task.id
+        Rectangle()
+            .fill(lit ? Theme.accent : Color.clear)
+            .frame(height: 2)
+            // The whole band is the target — a 2pt line is not something anyone can hit.
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+            .onDrop(of: [.text], isTargeted: Binding(
+                get: { insertionLineAboveId == task.id },
+                set: { hovering in
+                    insertionLineAboveId = hovering ? task.id
+                        : (insertionLineAboveId == task.id ? nil : insertionLineAboveId)
+                }
+            )) { providers in
+                guard let provider = providers.first else { return false }
+                _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+                    guard let droppedId = value as? String, let dragged = droppedTask(droppedId)
+                    else { return }
+                    DispatchQueue.main.async {
+                        insertionLineAboveId = nil
+                        draggingTaskId = nil
+                        applyNesting(DragNesting.outcome(for: .betweenRows(above: task.id),
+                                                         dragged: dragged,
+                                                         byId: taskService.tasksById),
+                                     droppedId: droppedId)
+                    }
+                }
+                return true
+            }
+            // The line is the only thing describing this affordance, so it carries the words:
+            // a bare 2pt rule tells VoiceOver nothing.
+            .accessibilityLabel(NSLocalizedString("subtasks.promote_drop_target", comment: ""))
+            .accessibilityIdentifier(SubtaskPromotion.dropTargetId)
+    }
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
 
@@ -595,7 +703,9 @@ struct MacRootView: View {
                 let cmd = NSEvent.modifierFlags.contains(.command)
                 selectedTaskIds = MacSelectionModel.tap(current: selectedTaskIds, tapped: task.id, commandKey: cmd)
                 scrollAccum = 0
-            }
+            },
+            // Which task is in flight decides whether the promote strip is offered at all.
+            onDragBegan: { draggingTaskId = task.id }
         )
         // .draggable now lives on the row CONTENT (MacTaskRow) so it can't eat checkbox clicks.
         // Drop another task ONTO this row → make it a subtask of this task (drag-to-indent).
@@ -616,7 +726,14 @@ struct MacRootView: View {
                 guard let dropped = value as? String else { return }
                 DispatchQueue.main.async {
                     indentDropTargetId = nil
-                    makeSubtask(dropped, of: task)
+                    draggingTaskId = nil        // the drag ended here; retire the insertion lines
+                    // The SAME shared rules the insertion line uses, so the two drop zones
+                    // cannot disagree about cycles or about what is already true.
+                    guard let dragged = droppedTask(dropped) else { return }
+                    applyNesting(DragNesting.outcome(for: .onRow(task.id),
+                                                     dragged: dragged,
+                                                     byId: taskService.tasksById),
+                                 droppedId: dropped)
                 }
             }
             return true
@@ -626,6 +743,15 @@ struct MacRootView: View {
                 .strokeBorder(indentDropTargetId == task.id ? Theme.accent : .clear, lineWidth: 2)
                 .allowsHitTesting(false)
         )
+        // "Top level, here." Only while something is actually in flight — the lines answer a
+        // drag, and with no drag there is no question to answer.
+        .overlay(alignment: .top) {
+            if draggingTaskId != nil { insertionLine(above: task) }
+        }
+        // "Out one level." Same rule: present only during a drag.
+        .overlay(alignment: .leading) {
+            if draggingTaskId != nil { outdentBand(for: task) }
+        }
         .contextMenu {
             let targets = actionTargets(task)
             Button(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "")
@@ -1126,6 +1252,14 @@ struct MacRootView: View {
         // Measure the WINDOW, not the content area: the content shrinks when the sidebar opens,
         // which used to drop the window under the 3-column threshold and close the chat column.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
+        .onAppear {
+            guard !didApplyLandingSelection else { return }
+            didApplyLandingSelection = true
+            // A UI test asks for its own starting selection; don't fight it.
+            guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+            selectedListId = MacLaunchSelection.landingListId(restored: selectedListId,
+                                                             myTasksId: Self.myTasksId)
+        }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
             myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count

@@ -1197,3 +1197,7 @@
 "repeating.monthly" = "매월";
 "repeating.yearly" = "매년";
 "repeating.custom" = "사용자 지정";
+
+/* Subtasks - TODO: translate, currently English */
+"subtasks.promote_drop_target" = "Drop here to move out of its parent task";
+"subtasks.move_out_of_parent" = "Move out of parent task";

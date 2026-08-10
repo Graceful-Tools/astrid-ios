@@ -54,6 +54,28 @@ struct TaskActionsView: View {
                 ShareTaskView(task: task)
             }
 
+            // Move out of parent task — iOS's route to the promotion the Mac offers by dragging
+            // onto a drop strip (task 2ed0d0de). iOS has no task drag-and-drop outside the Board,
+            // so the same decision is reached through an action rather than a gesture; the rule
+            // for WHETHER it is offered is the shared one, so the platforms cannot disagree.
+            if SubtaskPromotion.canPromoteToTopLevel(task) {
+                Button {
+                    moveOutOfParent()
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.up.left")
+                        Text(NSLocalizedString("subtasks.move_out_of_parent", comment: ""))
+                    }
+                    .font(Theme.Typography.body())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(Theme.spacing12)
+                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+                }
+                .buttonStyle(.plain)
+            }
+
             // Delete Task
             Button(role: .destructive) {
                 showingDeleteConfirmation = true
@@ -83,6 +105,22 @@ struct TaskActionsView: View {
                 }
                 Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }
             }
+        }
+    }
+
+    /// Cut the link to the parent, leaving this task's own children nested under it. The
+    /// decision is `SubtaskPromotion`'s, shared with the Mac and with web, so a task that can
+    /// be promoted on one platform can be promoted on all of them.
+    private func moveOutOfParent() {
+        guard let promotion = SubtaskPromotion.resolvePromotion(task) else { return }
+        _Concurrency.Task {
+            // Optimistic in TaskService, which rolls back on failure — the same path the
+            // Mac's drop uses.
+            _ = try? await TaskService.shared.updateTask(
+                taskId: promotion.taskId,
+                task: task,
+                parentTaskId: SubtaskPromotion.clearParentValue)
+            await MainActor.run { dismiss() }
         }
     }
 }
@@ -179,6 +217,24 @@ struct CopyTaskView: View {
                         dismiss()
                     }
                 }
+            }
+        }
+    }
+
+    /// Cut the link to the parent, leaving this task's own children nested under it. The
+    /// decision is `SubtaskPromotion`'s, shared with the Mac and with web, so a task that can
+    /// be promoted on one platform can be promoted on all of them.
+    private func moveOutOfParent() {
+        guard let promotion = SubtaskPromotion.resolvePromotion(task) else { return }
+        _Concurrency.Task {
+            do {
+                _ = try await TaskService.shared.updateTask(
+                    taskId: promotion.taskId,
+                    task: task,
+                    parentTaskId: SubtaskPromotion.clearParentValue)
+                await MainActor.run { dismiss() }
+            } catch {
+                await MainActor.run { errorMessage = error.localizedDescription }
             }
         }
     }

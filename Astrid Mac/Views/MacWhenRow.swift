@@ -18,28 +18,12 @@
 #if os(macOS)
 import Foundation
 
-/// A control the When row may show. The cases the row must NEVER contain are
-/// declared too — a test asserting the absence of something needs a name for it.
-enum MacWhenControl: Equatable {
-    case date
-    case time
-    case repeatPattern
-
-    // Retired. Present so their absence is checkable, and so re-adding one is a
-    // deliberate act with a failing test attached.
-    case dueDateToggle
-    case dateQuickPicks
-    case timeQuickPicks
-    case allDayToggle
-}
-
-enum MacWhenRow {
-    /// The controls on the row, in order. Time and repeat need a date to attach
-    /// to, so an undated task shows one trigger rather than three inert controls.
-    static func controls(hasDate: Bool) -> [MacWhenControl] {
-        hasDate ? [.date, .time, .repeatPattern] : [.date]
-    }
-}
+//  The row's composition now comes from the SHARED `TaskWhenRowLayout`, which iOS
+//  uses too — so the two platforms cannot disagree about what is on the row or
+//  which line it sits on. The Mac's own `MacWhenControl` listed retired controls
+//  (a due-date toggle, inline quick-pick rows, an All-day toggle) so their
+//  absence could be asserted; the shared enum simply has no cases for them,
+//  which is a stronger guarantee than a test.
 
 // MARK: - Popover contents
 
@@ -50,11 +34,10 @@ enum MacWhenRow {
 /// popover because this is a Mac: there is a keyboard, and typing a date is
 /// faster than hunting for it in a grid.
 ///
-/// EXACTLY ONE date-entry control. The first version showed a typable field AND
-/// a graphical calendar, not realising the field brings a calendar of its own
-/// when you use it — so picking a date put two calendars on screen at once, one
-/// on top of the other. `.calendar` is kept as a case so its absence is
-/// checkable, and so putting it back is a deliberate act with a failing test.
+/// EXACTLY ONE calendar. An early version paired NSDatePicker's `.field` with a
+/// graphical one, not realising `.field` brings a calendar of its own — two
+/// calendars, overlapping. The typed field is now ours (MacDateEntry), so it
+/// carries no calendar and the graphical one is the only one, sitting last.
 enum MacDueDatePopoverRow: Equatable {
     case typedEntry
     case clear
@@ -64,13 +47,15 @@ enum MacDueDatePopoverRow: Equatable {
 
 enum MacDueDatePopover {
     static var rows: [MacDueDatePopoverRow] {
-        [.typedEntry, .clear] + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
+        [.typedEntry, .clear]
+            + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
+            + [.calendar]
     }
 
-    /// Controls through which a specific date can be entered, as opposed to
-    /// picked from a shortcut. There must be one.
-    static var dateEntryControls: [MacDueDatePopoverRow] {
-        rows.filter { $0 == .typedEntry || $0 == .calendar }
+    /// The calendars in the popover. There must be exactly one — two is a bug
+    /// this control has already shipped once.
+    static var calendars: [MacDueDatePopoverRow] {
+        rows.filter { $0 == .calendar }
     }
 }
 

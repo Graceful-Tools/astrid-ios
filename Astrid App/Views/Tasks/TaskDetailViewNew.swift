@@ -403,66 +403,21 @@ struct TaskDetailViewNew: View {
                                 }
                             }
                         } else {
-                            HStack(spacing: Theme.spacing8) {
-                                InlineDatePicker(
-                                    label: NSLocalizedString("tasks.due_date", comment: ""),
-                                    date: $editedDueDate,
-                                    onSave: saveDueDate,
-                                    showLabel: false,
-                                    isAllDay: isAllDay,
-                                    compact: true
-                                )
-                                if editedDueDate != nil {
-                                    InlineTimePicker(
-                                        label: "Time",
-                                        time: $editedDueTime,
-                                        onSave: saveDueTime,
-                                        showLabel: false,
-                                        compact: true
-                                    )
-                                    // A custom repeat moves to its OWN row below, where the real
-                                    // pattern fits. A "Custom" chip here would just be a second,
-                                    // less informative control for the same thing (42013da7).
-                                    if editedRepeating != .custom {
-                                        InlineRepeatPicker(
-                                            label: NSLocalizedString("repeating.title", comment: ""),
-                                            repeatPattern: $editedRepeating,
-                                            repeatFrom: $editedRepeatFrom,
-                                            repeatingData: $editedRepeatingData,
-                                            onSave: saveRepeating,
-                                            onSaveCustom: saveCustomRepeating,
-                                            showLabel: false,
-                                            compact: true
-                                        )
-                                    }
+                            // WRAPS when it has to, and only then. One HStack demanded the
+                            // sum of three fixed-size chips — more than a phone row has —
+                            // so the last was pushed off, and once the date grew a weekday
+                            // it was the TIME that vanished. FlowLayout keeps them on one
+                            // line while they fit and wraps when they do not.
+                            FlowLayout(spacing: Theme.spacing8, rowSpacing: Theme.spacing8) {
+                                ForEach(Array(TaskWhenRowLayout.controls(
+                                    hasDate: editedDueDate != nil
+                                ).enumerated()), id: \.offset) { _, control in
+                                    whenControl(control)
                                 }
                             }
                         }
                     }
 
-                    // A CUSTOM repeat cannot say what it is in a chip — "Custom" tells you
-                    // nothing, and the real pattern ("Every 2 weeks on Mon, Wed") does not fit
-                    // beside a date and a time. It gets the next row to itself (42013da7).
-                    if let repeating = editedRepeating, repeating == .custom,
-                       let pattern = editedRepeatingData {
-                        TwoColumnRow(label: NSLocalizedString("repeating.title", comment: "Repeat"),
-                                     icon: "repeat") {
-                            // The row IS the picker: its trigger renders the full pattern, so
-                            // tapping the summary opens the repeat options rather than being
-                            // dead text next to a separate control (42013da7).
-                            InlineRepeatPicker(
-                                label: NSLocalizedString("repeating.title", comment: ""),
-                                repeatPattern: $editedRepeating,
-                                repeatFrom: $editedRepeatFrom,
-                                repeatingData: $editedRepeatingData,
-                                onSave: saveRepeating,
-                                onSaveCustom: saveCustomRepeating,
-                                showLabel: false,
-                                compact: true
-                            )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
                 }
 
                 // 7. Lists
@@ -1439,6 +1394,42 @@ struct TaskDetailViewNew: View {
 
     /// Priority, assignee and Complete — everything that used to be its own row, behind the
     /// control that already depicts all three (42013da7).
+    /// One control of the "When" row. Which controls appear, and on which line,
+    /// is TaskWhenRowLayout's decision — not this view's.
+    @ViewBuilder
+    private func whenControl(_ control: TaskWhenControl) -> some View {
+        switch control {
+        case .date:
+            InlineDatePicker(
+                label: NSLocalizedString("tasks.due_date", comment: ""),
+                date: $editedDueDate,
+                onSave: saveDueDate,
+                showLabel: false,
+                isAllDay: isAllDay,
+                compact: true
+            )
+        case .time:
+            InlineTimePicker(
+                label: "Time",
+                time: $editedDueTime,
+                onSave: saveDueTime,
+                showLabel: false,
+                compact: true
+            )
+        case .repeatPattern:
+            InlineRepeatPicker(
+                label: NSLocalizedString("repeating.title", comment: ""),
+                repeatPattern: $editedRepeating,
+                repeatFrom: $editedRepeatFrom,
+                repeatingData: $editedRepeatingData,
+                onSave: saveRepeating,
+                onSaveCustom: saveCustomRepeating,
+                showLabel: false,
+                compact: true
+            )
+        }
+    }
+
     @ViewBuilder private var leadingPickerContent: some View {
         VStack(alignment: .leading, spacing: Theme.spacing16) {
             // Each choice dismisses the popover straight away — you came here to set ONE thing,

@@ -123,6 +123,23 @@ final class MacTaskFieldsTests: XCTestCase {
         XCTAssertEqual(MacTaskFields.descriptionDisplay("  indented"), .body("  indented"))
     }
 
+    // MARK: - Chip spacing
+
+    /// THE BUG: the gap between the date and time chips was wide enough to read
+    /// as a gulf, and it cost the row width it did not have — enough to wrap a
+    /// chip that would otherwise have fitted.
+    func testChipsSitCloseEnoughNotToForceAWrap() {
+        XCTAssertLessThanOrEqual(MacTaskFields.chipSpacing, 6,
+                                 "a wide gap between chips buys nothing and costs a wrap")
+        XCTAssertGreaterThan(MacTaskFields.chipSpacing, 0, "the chips still need separating")
+    }
+
+    /// The row is denser than the gap BETWEEN rows — chips on one line belong
+    /// together more than lines do.
+    func testChipsAreTighterThanTheRowsAreApart() {
+        XCTAssertLessThan(MacTaskFields.chipSpacing, MacTaskFields.Density.detail.rowSpacing)
+    }
+
     // MARK: - The board reuses the detail's fields
 
     /// THE ASK: one implementation. The board card asks for the same field set,

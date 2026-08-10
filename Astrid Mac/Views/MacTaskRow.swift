@@ -29,6 +29,10 @@ struct MacTaskRow: View {
     /// Trailing inset of the card. Drops to 0 while the detail pop-out is open so the row's edge
     /// MEETS the pop-out's arrow instead of stopping short of it (task 89e42f29).
     var trailingInset: CGFloat = 8
+    /// Fired when this row actually starts a drag. The list needs to know WHICH task is in
+    /// flight to decide whether to offer the promote-to-top-level target (task 2ed0d0de);
+    /// `.onDrag` is the only moment that is knowable.
+    var onDragBegan: () -> Void = {}
 
     @ObservedObject private var listService = ListService.shared
     @ObservedObject private var auth = AuthManager.shared
@@ -182,7 +186,8 @@ struct MacTaskRow: View {
             // selected with the mouse (task 6a7aaf55). Tap-to-select is likewise suppressed so a
             // click inside the field places the caret instead of re-selecting the row.
             .modifier(MacRowInteractions(enabled: !isEditing, dragId: task.id,
-                                         isSelected: isSelected, onSelect: onSelect))
+                                         isSelected: isSelected, onSelect: onSelect,
+                                         onDragBegan: onDragBegan))
         }
         // A floor so a title-only task stands as tall as one carrying a date or a list chip —
         // without it height followed content and a mixed list read as a ragged column
@@ -213,6 +218,7 @@ struct MacRowInteractions: ViewModifier {
     let dragId: String
     let isSelected: Bool
     let onSelect: () -> Void
+    var onDragBegan: () -> Void = {}
 
     func body(content: Content) -> some View {
         if enabled {
@@ -223,7 +229,10 @@ struct MacRowInteractions: ViewModifier {
             // begins once the pointer moves past a threshold, so a click and a drag coexist.
             content
                 .highPriorityGesture(TapGesture().onEnded { onSelect() })
-                .onDrag { NSItemProvider(object: dragId as NSString) }
+                .onDrag {
+                    onDragBegan()
+                    return NSItemProvider(object: dragId as NSString)
+                }
         } else {
             content
         }

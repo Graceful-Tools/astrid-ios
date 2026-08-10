@@ -8,85 +8,6 @@
 #if os(macOS)
 import SwiftUI
 
-/// Shared chrome for a trigger in the When row, so date, time and repeat read as
-/// one control each rather than three different kinds of button.
-private struct MacWhenTriggerLabel: View {
-    let text: String
-    /// nil draws no glyph. The empty date state passes nil: the words "No due
-    /// date" already say there is no date, and the row leads with a calendar
-    /// icon of its own, so the placeholder was carrying two of them.
-    let systemImage: String?
-    /// Muted when the control has no value — "No due date" is a prompt, not data.
-    let isPlaceholder: Bool
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textMuted)
-            }
-            Text(text)
-                .font(.system(size: 11))
-                .lineLimit(1)
-                .foregroundStyle(isPlaceholder ? Theme.textMuted : Theme.textPrimary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 6))
-        .contentShape(RoundedRectangle(cornerRadius: 6))
-    }
-}
-
-/// One selectable row inside a picker popover.
-///
-/// Outlined, not bare text. The first version drew these with `.buttonStyle(.plain)`
-/// and no border, so a column of choices read as a list of labels with no
-/// indication that any of it was clickable.
-private struct MacPickerRow: View {
-    let title: String
-    var isDestructive: Bool = false
-    var isChecked: Bool = false
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    private var tint: Color { isDestructive ? Theme.error : Theme.textPrimary }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(tint)
-                Spacer(minLength: 0)
-                if isChecked {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
-                }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovering ? Theme.accent.opacity(0.10) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(isChecked ? (isDestructive ? Theme.error : Theme.accent)
-                                            : Theme.border,
-                                  lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .macPointingHand()
-        .onHover { isHovering = $0 }
-    }
-}
-
 /// The due-date control: trigger + popover.
 struct MacDueDatePicker: View {
     /// nil means the task has no due date.
@@ -95,30 +16,62 @@ struct MacDueDatePicker: View {
     let onCommit: () -> Void
 
     @State private var isPresented = false
+    /// What the user has typed, mirrored from `date` while the popover is open.
+    @State private var typed = ""
+    /// A parsed-but-uncommitted date, so the calendar can follow the typing
+    /// without saving on every keystroke.
+    @State private var preview: Date?
+
+    /// Accept a typed date, or leave the field showing what is actually set.
+    private func commitTyped() {
+        if let parsed = MacDateEntry.parse(typed) {
+            select(localDay: parsed)
+            isPresented = false
+        } else {
+            typed = date.map { MacDateEntry.format($0) } ?? ""
+        }
+    }
 
     var body: some View {
         Button { isPresented = true } label: {
-            MacWhenTriggerLabel(
-                text: DueDateLabel.text(for: date, isAllDay: isAllDay),
-                systemImage: date == nil ? nil : "calendar",
-                isPlaceholder: date == nil
-            )
+            // No glyph: the row leads with a calendar icon, so one inside the
+            // chip says the same thing twice on one line.
+            MacFieldTrigger(text: DueDateLabel.text(for: date, isAllDay: isAllDay),
+                            isPlaceholder: date == nil)
         }
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
                 ForEach(Array(MacDueDatePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .typedEntry:
-                        // This is a Mac — there is a keyboard. `.field` gives a
-                        // typable, steppable date field, so setting a date six
-                        // months out doesn't mean paging a calendar to it.
-                        DatePicker("", selection: calendarSelection,
-                                   displayedComponents: [.date])
-                            .datePickerStyle(.field)
-                            .labelsHidden()
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // OUR field, not NSDatePicker's. `.field` types but drags
+                        // the system's own calendar overlay in on top of ours;
+                        // `.graphical` can be sized and centred but cannot be
+                        // typed into at all. Owning the text field decouples the
+                        // two, and MacDateEntry makes the parsing testable.
+                        TextField(MacDateEntry.format(Date()), text: $typed)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12))
+                            .multilineTextAlignment(.center)
+                            .onSubmit(commitTyped)
+                            .frame(maxWidth: .infinity)
+                            .onAppear {
+                                typed = date.map { MacDateEntry.format($0) } ?? ""
+                                preview = nil
+                            }
+                            .onChange(of: date) { _, newValue in
+                                typed = newValue.map { MacDateEntry.format($0) } ?? ""
+                                preview = nil
+                            }
+                            // The calendar FOLLOWS the typing: each keystroke that
+                            // parses moves the grid to that day, so you can see
+                            // where you are landing before committing. Nothing is
+                            // saved until Return or a click on the calendar.
+                            .onChange(of: typed) { _, text in
+                                if let parsed = MacDateEntry.parse(text) { preview = parsed }
+                            }
                     case .clear:
                         // A CHOICE, first, in red — not a toolbar escape hatch.
                         MacPickerRow(title: NSLocalizedString("picker.no_due_date", comment: ""),
@@ -139,8 +92,18 @@ struct MacDueDatePicker: View {
                             isPresented = false
                         }
                     case .calendar:
-                        // Not in `rows` — the typed field carries its own calendar.
-                        EmptyView()
+                        Divider().padding(.vertical, 2)
+                        // Scaled and centred. `scaleEffect` does not change layout,
+                        // so MacScaled measures the natural size and reserves
+                        // scale x that — otherwise the grid overlaps what sits
+                        // above it or gets clipped by a guessed frame.
+                        MacScaled(scale: MacFieldPicker.calendarScale) {
+                            DatePicker("", selection: calendarSelection,
+                                       displayedComponents: [.date])
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
@@ -154,10 +117,11 @@ struct MacDueDatePicker: View {
     private var calendarSelection: Binding<Date> {
         Binding(
             get: {
+                if let preview { return preview }
                 guard let date else { return Date() }
                 return isAllDay ? MacWhenDate.localDay(ofAllDay: date) : date
             },
-            set: { select(localDay: $0) }
+            set: { preview = nil; select(localDay: $0) }
         )
     }
 
@@ -220,14 +184,14 @@ struct MacDueTimePicker: View {
 
     var body: some View {
         Button { isPresented = true } label: {
-            MacWhenTriggerLabel(text: label,
-                                systemImage: time == nil ? "clock.badge.xmark" : "clock",
-                                isPlaceholder: time == nil)
+            MacFieldTrigger(text: label,
+                            systemImage: time == nil ? "clock.badge.xmark" : "clock",
+                            isPlaceholder: time == nil)
         }
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: MacFieldPicker.rowSpacing) {
                 ForEach(Array(MacDueTimePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .clear:
@@ -256,8 +220,8 @@ struct MacDueTimePicker: View {
                     }
                 }
             }
-            .padding(12)
-            .frame(width: 210)
+            .padding(MacFieldPicker.padding)
+            .frame(width: MacFieldPicker.narrowPopoverWidth)
         }
     }
 
