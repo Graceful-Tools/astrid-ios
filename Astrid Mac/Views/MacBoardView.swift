@@ -91,9 +91,23 @@ struct MacBoardView: View {
                 Text("\(items.count)").font(.caption).foregroundStyle(Theme.textMuted)
             }
             .help(col.description)
-            ForEach(items) { t in card(t) }
-            Spacer(minLength: 40)
-            addCardField(col)          // floats at the bottom of the column (iPad/web placement)
+            // The CARDS scroll, not the board. Without this the column was a plain stack of
+            // every card, so a long column simply grew past the bottom of the window and took
+            // the whole board with it — the header and the add-card field went with it and
+            // there was no way to reach them (task e508ae5b).
+            //
+            // Lazy, because a column is exactly the place a list gets long.
+            ScrollView(.vertical) {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(items) { t in card(t) }
+                }
+            }
+            .macScrollBars(showScrollBars)
+            .scrollContentBackground(.hidden)
+            // Takes the room left over between the header and the add field, so those two
+            // stay put at the top and bottom of the column instead of scrolling away.
+            .frame(maxHeight: .infinity)
+            addCardField(col)          // stays at the bottom of the column (iPad/web placement)
         }
         .padding(10)
         .frame(width: 250, alignment: .leading)
