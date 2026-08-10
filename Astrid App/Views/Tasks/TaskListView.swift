@@ -49,6 +49,12 @@ struct TaskListView: View {
     @State private var isLoadingFeaturedTasks = false
     @State private var showingCopySheet = false
     @State private var taskToCopy: Task?
+
+    // MARK: Re-nesting by drag (shared rules live in DragNesting)
+
+    /// Row currently under a drop, for the highlight. Which ZONE of it is live follows the
+    /// pointer position and is resolved by `DragNesting`.
+    @State private var dropTargetRowId: String?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
     /// Which view the user picked from the unified List/Board/Messages
     /// rotator button. Defaults to `.list`; auto-flips to `.board` when
@@ -799,6 +805,24 @@ struct TaskListView: View {
         }
     }
 
+    // MARK: - Re-nesting by drag
+
+    /// Resolve a drop through the SHARED rules and write only what actually changes. Every
+    /// zone goes through here, so iOS and the Mac cannot disagree about cycles, about
+    /// re-parenting to the parent a task already has, or about writing null over null.
+    @discardableResult
+    private func applyNesting(zone: DragNestingZone, droppedId: String) -> Bool {
+        dropTargetRowId = nil
+        guard let dragged = taskService.tasks.first(where: { $0.id == droppedId }) else { return false }
+        let outcome = DragNesting.outcome(for: zone, dragged: dragged, byId: taskService.tasksById)
+        guard let parentId = DragNesting.parentIdToWrite(for: outcome) else { return false }
+        _Concurrency.Task {
+            _ = try? await taskService.updateTask(taskId: droppedId, task: dragged,
+                                                  parentTaskId: parentId)
+        }
+        return true
+    }
+
     // MARK: - Task List
 
     private func taskList(rows: [Task]) -> some View {
@@ -843,6 +867,11 @@ struct TaskListView: View {
                         taskToNavigateTo = task
                     }
                 }
+                // Re-nesting by drag. Extracted into one modifier because inlining it here
+                // pushed the row body past what the type-checker will solve.
+                .modifier(TaskRowNestingDrop(task: task,
+                                             targetedRowId: $dropTargetRowId,
+                                             onDrop: applyNesting))
             }
             .onDelete(perform: deleteTasks)
             .onMove(perform: moveTask)
@@ -1545,4 +1574,52 @@ struct TaskListView: View {
 
 #Preview {
     TaskListView()
+}
+
+/// Re-nesting a task by dragging it, on iOS.
+///
+/// Three zones resolved from WHERE in the row the drop landed — the line above (top level),
+/// the leading edge (outdent one level), the body (nest under this row). The row itself is
+/// the only drop target: an overlay view per row would sit on top waiting to swallow taps,
+/// which this list has been bitten by before.
+///
+/// The drag is long-press-initiated, so it never competes with the swipe that deletes.
+struct TaskRowNestingDrop: ViewModifier {
+    let task: Task
+    @Binding var targetedRowId: String?
+    let onDrop: (DragNestingZone, String) -> Bool
+
+    func body(content: Content) -> some View {
+        content
+            .draggable(task.id) { Text(task.title).padding(6) }
+            .background(GeometryReader { geo in
+                Color.clear.dropDestination(for: String.self) { ids, location in
+                    guard let droppedId = ids.first else { return false }
+                    return onDrop(DragNesting.zone(forDropAt: location,
+                                                   rowSize: geo.size,
+                                                   rowId: task.id),
+                                  droppedId)
+                } isTargeted: { hovering in
+                    targetedRowId = hovering ? task.id
+                        : (targetedRowId == task.id ? nil : targetedRowId)
+                }
+            })
+            .overlay {
+                if targetedRowId == task.id {
+                    RoundedRectangle(cornerRadius: Theme.radiusMedium)
+                        .strokeBorder(Theme.accent, lineWidth: 2)
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay(alignment: .top) {
+                if targetedRowId == task.id {
+                    Rectangle()
+                        .fill(Theme.accent)
+                        .frame(height: 2)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel(NSLocalizedString("subtasks.promote_drop_target", comment: ""))
+                        .accessibilityIdentifier(SubtaskPromotion.dropTargetId)
+                }
+            }
+    }
 }
