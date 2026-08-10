@@ -106,6 +106,19 @@ final class MacAppModel: ObservableObject {
                     _ = try await TaskService.shared.updateTask(taskId: id, dueDateTime: .distantPast, task: t)
                 case .assignNoOne:
                     _ = try await TaskService.shared.updateTask(taskId: id, assigneeId: "", task: t)
+                case .outdent, .indent:
+                    // The SAME rules the drag uses, so a keystroke and a drag cannot mean
+                    // two different things. Resolving indent needs the rendered order,
+                    // because it nests under the previous SIBLING, not the row above.
+                    let byId = TaskService.shared.tasksById
+                    let outcome = effect == .outdent
+                        ? DragNesting.outdent(t, byId: byId)
+                        : DragNesting.indent(t, in: all, byId: byId)
+                    // nil means the task has nowhere to go — never a write.
+                    if let parentId = DragNesting.parentIdToWrite(for: outcome) {
+                        _ = try await TaskService.shared.updateTask(taskId: id, task: t,
+                                                                    parentTaskId: parentId)
+                    }
                 }
             }
         }

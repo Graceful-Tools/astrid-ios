@@ -36,6 +36,8 @@ public enum ShortcutAction: String, CaseIterable, Sendable {
     case cycleFilters
     case selectPrevious
     case selectNext
+    case outdentTask
+    case indentTask
     case showShortcuts
 }
 
@@ -75,6 +77,8 @@ public enum KeyboardShortcuts {
         KeyBinding(keys: ["l"],          action: .cycleFilters,    requiresSelection: false, webAction: "onCycleListFilters",     title: "Cycle through list filters/tags"),
         KeyBinding(keys: ["k", "↑"],     action: .selectPrevious,  requiresSelection: false, webAction: "onSelectPreviousTask",   title: "Select previous task"),
         KeyBinding(keys: ["j", "↓"],     action: .selectNext,      requiresSelection: false, webAction: "onSelectNextTask",       title: "Select next task"),
+        KeyBinding(keys: ["["],          action: .outdentTask,     requiresSelection: true,  webAction: "onOutdentTask",          title: "Move task out of its parent"),
+        KeyBinding(keys: ["]"],          action: .indentTask,      requiresSelection: true,  webAction: "onIndentTask",           title: "Nest task under the task above"),
         KeyBinding(keys: ["?"],          action: .showShortcuts,   requiresSelection: false, webAction: "onShowHotkeyMenu",       title: "Show hotkey listing"),
     ]
 
