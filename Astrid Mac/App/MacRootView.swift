@@ -1110,7 +1110,11 @@ struct MacRootView: View {
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
             .background(Theme.bgPrimary)
-            .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
+            // Our own field in a top inset, not `.searchable` — see MacSidebarSearchField
+            // for why (task 00145582). Mirrors the account bar's bottom inset below.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                MacSidebarSearchField(text: $listSearch)
+            }
             .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
