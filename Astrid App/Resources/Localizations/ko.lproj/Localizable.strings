@@ -1162,7 +1162,6 @@
 "mac.comments_count" = "댓글 (%d)";
 "mac.filter_title" = "“%@” 필터";
 "mac.last_timer" = "마지막: %@";
-"mac.no_lists_match" = "“%@”와(과) 일치하는 목록이 없습니다";
 "mac.replying_to" = "%@에게 답장: %@";
 "mac.share_title" = "“%@” 공유";
 "mac.show_scroll_bars" = "스크롤 막대 표시";

@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "Комментарии (%d)";
 "mac.filter_title" = "Фильтр «%@»";
 "mac.last_timer" = "Последний: %@";
-"mac.no_lists_match" = "Нет списков, соответствующих «%@»";
 "mac.replying_to" = "Ответ %@: %@";
 "mac.share_title" = "Поделиться «%@»";
 "mac.show_scroll_bars" = "Показывать полосы прокрутки";

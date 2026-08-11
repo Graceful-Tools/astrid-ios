@@ -1176,7 +1176,6 @@
 "mac.comments_count" = "Comentarios (%d)";
 "mac.filter_title" = "Filtrar “%@”";
 "mac.last_timer" = "Último: %@";
-"mac.no_lists_match" = "Ninguna lista coincide con “%@”";
 "mac.replying_to" = "Respondiendo a %@: %@";
 "mac.share_title" = "Compartir “%@”";
 "mac.show_scroll_bars" = "Mostrar barras de desplazamiento";

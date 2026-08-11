@@ -39,7 +39,6 @@ struct MacRootView: View {
     @State private var showDraftDefaults = false
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
-    @State private var listSearch = ""
     @State private var taskSearchQuery = ""
     @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
@@ -334,11 +333,10 @@ struct MacRootView: View {
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
 
-    private func matchesSearch(_ l: TaskList) -> Bool {
-        listSearch.isEmpty || l.name.localizedCaseInsensitiveContains(listSearch)
-    }
-    private var favoriteLists: [TaskList] { listService.lists.filter { ($0.isFavorite ?? false) && matchesSearch($0) } }
-    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) && matchesSearch($0) } }
+    // Favorites vs the rest is the only split in the sidebar. There is no name filter here
+    // (task 1b0f034d) — "Search" under My Tasks searches tasks, not list names.
+    private var favoriteLists: [TaskList] { listService.lists.filter { $0.isFavorite ?? false } }
+    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) } }
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
@@ -1102,19 +1100,11 @@ struct MacRootView: View {
                         .accessibilityIdentifier(action.id)
                     }
                     ForEach(regularLists) { listRow($0) }
-                    if regularLists.isEmpty && !listSearch.isEmpty {
-                        Text(String(format: NSLocalizedString("mac.no_lists_match", comment: ""), listSearch)).foregroundStyle(Theme.textMuted).font(.callout)
-                    }
                 }
             }
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
             .background(Theme.bgPrimary)
-            // Our own field in a top inset, not `.searchable` — see MacSidebarSearchField
-            // for why (task 00145582). Mirrors the account bar's bottom inset below.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                MacSidebarSearchField(text: $listSearch)
-            }
             .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left

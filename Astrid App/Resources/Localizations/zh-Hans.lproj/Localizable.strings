@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "评论 (%d)";
 "mac.filter_title" = "筛选“%@”";
 "mac.last_timer" = "上次：%@";
-"mac.no_lists_match" = "没有与“%@”匹配的列表";
 "mac.replying_to" = "回复 %@：%@";
 "mac.share_title" = "分享“%@”";
 "mac.show_scroll_bars" = "显示滚动条";
