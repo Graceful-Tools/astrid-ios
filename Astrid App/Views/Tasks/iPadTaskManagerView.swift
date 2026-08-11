@@ -54,6 +54,9 @@ struct iPadTaskManagerView: View {
     /// layout turns on it: messages ride beside a LIST, and stand down for a board (a34d0163).
     @State private var listViewMode: HeaderToggleSegment = .list
     @AppStorage("iPadBoardFullScreen") private var boardFullScreen: Bool = false
+    // Expanded task detail (task c5ba07ed). Persisted like the Mac's macDetailFullScreen, so a
+    // panel you expanded is still expanded next launch.
+    @AppStorage("iPadDetailFullScreen") private var detailFullScreen: Bool = false
 
     // Portrait mode: sidebar shown via sliding overlay (like iPhone)
     @State private var showingSidebar = false
@@ -151,7 +154,8 @@ struct iPadTaskManagerView: View {
                                           showsMessages: showsMessages,
                                           boardFullScreen: isBoardFullScreen)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
-                                                     showsMessages: showsMessages)
+                                                     showsMessages: showsMessages,
+                                                     isFullScreen: detailFullScreen)
 
         ZStack {
             // Full-screen background (fills safe areas — fixes black in dark mode)
@@ -261,7 +265,8 @@ struct iPadTaskManagerView: View {
                                           showsMessages: showsMessages,
                                           boardFullScreen: isBoardFullScreen)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 2,
-                                                     showsMessages: showsMessages)
+                                                     showsMessages: showsMessages,
+                                                     isFullScreen: detailFullScreen)
 
         ZStack(alignment: .leading) {
             // Full-screen background
@@ -511,7 +516,11 @@ struct iPadTaskManagerView: View {
                 TaskDetailViewNew(
                     task: task,
                     isReadOnly: shouldShowTaskAsReadOnly(task: task),
-                    onClose: { selectedTask = nil }
+                    onClose: { selectedTask = nil },
+                    isFullScreen: detailFullScreen,
+                    onToggleFullScreen: {
+                        withAnimation(Self.panelAnimation) { detailFullScreen.toggle() }
+                    }
                 )
             }
             .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
