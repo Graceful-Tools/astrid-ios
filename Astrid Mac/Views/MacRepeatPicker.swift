@@ -73,7 +73,7 @@ struct MacRepeatPicker: View {
     }
 
     private var options: some View {
-        VStack(alignment: .leading, spacing: MacFieldPicker.rowSpacing) {
+        VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
             ForEach(Task.Repeating.allCases, id: \.self) { option in
                 MacPickerRow(title: option.displayName,
                              isChecked: option == repeating) {

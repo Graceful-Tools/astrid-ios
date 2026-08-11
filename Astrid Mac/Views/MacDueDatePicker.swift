@@ -23,6 +23,10 @@ struct MacDueDatePicker: View {
     /// A parsed-but-uncommitted date, so the calendar can follow the typing
     /// without saving on every keystroke.
     @State private var preview: Date?
+    /// How wide the scaled calendar actually is. The popover is built around it rather than
+    /// around a hand-picked number (task d4f663a3); the estimate covers the first pass.
+    @State private var calendarWidth = MacFieldPicker.calendarNaturalEstimate.width
+                                     * MacFieldPicker.calendarScale
 
     /// Accept a typed date, or leave the field showing what is actually set.
     private func commitTyped() {
@@ -99,7 +103,8 @@ struct MacDueDatePicker: View {
                         // so MacScaled measures the natural size and reserves
                         // scale x that — otherwise the grid overlaps what sits
                         // above it or gets clipped by a guessed frame.
-                        MacScaled(scale: MacFieldPicker.calendarScale) {
+                        MacScaled(scale: MacFieldPicker.calendarScale,
+                                  onReserve: { calendarWidth = $0.width }) {
                             DatePicker("", selection: calendarSelection,
                                        displayedComponents: [.date])
                                 .datePickerStyle(.graphical)
@@ -109,8 +114,10 @@ struct MacDueDatePicker: View {
                     }
                 }
             }
-            .padding(12)
-            .frame(width: 300)
+            .padding(MacFieldPicker.padding)
+            // The popover follows the CALENDAR, so the calendar fills it. A fixed 300 left the
+            // 208.5pt scaled grid floating with dead space down both sides (task d4f663a3).
+            .frame(width: MacFieldPicker.popoverWidth(forCalendarWidth: calendarWidth))
         }
     }
 
@@ -196,7 +203,7 @@ struct MacDueTimePicker: View {
         .buttonStyle(.plain)
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: MacFieldPicker.rowSpacing) {
+            VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
                 ForEach(Array(MacDueTimePopover.rows.enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .clear:
@@ -221,7 +228,7 @@ struct MacDueTimePicker: View {
                                    displayedComponents: [.hourAndMinute])
                             .datePickerStyle(.field)
                             .labelsHidden()
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
