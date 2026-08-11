@@ -75,6 +75,9 @@
         <attribute name="statusDescription" optional="YES" attributeType="String"/>
         <attribute name="statusCompleted" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO"/>
         <attribute name="recentlyCompletedWindowJSON" optional="YES" attributeType="String"/>
+        <!-- Per-list inline subtasks (ba1deb9d). Optional Boolean, NOT scalar: absent
+             must stay distinct from false, because absent means SHOW. -->
+        <attribute name="showSubtasks" optional="YES" attributeType="Boolean" usesScalarValueType="NO"/>
     </entity>
     <entity name="CDProject" representedClassName="CDProject" syncable="YES">
         <attribute name="id" attributeType="String"/>

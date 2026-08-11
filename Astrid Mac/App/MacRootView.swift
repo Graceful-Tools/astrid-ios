@@ -648,7 +648,9 @@ struct MacRootView: View {
     private var renderedTasks: [Task] {
         // Splice composition lives in the PURE MacRowPipeline (0b1ee8f7).
         MacRowPipeline.rendered(displayed: displayedTasks, allTasks: taskService.tasks,
-                                indented: UserSettingsService.shared.settings.subtaskDisplay != "under_parent",
+                                indented: ListSubtaskVisibility.shouldSplice(
+                                    listShowSubtasks: currentRealList?.showSubtasks,
+                                    subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay),
                                 filterCompletion: currentRealList?.filterCompletion)
     }
 

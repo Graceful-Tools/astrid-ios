@@ -449,6 +449,7 @@ class ListService: ObservableObject {
         }
         if let publicListType = updates["publicListType"] as? String { optimisticList.publicListType = publicListType }
         if let isFavorite = updates["isFavorite"] as? Bool { optimisticList.isFavorite = isFavorite }
+        if let showSubtasks = updates["showSubtasks"] as? Bool { optimisticList.showSubtasks = showSubtasks }
 
         // List defaults
         if let defaultPriority = updates["defaultPriority"] as? Int { optimisticList.defaultPriority = defaultPriority }

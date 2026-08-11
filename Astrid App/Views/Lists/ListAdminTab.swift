@@ -16,6 +16,10 @@ struct ListAdminTab: View {
     @State private var showingImagePicker = false
     @State private var currentImageUrl: String?
 
+    /// Per-list inline subtasks (ba1deb9d). Seeded through the shared rule so "absent means
+    /// SHOW" is expressed in one place rather than as a bare `?? true` here.
+    @State private var showSubtasks: Bool
+
     // Project status board state
     @State private var showingDisableBoardConfirmation = false
     @State private var boardOperationInFlight = false
@@ -61,6 +65,7 @@ struct ListAdminTab: View {
         _listName = State(initialValue: list.name)
         _listDescription = State(initialValue: list.description ?? "")
         _currentImageUrl = State(initialValue: list.imageUrl)
+        _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
         _defaultAssigneeId = State(initialValue: list.defaultAssigneeId)
         _defaultPriority = State(initialValue: Task.Priority(rawValue: list.defaultPriority ?? 0) ?? .none)
         _defaultDueDate = State(initialValue: list.defaultDueDate ?? "none")
@@ -417,6 +422,27 @@ struct ListAdminTab: View {
                 Text(list.projectId == nil
                      ? "Creates a project and seeds Ready / Doing / Waiting status columns. Inbox and Done are virtual."
                      : "Removes the project + its status columns. This list will detach but keep its tasks.")
+                    .font(.footnote)
+            }
+
+            // Per-list inline subtasks (ba1deb9d) — beside the board controls, where web put it.
+            // Separate from the USER-level Sub-tasks display setting, which decides whether
+            // subtasks appear inline anywhere; this one is for the case where one list is a
+            // deeply nested project and another is a flat inbox.
+            Section {
+                Toggle(isOn: $showSubtasks) {
+                    HStack {
+                        Image(systemName: "list.bullet.indent")
+                        Text(NSLocalizedString("lists.show_subtasks", comment: "Show subtasks"))
+                    }
+                }
+                .onChange(of: showSubtasks) { _, newValue in
+                    var updated = list
+                    updated.showSubtasks = newValue
+                    onUpdate(updated)
+                }
+            } footer: {
+                Text(NSLocalizedString("lists.show_subtasks_footer", comment: "Show subtasks footer"))
                     .font(.footnote)
             }
 
