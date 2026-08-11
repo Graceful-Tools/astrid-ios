@@ -71,7 +71,16 @@ enum iPadPaneLayout {
     /// is exactly as wide as it, and covers that pane and nothing else. The task list you are
     /// working in stays visible. With no messages pane there is nothing to cover, so the detail
     /// keeps the share it has always had.
-    static func detailWidth(total: CGFloat, columns: Int, showsMessages: Bool) -> CGFloat {
+    ///
+    /// Expanded (task c5ba07ed) it fills the CONTENT AREA — everything but the list picker. That
+    /// is what "full screen" means on the Mac, whose pop-out expands to fill the detail column
+    /// and leaves its sidebar alone (42013da7); the iPad says the same thing with the same two
+    /// glyphs. In 2-column the picker is a sliding drawer costing no width, so this is the window.
+    static func detailWidth(total: CGFloat, columns: Int, showsMessages: Bool,
+                            isFullScreen: Bool = false) -> CGFloat {
+        if isFullScreen {
+            return total - (columns >= 3 ? total * sidebarShare : 0)
+        }
         if showsMessages {
             return widths(total: total, columns: columns,
                           showsMessages: true, boardFullScreen: false).messages
