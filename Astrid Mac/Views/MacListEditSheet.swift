@@ -19,6 +19,9 @@ struct MacListEditSheet: View {
     @State private var defPriority = 0
     @State private var defDueDate = "none"
     @State private var defRepeating = "never"
+    /// Per-list inline subtasks (ba1deb9d). Seeded through the shared rule, so "absent means
+    /// SHOW" is stated in one place rather than as a bare `?? true` on each platform.
+    @State private var showSubtasks = true
 
     /// The shared list-color palette (hex), matching web/iOS.
     static let palette = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6",
@@ -70,6 +73,15 @@ struct MacListEditSheet: View {
                 }
             }
 
+            // Per-list inline subtasks (ba1deb9d) — the Mac half of the same toggle iOS and web
+            // put in list settings. Separate from the USER-level Sub-tasks display setting: this
+            // is for the case where one list is a deep project and another is a flat inbox.
+            if existing != nil {
+                Divider()
+                Toggle(NSLocalizedString("lists.show_subtasks", comment: ""), isOn: $showSubtasks)
+                    .onChange(of: showSubtasks) { saveShowSubtasks() }
+            }
+
             // Default task settings — applied to new tasks in this list (edit mode). Task c82173ff.
             if existing != nil {
                 Divider()
@@ -109,6 +121,19 @@ struct MacListEditSheet: View {
             defPriority = existing?.defaultPriority ?? 0
             defDueDate = existing?.defaultDueDate ?? "none"
             defRepeating = existing?.defaultRepeating ?? "never"
+            showSubtasks = ListSubtaskVisibility.listShowsSubtasks(existing?.showSubtasks)
+        }
+    }
+
+    /// Sent only when it actually changed — a whole-object save must not carry a value that
+    /// resets someone's toggle, which is the guard ListSubtaskVisibility.payloadValue expresses.
+    private func saveShowSubtasks() {
+        guard let e = existing,
+              let value = ListSubtaskVisibility.payloadValue(original: e.showSubtasks,
+                                                             edited: showSubtasks) else { return }
+        MacActions.perform("Update list subtasks") {
+            _ = try await ListService.shared.updateListAdvanced(listId: e.id,
+                                                                updates: ["showSubtasks": value])
         }
     }
 

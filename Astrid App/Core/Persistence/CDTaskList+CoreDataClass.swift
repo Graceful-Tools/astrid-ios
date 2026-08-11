@@ -41,6 +41,9 @@ public class CDTaskList: NSManagedObject {
     @NSManaged public var statusOrder: NSNumber?
     @NSManaged public var statusDescription: String?
     @NSManaged public var statusCompleted: NSNumber?
+    /// Per-list inline subtasks (ba1deb9d). NSNumber? so ABSENT stays distinct from false —
+    /// absent means SHOW, and a scalar Bool would collapse the two into "hidden".
+    @NSManaged public var showSubtasks: NSNumber?
     /// JSON-serialised `RecentlyCompletedWindow`. Nil = legacy 24h default.
     @NSManaged public var recentlyCompletedWindowJSON: String?
 
@@ -66,6 +69,7 @@ public class CDTaskList: NSManagedObject {
             isFavorite: isFavorite,
             favoriteOrder: Int(favoriteOrder),
             sortBy: sortBy,
+            showSubtasks: showSubtasks?.boolValue,
             filterCompletion: filterCompletion,
             filterDueDate: filterDueDate,
             filterAssignee: filterAssignee,
@@ -116,6 +120,7 @@ public class CDTaskList: NSManagedObject {
         self.statusOrder = list.statusOrder.map(NSNumber.init(value:))
         self.statusDescription = list.statusDescription
         self.statusCompleted = list.statusCompleted.map(NSNumber.init(value:))
+        self.showSubtasks = list.showSubtasks.map(NSNumber.init(value:))
         if let window = list.recentlyCompletedWindow,
            let data = try? JSONEncoder().encode(window),
            let json = String(data: data, encoding: .utf8) {

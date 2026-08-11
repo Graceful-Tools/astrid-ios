@@ -1200,3 +1200,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "Mostrar subtarefas";
+"lists.show_subtasks_footer" = "As subtarefas aparecem recuadas sob a tarefa principal nesta lista. Desative isto para uma lista que queira ler como uma caixa de entrada simples. A sua definição de exibição de subtarefas da conta continua a aplicar-se: uma lista não pode mostrar subtarefas em linha se escolheu apenas a vista de detalhe.";
