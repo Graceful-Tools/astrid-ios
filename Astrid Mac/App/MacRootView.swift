@@ -88,6 +88,30 @@ struct MacRootView: View {
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
 
+    /// The glyph each mode wears in the toolbar picker.
+    static func symbol(for mode: ContentMode) -> String {
+        switch mode {
+        case .list:  return "list.bullet"
+        case .board: return "square.grid.2x2"
+        case .chat:  return "bubble.left.and.bubble.right"
+        }
+    }
+
+    /// What the toolbar picker can offer here — list, plus a board and a chat tab when this
+    /// selection actually has them (task 6d709a75).
+    private var availableContentModes: [ContentMode] {
+        MacViewMode.availableModes(isRealList: currentRealList != nil,
+                                   projectId: currentRealList?.projectId,
+                                   hasChannel: chatSource != nil,
+                                   chatColumnVisible: chatColumnVisible)
+    }
+
+    /// My Tasks and an empty selection have never been switchable; the picker used to render
+    /// greyed out for them, which is dead chrome rather than a choice.
+    private var contentModeIsSwitchable: Bool {
+        selectedListId != nil && selectedListId != Self.myTasksId
+    }
+
     /// Tasks shown for the current selection — applies the SAME shared filter + sort business
     /// logic as iOS/web (Core/Filters). For a real list it honors that list's saved filters and
     /// sortBy; My Tasks / no-list get the assignee filter (in tasksForSelection) + auto sort.
@@ -1188,18 +1212,17 @@ struct MacRootView: View {
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
-                        Image(systemName: "list.bullet").tag(ContentMode.list)
-                        if MacViewMode.offersBoard(projectId: currentRealList?.projectId,
-                                                   isRealList: currentRealList != nil) {
-                            Image(systemName: "square.grid.2x2").tag(ContentMode.board)
+                    // Drawn only when there is something to switch BETWEEN — see
+                    // MacViewMode.showsModePicker (task 6d709a75).
+                    if MacViewMode.showsModePicker(modes: availableContentModes,
+                                                   isSwitchable: contentModeIsSwitchable) {
+                        Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
+                            ForEach(availableContentModes, id: \.self) { mode in
+                                Image(systemName: Self.symbol(for: mode)).tag(mode)
+                            }
                         }
-                        if !chatColumnVisible {   // chat is a persistent column in 3-column mode
-                            Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
-                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
                 }
                 // Manual refresh (0f525a89) — the one control that DOES belong to the window
                 // rather than to the task list: it reconciles everything, not just these rows.
