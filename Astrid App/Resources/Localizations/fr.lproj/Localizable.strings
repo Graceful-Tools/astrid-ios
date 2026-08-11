@@ -1176,7 +1176,6 @@
 "mac.comments_count" = "Commentaires (%d)";
 "mac.filter_title" = "Filtrer « %@ »";
 "mac.last_timer" = "Dernier : %@";
-"mac.no_lists_match" = "Aucune liste ne correspond à « %@ »";
 "mac.replying_to" = "En réponse à %@ : %@";
 "mac.share_title" = "Partager « %@ »";
 "mac.show_scroll_bars" = "Afficher les barres de défilement";

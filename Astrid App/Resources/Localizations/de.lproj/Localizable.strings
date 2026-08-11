@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "Kommentare (%d)";
 "mac.filter_title" = "„%@“ filtern";
 "mac.last_timer" = "Zuletzt: %@";
-"mac.no_lists_match" = "Keine Listen passen zu „%@“";
 "mac.replying_to" = "Antwort an %@: %@";
 "mac.share_title" = "„%@“ teilen";
 "mac.show_scroll_bars" = "Scrollbalken anzeigen";
