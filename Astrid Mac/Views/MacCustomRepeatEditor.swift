@@ -75,6 +75,9 @@ struct MacCustomRepeatEditor: View {
                 DatePicker(NSLocalizedString("mac.until", comment: ""), selection: $endUntil, displayedComponents: [.date])
             }
 
+            // Centred, like every other button in the field popovers (task d4f663a3). A lone
+            // leading Spacer pinned these two to the right while the choice rows they replace
+            // sit centred — the same popover, laid out two ways.
             HStack {
                 Spacer()
                 Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
@@ -83,6 +86,7 @@ struct MacCustomRepeatEditor: View {
                                                 endCondition: endCondition, endAfter: endAfter, endUntil: endUntil))
                     dismiss()
                 }.buttonStyle(.borderedProminent)
+                Spacer()
             }
         }
         .padding(20).frame(width: 340)
