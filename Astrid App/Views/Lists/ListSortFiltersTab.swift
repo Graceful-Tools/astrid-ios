@@ -18,6 +18,9 @@ struct ListSortFiltersTab: View {
     @State private var filterRepeating: String
     @State private var filterInLists: String
     @State private var isFavorite: Bool
+    /// Per-list inline subtasks (ba1deb9d). Lives here rather than in Admin because it is a
+    /// question about what this list RENDERS, same as every other control on this tab.
+    @State private var showSubtasks: Bool
     @State private var isVirtual: Bool
     @State private var isSaving: Bool = false
 
@@ -33,6 +36,8 @@ struct ListSortFiltersTab: View {
         _filterRepeating = State(initialValue: list.filterRepeating ?? "all")
         _filterInLists = State(initialValue: list.filterInLists ?? "dont_filter")
         _isFavorite = State(initialValue: list.isFavorite ?? false)
+        // Seeded through the shared rule, so "absent means SHOW" is stated in one place.
+        _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
         _isVirtual = State(initialValue: list.isVirtual ?? false)
     }
 
@@ -157,6 +162,27 @@ struct ListSortFiltersTab: View {
                 .foregroundColor(Theme.accent)
             }
 
+            // Per-list inline subtasks (ba1deb9d). Separate from the account-wide Sub-tasks
+            // display setting: that one decides whether subtasks appear inline ANYWHERE, this one
+            // is for the case where one list is a deep project and another is a flat inbox.
+            Section {
+                Toggle(isOn: $showSubtasks) {
+                    HStack(spacing: Theme.spacing8) {
+                        Image(systemName: "list.bullet.indent")
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        Text(NSLocalizedString("lists.show_subtasks", comment: ""))
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    }
+                }
+                .onChange(of: showSubtasks) { _, newValue in
+                    saveShowSubtasks(newValue)
+                }
+
+                Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
+                    .font(Theme.Typography.caption1())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+            }
+
             // Favorite Toggle
             Section {
                 Toggle(isOn: $isFavorite) {
@@ -245,6 +271,25 @@ struct ListSortFiltersTab: View {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
             print("❌ Failed to load members: \(error)")
+        }
+    }
+
+    /// Written on its own, NOT through saveSettings(): that builds a payload of every filter
+    /// field each time, so folding this in would send showSubtasks on every unrelated change —
+    /// exactly what ListSubtaskVisibility.payloadValue exists to prevent. Same shape as the
+    /// Favorite toggle, which also writes directly.
+    private func saveShowSubtasks(_ newValue: Bool) {
+        guard let value = ListSubtaskVisibility.payloadValue(original: list.showSubtasks,
+                                                             edited: newValue) else { return }
+        _Concurrency.Task {
+            do {
+                let updated = try await listService.updateListAdvanced(listId: list.id,
+                                                                       updates: ["showSubtasks": value])
+                onUpdate(updated)
+            } catch {
+                print("❌ [ListSortFiltersTab] Failed to save showSubtasks: \(error)")
+                showSubtasks = !newValue   // revert, as the favorite toggle does
+            }
         }
     }
 
