@@ -546,10 +546,14 @@ struct MacRootView: View {
     /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
     private func filterButton(_ list: TaskList) -> some View {
         Button { showFilterSheet = true } label: {
+            // All six dimensions, so the badge lights for a repeating-only filter too — it used
+            // to count four and stay dark on a list that was very much filtered (70d849f8).
             let active = MacListFilter.activeCount(completion: list.filterCompletion,
                                                    priority: list.filterPriority,
                                                    dueDate: list.filterDueDate,
-                                                   assignee: list.filterAssignee)
+                                                   assignee: list.filterAssignee,
+                                                   repeating: list.filterRepeating,
+                                                   assignedBy: list.filterAssignedBy)
             Label(NSLocalizedString("actions.filter", comment: ""),
                   systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
                                           : "line.3.horizontal.decrease.circle")
