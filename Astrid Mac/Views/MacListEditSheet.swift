@@ -19,6 +19,10 @@ struct MacListEditSheet: View {
     @State private var defPriority = 0
     @State private var defDueDate = "none"
     @State private var defRepeating = "never"
+    @State private var defDueTime: String?
+    /// Recently-completed window, via the SHARED presets iOS and web read (task 545812e6).
+    @State private var recentlyCompleted: RecentlyCompletedPresetId = .default24h
+    @State private var recentlyCompletedDate = Date()
     /// Per-list inline subtasks (ba1deb9d). Seeded through the shared rule, so "absent means
     /// SHOW" is stated in one place rather than as a bare `?? true` on each platform.
     @State private var showSubtasks = true
@@ -106,6 +110,25 @@ struct MacListEditSheet: View {
                     Picker(NSLocalizedString("Repeat", comment: ""), selection: $defRepeating) {
                         ForEach(MacListDefaults.repeating) { Text($0.label).tag($0.value) }
                     }.onChange(of: defRepeating) { saveDefaults() }
+                    // Was missing on Mac entirely (task 545812e6).
+                    Picker(NSLocalizedString("tasks.due_time", comment: ""), selection: $defDueTime) {
+                        ForEach(MacListDefaults.dueTime, id: \.value) { Text($0.label).tag($0.value) }
+                    }.onChange(of: defDueTime) { saveDueTime() }
+                }
+
+                // Recently completed window — the shared presets, so Mac shows the same nine
+                // options in the same order as iOS and web rather than its own list.
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Picker(NSLocalizedString("lists.recently_completed", comment: ""),
+                           selection: $recentlyCompleted) {
+                        ForEach(RECENTLY_COMPLETED_PRESETS, id: \.id) { Text($0.label).tag($0.id) }
+                    }.onChange(of: recentlyCompleted) { saveRecentlyCompleted() }
+                    if recentlyCompleted == .sinceSpecificDate {
+                        DatePicker(NSLocalizedString("mac.since", comment: ""),
+                                   selection: $recentlyCompletedDate, displayedComponents: [.date])
+                            .onChange(of: recentlyCompletedDate) { saveRecentlyCompleted() }
+                    }
                 }
             }
 
@@ -129,6 +152,12 @@ struct MacListEditSheet: View {
             defPriority = existing?.defaultPriority ?? 0
             defDueDate = existing?.defaultDueDate ?? "none"
             defRepeating = existing?.defaultRepeating ?? "never"
+            defDueTime = existing?.defaultDueTime
+            recentlyCompleted = findPresetForWindow(existing?.recentlyCompletedWindow)?.id ?? .default24h
+            if case let .sinceDate(day) = existing?.recentlyCompletedWindow {
+                let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                recentlyCompletedDate = f.date(from: day) ?? Date()
+            }
             showSubtasks = ListSubtaskVisibility.listShowsSubtasks(existing?.showSubtasks)
         }
     }
@@ -156,6 +185,31 @@ struct MacListEditSheet: View {
         MacActions.perform("Update list subtasks") {
             _ = try await ListService.shared.updateListAdvanced(listId: e.id,
                                                                 updates: ["showSubtasks": value])
+        }
+    }
+
+    /// Sent as NSNull when cleared — "all day" is an explicit choice, not an omission, and
+    /// omitting the key would leave the previous time in place.
+    private func saveDueTime() {
+        guard let e = existing else { return }
+        MacActions.perform("Update default due time") {
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: e.id, updates: ["defaultDueTime": defDueTime as Any? ?? NSNull()])
+        }
+    }
+
+    private func saveRecentlyCompleted() {
+        guard let e = existing else { return }
+        let window: RecentlyCompletedWindow?
+        if recentlyCompleted == .sinceSpecificDate {
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            window = .sinceDate(date: f.string(from: recentlyCompletedDate))
+        } else {
+            window = presetForValue(recentlyCompleted)
+        }
+        MacActions.perform("Update recently completed window") {
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: e.id, updates: ["recentlyCompletedWindow": window?.updatePayloadValue ?? NSNull()])
         }
     }
 
