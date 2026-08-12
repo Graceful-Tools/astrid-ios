@@ -13,6 +13,10 @@ struct ListFiltersView: View {
     @State private var filterDueDate: String
     @State private var filterAssignee: String
     @State private var filterRepeating: String
+    /// Per-list inline subtasks (67552e15). This screen and ListSortFiltersTab are BOTH called
+    /// "Sort & Filters" on iOS; the toggle has to be on both, or which door you came through
+    /// decides whether the setting exists.
+    @State private var showSubtasks: Bool
     @State private var isSaving = false
     @State private var showingSaveDialog = false
 
@@ -24,6 +28,7 @@ struct ListFiltersView: View {
         _filterDueDate = State(initialValue: list.filterDueDate ?? "all")
         _filterAssignee = State(initialValue: list.filterAssignee ?? "all")
         _filterRepeating = State(initialValue: list.filterRepeating ?? "all")
+        _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
     }
 
     var body: some View {
@@ -109,6 +114,24 @@ struct ListFiltersView: View {
                 .onChange(of: filterRepeating) { saveFilters() }
             }
 
+            // Per-list inline subtasks (67552e15). Separate from the account-wide Sub-tasks
+            // display setting: that decides whether subtasks appear inline ANYWHERE, this is for
+            // one list being a deep project and another a flat inbox.
+            Section {
+                Toggle(isOn: $showSubtasks) {
+                    HStack(spacing: Theme.spacing8) {
+                        Image(systemName: "list.bullet.indent")
+                        Text(NSLocalizedString("lists.show_subtasks", comment: ""))
+                    }
+                }
+                .onChange(of: showSubtasks) { _, newValue in
+                    saveShowSubtasks(newValue)
+                }
+            } footer: {
+                Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
+                    .font(Theme.Typography.caption1())
+            }
+
             // Save as Smart List
             if hasActiveFilters {
                 Section {
@@ -187,6 +210,23 @@ struct ListFiltersView: View {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
             print("Failed to load members: \(error)")
+        }
+    }
+
+    /// Written on its own, NOT through saveFilters(): that posts every filter field at once, so
+    /// folding this in would send showSubtasks on every unrelated change and could reset someone's
+    /// toggle. Same guard the other surfaces use.
+    private func saveShowSubtasks(_ newValue: Bool) {
+        guard let value = ListSubtaskVisibility.payloadValue(original: list.showSubtasks,
+                                                             edited: newValue) else { return }
+        _Concurrency.Task {
+            do {
+                _ = try await listService.updateListAdvanced(listId: list.id,
+                                                             updates: ["showSubtasks": value])
+            } catch {
+                print("❌ [ListFiltersView] Failed to save showSubtasks: \(error)")
+                showSubtasks = !newValue
+            }
         }
     }
 
