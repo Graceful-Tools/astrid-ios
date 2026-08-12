@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "Reacties (%d)";
 "mac.filter_title" = "“%@” filteren";
 "mac.last_timer" = "Laatste: %@";
-"mac.no_lists_match" = "Geen lijsten komen overeen met “%@”";
 "mac.replying_to" = "Antwoord aan %@: %@";
 "mac.share_title" = "“%@” delen";
 "mac.show_scroll_bars" = "Schuifbalken tonen";
@@ -1201,3 +1200,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "Subtaken tonen";
+"lists.show_subtasks_footer" = "Subtaken verschijnen ingesprongen onder hun hoofdtaak in deze lijst. Schakel dit uit voor een lijst die je als een eenvoudige inbox wilt lezen. Je accountbrede weergave-instelling voor subtaken blijft gelden: een lijst kan subtaken niet inline tonen als je alleen de detailweergave hebt gekozen.";

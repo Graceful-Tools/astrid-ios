@@ -1168,7 +1168,6 @@
 "mac.comments_count" = "Comments (%d)";
 "mac.filter_title" = "Filter “%@”";
 "mac.last_timer" = "Last: %@";
-"mac.no_lists_match" = "No lists match “%@”";
 "mac.replying_to" = "Replying to %@: %@";
 "mac.share_title" = "Share “%@”";
 "mac.show_scroll_bars" = "Show scroll bars";
@@ -1209,3 +1208,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "Show subtasks";
+"lists.show_subtasks_footer" = "Subtasks appear indented under their parent in this list. Turn this off for a list you want to read as a flat inbox. Your account-wide Sub-tasks display setting still applies — a list cannot show subtasks inline if you have chosen detail view only.";

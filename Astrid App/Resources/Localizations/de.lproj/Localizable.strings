@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "Kommentare (%d)";
 "mac.filter_title" = "„%@“ filtern";
 "mac.last_timer" = "Zuletzt: %@";
-"mac.no_lists_match" = "Keine Listen passen zu „%@“";
 "mac.replying_to" = "Antwort an %@: %@";
 "mac.share_title" = "„%@“ teilen";
 "mac.show_scroll_bars" = "Scrollbalken anzeigen";
@@ -1201,3 +1200,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "Unteraufgaben anzeigen";
+"lists.show_subtasks_footer" = "Unteraufgaben erscheinen in dieser Liste eingerückt unter ihrer übergeordneten Aufgabe. Deaktiviere dies für eine Liste, die du als einfachen Posteingang lesen möchtest. Deine kontoweite Anzeigeeinstellung für Unteraufgaben gilt weiterhin: Eine Liste kann Unteraufgaben nicht inline anzeigen, wenn du nur die Detailansicht gewählt hast.";

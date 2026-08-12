@@ -19,6 +19,10 @@ struct TaskDetailViewNew: View {
     @State private var task: Task
     let isReadOnly: Bool  // View-only mode for public lists
     var onClose: (() -> Void)?  // iPad panel close callback (clears selectedTask)
+    // Expand/collapse the iPad panel (task c5ba07ed). nil where there is nothing to expand
+    // INTO — pushed full-screen on iPhone, and in a sheet — so the control simply isn't drawn.
+    var isFullScreen: Bool = false
+    var onToggleFullScreen: (() -> Void)?
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var notificationPromptManager = NotificationPromptManager.shared
@@ -96,10 +100,13 @@ struct TaskDetailViewNew: View {
     @State private var scrollToTopAction: (() -> Void)?
     @State private var scrollToBottomAction: (() -> Void)?
 
-    init(task: Task, isReadOnly: Bool = false, onClose: (() -> Void)? = nil) {
+    init(task: Task, isReadOnly: Bool = false, onClose: (() -> Void)? = nil,
+         isFullScreen: Bool = false, onToggleFullScreen: (() -> Void)? = nil) {
         self._task = State(initialValue: task)
         self.isReadOnly = isReadOnly
         self.onClose = onClose
+        self.isFullScreen = isFullScreen
+        self.onToggleFullScreen = onToggleFullScreen
         _editedTitle = State(initialValue: task.title)
         _editedDescription = State(initialValue: task.description)
         _editedDueDate = State(initialValue: task.dueDateTime)
@@ -156,6 +163,25 @@ struct TaskDetailViewNew: View {
                     .buttonStyle(.plain)
 
                     Spacer()
+
+                    // Expand the panel / put it back (task c5ba07ed). Same affordance, glyphs and
+                    // strings as the Mac pop-out (42013da7) and the board's full screen — the
+                    // point is the same one: a description needs more room than a side panel.
+                    if let onToggleFullScreen {
+                        Button(action: onToggleFullScreen) {
+                            Image(systemName: isFullScreen
+                                  ? "arrow.down.right.and.arrow.up.left"
+                                  : "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .accessibilityLabel(Text(NSLocalizedString(
+                                    isFullScreen ? "board.exit_full_screen" : "board.full_screen",
+                                    comment: "")))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("taskDetail.fullScreen")
+                        .padding(.trailing, 12)
+                    }
 
                     if !isReadOnly {
                         Menu {

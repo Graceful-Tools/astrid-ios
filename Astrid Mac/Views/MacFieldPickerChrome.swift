@@ -84,31 +84,35 @@ struct MacPickerRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(tint)
-                Spacer(minLength: 0)
-                if isChecked {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
+            // Centred, with the checkmark OVERLAID at the trailing edge rather than taking part
+            // in the layout (task d4f663a3). In an HStack the tick pushes the title off-centre,
+            // so "Today" and "Today ✓" would sit at different places in the same column.
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundStyle(tint)
+                // Room for the tick on BOTH sides, so reserving it does not shift the centre.
+                .padding(.horizontal, 18)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .overlay(alignment: .trailing) {
+                    if isChecked {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
+                            .padding(.trailing, 9)
+                    }
                 }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovering ? Theme.accent.opacity(0.10) : Color.clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(isChecked ? (isDestructive ? Theme.error : Theme.accent)
-                                            : Theme.border,
-                                  lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isHovering ? Theme.accent.opacity(0.10) : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(isChecked ? (isDestructive ? Theme.error : Theme.accent)
+                                                : Theme.border,
+                                      lineWidth: 1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
         .macPointingHand()
@@ -146,6 +150,9 @@ struct MacScaled<Content: View>: View {
     let scale: CGFloat
     /// Used until the child has been measured. Only the first layout pass sees it.
     var fallback: CGSize = MacFieldPicker.calendarNaturalEstimate
+    /// The room this view ends up occupying, reported as it changes — so a popover can size
+    /// itself to the scaled content instead of guessing a width for it (task d4f663a3).
+    var onReserve: ((CGSize) -> Void)? = nil
     @ViewBuilder var content: Content
 
     @State private var natural: CGSize = .zero
@@ -164,7 +171,10 @@ struct MacScaled<Content: View>: View {
                     Color.clear.preference(key: SizeKey.self, value: proxy.size)
                 }
             )
-            .onPreferenceChange(SizeKey.self) { natural = $0 }
+            .onPreferenceChange(SizeKey.self) { measured in
+                natural = measured
+                onReserve?(MacScaledLayout.reserved(natural: measured, scale: scale, fallback: fallback))
+            }
             .scaleEffect(scale, anchor: MacScaledLayout.anchor)
             .frame(width: reserved.width, height: reserved.height, alignment: .top)
     }
@@ -172,19 +182,31 @@ struct MacScaled<Content: View>: View {
 
 /// Sizes shared by the field popovers, so they read as one family.
 enum MacFieldPicker {
-    static var popoverWidth: CGFloat { 300 }
     static var narrowPopoverWidth: CGFloat { 210 }
     static var padding: CGFloat { 12 }
     static var rowSpacing: CGFloat { 5 }
+
+    /// The width of a popover built around a calendar `calendarWidth` wide (already scaled).
+    ///
+    /// The date popover used to be a hand-picked 300. AppKit draws the graphical calendar at
+    /// 139pt, so at 1.5x it spans 208.5 of a 276pt content box and floats there with ~34pt of
+    /// dead space down each side (task d4f663a3). The popover follows the calendar instead.
+    ///
+    /// The floor is the width of the other field popovers: shrinking to a small calendar would
+    /// squeeze the choice rows, and the family should not look like three different widths.
+    static func popoverWidth(forCalendarWidth calendarWidth: CGFloat) -> CGFloat {
+        max(narrowPopoverWidth, calendarWidth + padding * 2)
+    }
 
     /// The graphical calendar is drawn at the system's own size, which is small
     /// for something you aim a pointer at. Scaled up rather than reproduced by
     /// hand. 1.9 overshot — big enough to crowd the popover — so it is eased back.
     static var calendarScale: CGFloat { 1.5 }
 
-    /// Roughly what the graphical DatePicker measures before scaling. Only used for the
-    /// first layout pass, before the real measurement arrives — near enough that a popover
-    /// sizing itself on that pass leaves the calendar somewhere sensible.
-    static var calendarNaturalEstimate: CGSize { CGSize(width: 180, height: 190) }
+    /// What the graphical DatePicker measures before scaling. Used for the first layout pass,
+    /// before the real measurement arrives — and the popover's width is built from it, so being
+    /// wrong is a visible jump as the measurement lands. It was a guess of 180x190; AppKit
+    /// actually draws 139x148, which MacFieldPickerLayoutTests re-measures rather than trusts.
+    static var calendarNaturalEstimate: CGSize { CGSize(width: 139, height: 148) }
 }
 #endif

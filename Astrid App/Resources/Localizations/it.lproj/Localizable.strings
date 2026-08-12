@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "Commenti (%d)";
 "mac.filter_title" = "Filtra “%@”";
 "mac.last_timer" = "Ultimo: %@";
-"mac.no_lists_match" = "Nessun elenco corrisponde a “%@”";
 "mac.replying_to" = "In risposta a %@: %@";
 "mac.share_title" = "Condividi “%@”";
 "mac.show_scroll_bars" = "Mostra barre di scorrimento";
@@ -1201,3 +1200,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "Mostra sottoattività";
+"lists.show_subtasks_footer" = "Le sottoattività appaiono rientrate sotto l’attività principale in questo elenco. Disattivalo per un elenco che vuoi leggere come una casella semplice. L’impostazione di visualizzazione delle sottoattività dell’account continua ad applicarsi: un elenco non può mostrare le sottoattività in linea se hai scelto solo la vista dettagli.";

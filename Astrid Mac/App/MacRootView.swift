@@ -39,7 +39,6 @@ struct MacRootView: View {
     @State private var showDraftDefaults = false
     @FocusState private var addFieldFocused: Bool
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
-    @State private var listSearch = ""
     @State private var taskSearchQuery = ""
     @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
@@ -88,6 +87,30 @@ struct MacRootView: View {
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
+
+    /// The glyph each mode wears in the toolbar picker.
+    static func symbol(for mode: ContentMode) -> String {
+        switch mode {
+        case .list:  return "list.bullet"
+        case .board: return "square.grid.2x2"
+        case .chat:  return "bubble.left.and.bubble.right"
+        }
+    }
+
+    /// What the toolbar picker can offer here — list, plus a board and a chat tab when this
+    /// selection actually has them (task 6d709a75).
+    private var availableContentModes: [ContentMode] {
+        MacViewMode.availableModes(isRealList: currentRealList != nil,
+                                   projectId: currentRealList?.projectId,
+                                   hasChannel: chatSource != nil,
+                                   chatColumnVisible: chatColumnVisible)
+    }
+
+    /// My Tasks and an empty selection have never been switchable; the picker used to render
+    /// greyed out for them, which is dead chrome rather than a choice.
+    private var contentModeIsSwitchable: Bool {
+        selectedListId != nil && selectedListId != Self.myTasksId
+    }
 
     /// Tasks shown for the current selection — applies the SAME shared filter + sort business
     /// logic as iOS/web (Core/Filters). For a real list it honors that list's saved filters and
@@ -334,11 +357,10 @@ struct MacRootView: View {
 
     static let myTasksId = "__mytasks__"    // virtual "My Tasks" selection (Task d0306aab)
 
-    private func matchesSearch(_ l: TaskList) -> Bool {
-        listSearch.isEmpty || l.name.localizedCaseInsensitiveContains(listSearch)
-    }
-    private var favoriteLists: [TaskList] { listService.lists.filter { ($0.isFavorite ?? false) && matchesSearch($0) } }
-    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) && matchesSearch($0) } }
+    // Favorites vs the rest is the only split in the sidebar. There is no name filter here
+    // (task 1b0f034d) — "Search" under My Tasks searches tasks, not list names.
+    private var favoriteLists: [TaskList] { listService.lists.filter { $0.isFavorite ?? false } }
+    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) } }
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
@@ -524,10 +546,14 @@ struct MacRootView: View {
     /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
     private func filterButton(_ list: TaskList) -> some View {
         Button { showFilterSheet = true } label: {
+            // All six dimensions, so the badge lights for a repeating-only filter too — it used
+            // to count four and stay dark on a list that was very much filtered (70d849f8).
             let active = MacListFilter.activeCount(completion: list.filterCompletion,
                                                    priority: list.filterPriority,
                                                    dueDate: list.filterDueDate,
-                                                   assignee: list.filterAssignee)
+                                                   assignee: list.filterAssignee,
+                                                   repeating: list.filterRepeating,
+                                                   assignedBy: list.filterAssignedBy)
             Label(NSLocalizedString("actions.filter", comment: ""),
                   systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
                                           : "line.3.horizontal.decrease.circle")
@@ -626,7 +652,9 @@ struct MacRootView: View {
     private var renderedTasks: [Task] {
         // Splice composition lives in the PURE MacRowPipeline (0b1ee8f7).
         MacRowPipeline.rendered(displayed: displayedTasks, allTasks: taskService.tasks,
-                                indented: UserSettingsService.shared.settings.subtaskDisplay != "under_parent",
+                                indented: ListSubtaskVisibility.shouldSplice(
+                                    listShowSubtasks: currentRealList?.showSubtasks,
+                                    subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay),
                                 filterCompletion: currentRealList?.filterCompletion)
     }
 
@@ -1102,15 +1130,11 @@ struct MacRootView: View {
                         .accessibilityIdentifier(action.id)
                     }
                     ForEach(regularLists) { listRow($0) }
-                    if regularLists.isEmpty && !listSearch.isEmpty {
-                        Text(String(format: NSLocalizedString("mac.no_lists_match", comment: ""), listSearch)).foregroundStyle(Theme.textMuted).font(.callout)
-                    }
                 }
             }
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
             .background(Theme.bgPrimary)
-            .searchable(text: $listSearch, placement: .sidebar, prompt: "Search lists")
             .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
@@ -1194,18 +1218,17 @@ struct MacRootView: View {
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
-                        Image(systemName: "list.bullet").tag(ContentMode.list)
-                        if MacViewMode.offersBoard(projectId: currentRealList?.projectId,
-                                                   isRealList: currentRealList != nil) {
-                            Image(systemName: "square.grid.2x2").tag(ContentMode.board)
+                    // Drawn only when there is something to switch BETWEEN — see
+                    // MacViewMode.showsModePicker (task 6d709a75).
+                    if MacViewMode.showsModePicker(modes: availableContentModes,
+                                                   isSwitchable: contentModeIsSwitchable) {
+                        Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
+                            ForEach(availableContentModes, id: \.self) { mode in
+                                Image(systemName: Self.symbol(for: mode)).tag(mode)
+                            }
                         }
-                        if !chatColumnVisible {   // chat is a persistent column in 3-column mode
-                            Image(systemName: "bubble.left.and.bubble.right").tag(ContentMode.chat)
-                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(selectedListId == nil || selectedListId == Self.myTasksId)
                 }
                 // Manual refresh (0f525a89) — the one control that DOES belong to the window
                 // rather than to the task list: it reconciles everything, not just these rows.

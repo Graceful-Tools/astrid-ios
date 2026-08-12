@@ -41,6 +41,9 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
     var virtualListType: String?
     var sortBy: String?
     var manualSortOrder: [String]?
+    /// Whether this list splices subtasks inline (task ba1deb9d). **nil means SHOW** — a list
+    /// fetched before the field existed must render exactly as it did. See ListSubtaskVisibility.
+    var showSubtasks: Bool?
 
     // Filter settings for virtual lists
     var filterCompletion: String?
@@ -81,6 +84,7 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
         case aiAgentConfiguredBy, copyCount
         case createdAt, updatedAt, description, tasks, taskCount
         case isFavorite, favoriteOrder, isVirtual, virtualListType, sortBy, manualSortOrder
+        case showSubtasks
         case filterCompletion, filterDueDate, filterAssignee, filterAssignedBy
         case filterRepeating, filterPriority, filterInLists
         case projectId, listType, statusRole, statusOrder

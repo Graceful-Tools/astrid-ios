@@ -1162,7 +1162,6 @@
 "mac.comments_count" = "留言 (%d)";
 "mac.filter_title" = "篩選「%@」";
 "mac.last_timer" = "上次：%@";
-"mac.no_lists_match" = "沒有與「%@」相符的列表";
 "mac.replying_to" = "回覆 %@：%@";
 "mac.share_title" = "分享「%@」";
 "mac.show_scroll_bars" = "顯示捲動列";
@@ -1203,3 +1202,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "顯示子任務";
+"lists.show_subtasks_footer" = "在此列表中，子任務會縮排顯示在其父任務下方。若希望某個列表像扁平收件匣一樣閱讀，可將其關閉。你的帳戶層級子任務顯示設定仍然適用：如果你選擇了僅詳細檢視，列表無法內嵌顯示子任務。";

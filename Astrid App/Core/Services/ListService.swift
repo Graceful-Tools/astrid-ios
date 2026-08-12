@@ -177,6 +177,13 @@ class ListService: ObservableObject {
                 print("    👥 Members: \(list.members?.count ?? 0)")
             }
 
+            // A list the server has stopped returning was deleted elsewhere — drop it from the
+            // in-memory cache too, or `listsById` keeps serving it for the rest of the session.
+            let serverIds = Set(fetchedLists.map(\.id))
+            for id in cachedLists.keys where !serverIds.contains(id) && !id.hasPrefix(SyncOrphanPrune.localIdPrefix) {
+                cachedLists.removeValue(forKey: id)
+            }
+
             // Save lists to CoreData for offline support
             _Concurrency.Task.detached { [weak self] in
                 guard let self = self else { return }
@@ -186,6 +193,15 @@ class ListService: ObservableObject {
                     } catch {
                         print("⚠️ [ListService] Failed to cache list to CoreData: \(error)")
                     }
+                }
+                // …and remove the rows it stopped returning. Without this half, deleting a list
+                // on web left its row behind and `loadCachedLists` brought it back on the next
+                // launch (task 53071260). GET /api/v1/lists is the whole collection, so absence
+                // here really does mean deleted — SyncOrphanPrune decides which absences count.
+                do {
+                    try await self.pruneListsMissingFromServer(serverIds: serverIds)
+                } catch {
+                    print("⚠️ [ListService] Failed to prune deleted lists from CoreData: \(error)")
                 }
             }
 
@@ -433,6 +449,7 @@ class ListService: ObservableObject {
         }
         if let publicListType = updates["publicListType"] as? String { optimisticList.publicListType = publicListType }
         if let isFavorite = updates["isFavorite"] as? Bool { optimisticList.isFavorite = isFavorite }
+        if let showSubtasks = updates["showSubtasks"] as? Bool { optimisticList.showSubtasks = showSubtasks }
 
         // List defaults
         if let defaultPriority = updates["defaultPriority"] as? Int { optimisticList.defaultPriority = defaultPriority }
@@ -739,6 +756,26 @@ class ListService: ObservableObject {
             if syncStatus == "synced" {
                 cdList.lastSyncedAt = Date()
             }
+        }
+    }
+
+    /// Remove cached lists the server no longer returns (task 53071260).
+    ///
+    /// Which absences count as deletions is `SyncOrphanPrune`'s decision, not this function's:
+    /// a list created offline has never been sent, so it is missing from every response and must
+    /// survive. Mirrors `TaskService.saveTasksToCoreData`'s cleanup for tasks.
+    private func pruneListsMissingFromServer(serverIds: Set<String>) async throws {
+        try await coreDataManager.saveInBackground { context in
+            let cdLists = try CDTaskList.fetchAll(context: context)
+            let orphans = SyncOrphanPrune.orphanIds(
+                cached: cdLists.map { SyncOrphanPrune.Cached(id: $0.id, syncStatus: $0.syncStatus) },
+                serverIds: serverIds)
+            guard !orphans.isEmpty else { return }
+            let doomed = Set(orphans)
+            for cdList in cdLists where doomed.contains(cdList.id) {
+                context.delete(cdList)
+            }
+            print("🧹 [ListService] Removed \(orphans.count) lists deleted elsewhere from CoreData")
         }
     }
 

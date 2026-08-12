@@ -1160,7 +1160,6 @@
 "mac.comments_count" = "コメント (%d)";
 "mac.filter_title" = "「%@」を絞り込む";
 "mac.last_timer" = "前回: %@";
-"mac.no_lists_match" = "「%@」に一致するリストはありません";
 "mac.replying_to" = "%@ への返信: %@";
 "mac.share_title" = "「%@」を共有";
 "mac.show_scroll_bars" = "スクロールバーを表示";
@@ -1201,3 +1200,7 @@
 "subtasks.move_out_of_parent" = "Move out of parent task";
 "mac.shortcut.outdentTask" = "Move task out of its parent";
 "mac.shortcut.indentTask" = "Nest task under the task above";
+
+/* Per-list inline subtasks (task ba1deb9d) */
+"lists.show_subtasks" = "サブタスクを表示";
+"lists.show_subtasks_footer" = "このリストではサブタスクが親タスクの下にインデント表示されます。フラットな受信箱として読みたいリストではオフにしてください。アカウント全体のサブタスク表示設定は引き続き適用されます。詳細表示のみを選んでいる場合、リスト側でインライン表示にはできません。";

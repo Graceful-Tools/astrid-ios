@@ -886,10 +886,13 @@ struct TaskListView: View {
 
     /// Rows to render: top-level pipeline, plus (in the default "indented"
     /// display mode) each visible parent's subtasks spliced directly after it.
-    /// "under_parent" mode hides subtasks from lists entirely (detail only).
+    /// "under_parent" mode hides subtasks from lists entirely (detail only), and a list can turn
+    /// its own subtasks off (ba1deb9d) — both decided by the SHARED ListSubtaskVisibility rule.
     private var filteredTasks: [Task] {
         let top = topLevelFilteredTasks
-        guard UserSettingsService.shared.settings.subtaskDisplay != "under_parent" else { return top }
+        guard ListSubtaskVisibility.shouldSplice(
+            listShowSubtasks: selectedList?.showSubtasks,
+            subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay) else { return top }
         var byParent: [String: [Task]] = [:]
         for t in taskService.tasks {
             if let parentId = t.parentTaskId { byParent[parentId, default: []].append(t) }
@@ -1451,6 +1454,12 @@ struct TaskListView: View {
             // Check sortBy
             if updated.sortBy != original.sortBy {
                 updates["sortBy"] = updated.sortBy ?? "manual"
+            }
+            // Only on an actual change — a rename must not carry a showSubtasks value with it
+            // and quietly hide the list's subtasks (ba1deb9d).
+            if let value = ListSubtaskVisibility.payloadValue(original: original.showSubtasks,
+                                                              edited: updated.showSubtasks) {
+                updates["showSubtasks"] = value
             }
 
             // List Defaults

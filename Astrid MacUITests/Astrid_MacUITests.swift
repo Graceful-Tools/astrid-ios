@@ -116,13 +116,8 @@ final class Astrid_MacUITests: XCTestCase {
         nameField.typeText(listName)
         app.buttons["Create"].firstMatch.click()
 
-        // Select the new list — filter the sidebar via its search field first so the row is
-        // visible/hittable regardless of how many lists exist.
-        let sidebarSearch = app.searchFields.firstMatch
-        if sidebarSearch.waitForExistence(timeout: 5) {
-            sidebarSearch.click()
-            sidebarSearch.typeText(listName)
-        }
+        // Select the new list. There is no sidebar filter to narrow it with — the list-name
+        // search was removed in task 1b0f034d — so the row is found by its name directly.
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10), "Created list should appear in the sidebar")
         listRow.click()
@@ -163,11 +158,6 @@ final class Astrid_MacUITests: XCTestCase {
         nameField.typeText(listName)
         app.buttons["Create"].firstMatch.click()
 
-        let sidebarSearch = app.searchFields.firstMatch
-        if sidebarSearch.waitForExistence(timeout: 5) {
-            sidebarSearch.click()
-            sidebarSearch.typeText(listName)
-        }
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10))
         listRow.click()
@@ -214,8 +204,6 @@ final class Astrid_MacUITests: XCTestCase {
         nameField.click(); nameField.typeText(listName)
         app.buttons["Create"].firstMatch.click()
 
-        let sidebarSearch = app.searchFields.firstMatch
-        if sidebarSearch.waitForExistence(timeout: 5) { sidebarSearch.click(); sidebarSearch.typeText(listName) }
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10)); listRow.click()
 

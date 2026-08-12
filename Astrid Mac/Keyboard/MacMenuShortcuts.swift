@@ -78,6 +78,31 @@ enum MacViewMode {
         !MacBoardControl.isEnabled(projectId: projectId)
     }
 
+    /// The content modes the toolbar picker can actually offer for this selection.
+    ///
+    /// Chat needs a CHANNEL, not merely the absence of the chat column. Its only condition used
+    /// to be "chat is not already a column", which handed Search a Chat tab that fell through to
+    /// rendering the list, because Search has no channel to show (task 6d709a75).
+    static func availableModes(isRealList: Bool, projectId: String?,
+                               hasChannel: Bool, chatColumnVisible: Bool) -> [MacRootView.ContentMode] {
+        var modes: [MacRootView.ContentMode] = [.list]
+        if offersBoard(projectId: projectId, isRealList: isRealList) { modes.append(.board) }
+        // In 3-column mode chat is a permanent column, so a Chat tab would switch to a pane that
+        // is already on screen.
+        if hasChannel && !chatColumnVisible { modes.append(.chat) }
+        return modes
+    }
+
+    /// Whether the picker is worth drawing at all.
+    ///
+    /// A segmented control with one segment is a switch with nothing to switch to — which is what
+    /// a wide window on a boardless list produced. A greyed-out one is the same thing wearing a
+    /// different colour, so `isSwitchable` hides it too rather than parking dead chrome in the
+    /// toolbar (task 6d709a75).
+    static func showsModePicker(modes: [MacRootView.ContentMode], isSwitchable: Bool) -> Bool {
+        isSwitchable && modes.count > 1
+    }
+
     static func resolve(requested: MacRootView.ContentMode,
                         isRealList: Bool,
                         projectId: String? = nil) -> MacRootView.ContentMode {
