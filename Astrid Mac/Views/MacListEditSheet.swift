@@ -58,17 +58,25 @@ struct MacListEditSheet: View {
                 }
             }
 
+            // A LIST IMAGE, not a colour picker (task 9a9d24bd). Same 16 placeholders iOS and
+            // web offer, read from the shared palette so the platforms cannot drift apart.
+            // Unlike an upload these are just paths, so one can be chosen while CREATING a list,
+            // which the upload button below cannot do (it needs a list id to post to).
             VStack(alignment: .leading, spacing: 6) {
-                Text(NSLocalizedString("Color", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
-                HStack(spacing: 8) {
-                    ForEach(Self.palette, id: \.self) { hex in
-                        Circle()
-                            .fill(Color(hex: hex) ?? .gray)
-                            .frame(width: 22, height: 22)
-                            .overlay(Circle().strokeBorder(Theme.textPrimary,
-                                                           lineWidth: hex == color ? 2 : 0))
-                            .onTapGesture { color = hex }
-                            .accessibilityLabel(Text(String(format: NSLocalizedString("mac.color_label", comment: ""), hex)))
+                Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8),
+                          spacing: 6) {
+                    ForEach(ListImagePlaceholders.all) { placeholder in
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color(hex: placeholder.colorHex) ?? .gray)
+                            .frame(height: 26)
+                            .overlay(RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Theme.accent,
+                                              lineWidth: imageUrl == placeholder.path ? 2 : 0))
+                            .contentShape(RoundedRectangle(cornerRadius: 5))
+                            .onTapGesture { choosePlaceholder(placeholder) }
+                            .help(placeholder.name)
+                            .accessibilityLabel(Text(placeholder.name))
                     }
                 }
             }
@@ -127,6 +135,20 @@ struct MacListEditSheet: View {
 
     /// Sent only when it actually changed — a whole-object save must not carry a value that
     /// resets someone's toggle, which is the guard ListSubtaskVisibility.payloadValue expresses.
+    /// Pick a placeholder. For an existing list this saves straight away, like the upload path;
+    /// while CREATING one there is no id yet, so it rides along in the create payload.
+    private func choosePlaceholder(_ placeholder: ListImagePlaceholders.Placeholder) {
+        imageUrl = placeholder.path
+        // The palette pairs each image with its own pastel, so the list's colour follows the
+        // picture rather than staying whatever blue the old default happened to be.
+        color = placeholder.colorHex
+        guard let e = existing else { return }
+        MacActions.perform("Set list image") {
+            _ = try await ListService.shared.updateListAdvanced(listId: e.id,
+                                                                updates: ["imageUrl": placeholder.path])
+        }
+    }
+
     private func saveShowSubtasks() {
         guard let e = existing,
               let value = ListSubtaskVisibility.payloadValue(original: e.showSubtasks,
@@ -194,13 +216,20 @@ struct MacListEditSheet: View {
         guard !n.isEmpty else { return }
         let desc = listDescription.trimmingCharacters(in: .whitespaces)
         let chosenColor = color
+        let chosenImage = imageUrl
         MacActions.perform(existing == nil ? "Create list" : "Save list") {
             if let e = existing {
                 _ = try await ListService.shared.updateListAdvanced(
                     listId: e.id, updates: ["name": n, "description": desc, "color": chosenColor])
             } else {
-                _ = try await ListService.shared.createList(
+                let created = try await ListService.shared.createList(
                     name: n, description: desc.isEmpty ? nil : desc, color: chosenColor)
+                // A placeholder chosen before the list existed has to be applied once it does —
+                // there was no id to attach it to at the time.
+                if let chosenImage {
+                    _ = try await ListService.shared.updateListAdvanced(
+                        listId: created.id, updates: ["imageUrl": chosenImage])
+                }
             }
             _ = try? await ListService.shared.fetchLists()
         }
