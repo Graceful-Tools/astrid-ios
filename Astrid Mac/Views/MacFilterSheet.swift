@@ -22,6 +22,10 @@ struct MacFilterSheet: View {
     @State private var sortBy: String
     /// Whether this list decides membership by filter rather than by what is in it.
     @State private var isVirtual: Bool
+    /// Per-list inline subtasks (ba1deb9d). HERE, not in the edit sheet: it decides what the
+    /// list RENDERS, which is the question every other control on this sheet answers. Web says
+    /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
+    @State private var showSubtasks: Bool
 
     init(list: TaskList) {
         self.list = list
@@ -33,6 +37,7 @@ struct MacFilterSheet: View {
         _repeatingFilter = State(initialValue: list.filterRepeating ?? "all")
         _sortBy     = State(initialValue: list.sortBy ?? "auto")
         _isVirtual  = State(initialValue: list.isVirtual ?? false)
+        _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
     }
 
     var body: some View {
@@ -69,6 +74,15 @@ struct MacFilterSheet: View {
             }
             .onChange(of: isVirtual) { _, on in setSavedFilter(on) }
 
+            Toggle(isOn: $showSubtasks) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("lists.show_subtasks", comment: ""))
+                    Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .onChange(of: showSubtasks) { _, on in saveShowSubtasks(on) }
+
             HStack {
                 Button(NSLocalizedString("mac.clear_filters", comment: "")) {
                     // Clears every dimension the sheet offers — leaving repeating and assigned-by
@@ -93,6 +107,17 @@ struct MacFilterSheet: View {
         MacListFilter.activeCount(completion: completion, priority: priority, dueDate: dueDate,
                                   assignee: assignee, repeating: repeatingFilter,
                                   assignedBy: assignedBy)
+    }
+
+    /// Only an actual change is sent — an unrelated edit must never carry a value that resets
+    /// someone's toggle. Same guard iOS uses.
+    private func saveShowSubtasks(_ on: Bool) {
+        guard let value = ListSubtaskVisibility.payloadValue(original: list.showSubtasks,
+                                                             edited: on) else { return }
+        MacActions.perform("Update show subtasks") {
+            _ = try await ListService.shared.updateListAdvanced(listId: list.id,
+                                                                updates: ["showSubtasks": value])
+        }
     }
 
     /// Convert this list to a saved filter, or back (task 0e09b224).

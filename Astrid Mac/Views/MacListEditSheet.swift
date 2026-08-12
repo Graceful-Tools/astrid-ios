@@ -23,9 +23,6 @@ struct MacListEditSheet: View {
     /// Recently-completed window, via the SHARED presets iOS and web read (task 545812e6).
     @State private var recentlyCompleted: RecentlyCompletedPresetId = .default24h
     @State private var recentlyCompletedDate = Date()
-    /// Per-list inline subtasks (ba1deb9d). Seeded through the shared rule, so "absent means
-    /// SHOW" is stated in one place rather than as a bare `?? true` on each platform.
-    @State private var showSubtasks = true
 
     /// The shared list-color palette (hex), matching web/iOS.
     static let palette = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6",
@@ -83,15 +80,6 @@ struct MacListEditSheet: View {
                             .accessibilityLabel(Text(placeholder.name))
                     }
                 }
-            }
-
-            // Per-list inline subtasks (ba1deb9d) — the Mac half of the same toggle iOS and web
-            // put in list settings. Separate from the USER-level Sub-tasks display setting: this
-            // is for the case where one list is a deep project and another is a flat inbox.
-            if existing != nil {
-                Divider()
-                Toggle(NSLocalizedString("lists.show_subtasks", comment: ""), isOn: $showSubtasks)
-                    .onChange(of: showSubtasks) { saveShowSubtasks() }
             }
 
             // Default task settings — applied to new tasks in this list (edit mode). Task c82173ff.
@@ -158,12 +146,9 @@ struct MacListEditSheet: View {
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
                 recentlyCompletedDate = f.date(from: day) ?? Date()
             }
-            showSubtasks = ListSubtaskVisibility.listShowsSubtasks(existing?.showSubtasks)
         }
     }
 
-    /// Sent only when it actually changed — a whole-object save must not carry a value that
-    /// resets someone's toggle, which is the guard ListSubtaskVisibility.payloadValue expresses.
     /// Pick a placeholder. For an existing list this saves straight away, like the upload path;
     /// while CREATING one there is no id yet, so it rides along in the create payload.
     private func choosePlaceholder(_ placeholder: ListImagePlaceholders.Placeholder) {
@@ -178,18 +163,6 @@ struct MacListEditSheet: View {
         }
     }
 
-    private func saveShowSubtasks() {
-        guard let e = existing,
-              let value = ListSubtaskVisibility.payloadValue(original: e.showSubtasks,
-                                                             edited: showSubtasks) else { return }
-        MacActions.perform("Update list subtasks") {
-            _ = try await ListService.shared.updateListAdvanced(listId: e.id,
-                                                                updates: ["showSubtasks": value])
-        }
-    }
-
-    /// Sent as NSNull when cleared — "all day" is an explicit choice, not an omission, and
-    /// omitting the key would leave the previous time in place.
     private func saveDueTime() {
         guard let e = existing else { return }
         MacActions.perform("Update default due time") {
