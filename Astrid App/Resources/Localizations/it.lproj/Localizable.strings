@@ -1204,3 +1204,7 @@
 /* Per-list inline subtasks (task ba1deb9d) */
 "lists.show_subtasks" = "Mostra sottoattività";
 "lists.show_subtasks_footer" = "Le sottoattività appaiono rientrate sotto l’attività principale in questo elenco. Disattivalo per un elenco che vuoi leggere come una casella semplice. L’impostazione di visualizzazione delle sottoattività dell’account continua ad applicarsi: un elenco non può mostrare le sottoattività in linea se hai scelto solo la vista dettagli.";
+
+/* Mac list settings parity (task 545812e6) */
+"lists.recently_completed" = "Completate di recente";
+"mac.since" = "Da";

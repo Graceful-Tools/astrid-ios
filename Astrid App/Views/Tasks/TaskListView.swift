@@ -1517,6 +1517,13 @@ struct TaskListView: View {
             if updated.imageUrl != original.imageUrl {
                 updates["imageUrl"] = updated.imageUrl ?? NSNull()
             }
+            // The admin tab's "Recently completed" picker had no branch here, so changing it
+            // updated the local model and was dropped before the request (found while auditing
+            // Mac parity, task 545812e6). NSNull is the legacy 24h default, which is a real
+            // choice — omitting the key would leave the old window in place.
+            if updated.recentlyCompletedWindow != original.recentlyCompletedWindow {
+                updates["recentlyCompletedWindow"] = updated.recentlyCompletedWindow?.updatePayloadValue ?? NSNull()
+            }
 
             // Save if there are updates
             if !updates.isEmpty {

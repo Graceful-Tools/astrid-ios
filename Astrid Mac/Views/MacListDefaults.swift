@@ -15,6 +15,17 @@ enum MacListDefaults {
         .init("none", "None"), .init("today", "Today"), .init("tomorrow", "Tomorrow"),
         .init("next_week", "Next week"), .init("next_month", "Next month"),
     ]
+    /// The same six the iOS admin tab offers (task 545812e6). nil = all day, which is why the
+    /// value is a String? rather than a sentinel string.
+    static let dueTime: [(label: String, value: String?)] = [
+        (NSLocalizedString("lists.all_day", comment: ""), nil),
+        ("9:00 AM",  "09:00"),
+        ("12:00 PM", "12:00"),
+        ("2:00 PM",  "14:00"),
+        ("5:00 PM",  "17:00"),
+        ("6:00 PM",  "18:00"),
+    ]
+
     static let repeating: [Option] = [
         .init("never", "Never"), .init("daily", "Daily"), .init("weekly", "Weekly"),
         .init("monthly", "Monthly"), .init("yearly", "Yearly"),
