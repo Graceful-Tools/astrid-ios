@@ -69,17 +69,18 @@ struct MacFilterSheet: View {
                     smartListName = list.name; showingSave = true
                 } label: { Label(NSLocalizedString("filters.save_as_smart_list", comment: ""), systemImage: "star") }
                 .buttonStyle(.link)
-                .disabled(MacListFilter.activeCount(completion: completion, priority: priority,
-                                                    dueDate: dueDate, assignee: assignee) == 0)
+                .disabled(activeFilters == 0)
             }
 
             HStack {
                 Button(NSLocalizedString("mac.clear_filters", comment: "")) {
+                    // Clears every dimension the sheet offers — leaving repeating and assigned-by
+                    // behind made "Clear filters" a half-truth (task 70d849f8).
                     completion = "default"; priority = "all"; dueDate = "all"; assignee = "all"
+                    repeatingFilter = "all"; assignedBy = "all"
                     save()
                 }
-                .disabled(MacListFilter.activeCount(completion: completion, priority: priority,
-                                                    dueDate: dueDate, assignee: assignee) == 0)
+                .disabled(activeFilters == 0)
                 Spacer()
                 Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.buttonStyle(.borderedProminent).keyboardShortcut(.return)
             }
@@ -89,13 +90,23 @@ struct MacFilterSheet: View {
         .background(Theme.bgPrimary)
     }
 
+    /// How many of the SIX controls this sheet offers are set. Gates the save link and Clear,
+    /// so all three agree about what "has a filter" means (task 70d849f8).
+    private var activeFilters: Int {
+        MacListFilter.activeCount(completion: completion, priority: priority, dueDate: dueDate,
+                                  assignee: assignee, repeating: repeatingFilter,
+                                  assignedBy: assignedBy)
+    }
+
     /// Create a saved-filter (Smart) list from the current filters — mirrors iOS SaveFilterDialog.
     private func saveSmartList() {
         let name = smartListName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
         let updates = MacListFilter.smartListUpdates(completion: completion, priority: priority,
                                                      dueDate: dueDate, assignee: assignee,
-                                                     sortBy: list.sortBy ?? "auto")
+                                                     sortBy: sortBy,
+                                                     repeating: repeatingFilter,
+                                                     assignedBy: assignedBy)
         dismiss()
         MacActions.perform("Save Smart List") {
             let newList = try await ListService.shared.createList(name: name, description: "Smart List", privacy: "PRIVATE")
