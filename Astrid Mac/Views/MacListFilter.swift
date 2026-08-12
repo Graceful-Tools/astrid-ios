@@ -106,5 +106,14 @@ enum MacListFilter {
             "filterAssignedBy": assignedBy,
         ]
     }
+
+    /// Turn a saved-filter list back into a normal one (task 0e09b224).
+    ///
+    /// Deliberately ONLY the flag. The filters stay on the list — they simply stop deciding
+    /// membership — because clearing them here would destroy a setup the user may have spent
+    /// real time on, for a toggle they might flip straight back.
+    static func revertToNormalListUpdates() -> [String: Any] {
+        ["isVirtual": false]
+    }
 }
 #endif
