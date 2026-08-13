@@ -29,12 +29,10 @@ struct ListSettingsModal: View {
 
     /// Check if current user can edit settings (is owner or admin).
     /// Mirrors web's `canUserManageList` — only consults `listMembers`.
+    /// The SHARED rule (task da56d096) — this was one of three hand-rolled copies, and
+    /// the Mac one disagreed with it.
     private var canEditSettings: Bool {
-        guard let currentUserId = AuthManager.shared.userId else {
-            return false
-        }
-        let role = currentList.role(for: currentUserId)
-        return role == .owner || role == .admin
+        ListPermissions.canEditSettings(currentList, userId: AuthManager.shared.userId)
     }
 
     /// Check if current user is the list owner
