@@ -1129,7 +1129,7 @@
 "mac.undo.delete" = "작업 삭제";
 "mac.undo.move" = "작업 이동";
 "mac.quick_add" = "빠른 추가…";
-"mac.quick_add_placeholder" = "작업 추가…  (예: “금요일 보고서 #업무 긴급”)";
+"mac.quick_add_placeholder" = "작업 추가…";
 "mac.quit" = "종료";
 "mac.refresh" = "새로 고침";
 "mac.refresh_connection" = "연결 상태 새로 고침";

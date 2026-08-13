@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "删除任务";
 "mac.undo.move" = "移动任务";
 "mac.quick_add" = "快速添加…";
-"mac.quick_add_placeholder" = "添加任务…  (试试“周五 报告 #工作 紧急”)";
+"mac.quick_add_placeholder" = "添加任务…";
 "mac.quit" = "退出";
 "mac.refresh" = "刷新";
 "mac.refresh_connection" = "刷新连接状态";

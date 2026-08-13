@@ -1143,7 +1143,7 @@
 "mac.undo.delete" = "eliminar tarea";
 "mac.undo.move" = "mover tarea";
 "mac.quick_add" = "Añadir rápido…";
-"mac.quick_add_placeholder" = "Añadir una tarea…  (prueba “Informe viernes #trabajo urgente”)";
+"mac.quick_add_placeholder" = "Añadir una tarea…";
 "mac.quit" = "Salir";
 "mac.refresh" = "Actualizar";
 "mac.refresh_connection" = "Actualizar estado de conexión";

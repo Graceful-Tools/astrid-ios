@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "elimina attività";
 "mac.undo.move" = "sposta attività";
 "mac.quick_add" = "Aggiunta rapida…";
-"mac.quick_add_placeholder" = "Aggiungi un'attività…  (prova “Report venerdì #lavoro urgente”)";
+"mac.quick_add_placeholder" = "Aggiungi un'attività…";
 "mac.quit" = "Esci";
 "mac.refresh" = "Aggiorna";
 "mac.refresh_connection" = "Aggiorna stato connessione";

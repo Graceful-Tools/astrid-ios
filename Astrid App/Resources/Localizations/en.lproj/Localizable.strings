@@ -1135,7 +1135,7 @@
 "mac.undo.delete" = "Delete Task";
 "mac.undo.move" = "Move Task";
 "mac.quick_add" = "Quick add…";
-"mac.quick_add_placeholder" = "Add a task…  (try “Report friday #work urgent”)";
+"mac.quick_add_placeholder" = "Add a task…";
 "mac.quit" = "Quit";
 "mac.refresh" = "Refresh";
 "mac.refresh_connection" = "Refresh connection status";

@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "タスクを削除";
 "mac.undo.move" = "タスクを移動";
 "mac.quick_add" = "クイック追加…";
-"mac.quick_add_placeholder" = "タスクを追加…  (例:「金曜日 レポート #仕事 至急」)";
+"mac.quick_add_placeholder" = "タスクを追加…";
 "mac.quit" = "終了";
 "mac.refresh" = "更新";
 "mac.refresh_connection" = "接続状態を更新";
