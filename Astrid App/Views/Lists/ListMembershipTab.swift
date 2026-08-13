@@ -27,12 +27,10 @@ struct ListMembershipTab: View {
 
     /// Check if current user can edit settings (is owner or admin).
     /// Mirrors web's `canUserManageList` — only consults `listMembers`.
+    /// The SHARED rule (task da56d096) — this was one of three hand-rolled copies, and
+    /// the Mac one disagreed with it.
     private var canEditSettings: Bool {
-        guard let currentUserId = AuthManager.shared.userId else {
-            return false
-        }
-        let role = list.role(for: currentUserId)
-        return role == .owner || role == .admin
+        ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)
     }
 
     /// Filter invitations to only show truly pending ones (exclude users who have already accepted)

@@ -29,7 +29,11 @@ struct MacListMembersView: View {
         if list.ownerId == uid { return "owner" }
         return members.first { $0.userId == uid }?.role
     }
-    private var canManage: Bool { myRole == "owner" || myRole == "admin" }
+    /// The SHARED rule (task da56d096). This used to compare role STRINGS against the separately
+    /// fetched `members` roster, so Mac and iOS could answer the same question differently.
+    private var canManage: Bool {
+        ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)
+    }
     private func isOwner(_ m: ListMember) -> Bool { m.userId == list.ownerId }
 
     var body: some View {
