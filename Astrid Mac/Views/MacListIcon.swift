@@ -15,12 +15,15 @@ struct MacListIcon: View {
             .frame(width: size, height: size)
             .overlay {
                 if let url = ListImageHelper.getFullImageUrl(list: list) {
+                    // This used to carry an `.id(url)`, because CachedAsyncImage captured its URL
+                    // once and a new identity was the only way to make it refetch. The component
+                    // follows its url itself now (16f39f36), so forcing a full rebuild of the row
+                    // icon on every image change is no longer needed.
                     CachedAsyncImage(url: url) { image in
                         image.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(Color(hex: list.displayColor) ?? Theme.accent)
                     }
-                    .id(url)
                 } else {
                     Circle().fill(Color(hex: list.displayColor) ?? Theme.accent)
                 }

@@ -159,11 +159,36 @@ class CachedImageLoader: ObservableObject {
     @Published var image: PlatformImage?
     @Published var isLoading = false
 
-    private let url: URL
+    /// NOT a `let`. A `@StateObject` lives as long as the view's identity, so a loader that owned
+    /// its URL forever would ignore every later change — the list image you just picked, the avatar
+    /// after a profile photo change, an assignee swapped on a row (Task 16f39f36).
+    private var url: URL
     private var loadTask: _Concurrency.Task<Void, Never>?
 
     init(url: URL) {
         self.url = url
+    }
+
+    /// Point the loader at `url` and fetch it.
+    ///
+    /// Re-pointing drops the previous picture rather than leaving it up: the old list's image under
+    /// the new list's name is a worse answer than the placeholder for a moment.
+    func load(url newURL: URL) {
+        guard newURL != url else {
+            if image == nil { load() }   // idempotent — a redraw must not blank what we already have
+            return
+        }
+        loadTask?.cancel()
+        url = newURL
+        image = nil
+        load()
+    }
+
+    /// No URL to show (the model's image was removed) — stop and fall back to the placeholder.
+    func clear() {
+        loadTask?.cancel()
+        image = nil
+        isLoading = false
     }
 
     func load() {
@@ -174,10 +199,12 @@ class CachedImageLoader: ObservableObject {
         }
 
         // Load from network
+        let requested = url          // a slow response for a URL we have since left must not land
         isLoading = true
         loadTask = _Concurrency.Task {
             // First check disk cache asynchronously (safe from background)
-            if let cached = await ImageCache.shared.getAsync(url: url) {
+            if let cached = await ImageCache.shared.getAsync(url: requested) {
+                guard requested == self.url else { return }
                 self.image = cached
                 isLoading = false
                 return
@@ -189,8 +216,8 @@ class CachedImageLoader: ObservableObject {
                 // Check if this is a secure-files URL that requires authentication.
                 // Match both /api/secure-files/ (older stored URLs) and /api/v1/secure-files/
                 // (new emissions) so cached attachments from before the v1 cutover keep loading.
-                if url.path.contains("/api/secure-files/") || url.path.contains("/api/v1/secure-files/") {
-                    var request = URLRequest(url: url)
+                if requested.path.contains("/api/secure-files/") || requested.path.contains("/api/v1/secure-files/") {
+                    var request = URLRequest(url: requested)
                     // Add session cookie for authentication
                     if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                         request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
@@ -199,7 +226,7 @@ class CachedImageLoader: ObservableObject {
                     data = responseData
                 } else {
                     // Public URL, no auth needed
-                    let (responseData, _) = try await URLSession.shared.data(from: url)
+                    let (responseData, _) = try await URLSession.shared.data(from: requested)
                     data = responseData
                 }
 
@@ -207,7 +234,8 @@ class CachedImageLoader: ObservableObject {
                 let loadedImage = PlatformImage(data: data)
                 if let loadedImage {
                     // Cache asynchronously (encodes on main thread, writes on background)
-                    await ImageCache.shared.setAsync(loadedImage, for: url)
+                    await ImageCache.shared.setAsync(loadedImage, for: requested)
+                    guard requested == self.url else { return }
                     self.image = loadedImage
                 }
             } catch {
@@ -255,9 +283,15 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .onAppear {
-            if url != nil {
-                loader.load()
+            if let url {
+                loader.load(url: url)
             }
+        }
+        // The component follows its url rather than relying on ~25 call sites each remembering an
+        // `.id(url)` — exactly one of them ever did, so a changed picture silently did not redraw
+        // anywhere else (Task 16f39f36).
+        .onChange(of: url) {
+            if let url { loader.load(url: url) } else { loader.clear() }
         }
         .onDisappear {
             loader.cancel()
