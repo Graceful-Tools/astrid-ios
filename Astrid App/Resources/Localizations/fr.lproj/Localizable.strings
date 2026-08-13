@@ -1143,7 +1143,7 @@
 "mac.undo.delete" = "supprimer la tâche";
 "mac.undo.move" = "déplacer la tâche";
 "mac.quick_add" = "Ajout rapide…";
-"mac.quick_add_placeholder" = "Ajouter une tâche…  (essayez « Rapport vendredi #travail urgent »)";
+"mac.quick_add_placeholder" = "Ajouter une tâche…";
 "mac.quit" = "Quitter";
 "mac.refresh" = "Actualiser";
 "mac.refresh_connection" = "Actualiser l'état de la connexion";

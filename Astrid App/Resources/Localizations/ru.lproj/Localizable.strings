@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "удаление задачи";
 "mac.undo.move" = "перемещение задачи";
 "mac.quick_add" = "Быстрое добавление…";
-"mac.quick_add_placeholder" = "Добавить задачу…  (например: «Отчёт пятница #работа срочно»)";
+"mac.quick_add_placeholder" = "Добавить задачу…";
 "mac.quit" = "Выйти";
 "mac.refresh" = "Обновить";
 "mac.refresh_connection" = "Обновить статус подключения";

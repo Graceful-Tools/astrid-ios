@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "Aufgabe löschen";
 "mac.undo.move" = "Aufgabe verschieben";
 "mac.quick_add" = "Schnell hinzufügen…";
-"mac.quick_add_placeholder" = "Aufgabe hinzufügen…  (z. B. „Bericht Freitag #Arbeit dringend“)";
+"mac.quick_add_placeholder" = "Aufgabe hinzufügen…";
 "mac.quit" = "Beenden";
 "mac.refresh" = "Aktualisieren";
 "mac.refresh_connection" = "Verbindungsstatus aktualisieren";

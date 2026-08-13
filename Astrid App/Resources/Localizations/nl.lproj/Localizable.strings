@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "taak verwijderen";
 "mac.undo.move" = "taak verplaatsen";
 "mac.quick_add" = "Snel toevoegen…";
-"mac.quick_add_placeholder" = "Taak toevoegen…  (probeer “Rapport vrijdag #werk urgent”)";
+"mac.quick_add_placeholder" = "Taak toevoegen…";
 "mac.quit" = "Stoppen";
 "mac.refresh" = "Vernieuwen";
 "mac.refresh_connection" = "Verbindingsstatus vernieuwen";
