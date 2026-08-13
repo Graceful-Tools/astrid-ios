@@ -17,9 +17,14 @@ empty list is a no-op, not busywork.
   - **`iosdev` and `macdev` both build to TestFlight.** Push both, even for a Mac-only
     fix — the `Core/` tree is shared, and letting them drift means the next iOS build
     silently lacks code the Mac build has.
-  - **`main` does not trigger a release build** (confirmed with Jon 2026-08-09). It is
-    the integration branch. An earlier version of this file said `main` was the App Store
-    branch; that was wrong. Do not restore that wording without re-checking with Jon.
+  - **`main` is the integration branch, and merging to it is safe** — but be precise
+    about why (verified against the Xcode Cloud API 2026-08-13). It *does* start the
+    "iOS Release" and "Mac Release" workflows, which archive and upload to App Store
+    Connect. What it does not do is submit anything for review: submission is a manual
+    step in App Store Connect and nothing here performs it. An earlier version of this
+    file said `main` was "the App Store branch", which overstated the risk, and a later
+    one said it "does not trigger a release build", which understated what runs. Merging
+    is autonomous; submitting for review still needs Jon.
   - **The standing authorization covers shipping fixes from this list.** It is not a
     blanket approval: an App Store submission, deleting files, or a significant
     architecture change still needs asking.
