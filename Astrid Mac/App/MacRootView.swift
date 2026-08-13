@@ -630,6 +630,20 @@ struct MacRootView: View {
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd")
 
+            // The list's default DUE DATE, previewed (Task 3d47cb62). Priority, repeat and assignee
+            // already show on the checkbox; the date was applied silently, so the first you knew of
+            // it was the task appearing with a date you never typed. Absent when the list has none.
+            if let due = MacQuickAddPreview.dueDateLabel(for: currentRealList) {
+                HStack(spacing: 3) {
+                    Image(systemName: "calendar")
+                    Text(due)
+                }
+                .font(MacTypography.rowMeta)
+                .foregroundStyle(Theme.textSecondary)
+                .help(NSLocalizedString("lists.due_date", comment: ""))
+                .accessibilityIdentifier("tasks.quickAdd.defaultDueDate")
+            }
+
             // Right: ⊕ commits the draft (iOS parity); dimmed and inert while empty.
             // ⊕ adds the task AND opens its details (iOS / web parity); Return just adds.
             Button { commitDraft(openDetails: true) } label: {

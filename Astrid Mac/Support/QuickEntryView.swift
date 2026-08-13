@@ -63,7 +63,8 @@ struct QuickEntryView: View {
         // Use the shared SmartTaskParser (dates/priority/#lists/repeat) — same engine as the sidebar
         // and menu-bar quick-add — instead of the naive local QuickEntryParser (Task fa267754).
         guard let args = MacQuickAdd.makeGlobalArgs(rawText: text, lists: ListService.shared.lists,
-                                                    smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else {
+                                                    smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
+                                                    currentUserId: AuthManager.shared.userId) else {
             NSLog("[Astrid] QuickEntry: nothing to add (empty text or no list)")
             return
         }
@@ -71,7 +72,8 @@ struct QuickEntryView: View {
         MacActions.perform("Add task") {
             _ = try await TaskService.shared.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
+                whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                repeating: args.repeating, repeatingData: args.repeatingData)
         }
         text = ""
         dismiss()

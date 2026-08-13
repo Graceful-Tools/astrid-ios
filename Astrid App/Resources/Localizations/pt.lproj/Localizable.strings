@@ -1127,7 +1127,7 @@
 "mac.undo.delete" = "excluir tarefa";
 "mac.undo.move" = "mover tarefa";
 "mac.quick_add" = "Adição rápida…";
-"mac.quick_add_placeholder" = "Adicionar uma tarefa…  (tente “Relatório sexta #trabalho urgente”)";
+"mac.quick_add_placeholder" = "Adicionar uma tarefa…";
 "mac.quit" = "Sair";
 "mac.refresh" = "Atualizar";
 "mac.refresh_connection" = "Atualizar estado da ligação";

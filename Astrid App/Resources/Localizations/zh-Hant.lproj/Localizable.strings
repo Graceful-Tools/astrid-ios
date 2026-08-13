@@ -1129,7 +1129,7 @@
 "mac.undo.delete" = "刪除任務";
 "mac.undo.move" = "移動任務";
 "mac.quick_add" = "快速新增…";
-"mac.quick_add_placeholder" = "新增任務…  (試試「週五 報告 #工作 緊急」)";
+"mac.quick_add_placeholder" = "新增任務…";
 "mac.quit" = "結束";
 "mac.refresh" = "重新整理";
 "mac.refresh_connection" = "重新整理連線狀態";
