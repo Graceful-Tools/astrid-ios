@@ -196,15 +196,32 @@ struct MacRootView: View {
             return true
         }
         .contextMenu {
-            Button(NSLocalizedString("mac.rename_ellipsis", comment: "")) { editingList = list }
+            // Gated on the SHARED permission rule (task da56d096). This menu used to offer Edit,
+            // Sharing and Delete to every member — Delete would have been refused server-side, but
+            // offering it at all is its own bug.
+            let canEdit = ListPermissions.canEditSettings(list, userId: auth.userId)
+
+            // "Edit", not "Rename": the sheet edits image, task defaults, due time and the
+            // recently-completed window too, so "Rename" undersold it.
+            if canEdit {
+                Button(NSLocalizedString("mac.edit_list", comment: "")) { editingList = list }
+            }
+            // Favouriting is a personal view preference, not a change to the list, so it stays
+            // available to anyone who can see the list at all.
             Button((list.isFavorite ?? false) ? NSLocalizedString("mac.remove_favorite", comment: "")
                                   : NSLocalizedString("lists.favorite", comment: "")) { toggleFavorite(list) }
-            Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
-            if MacViewMode.offersEnableBoard(projectId: list.projectId) {
-                Button(NSLocalizedString("mac.enable_board", comment: "")) { enableBoard(list) }
+            if canEdit {
+                Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
+                if MacViewMode.offersEnableBoard(projectId: list.projectId) {
+                    Button(NSLocalizedString("mac.enable_board", comment: "")) { enableBoard(list) }
+                }
             }
-            Divider()
-            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
+            // Deleting is stricter than editing — it destroys other people's work, so it stays
+            // with the owner even though an admin may change everything else.
+            if ListPermissions.canDelete(list, userId: auth.userId) {
+                Divider()
+                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
+            }
         }
     }
 

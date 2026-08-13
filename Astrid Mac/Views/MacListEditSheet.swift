@@ -157,9 +157,12 @@ struct MacListEditSheet: View {
         // picture rather than staying whatever blue the old default happened to be.
         color = placeholder.colorHex
         guard let e = existing else { return }
+        // BOTH, in one write. Sending only the image meant the colour changed on screen and then
+        // reverted on the next fetch unless you also happened to press Save (task da56d096).
         MacActions.perform("Set list image") {
-            _ = try await ListService.shared.updateListAdvanced(listId: e.id,
-                                                                updates: ["imageUrl": placeholder.path])
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: e.id,
+                updates: ["imageUrl": placeholder.path, "color": placeholder.colorHex])
         }
     }
 

@@ -1208,3 +1208,6 @@
 /* Mac list settings parity (task 545812e6) */
 "lists.recently_completed" = "最近完了";
 "mac.since" = "開始日";
+
+/* Mac list context menu — "Rename" became "Edit" (task da56d096) */
+"mac.edit_list" = "編集…";
