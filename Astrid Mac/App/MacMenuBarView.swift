@@ -55,13 +55,17 @@ struct MacMenuBarView: View {
     private func add() {
         // Shared SmartTaskParser (dates/priority/#lists/repeat), same engine as the main window +
         // sidebar. Global context (no current list) → makeGlobalArgs (Task 8c7e5968, fa267754).
+        // The destination list's defaults apply here too (Task 3d47cb62) — assignee and privacy
+        // included, which this call used to drop on the floor even when they resolved.
         guard let args = MacQuickAdd.makeGlobalArgs(rawText: quickText, lists: listService.lists,
-                                                    smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled) else { return }
+                                                    smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
+                                                    currentUserId: AuthManager.shared.userId) else { return }
         quickText = ""
         MacActions.perform("Add task") {
             _ = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, repeating: args.repeating, repeatingData: args.repeatingData)
+                whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                repeating: args.repeating, repeatingData: args.repeatingData)
         }
     }
 }

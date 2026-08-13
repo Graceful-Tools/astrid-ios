@@ -106,27 +106,41 @@ enum MacQuickAdd {
     /// "current list" context. Uses the parser's #list(s) when present, otherwise falls back to the
     /// first available list — unlike `makeArgs`, it does NOT force-add a selected list (Task fa267754).
     /// Returns nil for empty input or when there is no list to add to.
-    static func makeGlobalArgs(rawText: String, lists: [TaskList], smartEnabled: Bool = true) -> CreateArgs? {
+    static func makeGlobalArgs(rawText: String, lists: [TaskList], smartEnabled: Bool = true,
+                               currentUserId: String? = nil) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !lists.isEmpty else { return nil }
 
+        // The list's defaults apply here too (Task 3d47cb62). This path used to create the task
+        // raw, so a task added from the menu bar started differently from the identical task added
+        // in the list — same destination, two answers. Defaults come from the DESTINATION list,
+        // which is whatever the text named, not simply the first list.
+        func defaults(for listIds: [String]) -> TaskList? {
+            listIds.first.flatMap { id in lists.first { $0.id == id } }
+        }
+
         guard smartEnabled else {
-            return CreateArgs(title: trimmed, listIds: [lists[0].id],
-                              priority: nil, whenDate: nil, repeating: nil, repeatingData: nil)
+            let listIds = [lists[0].id]
+            return applyingDefaults(
+                CreateArgs(title: trimmed, listIds: listIds,
+                           priority: nil, whenDate: nil, repeating: nil, repeatingData: nil),
+                from: defaults(for: listIds), priorityOverride: nil, currentUserId: currentUserId)
         }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
         let title = parsed.title.isEmpty ? trimmed : parsed.title
         let listIds = parsed.listIds.isEmpty ? [lists[0].id] : parsed.listIds
 
-        return CreateArgs(
-            title: title,
-            listIds: listIds,
-            priority: parsed.priority,
-            whenDate: parsed.dueDateTime,
-            repeating: parsed.repeating?.rawValue,
-            repeatingData: parsed.customRepeatingData
-        )
+        return applyingDefaults(
+            CreateArgs(
+                title: title,
+                listIds: listIds,
+                priority: parsed.priority,
+                whenDate: parsed.dueDateTime,
+                repeating: parsed.repeating?.rawValue,
+                repeatingData: parsed.customRepeatingData
+            ),
+            from: defaults(for: listIds), priorityOverride: nil, currentUserId: currentUserId)
     }
 }
 #endif
