@@ -20,8 +20,12 @@ struct MacFilterSheet: View {
     @State private var assignedBy: String
     @State private var repeatingFilter: String
     @State private var sortBy: String
-    @State private var showingSave = false
-    @State private var smartListName = ""
+    /// Whether this list decides membership by filter rather than by what is in it.
+    @State private var isVirtual: Bool
+    /// Per-list inline subtasks (ba1deb9d). HERE, not in the edit sheet: it decides what the
+    /// list RENDERS, which is the question every other control on this sheet answers. Web says
+    /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
+    @State private var showSubtasks: Bool
 
     init(list: TaskList) {
         self.list = list
@@ -32,6 +36,8 @@ struct MacFilterSheet: View {
         _assignedBy = State(initialValue: list.filterAssignedBy ?? "all")
         _repeatingFilter = State(initialValue: list.filterRepeating ?? "all")
         _sortBy     = State(initialValue: list.sortBy ?? "auto")
+        _isVirtual  = State(initialValue: list.isVirtual ?? false)
+        _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
     }
 
     var body: some View {
@@ -56,21 +62,26 @@ struct MacFilterSheet: View {
             .formStyle(.grouped).macThemedSurface()
             .frame(height: 360)
 
-            // Save the current filters as a reusable Smart List (virtual list), like iOS/web.
-            if showingSave {
-                HStack {
-                    TextField(NSLocalizedString("mac.smart_list_name", comment: ""), text: $smartListName).textFieldStyle(.roundedBorder)
-                    Button(NSLocalizedString("actions.create", comment: "")) { saveSmartList() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(smartListName.trimmingCharacters(in: .whitespaces).isEmpty)
+            // Saved filter: converts THIS list, exactly as web's checkbox and iOS's toggle do.
+            // It used to create a NEW list and copy the filters over, pre-filled with this list's
+            // name — so you got two lists with the same name, one real, one virtual (0e09b224).
+            Toggle(isOn: $isVirtual) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("lists.saved_filter", comment: ""))
+                    Text(NSLocalizedString("list.smart_list_description", comment: ""))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
                 }
-            } else {
-                Button {
-                    smartListName = list.name; showingSave = true
-                } label: { Label(NSLocalizedString("filters.save_as_smart_list", comment: ""), systemImage: "star") }
-                .buttonStyle(.link)
-                .disabled(activeFilters == 0)
             }
+            .onChange(of: isVirtual) { _, on in setSavedFilter(on) }
+
+            Toggle(isOn: $showSubtasks) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("lists.show_subtasks", comment: ""))
+                    Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .onChange(of: showSubtasks) { _, on in saveShowSubtasks(on) }
 
             HStack {
                 Button(NSLocalizedString("mac.clear_filters", comment: "")) {
@@ -98,20 +109,30 @@ struct MacFilterSheet: View {
                                   assignedBy: assignedBy)
     }
 
-    /// Create a saved-filter (Smart) list from the current filters — mirrors iOS SaveFilterDialog.
-    private func saveSmartList() {
-        let name = smartListName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        let updates = MacListFilter.smartListUpdates(completion: completion, priority: priority,
-                                                     dueDate: dueDate, assignee: assignee,
-                                                     sortBy: sortBy,
-                                                     repeating: repeatingFilter,
-                                                     assignedBy: assignedBy)
-        dismiss()
-        MacActions.perform("Save Smart List") {
-            let newList = try await ListService.shared.createList(name: name, description: "Smart List", privacy: "PRIVATE")
-            _ = try await ListService.shared.updateListAdvanced(listId: newList.id, updates: updates)
-            _ = try? await ListService.shared.fetchLists()
+    /// Only an actual change is sent — an unrelated edit must never carry a value that resets
+    /// someone's toggle. Same guard iOS uses.
+    private func saveShowSubtasks(_ on: Bool) {
+        guard let value = ListSubtaskVisibility.payloadValue(original: list.showSubtasks,
+                                                             edited: on) else { return }
+        MacActions.perform("Update show subtasks") {
+            _ = try await ListService.shared.updateListAdvanced(listId: list.id,
+                                                                updates: ["showSubtasks": value])
+        }
+    }
+
+    /// Convert this list to a saved filter, or back (task 0e09b224).
+    ///
+    /// Reversible on purpose: no task moves either way, because `isVirtual` changes how
+    /// membership is DECIDED, not what belongs to the list. Reverting leaves the filters in
+    /// place rather than wiping a setup the user might be about to switch straight back on.
+    private func setSavedFilter(_ on: Bool) {
+        let updates = on
+            ? MacListFilter.smartListUpdates(completion: completion, priority: priority,
+                                             dueDate: dueDate, assignee: assignee, sortBy: sortBy,
+                                             repeating: repeatingFilter, assignedBy: assignedBy)
+            : MacListFilter.revertToNormalListUpdates()
+        MacActions.perform(on ? "Save as Smart List" : "Convert to normal list") {
+            _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)
         }
     }
 

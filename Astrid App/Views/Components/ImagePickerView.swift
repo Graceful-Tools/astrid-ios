@@ -101,25 +101,9 @@ struct ImagePickerView: View {
     @State private var isUploading = false
     @State private var uploadError: String?
 
-    // Pastel color placeholders matching web app
-    private let pastelColors: [(name: String, color: String, path: String)] = [
-        ("Lavender", "#E6E6FA", "/images/placeholders/lavender.png"),
-        ("Mint", "#F0FFF0", "/images/placeholders/mint.png"),
-        ("Peach", "#FFEAA7", "/images/placeholders/peach.png"),
-        ("Coral", "#FFB3BA", "/images/placeholders/coral.png"),
-        ("Sky", "#AED6F1", "/images/placeholders/sky.png"),
-        ("Sage", "#C8E6C9", "/images/placeholders/sage.png"),
-        ("Rose", "#F8BBD9", "/images/placeholders/rose.png"),
-        ("Butter", "#FFF9C4", "/images/placeholders/butter.png"),
-        ("Periwinkle", "#CCCCFF", "/images/placeholders/periwinkle.png"),
-        ("Seafoam", "#B2DFDB", "/images/placeholders/seafoam.png"),
-        ("Apricot", "#FFE0B2", "/images/placeholders/apricot.png"),
-        ("Lilac", "#E1BEE7", "/images/placeholders/lilac.png"),
-        ("Blush", "#FFB7C5", "/images/placeholders/blush.png"),
-        ("Powder", "#B0E0E6", "/images/placeholders/powder.png"),
-        ("Cream", "#F5F5DC", "/images/placeholders/cream.png"),
-        ("Pearl", "#F0F0F0", "/images/placeholders/pearl.png")
-    ]
+    // The shared palette (task 9a9d24bd) — Mac reads the same one, so the two platforms
+    // cannot drift into offering different pictures.
+    private var pastelColors: [ListImagePlaceholders.Placeholder] { ListImagePlaceholders.all }
 
     var body: some View {
         NavigationStack {
@@ -211,7 +195,7 @@ struct ImagePickerView: View {
                     } label: {
                         VStack(spacing: Theme.spacing8) {
                             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                                .fill(Color(hex: color.color) ?? Color.gray)
+                                .fill(Color(hex: color.colorHex) ?? Color.gray)
                                 .frame(height: 80)
                                 .overlay {
                                     if selectedPlaceholder == color.path {

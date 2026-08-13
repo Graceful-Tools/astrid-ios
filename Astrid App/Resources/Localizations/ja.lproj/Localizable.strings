@@ -1204,3 +1204,7 @@
 /* Per-list inline subtasks (task ba1deb9d) */
 "lists.show_subtasks" = "サブタスクを表示";
 "lists.show_subtasks_footer" = "このリストではサブタスクが親タスクの下にインデント表示されます。フラットな受信箱として読みたいリストではオフにしてください。アカウント全体のサブタスク表示設定は引き続き適用されます。詳細表示のみを選んでいる場合、リスト側でインライン表示にはできません。";
+
+/* Mac list settings parity (task 545812e6) */
+"lists.recently_completed" = "最近完了";
+"mac.since" = "開始日";

@@ -25,10 +25,25 @@ final class ShowSubtasksPlacementTests: XCTestCase {
     }
 
     /// It belongs in Sort & Filters, where the rest of "what this list shows" lives.
-    func testTheToggleIsInTheSortAndFiltersTab() throws {
-        let filters = try source("Astrid App/Views/Lists/ListSortFiltersTab.swift")
-        XCTAssertTrue(filters.contains("lists.show_subtasks"),
-                      "The show-subtasks toggle belongs in Sort & Filters (task ba1deb9d)")
+    ///
+    /// iOS has TWO screens by that name — the settings-modal tab, and the one under a list's
+    /// Configuration — and shipping the toggle on only one of them is exactly what happened
+    /// (task 67552e15): "works on iOS" and "missing on iOS" were both true depending on which
+    /// door you came through. Both, or neither.
+    func testTheToggleIsInBothSortAndFiltersSurfaces() throws {
+        for file in ["Astrid App/Views/Lists/ListSortFiltersTab.swift",
+                     "Astrid App/Views/Lists/ListFiltersView.swift"] {
+            XCTAssertTrue(try source(file).contains("lists.show_subtasks"),
+                          "\(file) is a Sort & Filters surface and must carry the toggle")
+        }
+    }
+
+    /// The second surface saves through its own bulk `saveFilters()`, with the same hazard.
+    func testTheSecondSurfaceKeepsItOutOfTheBulkSave() throws {
+        let view = try source("Astrid App/Views/Lists/ListFiltersView.swift")
+        let save = try XCTUnwrap(view.components(separatedBy: "private func saveFilters()").last)
+        XCTAssertFalse(save.contains("showSubtasks"),
+                       "saveFilters() posts every filter field; including this would reset it")
     }
 
     /// …and not in Admin, where it was first shipped and where Jon could not find it.

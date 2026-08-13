@@ -19,9 +19,10 @@ struct MacListEditSheet: View {
     @State private var defPriority = 0
     @State private var defDueDate = "none"
     @State private var defRepeating = "never"
-    /// Per-list inline subtasks (ba1deb9d). Seeded through the shared rule, so "absent means
-    /// SHOW" is stated in one place rather than as a bare `?? true` on each platform.
-    @State private var showSubtasks = true
+    @State private var defDueTime: String?
+    /// Recently-completed window, via the SHARED presets iOS and web read (task 545812e6).
+    @State private var recentlyCompleted: RecentlyCompletedPresetId = .default24h
+    @State private var recentlyCompletedDate = Date()
 
     /// The shared list-color palette (hex), matching web/iOS.
     static let palette = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6",
@@ -58,28 +59,27 @@ struct MacListEditSheet: View {
                 }
             }
 
+            // A LIST IMAGE, not a colour picker (task 9a9d24bd). Same 16 placeholders iOS and
+            // web offer, read from the shared palette so the platforms cannot drift apart.
+            // Unlike an upload these are just paths, so one can be chosen while CREATING a list,
+            // which the upload button below cannot do (it needs a list id to post to).
             VStack(alignment: .leading, spacing: 6) {
-                Text(NSLocalizedString("Color", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
-                HStack(spacing: 8) {
-                    ForEach(Self.palette, id: \.self) { hex in
-                        Circle()
-                            .fill(Color(hex: hex) ?? .gray)
-                            .frame(width: 22, height: 22)
-                            .overlay(Circle().strokeBorder(Theme.textPrimary,
-                                                           lineWidth: hex == color ? 2 : 0))
-                            .onTapGesture { color = hex }
-                            .accessibilityLabel(Text(String(format: NSLocalizedString("mac.color_label", comment: ""), hex)))
+                Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8),
+                          spacing: 6) {
+                    ForEach(ListImagePlaceholders.all) { placeholder in
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color(hex: placeholder.colorHex) ?? .gray)
+                            .frame(height: 26)
+                            .overlay(RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Theme.accent,
+                                              lineWidth: imageUrl == placeholder.path ? 2 : 0))
+                            .contentShape(RoundedRectangle(cornerRadius: 5))
+                            .onTapGesture { choosePlaceholder(placeholder) }
+                            .help(placeholder.name)
+                            .accessibilityLabel(Text(placeholder.name))
                     }
                 }
-            }
-
-            // Per-list inline subtasks (ba1deb9d) — the Mac half of the same toggle iOS and web
-            // put in list settings. Separate from the USER-level Sub-tasks display setting: this
-            // is for the case where one list is a deep project and another is a flat inbox.
-            if existing != nil {
-                Divider()
-                Toggle(NSLocalizedString("lists.show_subtasks", comment: ""), isOn: $showSubtasks)
-                    .onChange(of: showSubtasks) { saveShowSubtasks() }
             }
 
             // Default task settings — applied to new tasks in this list (edit mode). Task c82173ff.
@@ -98,6 +98,25 @@ struct MacListEditSheet: View {
                     Picker(NSLocalizedString("Repeat", comment: ""), selection: $defRepeating) {
                         ForEach(MacListDefaults.repeating) { Text($0.label).tag($0.value) }
                     }.onChange(of: defRepeating) { saveDefaults() }
+                    // Was missing on Mac entirely (task 545812e6).
+                    Picker(NSLocalizedString("tasks.due_time", comment: ""), selection: $defDueTime) {
+                        ForEach(MacListDefaults.dueTime, id: \.value) { Text($0.label).tag($0.value) }
+                    }.onChange(of: defDueTime) { saveDueTime() }
+                }
+
+                // Recently completed window — the shared presets, so Mac shows the same nine
+                // options in the same order as iOS and web rather than its own list.
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Picker(NSLocalizedString("lists.recently_completed", comment: ""),
+                           selection: $recentlyCompleted) {
+                        ForEach(RECENTLY_COMPLETED_PRESETS, id: \.id) { Text($0.label).tag($0.id) }
+                    }.onChange(of: recentlyCompleted) { saveRecentlyCompleted() }
+                    if recentlyCompleted == .sinceSpecificDate {
+                        DatePicker(NSLocalizedString("mac.since", comment: ""),
+                                   selection: $recentlyCompletedDate, displayedComponents: [.date])
+                            .onChange(of: recentlyCompletedDate) { saveRecentlyCompleted() }
+                    }
                 }
             }
 
@@ -121,19 +140,49 @@ struct MacListEditSheet: View {
             defPriority = existing?.defaultPriority ?? 0
             defDueDate = existing?.defaultDueDate ?? "none"
             defRepeating = existing?.defaultRepeating ?? "never"
-            showSubtasks = ListSubtaskVisibility.listShowsSubtasks(existing?.showSubtasks)
+            defDueTime = existing?.defaultDueTime
+            recentlyCompleted = findPresetForWindow(existing?.recentlyCompletedWindow)?.id ?? .default24h
+            if case let .sinceDate(day) = existing?.recentlyCompletedWindow {
+                let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                recentlyCompletedDate = f.date(from: day) ?? Date()
+            }
         }
     }
 
-    /// Sent only when it actually changed — a whole-object save must not carry a value that
-    /// resets someone's toggle, which is the guard ListSubtaskVisibility.payloadValue expresses.
-    private func saveShowSubtasks() {
-        guard let e = existing,
-              let value = ListSubtaskVisibility.payloadValue(original: e.showSubtasks,
-                                                             edited: showSubtasks) else { return }
-        MacActions.perform("Update list subtasks") {
+    /// Pick a placeholder. For an existing list this saves straight away, like the upload path;
+    /// while CREATING one there is no id yet, so it rides along in the create payload.
+    private func choosePlaceholder(_ placeholder: ListImagePlaceholders.Placeholder) {
+        imageUrl = placeholder.path
+        // The palette pairs each image with its own pastel, so the list's colour follows the
+        // picture rather than staying whatever blue the old default happened to be.
+        color = placeholder.colorHex
+        guard let e = existing else { return }
+        MacActions.perform("Set list image") {
             _ = try await ListService.shared.updateListAdvanced(listId: e.id,
-                                                                updates: ["showSubtasks": value])
+                                                                updates: ["imageUrl": placeholder.path])
+        }
+    }
+
+    private func saveDueTime() {
+        guard let e = existing else { return }
+        MacActions.perform("Update default due time") {
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: e.id, updates: ["defaultDueTime": defDueTime as Any? ?? NSNull()])
+        }
+    }
+
+    private func saveRecentlyCompleted() {
+        guard let e = existing else { return }
+        let window: RecentlyCompletedWindow?
+        if recentlyCompleted == .sinceSpecificDate {
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+            window = .sinceDate(date: f.string(from: recentlyCompletedDate))
+        } else {
+            window = presetForValue(recentlyCompleted)
+        }
+        MacActions.perform("Update recently completed window") {
+            _ = try await ListService.shared.updateListAdvanced(
+                listId: e.id, updates: ["recentlyCompletedWindow": window?.updatePayloadValue ?? NSNull()])
         }
     }
 
@@ -194,13 +243,20 @@ struct MacListEditSheet: View {
         guard !n.isEmpty else { return }
         let desc = listDescription.trimmingCharacters(in: .whitespaces)
         let chosenColor = color
+        let chosenImage = imageUrl
         MacActions.perform(existing == nil ? "Create list" : "Save list") {
             if let e = existing {
                 _ = try await ListService.shared.updateListAdvanced(
                     listId: e.id, updates: ["name": n, "description": desc, "color": chosenColor])
             } else {
-                _ = try await ListService.shared.createList(
+                let created = try await ListService.shared.createList(
                     name: n, description: desc.isEmpty ? nil : desc, color: chosenColor)
+                // A placeholder chosen before the list existed has to be applied once it does —
+                // there was no id to attach it to at the time.
+                if let chosenImage {
+                    _ = try await ListService.shared.updateListAdvanced(
+                        listId: created.id, updates: ["imageUrl": chosenImage])
+                }
             }
             _ = try? await ListService.shared.fetchLists()
         }
