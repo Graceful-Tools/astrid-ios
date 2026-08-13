@@ -9,17 +9,25 @@ empty list is a no-op, not busywork.
 
 ## Guardrails (do not skip)
 
-- **Never push, merge, or deploy without an explicit go-ahead.** Committing locally is
-  autonomous; pushing always waits for the user. Report what is ready to ship instead
-  of shipping it.
-  - **`iosdev` and `macdev` are the release branches** — pushing either builds to
-    TestFlight. Those are the pushes with real consequences.
-  - **`main` no longer triggers a release build** (confirmed with Jon 2026-08-09). It is
+- **Ship every fix to TestFlight as it lands** (standing authorization from Jon,
+  2026-08-13). A task is not finished when it is committed; it is finished when Jon can
+  test it on his device. Do not stop to ask — the asking was the bottleneck, and that is
+  exactly what this instruction removes. Ship one task at a time rather than batching, so
+  a TestFlight build maps to a single change and a regression is obvious.
+  - **`iosdev` and `macdev` both build to TestFlight.** Push both, even for a Mac-only
+    fix — the `Core/` tree is shared, and letting them drift means the next iOS build
+    silently lacks code the Mac build has.
+  - **`main` does not trigger a release build** (confirmed with Jon 2026-08-09). It is
     the integration branch. An earlier version of this file said `main` was the App Store
-    branch; that was wrong, and it made every merge to `main` look more dangerous than it
-    is. Do not restore that wording without re-checking with Jon.
+    branch; that was wrong. Do not restore that wording without re-checking with Jon.
+  - **The standing authorization covers shipping fixes from this list.** It is not a
+    blanket approval: an App Store submission, deleting files, or a significant
+    architecture change still needs asking.
 - **One branch per task** (`fix/<short-description>`), and `npm run predeploy` green
   before the task is marked complete.
+- **Never push a red gate.** If a suite fails, fix it or stop and say so. A failing test
+  that looks unrelated is still a failing test — say plainly that it is unrelated and why
+  rather than pushing quietly past it.
 - **If a task is ambiguous or needs a product decision, skip it**, leave a comment on
   the task saying what decision is needed, and move to the next one. Do not guess at
   intent, and do not stall the whole run on one blocked task.
@@ -61,9 +69,39 @@ empty list is a no-op, not busywork.
      2. Implement the minimum change to make it pass.
      3. Refactor while tests stay green.
    - Run `npm run predeploy` (plus the Mac suites for Mac tasks) and fix regressions.
-   - Post a completion report on the task and mark it complete.
+   - **Ship it** — see step 6. Do this BEFORE marking the task complete, so a task is
+     never closed on something Jon cannot yet test.
+   - Post a completion report on the task, including the build number it shipped in,
+     and mark it complete.
 
-6. **RE-CHECK THE LIST AFTER EVERY TASK — never work from the opening snapshot.**
+6. **Ship the task to TestFlight.** Merge, bump, verify, push:
+   ```bash
+   git checkout iosdev && git merge --no-ff fix/<branch> -m "Merge: <what> (Task: <id>)"
+   ```
+   - **Bump `CURRENT_PROJECT_VERSION`** in `Astrid App.xcodeproj/project.pbxproj` (all
+     occurrences) — a duplicate build number is the most common way a Xcode Cloud build
+     fails after everything else passed.
+   - **Re-run the gates on the MERGED tree**, not just on the branch. A merge can break
+     what neither side broke alone:
+     ```bash
+     npm run predeploy
+     xcodebuild test -scheme "Astrid Mac" -destination "platform=macOS" \
+       -only-testing:"Astrid MacTests" -quiet
+     ```
+   - Push both release branches, then integrate:
+     ```bash
+     git push origin iosdev
+     git checkout macdev && git merge --ff-only iosdev && git push origin macdev
+     git checkout main   && git merge --no-ff iosdev -m "Merge iosdev: <what> (build N)"
+     git push origin main && git checkout iosdev
+     ```
+   - Xcode Cloud picks the push up by webhook, which has been seen to lag anywhere from
+     0 to ~36 minutes. That lag is normal — do not retrigger on a hunch. If you do need a
+     manual `POST /v1/ciBuildRuns`, it **must** carry
+     `relationships.sourceBranchOrTag` (an `scmGitReferences` id) or it defaults to
+     `main` and 409s.
+
+7. **RE-CHECK THE LIST AFTER EVERY TASK — never work from the opening snapshot.**
    New tasks arrive while work is in progress, and a REOPENED task looks exactly
    like one that was never done:
    ```bash
@@ -73,8 +111,10 @@ empty list is a no-op, not busywork.
    means the previous fix missed — re-read it and find a different cause rather than
    re-closing it on the same reasoning.
 
-7. **When the list is empty**, summarize in a few lines: tasks completed, tasks
-   skipped and why, and which branches are waiting to ship. Then ask whether to ship.
+8. **When the list is empty**, summarize in a few lines: what shipped and in which
+   build, and anything skipped and why. Nothing should be "waiting to ship" — if
+   something is, say why it could not go out. Describe the work in plain language by
+   what it does, not by commit hash or task id.
 
 See [ASTRID.md](../../ASTRID.md) for architecture and the full coding workflow, and
 `/fixstuff` for the interactive, pick-one-task-at-a-time version of this.
