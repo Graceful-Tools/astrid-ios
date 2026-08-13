@@ -1206,3 +1206,7 @@
 /* Per-list inline subtasks (task ba1deb9d) */
 "lists.show_subtasks" = "하위 작업 표시";
 "lists.show_subtasks_footer" = "이 목록에서는 하위 작업이 상위 작업 아래에 들여쓰기되어 표시됩니다. 단순한 받은 편지함처럼 보고 싶은 목록에서는 꺼 두세요. 계정 전체의 하위 작업 표시 설정은 계속 적용됩니다. 상세 보기 전용을 선택한 경우 목록에서 인라인으로 표시할 수 없습니다.";
+
+/* Mac list settings parity (task 545812e6) */
+"lists.recently_completed" = "최근 완료";
+"mac.since" = "시작일";

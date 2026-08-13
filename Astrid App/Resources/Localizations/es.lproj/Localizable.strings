@@ -1220,3 +1220,7 @@
 /* Per-list inline subtasks (task ba1deb9d) */
 "lists.show_subtasks" = "Mostrar subtareas";
 "lists.show_subtasks_footer" = "Las subtareas aparecen con sangría bajo su tarea principal en esta lista. Desactívalo para una lista que quieras leer como una bandeja de entrada plana. Tu ajuste general de visualización de subtareas sigue aplicándose: una lista no puede mostrar subtareas en línea si has elegido solo la vista de detalle.";
+
+/* Mac list settings parity (task 545812e6) */
+"lists.recently_completed" = "Completadas recientemente";
+"mac.since" = "Desde";

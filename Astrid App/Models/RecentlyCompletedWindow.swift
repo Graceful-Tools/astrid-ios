@@ -66,6 +66,24 @@ enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
         }
     }
 
+    /// The dictionary form for an `updateListAdvanced` payload (task 545812e6).
+    ///
+    /// Built from the SAME kind strings and keys as `encode(to:)` below, because the two must
+    /// agree: the app writes with this and reads back with that. Both platforms use it, so the
+    /// Mac cannot invent a second wire shape.
+    nonisolated var updatePayloadValue: [String: Any] {
+        switch self {
+        case .duration(let amount, let unit):
+            return ["kind": "duration", "amount": amount, "unit": unit.rawValue]
+        case .sinceWeekday(let weekday):
+            return ["kind": "since-weekday", "weekday": weekday]
+        case .sinceDayOfMonth(let day):
+            return ["kind": "since-day-of-month", "day": day]
+        case .sinceDate(let date):
+            return ["kind": "since-date", "date": date]
+        }
+    }
+
     nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
