@@ -1213,3 +1213,7 @@
 
 /* Mac list context menu — "Rename" became "Edit" (task da56d096) */
 "mac.edit_list" = "編輯…";
+
+/* Task 4a338b53 — an empty roster is ambiguous: a viewer of a PUBLIC list gets no members. */
+"lists.no_members_yet" = "還沒有成員";
+"lists.members_hidden_from_viewer" = "只有成員才能查看此清單的成員";

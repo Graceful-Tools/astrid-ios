@@ -12,6 +12,10 @@ class ListMemberService: ObservableObject {
     // Published state
     @Published var members: [User] = [] // Legacy format for backward compatibility
     @Published var membersByList: [String: [ListMember]] = [:] // New local-first cache
+    /// The caller's role per list, as the server reported it (Task 4a338b53). "viewer" means a
+    /// non-member looking at a PUBLIC list, where the roster comes back EMPTY rather than 403 —
+    /// so an empty list means "not shown to you", not "nobody here". See `ListMemberVisibility`.
+    @Published var viewerRoleByList: [String: String] = [:]
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var pendingOperationsCount: Int = 0
@@ -85,6 +89,7 @@ class ListMemberService: ObservableObject {
         do {
             print("📡 [ListMemberService] Fetching members for list: \(listId)")
             let response = try await apiClient.getListMembers(listId: listId)
+            if let role = response.userRole { viewerRoleByList[listId] = role }
 
             // Filter out invite-type entries and deduplicate by ID
             let activeMembers = response.members.filter { $0.type != "invite" }

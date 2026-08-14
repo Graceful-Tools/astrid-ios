@@ -55,6 +55,19 @@ struct MacListMembersView: View {
             }
 
             List {
+                // An empty roster is ambiguous now (4a338b53): a non-member viewing a PUBLIC list
+                // gets 200 with NO members and role "viewer", because the payload carries email
+                // addresses. Saying "no members yet" to them would simply be false.
+                if members.isEmpty, !loadingMembers {
+                    switch ListMemberVisibility.emptyState(userRole: svc.viewerRoleByList[list.id]) {
+                    case .hiddenFromViewer:
+                        Text(NSLocalizedString("lists.members_hidden_from_viewer", comment: ""))
+                            .font(.callout).foregroundStyle(Theme.textMuted)
+                    case .genuinelyEmpty:
+                        Text(NSLocalizedString("lists.no_members_yet", comment: ""))
+                            .font(.callout).foregroundStyle(Theme.textMuted)
+                    }
+                }
                 ForEach(members) { m in
                     HStack {
                         // Photo + name open that person's profile (0994eabb). Resolved with

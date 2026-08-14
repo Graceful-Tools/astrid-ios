@@ -1211,3 +1211,7 @@
 
 /* Mac list context menu — "Rename" became "Edit" (task da56d096) */
 "mac.edit_list" = "Изменить…";
+
+/* Task 4a338b53 — an empty roster is ambiguous: a viewer of a PUBLIC list gets no members. */
+"lists.no_members_yet" = "Участников пока нет";
+"lists.members_hidden_from_viewer" = "Видеть участников этого списка могут только участники";
