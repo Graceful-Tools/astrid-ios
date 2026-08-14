@@ -38,6 +38,54 @@ empty list is a no-op, not busywork.
   intent, and do not stall the whole run on one blocked task.
 - **If the same task fails twice**, stop working it, comment with what was tried and
   why it failed, and move on.
+- **If the fix needs a server change, file it on the Astrid Web board** — see below.
+  Do not leave it parked on the iOS list.
+
+## When the fix turns out to need the server
+
+Some iOS bugs cannot be fixed on the client at all. The 30-day sign-out was one: only
+the server could issue a fresh token, so no amount of Swift would have helped.
+
+**File the server half as its own task on the Astrid Web To-do list**
+(`a623f322-4c3c-49b5-8a94-d2d9f00c82ba`), and say on the iOS task that you have done so.
+
+Why it matters: a server task parked on the iOS board is invisible to the loop that
+works the web board, so it does not get picked up — it just sits, and every re-run
+reports it as blocked. That is exactly what happened with the session bug, which idled
+for a full cycle of runs before anyone noticed the work belonged elsewhere.
+
+```bash
+cd ../astrid-web
+cat > /tmp/web-task.json <<'JSON'
+[{ "title": "[web] <what the server must do>", "priority": 3,
+   "description": "<contract, evidence, and what the client does once it exists>" }]
+JSON
+ASTRID_IOS_LIST_ID=a623f322-4c3c-49b5-8a94-d2d9f00c82ba \
+  DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/create-ios-tasks.ts /tmp/web-task.json
+```
+
+(The script reads its list from `ASTRID_IOS_LIST_ID` despite the name, so overriding it
+targets the web board. It skips titles that already exist there, so re-running is safe.)
+
+**What the server task must contain**, because whoever picks it up will not have your
+context:
+
+- **The evidence**, with the commands to re-run it. "iOS gets signed out" is a report;
+  "`mobile-session` returns 401 once `exp` passes and no route emits `Set-Cookie`" is a
+  finding someone can act on.
+- **The contract the client needs** — the exact field, where it appears, and when. Say
+  what absence means, since that is the case that gets mishandled.
+- **What the client will do once it exists**, so the two halves are designed together
+  rather than negotiated after the fact.
+- **Whether the halves are safe to ship independently.** Usually they are if the client
+  treats the new field as optional — say so explicitly, because it decides whether
+  anyone has to coordinate a release.
+
+**Then keep the iOS half honest.** If the client work can land before the server (it
+usually can), do it and ship it — but do not close the iOS task while users are still
+affected. Say plainly what remains. A merged server branch is not a deployed one:
+astrid-web does not auto-deploy, so `main` having the fix changes nothing until someone
+deploys, and the iOS task stays open until then.
 
 ## Steps
 
@@ -66,6 +114,9 @@ empty list is a no-op, not busywork.
      ```
    - Analyze the issue — read the description AND its comments/attachments. A
      screenshot attached to the task is usually the fastest route to the real cause.
+   - **Check where the fix actually lives before writing any.** If the cause is
+     server-side, file the server half on the Astrid Web board now (see "When the fix
+     turns out to need the server") rather than discovering it three steps later.
    - Post a short strategy comment to the task before writing code.
    - Create a feature branch (`fix/<short-description>`).
    - **RED-GREEN TDD (mandatory for bug fixes):**
