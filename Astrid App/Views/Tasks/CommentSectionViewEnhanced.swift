@@ -132,21 +132,17 @@ struct CommentSectionViewEnhanced: View {
         comments.filter { $0.authorId == nil }
     }
 
+    // Both of these ask the shared rule (946c41c6) so the count under the header cannot disagree
+    // with the list above it, and so the offline caveat lives in one place: cached comments can
+    // come back without an authorId, and hiding them offline would hide the user's own words.
     private var displayedComments: [Comment] {
-        // When offline, show all comments regardless of authorId
-        // (cached comments may not have authorId populated due to caching bug)
-        if !networkMonitor.isConnected {
-            return comments
-        }
-        return showSystemComments ? comments : userComments
+        CommentVisibility.displayed(comments, showSystem: showSystemComments,
+                                    isOffline: !networkMonitor.isConnected)
     }
 
     private var displayedCommentCount: Int {
-        // When offline, show all comments
-        if !networkMonitor.isConnected {
-            return comments.count
-        }
-        return showSystemComments ? comments.count : userComments.count
+        CommentVisibility.count(comments, showSystem: showSystemComments,
+                                isOffline: !networkMonitor.isConnected)
     }
 
     private var allTaskFiles: [SecureFile] {
@@ -1343,10 +1339,7 @@ struct CommentRowViewEnhanced: View {
 
     // Check if this is a system comment (no authorId)
     private var isSystemComment: Bool {
-        if isOffline {
-            return false
-        }
-        return comment.authorId == nil
+        CommentVisibility.isSystem(authorId: comment.authorId, isOffline: isOffline)
     }
 
     // Check if comment has text content (not just attachments)
