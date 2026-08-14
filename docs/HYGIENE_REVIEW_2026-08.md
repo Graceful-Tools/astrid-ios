@@ -60,20 +60,39 @@ HTTP responses. Worth stating plainly so nobody "fixes" them.
 so this is known — but nothing records which of the two a new endpoint belongs in,
 and the answer is currently "whichever the neighbouring code used".
 
-### 2. The session cookie is persisted by only one of them
+### 2. The session cookie is persisted by only one of them — and nothing ever renews it
 
-`APIClient` re-reads `Set-Cookie` on every response and writes it back to the
-Keychain. `AstridAPIClient` reads the stored cookie in three places and never
-writes one. So a session cookie rotated by the server on a v1 response is not
-persisted; the app keeps sending the previous one until a legacy-client call or a
-re-login happens to refresh it.
+**Checked against astrid-web on 2026-08-14, and the answer changed the finding.**
+
+The asymmetry is real: `APIClient` re-reads `Set-Cookie` on every response and
+writes it back to the Keychain, while `AstridAPIClient` reads the stored cookie in
+three places and never writes one.
+
+But it is **moot as stated**, because no v1 route emits `Set-Cookie` at all. There
+is nothing to save. What the check turned up instead is worse:
+
+- The web app uses NextAuth with `strategy: "jwt"` and `maxAge: 30 days`
+  (`lib/auth-config.ts`). With no explicit `updateAge`, NextAuth's default is 24h,
+  so **web** users get a re-issued token roughly daily while active and never see
+  an expiry.
+- iOS never calls NextAuth's `/api/auth/session`. Its only session endpoint is
+  `/api/v1/auth/mobile-session`, which **validates and never renews** — it decodes
+  the JWT, and on `exp < now` returns 401.
+- `AuthManager` calls that endpoint and, on 401, signs the user out
+  (`AuthManager.swift:173`).
+
+So an iOS session expires absolutely, 30 days after sign-in, no matter how
+actively the app is used — and the user is signed out. Web users in the same
+position stay signed in. The database-session path (Apple/Google sign-in) has the
+same shape: the route reads `session.expires` directly and never extends it.
+
+Fixing this spans both repos — the renewal has to come from the server — so it is
+filed separately rather than patched on the client.
 
 ```bash
-grep -rn "saveSessionCookie" --include="*.swift" "Astrid App" "Astrid Mac"
+grep -n "strategy\|maxAge" ../astrid-web/lib/auth-config.ts
+grep -n "Set-Cookie" ../astrid-web/app/api/v1/auth/mobile-session/route.ts   # none
 ```
-
-Whether this bites depends on whether the server rotates sessions — that is the
-first thing to check, not something to fix blind.
 
 ### 3. Six files over 1,000 lines
 
