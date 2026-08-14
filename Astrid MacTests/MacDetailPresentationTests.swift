@@ -81,17 +81,30 @@ final class MacDetailPresentationTests: XCTestCase {
 
     /// The board card gets the affordance the detail panel already has — same icon, same tooltip.
     /// Two independent inventions of "expand this" is how they drift apart.
-    func testBoardCardOffersTheFullScreenControl() throws {
+    ///
+    /// It lives in the card HEADER, under the caret (task 7017c3c1). It was first put in the
+    /// editor's bottom row, which is the wrong end: the thing that closes the card is the caret at
+    /// the top, so the thing that expands it belongs next to it — close or expand, one place, not
+    /// one at each end of a card whose height changes with its content.
+    func testTheBoardCardOffersTheFullScreenControlUnderTheCaret() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
-        let card = try String(contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardCardEditor.swift"),
-                              encoding: .utf8)
-        XCTAssertTrue(card.contains("MacDetailPresentation.fullScreenSymbol"),
+        let board = try String(contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardView.swift"),
+                               encoding: .utf8)
+        XCTAssertTrue(board.contains("MacDetailPresentation.fullScreenSymbol"),
                       "the board card must use the SHARED glyph, not its own")
-        XCTAssertTrue(card.contains("MacDetailPresentation.fullScreenTooltipKey"),
+        XCTAssertTrue(board.contains("MacDetailPresentation.fullScreenTooltipKey"),
                       "…and the shared tooltip, rather than repeating the key literal")
-        XCTAssertTrue(card.contains("detailFullScreen = true"),
+        XCTAssertTrue(board.contains("detailFullScreen = true"),
                       "the control has to actually turn full screen on, not just open the panel")
+
+        let editor = try String(
+            contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardCardEditor.swift"),
+            encoding: .utf8)
+        XCTAssertFalse(editor.contains("MacDetailPresentation.fullScreenSymbol"),
+                       "it must MOVE to the header, not exist at both ends of the card")
+        XCTAssertFalse(editor.contains("mac.open_full_detail"),
+                       "the bottom 'Open full detail…' link goes with it")
     }
 
     /// The icon pair is the one already in use for full screen, and it changes with the state.
