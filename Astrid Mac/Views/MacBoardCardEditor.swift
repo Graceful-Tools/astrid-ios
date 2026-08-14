@@ -25,6 +25,8 @@ struct MacBoardCardEditor: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Shared with the detail panel's own toggle, so "full screen" means one thing app-wide.
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @State private var notes = ""
     @State private var profileTarget: MacProfileTarget?   // author name → profile (0994eabb)
     @State private var priority: Task.Priority = .none
@@ -90,7 +92,22 @@ struct MacBoardCardEditor: View {
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
-        HStack { Button(NSLocalizedString("mac.open_full_detail", comment: ""), action: onOpenPanel).buttonStyle(.link).font(.caption)
+        HStack {
+            Button(NSLocalizedString("mac.open_full_detail", comment: ""), action: onOpenPanel)
+                .buttonStyle(.link).font(.caption)
+            // Expand the card's details to full screen (9a98f996) — the SAME glyph and tooltip the
+            // detail panel's header uses, from the shared rule, so the two cannot drift into two
+            // different-looking versions of one idea.
+            Button {
+                withAnimation(MacMotion.fast) { detailFullScreen = true }
+                onOpenPanel()
+            } label: {
+                Image(systemName: MacDetailPresentation.fullScreenSymbol(isFullScreen: false))
+            }
+            .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
+            .help(NSLocalizedString(MacDetailPresentation.fullScreenTooltipKey(isFullScreen: false),
+                                    comment: ""))
+            .accessibilityIdentifier("boardCard.fullScreen")
             Spacer(); Button(NSLocalizedString("actions.done", comment: ""), action: onDone).controlSize(.small) }
     }
 
