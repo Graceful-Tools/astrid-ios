@@ -98,6 +98,7 @@ class AuthManager: ObservableObject {
 
                 // Validate session with backend
                 let response: SessionResponse = try await apiClient.request(.session)
+                persistRenewedSession(response)
                 self.currentUser = response.user
 
                 PrivacyLogger.debug("AuthManager", "session_validation=success")
@@ -147,6 +148,7 @@ class AuthManager: ObservableObject {
 
             // Validate session with backend
             let response: SessionResponse = try await apiClient.request(.session)
+            persistRenewedSession(response)
 
             await MainActor.run {
                 self.currentUser = response.user
@@ -481,6 +483,26 @@ class AuthManager: ObservableObject {
     }
 
     // MARK: - Sign Out
+
+    /// Store a token the server just renewed (Task b8999ea3).
+    ///
+    /// It arrives as a bare JWT in the body, while the Keychain holds a whole Cookie header, so the
+    /// value is folded INTO the stored header rather than replacing it — writing the raw token
+    /// would send a nameless cookie and sign the user out on the very launch meant to keep them in.
+    ///
+    /// A missing token is the normal case: renewal only fires once a session is over 24 hours old.
+    private func persistRenewedSession(_ response: SessionResponse) {
+        guard let token = response.sessionToken else { return }
+        let stored = try? keychainService.getSessionCookie()
+        do {
+            try keychainService.saveSessionCookie(SessionCookie.replacingToken(in: stored, with: token))
+            PrivacyLogger.debug("AuthManager", "session_renewed=stored")
+        } catch {
+            // Not fatal: the existing cookie is still valid until its own expiry, so the user keeps
+            // working and the next launch simply tries again.
+            PrivacyLogger.debug("AuthManager", "session_renewed=save_failed")
+        }
+    }
 
     func signOut() async throws {
         let departingUserId = currentUser?.id
