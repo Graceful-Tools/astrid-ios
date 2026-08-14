@@ -337,6 +337,13 @@ struct CommentsResponse: Codable {
 
 struct SessionResponse: Codable {
     var user: User
+    /// A freshly-issued session token, present ONLY when the server renewed one (Task b8999ea3).
+    /// Absent — not null — the rest of the time, since renewal only fires once a session is over
+    /// 24 hours old. Its absence is the normal case and never an error.
+    var sessionToken: String?
+    /// When the session now expires. The database-session path returns this WITHOUT a token,
+    /// because there the cookie value does not change and there is nothing to store.
+    var expiresAt: String?
 }
 
 struct ErrorResponse: Codable {
