@@ -68,3 +68,58 @@ Sync triggers: app foreground, SSE nudge, Outbox mutation nudge, pull-to-refresh
 ## Completion metadata
 
 Tasks carry `completedAt` (real completion time — backdatable by sync to the provider's timestamp) and `completedSource` (`astrid|google|github|apple`). The recently-completed window prefers `completedAt` over `updatedAt`, so imported history ages correctly.
+
+## Caching: what fills each cache, and what clears it
+
+Written for task 266f816e. The caches are deliberate — the brief asks for caching
+on the clients and explicitly does not want performance compromised. What was
+missing is the *invalidation* rules, which are the part that rots silently: a
+wrong one is invisible until a user sees stale data.
+
+### `TaskService.cachedTasks` / `.tasks`
+
+| | |
+|---|---|
+| what it is | `[String: Task]` by id, plus the published array the UI binds to |
+| filled by | the initial Core Data load, every fetch, and every optimistic write |
+| cleared by | **only** `clearCache()` — sign-out (`AuthManager`) and a failed sync validation (`SyncManager`) |
+| NOT cleared by | switching lists, backgrounding, or a normal sync pass |
+
+A sync pass *replaces* entries rather than clearing the dictionary, so a task the
+server no longer returns stays in memory until a full clear. That is intentional
+for offline (a task created offline must survive a pass that cannot see it yet),
+and it is the same shape that let lists deleted on web reappear until
+`SyncOrphanPrune` was added — the equivalent prune for tasks does not exist.
+
+### `ListService.cachedLists` / `.lists`
+
+Same shape and the same two clear points. `SyncOrphanPrune` handles the
+server-deleted case for lists specifically: a cached list that the server no
+longer returns is dropped, but only when it is `synced` or `pending_delete` and
+not a `temp_` local id, so an offline-created list is never pruned before it
+syncs.
+
+### `ImageCache` (memory + disk)
+
+| | |
+|---|---|
+| memory | `NSCache`, 100 images / 50 MB, keyed by absolute URL |
+| disk | `~/Library/Caches/ListImageCache`, filename = the URL with `/` and `:` replaced |
+| cleared by | `clearCache()` on sign-out; `clearSecureFilesCache()` after a list-image change in `ListAdminTab` |
+
+Two things to know:
+
+- The cache is keyed by URL, so a *new* image at a *new* URL is never stale. The
+  failure mode is the opposite one: the same URL with different bytes, which is
+  why `clearSecureFilesCache()` exists for uploads.
+- `clearMemoryCache()` documents itself as "call this when app becomes active to
+  refresh images from server" and **is never called** from anywhere. Either the
+  foreground refresh it describes should be wired up, or the method should go —
+  right now it reads as a behaviour the app has and does not.
+
+### `ProfileCache`, `UserImageCache`
+
+Sign-out only. Both are read-through with no invalidation of individual entries,
+so a user who changes their avatar is reflected only after the URL changes or the
+app is reinstalled — acceptable because the avatar URL is content-addressed, but
+worth knowing before assuming a stale avatar is a rendering bug.
