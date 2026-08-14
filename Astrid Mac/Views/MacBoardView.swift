@@ -16,6 +16,9 @@ struct MacBoardView: View {
     @State private var draftByColumn: [String: String] = [:]
     @State private var boardBusy = false
     @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
+    /// Shared with the detail panel and its header toggle, so "full screen" means one
+    /// thing app-wide (7017c3c1).
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @State private var hoveredCardId: String?    // Mac hover affordance (77225941)
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
@@ -164,23 +167,45 @@ struct MacBoardView: View {
                         Text(due, style: .date).font(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
-                Spacer(minLength: 0)
-                Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .font(.caption2).foregroundStyle(Theme.textMuted)
-            }
-            // Click the card body → expand INLINE to edit (like Astrid Web), not open the panel.
-            // Springs open/closed instead of jumping (4c7b9f08).
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(MacMotion.spring) {
-                    expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Click the card body → expand INLINE to edit (like Astrid Web), not open the
+                // panel. Springs open/closed instead of jumping (4c7b9f08). The gesture is on the
+                // TITLE area rather than the whole header now, so the expand button beside the
+                // caret is not swallowed by it.
+                .contentShape(Rectangle())
+                .onTapGesture { toggleExpanded(t) }
+
+                // Close or expand, in one place (7017c3c1). The caret collapses the card, and
+                // directly beneath it — only while open, which is when it means anything — the
+                // full-screen control. These were at opposite ends of a card whose height changes
+                // with its content, so the way out and the way further in were nowhere near
+                // each other.
+                VStack(alignment: .trailing, spacing: 6) {
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.caption2).foregroundStyle(Theme.textMuted)
+                        .contentShape(Rectangle())
+                        .onTapGesture { toggleExpanded(t) }
+                    if expanded {
+                        Button {
+                            withAnimation(MacMotion.fast) { detailFullScreen = true }
+                            MacAppModel.shared.openTask(listId: listId, taskId: t.id)
+                        } label: {
+                            Image(systemName: MacDetailPresentation.fullScreenSymbol(isFullScreen: false))
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.textMuted)
+                        .macPointingHand()
+                        .help(NSLocalizedString(
+                            MacDetailPresentation.fullScreenTooltipKey(isFullScreen: false), comment: ""))
+                        .accessibilityIdentifier("boardCard.fullScreen")
+                    }
                 }
             }
 
             if expanded {
                 Divider()
                 MacBoardCardEditor(task: t,
-                                   onOpenPanel: { MacAppModel.shared.openTask(listId: listId, taskId: t.id) },
                                    onDone: { withAnimation(MacMotion.spring) { expandedCardId = nil } })
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -218,6 +243,14 @@ struct MacBoardView: View {
                 _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
                 _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
             }
+        }
+    }
+
+    /// Open or close the card. Both the title area and the caret call this, so tapping either does
+    /// the same thing — the caret is the visible affordance, the title is the large target.
+    private func toggleExpanded(_ t: Task) {
+        withAnimation(MacMotion.spring) {
+            expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id)
         }
     }
 

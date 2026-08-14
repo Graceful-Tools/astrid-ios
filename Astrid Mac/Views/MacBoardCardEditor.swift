@@ -20,13 +20,10 @@ enum MacBoardExpand {
 
 struct MacBoardCardEditor: View {
     let task: Task
-    let onOpenPanel: () -> Void
     let onDone: () -> Void
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Shared with the detail panel's own toggle, so "full screen" means one thing app-wide.
-    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @State private var notes = ""
     @State private var profileTarget: MacProfileTarget?   // author name → profile (0994eabb)
     @State private var priority: Task.Priority = .none
@@ -92,22 +89,11 @@ struct MacBoardCardEditor: View {
                 Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Expanding to full screen and closing the card BOTH live in the header now, beside the
+        // caret (7017c3c1). They were at opposite ends of a card whose height changes with its
+        // content, so the way out and the way further in were nowhere near each other. Done stays
+        // as the explicit close for anyone who has scrolled to the bottom of a long card.
         HStack {
-            Button(NSLocalizedString("mac.open_full_detail", comment: ""), action: onOpenPanel)
-                .buttonStyle(.link).font(.caption)
-            // Expand the card's details to full screen (9a98f996) — the SAME glyph and tooltip the
-            // detail panel's header uses, from the shared rule, so the two cannot drift into two
-            // different-looking versions of one idea.
-            Button {
-                withAnimation(MacMotion.fast) { detailFullScreen = true }
-                onOpenPanel()
-            } label: {
-                Image(systemName: MacDetailPresentation.fullScreenSymbol(isFullScreen: false))
-            }
-            .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
-            .help(NSLocalizedString(MacDetailPresentation.fullScreenTooltipKey(isFullScreen: false),
-                                    comment: ""))
-            .accessibilityIdentifier("boardCard.fullScreen")
             Spacer(); Button(NSLocalizedString("actions.done", comment: ""), action: onDone).controlSize(.small) }
     }
 
