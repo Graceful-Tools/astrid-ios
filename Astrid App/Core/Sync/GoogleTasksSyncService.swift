@@ -441,13 +441,19 @@ final class GoogleTasksSyncService: ObservableObject {
             pulled.items,
             id: { $0.remoteId },
             parentId: { item in
-                (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(link.remoteContainerId):\($0)" }
+                GoogleTasksPull.parentKey(containerId: link.remoteContainerId,
+                                          rawParent: item.metadata?["parent"])
             })
         for item in orderedItems {
-            if item.metadata?["deleted"] == "1" {
-                // Explicitly deleted in Google → delete the linked local twin.
-                if let existing = byRemoteId[item.remoteId],
-                   (taskService.tasksById[existing.astridTaskId] != nil) {
+            // What this item MEANS is the shared, tested decision (ba4c9c84); acting on it is here.
+            let existing = byRemoteId[item.remoteId]
+            switch GoogleTasksPull.outcome(
+                isRemoteDeleted: item.metadata?["deleted"] == "1",
+                hasLink: existing != nil,
+                hasLocalTask: existing.map { taskService.tasksById[$0.astridTaskId] != nil } ?? false,
+                isTombstoned: deletionLedger.tombstonedRemoteIds.contains(item.remoteId)) {
+            case .deleteLocalTwin:
+                if let existing {
                     deletionLedger.recordTombstone(item.remoteId)  // no echo back
                     do {
                         try await taskService.deleteTask(id: existing.astridTaskId)
@@ -456,9 +462,10 @@ final class GoogleTasksSyncService: ObservableObject {
                     }
                 }
                 continue
-            }
-            if deletionLedger.tombstonedRemoteIds.contains(item.remoteId), byRemoteId[item.remoteId] == nil {
-                continue  // never re-import a twin we deleted for a local deletion
+            case .ignoreDeletion, .skipResurrection:
+                continue
+            case .apply:
+                break
             }
             let remoteUpdated = RFC3339.parse(item.remoteUpdatedAt)
             let dueDate = RFC3339.parse(item.dueDate)
@@ -895,19 +902,28 @@ final class GoogleTasksSyncService: ObservableObject {
                 pulled.items,
                 id: { $0.remoteId },
                 parentId: { item in
-                    (item.metadata?["parent"]).flatMap { $0.isEmpty ? nil : "\(tasklistId):\($0)" }
+                    GoogleTasksPull.parentKey(containerId: tasklistId,
+                                              rawParent: item.metadata?["parent"])
                 })
             for item in orderedItems {
-                if item.metadata?["deleted"] == "1" {
-                    if let existing = byRemoteId[item.remoteId],
-                       (taskService.tasksById[existing.astridTaskId] != nil) {
+                // The SAME decision the linked-list pull uses (ba4c9c84). These two loops had
+                // independent copies of it, which is two chances to lose someone's deletion.
+                let existingLink = byRemoteId[item.remoteId]
+                switch GoogleTasksPull.outcome(
+                    isRemoteDeleted: item.metadata?["deleted"] == "1",
+                    hasLink: existingLink != nil,
+                    hasLocalTask: existingLink.map { taskService.tasksById[$0.astridTaskId] != nil } ?? false,
+                    isTombstoned: deletionLedger.tombstonedRemoteIds.contains(item.remoteId)) {
+                case .deleteLocalTwin:
+                    if let existingLink {
                         deletionLedger.recordTombstone(item.remoteId)
-                        try? await taskService.deleteTask(id: existing.astridTaskId)
+                        try? await taskService.deleteTask(id: existingLink.astridTaskId)
                     }
                     continue
-                }
-                if deletionLedger.tombstonedRemoteIds.contains(item.remoteId), byRemoteId[item.remoteId] == nil {
+                case .ignoreDeletion, .skipResurrection:
                     continue
+                case .apply:
+                    break
                 }
                 let remoteUpdated = RFC3339.parse(item.remoteUpdatedAt)
                 let dueDate = RFC3339.parse(item.dueDate)
