@@ -1347,7 +1347,18 @@ struct ReminderSettingsUpdate: Codable {
 
 struct ListMembersResponse: Codable {
     let members: [ListMemberData]
+    /// The caller's relationship to this list (Task 4a338b53). "viewer" means a non-member looking
+    /// at a PUBLIC list: `members` comes back EMPTY rather than 403, because the payload carries
+    /// email addresses. Without this an empty array is ambiguous — see `ListMemberVisibility`.
+    /// Optional because older servers and other routes do not send it.
+    let userRole: String?
     let meta: MetaInfo
+
+    enum CodingKeys: String, CodingKey {
+        case members
+        case userRole = "user_role"
+        case meta
+    }
 }
 
 struct ListMemberData: Codable {
