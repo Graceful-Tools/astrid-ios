@@ -395,6 +395,13 @@ struct MacRootView: View {
         return taskService.getTasksForList(id)
     }
 
+    /// Which detail the content area is showing right now — see `MacDetailPresentation`.
+    private var detailStyle: MacDetailPresentation.Style {
+        MacDetailPresentation.style(mode: contentMode,
+                                    selectionCount: selectedTaskIds.count,
+                                    fullScreen: detailFullScreen)
+    }
+
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
     private var selectionIsVirtual: Bool {
         selectedListId == Self.myTasksId || selectedListId == Self.searchId
@@ -1211,16 +1218,16 @@ struct MacRootView: View {
                     MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
                 }
             }
-            // The detail pop-out floats at the trailing edge of the content area, which in
-            // 3-column mode IS the chat column — the panel covers chat, never the task rows, and
-            // the rows keep their width (task 89e42f29 follow-up). Board shows details inline.
-            .overlay(alignment: detailFullScreen ? .center : .trailing) {
-                if contentMode != .board, selectedTaskIds.count == 1,
-                   let id = selectedTaskIds.first,
+            // WHICH detail shows is the shared rule's call (9a98f996), not a condition here — the
+            // pop-out floats at the trailing edge and stays suppressed on a board, but full screen
+            // fills the content area and is allowed there. The old buried condition suppressed
+            // BOTH, which quietly made the board card's "Open full detail…" link do nothing.
+            .overlay(alignment: MacDetailPresentation.alignment(for: detailStyle)) {
+                if detailStyle != .none, let id = selectedTaskIds.first,
                    // O(1) only: `tasksForSelection` here would re-run the entire filter→sort→
                    // splice pipeline on every body evaluation (the cost 4e0ce183 removed).
                    let task = taskService.tasksById[id] {
-                    if detailFullScreen {
+                    if detailStyle == .fullScreen {
                         // Full screen (42013da7): the panel fills the content area so the
                         // description gets the whole window. No arrow — there is no row beside it
                         // to point at, and the fold-out transition would be pointing at nothing.
