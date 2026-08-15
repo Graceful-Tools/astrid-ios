@@ -805,6 +805,15 @@ struct TaskListView: View {
         }
     }
 
+    /// How far this row's card is pushed in by its nesting depth. Capped at four levels —
+    /// deeper tasks still render, they just stop stepping further right.
+    ///
+    /// One definition, used by both the padding that draws it and the drop zone that has to
+    /// cover it. Two copies would drift, and the drift would be a dead strip beside the row.
+    private func rowIndent(for task: Task) -> CGFloat {
+        CGFloat(min(subtaskDepth(task), 4)) * 16
+    }
+
     // MARK: - Re-nesting by drag
 
     /// Resolve a drop through the SHARED rules and write only what actually changes. Every
@@ -848,11 +857,17 @@ struct TaskListView: View {
                     compactMode: UIDevice.current.userInterfaceIdiom == .pad,  // Always truncate on iPad
                     hiddenListIds: rowHiddenListIds
                 )
+                // The nesting indent is PADDING INSIDE the row, not a row inset (task 4eb92ce1).
+                // It looks identical — the card still starts at the indent — but the row view
+                // now spans the full width, so the drop target below covers the empty gutter
+                // the indent creates. As a `listRowInsets` leading value it did not, and that
+                // gutter is exactly where you drag a subtask to pull it out of its parent.
+                .padding(.leading, rowIndent(for: task))
                 .listRowBackground(getPrimaryBackground())
                 .listRowSeparator(.hidden)  // Hide separator for card effect
                 .listRowInsets(EdgeInsets(
                     top: index == 0 ? 8 : 4,  // First task has 2x top margin
-                    leading: 8 + CGFloat(min(subtaskDepth(task), 4)) * 16,  // Per-level indent, capped at 4 levels (deeper still shows)
+                    leading: 8,
                     bottom: 4,
                     trailing: 8  // Horizontal margin
                 ))
@@ -870,6 +885,7 @@ struct TaskListView: View {
                 // Re-nesting by drag. Extracted into one modifier because inlining it here
                 // pushed the row body past what the type-checker will solve.
                 .modifier(TaskRowNestingDrop(task: task,
+                                             indent: rowIndent(for: task),
                                              targetedRowId: $dropTargetRowId,
                                              onDrop: applyNesting))
             }
@@ -1602,6 +1618,8 @@ struct TaskListView: View {
 /// The drag is long-press-initiated, so it never competes with the swipe that deletes.
 struct TaskRowNestingDrop: ViewModifier {
     let task: Task
+    /// The row's nesting indent, so the gutter it creates counts as "pull it out" (4eb92ce1).
+    let indent: CGFloat
     @Binding var targetedRowId: String?
     let onDrop: (DragNestingZone, String) -> Bool
 
@@ -1613,6 +1631,7 @@ struct TaskRowNestingDrop: ViewModifier {
                     guard let droppedId = ids.first else { return false }
                     return onDrop(DragNesting.zone(forDropAt: location,
                                                    rowSize: geo.size,
+                                                   indent: indent,
                                                    rowId: task.id),
                                   droppedId)
                 } isTargeted: { hovering in
