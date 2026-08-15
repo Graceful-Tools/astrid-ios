@@ -140,10 +140,19 @@ enum DragNesting {
         min(12, rowHeight * 0.3)
     }
 
-    /// How wide the leading "pull it out" band is. Generous enough to hit while dragging,
-    /// nowhere near wide enough to make nesting hard.
-    static func outdentBandWidth(rowWidth: CGFloat) -> CGFloat {
-        min(56, rowWidth * 0.2)
+    /// How wide the leading "pull it out" band is, for a row indented by `indent`.
+    ///
+    /// It must cover the INDENT GUTTER (task 4eb92ce1). A subtask's gutter is the empty space
+    /// its indent creates, and it is the obvious place to drag to — it is the space that
+    /// visually means "out of the parent". Measuring the band only from the row's own leading
+    /// edge left that gutter meaning nothing, so the gesture everyone tries first was the one
+    /// guaranteed to fail.
+    ///
+    /// `indent` also has to be a floor rather than a cap: four levels in is 72pt, wider than
+    /// the flat band ever was, so a fixed width would leave part of a deep row's gutter still
+    /// reading as "nest under this row" — the exact opposite of the intent.
+    static func outdentBandWidth(rowWidth: CGFloat, indent: CGFloat = 0) -> CGFloat {
+        max(min(56, rowWidth * 0.2), indent)
     }
 
     /// Which of the three zones a drop landed in.
@@ -155,9 +164,13 @@ enum DragNesting {
     ///
     /// The line is checked FIRST: a drop in the top-left corner is between rows, which is the
     /// more specific statement of intent than "somewhere near the left".
-    static func zone(forDropAt point: CGPoint, rowSize: CGSize, rowId: String) -> DragNestingZone {
+    /// `indent` is how far this row's content is pushed in by its nesting depth. It widens the
+    /// outdent band so the gutter that indent creates is part of the target — see
+    /// `outdentBandWidth`. Pass 0 for a row that is not indented.
+    static func zone(forDropAt point: CGPoint, rowSize: CGSize,
+                     indent: CGFloat = 0, rowId: String) -> DragNestingZone {
         if point.y <= lineBandHeight(rowHeight: rowSize.height) { return .betweenRows(above: rowId) }
-        if point.x <= outdentBandWidth(rowWidth: rowSize.width) { return .outdent }
+        if point.x <= outdentBandWidth(rowWidth: rowSize.width, indent: indent) { return .outdent }
         return .onRow(rowId)
     }
 
