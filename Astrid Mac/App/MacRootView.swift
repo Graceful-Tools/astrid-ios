@@ -143,6 +143,12 @@ struct MacRootView: View {
     @State private var sharingList: TaskList?
     @State private var listToDelete: TaskList?
     @State private var showPublicLists = false
+    /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
+    /// they change rarely and this is a browse affordance, not live data.
+    @State private var publicLists: [TaskList] = []
+    /// Tasks of a PUBLIC list you are only viewing (dfb037c7). They are not in the local store —
+    /// that holds YOUR tasks — so selecting one fetches its tasks from the server on demand.
+    @State private var publicListTasks: [String: [Task]] = [:]
     @State private var showFilterSheet = false
 
     /// The currently-selected real (non-virtual) list — drives the filter editor + Save-as-Smart-List.
@@ -392,7 +398,11 @@ struct MacRootView: View {
         if listService.lists.first(where: { $0.id == id })?.isVirtual == true {
             return taskService.tasks
         }
-        return taskService.getTasksForList(id)
+        // A public list you do not belong to has no tasks in the local store, which holds only
+        // yours — so its rows come from the on-demand fetch instead of showing empty (dfb037c7).
+        let mine = taskService.getTasksForList(id)
+        if mine.isEmpty, let fetched = publicListTasks[id] { return fetched }
+        return mine
     }
 
     /// Which detail the content area is showing right now — see `MacDetailPresentation`.
@@ -1127,6 +1137,46 @@ struct MacRootView: View {
         }
     }
 
+    /// Public lists for the sidebar sections below your own (dfb037c7). Failure is silent and
+    /// leaves the sections absent: this is a browse affordance, and an error banner for "we could
+    /// not offer you other people's lists" would be noise on every offline launch.
+    private func loadPublicLists() async {
+        guard let response = try? await AstridAPIClient.shared.getPublicLists(limit: 10, sortBy: "popular")
+        else { return }
+        publicLists = response.lists.map { data in
+            var l = TaskList(id: data.id, name: data.name, privacy: .PUBLIC)
+            l.color = data.color
+            l.imageUrl = data.imageUrl
+            l.publicListType = data.publicListType
+            l.ownerId = data.owner.id
+            return l
+        }
+    }
+
+    /// A public list's tasks are not in the local store, so fetch them when one is opened. Cached
+    /// per list for the session — browsing back and forth should not re-hit the network.
+    private func loadPublicListTasksIfNeeded(_ id: String) async {
+        guard publicLists.contains(where: { $0.id == id }), publicListTasks[id] == nil else { return }
+        guard let tasks = try? await taskService.fetchTasksForListFromServer(id) else { return }
+        publicListTasks[id] = tasks
+    }
+
+    /// One public-list section: capped rows, then a "see all" into the browser when the cap hides
+    /// something. Absent entirely when there is nothing to show — an empty section header is noise.
+    @ViewBuilder private func publicSection(_ title: String, seeAllKey: String,
+                                            lists: [TaskList]) -> some View {
+        if !lists.isEmpty {
+            Section(title) {
+                ForEach(PublicListSections.sidebarRows(lists)) { listRow($0) }
+                if PublicListSections.hasMore(lists) {
+                    Button(NSLocalizedString(seeAllKey, comment: "")) { showPublicLists = true }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+        }
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedListId) {
@@ -1169,6 +1219,16 @@ struct MacRootView: View {
                     }
                     ForEach(regularLists) { listRow($0) }
                 }
+                // Public lists sit BELOW your own (dfb037c7), matching iOS and web. Two sections,
+                // because the split decides what is offered: collaborative lists you can
+                // contribute to, copy-only lists you can read and copy. The rule is shared with
+                // iOS rather than re-derived here.
+                publicSection(NSLocalizedString("navigation.public_shared_lists", comment: ""),
+                              seeAllKey: "navigation.see_all_collaborative",
+                              lists: PublicListSections.collaborative(publicLists))
+                publicSection(NSLocalizedString("navigation.public_lists", comment: ""),
+                              seeAllKey: "navigation.see_all_suggested",
+                              lists: PublicListSections.browsable(publicLists))
             }
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
@@ -1328,9 +1388,11 @@ struct MacRootView: View {
                                              currentUserId: auth.userId)
             // Hydrate lists from the shared service (cache-first, offline-safe).
             _ = try? await listService.fetchLists()
+            await loadPublicLists()
         }
         .onChange(of: selectedListId) { _, id in
             selectedTaskIds.removeAll()                        // close the detail panel when switching lists
+            if let id { _Concurrency.Task { await loadPublicListTasksIfNeeded(id) } }
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
             // The global SyncManager already loaded all lists' tasks; just refresh the opened
             // real list for immediacy (My Tasks/virtual needs no per-list fetch).
