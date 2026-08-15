@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers   // `.text` for the drag payload's UTType (task 4eb92ce1)
 
 /// Applies `.refreshable` only when `isEnabled` — `.refreshable`
 /// returns an opaque type, so it can't be toggled with a plain
@@ -52,9 +53,22 @@ struct TaskListView: View {
 
     // MARK: Re-nesting by drag (shared rules live in DragNesting)
 
-    /// Row currently under a drop, for the highlight. Which ZONE of it is live follows the
-    /// pointer position and is resolved by `DragNesting`.
+    /// Three separate drop targets, each with its own hover state, matching the Mac
+    /// (task 4eb92ce1). iOS used to infer which of the three you meant from WHERE in the row
+    /// you let go, which gave one highlight for three different outcomes — you could not see
+    /// whether you were about to nest, promote, or outdent until it had already happened.
+    ///
+    /// Row currently under a drop: "nest under this one".
     @State private var dropTargetRowId: String?
+    /// Row whose top insertion line is lit: "top level, here".
+    @State private var insertionLineAboveId: String?
+    /// Row whose leading band is lit: "out one level".
+    @State private var outdentBandRowId: String?
+    /// What is in flight. The line and the band exist ONLY while something is being dragged —
+    /// they answer a drag, and with no drag there is no question. That is also what keeps them
+    /// from sitting on top of every row swallowing taps, which is the trap iOS was avoiding by
+    /// having no overlays at all.
+    @State private var draggingTaskId: String?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
     /// Which view the user picked from the unified List/Board/Messages
     /// rotator button. Defaults to `.list`; auto-flips to `.board` when
@@ -887,6 +901,9 @@ struct TaskListView: View {
                 .modifier(TaskRowNestingDrop(task: task,
                                              indent: rowIndent(for: task),
                                              targetedRowId: $dropTargetRowId,
+                                             insertionLineAboveId: $insertionLineAboveId,
+                                             outdentBandRowId: $outdentBandRowId,
+                                             draggingTaskId: $draggingTaskId,
                                              onDrop: applyNesting))
             }
             .onDelete(perform: deleteTasks)
@@ -1608,37 +1625,48 @@ struct TaskListView: View {
     TaskListView()
 }
 
-/// Re-nesting a task by dragging it, on iOS.
+/// Re-nesting a task by dragging it, on iOS — the Mac's pattern, ported (task 4eb92ce1).
 ///
-/// Three zones resolved from WHERE in the row the drop landed — the line above (top level),
-/// the leading edge (outdent one level), the body (nest under this row). The row itself is
-/// the only drop target: an overlay view per row would sit on top waiting to swallow taps,
-/// which this list has been bitten by before.
+/// **Three separate drop targets, not one target with three zones.** iOS used to attach a
+/// single `dropDestination` to the row and work out which of the three outcomes you meant
+/// from the drop COORDINATES. Two things were wrong with that:
 ///
-/// The drag is long-press-initiated, so it never competes with the swipe that deletes.
+///  · **You could not see what would happen.** All three zones lit the same border, so
+///    nesting, promoting and outdenting were indistinguishable until after you let go.
+///  · **`.dropDestination` inside a `List` does not reliably receive the event at all.** The
+///    row's own handling swallows the higher-level modifier — the same defect that left the
+///    Mac's checkbox dead (652edb22) and its drag unable to start (83f45d49). `.onDrop` is
+///    the lower-level API that actually gets called, and the Mac has been on it since.
+///
+/// So each outcome is now its own view with its own `.onDrop` and its own highlight, exactly
+/// as `MacRootView` does it: the row body nests, the line above promotes to top level, the
+/// leading band outdents one level.
+///
+/// **The overlays exist only while a drag is in flight.** That was the original objection to
+/// having any — an overlay per row sitting on top waiting to swallow taps, which this list
+/// has been bitten by before. Gating them on `draggingTaskId` answers it: at rest there is
+/// nothing over the row, and the targets appear only once there is a drag to catch.
 struct TaskRowNestingDrop: ViewModifier {
     let task: Task
-    /// The row's nesting indent, so the gutter it creates counts as "pull it out" (4eb92ce1).
+    /// The row's nesting indent, so the band covers the gutter it creates (4eb92ce1).
     let indent: CGFloat
     @Binding var targetedRowId: String?
+    @Binding var insertionLineAboveId: String?
+    @Binding var outdentBandRowId: String?
+    @Binding var draggingTaskId: String?
     let onDrop: (DragNestingZone, String) -> Bool
 
     func body(content: Content) -> some View {
         content
-            .draggable(task.id) { Text(task.title).padding(6) }
-            .background(GeometryReader { geo in
-                Color.clear.dropDestination(for: String.self) { ids, location in
-                    guard let droppedId = ids.first else { return false }
-                    return onDrop(DragNesting.zone(forDropAt: location,
-                                                   rowSize: geo.size,
-                                                   indent: indent,
-                                                   rowId: task.id),
-                                  droppedId)
-                } isTargeted: { hovering in
-                    targetedRowId = hovering ? task.id
-                        : (targetedRowId == task.id ? nil : targetedRowId)
-                }
-            })
+            // `.onDrag`, not `.draggable`: same reason the Mac switched. `.draggable` claims
+            // the first touch as a possible drag and swallows the tap that opens the task.
+            .onDrag {
+                draggingTaskId = task.id
+                return NSItemProvider(object: task.id as NSString)
+            }
+            .onDrop(of: [.text], isTargeted: hover($targetedRowId)) { providers in
+                receive(providers, zone: .onRow(task.id))
+            }
             .overlay {
                 if targetedRowId == task.id {
                     RoundedRectangle(cornerRadius: Theme.radiusMedium)
@@ -1646,15 +1674,79 @@ struct TaskRowNestingDrop: ViewModifier {
                         .allowsHitTesting(false)
                 }
             }
-            .overlay(alignment: .top) {
-                if targetedRowId == task.id {
-                    Rectangle()
-                        .fill(Theme.accent)
-                        .frame(height: 2)
-                        .allowsHitTesting(false)
-                        .accessibilityLabel(NSLocalizedString("subtasks.promote_drop_target", comment: ""))
-                        .accessibilityIdentifier(SubtaskPromotion.dropTargetId)
-                }
+            .overlay(alignment: .top) { if draggingTaskId != nil { insertionLine } }
+            .overlay(alignment: .leading) { if draggingTaskId != nil { outdentBand } }
+    }
+
+    /// "Top level, here." Drawn flush left, at top-level indent, so the affordance shows where
+    /// the task will land rather than only saying so.
+    private var insertionLine: some View {
+        Rectangle()
+            .fill(insertionLineAboveId == task.id ? Theme.accent : Color.clear)
+            .frame(height: 2)
+            // A 2pt line is not something anyone can hit with a finger; the padded band is
+            // the target, and it is more generous here than on the Mac for that reason.
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+            .onDrop(of: [.text], isTargeted: hover($insertionLineAboveId)) { providers in
+                receive(providers, zone: .betweenRows(above: task.id))
             }
+            // The line is the only thing describing this affordance, so it carries the words.
+            .accessibilityLabel(NSLocalizedString("subtasks.promote_drop_target", comment: ""))
+            .accessibilityIdentifier(SubtaskPromotion.dropTargetId)
+    }
+
+    /// "Out one level." Wide enough to cover this row's indent gutter — the empty space the
+    /// indent creates is exactly where a person drags a subtask to pull it out.
+    private var outdentBand: some View {
+        GeometryReader { geo in
+            let lit = outdentBandRowId == task.id
+            RoundedRectangle(cornerRadius: 4)
+                .fill(lit ? Theme.accent.opacity(0.18) : Color.clear)
+                .overlay(alignment: .leading) {
+                    Image(systemName: "arrow.left.to.line")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(lit ? Theme.accent : Color.clear)
+                        .padding(.leading, 6)
+                }
+                .frame(width: DragNesting.outdentBandWidth(rowWidth: geo.size.width, indent: indent))
+                .contentShape(Rectangle())
+                .onDrop(of: [.text], isTargeted: hover($outdentBandRowId)) { providers in
+                    receive(providers, zone: .outdent)
+                }
+                .accessibilityLabel(NSLocalizedString("subtasks.outdent_drop_target", comment: ""))
+        }
+    }
+
+    /// Read the dragged id off the provider and resolve the drop through the shared rules.
+    /// Every target funnels through here so the three cannot disagree about cycles.
+    private func receive(_ providers: [NSItemProvider], zone: DragNestingZone) -> Bool {
+        guard let provider = providers.first else { return false }
+        _ = provider.loadObject(ofClass: NSString.self) { value, _ in
+            guard let droppedId = value as? String else { return }
+            DispatchQueue.main.async {
+                targetedRowId = nil
+                insertionLineAboveId = nil
+                outdentBandRowId = nil
+                draggingTaskId = nil    // the drag ended here; retire the lines
+                _ = onDrop(zone, droppedId)
+            }
+        }
+        return true
+    }
+
+    /// Hover binding for one target, matching the Mac's inline shape.
+    ///
+    /// Clearing is conditional on purpose: as the finger moves from the band to the row body,
+    /// the row lights before the band reports that it left, and an unconditional `nil` on
+    /// leaving would then blank the highlight that had just been set correctly.
+    private func hover(_ lit: Binding<String?>) -> Binding<Bool> {
+        Binding(
+            get: { lit.wrappedValue == task.id },
+            set: { hovering in
+                lit.wrappedValue = hovering ? task.id
+                    : (lit.wrappedValue == task.id ? nil : lit.wrappedValue)
+            }
+        )
     }
 }

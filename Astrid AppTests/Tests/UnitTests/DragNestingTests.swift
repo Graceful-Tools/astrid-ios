@@ -132,37 +132,13 @@ final class DragNestingTests: XCTestCase {
         XCTAssertNil(DragNesting.parentIdToWrite(for: .none))
     }
 
-    // MARK: which zone a drop landed in
+    // MARK: how big each drop target is
 
-    /// Three zones, resolved from WHERE in the row the drop landed. The row is the only drop
-    /// target — no overlay view per row waiting to swallow a tap, which this list has paid
-    /// for before. The drag is long-press-initiated, so none of this competes with the
-    /// swipe that deletes.
+    /// The three zones are no longer inferred from a drop's coordinates — each outcome is its
+    /// own drop target on both platforms, so which one you hit IS which one you meant. What is
+    /// still a shared rule, and still worth pinning, is how big those targets are: too small
+    /// and the affordance is unusable, too big and it eats the row.
     private let rowSize = CGSize(width: 320, height: 60)
-
-    func testADropNearTheTopOfARowIsTheLineAboveIt() {
-        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 160, y: 2), rowSize: rowSize, rowId: "c"),
-                       .betweenRows(above: "c"))
-    }
-
-    func testADropInTheBodyOfARowNestsUnderIt() {
-        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 160, y: 30), rowSize: rowSize, rowId: "c"),
-                       .onRow("c"))
-    }
-
-    /// Pulled left and dropped: outdent. This is the "move it sideways out of its parent"
-    /// gesture, expressed as a drop position rather than a competing drag gesture.
-    func testADropAtTheFarLeftIsAnOutdent() {
-        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 4, y: 30), rowSize: rowSize, rowId: "c"),
-                       .outdent)
-    }
-
-    /// The line wins over the outdent band where they overlap: a drop in the top-left corner
-    /// is between rows, which is the more specific statement of intent.
-    func testTheLineWinsInTheTopLeftCorner() {
-        XCTAssertEqual(DragNesting.zone(forDropAt: CGPoint(x: 4, y: 2), rowSize: rowSize, rowId: "c"),
-                       .betweenRows(above: "c"))
-    }
 
     /// The bands must not eat the row. Most of it still has to mean "nest under this".
     func testTheBandsLeaveTheRowAsTheBiggestTarget() {

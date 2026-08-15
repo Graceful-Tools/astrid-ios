@@ -1215,3 +1215,5 @@
 /* Task 4a338b53 — an empty roster is ambiguous: a viewer of a PUBLIC list gets no members. */
 "lists.no_members_yet" = "Noch keine Mitglieder";
 "lists.members_hidden_from_viewer" = "Nur Mitglieder sehen, wer in dieser Liste ist";
+
+"subtasks.outdent_drop_target" = "Hier ablegen, um eine Ebene nach außen zu verschieben";

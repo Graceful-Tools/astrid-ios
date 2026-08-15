@@ -1215,3 +1215,5 @@
 /* Task 4a338b53 — an empty roster is ambiguous: a viewer of a PUBLIC list gets no members. */
 "lists.no_members_yet" = "メンバーはまだいません";
 "lists.members_hidden_from_viewer" = "このリストのメンバーを見られるのはメンバーだけです";
+
+"subtasks.outdent_drop_target" = "ここにドロップして1階層上に移動";

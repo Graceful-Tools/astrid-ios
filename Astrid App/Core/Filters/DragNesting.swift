@@ -155,24 +155,16 @@ enum DragNesting {
         max(min(56, rowWidth * 0.2), indent)
     }
 
-    /// Which of the three zones a drop landed in.
-    ///
-    /// Deriving zones from the drop LOCATION means the row itself is the only drop target —
-    /// no overlay view sitting on top of every row waiting to swallow a tap, a mistake this
-    /// codebase has already paid for more than once. The drag is long-press-initiated, so
-    /// none of this competes with the swipe that deletes.
-    ///
-    /// The line is checked FIRST: a drop in the top-left corner is between rows, which is the
-    /// more specific statement of intent than "somewhere near the left".
-    /// `indent` is how far this row's content is pushed in by its nesting depth. It widens the
-    /// outdent band so the gutter that indent creates is part of the target — see
-    /// `outdentBandWidth`. Pass 0 for a row that is not indented.
-    static func zone(forDropAt point: CGPoint, rowSize: CGSize,
-                     indent: CGFloat = 0, rowId: String) -> DragNestingZone {
-        if point.y <= lineBandHeight(rowHeight: rowSize.height) { return .betweenRows(above: rowId) }
-        if point.x <= outdentBandWidth(rowWidth: rowSize.width, indent: indent) { return .outdent }
-        return .onRow(rowId)
-    }
+    // A `zone(forDropAt:rowSize:rowId:)` used to live here, inferring which of the three a drop
+    // meant from its COORDINATES inside one row-wide target. Both platforms now give each
+    // outcome its OWN drop target, so the zone follows from which target received the drop and
+    // there is nothing left to infer. Removed rather than left in place: a tested function
+    // sitting beside the live rules reads as one of them.
+    //
+    // Coordinates were the wrong basis twice over. One target can only draw one highlight, so
+    // you could not see whether you were about to nest, promote or outdent until after you let
+    // go; and `.dropDestination` inside a `List` does not reliably receive the event at all —
+    // the row's own handling swallows it (652edb22, 83f45d49).
 
     /// The value to hand `TaskService.updateTask(parentTaskId:)`, or nil when the outcome
     /// needs no parent write at all. Clearing is spelled with the empty string, since nil
