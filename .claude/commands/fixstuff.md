@@ -7,12 +7,19 @@ Pull tasks from the Astrid iOS to-do list and work through them until the list i
    cp ../astrid-web/.env.local .env.local 2>/dev/null || true
    ```
 
-2. **Pull iOS tasks**:
+2. **Pull the queue**:
    ```bash
-   cd ../astrid-web && npx tsx scripts/get-astrid-tasks.ts ios
+   cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios
    ```
-   Direct-DB alternative when the OAuth script is flaky:
-   `DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts`
+   Same script the web loop uses, with the board as an argument: `Ready` ∩
+   `Astrid iOS To-do`, and only tasks that are unassigned or assigned to Claude.
+
+   **An assignee is a claim.** A task assigned to a person is that person's even
+   when it is in Ready; the script names whoever it skipped. If something assigned
+   to someone else is genuinely yours, ask Jon to reassign it.
+
+   Direct-DB alternative when the OAuth path is flaky, but it applies NEITHER
+   filter: `DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts`
 
 3. **Present the tasks** to the user and ask which one(s) to work on.
 

@@ -94,12 +94,32 @@ deploys, and the iOS task stays open until then.
    cp ../astrid-web/.env.local .env.local 2>/dev/null || true
    ```
 
-2. **Pull iOS tasks**:
+2. **Pull the queue — one call**:
    ```bash
-   cd ../astrid-web && npx tsx scripts/get-astrid-tasks.ts ios
+   cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios
    ```
-   Direct-DB alternative when the OAuth script is flaky:
+   Prints `READY_EMPTY`, or the queue in the order to work it (priority high → low,
+   then oldest first).
+
+   **This is the same script the web loop uses**, with the board as an argument, so
+   both loops get the same guarantees: `Ready` ∩ `Astrid iOS To-do`, only tasks that
+   are unassigned or assigned to Claude, a loud failure if either list is missing by
+   name, and a printed reason for everything it skipped. A second implementation for
+   iOS would drift, and the drift would be silent — a queue that is wrong looks
+   exactly like a quiet day.
+
+   `Ready` is account-wide, shared by every board, so filtering on it alone would
+   queue whatever Jon marked ready on the *web* board and put two agents in the same
+   repo. Both halves are required.
+
+   Direct-DB alternative when the OAuth path is flaky, but note it applies NEITHER
+   filter — you are on your own for scope:
    `DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts`
+
+   **Only unassigned tasks, or ones assigned to Claude.** An assignee is a claim: a
+   task assigned to a person is that person's, even when it sits in Ready. Taking it
+   means two people writing the same fix. If something assigned to someone else is
+   genuinely yours, ask Jon to reassign it rather than working around the filter.
 
 3. **If the list is empty**, say so in one line and stop. Nothing else to do.
 
@@ -161,8 +181,13 @@ deploys, and the iOS task stays open until then.
    New tasks arrive while work is in progress, and a REOPENED task looks exactly
    like one that was never done:
    ```bash
-   cd ../astrid-web && DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts
+   cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios
    ```
+   Re-check with the SAME filtered script you opened with. The direct-DB script
+   applies neither the board nor the assignee filter, so re-checking with it hands
+   back work that was deliberately scoped out — including tasks someone has claimed
+   since the run began, which is exactly when a claim is most likely to be fresh.
+
    Work anything new or reopened before declaring the list clear. A reopened task
    means the previous fix missed — re-read it and find a different cause rather than
    re-closing it on the same reasoning.
