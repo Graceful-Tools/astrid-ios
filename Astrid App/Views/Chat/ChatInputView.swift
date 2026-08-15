@@ -69,9 +69,12 @@ struct ChatInputView: View {
         _Concurrency.Task {
             // Sent one at a time so they land in the order they were picked. Each is caught
             // on its own: one failure must not abandon the attachments behind it.
+            // The text rides the FIRST draft, so that is the message an @mention belongs to —
+            // and the id the server dedupes an Astrid handoff on.
+            var mentionMessageId: String?
             for draft in drafts {
                 do {
-                    _ = try await ChatService.shared.sendMessage(
+                    let sent = try await ChatService.shared.sendMessage(
                         channelId: channelId,
                         content: draft.content,
                         type: draft.type,
@@ -79,6 +82,7 @@ struct ChatInputView: View {
                         replyToId: replyingTo?.id,
                         authorId: currentUserId
                     )
+                    if mentionMessageId == nil { mentionMessageId = sent.id }
                 } catch {
                     logger.error("Failed to send chat message: \(error.localizedDescription, privacy: .public)")
                 }
@@ -86,7 +90,7 @@ struct ChatInputView: View {
             await MainActor.run { onCancelReply?() }
 
             // Check if @Astrid was mentioned and we have on-device model selected
-            await handleOnDeviceAstridMention(content: content)
+            await handleOnDeviceAstridMention(content: content, messageId: mentionMessageId)
         }
     }
 
@@ -95,7 +99,8 @@ struct ChatInputView: View {
     /// The rule and the mention-stripping now live in the SHARED `OnDeviceAstrid` — they used to
     /// be inline here, which is why the Mac chat never answered at all (task 8dded037). Keeping
     /// one copy is what stops the two platforms drifting apart.
-    private func handleOnDeviceAstridMention(content: String) async {
-        await OnDeviceAstrid.respondIfNeeded(channelId: channelId, content: content, listId: listId)
+    private func handleOnDeviceAstridMention(content: String, messageId: String?) async {
+        await OnDeviceAstrid.respondIfNeeded(channelId: channelId, content: content,
+                                             listId: listId, messageId: messageId)
     }
 }
