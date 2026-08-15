@@ -1217,3 +1217,5 @@
 /* Task 4a338b53 — an empty roster is ambiguous: a viewer of a PUBLIC list gets no members. */
 "lists.no_members_yet" = "아직 멤버가 없습니다";
 "lists.members_hidden_from_viewer" = "이 목록의 멤버는 멤버만 볼 수 있습니다";
+
+"subtasks.outdent_drop_target" = "여기에 놓아 한 단계 밖으로 이동";
