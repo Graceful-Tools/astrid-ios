@@ -1110,6 +1110,29 @@ class AstridAPIClient {
         )
     }
 
+    /// Ask the SERVER to answer as Astrid, for a message this device cannot answer (task 9dce4c73).
+    ///
+    /// Distinct from `postAgentResponse`, which delivers an answer we already produced. This one
+    /// asks for an answer, and is only ever called when the on-device model is not the selected
+    /// agent or is unavailable — so the server can dispatch Astrid without risking a second reply.
+    ///
+    /// `messageId` is the idempotency key: a retry on a flaky network must not produce two replies.
+    func requestServerAstridResponse(channelId: String, messageId: String?, content: String) async throws {
+        struct AstridRequestBody: Encodable {
+            let messageId: String?
+            let content: String
+            enum CodingKeys: String, CodingKey {
+                case messageId = "message_id"
+                case content
+            }
+        }
+        let _: ChatMessageResponse = try await request(
+            method: "POST",
+            path: "/api/v1/chat/channels/\(channelId)/astrid-response",
+            body: AstridRequestBody(messageId: messageId, content: content)
+        )
+    }
+
     // MARK: - AI Agent Settings
 
     /// What the connected deployment offers (task 97208a72).
