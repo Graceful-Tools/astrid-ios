@@ -53,6 +53,9 @@ struct MacTaskDetailView: View {
     @State private var editingSubtaskText = ""
     @State private var comments: [Comment] = []
     @State private var newComment = ""
+    /// Files picked but not yet posted (task 3b3d70ce). Rendered as previews above the field;
+    /// nothing reaches the server as a comment until Post.
+    @State private var stagedFiles: [AttachedFileInfo] = []
     @State private var editingComment: Comment?
     @State private var editingCommentText = ""
     @State private var previewURL: URL?           // QuickLook target (local temp copy)
@@ -335,9 +338,11 @@ struct MacTaskDetailView: View {
             .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
             .padding(.horizontal, 8)
         }
+        stagedAttachments
         HStack(spacing: 8) {
             Button { attachComment() } label: { Image(systemName: "paperclip") }
                 .buttonStyle(.borderless).help(NSLocalizedString("mac.attach_file", comment: ""))
+                .disabled(AttachmentQueue.isFull(stagedFiles))
             TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
                 .textFieldStyle(.plain)
                 .focused($commentFocused)
@@ -703,8 +708,17 @@ struct MacTaskDetailView: View {
         commentSuggestions = []; commentHit = nil
     }
 
-    /// Attach a file to a comment: offline-first upload, then post a comment referencing it.
+    /// STAGE a file on the comment being written (task 3b3d70ce).
+    ///
+    /// This used to post immediately, with the filename as the body — so the paperclip meant
+    /// "post a comment that is a file" rather than "attach to this comment". You could not see
+    /// what you had picked, and you could not say anything alongside it.
+    ///
+    /// The upload still starts now rather than on send: it is offline-first and returns a temp
+    /// id straight away, so by the time you press Post the bytes are usually already gone. What
+    /// changed is only WHEN the comment is created.
     private func attachComment() {
+        guard !AttachmentQueue.isFull(stagedFiles) else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -716,26 +730,87 @@ struct MacTaskDetailView: View {
             await MainActor.run {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
                     fileData: data, fileName: name, mimeType: mime, taskId: taskId)
-                MacActions.perform("Attach to comment") {
-                    _ = try await CommentService.shared.createComment(
-                        taskId: taskId, content: name, fileId: fileId,
-                        authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
-                    comments = (try? await CommentService.shared.fetchComments(taskId: taskId)) ?? []
+                // The SHARED queue owns the cap and the duplicate rule. Its header records why:
+                // hand-rolling this got "pick a second file" wrong once already, and the first
+                // pick vanished silently.
+                stagedFiles = AttachmentQueue.adding(
+                    AttachedFileInfo(fileId: fileId, fileName: name, fileSize: data.count,
+                                     mimeType: mime,
+                                     imageData: mime.hasPrefix("image/") ? data : nil),
+                    to: stagedFiles)
+            }
+        }
+    }
+
+    /// The staged files, above the comment field — a strip, since several can be queued.
+    @ViewBuilder private var stagedAttachments: some View {
+        if !stagedFiles.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(stagedFiles, id: \.fileId) { file in
+                        ZStack(alignment: .topTrailing) {
+                            if file.isImage, let data = file.imageData, let image = NSImage(data: data) {
+                                Image(nsImage: image)
+                                    .resizable().aspectRatio(contentMode: .fill)
+                                    .frame(width: 56, height: 56)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            } else {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 6).fill(Theme.bgSecondary)
+                                        .frame(width: 56, height: 56)
+                                    VStack(spacing: 2) {
+                                        Image(systemName: "doc").font(.system(size: 18))
+                                        Text(file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
+                                            .font(.system(size: 9, weight: .medium))
+                                    }
+                                    .foregroundStyle(Theme.textMuted)
+                                }
+                            }
+                            // Without this a mis-picked file could only be got rid of by posting it.
+                            Button {
+                                if file.fileId.hasPrefix("temp_") {
+                                    AttachmentService.shared.cancelUpload(tempFileId: file.fileId)
+                                }
+                                stagedFiles = AttachmentQueue.removing(fileId: file.fileId, from: stagedFiles)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.white, Color.black.opacity(0.6))
+                            }
+                            .buttonStyle(.plain)
+                            .offset(x: 5, y: -5)
+                            .help(NSLocalizedString("actions.remove", comment: ""))
+                        }
+                    }
                 }
+                .padding(.horizontal, 10).padding(.top, 8)
             }
         }
     }
 
     private func addComment() {
         let c = newComment.trimmingCharacters(in: .whitespaces)
-        guard !c.isEmpty else { return }
+        // Either text or a staged file is enough to post; neither is not.
+        guard !c.isEmpty || !stagedFiles.isEmpty else { return }
         commentSuggestions = []; commentHit = nil
+        // The SHARED splitter. The comments endpoint takes a single fileId, so several files
+        // become several comments — with the typed text on the FIRST only, since repeating a
+        // caption under every photo reads as a stutter. iOS sends through this same function.
+        let drafts = CommentAttachmentBatch.drafts(text: c,
+                                                   fileIds: stagedFiles.map(\.fileId),
+                                                   useMarkdown: false)
+        guard !drafts.isEmpty else { return }
+        let author = MacCommentPost.authorId(currentUserId: AuthManager.shared.userId)
         // Keep the draft until the post succeeds; surface failures instead of losing the text.
         MacActions.perform("Post comment") {
-            _ = try await CommentService.shared.createComment(
-                taskId: task.id, content: c,
-                authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
+            // One at a time so they land in the order they were picked.
+            for draft in drafts {
+                _ = try await CommentService.shared.createComment(
+                    taskId: task.id, content: draft.content,
+                    fileId: draft.fileId, authorId: author)
+            }
             newComment = ""
+            stagedFiles = []
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
     }
