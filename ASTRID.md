@@ -36,6 +36,9 @@ Violating any of these has caused a shipped regression. If you read nothing else
    fail, then make it green. Run `npm run predeploy` before declaring a task done.
 8. **For breaking API changes, add a new app/API version** — keep the existing
    version working. Never break the deployed contract.
+9. **`AstridAPIClient` is the HTTP client. New endpoints go there, always.**
+   `APIClient` + `APIEndpoint` are legacy and shrinking — do not add to them, and do
+   not copy their pattern. (Decided by Jon 2026-08-15, task `b1a05e99`. See §2a.)
 
 ---
 
@@ -97,6 +100,34 @@ the reference implementation in `astrid-web`. When you add a field to a request/
 on one platform, mirror it on the other. `CanonicalControlPointsTests` locks down the
 JSON wire shape of shared types (`MyTasksPreferences`, `UserSettings`) so silent drift
 fails a unit test instead of shipping.
+
+---
+
+## 2a. Which HTTP client (decided, task `b1a05e99`)
+
+**`AstridAPIClient` is the one.** Every new endpoint goes there. `APIClient` and its
+`APIEndpoint` enum are legacy: closed to additions, and shrinking.
+
+Two clients were live at once, so "where does a new endpoint go" had two answers and the
+real answer was whichever the neighbouring code happened to use. The tie was not broken
+on versioning — **both are entirely on `/api/v1`**; the `/api/user/...` migration finished
+long ago — but on weight: `AstridAPIClient` carries 29 of the 34 call sites and every
+current path, against 5 for the legacy client (`AuthManager`, `AccountService`,
+`AttachmentService`, `ProfileCache`, `RemoteResourceService`).
+
+**The cost of this choice, stated plainly:** `APIEndpoint` was the more readable shape —
+one enum listing every endpoint with its method and body type, checkable against the API
+contract at a glance. `AstridAPIClient` spends its paths as inline string literals across
+1,500+ lines, so "which endpoints exist" is something you learn by reading. That is a real
+loss, and pretending otherwise is how it stays lost.
+
+**What replaces it:** `docs/API_ENDPOINTS.md` lists every path the app calls, generated
+from the source and guarded by `APIEndpointInventoryTests` so it cannot silently rot. Web
+can read that file; it could never read a Swift enum.
+
+**Still open** (`2023c90f`): migrating the five legacy call sites and deleting the enum,
+plus Jon's follow-up — revisiting a shape with better readability than inline strings.
+Until then both clients exist, but only one of them grows.
 
 ---
 
