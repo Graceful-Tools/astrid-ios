@@ -87,6 +87,10 @@ class AstridAPIClient {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Say which app this is (task 119cabc3). The server reads this BEFORE it tries to
+        // recognise the user agent, which it could not do reliably.
+        request.setValue(AnalyticsPlatformHeader.current,
+                         forHTTPHeaderField: AnalyticsPlatformHeader.headerName)
 
         // Use session cookie authentication (same as existing APIClient)
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
@@ -175,6 +179,10 @@ class AstridAPIClient {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Say which app this is (task 119cabc3). The server reads this BEFORE it tries to
+        // recognise the user agent, which it could not do reliably.
+        request.setValue(AnalyticsPlatformHeader.current,
+                         forHTTPHeaderField: AnalyticsPlatformHeader.headerName)
 
         // Use session cookie authentication
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
@@ -1262,6 +1270,8 @@ class AstridAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(AnalyticsPlatformHeader.current,
+                         forHTTPHeaderField: AnalyticsPlatformHeader.headerName)
 
         // Use session cookie authentication
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
