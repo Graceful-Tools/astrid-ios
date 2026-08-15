@@ -51,6 +51,12 @@ class APIClient: APIClientProtocol {
     func request<T: Decodable>(_ endpoint: APIEndpoint) async throws -> T {
         var request = try endpoint.makeRequest(baseURL: baseURL, encoder: encoder)
 
+        // Say which app this is (task 119cabc3). This client is still the one carrying sign-in,
+        // attachments and profile fetches, so leaving it out would under-count exactly the
+        // traffic a new user generates — and which client survives is still undecided (b1a05e99).
+        request.setValue(AnalyticsPlatformHeader.current,
+                         forHTTPHeaderField: AnalyticsPlatformHeader.headerName)
+
         // Add session cookie if available
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
