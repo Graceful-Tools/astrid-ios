@@ -286,13 +286,15 @@ struct MacChatPanelView: View {
         // Optimistic/offline-first: the temp message appears immediately; keep the draft until it's accepted.
         let replyId = replyingTo?.id
         MacActions.perform("Send message") {
-            _ = try await chat.sendMessage(channelId: cid, content: t, replyToId: replyId)
+            let sent = try await chat.sendMessage(channelId: cid, content: t, replyToId: replyId)
             text = ""
             replyingTo = nil
             // Apple Intelligence parity with iOS: when the on-device model is the chosen agent,
             // Astrid answers locally. Mac never did this, so @Astrid did nothing here (8dded037).
+            // When it is NOT the chosen agent, the server answers instead (9dce4c73).
             await OnDeviceAstrid.respondIfNeeded(channelId: cid, content: t,
-                                                 listId: source.listIdForMembers)
+                                                 listId: source.listIdForMembers,
+                                                 messageId: sent.id)
         }
     }
 }

@@ -630,6 +630,12 @@ class ChatService: ObservableObject {
         try await AstridAPIClient.shared.postAgentResponse(channelId: channelId, content: content)
     }
 
+    /// Ask the server to answer as Astrid when this device cannot (task 9dce4c73).
+    func requestServerAstridResponse(channelId: String, messageId: String?, content: String) async throws {
+        try await AstridAPIClient.shared.requestServerAstridResponse(
+            channelId: channelId, messageId: messageId, content: content)
+    }
+
     // MARK: - SSE Event Handling
 
     /// Handle a new message from SSE
