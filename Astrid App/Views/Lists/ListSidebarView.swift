@@ -57,8 +57,10 @@ struct ListSidebarView: View {
 
     // Update cached lists when publicLists changes
     private func updateCachedPublicLists() {
-        _cachedCollaborativeLists = publicLists.filter { $0.publicListType == "collaborative" }
-        _cachedSuggestedLists = publicLists.filter { $0.publicListType == "copy_only" || $0.publicListType == nil }
+        // The split is the SHARED rule (dfb037c7) — Mac shows the same two sections, and two
+        // copies of "what counts as collaborative" is how they come to disagree.
+        _cachedCollaborativeLists = PublicListSections.collaborative(publicLists)
+        _cachedSuggestedLists = PublicListSections.browsable(publicLists)
     }
 
 
