@@ -20,6 +20,13 @@ struct MacBoardView: View {
     /// thing app-wide (7017c3c1).
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @State private var hoveredCardId: String?    // Mac hover affordance (77225941)
+    @StateObject private var memberService = ListMemberService.shared
+    /// Priority being picked on a card, before the save lands (task 9be8cb1b).
+    ///
+    /// `MacPriorityPicker` WRITES its binding as well as calling `onSelect`, so a read-only
+    /// binding would leave the swatch showing the old value for the instant the popover is still
+    /// up. Cleared on save, after which the task itself is the truth again.
+    @State private var priorityDraft: [String: Task.Priority] = [:]
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
@@ -67,6 +74,10 @@ struct MacBoardView: View {
             .scrollContentBackground(.hidden)
         }
         .background(Theme.bgPrimary)   // pervasive theme background (Ocean cyan) behind the board
+        // The card's leading control offers an assignee picker (task 9be8cb1b), and it can only
+        // list people it knows about. Fetching here rather than relying on another screen having
+        // opened the members sheet first, which is not something the board can assume.
+        .task(id: listId) { try? await memberService.fetchMembers(listId: listId) }
     }
 
     private func enableBoard() {
@@ -157,10 +168,22 @@ struct MacBoardView: View {
         let expanded = expandedCardId == t.id
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top, spacing: 8) {
-                Button { toggleComplete(t) } label: {
-                    MacTaskCheckbox(completed: t.completed, priority: t.priority, size: 18,
-                                    repeating: MacCheckboxAsset.isRepeating(t.repeating))
-                }.buttonStyle(.plain)
+                // The SAME control the detail panel uses (task 9be8cb1b). This was a button whose
+                // only action was complete, which made the most prominent thing on a card a
+                // trapdoor: the click that reads as "pick this one" finished the task.
+                //
+                // The control already depicts priority (its colour) and assignee (whose photo),
+                // so those are what it should let you set — the argument `MacLeadingControlButton`
+                // was written for. Adopting it rather than copying it is the point: a second
+                // implementation is exactly how the board and the panel came to disagree.
+                MacLeadingControlButton(
+                    task: t,
+                    priority: priorityBinding(t),
+                    members: members,
+                    onPriority: { setPriority(t, $0) },
+                    onAssignee: { setAssignee(t, $0) },
+                    onToggleComplete: { toggleComplete(t) }
+                )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
                     if let due = t.dueDateTime {
@@ -257,6 +280,36 @@ struct MacBoardView: View {
     private func toggleComplete(_ t: Task) {
         MacActions.perform("Complete task") {
             _ = try await taskService.completeTask(id: t.id, completed: !t.completed, task: t)
+        }
+    }
+
+    // MARK: - The leading control's three actions (task 9be8cb1b)
+
+    /// Members of the list this board belongs to, for the assignee picker. Empty until the fetch
+    /// below lands, and an empty picker is honest about that — it offers only Unassigned rather
+    /// than pretending nobody exists.
+    private var members: [ListMember] { memberService.membersByList[listId] ?? [] }
+
+    private func priorityBinding(_ t: Task) -> Binding<Task.Priority> {
+        Binding(get: { priorityDraft[t.id] ?? t.priority },
+                set: { priorityDraft[t.id] = $0 })
+    }
+
+    private func setPriority(_ t: Task, _ priority: Task.Priority) {
+        // Same shape as the detail panel's save: skip a write that changes nothing, since the
+        // picker notifies on every tap including one on the priority already set.
+        guard priority != t.priority else { priorityDraft[t.id] = nil; return }
+        MacActions.perform("Set priority") {
+            _ = try await taskService.updateTask(taskId: t.id, priority: priority.rawValue, task: t)
+            // The task is the truth again; drop the draft so a later change to this task from
+            // anywhere else is not shadowed by a stale local value.
+            priorityDraft[t.id] = nil
+        }
+    }
+
+    private func setAssignee(_ t: Task, _ assigneeId: String?) {
+        MacActions.perform("Set assignee") {
+            _ = try await taskService.updateTask(taskId: t.id, assigneeId: assigneeId ?? "", task: t)
         }
     }
 }
