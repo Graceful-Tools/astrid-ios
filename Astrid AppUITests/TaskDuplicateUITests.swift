@@ -8,15 +8,7 @@ final class TaskDuplicateUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -31,11 +23,7 @@ final class TaskDuplicateUITests: XCTestCase {
 
         let timeout: TimeInterval = 10
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Find the quick add task text field
         let addTaskField = app.textFields.matching(
             NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
@@ -79,11 +67,7 @@ final class TaskDuplicateUITests: XCTestCase {
 
         let timeout: TimeInterval = 10
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         let addTaskField = app.textFields.matching(
             NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
         ).firstMatch
@@ -123,11 +107,7 @@ final class TaskDuplicateUITests: XCTestCase {
 
         let timeout: TimeInterval = 10
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         let addTaskField = app.textFields.matching(
             NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
         ).firstMatch

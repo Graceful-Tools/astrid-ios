@@ -10,15 +10,7 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -28,11 +20,7 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
     @MainActor
     func testActionsMenuIsHittableAndOpensMenu() throws {
         app.launch()
-
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Open a task
         let taskListLoaded = app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'"))
@@ -40,9 +28,10 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
             .waitForExistence(timeout: 10)
         guard taskListLoaded else { throw XCTSkip("Task list not visible") }
 
-        let cells = app.cells
-        guard cells.count > 0 else { throw XCTSkip("No tasks found in list") }
-        cells.firstMatch.tap()
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
+            throw XCTSkip("No tasks found in list")
+        }
+        firstTask.tap()
 
         let detailHeader = app.staticTexts["Task Details"]
         guard detailHeader.waitForExistence(timeout: 5) else { throw XCTSkip("Task detail did not appear") }

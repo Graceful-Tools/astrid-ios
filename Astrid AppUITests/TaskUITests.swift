@@ -8,17 +8,7 @@ final class TaskUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-
-        // Set up test environment
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
 
         // Skip if not logged in (UI tests require authenticated state)
         // In real implementation, you'd handle authentication in setup
@@ -60,11 +50,7 @@ final class TaskUITests: XCTestCase {
 
         let timeout: TimeInterval = 10
 
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Find the task input field
         let taskInput = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")).firstMatch
 
@@ -105,12 +91,7 @@ final class TaskUITests: XCTestCase {
     @MainActor
     func testCompleteTask() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Wait for tasks to load
         sleep(2)
 
@@ -147,12 +128,7 @@ final class TaskUITests: XCTestCase {
     @MainActor
     func testOpenTaskDetail() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Wait for tasks to load
         sleep(2)
 
@@ -185,12 +161,7 @@ final class TaskUITests: XCTestCase {
     @MainActor
     func testChangePriority() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Find and open a task
