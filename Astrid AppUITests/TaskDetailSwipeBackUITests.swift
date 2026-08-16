@@ -8,15 +8,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -25,16 +17,12 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Skips the test if the welcome / sign-in screen is showing.
-    /// The screen exposes a "Use without account" button regardless of provider buttons,
-    /// so we use that as the canonical not-signed-in marker.
+    /// This suite had the marker right when the others had it wrong — "Use without account" is
+    /// the welcome screen's canonical button. That is now the shared check, so keep using it
+    /// from one place rather than two.
     @MainActor
     private func skipIfNotSignedIn() throws {
-        if app.buttons["Use without account"].waitForExistence(timeout: 3)
-            || app.buttons["Sign in"].exists
-            || app.buttons["Sign in with Apple"].exists {
-            throw XCTSkip("User not authenticated (welcome screen visible)")
-        }
+        try UITestLaunch.skipUnlessSignedIn(app)
     }
 
     /// Waits for the task list "My Tasks" header to appear.
@@ -60,12 +48,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Find and tap the first task cell
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
 
-        let firstTask = cells.firstMatch
         firstTask.tap()
 
         // Wait for task detail to appear
@@ -115,12 +101,11 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Find and tap the first task
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
 
-        cells.firstMatch.tap()
+        firstTask.tap()
 
         // Wait for task detail
         let detailHeader = app.staticTexts["Task Details"]
@@ -206,7 +191,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         // Tap settings button in sidebar
         let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
-        guard settingsButton.waitForExistence(timeout: 3) else {
+        // Must be hittable, not merely present: the closed sidebar keeps its gear button in
+        // the tree, and tapping an off-screen element fails rather than skipping.
+        guard settingsButton.waitForExistence(timeout: 3), settingsButton.isHittable else {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "Settings Button Not Found"
             screenshot.lifetime = .keepAlways
@@ -256,11 +243,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Tap a task
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
-        cells.firstMatch.tap()
+        firstTask.tap()
 
         // Task detail should appear
         let detailHeader = app.staticTexts["Task Details"]

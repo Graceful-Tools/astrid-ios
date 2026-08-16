@@ -109,11 +109,53 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     echo ""
 fi
 
+# Hand the UI suite a session for the dedicated uitest@astrid.cc account.
+#
+# Not an environment variable: xcodebuild forwards neither the plain variable nor the
+# TEST_RUNNER_-prefixed build setting to the xctrunner process (measured 2026-08-16), so the
+# first attempt at this silently injected nothing and the whole suite ran signed out while
+# reporting success. A file inside the test bundle does arrive. See UITestLaunch.swift.
+#
+# The file is gitignored and rewritten every run — a NextAuth session expires after 30 days,
+# and a committed token would fail in a way indistinguishable from the skip it replaced.
+SESSION_PLIST="$PROJECT_DIR/Astrid AppUITests/UITestSession.plist"
+
+write_uitest_session() {
+    local cookie="${ASTRID_UITEST_COOKIE:-}"
+
+    if [[ -z "$cookie" && -d "$PROJECT_DIR/../astrid-web" ]]; then
+        echo -e "${BLUE}Minting a session for uitest@astrid.cc...${NC}"
+        cookie="$(cd "$PROJECT_DIR/../astrid-web" && npx tsx scripts/uitest-account.ts --cookie 2>/dev/null | tail -1)" || cookie=""
+    fi
+
+    if [[ -z "$cookie" ]]; then
+        echo -e "${YELLOW}⚠ No test-account session available.${NC}"
+        echo "  The suite will run SIGNED OUT, and every test needing an account will skip."
+        echo "  To fix: cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie"
+        rm -f "$SESSION_PLIST"
+        return
+    fi
+
+    /usr/libexec/PlistBuddy -c "Clear dict" -c "Add :sessionCookie string $cookie" \
+        "$SESSION_PLIST" >/dev/null 2>&1 || {
+        rm -f "$SESSION_PLIST"
+        /usr/libexec/PlistBuddy -c "Add :sessionCookie string $cookie" "$SESSION_PLIST" >/dev/null
+    }
+    echo -e "${GREEN}✓ Test-account session written (${#cookie} chars)${NC}"
+}
+
+# Never leave a live credential lying in the working tree.
+cleanup_uitest_session() { rm -f "$SESSION_PLIST"; }
+trap cleanup_uitest_session EXIT
+
 # Run UI tests
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     echo -e "${BLUE}Running UI tests...${NC}"
     echo "  Destination: $DESTINATION"
     echo "  (This may take a few minutes)"
+    echo ""
+
+    write_uitest_session
     echo ""
 
     set +e

@@ -24,15 +24,7 @@ final class BoardViewUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -42,11 +34,7 @@ final class BoardViewUITests: XCTestCase {
     @MainActor
     func testViewModeRotatorButtonAccessibilityLabelsExist() throws {
         app.launch()
-
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated — sign in to a test account before running")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // The rotator button cycles list → messages → board → list with
         // each tap. Its accessibilityLabel reflects the *next* mode, so
         // one of these three labels should be present in the header.
@@ -62,11 +50,7 @@ final class BoardViewUITests: XCTestCase {
     @MainActor
     func testBoardRendersForListWithProjectId() throws {
         app.launch()
-
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Look for the Inbox column header — virtual columns are always
         // present when a board renders, regardless of which custom statuses
         // a project has.
