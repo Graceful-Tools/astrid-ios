@@ -164,7 +164,7 @@ class ConnectionModeManager: ObservableObject {
         // UI tests share the real app container (same bundle id). Persisting local-only mode from
         // a -uiTesting run left the USER'S app permanently offline (no SSE/sync) after the test
         // suite ran — the flags survive the test. Under -uiTesting, keep local mode IN-MEMORY only.
-        let persist = !ProcessInfo.processInfo.arguments.contains("-uiTesting")
+        let persist = !UITestSession.isUITesting
 
         // Store local user info in UserDefaults
         if persist {

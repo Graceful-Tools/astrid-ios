@@ -25,7 +25,7 @@ class CoreDataManager {
 
         // UI tests share the real app container (same bundle id): use a throwaway store so test
         // data (lists/tasks) can never land in — or later sync out of — the user's real store.
-        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+        if UITestSession.isUITesting {
             description?.url = URL(fileURLWithPath: "/dev/null")
             print("🧪 [CoreData] -uiTesting: using ephemeral store")
         }
