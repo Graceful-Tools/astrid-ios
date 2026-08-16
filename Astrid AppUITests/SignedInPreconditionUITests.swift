@@ -75,11 +75,30 @@ final class SignedInPreconditionUITests: XCTestCase {
         XCTAssertTrue(header.waitForExistence(timeout: 20),
                       "Signed in, but the task list never appeared.")
 
-        XCTAssertGreaterThan(
-            app.cells.count, 0,
+        // Look for a fixture BY NAME rather than counting cells.
+        //
+        // Counting was the first attempt and it was useless: the sidebar contributes cells of
+        // its own ("My Tasks", "Search tasks…", "Add List"), so `cells.count > 0` was true on a
+        // screen showing no tasks at all. It passed while the landing view read "My Tasks, 0",
+        // and the tests underneath went on tapping sidebar rows and wondering why task detail
+        // never opened.
+        //
+        // The fixtures being merely PRESENT on the server is also not enough — "My Tasks"
+        // filters on `assigneeId == currentUserId`, so a fixture that is only created by the
+        // account is invisible here. Naming one is the only check that covers both.
+        let fixture = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH 'UITEST Fixture'")).firstMatch
+
+        XCTAssertTrue(
+            fixture.waitForExistence(timeout: 20),
             """
-            The test account is signed in but empty, so every test that needs a task will skip.
-            Seed it with `cd ../astrid-web && npx tsx scripts/uitest-account.ts --seed`.
+            Signed in, but no fixture task is visible on My Tasks.
+
+            Either the account has not been seeded, or its tasks are not ASSIGNED to it —
+            My Tasks filters on assignee, not creator, so unassigned fixtures exist on the
+            server and show up nowhere in the app.
+
+            Reseed with `cd ../astrid-web && npx tsx scripts/uitest-account.ts`.
             """)
     }
 }
