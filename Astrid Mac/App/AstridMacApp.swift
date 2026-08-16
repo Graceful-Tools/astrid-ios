@@ -15,6 +15,11 @@ import SwiftUI
 @main
 struct AstridMacApp: App {
 
+    /// Exists so a reopen can rebuild the main window (task 39470057). With a MenuBarExtra the
+    /// app keeps running after its last window closes, and without this every subsequent Dock
+    /// click does nothing at all.
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
+
     init() {
         // Under XCTest the app is the unit-test host; skip launch side-effects entirely (Task 90fa7975).
         guard !MacRuntime.isRunningTests else { return }
@@ -28,6 +33,8 @@ struct AstridMacApp: App {
     // spinning up the auth gate / menu-bar / quick-add UI, which made the CLI/CI suite hang (90fa7975).
     private var underTest: Bool { MacRuntime.isRunningTests }
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Scene {
         // Main window: auth gate → sign-in when signed out, shell when signed in.
         WindowGroup(id: "main") {
@@ -36,6 +43,9 @@ struct AstridMacApp: App {
             } else {
                 MacAuthGateView()
                     .onAppear { Self.normalizeWindowForUITestingIfNeeded() }
+                    // Capture `openWindow` while a window exists — at reopen time there is no
+                    // view left to read it from, which is exactly the bug (task 39470057).
+                    .onAppear { MacReopen.captureOpenWindow(openWindow) }
             }
         }
         .commands { AstridCommands() }              // full menu bar (M1)
