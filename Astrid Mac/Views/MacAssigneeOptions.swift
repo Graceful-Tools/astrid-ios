@@ -20,9 +20,19 @@ struct MacAssigneeOption: Identifiable, Equatable {
     var isUnassigned: Bool { userId == nil }
 
     var displayName: String {
-        guard let user else { return NSLocalizedString("No one", comment: "") }
+        guard let user else { return Self.unassignedLabel }
         return user.displayName
     }
+
+    /// What an unassigned task is called — the same word iOS and web use (task 6c891bce).
+    ///
+    /// The Mac said "No one", and passed that English text to `NSLocalizedString` as its own
+    /// key. No such key exists in Localizable.strings, so all twelve translations fell back to
+    /// English. It was not only inconsistent copy, it was unlocalized copy.
+    ///
+    /// `assignee.unassigned` is the key iOS already uses, and user-facing strings are a
+    /// cross-platform contract rather than a per-platform choice (ASTRID.md rule 8).
+    static let unassignedLabel = NSLocalizedString("assignee.unassigned", comment: "Unassigned")
 }
 
 enum MacAssigneeOptions {
