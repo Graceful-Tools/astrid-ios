@@ -1235,9 +1235,32 @@ struct MacRootView: View {
             .background(Theme.bgPrimary)
             .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
+            // The sidebar's top and bottom strips are OURS to paint (task 46f66cb8).
+            //
+            // A `safeAreaInset` is a sibling of the List, not part of it, so the List's
+            // `.background(Theme.bgPrimary)` never reached either strip. What showed through was
+            // the window's own material — black in every theme, because our themes are ours and
+            // the material follows the system appearance. And the top of the sidebar was not
+            // painted at all, so list rows scrolled up behind the sidebar toggle and the
+            // red/yellow/green window buttons.
+            //
+            // Both strips are therefore explicit, opaque, and the same colour as the list they
+            // belong to. `ignoresSafeArea` is what carries the fill the last few points to the
+            // window edge; without it the strip stops short and the material shows as a band.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Theme.bgPrimary
+                    .frame(height: MacLayout.sidebarTitlebarInset)
+                    .ignoresSafeArea(edges: .top)
+                    .accessibilityIdentifier("sidebar.headerBackground")
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
-                Divider()
-                MacSidebarAccountBar()
+                VStack(spacing: 0) {
+                    Divider()
+                    MacSidebarAccountBar()
+                }
+                .background(Theme.bgPrimary)
+                .ignoresSafeArea(edges: .bottom)
+                .accessibilityIdentifier("sidebar.footerBackground")
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
 
