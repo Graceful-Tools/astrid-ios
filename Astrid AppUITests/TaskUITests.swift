@@ -11,7 +11,14 @@ final class TaskUITests: XCTestCase {
         app = XCUIApplication()
 
         // Set up test environment
-        app.launchArguments = ["--uitesting"]
+        app.launchArguments = ["-uiTesting"]
+        // Sign the run in as the dedicated uitest@astrid.cc account when a session
+        // is available (task 44a9cea5). Without it these tests skip themselves, which
+        // is what made the suite assert almost nothing.
+        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
+        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
+            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
+        }
 
         // Skip if not logged in (UI tests require authenticated state)
         // In real implementation, you'd handle authentication in setup

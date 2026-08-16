@@ -100,12 +100,26 @@ final class KeychainService: @unchecked Sendable {
     /// UI tests must NEVER reach the real account. They run against the shipping bundle id, so
     /// the app would otherwise restore the user's real session from the keychain and create lists
     /// on the server — which is exactly what happened once a UI test stopped forcing offline mode.
-    /// Under `-uiTesting` the credential store reads as EMPTY, so the app always starts signed out
-    /// and tests can only ever use the local/offline account.
-    private static let isUITesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+    /// Under the UI-test flag the credential store reads as EMPTY, so the user's own session is
+    /// unreachable however the test behaves.
+    ///
+    /// The flag check moved to `UITestSession` (task b7fd8f70): this file spelled it
+    /// `-uiTesting` while every test passed `--uitesting`, so the guard never actually ran.
+    ///
+    /// EXCEPTION, and the only one: a session cookie handed to the run explicitly. That is the
+    /// dedicated `uitest@astrid.cc` account, which exists so the suite can be signed in at all
+    /// (task 44a9cea5) — without it every test that needs an account skips itself. Nothing is
+    /// inherited; a run is signed in only when someone passed it a credential.
+    private static let isUITesting = UITestSession.isUITesting
 
     private func get(key: String) throws -> String {
-        if Self.isUITesting { throw KeychainError.notFound }
+        if Self.isUITesting {
+            if key == Constants.Keychain.sessionCookieKey,
+               let injected = UITestSession.injectedCookie {
+                return injected
+            }
+            throw KeychainError.notFound
+        }
         var query = baseQuery(key: key)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne

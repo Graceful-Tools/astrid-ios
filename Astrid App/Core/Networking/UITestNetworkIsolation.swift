@@ -12,7 +12,7 @@
 import Foundation
 
 enum UITestNetworkIsolation {
-    static let isUITesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+    static let isUITesting = UITestSession.isUITesting
 
     /// Apply to any URLSessionConfiguration that would otherwise carry ambient cookies.
     static func harden(_ configuration: URLSessionConfiguration) -> URLSessionConfiguration {
