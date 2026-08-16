@@ -43,6 +43,14 @@ enum MacLayout {
     /// The arrow overlaps the card by 1pt so its base merges into the card surface.
     static let arrowOverlap: CGFloat = 1
 
+    /// Height of the opaque strip painted across the top of the sidebar (task 46f66cb8).
+    ///
+    /// The sidebar sits under a transparent titlebar, so without this the list scrolls up behind
+    /// the sidebar toggle and the window's red/yellow/green buttons. 28pt clears the standard
+    /// titlebar control row; it is a strip of colour rather than a layout inset, so being a
+    /// couple of points generous costs nothing and being short is immediately visible.
+    static let sidebarTitlebarInset: CGFloat = 28
+
     /// Chat column width, derived so the ARROW TIP lands exactly on the row card's trailing edge.
     ///
     /// With the pop-out right-aligned in the content area:
