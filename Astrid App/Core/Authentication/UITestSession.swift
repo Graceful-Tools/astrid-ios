@@ -70,6 +70,31 @@ enum UITestSession {
                        environment: ProcessInfo.processInfo.environment)
     }
 
+    /// Which server a run talks to.
+    ///
+    /// **Why this lives here.** The injected credential is a session for `uitest@astrid.cc` on
+    /// PRODUCTION. A Debug build defaults to `http://localhost:3000`, so the app was sending a
+    /// production cookie to a dev server that was not running — the request failed, auth fell
+    /// through to "not signed in", and every test that needed an account skipped itself. The
+    /// account was real, the cookie arrived, and the app still showed the welcome screen; it
+    /// took a simulator console log to see that the host was wrong (task 44a9cea5).
+    ///
+    /// A credential and a host are one decision, not two. Under the flag, the run goes to
+    /// production regardless of the Debug default.
+    ///
+    /// **The debug preference is ignored too, deliberately.** UI tests share the shipping bundle
+    /// id, so `debug_server_url` is the DEVELOPER'S setting sitting in the same container. A run
+    /// that inherited it would point at whatever host they last used and fail somewhere else
+    /// entirely — the same class of leak the keychain guard exists to prevent.
+    static func resolvedBaseURL(isUITesting: Bool,
+                                debugPreference: String?,
+                                defaultURL: String,
+                                productionURL: String) -> String {
+        if isUITesting { return productionURL }
+        if let preference = nonEmpty(debugPreference) { return preference }
+        return defaultURL
+    }
+
     /// An unset shell variable expands to the empty string, and a blank credential produces a
     /// puzzling 401 rather than an obviously signed-out app.
     private static func nonEmpty(_ value: String?) -> String? {

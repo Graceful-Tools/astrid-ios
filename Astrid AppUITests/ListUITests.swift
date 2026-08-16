@@ -8,15 +8,7 @@ final class ListUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -28,12 +20,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testListsTabVisible() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         // Find lists tab in tab bar
         let listsTab = app.tabBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'list'")).firstMatch
 
@@ -51,12 +38,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testNavigateToLists() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Find and tap lists tab
@@ -76,12 +58,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testListExists() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Navigate to lists
@@ -108,12 +85,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testSelectList() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Navigate to lists
@@ -144,12 +116,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testCreateListButtonExists() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Navigate to lists
@@ -178,12 +145,7 @@ final class ListUITests: XCTestCase {
     @MainActor
     func testPublicListSettingsShowsOnlyFiltersTab() throws {
         app.launch()
-
-        // Skip if on login screen
-        if app.buttons["Sign in with Apple"].waitForExistence(timeout: 3) {
-            throw XCTSkip("User not authenticated")
-        }
-
+        try UITestLaunch.skipUnlessSignedIn(app)
         sleep(2)
 
         // Navigate to lists

@@ -8,15 +8,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        // Sign the run in as the dedicated uitest@astrid.cc account when a session
-        // is available (task 44a9cea5). Without it these tests skip themselves, which
-        // is what made the suite assert almost nothing.
-        //   export ASTRID_UITEST_COOKIE="$(cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-        if let cookie = ProcessInfo.processInfo.environment[UITestLaunch.cookieKey], !cookie.isEmpty {
-            app.launchEnvironment[UITestLaunch.cookieKey] = cookie
-        }
+        app = UITestLaunch.makeApp()
     }
 
     override func tearDownWithError() throws {
@@ -25,16 +17,12 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Skips the test if the welcome / sign-in screen is showing.
-    /// The screen exposes a "Use without account" button regardless of provider buttons,
-    /// so we use that as the canonical not-signed-in marker.
+    /// This suite had the marker right when the others had it wrong — "Use without account" is
+    /// the welcome screen's canonical button. That is now the shared check, so keep using it
+    /// from one place rather than two.
     @MainActor
     private func skipIfNotSignedIn() throws {
-        if app.buttons["Use without account"].waitForExistence(timeout: 3)
-            || app.buttons["Sign in"].exists
-            || app.buttons["Sign in with Apple"].exists {
-            throw XCTSkip("User not authenticated (welcome screen visible)")
-        }
+        try UITestLaunch.skipUnlessSignedIn(app)
     }
 
     /// Waits for the task list "My Tasks" header to appear.

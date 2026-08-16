@@ -8,14 +8,19 @@ import Foundation
         // This is computed once at first access and cached
         private static let _cachedBaseURL: String = {
             #if DEBUG
-            // In debug builds, check for user preference
-            if let customURL = Foundation.UserDefaults.standard.string(forKey: "debug_server_url"), !customURL.isEmpty {
-                print("🌐 [Constants.API.baseURL] Using server preference: \(customURL)")
-                return customURL
-            }
-            print("🌐 [Constants.API.baseURL] Using default: \(environment.baseURL)")
-            #endif
+            // A UI-test run carries a PRODUCTION session for uitest@astrid.cc, so it must talk
+            // to production — a Debug build otherwise points at localhost:3000 and the request
+            // fails, which is what left the whole suite signed out. See `resolvedBaseURL`.
+            let resolved = UITestSession.resolvedBaseURL(
+                isUITesting: UITestSession.isUITesting,
+                debugPreference: Foundation.UserDefaults.standard.string(forKey: "debug_server_url"),
+                defaultURL: environment.baseURL,
+                productionURL: Environment.production.baseURL)
+            print("🌐 [Constants.API.baseURL] Using: \(resolved)")
+            return resolved
+            #else
             return environment.baseURL
+            #endif
         }()
 
         // Get base URL - now returns cached value (no logging on every access)
