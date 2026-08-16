@@ -29,7 +29,9 @@ struct MacAssigneePicker: View {
         Button { showingPicker = true } label: {
             HStack(spacing: 6) {
                 face(for: selected, size: 20)
-                Text(selected?.displayName ?? NSLocalizedString("No one", comment: ""))
+                // Ask the option for its name rather than spelling the fallback again — the two
+                // copies are how this drifted from iOS separately (task 6c891bce).
+                Text(selected?.displayName ?? MacAssigneeOption.unassignedLabel)
                     .font(.system(size: 12))
                     .lineLimit(1)
                     .truncationMode(.tail)
