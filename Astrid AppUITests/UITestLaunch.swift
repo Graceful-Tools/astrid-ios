@@ -97,6 +97,69 @@ enum UITestLaunch {
             : "No test-account session — run `npm run test:ui`, which mints one.")
     }
 
+    /// The rows actually on screen.
+    ///
+    /// `app.cells` is the wrong thing to ask for, and it fails in a way that reads as an app
+    /// bug. The sidebar stays in the accessibility tree while closed, and its rows come FIRST
+    /// in the hierarchy — sitting off to the left at x≈24 rather than filling the width. So
+    /// `app.cells.firstMatch` returns the sidebar's account button, `count > 0` is true on an
+    /// empty task list, and tapping it fails with "not hittable". Thirteen tests reported that
+    /// at once, in five files, none of which had anything to do with the sidebar.
+    ///
+    /// Hittability is the discriminator: an off-screen sidebar row is not hittable and a row
+    /// on the current screen is. It is also the property these callers actually want, since
+    /// every one of them goes on to tap what it gets back.
+    /// Identifier the app stamps on every task row. Must match `TaskRowView`.
+    static let taskRowIdentifier = "taskRow"
+
+    /// The task rows on screen.
+    ///
+    /// Two earlier attempts at this were wrong, and both failed in ways that read as app bugs:
+    ///
+    ///   - `app.cells` returns the SIDEBAR's rows too. They stay in the accessibility tree
+    ///     while the sidebar is closed, they come first, and they keep on-screen coordinates —
+    ///     so tests tapped the account button and reported that task detail would not open.
+    ///   - `matching(NSPredicate(format: "hittable == true"))` looks like it fixes that and
+    ///     does not. `firstMatch` short-circuits on the first element of the right TYPE, so it
+    ///     hands back the very row the predicate excludes, and `count` disagrees with it.
+    ///
+    /// Neither ordering nor hittability distinguishes a task row from a sidebar row. The app
+    /// names them instead, and `isHittable` is applied per element in Swift so it means what it
+    /// says.
+    @MainActor
+    static func visibleRows(_ app: XCUIApplication) -> [XCUIElement] {
+        let rows = app.descendants(matching: .any)
+            .matching(identifier: taskRowIdentifier)
+            .allElementsBoundByIndex
+            .filter { $0.isHittable }
+        if !rows.isEmpty { return rows }
+
+        // Screens with no task rows — the lists screen, for one — still need "the first row on
+        // screen". Falling back keeps those callers working rather than making every one of
+        // them special-case the identifier.
+        return app.cells.allElementsBoundByIndex.filter { $0.isHittable }
+    }
+
+    /// The first row on the current screen, or nil when nothing is on screen yet.
+    @MainActor
+    static func firstVisibleRow(_ app: XCUIApplication) -> XCUIElement? {
+        visibleRows(app).first
+    }
+
+    /// Waits for a row to appear, then returns it. Nil means the screen never populated —
+    /// callers skip on that, since it is a state the harness cannot distinguish from a list
+    /// that is legitimately empty.
+    @MainActor
+    static func waitForFirstVisibleRow(_ app: XCUIApplication,
+                                       timeout: TimeInterval = 15) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let row = firstVisibleRow(app) { return row }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        return nil
+    }
+
     // MARK: - Private
 
     private static func cookieFromBundle() -> String? {

@@ -292,7 +292,19 @@ struct TaskRowView: View {
                 )
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        // Lets a UI test say "a task row" and mean it (task 44a9cea5).
+        //
+        // The suite had no way to name one. It asked for `app.cells`, which also returns the
+        // sidebar's rows — and those stay in the accessibility tree with on-screen coordinates
+        // while the sidebar is closed, so neither ordering nor hittability separates them. Tests
+        // tapped the account button, task detail never opened, and the reported reason ("No
+        // tasks found", "Task detail did not appear") pointed at the app rather than at the
+        // query. One identifier removes the whole class of guessing.
+        .accessibilityIdentifier(TaskRowView.accessibilityIdentifier)
     }
+
+    /// What a UI test matches on to find task rows. Referenced by `UITestLaunch.taskRows`.
+    static let accessibilityIdentifier = "taskRow"
 
     // MARK: - Theme Helpers
 

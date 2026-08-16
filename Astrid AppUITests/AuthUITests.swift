@@ -98,9 +98,12 @@ final class AuthUITests: XCTestCase {
         let settingsTab = app.tabBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'setting'")).firstMatch
         let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'setting' OR label CONTAINS[c] 'gear' OR identifier CONTAINS 'settings'")).firstMatch
 
-        if settingsTab.exists {
+        // `exists` is not enough. The sidebar stays in the accessibility tree while closed,
+        // so its gear button "exists" off-screen and tapping it fails as not-hittable — which
+        // reads as a settings bug rather than as a test looking at the wrong element.
+        if settingsTab.exists && settingsTab.isHittable {
             settingsTab.tap()
-        } else if settingsButton.exists {
+        } else if settingsButton.exists && settingsButton.isHittable {
             settingsButton.tap()
         }
 

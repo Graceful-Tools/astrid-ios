@@ -28,9 +28,10 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
             .waitForExistence(timeout: 10)
         guard taskListLoaded else { throw XCTSkip("Task list not visible") }
 
-        let cells = app.cells
-        guard cells.count > 0 else { throw XCTSkip("No tasks found in list") }
-        cells.firstMatch.tap()
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
+            throw XCTSkip("No tasks found in list")
+        }
+        firstTask.tap()
 
         let detailHeader = app.staticTexts["Task Details"]
         guard detailHeader.waitForExistence(timeout: 5) else { throw XCTSkip("Task detail did not appear") }

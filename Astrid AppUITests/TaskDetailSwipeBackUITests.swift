@@ -48,12 +48,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Find and tap the first task cell
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
 
-        let firstTask = cells.firstMatch
         firstTask.tap()
 
         // Wait for task detail to appear
@@ -103,12 +101,11 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Find and tap the first task
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
 
-        cells.firstMatch.tap()
+        firstTask.tap()
 
         // Wait for task detail
         let detailHeader = app.staticTexts["Task Details"]
@@ -194,7 +191,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         // Tap settings button in sidebar
         let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
-        guard settingsButton.waitForExistence(timeout: 3) else {
+        // Must be hittable, not merely present: the closed sidebar keeps its gear button in
+        // the tree, and tapping an off-screen element fails rather than skipping.
+        guard settingsButton.waitForExistence(timeout: 3), settingsButton.isHittable else {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "Settings Button Not Found"
             screenshot.lifetime = .keepAlways
@@ -244,11 +243,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         }
 
         // Tap a task
-        let cells = app.cells
-        guard cells.count > 0 else {
+        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
-        cells.firstMatch.tap()
+        firstTask.tap()
 
         // Task detail should appear
         let detailHeader = app.staticTexts["Task Details"]

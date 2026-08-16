@@ -69,7 +69,7 @@ final class ListUITests: XCTestCase {
         }
 
         // Check for list cells or list names
-        let lists = app.cells.count
+        let lists = UITestLaunch.visibleRows(app).count
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Lists Count: \(lists)"
@@ -96,9 +96,7 @@ final class ListUITests: XCTestCase {
         }
 
         // Find first list cell
-        let firstList = app.cells.firstMatch
-
-        guard firstList.exists else {
+        guard let firstList = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No lists found")
         }
 
@@ -156,9 +154,7 @@ final class ListUITests: XCTestCase {
         }
 
         // Find first list cell (assuming this might be a public list where user has viewer role)
-        let firstList = app.cells.firstMatch
-
-        guard firstList.exists else {
+        guard let firstList = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No lists found")
         }
 
