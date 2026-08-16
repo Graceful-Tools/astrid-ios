@@ -29,7 +29,23 @@ struct Theme {
     }
 
     static func themed(light: Color, dark: Color, ocean: Color) -> Color {
-        switch currentThemeMode {
+        themed(mode: currentThemeMode, light: light, dark: dark, ocean: ocean)
+    }
+
+    /// The mapping itself, with the mode passed in (task f040f28e).
+    ///
+    /// **Why this is separate.** A test that wanted to check "Ocean's input differs from Dark's"
+    /// had to write `themeMode` into `UserDefaults` and read a static back, which is flaky twice
+    /// over. It mutates process-wide state that other test classes read while running in
+    /// parallel — and, worse, `currentThemeMode` is CACHED and only invalidated by a
+    /// `UserDefaults.didChangeNotification` observer, which is delivered asynchronously. So even
+    /// with the suite to itself, "set the default, then immediately read the colour" can return
+    /// the previous theme's value. The test was not wrong about the behaviour; it had no way to
+    /// ask the question without a race.
+    ///
+    /// The mapping is a pure function of the mode, so it can just take one.
+    static func themed(mode: String, light: Color, dark: Color, ocean: Color) -> Color {
+        switch mode {
         case "dark":  return dark
         case "ocean": return ocean
         case "light": return light
