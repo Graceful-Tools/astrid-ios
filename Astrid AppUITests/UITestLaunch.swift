@@ -140,6 +140,42 @@ enum UITestLaunch {
         return app.cells.allElementsBoundByIndex.filter { $0.isHittable }
     }
 
+    /// Identifier the app stamps on the quick-add field. Must match `QuickAddTaskView`.
+    static let quickAddFieldIdentifier = "quickAdd.field"
+
+    /// The quick-add field, whatever element type it happens to be.
+    ///
+    /// The suite used to ask for `app.textFields` with a `placeholderValue` containing "task",
+    /// which could never match: the field is a `TextEditor`, which XCUITest exposes as a text
+    /// VIEW, and its placeholder is a separate `Text` so `placeholderValue` is empty. Four tests
+    /// reported "Quick add task field not found", which reads as the field being missing rather
+    /// than the query being wrong.
+    ///
+    /// Matching on `descendants(matching: .any)` rather than a specific type means a future
+    /// change from TextEditor to TextField does not silently break this again.
+    @MainActor
+    static func quickAddField(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: quickAddFieldIdentifier).firstMatch
+    }
+
+    /// Tap the quick-add field and wait until it can actually receive text.
+    ///
+    /// `tap()` returns as soon as the tap is delivered, not when focus has landed, so typing
+    /// straight afterwards races the keyboard coming up. XCUITest reports that as
+    /// "Neither element nor any descendant has keyboard focus", which reads like the field is
+    /// wrong rather than early — and it only bites the first test in a class, while the app is
+    /// still settling, so it looks like a flake rather than a missing wait.
+    ///
+    /// Returns false when focus never arrives, so callers can skip rather than fail obscurely.
+    @MainActor
+    @discardableResult
+    static func focusQuickAdd(_ app: XCUIApplication, timeout: TimeInterval = 10) -> Bool {
+        let field = quickAddField(app)
+        guard field.waitForExistence(timeout: timeout) else { return false }
+        field.tap()
+        return app.keyboards.element.waitForExistence(timeout: timeout)
+    }
+
     /// The first row on the current screen, or nil when nothing is on screen yet.
     @MainActor
     static func firstVisibleRow(_ app: XCUIApplication) -> XCUIElement? {

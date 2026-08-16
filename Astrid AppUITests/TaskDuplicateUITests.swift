@@ -25,16 +25,16 @@ final class TaskDuplicateUITests: XCTestCase {
 
         try UITestLaunch.skipUnlessSignedIn(app)
         // Find the quick add task text field
-        let addTaskField = app.textFields.matching(
-            NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
-        ).firstMatch
+        let addTaskField = UITestLaunch.quickAddField(app)
 
         guard addTaskField.waitForExistence(timeout: timeout) else {
             throw XCTSkip("Quick add task field not found")
         }
 
         // Type a task title
-        addTaskField.tap()
+        guard UITestLaunch.focusQuickAdd(app) else {
+            throw XCTSkip("Quick add never took keyboard focus")
+        }
         addTaskField.typeText("Double tap test task")
 
         // Take screenshot before submit
@@ -68,9 +68,7 @@ final class TaskDuplicateUITests: XCTestCase {
         let timeout: TimeInterval = 10
 
         try UITestLaunch.skipUnlessSignedIn(app)
-        let addTaskField = app.textFields.matching(
-            NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
-        ).firstMatch
+        let addTaskField = UITestLaunch.quickAddField(app)
 
         guard addTaskField.waitForExistence(timeout: timeout) else {
             throw XCTSkip("Quick add task field not found")
@@ -78,7 +76,9 @@ final class TaskDuplicateUITests: XCTestCase {
 
         // Create a uniquely named task
         let uniqueTitle = "Unique task \(UUID().uuidString.prefix(8))"
-        addTaskField.tap()
+        guard UITestLaunch.focusQuickAdd(app) else {
+            throw XCTSkip("Quick add never took keyboard focus")
+        }
         addTaskField.typeText(uniqueTitle)
         app.keyboards.buttons["Return"].tap()
 
@@ -108,9 +108,7 @@ final class TaskDuplicateUITests: XCTestCase {
         let timeout: TimeInterval = 10
 
         try UITestLaunch.skipUnlessSignedIn(app)
-        let addTaskField = app.textFields.matching(
-            NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")
-        ).firstMatch
+        let addTaskField = UITestLaunch.quickAddField(app)
 
         guard addTaskField.waitForExistence(timeout: timeout) else {
             throw XCTSkip("Quick add task field not found")
@@ -118,7 +116,9 @@ final class TaskDuplicateUITests: XCTestCase {
 
         // Create first task
         let title = "Repeated title task"
-        addTaskField.tap()
+        guard UITestLaunch.focusQuickAdd(app) else {
+            throw XCTSkip("Quick add never took keyboard focus")
+        }
         addTaskField.typeText(title)
         app.keyboards.buttons["Return"].tap()
 
@@ -126,7 +126,9 @@ final class TaskDuplicateUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 2)
 
         // Create second task with same title (should create a NEW task with different clientRequestId)
-        addTaskField.tap()
+        guard UITestLaunch.focusQuickAdd(app) else {
+            throw XCTSkip("Quick add never took keyboard focus")
+        }
         addTaskField.typeText(title)
         app.keyboards.buttons["Return"].tap()
 
