@@ -33,9 +33,13 @@ empty list is a no-op, not busywork.
 - **Never push a red gate.** If a suite fails, fix it or stop and say so. A failing test
   that looks unrelated is still a failing test — say plainly that it is unrelated and why
   rather than pushing quietly past it.
-- **If a task is ambiguous or needs a product decision, skip it**, leave a comment on
-  the task saying what decision is needed, and move to the next one. Do not guess at
+- **If a task is ambiguous or needs a product decision, hand it back** — assign it to
+  Jon and move it to `Waiting` (see "Say on the board what you are doing") — leave a
+  comment saying what decision is needed, and move to the next one. Do not guess at
   intent, and do not stall the whole run on one blocked task.
+  - The point of `Waiting` is that a re-run stops re-reading it. A blocked task left in
+    Ready is re-examined every fifteen minutes forever and reported as blocked every
+    time, which is the no-op loop this file exists to avoid.
 - **If the same task fails twice**, stop working it, comment with what was tried and
   why it failed, and move on.
 - **If the fix needs a server change, file it on the Astrid Web board** — see below.
@@ -87,6 +91,43 @@ affected. Say plainly what remains. A merged server branch is not a deployed one
 astrid-web does not auto-deploy, so `main` having the fix changes nothing until someone
 deploys, and the iOS task stays open until then.
 
+## Say on the board what you are doing
+
+The board is where Jon looks. A task being worked and a task nobody has touched must
+not look identical there.
+
+**Starting a task → move it to `Doing`.** Do this BEFORE the strategy comment, so the
+window where the board is wrong is as small as possible:
+
+```bash
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Doing
+```
+
+**Blocked on Jon → hand it back: assign to him AND move it to `Waiting`.** Both, not
+one. Assigning alone leaves it sitting in Doing, which reads as in-progress; moving
+alone leaves it assigned to Claude, which reads as still yours:
+
+```bash
+cd ../astrid-web && npx tsx scripts/assign-task.ts <taskId> jonparis@gmail.com
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Waiting
+```
+
+Then say on the task what decision you need. A task in Waiting with no question on it
+is just a task nobody is working.
+
+Either order is safe — a half-done handoff lands the task outside the queue's scope
+whichever step succeeded, so the loop will not pick it back up mid-handoff.
+
+**Use `set-task-status.ts`, never `move-task-to-list.ts`.** Status is a SECOND
+membership alongside the board, and `PUT` replaces the whole `listIds` set, so
+`move-task-to-list.ts` — correct for moving between boards — would put the task on
+Doing and take it off the Astrid iOS To-do, out of every queue, findable only by id.
+The status script keeps the board, refuses to write if the task would be stranded, and
+reads back to prove it.
+
+**Completing a task takes it out of `Doing` on its own** — no status change needed
+before marking it complete.
+
 ## Steps
 
 1. **Ensure environment is set up** — copy `.env.local` from astrid-web if not present:
@@ -116,10 +157,18 @@ deploys, and the iOS task stays open until then.
    filter — you are on your own for scope:
    `DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts`
 
-   **Only unassigned tasks, or ones assigned to Claude.** An assignee is a claim: a
-   task assigned to a person is that person's, even when it sits in Ready. Taking it
-   means two people writing the same fix. If something assigned to someone else is
-   genuinely yours, ask Jon to reassign it rather than working around the filter.
+   **ONLY tasks assigned to Claude.** Assignment is the handshake (Jon, 2026-08-15).
+   Not unassigned, not "looks like agent work" — assigned.
+
+   Unassigned used to qualify, on the reasoning that nobody had claimed it. That made
+   `Ready` mean *actionable AND unclaimed*, so anything Jon dropped into Ready to think
+   about was fair game for a loop that would start on it within fifteen minutes.
+   Requiring the assignment inverts the default: nothing is yours until it is handed
+   over, and Ready goes back to meaning only *ready*.
+
+   The script prints what it skipped with the assignee's name, so a queue held up by
+   someone else's work never looks like an idle one. If something is genuinely yours,
+   say so and let Jon assign it; do not work around the filter.
 
 3. **If the list is empty**, say so in one line and stop. Nothing else to do.
 
@@ -128,6 +177,11 @@ deploys, and the iOS task stays open until then.
    without waiting for a reply.
 
 5. **For each task**, follow the coding workflow in [ASTRID.md](../../ASTRID.md):
+   - **Move it to `Doing` first**, before anything else, so the board stops showing it
+     as untouched while you work:
+     ```bash
+     cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Doing
+     ```
    - **Post the session link** so the user can follow along on mobile:
      ```bash
      cd ../astrid-web && npx tsx scripts/post-session-link.ts <taskId>
