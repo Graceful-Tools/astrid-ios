@@ -17,6 +17,8 @@ struct MacTaskRow: View {
     @Binding var editingTitle: String
     var indent: Int = 0                  // subtask nesting depth (0 = top level)
     var isSelected: Bool = false
+    @StateObject private var userSettings = UserSettingsService.shared
+    @State private var showingQuickChanger = false
     @State private var hovering = false  // Mac hover affordance (77225941)
     @State private var checkPop = false   // tap feedback on the checkbox (see below)
     let onToggle: () -> Void
@@ -39,8 +41,25 @@ struct MacTaskRow: View {
 
     /// The assignee to surface as an avatar (task.assignee, or a minimal User from the id so the
     /// shared UserImageCache can still resolve a picture) — nil for own/unassigned tasks.
+    /// The row follows the display mode too (task 132d7b3f).
+    private var displayMode: TaskDisplayMode {
+        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
+    /// In project mode the task box opens the quick changer instead of completing — the same
+    /// thing it does in task details (task 132d7b3f).
+    private var opensQuickChanger: Bool { !displayMode.checkboxCompletesTask }
+
+    /// One decision for all three faces, so the rule is not written once per branch.
+    private func handleLeadingTap() {
+        if opensQuickChanger { showingQuickChanger = true; return }
+        checkPop = true
+        onToggle()
+    }
+
     private var avatarAssignee: User? {
-        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId),
+        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId,
+                                      displayMode: displayMode),
               let id = task.assigneeId else { return nil }
         return task.assignee ?? User(id: id, email: nil, name: nil, image: nil)
     }
@@ -75,8 +94,14 @@ struct MacTaskRow: View {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
+                    // No gesture here before: harmless while a face only meant someone ELSE's
+                    // task, but in project mode your own task is a face too, so the control
+                    // you are told to click did nothing (task 132d7b3f).
+                    .contentShape(Rectangle())
+                    .onTapGesture { handleLeadingTap() }
             } else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                              currentUserId: AuthManager.shared.userId) == .unassigned {
+                                              currentUserId: AuthManager.shared.userId,
+                                              displayMode: displayMode) == .unassigned {
                 // Nobody assigned → "U", not the checkbox (42013da7). Same three-state rule as
                 // iOS, from the same shared helper, so a task cannot look different per platform.
                 // Clicking still completes: the mark changes, the action does not. A tap gesture
@@ -92,10 +117,7 @@ struct MacTaskRow: View {
                     .scaleEffect(checkPop ? 1.28 : 1)
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        checkPop = true
-                        onToggle()
-                    }
+                    .onTapGesture { handleLeadingTap() }
                     .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
             } else {
                 // A `Button` here NEVER fires: inside a macOS `List` row the cell's own click
@@ -112,8 +134,7 @@ struct MacTaskRow: View {
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        checkPop = true
-                        onToggle()
+                        handleLeadingTap()
                         DispatchQueue.main.asyncAfter(deadline: .now() + MacMotion.fastDuration) {
                             checkPop = false
                         }
@@ -125,6 +146,11 @@ struct MacTaskRow: View {
                     .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
                     .accessibilityAction { onToggle() }
             }
+            }
+            // The SAME quick changer the detail panel and the board card show, so "same
+            // behavior" is one view rather than three that have to agree (task 132d7b3f).
+            .popover(isPresented: $showingQuickChanger, arrowEdge: .bottom) {
+                MacQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
             }
             .frame(width: MacRowHitArea.checkboxColumnWidth(glyph: MacTaskVisuals.rowCheckboxSize),
                    alignment: .trailing)

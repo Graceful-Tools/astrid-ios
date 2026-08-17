@@ -26,7 +26,8 @@ struct MacLeadingControlButton: View {
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: AuthManager.shared.userId)
+                                currentUserId: AuthManager.shared.userId,
+                                displayMode: displayMode)
     }
 
     private var displayMode: TaskDisplayMode {
