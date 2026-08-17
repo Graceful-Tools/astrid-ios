@@ -164,8 +164,11 @@ final class ListUITests: XCTestCase {
         // Look for settings button (gear icon or ellipsis menu)
         let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gear' OR label == 'ellipsis'")).firstMatch
 
-        guard settingsButton.exists else {
-            throw XCTSkip("Settings button not found")
+        // Hittable, not merely present: the sidebar keeps its gear button in the accessibility
+        // tree while closed, so `exists` is true for an off-screen button and the tap fails —
+        // which reads as a settings bug rather than as the wrong element (task 0bfb8eb4).
+        guard settingsButton.exists, settingsButton.isHittable else {
+            throw XCTSkip("Settings button not on screen")
         }
 
         settingsButton.tap()

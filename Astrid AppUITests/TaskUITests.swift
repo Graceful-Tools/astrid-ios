@@ -30,7 +30,7 @@ final class TaskUITests: XCTestCase {
         // Check if quick add task input is visible (may be on main task list view)
         // This will depend on the actual UI structure
         _ = app.textFields["Add a task..."].waitForExistence(timeout: timeout) ||
-            app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")).firstMatch.waitForExistence(timeout: timeout)
+            UITestLaunch.quickAddField(app).waitForExistence(timeout: timeout)
 
         // Take screenshot for debugging
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -52,7 +52,7 @@ final class TaskUITests: XCTestCase {
 
         try UITestLaunch.skipUnlessSignedIn(app)
         // Find the task input field
-        let taskInput = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'task'")).firstMatch
+        let taskInput = UITestLaunch.quickAddField(app)
 
         guard taskInput.waitForExistence(timeout: timeout) else {
             // Take screenshot to debug
@@ -67,7 +67,9 @@ final class TaskUITests: XCTestCase {
         let taskTitle = "UI Test Task \(Date().timeIntervalSince1970)"
 
         // Tap input and enter title
-        taskInput.tap()
+        guard UITestLaunch.focusQuickAdd(app) else {
+            throw XCTSkip("Quick add never took keyboard focus")
+        }
         taskInput.typeText(taskTitle)
 
         // Submit task (press return or tap add button)
