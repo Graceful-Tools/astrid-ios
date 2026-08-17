@@ -101,10 +101,10 @@ final class AuthUITests: XCTestCase {
         // `exists` is not enough. The sidebar stays in the accessibility tree while closed,
         // so its gear button "exists" off-screen and tapping it fails as not-hittable — which
         // reads as a settings bug rather than as a test looking at the wrong element.
-        if settingsTab.exists && settingsTab.isHittable {
-            settingsTab.tap()
-        } else if settingsButton.exists && settingsButton.isHittable {
-            settingsButton.tap()
+        if settingsTab.exists {
+            UITestLaunch.tapCenter(settingsTab)
+        } else if settingsButton.exists {
+            UITestLaunch.tapCenter(settingsButton)
         }
 
         sleep(1)

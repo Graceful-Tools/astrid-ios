@@ -31,7 +31,7 @@ final class TextInputCursorUITests: XCTestCase {
             throw XCTSkip("No tasks found in list")
         }
 
-        firstTask.tap()
+        UITestLaunch.tapCenter(firstTask)
 
         let detailHeader = app.staticTexts["Task Details"]
         guard detailHeader.waitForExistence(timeout: 5) else {

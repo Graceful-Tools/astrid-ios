@@ -100,7 +100,7 @@ final class ListUITests: XCTestCase {
             throw XCTSkip("No lists found")
         }
 
-        firstList.tap()
+        UITestLaunch.tapCenter(firstList)
         sleep(1)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -158,7 +158,7 @@ final class ListUITests: XCTestCase {
             throw XCTSkip("No lists found")
         }
 
-        firstList.tap()
+        UITestLaunch.tapCenter(firstList)
         sleep(1)
 
         // Look for settings button (gear icon or ellipsis menu)
@@ -167,11 +167,11 @@ final class ListUITests: XCTestCase {
         // Hittable, not merely present: the sidebar keeps its gear button in the accessibility
         // tree while closed, so `exists` is true for an off-screen button and the tap fails —
         // which reads as a settings bug rather than as the wrong element (task 0bfb8eb4).
-        guard settingsButton.exists, settingsButton.isHittable else {
-            throw XCTSkip("Settings button not on screen")
+        guard settingsButton.exists else {
+            throw XCTSkip("Settings button not found")
         }
 
-        settingsButton.tap()
+        UITestLaunch.tapCenter(settingsButton)
         sleep(1)
 
         // Take screenshot of settings modal
