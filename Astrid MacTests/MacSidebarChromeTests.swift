@@ -58,7 +58,7 @@ final class MacSidebarChromeTests: XCTestCase {
 
         XCTAssertTrue(block.contains("VStack"),
                       "Divider and account bar must share one container, so one background covers both")
-        XCTAssertTrue(block.contains(".background(Theme.bgPrimary)"),
+        XCTAssertTrue(block.contains(".background(sidebarChromeBackground)"),
                       "The footer container must carry the theme background, not just the bar inside it")
     }
 
@@ -72,6 +72,33 @@ final class MacSidebarChromeTests: XCTestCase {
                       "The footer strip must reach the window edge")
     }
 
+
+    // MARK: - The regression this file's own fix caused (task 6531e684)
+
+    /// Painting the strips fixed the colour and froze it.
+    ///
+    /// `Theme.bgPrimary` reads `Theme.currentThemeMode`, which is a CACHED global refreshed by a
+    /// `UserDefaults.didChangeNotification` observer. A view that neither observes `themeMode`
+    /// nor passes a mode in therefore paints whatever the theme was when its body last ran —
+    /// ocean, the default — and never changes. Before build 238 the footer had no background at
+    /// all, so the window material showed through and tracked the SYSTEM appearance, which is
+    /// why it used to look dark and follow along.
+    ///
+    /// So the sidebar must observe the theme, and resolve through the mode it observes.
+    func testTheSidebarObservesTheThemeSoItsStripsRedraw() throws {
+        let source = try rootSource()
+        XCTAssertTrue(source.contains(#"@AppStorage("themeMode")"#),
+                      "Without observing themeMode the sidebar's body never re-runs on a theme change")
+    }
+
+    /// And resolves with that mode rather than the cached global, because the cache is
+    /// invalidated asynchronously — re-rendering at the wrong moment still reads the old theme.
+    func testTheStripsResolveWithTheObservedModeRatherThanTheCachedGlobal() throws {
+        let source = try rootSource()
+        XCTAssertTrue(source.contains("Theme.themed(mode:"),
+                      "Pass the observed mode in; Theme.bgPrimary reads a cache refreshed on a notification")
+    }
+
     // MARK: - Theme, not a fixed colour
 
     /// The bug was a colour that did not follow the theme. Hardcoding one here — even the right
@@ -82,8 +109,12 @@ final class MacSidebarChromeTests: XCTestCase {
             return XCTFail("No top inset")
         }
         let block = String(source[top.lowerBound...].prefix(400))
-        XCTAssertTrue(block.contains("Theme.bgPrimary"),
-                      "The strip must use the theme background token")
+        // Pins the PROPERTY, not the spelling. This used to require the literal
+        // `Theme.bgPrimary`, which is how it kept passing while the strips were frozen on
+        // ocean (task 6531e684) — that token reads a cached global. What matters is that the
+        // colour is themed and resolved from the observed mode, which the helper does.
+        XCTAssertTrue(block.contains("sidebarChromeBackground"),
+                      "The strip must use the themed, mode-resolved background")
         XCTAssertFalse(block.contains("Color.black") || block.contains(".black"),
                        "A literal colour is the bug this task is about")
     }
