@@ -56,6 +56,15 @@ enum TaskDisplayMode: String, Equatable, CaseIterable {
     /// Whether task details use the compact layout.
     var usesCompactTaskDetail: Bool { self == .project }
 
+    /// Whether priority and assignee each get their own row in task details, rather than
+    /// living behind the leading control (task 729a190e).
+    ///
+    /// The inverse of `usesCompactTaskDetail`, and deliberately named rather than left as
+    /// `!usesCompactTaskDetail` at each call site: "is this compact" and "does this show the
+    /// rows" are the same question today and there is no guarantee they stay that way. The
+    /// tests pin that they cannot drift apart silently.
+    var showsSeparateAssigneeAndPriorityRows: Bool { self == .list }
+
     // MARK: - The stale-control trap
 
     /// Whether a picker is allowed to write yet.

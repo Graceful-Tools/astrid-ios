@@ -22,19 +22,46 @@ struct MacLeadingControlButton: View {
     let onToggleComplete: () -> Void
 
     @State private var isPresented = false
+    @StateObject private var userSettings = UserSettingsService.shared
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
                                 currentUserId: AuthManager.shared.userId)
     }
 
+    private var displayMode: TaskDisplayMode {
+        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
+    /// LIST mode: the checkbox completes the task, which is what a checkbox means (task
+    /// 729a190e). It opened the popover in every mode before, so in list mode the one
+    /// gesture everybody already knows did the one thing it does not normally do.
+    ///
+    /// Only when the face IS a checkbox. Someone else's avatar is not a checkbox, and
+    /// completing another person's task by clicking their photo is not what that click
+    /// means — those keep the popover in both modes.
+    private var tapCompletes: Bool {
+        displayMode.checkboxCompletesTask && kind == .checkbox
+    }
+
     var body: some View {
-        Button { isPresented = true } label: { face }
+        Button { if tapCompletes { onToggleComplete() } else { isPresented = true } } label: { face }
             .buttonStyle(.plain)
             .macPointingHand()
-            .help(NSLocalizedString("tasks.priority", comment: ""))
-            .accessibilityLabel(NSLocalizedString("tasks.priority", comment: ""))
+            .help(helpText)
+            .accessibilityLabel(helpText)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) { picker }
+    }
+
+    /// Say what the click does. It used to always read "Priority", which was already only
+    /// a third of the truth and is simply wrong when the click completes the task.
+    private var helpText: String {
+        if tapCompletes {
+            return task.completed
+                ? NSLocalizedString("mac.mark_incomplete", comment: "")
+                : NSLocalizedString("tasks.complete_task", comment: "")
+        }
+        return NSLocalizedString("tasks.priority", comment: "")
     }
 
     /// Checkbox, someone else's photo, or the unassigned mark — the same three
@@ -74,7 +101,7 @@ struct MacLeadingControlButton: View {
 
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(MacLeadingPicker.sections.enumerated()), id: \.offset) { _, section in
+            ForEach(Array(MacLeadingPicker.sections(for: displayMode).enumerated()), id: \.offset) { _, section in
                 switch section {
                 case .priority:
                     VStack(alignment: .leading, spacing: 5) {
@@ -106,6 +133,12 @@ struct MacLeadingControlButton: View {
                             onSelect: { onAssignee($0); isPresented = false }
                         )
                     }
+                case .projectState:
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(NSLocalizedString("board.project_state", comment: ""))
+                            .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                        MacProjectStateSection(task: task, onMoved: { isPresented = false })
+                    }
                 case .complete:
                     Divider()
                     Button {
@@ -125,6 +158,80 @@ struct MacLeadingControlButton: View {
         }
         .padding(12)
         .frame(width: 240)
+    }
+}
+
+/// The board-column choice inside the quick changer (task 729a190e).
+///
+/// Self-contained rather than another callback threaded through every construction of the
+/// leading control: both the board card and the detail panel build that control, and neither
+/// of them has anything to add to this decision.
+///
+/// It does NOT invent a list of states. The columns come from `getProjectBoardColumns`, the
+/// same derivation the board itself uses, so a renamed "Ready" reads the same in both places —
+/// and the write goes through `MacBoardMove.plan`, so dropping a task on Done from here
+/// completes it exactly as dragging it there does. A second implementation of "what moving to
+/// Done means" is how the two surfaces start disagreeing about completion.
+struct MacProjectStateSection: View {
+    let task: Task
+    let onMoved: () -> Void
+
+    @StateObject private var listService = ListService.shared
+    @StateObject private var taskService = TaskService.shared
+
+    private var columns: [ProjectBoardColumn] {
+        getProjectBoardColumns(listService.lists)
+    }
+
+    private var currentColumnId: String {
+        getTaskProjectColumnId(task, lists: listService.lists)
+    }
+
+    var body: some View {
+        // Wrapping, like every other chip row in the detail — a project can have more
+        // columns than fit on one line, and truncating them hides states you can move to.
+        FlowLayout(spacing: 6, rowSpacing: 6) {
+            ForEach(columns) { column in
+                Button { move(to: column) } label: {
+                    Text(column.name)
+                        .font(MacTypography.label)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 6)
+                            .fill(column.id == currentColumnId
+                                  ? Theme.accent.opacity(0.22) : Theme.bgTertiary))
+                        .foregroundStyle(column.id == currentColumnId
+                                         ? Theme.accent : Theme.textPrimary)
+                }
+                .buttonStyle(.plain)
+                .macPointingHand()
+                .accessibilityLabel(column.name)
+            }
+        }
+    }
+
+    private func move(to column: ProjectBoardColumn) {
+        onMoved()
+        guard column.id != currentColumnId else { return }
+        let plan = MacBoardMove.plan(task: task, column: column, lists: listService.lists)
+        MacActions.perform("Move task") {
+            switch plan {
+            case .none:
+                break
+            case .setLists(let ids, let role):
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
+                                                     task: task, statusRole: role)
+            case .complete(let ids, let role):
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
+                                                     task: task, statusRole: role)
+                // Completion goes through `completeTask`, never `updateTask(completed:)`:
+                // that is the only path that rolls a repeating task forward (ASTRID.md rule 2).
+                _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
+            case .uncomplete(let ids, let role):
+                _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
+                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
+                                                     task: task, statusRole: role)
+            }
+        }
     }
 }
 #endif

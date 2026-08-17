@@ -19,24 +19,52 @@ import XCTest
 
 final class MacTaskFieldsTests: XCTestCase {
 
-    // MARK: - Priority and assignee moved behind the leading control
+    // MARK: - Priority and assignee: behind the control, or their own rows (task 729a190e)
 
-    /// THE ASK: no standalone priority row. The leading control already shows
-    /// priority (its colour) and assignee (its photo); a row repeating both was
-    /// spending panel width to say it twice.
-    func testPriorityIsNotAFieldRow() {
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true).contains(.priority))
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: false).contains(.priority))
+    /// PROJECT mode keeps them behind the leading control. This was the whole of task
+    /// 42013da7: the control already shows priority (its colour) and assignee (its photo),
+    /// and a row repeating both spent panel width saying it twice.
+    ///
+    /// It was unconditional, which is the bug — it made project mode's layout the only
+    /// layout, so choosing "list" in Appearance changed nothing.
+    func testPriorityIsNotAFieldRowInProjectMode() {
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .project).contains(.priority))
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: false, displayMode: .project).contains(.priority))
     }
 
-    func testAssigneeIsNotAFieldRow() {
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true).contains(.assignee))
+    func testAssigneeIsNotAFieldRowInProjectMode() {
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .project).contains(.assignee))
     }
 
-    /// Both live behind the leading control instead, with completion — exactly
-    /// the three things iOS put there.
-    func testLeadingControlOffersPriorityAssigneeAndCompletion() {
-        XCTAssertEqual(MacLeadingPicker.sections, [.priority, .assignee, .complete])
+    /// LIST mode gives each its own row — the ask on task 729a190e, and what the mode has
+    /// promised in its own documentation since it was added.
+    func testPriorityAndAssigneeAreTheirOwnRowsInListMode() {
+        let rows = MacTaskFields.rows(showsTitle: true, displayMode: .list)
+        XCTAssertTrue(rows.contains(.priority), "list mode shows priority as its own row")
+        XCTAssertTrue(rows.contains(.assignee), "list mode shows assignee as its own row")
+    }
+
+    /// A board card has no title row but is still a task editor, so the mode applies there too.
+    func testTheBoardCardAlsoGetsTheRowsInListMode() {
+        let rows = MacTaskFields.rows(showsTitle: false, displayMode: .list)
+        XCTAssertTrue(rows.contains(.priority))
+        XCTAssertTrue(rows.contains(.assignee))
+        XCTAssertFalse(rows.contains(.title))
+    }
+
+    /// PROJECT mode's popover carries board state as well — the third thing task 729a190e
+    /// asks the quick changer to hold, alongside priority and assignee.
+    func testTheProjectQuickChangerOffersPriorityAssigneeProjectStateAndCompletion() {
+        XCTAssertEqual(MacLeadingPicker.sections(for: .project),
+                       [.priority, .assignee, .projectState, .complete])
+    }
+
+    /// LIST mode does not: priority and assignee are rows of their own there, and a task's
+    /// board state is a project idea. Offering it in both would rebuild the hybrid layout
+    /// this setting exists to end.
+    func testTheListModePickerDoesNotOfferProjectState() {
+        XCTAssertEqual(MacLeadingPicker.sections(for: .list),
+                       [.priority, .assignee, .complete])
     }
 
     // MARK: - The rows that remain
@@ -44,13 +72,20 @@ final class MacTaskFieldsTests: XCTestCase {
     /// The detail owns the title; a board card already shows it on the card
     /// face, so it asks for the fields without one.
     func testDetailShowsTitleThenWhenThenListsThenDescription() {
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: true),
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .project),
                        [.title, .when, .lists, .description])
     }
 
     func testBoardCardOmitsTheTitleRow() {
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: false),
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: false, displayMode: .project),
                        [.when, .lists, .description])
+    }
+
+    /// Order matters: the two new rows sit after the title and before the rest, so the
+    /// things you set most often are nearest the top rather than below the description.
+    func testListModeOrdersTheNewRowsDirectlyAfterTheTitle() {
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list),
+                       [.title, .priority, .assignee, .when, .lists, .description])
     }
 
     /// THE BUG: lists must be selectable, not decoration.
@@ -59,10 +94,14 @@ final class MacTaskFieldsTests: XCTestCase {
                       "the Lists row drew chips and a dash with no way to change them")
     }
 
-    func testEveryFieldRowIsEditable() {
-        for row in MacTaskFields.rows(showsTitle: true) {
-            XCTAssertTrue(MacTaskFields.isEditable(row),
-                          "\(row) is a field the user must be able to change")
+    /// In BOTH modes. A row that is shown and cannot be changed is the exact failure the
+    /// Lists row had, and list mode adds two rows that would be easy to ship read-only.
+    func testEveryFieldRowIsEditableInEveryMode() {
+        for mode in TaskDisplayMode.allCases {
+            for row in MacTaskFields.rows(showsTitle: true, displayMode: mode) {
+                XCTAssertTrue(MacTaskFields.isEditable(row),
+                              "\(row) is shown in \(mode) and must be changeable there")
+            }
         }
     }
 
@@ -144,12 +183,16 @@ final class MacTaskFieldsTests: XCTestCase {
 
     /// THE ASK: one implementation. The board card asks for the same field set,
     /// minus the title it already draws — it does not get its own list of rows.
+    /// In EVERY mode — list mode adds two rows, and adding them to only one of the two
+    /// surfaces is exactly the drift this test exists to catch.
     func testBoardAndDetailShareOneFieldSet() {
-        let board = Set(MacTaskFields.rows(showsTitle: false))
-        let detail = Set(MacTaskFields.rows(showsTitle: true))
-        XCTAssertTrue(board.isSubset(of: detail),
-                      "the board must render a subset of the detail's fields, not its own set")
-        XCTAssertEqual(detail.subtracting(board), [.title])
+        for mode in TaskDisplayMode.allCases {
+            let board = Set(MacTaskFields.rows(showsTitle: false, displayMode: mode))
+            let detail = Set(MacTaskFields.rows(showsTitle: true, displayMode: mode))
+            XCTAssertTrue(board.isSubset(of: detail),
+                          "the board must render a subset of the detail's fields, not its own set")
+            XCTAssertEqual(detail.subtracting(board), [.title], "\(mode)")
+        }
     }
 
     /// The board card is a column, not a panel, so it renders denser — but the

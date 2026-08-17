@@ -65,11 +65,17 @@ final class MacBoardLeadingControlTests: XCTestCase {
     /// Completing does not disappear; it moves into the popover. The picker's own section list
     /// is what guarantees that, so pin it — a board card that offered priority and assignee but
     /// no way to complete would trade one missing action for another.
+    /// In BOTH modes. Completion is the action a card must never lose, and the two modes
+    /// now build different section lists — so check the promise against each of them rather
+    /// than against whichever one happens to be the default.
     func testTheLeadingPickerStillOffersCompletion() {
-        XCTAssertTrue(MacLeadingPicker.sections.contains(.complete),
-                      "The popover must keep an explicit Complete action")
-        XCTAssertTrue(MacLeadingPicker.sections.contains(.priority))
-        XCTAssertTrue(MacLeadingPicker.sections.contains(.assignee))
+        for mode in TaskDisplayMode.allCases {
+            let sections = MacLeadingPicker.sections(for: mode)
+            XCTAssertTrue(sections.contains(.complete),
+                          "The popover must keep an explicit Complete action in \(mode)")
+            XCTAssertTrue(sections.contains(.priority), "\(mode)")
+            XCTAssertTrue(sections.contains(.assignee), "\(mode)")
+        }
     }
 
     /// Tapping the priority a task already has still notifies, so the popover can close and save.

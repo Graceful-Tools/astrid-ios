@@ -85,6 +85,7 @@
 "tasks.reminder" = "Напоминание";
 "tasks.reminders" = "Напоминания";
 "tasks.priority" = "Приоритет";
+"board.project_state" = "Состояние проекта";
 "tasks.assignee" = "Кто";
 "mac.you" = "(вы)";
 "tasks.completed" = "Завершено";

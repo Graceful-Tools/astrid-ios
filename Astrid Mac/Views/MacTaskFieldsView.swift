@@ -21,6 +21,9 @@ struct MacTaskFieldsView: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Which layout to draw (task 729a190e). Observed rather than read once, so switching the
+    /// setting in Appearance redraws an open detail instead of waiting for it to be reopened.
+    @StateObject private var userSettings = UserSettingsService.shared
     /// One editor at a time, one save rule (55010e29).
     @StateObject private var editing = EditingSession()
     private static let titleEditor: EditorID = "mac.fields.title"
@@ -45,9 +48,17 @@ struct MacTaskFieldsView: View {
     /// The description reads as text until clicked (iOS/web parity).
     @State private var editingNotes = false
 
+    /// Resolved through `TaskDisplayMode(stored:)` rather than compared as a string, so a
+    /// null (every row written before the column existed) and an unknown value from a newer
+    /// build both land on the usable layout instead of an empty one.
+    private var displayMode: TaskDisplayMode {
+        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
-            ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle).enumerated()),
+            ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle,
+                                             displayMode: displayMode).enumerated()),
                     id: \.offset) { _, row in
                 fieldRow(row)
             }
@@ -82,11 +93,39 @@ struct MacTaskFieldsView: View {
                     NSLocalizedString("navigation.lists", comment: "Lists")) { listsRow }
         case .description:
             descriptionRow
-        case .priority, .assignee:
-            // Behind the leading control now. `MacTaskFields.rows` never names
-            // them; this arm only keeps the switch exhaustive.
-            EmptyView()
+        case .priority:
+            // Only reached in list mode — `MacTaskFields.rows` omits it in project mode,
+            // where the leading control already depicts priority as its colour.
+            labeled(icon: "flag",
+                    NSLocalizedString("tasks.priority", comment: "Priority")) { priorityRow }
+        case .assignee:
+            labeled(icon: "person.crop.circle",
+                    NSLocalizedString("tasks.assignee", comment: "Assignee")) { assigneeRow }
         }
+    }
+
+    // MARK: - Priority and assignee, as rows (list mode only — task 729a190e)
+
+    /// The SAME pickers the leading control's popover uses, built the same way, so the two
+    /// layouts cannot drift into offering different choices for the same field.
+    ///
+    /// `onSelect` rather than watching the binding, for the reason task a6cd1367 recorded:
+    /// a tap that picks the value the task already has changes nothing to observe, so a
+    /// value-watcher swallows it and the control sits there looking dead.
+    private var priorityRow: some View {
+        MacPriorityPicker(selection: $priority, onSelect: { savePriority($0) })
+    }
+
+    private var assigneeRow: some View {
+        MacAssigneePicker(
+            options: MacAssigneeOptions.build(
+                members: members,
+                currentUserId: AuthManager.shared.userId,
+                taskAssignee: task.assignee),
+            selectedId: task.assigneeId,
+            priority: priority,
+            onSelect: { setAssignee($0) }
+        )
     }
 
     // MARK: - Title + the control that holds priority, assignee and completion
