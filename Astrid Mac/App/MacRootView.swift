@@ -12,6 +12,9 @@ import AppKit
 
 struct MacRootView: View {
     @State private var keyMonitor: Any?
+    /// Observed so a theme change re-runs this body — the sidebar's strips paint themselves,
+    /// and without this they froze at whatever the theme was on first render (task 6531e684).
+    @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
@@ -580,6 +583,22 @@ struct MacRootView: View {
             .padding(.horizontal, MacLayout.rowTrailingGap)
             .padding(.vertical, 4)
         }
+    }
+
+    /// The sidebar's surface colour, resolved from the mode this view OBSERVES.
+    ///
+    /// Not `Theme.bgPrimary`. That reads `Theme.currentThemeMode`, a cached global refreshed by a
+    /// `UserDefaults.didChangeNotification` observer — so it can hand back the previous theme
+    /// even to a body that is re-running, and it gives a body no reason to re-run at all. Both
+    /// failures were live here: the strips painted ocean once and stayed (task 6531e684).
+    ///
+    /// `Theme.themed(mode:)` exists for exactly this (task f040f28e) — the mapping as a pure
+    /// function of a mode someone hands it.
+    private var sidebarChromeBackground: Color {
+        Theme.themed(mode: themeMode.rawValue,
+                     light: .white,
+                     dark: Theme.Dark.bgPrimary,
+                     ocean: Theme.Ocean.bgPrimary)
     }
 
     /// The same control for My Tasks, whose filters live in the account-wide preferences rather
@@ -1254,7 +1273,7 @@ struct MacRootView: View {
             }
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
-            .background(Theme.bgPrimary)
+            .background(sidebarChromeBackground)
             .navigationTitle(Brand.appName)
             .accessibilityIdentifier("sidebar.lists")
             // The sidebar's top and bottom strips are OURS to paint (task 46f66cb8).
@@ -1270,7 +1289,7 @@ struct MacRootView: View {
             // belong to. `ignoresSafeArea` is what carries the fill the last few points to the
             // window edge; without it the strip stops short and the material shows as a band.
             .safeAreaInset(edge: .top, spacing: 0) {
-                Theme.bgPrimary
+                sidebarChromeBackground
                     .frame(height: MacLayout.sidebarTitlebarInset)
                     .ignoresSafeArea(edges: .top)
                     .accessibilityIdentifier("sidebar.headerBackground")
@@ -1280,7 +1299,7 @@ struct MacRootView: View {
                     Divider()
                     MacSidebarAccountBar()
                 }
-                .background(Theme.bgPrimary)
+                .background(sidebarChromeBackground)
                 .ignoresSafeArea(edges: .bottom)
                 .accessibilityIdentifier("sidebar.footerBackground")
             }
