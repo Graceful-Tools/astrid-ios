@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "Nur Mitglieder sehen, wer in dieser Liste ist";
 
 "subtasks.outdent_drop_target" = "Hier ablegen, um eine Ebene nach außen zu verschieben";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Aufgabendetails";
+"settings.task_display.list" = "Liste";
+"settings.task_display.project" = "Projekt";
+"settings.appearance.task_details_footer" = "Wähle das Layout der Aufgabendetails. Liste gibt Priorität und zugewiesener Person eigene Zeilen. Projekt ist kompakt, und das Kästchen öffnet eine Auswahl, statt die Aufgabe abzuschließen.";

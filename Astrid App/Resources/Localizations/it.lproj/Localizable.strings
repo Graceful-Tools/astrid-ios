@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "Solo i membri possono vedere chi è in questa lista";
 
 "subtasks.outdent_drop_target" = "Rilascia qui per spostarla di un livello verso l'esterno";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Dettagli attività";
+"settings.task_display.list" = "Elenco";
+"settings.task_display.project" = "Progetto";
+"settings.appearance.task_details_footer" = "Scegli come vengono disposti i dettagli dell'attività. Elenco assegna a priorità e assegnatario righe proprie. Progetto è compatto e la casella apre un selettore invece di completare l'attività.";

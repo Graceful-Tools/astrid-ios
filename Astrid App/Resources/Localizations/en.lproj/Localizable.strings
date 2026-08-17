@@ -1225,3 +1225,9 @@
 "lists.members_hidden_from_viewer" = "Only members can see who is on this list";
 
 "subtasks.outdent_drop_target" = "Drop here to move out one level";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Task Details";
+"settings.task_display.list" = "List";
+"settings.task_display.project" = "Project";
+"settings.appearance.task_details_footer" = "Choose how task details are laid out. List gives priority and assignee their own rows. Project is compact, and the checkbox opens a picker instead of completing the task.";
