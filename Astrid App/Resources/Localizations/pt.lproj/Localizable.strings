@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "Só os membros podem ver quem está nesta lista";
 
 "subtasks.outdent_drop_target" = "Solte aqui para mover um nível para fora";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Detalhes da tarefa";
+"settings.task_display.list" = "Lista";
+"settings.task_display.project" = "Projeto";
+"settings.appearance.task_details_footer" = "Escolha como os detalhes da tarefa são dispostos. Lista dá à prioridade e ao responsável as suas próprias linhas. Projeto é compacto e a caixa abre um seletor em vez de concluir a tarefa.";

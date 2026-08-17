@@ -9,6 +9,28 @@ struct AppearanceSettingsView: View {
     @AppStorage("iPadLandscapeColumns") private var landscapeColumns: Int = 3
     @AppStorage("iPadPortraitMode") private var portraitMode: String = "twoColumn"
 
+    // Task-detail layout (task 96727335). Synced, not @AppStorage — it is a server preference.
+    @StateObject private var userSettings = UserSettingsService.shared
+    @ObservedObject private var featureFlags = FeatureFlagService.shared
+
+    /// Reads through `TaskDisplayMode` so null and anything unrecognised resolve to `.list`,
+    /// and writes only the two literals the server accepts — anything else is a 400.
+    ///
+    /// The setter refuses until settings have actually loaded. Without that, opening this screen
+    /// before the fetch returns and touching the control would write the DEFAULT over whatever
+    /// the user had chosen — the trap called out on task 8ef7d89d, which the picker is also
+    /// disabled for, so the guard is belt and braces rather than the only defence.
+    private var taskDisplayModeBinding: Binding<TaskDisplayMode> {
+        Binding(
+            get: { TaskDisplayMode(stored: userSettings.settings.taskDisplayMode) },
+            set: { newMode in
+                guard TaskDisplayMode.mayPersistSelection(
+                    hasLoadedSettings: userSettings.hasLoadedFromServer) else { return }
+                userSettings.updateSettings(UserSettings(taskDisplayMode: newMode.wireValue))
+            }
+        )
+    }
+
     var body: some View {
         ZStack {
             // Theme background
@@ -29,6 +51,25 @@ struct AppearanceSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+            }
+
+            // Offered only where the "project" layout means something — that is what Jon asked
+            // for ("for people who have the projects feature flipper turned on"). Note this
+            // gates the CONTROL, not the preference: `taskDisplayMode` is honoured whatever the
+            // flag says, because access and preference are different questions (task 8ef7d89d).
+            if featureFlags.isEnabled(.projectMode) {
+                Section(header: Text(NSLocalizedString("settings.appearance.task_details", comment: "")),
+                        footer: Text(NSLocalizedString("settings.appearance.task_details_footer", comment: ""))) {
+                    Picker(NSLocalizedString("settings.appearance.task_details", comment: ""),
+                           selection: taskDisplayModeBinding) {
+                        Text(NSLocalizedString("settings.task_display.list", comment: "")).tag(TaskDisplayMode.list)
+                        Text(NSLocalizedString("settings.task_display.project", comment: "")).tag(TaskDisplayMode.project)
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(!TaskDisplayMode.mayPersistSelection(
+                        hasLoadedSettings: userSettings.hasLoadedFromServer))
+                    .accessibilityIdentifier("settings.taskDisplayMode")
+                }
             }
 
             Section(header: Text(NSLocalizedString("settings.appearance.email_to_task", comment: "")), footer: Text(NSLocalizedString("settings.appearance.email_to_task_footer", comment: ""))) {

@@ -55,6 +55,15 @@ class UserSettingsService: ObservableObject {
     static let shared = UserSettingsService()
 
     @Published var settings: UserSettings
+
+    /// Whether settings have come back from the server yet.
+    ///
+    /// A control that can write must consult this first. The failure it prevents hides well: a
+    /// picker that saves correctly but initialises to the default looks right until the screen
+    /// is revisited, and then re-saving from the stale control writes the default over the
+    /// user's choice (task 8ef7d89d). The UserDefaults snapshot is a cache, not a load — it can
+    /// predate a change made on another device.
+    @Published private(set) var hasLoadedFromServer = false
     private var updateTask: _Concurrency.Task<Void, Never>?
 
     private let userDefaultsKey = "user_settings"
@@ -100,6 +109,7 @@ class UserSettingsService: ObservableObject {
         do {
             let fetchedSettings = try await AstridAPIClient.shared.getSmartTaskSettings()
             self.settings = fetchedSettings
+            self.hasLoadedFromServer = true
 
             if let encoded = try? JSONEncoder().encode(fetchedSettings) {
                 UserDefaults.standard.set(encoded, forKey: userDefaultsKey)

@@ -9,6 +9,7 @@ import SwiftUI
 struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
     @StateObject private var userSettings = UserSettingsService.shared
+    @ObservedObject private var featureFlags = FeatureFlagService.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
     // wants the system behaviour.
@@ -39,6 +40,34 @@ struct MacSettingsView: View {
                     )) {
                         Text(NSLocalizedString("settings.subtasks.indented", comment: "")).tag("indented")
                         Text(NSLocalizedString("settings.subtasks.under_parent", comment: "")).tag("under_parent")
+                    }
+
+                    // Offered only where the "project" layout means something — Jon: "for people
+                    // who have the projects feature flipper turned on". This gates the CONTROL,
+                    // not the preference: taskDisplayMode is honoured whatever the flag says,
+                    // because access and preference are different questions (task 8ef7d89d).
+                    if featureFlags.isEnabled(.projectMode) {
+                        Picker(NSLocalizedString("settings.appearance.task_details", comment: ""),
+                               selection: Binding(
+                            get: { TaskDisplayMode(stored: userSettings.settings.taskDisplayMode) },
+                            // Refuses until settings have loaded, or opening this pane before the
+                            // fetch returns and touching the control writes the DEFAULT over the
+                            // user's choice — the trap on task 8ef7d89d.
+                            set: { newMode in
+                                guard TaskDisplayMode.mayPersistSelection(
+                                    hasLoadedSettings: userSettings.hasLoadedFromServer) else { return }
+                                userSettings.updateSettings(
+                                    UserSettings(taskDisplayMode: newMode.wireValue))
+                            }
+                        )) {
+                            Text(NSLocalizedString("settings.task_display.list", comment: "")).tag(TaskDisplayMode.list)
+                            Text(NSLocalizedString("settings.task_display.project", comment: "")).tag(TaskDisplayMode.project)
+                        }
+                        .disabled(!TaskDisplayMode.mayPersistSelection(
+                            hasLoadedSettings: userSettings.hasLoadedFromServer))
+                        .accessibilityIdentifier("settings.taskDisplayMode")
+                        Text(NSLocalizedString("settings.appearance.task_details_footer", comment: ""))
+                            .font(.caption).foregroundStyle(Theme.textMuted)
                     }
                 }
             }
