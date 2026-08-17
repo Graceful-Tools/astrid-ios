@@ -1219,3 +1219,9 @@
 "lists.members_hidden_from_viewer" = "이 목록의 멤버는 멤버만 볼 수 있습니다";
 
 "subtasks.outdent_drop_target" = "여기에 놓아 한 단계 밖으로 이동";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "작업 세부 정보";
+"settings.task_display.list" = "목록";
+"settings.task_display.project" = "프로젝트";
+"settings.appearance.task_details_footer" = "작업 세부 정보의 배치를 선택하세요. 목록은 우선순위와 담당자에게 각각의 행을 제공합니다. 프로젝트는 간결하며, 체크박스는 작업을 완료하는 대신 선택기를 엽니다.";

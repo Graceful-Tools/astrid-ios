@@ -1219,3 +1219,9 @@
 "lists.members_hidden_from_viewer" = "只有成員才能查看此清單的成員";
 
 "subtasks.outdent_drop_target" = "拖放至此以向外移動一層";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "任務詳情";
+"settings.task_display.list" = "清單";
+"settings.task_display.project" = "專案";
+"settings.appearance.task_details_footer" = "選擇任務詳情的版面配置。清單為優先順序與負責人各設一列。專案較精簡，勾選框會開啟選擇器而非完成任務。";

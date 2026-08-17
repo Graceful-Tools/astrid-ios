@@ -1233,3 +1233,9 @@
 "lists.members_hidden_from_viewer" = "Solo los miembros pueden ver quién está en esta lista";
 
 "subtasks.outdent_drop_target" = "Suelta aquí para sacarla un nivel";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Detalles de la tarea";
+"settings.task_display.list" = "Lista";
+"settings.task_display.project" = "Proyecto";
+"settings.appearance.task_details_footer" = "Elige cómo se muestran los detalles de la tarea. Lista da a la prioridad y al responsable sus propias filas. Proyecto es compacto y la casilla abre un selector en lugar de completar la tarea.";

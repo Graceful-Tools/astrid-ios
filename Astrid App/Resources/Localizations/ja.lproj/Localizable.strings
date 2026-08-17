@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "このリストのメンバーを見られるのはメンバーだけです";
 
 "subtasks.outdent_drop_target" = "ここにドロップして1階層上に移動";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "タスクの詳細";
+"settings.task_display.list" = "リスト";
+"settings.task_display.project" = "プロジェクト";
+"settings.appearance.task_details_footer" = "タスク詳細のレイアウトを選びます。リストでは優先度と担当者がそれぞれの行に表示されます。プロジェクトはコンパクトで、チェックボックスはタスクを完了せずに選択メニューを開きます。";

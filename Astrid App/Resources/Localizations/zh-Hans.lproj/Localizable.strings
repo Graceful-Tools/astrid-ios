@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "只有成员才能查看此列表的成员";
 
 "subtasks.outdent_drop_target" = "拖放到此处以向外移动一级";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "任务详情";
+"settings.task_display.list" = "列表";
+"settings.task_display.project" = "项目";
+"settings.appearance.task_details_footer" = "选择任务详情的布局。列表为优先级和负责人各设一行。项目更紧凑，勾选框会打开选择器而不是完成任务。";

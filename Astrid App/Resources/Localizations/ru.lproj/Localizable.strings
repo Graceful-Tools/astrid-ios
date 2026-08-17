@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "Видеть участников этого списка могут только участники";
 
 "subtasks.outdent_drop_target" = "Отпустите здесь, чтобы переместить на уровень выше";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Детали задачи";
+"settings.task_display.list" = "Список";
+"settings.task_display.project" = "Проект";
+"settings.appearance.task_details_footer" = "Выберите оформление деталей задачи. «Список» отводит приоритету и исполнителю отдельные строки. «Проект» компактный, и флажок открывает выбор вместо завершения задачи.";

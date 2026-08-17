@@ -1217,3 +1217,9 @@
 "lists.members_hidden_from_viewer" = "Alleen leden zien wie er in deze lijst zit";
 
 "subtasks.outdent_drop_target" = "Sleep hierheen om één niveau omhoog te verplaatsen";
+
+/* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
+"settings.appearance.task_details" = "Taakdetails";
+"settings.task_display.list" = "Lijst";
+"settings.task_display.project" = "Project";
+"settings.appearance.task_details_footer" = "Kies hoe taakdetails worden weergegeven. Lijst geeft prioriteit en toegewezene een eigen rij. Project is compact en het vakje opent een keuzemenu in plaats van de taak te voltooien.";
