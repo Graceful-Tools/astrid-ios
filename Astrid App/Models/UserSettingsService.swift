@@ -10,19 +10,42 @@ struct UserSettings: Codable {
     /// How subtasks display: "indented" (in lists, indented under their parent —
     /// default) | "under_parent" (only inside the parent task's detail).
     var subtaskDisplay: String?
+    /// Which task-detail design to draw: "list" | "project". Nullable, and null is not a third
+    /// mode — resolve it through `TaskDisplayMode(stored:)` rather than comparing the string
+    /// (task 8ef7d89d).
+    var taskDisplayMode: String?
 
     init(
         smartTaskCreationEnabled: Bool? = true,
         emailToTaskEnabled: Bool? = true,
         defaultTaskDueOffset: String? = "1_week",
         defaultDueTime: String? = "17:00",
-        subtaskDisplay: String? = "indented"
+        subtaskDisplay: String? = "indented",
+        taskDisplayMode: String? = nil
     ) {
         self.smartTaskCreationEnabled = smartTaskCreationEnabled
         self.emailToTaskEnabled = emailToTaskEnabled
         self.defaultTaskDueOffset = defaultTaskDueOffset
         self.defaultDueTime = defaultDueTime
         self.subtaskDisplay = subtaskDisplay
+        self.taskDisplayMode = taskDisplayMode
+    }
+
+    /// Field-by-field merge of an update onto current settings.
+    ///
+    /// Lifted out of `updateSettings` so it can be tested without the network, and because the
+    /// pattern has already lost a write: `subtaskDisplay` had no merge line, so updating it
+    /// looked saved and was silently dropped. A field added without a line here fails exactly
+    /// the same way, which is invisible until someone notices their setting reverting.
+    static func merging(_ updates: UserSettings, into current: UserSettings) -> UserSettings {
+        var merged = current
+        if let value = updates.smartTaskCreationEnabled { merged.smartTaskCreationEnabled = value }
+        if let value = updates.emailToTaskEnabled { merged.emailToTaskEnabled = value }
+        if let value = updates.defaultTaskDueOffset { merged.defaultTaskDueOffset = value }
+        if let value = updates.defaultDueTime { merged.defaultDueTime = value }
+        if let value = updates.subtaskDisplay { merged.subtaskDisplay = value }
+        if let value = updates.taskDisplayMode { merged.taskDisplayMode = value }
+        return merged
     }
 }
 
@@ -92,20 +115,9 @@ class UserSettingsService: ObservableObject {
         // Cancel any pending update
         updateTask?.cancel()
 
-        // Merge updates into current settings
-        var merged = self.settings
-        if let smartTaskCreation = updates.smartTaskCreationEnabled {
-            merged.smartTaskCreationEnabled = smartTaskCreation
-        }
-        if let emailToTask = updates.emailToTaskEnabled {
-            merged.emailToTaskEnabled = emailToTask
-        }
-        if let dueOffset = updates.defaultTaskDueOffset {
-            merged.defaultTaskDueOffset = dueOffset
-        }
-        if let dueTime = updates.defaultDueTime {
-            merged.defaultDueTime = dueTime
-        }
+        // Merge updates into current settings. One definition, so a new field cannot be
+        // added to the model and forgotten here — which is how subtaskDisplay was being lost.
+        let merged = UserSettings.merging(updates, into: self.settings)
 
         // Optimistically update local state
         self.settings = merged
