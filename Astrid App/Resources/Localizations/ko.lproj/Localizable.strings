@@ -85,6 +85,7 @@
 "tasks.reminder" = "알림";
 "tasks.reminders" = "알림";
 "tasks.priority" = "우선순위";
+"board.project_state" = "프로젝트 상태";
 "tasks.assignee" = "누구";
 "mac.you" = "(나)";
 "tasks.completed" = "완료됨";

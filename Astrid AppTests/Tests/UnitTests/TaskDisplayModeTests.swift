@@ -77,6 +77,39 @@ final class TaskDisplayModeTests: XCTestCase {
         XCTAssertTrue(TaskDisplayMode.project.usesCompactTaskDetail)
     }
 
+    // MARK: - What the layouts actually do (task 729a190e)
+
+    /// The two questions the detail screens ask. Until task 729a190e nothing read them, so
+    /// the setting was a picker that changed nothing — which is worse than no setting,
+    /// because it looks like it worked.
+    func testListModeShowsAssigneeAndPriorityAsSeparateRows() {
+        XCTAssertTrue(TaskDisplayMode.list.showsSeparateAssigneeAndPriorityRows)
+    }
+
+    /// Project mode keeps them behind the leading control, which already depicts both.
+    func testProjectModeKeepsAssigneeAndPriorityBehindTheControl() {
+        XCTAssertFalse(TaskDisplayMode.project.showsSeparateAssigneeAndPriorityRows)
+    }
+
+    /// The two halves must never both be true: the rows exist precisely when the popover
+    /// does not. A build where both are on is the HYBRID layout this setting exists to end.
+    func testARowAndAPopoverAreNeverBothOffered() {
+        for mode in TaskDisplayMode.allCases {
+            XCTAssertNotEqual(mode.showsSeparateAssigneeAndPriorityRows,
+                              mode.usesCompactTaskDetail,
+                              "\(mode) offers priority and assignee twice, or not at all")
+        }
+    }
+
+    /// And the checkbox follows the same split: it completes exactly where the rows are.
+    func testTheCheckboxCompletesExactlyWhereTheRowsAre() {
+        for mode in TaskDisplayMode.allCases {
+            XCTAssertEqual(mode.checkboxCompletesTask,
+                           mode.showsSeparateAssigneeAndPriorityRows,
+                           "\(mode) disagrees about what its checkbox is for")
+        }
+    }
+
     // MARK: - 3. Load before save
 
     /// The stale-control trap, as a rule a control can consult: until settings have actually

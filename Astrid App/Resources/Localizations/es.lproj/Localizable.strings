@@ -97,6 +97,7 @@
 "tasks.reminder" = "Recordatorio";
 "tasks.reminders" = "Recordatorios";
 "tasks.priority" = "Prioridad";
+"board.project_state" = "Estado del proyecto";
 "tasks.assignee" = "Quién";
 "mac.you" = "(tú)";
 "tasks.completed" = "Completada";

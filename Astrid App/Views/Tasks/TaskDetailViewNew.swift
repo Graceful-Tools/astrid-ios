@@ -25,6 +25,9 @@ struct TaskDetailViewNew: View {
     var onToggleFullScreen: (() -> Void)?
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Which layout to draw (task 729a190e). Observed, so changing it in Appearance redraws
+    /// an open detail rather than waiting for it to be reopened.
+    @StateObject private var userSettings = UserSettingsService.shared
     @StateObject private var notificationPromptManager = NotificationPromptManager.shared
 
     // Editable state
@@ -317,7 +320,12 @@ struct TaskDetailViewNew: View {
                             isTitleFocused = false
                             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
                                                             to: nil, from: nil, for: nil)
-                            showingLeadingPicker = true
+                            // LIST mode: a checkbox completes the task, which is what a
+                            // checkbox means (task 729a190e). Opening the picker was
+                            // unconditional, so in list mode the most familiar gesture in the
+                            // app did the one thing it does not normally do.
+                            if leadingControlCompletes { toggleCompletion() }
+                            else { showingLeadingPicker = true }
                         } label: {
                             detailLeadingControl
                         }
@@ -374,9 +382,40 @@ struct TaskDetailViewNew: View {
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
 
-                // 2. Creator, for a public list task only. Priority and assignee moved BEHIND
-                // the checkbox (42013da7) — that control already depicts both, so a row
-                // repeating them was spending vertical space the description wanted.
+                // 1a. Priority and assignee, in LIST mode only (task 729a190e).
+                //
+                // Project mode keeps them behind the checkbox (42013da7): that control already
+                // depicts both, so a row repeating them spends vertical space the description
+                // wants. List mode is the other bargain — the rows are the point of it, and
+                // they sit directly under the title so the fields set most often are at the
+                // top rather than below a description of any length. Same order as the Mac.
+                if displayMode.showsSeparateAssigneeAndPriorityRows && !isReadOnly {
+                    TwoColumnRow(label: NSLocalizedString("tasks.priority", comment: ""),
+                                 icon: "flag") {
+                        // The SAME picker the popover uses, so the two layouts cannot drift
+                        // into offering different priorities for the same field.
+                        PriorityButtonPicker(priority: $editedPriority, onSave: { newPriority in
+                            _ = try await taskService.updateTask(taskId: task.id,
+                                                                 priority: newPriority.rawValue,
+                                                                 task: task)
+                        })
+                    }
+
+                    TwoColumnRow(label: NSLocalizedString("tasks.assignee", comment: ""),
+                                 icon: "person.crop.circle") {
+                        InlineAssigneePicker(
+                            label: NSLocalizedString("tasks.assignee", comment: ""),
+                            assigneeId: $editedAssigneeId,
+                            taskListIds: editedListIds,
+                            taskId: task.id,
+                            availableLists: listService.lists,
+                            onSave: { newAssigneeId in await saveAssignee(newAssigneeId) },
+                            showLabel: false
+                        )
+                    }
+                }
+
+                // 2. Creator, for a public list task only.
                 if isPublicListTask, let creator = task.creator {
                     TwoColumnRow(label: NSLocalizedString("tasks.created_by", comment: ""),
                                  icon: "person.crop.circle") {
@@ -1478,6 +1517,21 @@ struct TaskDetailViewNew: View {
                 showLabel: false
             )
 
+            // Board state, in PROJECT mode only (task 729a190e) — the third thing the quick
+            // changer holds. List mode does not offer it: priority and assignee are rows of
+            // their own there, and a board column is a project idea. Offering it in both
+            // would rebuild the hybrid layout this setting exists to end.
+            if displayMode.usesCompactTaskDetail {
+                Divider()
+                VStack(alignment: .leading, spacing: Theme.spacing8) {
+                    Text(NSLocalizedString("board.project_state", comment: ""))
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(Theme.textMuted)
+                    ProjectStateQuickPicker(task: task,
+                                            onMoved: { showingLeadingPicker = false })
+                }
+            }
+
             Divider()
 
             Button {
@@ -1502,6 +1556,23 @@ struct TaskDetailViewNew: View {
 
     /// The assignee to depict — the full object when we have it, otherwise a minimal User built
     /// from the id so UserImageCache can still resolve a photo (same as TaskRowView).
+    /// Resolved rather than string-compared, so null and an unknown value from a newer build
+    /// both land on the usable layout instead of an empty one.
+    private var displayMode: TaskDisplayMode {
+        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
+    /// Whether tapping the leading control completes the task instead of opening the picker.
+    ///
+    /// Only when the control IS a checkbox. Someone else's avatar is not a checkbox, and
+    /// completing their task by tapping their photo is not what that tap means — those keep
+    /// the picker in both modes. Mirrors the Mac's `tapCompletes`.
+    private var leadingControlCompletes: Bool {
+        displayMode.checkboxCompletesTask
+            && TaskLeadingControl.kind(assigneeId: editedAssigneeId,
+                                       currentUserId: AuthManager.shared.currentUser?.id) == .checkbox
+    }
+
     private var effectiveAssignee: User? {
         // No member list here — the picker fetches its own — so the resolver falls through to the
         // task's assignee, then to a minimal User that UserImageCache can still supply a photo for.
