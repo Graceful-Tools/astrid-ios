@@ -97,47 +97,54 @@ enum UITestLaunch {
             : "No test-account session — run `npm run test:ui`, which mints one.")
     }
 
-    /// The rows actually on screen.
-    ///
-    /// `app.cells` is the wrong thing to ask for, and it fails in a way that reads as an app
-    /// bug. The sidebar stays in the accessibility tree while closed, and its rows come FIRST
-    /// in the hierarchy — sitting off to the left at x≈24 rather than filling the width. So
-    /// `app.cells.firstMatch` returns the sidebar's account button, `count > 0` is true on an
-    /// empty task list, and tapping it fails with "not hittable". Thirteen tests reported that
-    /// at once, in five files, none of which had anything to do with the sidebar.
-    ///
-    /// Hittability is the discriminator: an off-screen sidebar row is not hittable and a row
-    /// on the current screen is. It is also the property these callers actually want, since
-    /// every one of them goes on to tap what it gets back.
     /// Identifier the app stamps on every task row. Must match `TaskRowView`.
     static let taskRowIdentifier = "taskRow"
 
     /// The task rows on screen.
     ///
-    /// Two earlier attempts at this were wrong, and both failed in ways that read as app bugs:
+    /// **`isHittable` is useless in this app and must not be used as a filter.** Measured
+    /// 2026-08-16 on iPhone 17, with the task list showing and five fixture tasks visible:
     ///
-    ///   - `app.cells` returns the SIDEBAR's rows too. They stay in the accessibility tree
-    ///     while the sidebar is closed, they come first, and they keep on-screen coordinates —
-    ///     so tests tapped the account button and reported that task detail would not open.
-    ///   - `matching(NSPredicate(format: "hittable == true"))` looks like it fixes that and
-    ///     does not. `firstMatch` short-circuits on the first element of the right TYPE, so it
-    ///     hands back the very row the predicate excludes, and `count` disagrees with it.
+    /// ```
+    /// taskRow matches=28  hittable=0
+    /// cells=19            hittable=0
+    /// fixtureTexts=5      hittable=0
+    /// ```
     ///
-    /// Neither ordering nor hittability distinguishes a task row from a sidebar row. The app
-    /// names them instead, and `isHittable` is applied per element in Swift so it means what it
-    /// says.
+    /// Everything reports not-hittable, including rows a person can plainly see and tap.
+    ///
+    /// That measurement retired two earlier explanations, both of which were wrong and both of
+    /// which read as app bugs. The "not hittable" failures across five files were blamed on the
+    /// closed sidebar keeping its rows in the accessibility tree; they were not — the sidebar
+    /// was incidental, and every element in the app answers the same way. Filtering on
+    /// `isHittable` then returns NOTHING, which turned those same tests into "No tasks found in
+    /// list" — a worse lie than the failure it replaced, because an empty list looks like a
+    /// fixture problem.
+    ///
+    /// The identifier is what actually discriminates, and it does work: 28 matches on a screen
+    /// with five tasks, because SwiftUI stamps it on nested elements too. Take the first.
     @MainActor
     static func visibleRows(_ app: XCUIApplication) -> [XCUIElement] {
         let rows = app.descendants(matching: .any)
             .matching(identifier: taskRowIdentifier)
             .allElementsBoundByIndex
-            .filter { $0.isHittable }
         if !rows.isEmpty { return rows }
 
         // Screens with no task rows — the lists screen, for one — still need "the first row on
         // screen". Falling back keeps those callers working rather than making every one of
         // them special-case the identifier.
-        return app.cells.allElementsBoundByIndex.filter { $0.isHittable }
+        return app.cells.allElementsBoundByIndex
+    }
+
+    /// Tap an element that `isHittable` refuses to vouch for.
+    ///
+    /// `tap()` consults hittability first and refuses with "Neither element nor any descendant
+    /// has keyboard focus" / "not hittable" — which, given the measurement above, it would do
+    /// for every row in this app. A coordinate tap goes straight to the point and is how these
+    /// tests can interact with the list at all.
+    @MainActor
+    static func tapCenter(_ element: XCUIElement) {
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     /// Identifier the app stamps on the quick-add field. Must match `QuickAddTaskView`.

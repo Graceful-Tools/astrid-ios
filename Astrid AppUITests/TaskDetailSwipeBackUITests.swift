@@ -52,7 +52,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             throw XCTSkip("No tasks found in list")
         }
 
-        firstTask.tap()
+        UITestLaunch.tapCenter(firstTask)
 
         // Wait for task detail to appear
         // The custom header shows "Task Details" text
@@ -105,7 +105,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             throw XCTSkip("No tasks found in list")
         }
 
-        firstTask.tap()
+        UITestLaunch.tapCenter(firstTask)
 
         // Wait for task detail
         let detailHeader = app.staticTexts["Task Details"]
@@ -193,14 +193,14 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
         // Must be hittable, not merely present: the closed sidebar keeps its gear button in
         // the tree, and tapping an off-screen element fails rather than skipping.
-        guard settingsButton.waitForExistence(timeout: 3), settingsButton.isHittable else {
+        guard settingsButton.waitForExistence(timeout: 3) else {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "Settings Button Not Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
             throw XCTSkip("Settings button not found in sidebar")
         }
-        settingsButton.tap()
+        UITestLaunch.tapCenter(settingsButton)
 
         Thread.sleep(forTimeInterval: 0.5)
 
@@ -246,7 +246,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
-        firstTask.tap()
+        UITestLaunch.tapCenter(firstTask)
 
         // Task detail should appear
         let detailHeader = app.staticTexts["Task Details"]

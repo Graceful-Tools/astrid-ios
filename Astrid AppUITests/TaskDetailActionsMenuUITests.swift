@@ -31,7 +31,7 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw XCTSkip("No tasks found in list")
         }
-        firstTask.tap()
+        UITestLaunch.tapCenter(firstTask)
 
         let detailHeader = app.staticTexts["Task Details"]
         guard detailHeader.waitForExistence(timeout: 5) else { throw XCTSkip("Task detail did not appear") }
