@@ -12,6 +12,7 @@ import AppKit
 
 struct MacRootView: View {
     @State private var keyMonitor: Any?
+    @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
     @StateObject private var appModel = MacAppModel.shared
@@ -150,6 +151,7 @@ struct MacRootView: View {
     /// that holds YOUR tasks — so selecting one fetches its tasks from the server on demand.
     @State private var publicListTasks: [String: [Task]] = [:]
     @State private var showFilterSheet = false
+    @State private var showMyTasksFilterSheet = false
 
     /// The currently-selected real (non-virtual) list — drives the filter editor + Save-as-Smart-List.
     private var currentRealList: TaskList? {
@@ -390,7 +392,7 @@ struct MacRootView: View {
         if id == Self.myTasksId {
             // Virtual My Tasks: incomplete tasks assigned to me across ALL lists (from the global
             // task store, so it's populated even for lists not individually opened).
-            return MacMyTasks.filter(taskService.tasks, userId: auth.userId)
+            return MacMyTasks.filter(taskService.tasks, userId: auth.userId, preferences: myTasksPreferences.preferences)
         }
         // Saved-filter / virtual lists (isVirtual) filter across ALL tasks — the shared
         // filterTasksForList in displayedTasks then applies their saved filters (efd05e56),
@@ -569,12 +571,32 @@ struct MacRootView: View {
                 Spacer(minLength: 0)
                 if showsSort { sortMenu.fixedSize() }
                 if showsFilter, let list = currentRealList { filterButton(list) }
+                // My Tasks is virtual, so it has no TaskList to edit — but it does have saved,
+                // synced filters, and until now nothing on Mac could reach them (ebdf94a1).
+                if selectedListId == Self.myTasksId, contentMode == .list { myTasksFilterButton }
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .padding(.horizontal, MacLayout.rowTrailingGap)
             .padding(.vertical, 4)
         }
+    }
+
+    /// The same control for My Tasks, whose filters live in the account-wide preferences rather
+    /// than on a list record.
+    private var myTasksFilterButton: some View {
+        Button { showMyTasksFilterSheet = true } label: {
+            let active = MacListFilter.activeCount(
+                completion: myTasksPreferences.preferences.filterCompletion,
+                priority: myTasksPreferences.preferences.filterPriority?.first.map(String.init),
+                dueDate: myTasksPreferences.preferences.filterDueDate,
+                assignee: "all", repeating: "all", assignedBy: "all")
+            Label(NSLocalizedString("actions.filter", comment: ""),
+                  systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
+                                          : "line.3.horizontal.decrease.circle")
+        }
+        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
+        .accessibilityIdentifier("myTasks.filterButton")
     }
 
     /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
@@ -1406,7 +1428,7 @@ struct MacRootView: View {
         }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
-            myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId).count
+            myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId, preferences: myTasksPreferences.preferences).count
             listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
                                              currentUserId: auth.userId)
             // Hydrate lists from the shared service (cache-first, offline-safe).
@@ -1474,7 +1496,7 @@ struct MacRootView: View {
                 try? await _Concurrency.Task.sleep(nanoseconds: MacSideEffects.coalesceNanos)
                 guard !_Concurrency.Task.isCancelled else { return }
                 let tasks = taskService.tasks
-                myTasksCount = MacMyTasks.filter(tasks, userId: auth.userId).count
+                myTasksCount = MacMyTasks.filter(tasks, userId: auth.userId, preferences: myTasksPreferences.preferences).count
                 listCounts = MacListCount.counts(tasks, lists: listService.lists,
                                                  currentUserId: auth.userId)
                 await BadgeManager.shared.updateBadge(with: tasks)
@@ -1500,6 +1522,7 @@ struct MacRootView: View {
         .sheet(isPresented: $showFilterSheet) {
             if let list = currentRealList { MacFilterSheet(list: list) }
         }
+        .sheet(isPresented: $showMyTasksFilterSheet) { MacMyTasksFilterSheet() }
         .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
                             isPresented: Binding(get: { listToDelete != nil },
                                                  set: { if !$0 { listToDelete = nil } }),

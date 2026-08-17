@@ -13,6 +13,9 @@ final class MacMyTasksTests: XCTestCase {
         return t
     }
 
+    /// These predate the saved filters (task ebdf94a1) and assert the SCOPE, which the filters
+    /// did not change. `MyTasksPreferences()` is the untouched default — hide completed, all
+    /// priorities, all due dates — so they keep testing exactly what they used to.
     func testIncludesMineAndUnassignedExcludesOthersAndCompleted() {
         let tasks = [
             task("mine", assignee: "me"),
@@ -20,17 +23,17 @@ final class MacMyTasksTests: XCTestCase {
             task("theirs", assignee: "you"),
             task("mineDone", assignee: "me", completed: true),
         ]
-        let ids = Set(MacMyTasks.filter(tasks, userId: "me").map { $0.id })
+        let ids = Set(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).map { $0.id })
         XCTAssertEqual(ids, ["mine", "unassigned"])
     }
 
     func testDeduplicatesAcrossLists() {
         let tasks = [task("1", assignee: "me"), task("1", assignee: "me")]
-        XCTAssertEqual(MacMyTasks.filter(tasks, userId: "me").count, 1)
+        XCTAssertEqual(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).count, 1)
     }
 
     func testExcludesTasksAssignedToOthers() {
         let tasks = [task("a", assignee: "other1"), task("b", assignee: "other2")]
-        XCTAssertTrue(MacMyTasks.filter(tasks, userId: "me").isEmpty)
+        XCTAssertTrue(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).isEmpty)
     }
 }
