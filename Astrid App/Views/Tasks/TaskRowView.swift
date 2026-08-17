@@ -4,6 +4,51 @@ struct TaskRowView: View {
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @EnvironmentObject var authManager: AuthManager
+    /// The row follows the display mode too (task 132d7b3f) — the task box in rows and boards
+    /// behaves like the one in task details.
+    @StateObject private var userSettings = UserSettingsService.shared
+
+    private var displayMode: TaskDisplayMode {
+        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
+    private var leadingKind: TaskLeadingControl {
+        TaskLeadingControl.kind(assigneeId: task.assigneeId,
+                                currentUserId: authManager.currentUser?.id,
+                                displayMode: displayMode)
+    }
+
+    /// Whether the leading control is a face rather than a checkbox or the unassigned mark.
+    private var showsAssigneeFace: Bool {
+        if case .avatar = leadingKind { return true }
+        return false
+    }
+
+    /// In project mode the leading control opens the quick changer instead of completing —
+    /// the same thing it does in task details (task 132d7b3f). Rows and boards were the
+    /// surfaces where the same control still meant something else.
+    private var opensQuickChanger: Bool { !displayMode.checkboxCompletesTask }
+
+    @State private var showingQuickChanger = false
+
+    /// One decision for all three faces. Each branch used to complete the task directly, which
+    /// is why "same behavior as task details" could not simply be switched on — the rule was
+    /// written three times inside one view.
+    private func handleLeadingTap() {
+        if opensQuickChanger {
+            showingQuickChanger = true
+            return
+        }
+        // Haptics only where the tap actually finishes something. Firing a success
+        // notification for "opened a popover" is a small lie the hand can feel.
+        if task.completed {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } else {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+        onToggle()
+    }
+
     let task: Task
     let onToggle: () -> Void
     var isViewingFeaturedPublicList: Bool = false
@@ -82,11 +127,15 @@ struct TaskRowView: View {
                 }
                 .buttonStyle(.plain)
             }
-            // Show avatar if task is assigned to someone other than current user
-            // Otherwise show completion checkbox
+            // Show a face whenever the SHARED helper says this control is an avatar.
+            //
+            // This used to spell the rule itself — "assigned to someone other than the current
+            // user" — which is why project mode did not reach it: in project mode YOUR OWN
+            // task shows your photo too (task 132d7b3f), and a condition written out here
+            // could not know that. Asking `TaskLeadingControl` instead means the row follows
+            // the mode without the row knowing what the modes are.
             else if let assignee = effectiveAssignee,
-               let currentUser = authManager.currentUser,
-               assignee.id != currentUser.id {
+               showsAssigneeFace {
                 // Show assignee avatar instead of checkbox for shared list tasks
                 // Use cachedImageURL to leverage UserImageCache from list member data
                 CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
@@ -111,20 +160,17 @@ struct TaskRowView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(priorityColor, lineWidth: 2)
                 )
+                // The avatar had NO gesture, which was harmless while a face only ever meant
+                // someone else's task. In project mode your own task is a face too, so without
+                // this the control you are told to tap does nothing (task 132d7b3f).
+                .contentShape(Rectangle())
+                .onTapGesture { handleLeadingTap() }
             }
             // Nobody assigned: "U", not the checkbox (42013da7). Unassigned had been folded in
             // with "mine", so a task nobody owns looked exactly like a task you own. Tapping it
             // still completes the task — the mark changes, the action does not.
-            else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                            currentUserId: authManager.currentUser?.id) == .unassigned {
-                Button(action: {
-                    if task.completed {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    } else {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    }
-                    onToggle()
-                }) {
+            else if leadingKind == .unassigned {
+                Button(action: { handleLeadingTap() }) {
                     Text(TaskLeadingControl.unassignedGlyph)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(priorityColor)
@@ -139,20 +185,7 @@ struct TaskRowView: View {
             } else {
                 // Show completion checkbox for own tasks
                 // Using custom checkbox images matching mobile web
-                Button(action: {
-                    // Haptic feedback based on completion state
-                    if task.completed {
-                        // Light impact when uncompleting
-                        let impact = UIImpactFeedbackGenerator(style: .light)
-                        impact.impactOccurred()
-                    } else {
-                        // Success notification when completing
-                        let notification = UINotificationFeedbackGenerator()
-                        notification.notificationOccurred(.success)
-                    }
-
-                    onToggle()
-                }) {
+                Button(action: { handleLeadingTap() }) {
                     checkboxImage
                 }
                 .buttonStyle(.plain)
@@ -255,6 +288,12 @@ struct TaskRowView: View {
             }
 
             Spacer()
+        }
+        // The SAME quick changer the task detail shows, so "same behavior" is one view rather
+        // than a promise three surfaces keep separately (task 132d7b3f).
+        .popover(isPresented: $showingQuickChanger) {
+            TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
+                .presentationCompactAdaptation(.popover)
         }
         // Board cards: 12pt vertical, 10pt horizontal. The horizontal
         // inset is cut by the same amount the card's outer margin grew

@@ -20,9 +20,27 @@ enum TaskLeadingControl: Equatable {
     /// then SEE on the task.
     static var unassignedGlyph: String { AssigneeResolver.unassignedGlyph }
 
-    static func kind(assigneeId: String?, currentUserId: String?) -> TaskLeadingControl {
+    /// `displayMode` is required rather than defaulted (task 132d7b3f). The two modes disagree
+    /// about exactly one case — a task assigned to YOU — and a default would let a new call
+    /// site pick the old answer silently, which is the bug this parameter exists to prevent.
+    ///
+    /// LIST mode: your own task is the checkbox, because in list mode the checkbox is how you
+    /// complete it.
+    ///
+    /// PROJECT mode: your own task shows YOUR photo, exactly as someone else's shows theirs.
+    /// The mode's own documentation has promised this since it was added — "tasks assigned to
+    /// you also show your profile photo" — and it costs nothing there, because in project mode
+    /// the control opens the quick changer rather than completing, so it was never a checkbox
+    /// in the sense of "click to finish". A board where every card you own is a bare checkbox
+    /// and everyone else's is a face makes your own work the only thing you cannot see at a
+    /// glance.
+    static func kind(assigneeId: String?,
+                     currentUserId: String?,
+                     displayMode: TaskDisplayMode) -> TaskLeadingControl {
         guard let assigneeId, !assigneeId.isEmpty else { return .unassigned }
-        if let currentUserId, assigneeId == currentUserId { return .checkbox }
+        if let currentUserId, assigneeId == currentUserId {
+            return displayMode.usesCompactTaskDetail ? .avatar(assigneeId) : .checkbox
+        }
         return .avatar(assigneeId)
     }
 }

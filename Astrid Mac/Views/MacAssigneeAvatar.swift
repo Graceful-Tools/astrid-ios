@@ -11,9 +11,19 @@ import SwiftUI
 enum MacAssignee {
     /// Show the assignee avatar (instead of the checkbox) only when the task is assigned to a
     /// user OTHER than the current one — matches iOS/web.
-    static func showsAvatar(assigneeId: String?, currentUserId: String?) -> Bool {
-        guard let assigneeId, !assigneeId.isEmpty else { return false }
-        return assigneeId != currentUserId
+    /// Delegates to the SHARED rule rather than restating it.
+    ///
+    /// This was its own copy — "assigned, and not to me" — which is why project mode did not
+    /// reach it: there a task assigned to YOU shows your photo too (task 132d7b3f), and a rule
+    /// written out separately here could not know that. Two spellings of "whose face goes on
+    /// this task" is how the Mac and the phone start disagreeing about the same task.
+    static func showsAvatar(assigneeId: String?,
+                            currentUserId: String?,
+                            displayMode: TaskDisplayMode) -> Bool {
+        if case .avatar = TaskLeadingControl.kind(assigneeId: assigneeId,
+                                                  currentUserId: currentUserId,
+                                                  displayMode: displayMode) { return true }
+        return false
     }
 }
 

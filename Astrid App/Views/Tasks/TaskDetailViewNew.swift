@@ -1421,9 +1421,10 @@ struct TaskDetailViewNew: View {
     /// Mirrors TaskRowView's leading control: the assignee's photo in a priority-coloured square
     /// when the task belongs to someone else, the completion checkbox otherwise (42013da7).
     @ViewBuilder private var detailLeadingControl: some View {
-        if let assignee = effectiveAssignee,
-           let currentUser = AuthManager.shared.currentUser,
-           assignee.id != currentUser.id {
+        // Asks the SHARED helper rather than spelling "not mine" here, so project mode's
+        // "your own task shows your photo too" (task 132d7b3f) reaches the detail as well as
+        // the rows, without this view knowing what the modes are.
+        if let assignee = effectiveAssignee, showsAssigneeFace {
             CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
@@ -1443,7 +1444,8 @@ struct TaskDetailViewNew: View {
             .id(AssigneeResolver.avatarIdentity(for: editedAssigneeId))
             .accessibilityLabel(Text(assignee.displayName))
         } else if TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                          currentUserId: AuthManager.shared.currentUser?.id) == .unassigned {
+                                          currentUserId: AuthManager.shared.currentUser?.id,
+                                          displayMode: displayMode) == .unassigned {
             // Nobody assigned gets "U", the same mark the assignee list uses (42013da7).
             Text(TaskLeadingControl.unassignedGlyph)
                 .font(.system(size: 15, weight: .semibold))
@@ -1562,6 +1564,14 @@ struct TaskDetailViewNew: View {
         TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
     }
 
+    /// Whether the leading control is a face rather than a checkbox or the unassigned mark.
+    private var showsAssigneeFace: Bool {
+        if case .avatar = TaskLeadingControl.kind(assigneeId: editedAssigneeId,
+                                                  currentUserId: AuthManager.shared.currentUser?.id,
+                                                  displayMode: displayMode) { return true }
+        return false
+    }
+
     /// Whether tapping the leading control completes the task instead of opening the picker.
     ///
     /// Only when the control IS a checkbox. Someone else's avatar is not a checkbox, and
@@ -1570,7 +1580,8 @@ struct TaskDetailViewNew: View {
     private var leadingControlCompletes: Bool {
         displayMode.checkboxCompletesTask
             && TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                       currentUserId: AuthManager.shared.currentUser?.id) == .checkbox
+                                       currentUserId: AuthManager.shared.currentUser?.id,
+                                       displayMode: displayMode) == .checkbox
     }
 
     private var effectiveAssignee: User? {
