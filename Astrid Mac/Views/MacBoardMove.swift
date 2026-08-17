@@ -24,17 +24,15 @@ enum MacBoardMove {
         case uncomplete([String], statusRole: String)          // Done → elsewhere: un-complete then set lists
     }
 
+    /// Delegates to the SHARED planner. The rule moved to `planProjectColumnMove` when the
+    /// quick changer gave iOS a second way to change a column (task 729a190e); this stays as
+    /// the Mac's name for it so the board's call sites and tests are untouched.
     static func plan(task: Task, column: ProjectBoardColumn, lists: [TaskList]) -> Plan {
-        if getTaskProjectColumnId(task, lists: lists) == column.id { return .none }
-        let move = resolveProjectColumnMove(task, targetColumn: column, lists: lists)
-        let role = move.statusRole ?? ""
-        switch column.kind {
-        case .done:
-            return .complete(move.listIds, statusRole: role)
-        case .inbox, .status:
-            return task.completed
-                ? .uncomplete(move.listIds, statusRole: role)
-                : .setLists(move.listIds, statusRole: role)
+        switch planProjectColumnMove(task: task, column: column, lists: lists) {
+        case .none: return .none
+        case .setLists(let ids, let role): return .setLists(ids, statusRole: role)
+        case .complete(let ids, let role): return .complete(ids, statusRole: role)
+        case .uncomplete(let ids, let role): return .uncomplete(ids, statusRole: role)
         }
     }
 }

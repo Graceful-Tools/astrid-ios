@@ -85,6 +85,7 @@
 "tasks.reminder" = "Herinnering";
 "tasks.reminders" = "Herinneringen";
 "tasks.priority" = "Prioriteit";
+"board.project_state" = "Projectstatus";
 "tasks.assignee" = "Wie";
 "mac.you" = "(jij)";
 "tasks.completed" = "Voltooid";

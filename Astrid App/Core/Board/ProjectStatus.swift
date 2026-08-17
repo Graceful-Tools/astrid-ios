@@ -597,3 +597,44 @@ extension Task {
         return moved
     }
 }
+
+// MARK: - Moving a task to a column, as a plan (task 729a190e)
+
+/// What a move to a board column requires, in the order it must happen.
+///
+/// This lived in `MacBoardMove` and was Mac-only, which was fine while the board was the only
+/// way to change a task's column. Task 729a190e adds a second way — the quick changer in task
+/// details, on BOTH platforms — so the rule moved here rather than being written a second time.
+/// A separate iOS copy of "what moving to Done means" is exactly how two surfaces start
+/// disagreeing about whether a move completes a task.
+///
+/// Each case carries the status role as well as the lists, because the board resolves a card's
+/// column from `Task.statusRole` first (AWTD-566). A plan that described only the membership
+/// left the role behind and the resolver put the card straight back where it came from —
+/// "moving from Ready to Inbox doesn't always work", where "not always" meant "not for any
+/// task that has a role".
+///
+/// `statusRole` is "" for Inbox and Done, which carry no status; "" is the value that CLEARS
+/// it, both locally and on the server.
+enum ProjectColumnMovePlan: Equatable {
+    case none                                              // already in that column
+    case setLists([String], statusRole: String)            // status/inbox move, no completion change
+    case complete([String], statusRole: String)            // → Done: set lists then complete
+    case uncomplete([String], statusRole: String)          // Done → elsewhere: un-complete then set lists
+}
+
+func planProjectColumnMove(task: Task,
+                           column: ProjectBoardColumn,
+                           lists: [TaskList]) -> ProjectColumnMovePlan {
+    if getTaskProjectColumnId(task, lists: lists) == column.id { return .none }
+    let move = resolveProjectColumnMove(task, targetColumn: column, lists: lists)
+    let role = move.statusRole ?? ""
+    switch column.kind {
+    case .done:
+        return .complete(move.listIds, statusRole: role)
+    case .inbox, .status:
+        return task.completed
+            ? .uncomplete(move.listIds, statusRole: role)
+            : .setLists(move.listIds, statusRole: role)
+    }
+}

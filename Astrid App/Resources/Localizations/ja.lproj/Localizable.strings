@@ -85,6 +85,7 @@
 "tasks.reminder" = "リマインダー";
 "tasks.reminders" = "リマインダー";
 "tasks.priority" = "優先度";
+"board.project_state" = "プロジェクトの状態";
 "tasks.assignee" = "誰";
 "mac.you" = "（自分）";
 "tasks.completed" = "完了済み";

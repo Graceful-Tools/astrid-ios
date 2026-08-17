@@ -82,6 +82,7 @@
 "tasks.reminder" = "Rappel";
 "tasks.reminders" = "Rappels";
 "tasks.priority" = "Priorité";
+"board.project_state" = "État du projet";
 "tasks.assignee" = "Qui";
 "mac.you" = "(vous)";
 "tasks.completed" = "Terminée";

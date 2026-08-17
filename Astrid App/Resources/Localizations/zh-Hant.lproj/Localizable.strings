@@ -85,6 +85,7 @@
 "tasks.reminder" = "提醒";
 "tasks.reminders" = "提醒";
 "tasks.priority" = "優先級";
+"board.project_state" = "專案狀態";
 "tasks.assignee" = "誰";
 "mac.you" = "（我）";
 "tasks.completed" = "已完成";

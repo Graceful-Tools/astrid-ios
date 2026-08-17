@@ -16,8 +16,8 @@ enum MacTaskFieldRow: Equatable {
     case lists
     case description
 
-    // Retired: priority and assignee had their own row, restating what the
-    // leading control already depicts. Named so their absence is checkable.
+    /// Rows only in LIST mode. In project mode the leading control depicts both, so a row
+    /// restating them spends panel width saying it twice (task 42013da7).
     case priority
     case assignee
 }
@@ -26,8 +26,20 @@ enum MacTaskFields {
 
     /// The rows, in order. `showsTitle` is false for the board's inline card
     /// editor, which already draws the title on the card face.
-    static func rows(showsTitle: Bool) -> [MacTaskFieldRow] {
-        (showsTitle ? [.title] : []) + [.when, .lists, .description]
+    ///
+    /// `displayMode` decides whether priority and assignee are rows here or stay behind the
+    /// leading control (task 729a190e). It is required rather than defaulted: the whole bug
+    /// was that this choice had one hardcoded answer, and a default would let a new call site
+    /// re-hardcode it without anyone noticing.
+    ///
+    /// The two sit directly after the title so the fields you set most often are at the top,
+    /// rather than below a description that can run to any length.
+    static func rows(showsTitle: Bool, displayMode: TaskDisplayMode) -> [MacTaskFieldRow] {
+        let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
+        let modeRows: [MacTaskFieldRow] = displayMode.showsSeparateAssigneeAndPriorityRows
+            ? [.priority, .assignee]
+            : []
+        return leading + modeRows + [.when, .lists, .description]
     }
 
     /// Every field the editor shows is one the user can change. The Lists row
@@ -35,10 +47,10 @@ enum MacTaskFields {
     /// with no control attached — which is what "list selecting isn't working"
     /// turned out to mean.
     static func isEditable(_ row: MacTaskFieldRow) -> Bool {
-        switch row {
-        case .title, .when, .lists, .description: return true
-        case .priority, .assignee: return false   // not rows at all any more
-        }
+        // Every row, without exception. Priority and assignee used to return false here
+        // because they were not rows at all; now that list mode shows them, a false would
+        // ship exactly the read-only row the Lists bug was about.
+        true
     }
 
     /// Picking a list toggles the task's membership of it. Multi-select: a task
@@ -103,10 +115,24 @@ enum MacTaskFields {
 enum MacLeadingPickerSection: Equatable {
     case priority
     case assignee
+    /// The task's board column — Ready / Doing / Waiting, stored as `statusRole`.
+    case projectState
     case complete
 }
 
 enum MacLeadingPicker {
-    static var sections: [MacLeadingPickerSection] { [.priority, .assignee, .complete] }
+
+    /// What the popover behind the leading control offers.
+    ///
+    /// Project mode gets board state as well (task 729a190e): in that mode the control is the
+    /// quick changer, and moving a task between columns is the thing you do most. List mode
+    /// does not — priority and assignee are rows of their own there, and a board column is a
+    /// project idea. Offering both everywhere would rebuild the hybrid layout this setting
+    /// exists to end.
+    static func sections(for displayMode: TaskDisplayMode) -> [MacLeadingPickerSection] {
+        displayMode.usesCompactTaskDetail
+            ? [.priority, .assignee, .projectState, .complete]
+            : [.priority, .assignee, .complete]
+    }
 }
 #endif
