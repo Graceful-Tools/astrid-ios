@@ -27,6 +27,9 @@ private struct QuickAddOuterChrome: ViewModifier {
 /// Quick add task view fixed at bottom (matching mobile web)
 /// Allows adding multiple tasks in a row
 struct QuickAddTaskView: View {
+    /// What a UI test matches on to find the quick-add field. Referenced by `UITestLaunch`.
+    static let fieldIdentifier = "quickAdd.field"
+
     @Environment(\.colorScheme) var colorScheme
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     @EnvironmentObject var authManager: AuthManager
@@ -133,6 +136,15 @@ struct QuickAddTaskView: View {
 
                 // TextEditor — visible text, standard behavior
                 TextEditor(text: $taskTitle)
+                    // Lets a UI test name the quick-add field (task 0bfb8eb4).
+                    //
+                    // The suite looked for `app.textFields` with a `placeholderValue` containing
+                    // "task", and that could never match for two independent reasons: this is a
+                    // TextEditor, which XCUITest exposes as a text VIEW rather than a text field,
+                    // and the placeholder above is a separate Text so `placeholderValue` is empty.
+                    // Four tests skipped with "Quick add task field not found", which reads as the
+                    // field being missing rather than the query being wrong.
+                    .accessibilityIdentifier(QuickAddTaskView.fieldIdentifier)
                     .font(Theme.Typography.body())
                     .foregroundColor(textColor)
                     .focused($isFocused)
