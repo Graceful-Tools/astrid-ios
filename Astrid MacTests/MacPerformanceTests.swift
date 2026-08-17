@@ -39,7 +39,7 @@ final class MacPerformanceTests: XCTestCase {
 
     func testMyTasksAggregationOver10kTasks() {
         let tasks = makeTasks(10_000)
-        measure { _ = MacMyTasks.filter(tasks, userId: "me") }
+        measure { _ = MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()) }
     }
 
     /// The COMPOSED per-render pipeline (sort → splice with subtasks) at 10k — the actual work
