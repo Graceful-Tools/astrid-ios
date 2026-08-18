@@ -20,6 +20,17 @@ enum MacTaskFieldRow: Equatable {
     /// restating them spends panel width saying it twice (task 42013da7).
     case priority
     case assignee
+
+    /// The Mac's name for a shared field, so `MacTaskFields.rows` can build list mode straight
+    /// from `TaskDetailFieldOrder.listMode` (task c8a1ff51).
+    init(_ field: TaskDetailField) {
+        switch field {
+        case .assignee: self = .assignee
+        case .when:     self = .when
+        case .priority: self = .priority
+        case .lists:    self = .lists
+        }
+    }
 }
 
 enum MacTaskFields {
@@ -32,14 +43,20 @@ enum MacTaskFields {
     /// was that this choice had one hardcoded answer, and a default would let a new call site
     /// re-hardcode it without anyone noticing.
     ///
-    /// The two sit directly after the title so the fields you set most often are at the top,
-    /// rather than below a description that can run to any length.
+    /// In LIST mode the order comes from `TaskDetailFieldOrder.listMode` — Who, Date, Priority,
+    /// Lists — because the ask was CONTINUITY across the phone, the Mac and web (task c8a1ff51).
+    /// This used to be `[.priority, .assignee] + [.when, .lists]`, and iOS independently used
+    /// the same wrong order: the same mistake twice, which is what two views deciding for
+    /// themselves produces. Derived rather than restated, so a change to the shared list
+    /// reaches the Mac without anyone remembering to come here.
     static func rows(showsTitle: Bool, displayMode: TaskDisplayMode) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
-        let modeRows: [MacTaskFieldRow] = displayMode.showsSeparateAssigneeAndPriorityRows
-            ? [.priority, .assignee]
-            : []
-        return leading + modeRows + [.when, .lists, .description]
+        guard displayMode.showsSeparateAssigneeAndPriorityRows else {
+            // Project mode: priority and assignee are not rows at all — the leading control
+            // depicts both (task 42013da7) — so there is no order to share.
+            return leading + [.when, .lists, .description]
+        }
+        return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + [.description]
     }
 
     /// Every field the editor shows is one the user can change. The Lists row
