@@ -136,6 +136,7 @@ struct MacTaskFieldsView: View {
                 task: task,
                 priority: $priority,
                 members: members,
+                surface: .detail,
                 onPriority: { savePriority($0) },
                 onAssignee: { setAssignee($0) },
                 onToggleComplete: { setCompleted(!task.completed) }

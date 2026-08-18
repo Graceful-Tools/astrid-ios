@@ -70,7 +70,10 @@ struct BoardTaskCardView: View {
             hiddenListIds: hiddenListIds,
             // Suppress TaskRowView's own background/border so the card
             // shows a single border, not a nested pair.
-            embeddedInCard: true
+            embeddedInCard: true,
+            // A card, not a row: the leading control picks the task's board status rather
+            // than completing it outright (task f9d7ed42).
+            surface: .boardCard
         )
         .background(
             RoundedRectangle(cornerRadius: 8)
