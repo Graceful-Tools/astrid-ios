@@ -35,6 +35,10 @@ struct MacTaskFieldsView: View {
     @State private var title = ""
     @State private var notes = ""
     @State private var priority: Task.Priority = .none
+    /// The last priority this panel WROTE, as opposed to the one it was handed. Nil until it
+    /// writes one, so the first tap always goes through even when it lands on the value already
+    /// shown (task e761d369).
+    @State private var lastWrittenPriority: Task.Priority?
     @State private var hasDue = false
     @State private var due = Date()
     @State private var isAllDay = false
@@ -347,6 +351,8 @@ struct MacTaskFieldsView: View {
         title = task.title
         notes = task.description
         priority = task.priority
+        // A different task: nothing has been written for THIS one yet.
+        lastWrittenPriority = nil
         isAllDay = task.isAllDay
         repeating = task.repeating ?? .never
         customPattern = task.repeatingData
@@ -372,9 +378,17 @@ struct MacTaskFieldsView: View {
         }
     }
 
+    /// Optimistic first, then the write in the background — and the write is SKIPPED only when
+    /// it would repeat the last value this panel actually wrote (task e761d369).
+    ///
+    /// It used to compare against `task.priority`, the snapshot the panel opened with, so
+    /// tapping back to that value after changing it wrote nothing: the button lit up, the
+    /// server kept the previous tap, and the next refresh pulled it back. Which taps that
+    /// swallowed depended on what the priority was when the panel opened, so it read as random.
     private func savePriority(_ newValue: Task.Priority) {
         priority = newValue
-        guard newValue != task.priority else { return }
+        guard MacPriorityWrite.shouldWrite(tapped: newValue, lastWritten: lastWrittenPriority) else { return }
+        lastWrittenPriority = newValue
         MacActions.perform("Save priority") {
             _ = try await taskService.updateTask(taskId: task.id, priority: newValue.rawValue, task: task)
         }
