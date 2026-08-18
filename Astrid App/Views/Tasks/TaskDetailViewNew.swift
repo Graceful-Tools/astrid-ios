@@ -1578,10 +1578,12 @@ struct TaskDetailViewNew: View {
     /// completing their task by tapping their photo is not what that tap means — those keep
     /// the picker in both modes. Mirrors the Mac's `tapCompletes`.
     private var leadingControlCompletes: Bool {
-        displayMode.checkboxCompletesTask
-            && TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                       currentUserId: AuthManager.shared.currentUser?.id,
-                                       displayMode: displayMode) == .checkbox
+        TaskLeadingControl.action(
+            surface: .detail,
+            kind: TaskLeadingControl.kind(assigneeId: editedAssigneeId,
+                                          currentUserId: AuthManager.shared.currentUser?.id,
+                                          displayMode: displayMode),
+            displayMode: displayMode) == .complete
     }
 
     private var effectiveAssignee: User? {

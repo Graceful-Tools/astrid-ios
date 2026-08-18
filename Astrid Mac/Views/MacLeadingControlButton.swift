@@ -17,6 +17,11 @@ struct MacLeadingControlButton: View {
     let task: Task
     @Binding var priority: Task.Priority
     let members: [ListMember]
+    /// WHERE this control is drawn. Required rather than defaulted, for the same reason
+    /// `TaskLeadingControl.kind` requires the mode: the board and the panel disagree about
+    /// exactly one thing, and a default would let a new call site pick the panel's answer
+    /// silently — which is how the board came to complete tasks again (task f9d7ed42).
+    let surface: TaskLeadingControlSurface
     let onPriority: (Task.Priority) -> Void
     let onAssignee: (String?) -> Void
     let onToggleComplete: () -> Void
@@ -34,15 +39,11 @@ struct MacLeadingControlButton: View {
         TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
     }
 
-    /// LIST mode: the checkbox completes the task, which is what a checkbox means (task
-    /// 729a190e). It opened the popover in every mode before, so in list mode the one
-    /// gesture everybody already knows did the one thing it does not normally do.
-    ///
-    /// Only when the face IS a checkbox. Someone else's avatar is not a checkbox, and
-    /// completing another person's task by clicking their photo is not what that click
-    /// means — those keep the popover in both modes.
+    /// Asked of the SHARED rule rather than spelled here, so the board card, the list row and
+    /// this panel cannot answer it three different ways (task f9d7ed42). What that rule says
+    /// for this surface, and why, lives with the rule.
     private var tapCompletes: Bool {
-        displayMode.checkboxCompletesTask && kind == .checkbox
+        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode) == .complete
     }
 
     var body: some View {
@@ -102,7 +103,7 @@ struct MacLeadingControlButton: View {
 
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(MacLeadingPicker.sections(for: displayMode).enumerated()), id: \.offset) { _, section in
+            ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface).enumerated()), id: \.offset) { _, section in
                 switch section {
                 case .priority:
                     VStack(alignment: .leading, spacing: 5) {

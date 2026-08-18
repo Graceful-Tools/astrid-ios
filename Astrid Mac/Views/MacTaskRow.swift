@@ -47,8 +47,19 @@ struct MacTaskRow: View {
     }
 
     /// In project mode the task box opens the quick changer instead of completing — the same
-    /// thing it does in task details (task 132d7b3f).
-    private var opensQuickChanger: Bool { !displayMode.checkboxCompletesTask }
+    /// thing it does in task details (task 132d7b3f). In list mode it completes, which is what
+    /// a checkbox means when the task is not on a board.
+    ///
+    /// Asked of the SHARED rule, not spelled here: the board card answers this differently
+    /// (it always picks a status), and a row that writes its own copy of the question is how
+    /// the two surfaces drift (task f9d7ed42).
+    private var opensQuickChanger: Bool {
+        TaskLeadingControl.action(surface: .listRow,
+                                 kind: TaskLeadingControl.kind(assigneeId: task.assigneeId,
+                                                               currentUserId: auth.userId,
+                                                               displayMode: displayMode),
+                                 displayMode: displayMode) == .openPicker
+    }
 
     /// One decision for all three faces, so the rule is not written once per branch.
     private func handleLeadingTap() {

@@ -180,6 +180,7 @@ struct MacBoardView: View {
                     task: t,
                     priority: priorityBinding(t),
                     members: members,
+                    surface: .boardCard,
                     onPriority: { setPriority(t, $0) },
                     onAssignee: { setAssignee(t, $0) },
                     onToggleComplete: { toggleComplete(t) }
