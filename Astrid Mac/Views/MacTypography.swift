@@ -14,7 +14,12 @@ enum MacTypography {
     // the same hierarchy, just at desktop density.
     static let rowTitleSize: CGFloat = 14       // ≈ macOS body (13) + emphasis, like iOS 19 vs 17
     static let rowMetaSize: CGFloat = 11        // macOS caption density
-    static let detailTitleSize: CGFloat = 17    // detail header — clearly above the row title
+    /// The detail's title is the SAME STRING as the row you clicked to get there, so it is
+    /// not a heading over that row — it is that row's text again (task 4ce4baf9). At 17pt
+    /// semibold the jump read as the text changing rather than as hierarchy, and there was
+    /// nothing under it in the panel for a heading to be a heading OF. Defined as the row
+    /// title rather than repeated as 14, so the two cannot drift if the ramp moves.
+    static let detailTitleSize: CGFloat = rowTitleSize
     static let labelSize: CGFloat = 11          // field labels (Who/Date/…)
 
     /// Body text INSIDE the detail: the description, and the subtask titles that
@@ -25,7 +30,7 @@ enum MacTypography {
 
     static var rowTitle: Font { .system(size: rowTitleSize, weight: .medium) }
     static var rowMeta: Font { .system(size: rowMetaSize) }
-    static var detailTitle: Font { .system(size: detailTitleSize, weight: .semibold) }
+    static var detailTitle: Font { rowTitle }
     static var label: Font { .system(size: labelSize) }
     static var detailBody: Font { .system(size: detailBodySize, weight: .regular) }
 }
