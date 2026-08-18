@@ -74,7 +74,7 @@
 "tasks.add_task" = "Ajouter une tâche";
 "tasks.edit_task" = "Modifier la tâche";
 "tasks.delete_task" = "Supprimer la tâche";
-"tasks.complete_task" = "Terminer la tâche";
+"tasks.complete_task" = "Terminer / Terminé !";
 "tasks.task_name" = "Nom de la tâche";
 "tasks.description" = "Description";
 "tasks.no_description" = "Pas de description";

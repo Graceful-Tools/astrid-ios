@@ -85,7 +85,7 @@
 "tasks.task_details" = "Aufgabendetails";
 "tasks.edit_task" = "Aufgabe bearbeiten";
 "tasks.delete_task" = "Aufgabe löschen";
-"tasks.complete_task" = "Aufgabe abschließen";
+"tasks.complete_task" = "Abschließen / Fertig!";
 "tasks.task_name" = "Aufgabenname";
 "tasks.description" = "Beschreibung";
 "tasks.no_description" = "Keine Beschreibung";

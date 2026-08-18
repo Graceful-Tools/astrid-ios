@@ -89,7 +89,7 @@
 "tasks.add_task" = "Agregar tarea";
 "tasks.edit_task" = "Editar tarea";
 "tasks.delete_task" = "Eliminar tarea";
-"tasks.complete_task" = "Completar tarea";
+"tasks.complete_task" = "Completar / ¡Listo!";
 "tasks.task_name" = "Nombre de tarea";
 "tasks.description" = "Descripción";
 "tasks.no_description" = "Sin descripción";

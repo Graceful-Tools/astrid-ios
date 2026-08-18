@@ -76,7 +76,7 @@
 "tasks.task_details" = "작업 상세 정보";
 "tasks.edit_task" = "작업 편집";
 "tasks.delete_task" = "작업 삭제";
-"tasks.complete_task" = "작업 완료";
+"tasks.complete_task" = "완료하기 / 완료!";
 "tasks.task_name" = "작업 이름";
 "tasks.description" = "설명";
 "tasks.no_description" = "설명 없음";
