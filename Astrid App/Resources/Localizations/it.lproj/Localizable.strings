@@ -75,7 +75,7 @@
 "tasks.task_details" = "Dettagli compito";
 "tasks.edit_task" = "Modifica compito";
 "tasks.delete_task" = "Elimina compito";
-"tasks.complete_task" = "Completa compito";
+"tasks.complete_task" = "Completa / Fatto!";
 "tasks.task_name" = "Nome compito";
 "tasks.description" = "Descrizione";
 "tasks.no_description" = "Nessuna descrizione";

@@ -181,8 +181,10 @@ struct MacProjectStateSection: View {
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
 
+    /// Every state EXCEPT Done (task 7574067b) — the same filter iOS uses, so the two
+    /// pickers cannot come to disagree about what a state is.
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists)
+        ProjectStatePicker.columns(from: getProjectBoardColumns(listService.lists))
     }
 
     private var currentColumnId: String {

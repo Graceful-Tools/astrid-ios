@@ -76,7 +76,7 @@
 "tasks.task_details" = "任務詳情";
 "tasks.edit_task" = "編輯任務";
 "tasks.delete_task" = "刪除任務";
-"tasks.complete_task" = "完成任務";
+"tasks.complete_task" = "完成 / 已完成！";
 "tasks.task_name" = "任務名稱";
 "tasks.description" = "描述";
 "tasks.no_description" = "無描述";

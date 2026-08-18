@@ -99,7 +99,7 @@
 "tasks.task_details" = "Task Details";
 "tasks.edit_task" = "Edit task";
 "tasks.delete_task" = "Delete task";
-"tasks.complete_task" = "Complete task";
+"tasks.complete_task" = "Complete / Done!";
 "tasks.task_name" = "Task name";
 "tasks.description" = "Description";
 "tasks.no_description" = "No description";
