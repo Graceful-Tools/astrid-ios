@@ -23,14 +23,9 @@ enum MacTaskVisuals {
     static func checkboxStroke(size: CGFloat) -> CGFloat { max(1.5, size * 0.075) }
 
     /// Priority glyphs, matching iOS PriorityButton (○ / ! / !! / !!!).
-    static func prioritySymbol(_ p: Task.Priority) -> String {
-        switch p {
-        case .none: return "○"
-        case .low: return "!"
-        case .medium: return "!!"
-        case .high: return "!!!"
-        }
-    }
+    /// Deferred to the shared glyphs (task c8a1ff51). The "!"/"!!"/"!!!" convention was written
+    /// out in half a dozen places, and a convention spelled six times is one that drifts.
+    static func prioritySymbol(_ p: Task.Priority) -> String { PriorityGlyph.symbol(p) }
 
     static func priorityLabel(_ p: Task.Priority) -> String {
         switch p {

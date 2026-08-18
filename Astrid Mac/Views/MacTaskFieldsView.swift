@@ -100,7 +100,10 @@ struct MacTaskFieldsView: View {
         case .priority:
             // Only reached in list mode — `MacTaskFields.rows` omits it in project mode,
             // where the leading control already depicts priority as its colour.
-            labeled(icon: "flag",
+            // Marked with "!!!" rather than a flag (task c8a1ff51): the marks are the
+            // vocabulary the app already uses for priority in rows, quick add and the board,
+            // so the row is recognisable without reading its label.
+            labeled(glyph: PriorityGlyph.rowIcon,
                     NSLocalizedString("tasks.priority", comment: "Priority")) { priorityRow }
         case .assignee:
             labeled(icon: "person.crop.circle",
@@ -329,6 +332,23 @@ struct MacTaskFieldsView: View {
 
     /// An icon in the checkbox's column, then content starting where the title
     /// text starts. See MacDetailRowMetrics.
+    /// A row marked with TEXT rather than an SF Symbol, for the one field where no symbol says
+    /// the right thing (task c8a1ff51).
+    @ViewBuilder
+    private func labeled<V: View>(glyph: String,
+                                  _ accessibilityLabel: String,
+                                  @ViewBuilder _ content: () -> V) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: MacDetailRowMetrics.columnGap) {
+            Text(glyph)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.textMuted)
+                .frame(width: MacDetailRowMetrics.leadingColumnWidth)
+                .accessibilityLabel(accessibilityLabel)
+            content()
+            Spacer(minLength: 0)
+        }
+    }
+
     private func labeled<V: View>(icon: String,
                                   _ accessibilityLabel: String,
                                   @ViewBuilder _ content: () -> V) -> some View {
