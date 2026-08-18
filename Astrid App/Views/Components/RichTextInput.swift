@@ -92,6 +92,22 @@ struct RichTextInput: View {
 
                     // Visible TextEditor — uses natural internal padding, cursor aligns with text
                     TextEditor(text: $text)
+                        // Lets a UI test name the comment box (task 91a7e180).
+                        //
+                        // The suite asked for `app.textFields` with a `placeholderValue`
+                        // containing "comment", which could never match on two counts: this is a
+                        // TextEditor, which XCUITest exposes as a text VIEW, and the placeholder
+                        // above is a separate Text so `placeholderValue` is empty. Four tests
+                        // skipped with "Comment input field not found" — a sentence about the app
+                        // that was really about the query. Exactly the shape that once hid
+                        // quick-add, and fixed the same way.
+                        //
+                        // This is THE comment box on the task detail: the detail mounts it
+                        // through `.safeAreaInset(edge: .bottom)`. Two older TextEditors in
+                        // `TaskDetailViewNew` and `CommentSectionViewEnhanced` look like the
+                        // comment input and are not the one on screen — measured by marking each
+                        // placeholder and reading which one the accessibility tree showed.
+                        .accessibilityIdentifier(CommentInput.accessibilityIdentifier)
                         .font(Theme.Typography.body())
                         .foregroundColor(textColor)
                         .tint(textColor)
