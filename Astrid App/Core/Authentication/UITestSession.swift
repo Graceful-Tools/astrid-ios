@@ -45,6 +45,26 @@ enum UITestSession {
         arguments.contains { flags.contains($0) }
     }
 
+    /// Whether this run must not open interrupting prompts — the push-notification ask, the
+    /// review ask, anything modal that arrives on a timer rather than on a tap.
+    ///
+    /// **This is what made the UI suite look broken** (task b86c97c5). `AstridApp` fires the
+    /// push prompt one second after `isAuthenticated` turns true, and the whole point of the
+    /// suite's injected session is to turn it true — so every run was interrupted by
+    /// construction. A modal alert makes every element beneath it report `isHittable == false`
+    /// and swallows every tap, so a row tap never reached the row and "Task Details" never
+    /// appeared. Three investigations blamed the query, the sidebar, and finally XCUITest
+    /// itself, because the alert is off to the side of the thing you are looking at.
+    ///
+    /// Derived from the flag rather than spelled again: six places once re-derived
+    /// `-uiTesting` and all six were wrong together, which is why this type exists.
+    static func suppressesInterruptingPrompts(arguments: [String]) -> Bool {
+        isUITesting(arguments: arguments)
+    }
+
+    /// The live answer for this process.
+    static var suppressesInterruptingPrompts: Bool { isUITesting }
+
     /// The live answer for this process.
     static let isUITesting = isUITesting(arguments: ProcessInfo.processInfo.arguments)
 

@@ -129,11 +129,17 @@ write_uitest_session() {
     fi
 
     if [[ -z "$cookie" ]]; then
-        echo -e "${YELLOW}⚠ No test-account session available.${NC}"
-        echo "  The suite will run SIGNED OUT, and every test needing an account will skip."
-        echo "  To fix: cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie"
+        # A hard stop, not a warning. Signed out, every test that needs an account skips
+        # itself and the run still reports "✓ UI tests passed (28 passed, 36 skipped)" —
+        # green while asserting nothing, which is the exact failure this account exists to
+        # end. It went unnoticed for a day because the warning scrolled past in a ten-minute
+        # run and the summary said passed (task b86c97c5).
+        echo -e "${RED}✗ No test-account session available — refusing to run the UI suite.${NC}"
+        echo "  Signed out, every test that needs an account skips and the run reports green."
+        echo "  Mint one: cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie"
+        echo "  Or pass one: ASTRID_UITEST_COOKIE=... npm run test:ui"
         rm -f "$SESSION_PLIST"
-        return
+        exit 1
     fi
 
     /usr/libexec/PlistBuddy -c "Clear dict" -c "Add :sessionCookie string $cookie" \

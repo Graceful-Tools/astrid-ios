@@ -164,6 +164,13 @@ struct TaskDetailViewNew: View {
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                     }
                     .buttonStyle(.plain)
+                    // How a UI test knows the detail is open (task b86c97c5). The suite matched
+                    // `app.staticTexts["Task Details"]`, which never could: the header is a
+                    // BUTTON — it scrolls the panel to the top — so the label belongs to the
+                    // button, not to a static text. Nine tests read that as "detail did not
+                    // appear" when it had. An identifier says which element rather than hoping
+                    // for a type, and it does not change when the app is in French.
+                    .accessibilityIdentifier(TaskDetailHeader.accessibilityIdentifier)
 
                     Spacer()
 

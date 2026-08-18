@@ -100,35 +100,42 @@ enum UITestLaunch {
     /// Identifier the app stamps on every task row. Must match `TaskRowView`.
     static let taskRowIdentifier = "taskRow"
 
-    /// The task rows on screen.
+    /// The task rows on screen — the ROWS, not the pieces inside them.
     ///
-    /// **`isHittable` is useless in this app and must not be used as a filter.** Measured
-    /// 2026-08-16 on iPhone 17, with the task list showing and five fixture tasks visible:
+    /// SwiftUI stamps `.accessibilityIdentifier` on every accessibility element the row
+    /// contains, so matching the identifier alone returned four elements per row and the FIRST
+    /// of them is the checkbox:
     ///
     /// ```
-    /// taskRow matches=28  hittable=0
-    /// cells=19            hittable=0
-    /// fixtureTexts=5      hittable=0
+    /// Button,     {{24.0, 151.0}, {34.0, 34.0}},  identifier: 'taskRow', label: 'check_box_3'
+    /// StaticText, {{70.0, 140.0}, {255.3, 23.0}}, identifier: 'taskRow', label: 'UITEST Fixture — open task 2'
+    /// Image,      ...                             identifier: 'taskRow', label: 'number'
+    /// StaticText, ...                             identifier: 'taskRow', label: 'UI Test List'
     /// ```
     ///
-    /// Everything reports not-hittable, including rows a person can plainly see and tap.
+    /// Tapping the centre of that first match is tapping the checkbox, which COMPLETES the
+    /// task — the row's own tap gesture, the one that opens the detail, lives on the list row
+    /// around it. A suite that meant "tap a task" was ticking it off instead (task b86c97c5).
     ///
-    /// That measurement retired two earlier explanations, both of which were wrong and both of
-    /// which read as app bugs. The "not hittable" failures across five files were blamed on the
-    /// closed sidebar keeping its rows in the accessibility tree; they were not — the sidebar
-    /// was incidental, and every element in the app answers the same way. Filtering on
-    /// `isHittable` then returns NOTHING, which turned those same tests into "No tasks found in
-    /// list" — a worse lie than the failure it replaced, because an empty list looks like a
-    /// fixture problem.
-    ///
-    /// The identifier is what actually discriminates, and it does work: 28 matches on a screen
-    /// with five tasks, because SwiftUI stamps it on nested elements too. Take the first.
+    /// So ask for the cell that CONTAINS a `taskRow` element. That is the row, its centre is
+    /// over the title rather than the checkbox, and it still excludes the sidebar's cells,
+    /// which is why the identifier was introduced in the first place.
     @MainActor
     static func visibleRows(_ app: XCUIApplication) -> [XCUIElement] {
-        let rows = app.descendants(matching: .any)
-            .matching(identifier: taskRowIdentifier)
+        let rows = app.cells
+            .containing(.any, identifier: taskRowIdentifier)
             .allElementsBoundByIndex
         if !rows.isEmpty { return rows }
+
+        // A row drawn outside a cell — a board card, for one — still has to be findable.
+        // Prefer the widest match: of the four elements one row stamps, the widest is the
+        // title, never the 34pt checkbox.
+        let stamped = app.descendants(matching: .any)
+            .matching(identifier: taskRowIdentifier)
+            .allElementsBoundByIndex
+        if !stamped.isEmpty {
+            return stamped.sorted { $0.frame.width > $1.frame.width }
+        }
 
         // Screens with no task rows — the lists screen, for one — still need "the first row on
         // screen". Falling back keeps those callers working rather than making every one of
@@ -136,15 +143,66 @@ enum UITestLaunch {
         return app.cells.allElementsBoundByIndex
     }
 
-    /// Tap an element that `isHittable` refuses to vouch for.
+    /// Tap the centre of an element.
     ///
-    /// `tap()` consults hittability first and refuses with "Neither element nor any descendant
-    /// has keyboard focus" / "not hittable" — which, given the measurement above, it would do
-    /// for every row in this app. A coordinate tap goes straight to the point and is how these
-    /// tests can interact with the list at all.
+    /// A coordinate tap rather than `tap()`, which consults hittability first. Hittability was
+    /// once measured as false for EVERY element in this app, and that measurement was written
+    /// down here as a fact about the app. It was a fact about the RUN: a modal
+    /// "Enable Push Notifications" alert was sitting over the screen, and everything under a
+    /// modal reports not-hittable. The app no longer opens that prompt under `-uiTesting`
+    /// (task b86c97c5). The coordinate tap stays because it is unambiguous about WHERE it
+    /// lands, which is the other half of that bug.
     @MainActor
     static func tapCenter(_ element: XCUIElement) {
         element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
+    /// The back-swipe, as a gesture iOS will actually recognise.
+    ///
+    /// The suite drove it as `press(forDuration: 0.05, thenDragTo:)` starting 5% in from the
+    /// left. UIKit's screen-edge pan recogniser refuses that on both counts: it wants the touch
+    /// to go DOWN on the edge itself, and a 0.05s press followed by an instant drag reads as a
+    /// flick rather than a pan. Measured on iPhone 17 with the detail open (task b86c97c5):
+    ///
+    ///     fast drag from 5%  → detail still open
+    ///     slow drag from 1%, holding at each end → detail dismissed
+    ///
+    /// So the gesture was the failure, not the navigation — which matters, because the obvious
+    /// reading of a failing swipe test is that the app has lost its back-swipe.
+    @MainActor
+    static func swipeBackFromLeftEdge(_ app: XCUIApplication) {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+            .press(forDuration: 0.6,
+                   thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)),
+                   withVelocity: .slow,
+                   thenHoldForDuration: 0.4)
+    }
+
+    /// Identifier the app stamps on the task detail's header. Must match `TaskDetailHeader`.
+    static let taskDetailHeaderIdentifier = "taskDetail.header"
+
+    /// The task detail's header, whatever element type it happens to be.
+    ///
+    /// The suite asked for `app.staticTexts["Task Details"]` in five files. That could never
+    /// match: the header is a BUTTON — tapping it scrolls the panel to the top — so the label
+    /// is the button's. Nine tests reported "task detail did not appear" when it had, and the
+    /// investigations that followed all went looking at the tap (task b86c97c5).
+    ///
+    /// Matched by identifier, not by label, so this keeps working when the app is in French.
+    @MainActor
+    static func taskDetailHeader(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: taskDetailHeaderIdentifier).firstMatch
+    }
+
+    /// Waits for the task detail to open. False means it did not.
+    ///
+    /// Ten seconds, not five. The push happens promptly on a warm simulator and not at all
+    /// promptly on the fifth clone of a parallel run — and the cost of being wrong is
+    /// asymmetric: too short skips the test with "task detail did not appear", which reads as
+    /// the app being broken.
+    @MainActor
+    static func waitForTaskDetail(_ app: XCUIApplication, timeout: TimeInterval = 10) -> Bool {
+        taskDetailHeader(app).waitForExistence(timeout: timeout)
     }
 
     /// Identifier the app stamps on the quick-add field. Must match `QuickAddTaskView`.
@@ -192,15 +250,25 @@ enum UITestLaunch {
     /// Waits for a row to appear, then returns it. Nil means the screen never populated —
     /// callers skip on that, since it is a state the harness cannot distinguish from a list
     /// that is legitimately empty.
+    ///
+    /// The wait is for a REAL task row. `visibleRows` falls back to `app.cells` for screens
+    /// that have none, and the sidebar's cells are in the tree from the first frame — so a
+    /// wait built on it returned instantly, every time, with a sidebar cell. The caller then
+    /// tapped that and skipped with "task detail did not appear", which is true and says
+    /// nothing (task b86c97c5). The fallback still happens, but only once the deadline has
+    /// passed and there is nothing better to offer.
     @MainActor
     static func waitForFirstVisibleRow(_ app: XCUIApplication,
                                        timeout: TimeInterval = 15) -> XCUIElement? {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            if let row = firstVisibleRow(app) { return row }
+            let identified = app.cells
+                .containing(.any, identifier: taskRowIdentifier)
+                .allElementsBoundByIndex
+            if let row = identified.first { return row }
             Thread.sleep(forTimeInterval: 0.5)
         }
-        return nil
+        return firstVisibleRow(app)
     }
 
     // MARK: - Private
