@@ -13,9 +13,14 @@ import AppKit
 
 final class MacTypographyTests: XCTestCase {
 
-    /// The visual hierarchy iOS has: detail title > row title > secondary text.
+    /// The visual hierarchy iOS has: title > secondary text.
+    ///
+    /// This used to pin `detailTitle > rowTitle`, which encoded a decision that has since been
+    /// reversed (task 4ce4baf9): the detail's title is the SAME STRING as the row you clicked,
+    /// not a heading over it, so the two now share one size and weight. The rest of the ramp
+    /// is untouched — see `MacDetailTitleTests` for the equality itself.
     func testHierarchyOrdering() {
-        XCTAssertGreaterThan(MacTypography.detailTitleSize, MacTypography.rowTitleSize)
+        XCTAssertEqual(MacTypography.detailTitleSize, MacTypography.rowTitleSize)
         XCTAssertGreaterThan(MacTypography.rowTitleSize, MacTypography.rowMetaSize)
         // Meta and field labels are both secondary; labels must never exceed meta.
         XCTAssertLessThanOrEqual(MacTypography.labelSize, MacTypography.rowMetaSize)

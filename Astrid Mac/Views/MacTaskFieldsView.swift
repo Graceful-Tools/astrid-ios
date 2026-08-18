@@ -131,7 +131,11 @@ struct MacTaskFieldsView: View {
     // MARK: - Title + the control that holds priority, assignee and completion
 
     private var titleRow: some View {
-        HStack(spacing: MacDetailRowMetrics.columnGap) {
+        // Top-aligned now that the title wraps (task 4ce4baf9): centred, a three-line title
+        // would leave the checkbox floating beside its middle line. The control belongs beside
+        // the FIRST line, where the title starts. At 19pt against a 14pt line this shifts the
+        // one-line case by about a point.
+        HStack(alignment: .top, spacing: MacDetailRowMetrics.columnGap) {
             MacLeadingControlButton(
                 task: task,
                 priority: $priority,
@@ -143,7 +147,11 @@ struct MacTaskFieldsView: View {
             )
             // `labelsHidden()`: inside a Form, macOS renders a TextField's first argument
             // as a leading label — the stray "Title" prefix on the detail header (4a3360c3).
-            TextField(NSLocalizedString("mac.title", comment: ""), text: $title)
+            // `axis: .vertical` so a long title WRAPS (task 4ce4baf9). A plain TextField is
+            // one line forever, so the title scrolled sideways inside a 380pt panel — the one
+            // screen whose job is to show everything about a task was the one place its own
+            // name could not be read. Return still submits; Shift-Return is the newline.
+            TextField(NSLocalizedString("mac.title", comment: ""), text: $title, axis: .vertical)
                 .labelsHidden()
                 .textFieldStyle(.plain)
                 .font(MacTypography.detailTitle)
