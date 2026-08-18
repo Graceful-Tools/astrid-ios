@@ -91,38 +91,57 @@ final class TaskUITests: XCTestCase {
     // MARK: - Task Completion Tests
 
     @MainActor
+    /// Tapping a row's checkbox completes the task, and the completed task leaves the list.
+    ///
+    /// This skipped as "No tasks found to complete" for as long as the suite could sign in
+    /// (task 91a7e180). It asked for `app.cells.matching(identifier CONTAINS 'task')`, and the
+    /// cell carries no identifier — SwiftUI stamps it on the elements INSIDE the row, so the
+    /// query matched nothing on a screen full of tasks. `UITestLaunch.visibleRows` is the one
+    /// place that knows how to ask.
+    ///
+    /// It also asserted nothing: it tapped, screenshotted, and ended. Measured behaviour is
+    /// that the completed row disappears from the list, so that is what it checks now. Safe to
+    /// run repeatedly — `npm run test:ui` recreates the fixture tasks on every run.
     func testCompleteTask() throws {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
-        // Wait for tasks to load
-        sleep(2)
 
-        // Find a task checkbox (implementation depends on actual UI)
-        // Typically a button or image that toggles completion
-        let taskRows = app.cells.matching(NSPredicate(format: "identifier CONTAINS 'task'"))
-
-        guard taskRows.count > 0 else {
+        guard let firstRow = UITestLaunch.waitForFirstVisibleRow(app) else {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "No Tasks Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("No tasks found to complete")
+            throw XCTSkip("No task rows on screen")
         }
 
-        let firstTask = taskRows.firstMatch
+        // The row's own title, which is the first static text inside it.
+        let title = firstRow.staticTexts.firstMatch.label
+        XCTAssertFalse(title.isEmpty, "a task row should carry its title")
 
-        // Find checkbox within the task row
-        let checkbox = firstTask.buttons.firstMatch
-
-        if checkbox.exists {
-            checkbox.tap()
-
-            // Take screenshot after completion
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "After Task Completion"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
+        // The checkbox is the row's `taskRow`-identified BUTTON — the title beside it carries
+        // the same identifier, which is exactly the trap that made tapping a row complete it
+        // once before.
+        let checkbox = firstRow.buttons.matching(identifier: UITestLaunch.taskRowIdentifier).firstMatch
+        guard checkbox.waitForExistence(timeout: 5) else {
+            throw XCTSkip("The row has no checkbox — an avatar or the unassigned mark instead")
         }
+        UITestLaunch.tapCenter(checkbox)
+
+        // Completing re-sorts the list and drops the task out of it. Poll rather than sleep,
+        // and say WHICH title was being watched if it never goes — a bare timeout on a
+        // predicate cannot tell "the tap did nothing" from "the wrong text was captured".
+        let remaining = app.staticTexts.matching(NSPredicate(format: "label == %@", title))
+        let deadline = Date().addingTimeInterval(10)
+        while remaining.count > 0 && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        XCTAssertEqual(remaining.count, 0,
+                       "completing should drop \"\(title)\" out of the list; still showing after 10s")
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "After Task Completion"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     // MARK: - Task Detail Tests
