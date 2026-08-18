@@ -56,7 +56,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         // Wait for task detail to appear
         // The custom header shows "Task Details" text
-        let detailHeader = app.staticTexts["Task Details"]
+        let detailHeader = UITestLaunch.taskDetailHeader(app)
         let detailAppeared = detailHeader.waitForExistence(timeout: 5)
 
         if !detailAppeared {
@@ -73,13 +73,15 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         beforeSwipe.lifetime = .keepAlways
         add(beforeSwipe)
 
-        // Perform swipe-back gesture (left-to-right from left edge)
-        let screenCenter = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
-        let screenRight = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
-        screenCenter.press(forDuration: 0.05, thenDragTo: screenRight)
+        // The back-swipe, driven the way iOS will accept it: down ON the edge, slowly, with a
+        // hold at each end. The 0.05s flick from 5% in that used to be here is not a pan as far
+        // as UIKit's screen-edge recogniser is concerned, and it left the detail open — which
+        // reads as the app having lost its back-swipe rather than the test never performing one
+        // (task b86c97c5).
+        UITestLaunch.swipeBackFromLeftEdge(app)
 
         // Wait a moment for animation
-        Thread.sleep(forTimeInterval: 0.5)
+        Thread.sleep(forTimeInterval: 1.0)
 
         // Take screenshot after swipe
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
@@ -108,7 +110,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         UITestLaunch.tapCenter(firstTask)
 
         // Wait for task detail
-        let detailHeader = app.staticTexts["Task Details"]
+        let detailHeader = UITestLaunch.taskDetailHeader(app)
         guard detailHeader.waitForExistence(timeout: 5) else {
             throw XCTSkip("Task detail did not appear")
         }
@@ -215,12 +217,11 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         beforeSwipe.lifetime = .keepAlways
         add(beforeSwipe)
 
-        // Swipe right to dismiss settings
-        let swipeStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
-        let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
-        swipeStart.press(forDuration: 0.05, thenDragTo: swipeEnd)
+        // Swipe right to dismiss settings — the same recognised gesture the detail uses, from
+        // one place, so the two cannot drift into testing different things.
+        UITestLaunch.swipeBackFromLeftEdge(app)
 
-        Thread.sleep(forTimeInterval: 0.5)
+        Thread.sleep(forTimeInterval: 1.0)
 
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
         afterSwipe.name = "After Settings Swipe"
@@ -249,7 +250,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         UITestLaunch.tapCenter(firstTask)
 
         // Task detail should appear
-        let detailHeader = app.staticTexts["Task Details"]
+        let detailHeader = UITestLaunch.taskDetailHeader(app)
         XCTAssertTrue(detailHeader.waitForExistence(timeout: 5), "Task detail should open when tapping a task row")
     }
 }

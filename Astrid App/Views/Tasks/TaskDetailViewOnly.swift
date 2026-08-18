@@ -184,6 +184,9 @@ struct TaskDetailViewOnly: View {
         }
         .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
         .navigationTitle(NSLocalizedString("tasks.task_details", comment: "Task Details"))
+        // The other detail screen, marked the same way, so a test that waits for "the detail"
+        // does not have to know which one it got (task b86c97c5).
+        .accessibilityIdentifier(TaskDetailHeader.accessibilityIdentifier)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingCopySheet) {
             // Pass nil for currentListId since this is a public list task

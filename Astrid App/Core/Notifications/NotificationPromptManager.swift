@@ -33,6 +33,18 @@ class NotificationPromptManager: ObservableObject {
     /// - shouldPrompt: true if we should show any prompt
     /// - needsSettings: true if permission was denied and user needs to go to Settings
     func shouldPromptForNotifications() async -> (shouldPrompt: Bool, needsSettings: Bool) {
+        await shouldPromptForNotifications(isUITesting: UITestSession.suppressesInterruptingPrompts)
+    }
+
+    /// The same question with the run's nature passed in, so a test can ask it without
+    /// relaunching the process under a flag.
+    ///
+    /// A UI-test run never prompts (task b86c97c5). The alert is modal: everything beneath it
+    /// reports not-hittable and every tap is swallowed, so a prompt that opens over a test run
+    /// does not merely add a step — it stops the suite from being able to touch the app at all.
+    func shouldPromptForNotifications(isUITesting: Bool) async -> (shouldPrompt: Bool, needsSettings: Bool) {
+        if isUITesting { return (false, false) }
+
         // First, check if notifications are already authorized
         let status = await NotificationManager.shared.checkPermissionStatus()
 

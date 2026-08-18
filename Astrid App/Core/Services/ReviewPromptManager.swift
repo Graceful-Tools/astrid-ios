@@ -33,22 +33,7 @@ class ReviewPromptManager: ObservableObject {
     /// Check if we should prompt the user for a review
     /// Should be called after user completes significant actions (task creation, completion, etc.)
     func checkAndPromptForReview() async {
-        // Don't prompt if user has already reviewed
-        if userDefaults.bool(forKey: hasReviewedKey) {
-            return
-        }
-
-        // Check time since last prompt
-        if let lastPromptDate = userDefaults.object(forKey: lastPromptDateKey) as? Date {
-            let daysSinceLastPrompt = Calendar.current.dateComponents([.day], from: lastPromptDate, to: Date()).day ?? 0
-            if daysSinceLastPrompt < minDaysBetweenPrompts {
-                return
-            }
-        }
-
-        // Check if user has used the app enough
-        let taskCount = await getCompletedTaskCount()
-        if taskCount < minTasksBeforePrompt {
+        guard await shouldPromptForReview(isUITesting: UITestSession.suppressesInterruptingPrompts) else {
             return
         }
 
@@ -59,6 +44,37 @@ class ReviewPromptManager: ObservableObject {
 
         // Record this prompt attempt
         recordPromptAttempt()
+    }
+
+    /// Whether the review ask is due — with the run's nature passed in, so a test can ask
+    /// without relaunching the process under a flag.
+    ///
+    /// A UI-test run never prompts (task b86c97c5). It is armed five seconds after sign-in,
+    /// which lands squarely inside a suite that signs in on purpose, and a modal alert makes
+    /// every element beneath it unhittable.
+    func shouldPromptForReview(isUITesting: Bool) async -> Bool {
+        if isUITesting { return false }
+
+        // Don't prompt if user has already reviewed
+        if userDefaults.bool(forKey: hasReviewedKey) {
+            return false
+        }
+
+        // Check time since last prompt
+        if let lastPromptDate = userDefaults.object(forKey: lastPromptDateKey) as? Date {
+            let daysSinceLastPrompt = Calendar.current.dateComponents([.day], from: lastPromptDate, to: Date()).day ?? 0
+            if daysSinceLastPrompt < minDaysBetweenPrompts {
+                return false
+            }
+        }
+
+        // Check if user has used the app enough
+        let taskCount = await getCompletedTaskCount()
+        if taskCount < minTasksBeforePrompt {
+            return false
+        }
+
+        return true
     }
 
     /// Called when user taps "Yes, I love it!" - shows the native App Store review prompt

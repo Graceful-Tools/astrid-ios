@@ -33,7 +33,7 @@ final class TextInputCursorUITests: XCTestCase {
 
         UITestLaunch.tapCenter(firstTask)
 
-        let detailHeader = app.staticTexts["Task Details"]
+        let detailHeader = UITestLaunch.taskDetailHeader(app)
         guard detailHeader.waitForExistence(timeout: 5) else {
             throw XCTSkip("Task detail did not appear")
         }

@@ -33,8 +33,7 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
         }
         UITestLaunch.tapCenter(firstTask)
 
-        let detailHeader = app.staticTexts["Task Details"]
-        guard detailHeader.waitForExistence(timeout: 5) else { throw XCTSkip("Task detail did not appear") }
+        guard UITestLaunch.waitForTaskDetail(app) else { throw XCTSkip("Task detail did not appear") }
 
         // The actions menu should be present and big enough to tap
         let menu = app.buttons["taskDetailActionsMenu"]
