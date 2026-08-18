@@ -76,7 +76,7 @@
 "tasks.task_details" = "Детали задачи";
 "tasks.edit_task" = "Изменить задачу";
 "tasks.delete_task" = "Удалить задачу";
-"tasks.complete_task" = "Завершить задачу";
+"tasks.complete_task" = "Завершить / Готово!";
 "tasks.task_name" = "Название задачи";
 "tasks.description" = "Описание";
 "tasks.no_description" = "Нет описания";

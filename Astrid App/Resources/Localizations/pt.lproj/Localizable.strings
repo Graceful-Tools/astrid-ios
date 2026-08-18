@@ -76,7 +76,7 @@
 "tasks.task_details" = "Detalhes da Tarefa";
 "tasks.edit_task" = "Editar Tarefa";
 "tasks.delete_task" = "Excluir Tarefa";
-"tasks.complete_task" = "Concluir Tarefa";
+"tasks.complete_task" = "Concluir / Concluído!";
 "tasks.task_name" = "Nome da Tarefa";
 "tasks.description" = "Descrição";
 "tasks.no_description" = "Sem descrição";

@@ -22,8 +22,11 @@ struct ProjectStateQuickPicker: View {
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
 
+    /// Every state EXCEPT Done (task 7574067b). Done is what the Complete button below is
+    /// for; offering it as a chip too gave the same action twice, and the chip was the one
+    /// that never said it would finish the task.
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists)
+        ProjectStatePicker.columns(from: getProjectBoardColumns(listService.lists))
     }
 
     private var currentColumnId: String {
