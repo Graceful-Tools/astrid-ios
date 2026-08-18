@@ -23,6 +23,32 @@ class AuthManager: ObservableObject {
 
     /// Check if user is authenticated locally (offline-first)
     /// Returns true if user has local auth state, false otherwise
+    /// The prefix a local-only (offline) user's id carries. They never have a session cookie.
+    nonisolated static let localUserIdPrefix = "local_"
+
+    /// Whether the cached user is worth validating against the server in the background.
+    ///
+    /// NO for a local-only user, and that is the bug this answers (found via the flaky
+    /// `OfflineModeTests.testAppWorksAfterForceClosed`, tasks e12b5390 / 91a7e180).
+    /// `checkAuthentication` treats a cached `local_` user as authenticated immediately — the
+    /// whole OFFLINE FIRST design — and then kicked off a background validation. A local-only
+    /// user has no session cookie by construction, so that task threw `KeychainError.notFound`
+    /// and called `clearStaleAuthState()`, wiping the auth state the line above had just
+    /// established.
+    ///
+    /// For a person that means an offline-only account is signed out the moment the device has
+    /// network. In the test suite it meant one test's detached task landed inside the NEXT test
+    /// and cleared the id it had just written — a flake that only appeared under load.
+    ///
+    /// A server user is still validated. This narrows the check; it does not remove it, because
+    /// a stale cookie must still sign someone out.
+    /// `nonisolated` because it is a pure question about a string — no actor state is read —
+    /// and a test should not have to hop to the main actor to ask it.
+    nonisolated static func shouldValidateSessionInBackground(userId: String?) -> Bool {
+        guard let userId, !userId.isEmpty else { return false }
+        return !userId.hasPrefix(localUserIdPrefix)
+    }
+
     private func checkLocalAuthentication() -> Bool {
         // Check UserDefaults for cached user ID
         guard let userId = UserDefaults.standard.string(forKey: Constants.UserDefaults.userId),
@@ -31,7 +57,7 @@ class AuthManager: ObservableObject {
         }
 
         // Local-only users (offline mode) don't need a session cookie
-        let isLocalUser = userId.hasPrefix("local_")
+        let isLocalUser = userId.hasPrefix(Self.localUserIdPrefix)
 
         // For server-authenticated users, verify session cookie still exists in Keychain
         // This prevents showing authenticated state when Keychain was cleared but UserDefaults wasn't
@@ -80,9 +106,14 @@ class AuthManager: ObservableObject {
             // Mark auth check as complete immediately (don't block UI)
             self.isCheckingAuth = false
 
-            // Validate session with backend in background (non-blocking, network-aware)
-            _Concurrency.Task.detached { [weak self] in
-                await self?.validateSessionInBackground()
+            // Validate session with backend in background (non-blocking, network-aware) —
+            // but NOT for a local-only user, who has no session to validate and would be
+            // signed out by the attempt. See `shouldValidateSessionInBackground`.
+            if Self.shouldValidateSessionInBackground(
+                userId: UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)) {
+                _Concurrency.Task.detached { [weak self] in
+                    await self?.validateSessionInBackground()
+                }
             }
         } else {
             // No local auth - try to check with server (but don't require network)

@@ -83,8 +83,29 @@ final class OfflineModeTests: XCTestCase {
         // Verify user is authenticated
         XCTAssertTrue(authManager.isAuthenticated, "User should be authenticated")
 
-        // When: Background validation runs (simulated by checking auth again)
-        // Even if network fails, user should stay authenticated
+        // When: the background validation would have run.
+        //
+        // This step used to be a comment — "simulated by checking auth again" — that simulated
+        // nothing: it asserted the same thing twice, synchronously, before any detached task
+        // could possibly land. So the test named after this bug was vacuous, and the bug lived
+        // underneath it: `checkAuthentication` spawned a validation for a user who has no
+        // session cookie by construction, it threw `KeychainError.notFound`, and
+        // `clearStaleAuthState()` signed the offline user out.
+        //
+        // A second is not a guess: the detached task's failure path is local — a keychain miss,
+        // no network round trip — so it lands almost immediately when it is spawned at all.
+        // WATCHING for a whole second rather than sleeping and checking once, so the assertion
+        // fails at the moment the state flips rather than reporting the end state.
+        let deadline = Date().addingTimeInterval(1.0)
+        while Date() < deadline {
+            XCTAssertTrue(authManager.isAuthenticated,
+                          "A local-only user must not be signed out by a session validation "
+                          + "they can never pass")
+            XCTAssertEqual(UserDefaults.standard.string(forKey: Constants.UserDefaults.userId),
+                           "local_user-789",
+                           "clearStaleAuthState() must not run for a local-only user")
+            try await _Concurrency.Task.sleep(nanoseconds: 50_000_000)
+        }
 
         // Then: User remains authenticated
         XCTAssertTrue(authManager.isAuthenticated, "User should remain authenticated after background validation")
