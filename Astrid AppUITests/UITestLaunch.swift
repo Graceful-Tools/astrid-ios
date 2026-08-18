@@ -205,6 +205,44 @@ enum UITestLaunch {
         taskDetailHeader(app).waitForExistence(timeout: timeout)
     }
 
+    /// Identifier the app stamps on the comment box. Must match `CommentInput`.
+    static let commentFieldIdentifier = "comment.field"
+
+    /// The comment box, whatever element type it happens to be.
+    ///
+    /// The suite asked for `app.textFields` with a `placeholderValue` containing "comment",
+    /// which could never match on two counts: the control is a `TextEditor`, which XCUITest
+    /// exposes as a text VIEW, and its placeholder is a separate `Text` so `placeholderValue`
+    /// is empty. Four tests skipped with "Comment input field not found" — a sentence about
+    /// the app that was really about the query (task 91a7e180). Exactly the shape that once
+    /// hid quick-add.
+    @MainActor
+    static func commentField(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: commentFieldIdentifier).firstMatch
+    }
+
+    /// Open the first task's detail and return its comment box, or nil with a reason.
+    ///
+    /// Four tests each rebuilt this out of `staticTexts CONTAINS 'Task'`, `tap()` and `sleep(1)`,
+    /// which never checked that the detail had opened at all — so a failure one step earlier
+    /// arrived labelled "comment field not found".
+    @MainActor
+    static func openFirstTaskComment(_ app: XCUIApplication,
+                                     timeout: TimeInterval = 15) throws -> XCUIElement {
+        guard let row = waitForFirstVisibleRow(app, timeout: timeout) else {
+            throw XCTSkip("No task rows on screen")
+        }
+        tapCenter(row)
+        guard waitForTaskDetail(app) else {
+            throw XCTSkip("Task detail did not open")
+        }
+        let field = commentField(app)
+        guard field.waitForExistence(timeout: timeout) else {
+            throw XCTSkip("Comment box not found on an OPEN task detail — this one is the app")
+        }
+        return field
+    }
+
     /// Identifier the app stamps on the quick-add field. Must match `QuickAddTaskView`.
     static let quickAddFieldIdentifier = "quickAdd.field"
 

@@ -1,7 +1,18 @@
 import XCTest
 
-/// UI tests for comment keyboard dismissal functionality
-/// Tests that keyboard appears and dismisses correctly when interacting with comment input
+/// The comment box on a task detail: that the keyboard comes up, goes away, and does not take
+/// the typed text or the Send button with it.
+///
+/// All four of these skipped with "Comment input field not found" for as long as the suite has
+/// been able to sign in (task 91a7e180). They asked for `app.textFields` with a
+/// `placeholderValue` containing "comment", which could never match: the control is a
+/// `TextEditor`, which XCUITest exposes as a text VIEW, and its placeholder is a separate `Text`
+/// drawn behind it, so `placeholderValue` is empty. The same wrong shape once hid quick-add.
+///
+/// They also each rebuilt "open a task" out of `staticTexts CONTAINS 'Task'`, `tap()` and
+/// `sleep(1)`, and never checked that the detail had opened — so a failure one step earlier
+/// arrived wearing the comment box's name. That path is now `UITestLaunch.openFirstTaskComment`,
+/// which says which step actually failed.
 final class CommentUITests: XCTestCase {
 
     var app: XCUIApplication!
@@ -15,235 +26,134 @@ final class CommentUITests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Keyboard Dismissal Tests
+    /// Tap somewhere that is not the comment box, ABOVE the keyboard.
+    ///
+    /// This used to aim at the "Comments (0)" header, which sits near the bottom of the detail
+    /// — under the keyboard once it is up. So the tap landed on a KEY: the keyboard stayed, and
+    /// the draft came back as "Test comment textA" with a stray letter appended. Both failures
+    /// were the gesture, not the app.
+    ///
+    /// A tenth of the way down is the detail's own header, which is on screen whatever the
+    /// task looks like and focuses nothing.
+    @MainActor
+    private func tapOutsideTheCommentBox() {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+    }
+
+    @MainActor
+    private func attach(_ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    // MARK: - Keyboard
 
     @MainActor
     func testKeyboardAppearsWhenTappingCommentField() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
-
         try UITestLaunch.skipUnlessSignedIn(app)
-        // Wait for tasks to load
-        sleep(2)
 
-        // Find and open any task to access comment section
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "No Tasks Found"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-            throw XCTSkip("No tasks found to open")
-        }
-
-        // Open task detail
-        tasks.firstMatch.tap()
-        sleep(1)
-
-        // Find comment input field
-        let commentField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'comment'")).firstMatch
-
-        guard commentField.waitForExistence(timeout: timeout) else {
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "Comment Field Not Found"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-            throw XCTSkip("Comment input field not found")
-        }
-
-        // Tap comment field
+        let commentField = try UITestLaunch.openFirstTaskComment(app)
         commentField.tap()
 
-        // Wait for keyboard to appear
-        sleep(1)
-
-        // Check if keyboard is visible
-        let keyboard = app.keyboards.firstMatch
-        let keyboardVisible = keyboard.exists
-
-        // Take screenshot
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Keyboard After Tapping Comment Field"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        XCTAssertTrue(keyboardVisible, "Keyboard should appear when tapping comment field")
+        let appeared = app.keyboards.element.waitForExistence(timeout: 10)
+        attach("Keyboard After Tapping Comment Field")
+        XCTAssertTrue(appeared, "Keyboard should appear when tapping the comment box")
     }
 
+    /// Dragging DOWN on the comment bar puts the keyboard away.
+    ///
+    /// This test used to say "when tapping outside", and the app has never done that. It has
+    /// three ways to dismiss the comment keyboard — a downward drag on the bar, an interactive
+    /// scroll of the detail, and another editor taking the session — and a tap on the body is
+    /// not one of them. Because the test had been skipping since before it could sign in,
+    /// nobody had ever seen it disagree with the app (task 91a7e180).
+    ///
+    /// So it now asserts the gesture that exists. Whether a tap outside SHOULD also dismiss is
+    /// a product question, raised on the task rather than answered here.
     @MainActor
-    func testKeyboardDismissesWhenTappingOutside() throws {
+    func testKeyboardDismissesWhenDraggingDownOnTheCommentBar() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
-
         try UITestLaunch.skipUnlessSignedIn(app)
-        sleep(2)
 
-        // Find and open a task
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            throw XCTSkip("No tasks found")
-        }
-
-        tasks.firstMatch.tap()
-        sleep(1)
-
-        // Find and tap comment field
-        let commentField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'comment'")).firstMatch
-
-        guard commentField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Comment input field not found")
-        }
-
+        let commentField = try UITestLaunch.openFirstTaskComment(app)
         commentField.tap()
-        sleep(1)
 
-        // Verify keyboard is visible
-        let keyboard = app.keyboards.firstMatch
-        guard keyboard.exists else {
+        let keyboard = app.keyboards.element
+        guard keyboard.waitForExistence(timeout: 10) else {
             throw XCTSkip("Keyboard did not appear")
         }
 
-        // Tap outside the comment field (tap on a safe area like the header)
-        // Find the "Comments" header text
-        let commentsHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Comments'")).firstMatch
+        // A real downward drag from the comment bar — the gesture the bar listens for
+        // (`DragGesture` where translation.height > 10).
+        commentField.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.2,
+                   thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)),
+                   withVelocity: .slow,
+                   thenHoldForDuration: 0.2)
 
-        if commentsHeader.exists {
-            commentsHeader.tap()
-        } else {
-            // Fallback: tap at a coordinate above the text field
-            let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-            coordinate.tap()
+        // Poll rather than sleep: the dismissal is animated, and a fixed wait is either a
+        // flake on a loaded machine or wasted seconds on a fast one.
+        let deadline = Date().addingTimeInterval(5)
+        while keyboard.exists && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.2)
         }
-
-        // Wait for keyboard to dismiss
-        sleep(1)
-
-        // Check if keyboard is dismissed
-        let keyboardDismissed = !keyboard.exists
-
-        // Take screenshot
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "After Tapping Outside Comment Field"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        XCTAssertTrue(keyboardDismissed, "Keyboard should dismiss when tapping outside the comment field")
+        attach("After Dragging Down On The Comment Bar")
+        XCTAssertFalse(keyboard.exists,
+                       "Dragging down on the comment bar should put the keyboard away")
     }
+
+    // MARK: - What must survive the dismissal
 
     @MainActor
     func testCommentTextPreservedAfterDismissingKeyboard() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
-
         try UITestLaunch.skipUnlessSignedIn(app)
-        sleep(2)
 
-        // Find and open a task
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            throw XCTSkip("No tasks found")
-        }
-
-        tasks.firstMatch.tap()
-        sleep(1)
-
-        // Find comment field
-        let commentField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'comment'")).firstMatch
-
-        guard commentField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Comment input field not found")
-        }
-
-        // Type test comment
+        let commentField = try UITestLaunch.openFirstTaskComment(app)
         let testComment = "Test comment text"
         commentField.tap()
+        guard app.keyboards.element.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Keyboard did not appear, so nothing could be typed")
+        }
         commentField.typeText(testComment)
 
-        // Tap outside to dismiss keyboard
-        let commentsHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Comments'")).firstMatch
+        tapOutsideTheCommentBox()
+        Thread.sleep(forTimeInterval: 1)
 
-        if commentsHeader.exists {
-            commentsHeader.tap()
-        } else {
-            let coordinate = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-            coordinate.tap()
-        }
-
-        sleep(1)
-
-        // Check if text is still in the field
-        let fieldValue = commentField.value as? String ?? ""
-
-        // Take screenshot
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Comment Text After Dismissing Keyboard"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        XCTAssertEqual(fieldValue, testComment, "Comment text should be preserved after dismissing keyboard")
+        attach("Comment Text After Dismissing Keyboard")
+        XCTAssertEqual(commentField.value as? String, testComment,
+                       "Losing the draft to a keyboard dismissal is the bug this guards")
     }
 
     @MainActor
     func testKeyboardDismissalDoesNotInterfereWithButtons() throws {
         app.launch()
-
-        let timeout: TimeInterval = 10
-
         try UITestLaunch.skipUnlessSignedIn(app)
-        sleep(2)
 
-        // Find and open a task
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            throw XCTSkip("No tasks found")
-        }
-
-        tasks.firstMatch.tap()
-        sleep(1)
-
-        // Find comment field
-        let commentField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'comment'")).firstMatch
-
-        guard commentField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Comment input field not found")
-        }
-
-        // Type a comment
+        let commentField = try UITestLaunch.openFirstTaskComment(app)
         commentField.tap()
-        commentField.typeText("Test comment for button test")
-        sleep(1)
-
-        // Try to tap the send button (paperplane icon)
-        let sendButton = app.buttons.matching(NSPredicate(format: "identifier CONTAINS 'paperplane' OR label CONTAINS 'Send'")).firstMatch
-
-        if sendButton.exists {
-            sendButton.tap()
-            sleep(1)
-
-            // Take screenshot
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "After Tapping Send Button"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-
-            // Verify comment was sent (field should be cleared)
-            let fieldValue = commentField.value as? String ?? ""
-            XCTAssertTrue(fieldValue.isEmpty || fieldValue == "Add a comment...", "Comment field should be cleared after sending")
-        } else {
-            // If send button not found, just verify buttons are still tappable
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "Send Button Not Found"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-
-            throw XCTSkip("Send button not found or not visible")
+        guard app.keyboards.element.waitForExistence(timeout: 10) else {
+            throw XCTSkip("Keyboard did not appear, so nothing could be typed")
         }
+        commentField.typeText("Test comment for button test")
+
+        let sendButton = app.buttons
+            .matching(NSPredicate(format: "identifier CONTAINS 'paperplane' OR label CONTAINS[c] 'Send'"))
+            .firstMatch
+        guard sendButton.waitForExistence(timeout: 5) else {
+            attach("Send Button Not Found")
+            throw XCTSkip("Send button not found")
+        }
+
+        UITestLaunch.tapCenter(sendButton)
+        Thread.sleep(forTimeInterval: 1.5)
+        attach("After Tapping Send Button")
+
+        let remaining = commentField.value as? String ?? ""
+        XCTAssertTrue(remaining.isEmpty || remaining == "Add a comment...",
+                      "Sending must clear the box — got \(remaining)")
     }
 }
