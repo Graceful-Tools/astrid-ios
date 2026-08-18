@@ -27,7 +27,16 @@ struct TaskRowView: View {
     /// In project mode the leading control opens the quick changer instead of completing —
     /// the same thing it does in task details (task 132d7b3f). Rows and boards were the
     /// surfaces where the same control still meant something else.
-    private var opensQuickChanger: Bool { !displayMode.checkboxCompletesTask }
+    ///
+    /// Asked of the SHARED rule rather than spelled here, because a board card and a list row
+    /// answer it differently: this view draws BOTH (the board's cards are this row inside card
+    /// chrome), so a single `displayMode` question gave list mode's "the checkbox completes"
+    /// to board cards too — the trapdoor task 9be8cb1b removed from the board (task f9d7ed42).
+    private var opensQuickChanger: Bool {
+        TaskLeadingControl.action(surface: surface,
+                                  kind: leadingKind,
+                                  displayMode: displayMode) == .openPicker
+    }
 
     @State private var showingQuickChanger = false
 
@@ -63,6 +72,10 @@ struct TaskRowView: View {
     /// host (e.g. a board card) provides the single card chrome.
     /// Without this a board card showed two nested borders.
     var embeddedInCard: Bool = false
+    /// Which surface this row is standing in. A board card is the same view in card chrome,
+    /// and its leading control means something different there (task f9d7ed42) — `embeddedInCard`
+    /// is about chrome and is deliberately not reused to answer a behaviour question.
+    var surface: TaskLeadingControlSurface = .listRow
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {

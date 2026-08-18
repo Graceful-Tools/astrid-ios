@@ -94,3 +94,87 @@ final class TaskLeadingControlTests: XCTestCase {
         XCTAssertEqual(TaskLeadingControl.unassignedGlyph, "U")
     }
 }
+
+/// Task f9d7ed42 — "In List mode, not part of a board, tapping the checkbox should complete the
+/// task. In board view, it should bring up a 'status' picker".
+///
+/// The rule asked ONE question — which Appearance mode is this? — and a mode cannot tell a
+/// board card from a list row. So `list` mode, whose whole point is that the checkbox finishes
+/// the task, handed that behaviour to board cards as well: on the board, the click that reads
+/// as "pick this one" completed the task, with no way back but finding it in the Done column.
+/// That is the trapdoor task 9be8cb1b removed from the board, back again by way of a setting.
+///
+/// iOS is in scope even though the report was filed against the Mac: the iOS board card IS
+/// `TaskRowView` in card chrome, so it asked the same single question and had the same hole.
+final class TaskLeadingControlSurfaceTests: XCTestCase {
+
+    // MARK: - "In board view, it should bring up a 'status' picker"
+
+    func testBoardCardOpensThePickerInListMode() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .list),
+            .openPicker,
+            "A board card's checkbox must open the picker, not complete the task outright")
+    }
+
+    /// Every face is the same control. A card is a card whichever one it wears, in either mode.
+    func testEveryFaceOnACardOpensThePicker() {
+        for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
+            for mode in TaskDisplayMode.allCases {
+                XCTAssertEqual(
+                    TaskLeadingControl.action(surface: .boardCard, kind: kind, displayMode: mode),
+                    .openPicker,
+                    "\(kind) in \(mode) must open the picker on a board card")
+            }
+        }
+    }
+
+    // MARK: - "In List mode, not part of a board, tapping the checkbox should complete the task"
+
+    func testListRowCheckboxCompletesInListMode() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .list),
+            .complete,
+            "In list mode a row's checkbox completes the task — that is what a checkbox means")
+    }
+
+    /// Project mode still turns the row's control into the quick changer, which is what task
+    /// 132d7b3f asked for. This change narrows the board, not the row.
+    func testListRowOpensTheQuickChangerInProjectMode() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .project),
+            .openPicker)
+    }
+
+    // MARK: - The detail screen is untouched (task 729a190e)
+
+    func testDetailCompletesOnlyWhenTheFaceIsACheckbox() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
+            .complete)
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list),
+            .openPicker,
+            "Someone else's photo is not a checkbox — tapping it must not finish their task")
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project),
+            .openPicker)
+    }
+
+    // MARK: - The board card must actually ASK for the board surface
+
+    /// The rule is only as good as the call site. `TaskRowView` draws both the list row and the
+    /// board card, so if the card stops declaring itself a card it silently inherits the row's
+    /// answer again — which is the whole bug.
+    func testTheBoardCardDeclaresItsSurface() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // UnitTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // Astrid AppTests
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Astrid App/Views/Board/BoardTaskCardView.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(source.contains("surface: .boardCard"),
+                      "The board card must tell TaskRowView it is a card, or it behaves like a row")
+    }
+}

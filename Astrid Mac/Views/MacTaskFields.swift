@@ -129,8 +129,16 @@ enum MacLeadingPicker {
     /// does not — priority and assignee are rows of their own there, and a board column is a
     /// project idea. Offering both everywhere would rebuild the hybrid layout this setting
     /// exists to end.
-    static func sections(for displayMode: TaskDisplayMode) -> [MacLeadingPickerSection] {
-        displayMode.usesCompactTaskDetail
+    ///
+    /// A BOARD CARD gets it in both modes (task f9d7ed42). List mode's omission is an argument
+    /// about the DETAIL panel's layout — a board column is a project idea, and a row for it in
+    /// the list layout rebuilds the hybrid. On a board that argument does not apply: the card is
+    /// already in a board, its column is the one thing on screen that is about to change, and
+    /// without this section the control offers no way to change it.
+    static func sections(for displayMode: TaskDisplayMode,
+                         surface: TaskLeadingControlSurface = .detail) -> [MacLeadingPickerSection] {
+        let showsProjectState = displayMode.usesCompactTaskDetail || surface == .boardCard
+        return showsProjectState
             ? [.priority, .assignee, .projectState, .complete]
             : [.priority, .assignee, .complete]
     }
