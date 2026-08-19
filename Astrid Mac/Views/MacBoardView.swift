@@ -27,6 +27,9 @@ struct MacBoardView: View {
     /// binding would leave the swatch showing the old value for the instant the popover is still
     /// up. Cleared on save, after which the task itself is the truth again.
     @State private var priorityDraft: [String: Task.Priority] = [:]
+    /// The last priority this board WROTE per task, as opposed to the one a card was rendered
+    /// with. Only a repeat of this is worth suppressing.
+    @State private var lastWrittenPriority: [String: Task.Priority] = [:]
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
@@ -297,14 +300,22 @@ struct MacBoardView: View {
     }
 
     private func setPriority(_ t: Task, _ priority: Task.Priority) {
-        // Same shape as the detail panel's save: skip a write that changes nothing, since the
-        // picker notifies on every tap including one on the priority already set.
-        guard priority != t.priority else { priorityDraft[t.id] = nil; return }
+        // Asked of the shared rule, which does NOT consult `t.priority`. Comparing the tap
+        // against the card's snapshot is what stalled this: whichever priority the card was
+        // rendered with became a dead button, and the draft was wiped so it snapped back.
+        let outcome = MacBoardPriorityTap.tap(priority, lastWritten: lastWrittenPriority[t.id])
+
+        // The card shows what was pressed, always — even when there is nothing to write.
+        priorityDraft[t.id] = outcome.draft
+
+        guard let write = outcome.write else { return }
+        lastWrittenPriority[t.id] = write
         MacActions.perform("Set priority") {
-            _ = try await taskService.updateTask(taskId: t.id, priority: priority.rawValue, task: t)
-            // The task is the truth again; drop the draft so a later change to this task from
-            // anywhere else is not shadowed by a stale local value.
-            priorityDraft[t.id] = nil
+            _ = try await taskService.updateTask(taskId: t.id, priority: write.rawValue, task: t)
+            // Only if this write is still the newest thing the user asked for: clearing
+            // unconditionally discarded a tap made while this one was in flight.
+            priorityDraft[t.id] = MacBoardPriorityTap.draftAfterWriting(
+                write, currentDraft: priorityDraft[t.id])
         }
     }
 
