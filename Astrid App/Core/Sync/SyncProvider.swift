@@ -70,6 +70,41 @@ enum SyncMutationNudge {
     }
 }
 
+/// The minimum gap between sync PASSES, whatever asks for one.
+///
+/// `scheduleSync` debounces by 2s, and `syncAll` re-arms itself in its own `defer` when a nudge
+/// arrived mid-pass — and a pass makes local writes that nudge. A debounce does not bound that:
+/// each re-arm starts a fresh 2s timer rather than a fresh RATE, so the passes ran back to back,
+/// each pulling 200-300KB of task-links and issues and decoding it on the main actor.
+///
+/// Jon's Mac log, tapping priorities: every tap decided and enqueued correctly, but the tap
+/// handler only ran after a queue of sync requests had drained — the UI was waiting behind the
+/// sync, which is why it looked like the priority was "waiting for the server".
+///
+/// A floor, not an off switch: nudges are not dropped, they wait. A change made on GitHub still
+/// arrives, just no more often than this.
+enum SyncPassFloor {
+
+    /// Long enough that back-to-back passes cannot saturate the main actor, short enough that a
+    /// change made elsewhere still lands while you are looking at the app.
+    static let defaultFloor: TimeInterval = 30
+
+    static func mayStart(lastPassStarted: Date?, now: Date, floor: TimeInterval) -> Bool {
+        guard let lastPassStarted else { return true }
+        // A "last pass" in the future means the CLOCK moved (NTP, timezone), not that a pass
+        // just ran. Treat it as due rather than locking sync out until the clock catches up.
+        if lastPassStarted > now { return true }
+        return now.timeIntervalSince(lastPassStarted) >= floor
+    }
+
+    /// How long until a pass may start, so a caller can re-arm ONCE at the right moment rather
+    /// than spinning on a guard that keeps saying no.
+    static func delayUntilNextPass(lastPassStarted: Date?, now: Date, floor: TimeInterval) -> TimeInterval {
+        guard let lastPassStarted, lastPassStarted <= now else { return 0 }
+        return max(0, floor - now.timeIntervalSince(lastPassStarted))
+    }
+}
+
 /// Shared time gate for expensive complete remote listings. Only successful,
 /// non-truncated pulls update the stored timestamp at the call site.
 enum FullPullThrottle {

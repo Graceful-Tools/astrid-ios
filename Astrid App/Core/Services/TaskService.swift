@@ -742,6 +742,50 @@ class TaskService: ObservableObject {
         }
     }
 
+    /// Apply a priority change to what the views read — RIGHT NOW, with nothing awaited.
+    ///
+    /// Jon, testing the Mac app: "it seems like it might be waiting for the server call back and
+    /// not updating the UI optimistically for the priority update."
+    ///
+    /// The wait is real and it is not the server. This type is `@MainActor` and `updateTask` is
+    /// `async`: its optimistic write runs before any network, but AFTER the previous call's
+    /// awaits — `saveTaskToCoreData` and the Outbox journal persist, both disk. Tap several
+    /// priorities in a row and each tap's optimistic update queues behind the previous tap's
+    /// disk work on the main actor, and the journal it rewrites grows as you tap. So it is fine
+    /// for the first few and then visibly stuck, which is what "eventually it stalls" describes.
+    ///
+    /// This is the escape hatch: synchronous, so a view can show the tap before starting the
+    /// durable write. It does NOT replace `updateTask` — the caller still makes that call, which
+    /// is what reaches CoreData, the Outbox and the server. It only moves the moment the screen
+    /// changes to the moment of the tap.
+    ///
+    /// Returns false only when the task is unknown, so a caller can tell "nothing to show" from
+    /// "shown". Re-applying the priority a task already has still counts as applied: a caller
+    /// must not read `false` as "your tap did nothing".
+    @discardableResult
+    func applyOptimisticPriority(taskId: String, priority: Task.Priority) -> Bool {
+        let resolvedId = tempTaskIdMapping[taskId] ?? taskId
+        guard var task = cachedTasks[resolvedId] ?? tasks.first(where: { $0.id == resolvedId })
+        else { return false }
+
+        task.priority = priority
+        task.updatedAt = Date()
+        cachedTasks[resolvedId] = task
+        if let index = tasks.firstIndex(where: { $0.id == resolvedId }) {
+            tasks[index] = task
+        }
+        return true
+    }
+
+    /// Put a task into the in-memory caches without touching disk or the network. Tests only:
+    /// the optimistic path needs a task to exist, and going through `createTask` would drag in
+    /// CoreData and the Outbox.
+    func adoptForTesting(_ task: Task) {
+        cachedTasks[task.id] = task
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
+        else { tasks.append(task) }
+    }
+
     /// Server-first update for callers that cannot use the normal optimistic
     /// flow because the view hierarchy is sensitive to intermediate state
     /// changes. This keeps those exceptional paths inside TaskService instead
