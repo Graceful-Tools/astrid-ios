@@ -238,6 +238,8 @@ final class GoogleTasksSyncService: ObservableObject {
     // MARK: - Sync
 
     private var rerunAfterPass = false
+    /// When the last pass STARTED, for `SyncPassFloor`.
+    private var lastPassStarted: Date?
 
     func scheduleSync() {
         guard FeatureFlagService.shared.isEnabled(.googleTasks) else {
@@ -249,7 +251,12 @@ final class GoogleTasksSyncService: ObservableObject {
         if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
-            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
+            // Debounce PLUS whatever is left of the floor between passes — see SyncPassFloor.
+            // A pass re-arms itself on mid-pass nudges and its own writes nudge, so a debounce
+            // alone lets passes run back to back and starve the UI.
+            let wait = SyncPassFloor.delayUntilNextPass(
+                lastPassStarted: self?.lastPassStarted, now: Date(), floor: SyncPassFloor.defaultFloor)
+            try? await _Concurrency.Task.sleep(nanoseconds: UInt64((2 + wait) * 1_000_000_000))
             guard !_Concurrency.Task.isCancelled else { return }
             await self?.syncAll()
         }
@@ -258,6 +265,14 @@ final class GoogleTasksSyncService: ObservableObject {
     func syncAll() async {
         guard FeatureFlagService.shared.isEnabled(.googleTasks) else { return }
         guard isConnected, !isSyncing else { return }
+        // However often a pass is asked for, it starts at most once per floor. See SyncPassFloor.
+        guard SyncPassFloor.mayStart(lastPassStarted: lastPassStarted, now: Date(),
+                                     floor: SyncPassFloor.defaultFloor) else {
+            rerunAfterPass = true
+            scheduleSync()
+            return
+        }
+        lastPassStarted = Date()
         isSyncing = true
         lastError = nil
         defer {

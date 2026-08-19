@@ -134,13 +134,23 @@ final class GitHubSyncService: ObservableObject {
     // MARK: - Sync
 
     private var rerunAfterPass = false
+    /// When the last pass STARTED, for `SyncPassFloor`. Start rather than end, so a long pass
+    /// cannot be immediately followed by another the moment it finishes.
+    private var lastPassStarted: Date?
 
     func scheduleSync() {
         guard isConnected, !links.isEmpty else { return }
         if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
-            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
+            // The usual 2s debounce, PLUS whatever is left of the floor between passes. A pass
+            // re-arms itself when a nudge arrives mid-pass, and a pass's own local writes nudge,
+            // so the debounce alone let passes run back to back — each decoding 200-300KB on the
+            // main actor while taps queued behind it. Waiting here rather than returning means a
+            // nudge is delayed, never dropped.
+            let wait = SyncPassFloor.delayUntilNextPass(
+                lastPassStarted: self?.lastPassStarted, now: Date(), floor: SyncPassFloor.defaultFloor)
+            try? await _Concurrency.Task.sleep(nanoseconds: UInt64((2 + wait) * 1_000_000_000))
             guard !_Concurrency.Task.isCancelled else { return }
             await self?.syncAll()
         }
@@ -148,6 +158,15 @@ final class GitHubSyncService: ObservableObject {
 
     func syncAll() async {
         guard isConnected, !isSyncing else { return }
+        // Second gate, for the callers that reach `syncAll` directly rather than through
+        // `scheduleSync`: however often a pass is asked for, it starts at most once per floor.
+        guard SyncPassFloor.mayStart(lastPassStarted: lastPassStarted, now: Date(),
+                                     floor: SyncPassFloor.defaultFloor) else {
+            rerunAfterPass = true
+            scheduleSync()
+            return
+        }
+        lastPassStarted = Date()
         isSyncing = true
         lastError = nil
         // Consume mid-pass nudges: a webhook/mutation that arrived while this
