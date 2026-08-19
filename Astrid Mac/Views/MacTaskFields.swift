@@ -109,7 +109,10 @@ enum MacTaskFields {
 
         var rowSpacing: CGFloat {
             switch self {
-            case .detail: return 10
+            // 16, not 10: at 10 the rows read as one block rather than as separate fields —
+            // "too squashed together" (Jon, 2026-08-18). The board card stays tight, because a
+            // ~250pt column cannot spend the height.
+            case .detail: return 16
             case .boardCard: return 6
             }
         }

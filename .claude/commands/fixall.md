@@ -9,25 +9,39 @@ empty list is a no-op, not busywork.
 
 ## Guardrails (do not skip)
 
-- **Ship every fix to TestFlight as it lands** (standing authorization from Jon,
-  2026-08-13). A task is not finished when it is committed; it is finished when Jon can
-  test it on his device. Do not stop to ask — the asking was the bottleneck, and that is
-  exactly what this instruction removes. Ship one task at a time rather than batching, so
-  a TestFlight build maps to a single change and a regression is obvious.
-  - **`iosdev` and `macdev` both build to TestFlight.** Push both, even for a Mac-only
-    fix — the `Core/` tree is shared, and letting them drift means the next iOS build
-    silently lacks code the Mac build has.
-  - **`main` is the integration branch, and merging to it is safe** — but be precise
-    about why (verified against the Xcode Cloud API 2026-08-13). It *does* start the
-    "iOS Release" and "Mac Release" workflows, which archive and upload to App Store
-    Connect. What it does not do is submit anything for review: submission is a manual
-    step in App Store Connect and nothing here performs it. An earlier version of this
-    file said `main` was "the App Store branch", which overstated the risk, and a later
-    one said it "does not trigger a release build", which understated what runs. Merging
-    is autonomous; submitting for review still needs Jon.
-  - **The standing authorization covers shipping fixes from this list.** It is not a
-    blanket approval: an App Store submission, deleting files, or a significant
-    architecture change still needs asking.
+- **DO NOT PUSH unless Jon asks for a build** (Jon, 2026-08-18). Work locally: branch,
+  commit, merge into `iosdev`, keep the gates green — and stop there. Push `iosdev`,
+  `macdev` or `main` only when he asks to build or test.
+
+  This reverses the earlier "ship every fix as it lands" instruction, and the reason is
+  concrete rather than cautious: **it burned through the Xcode Cloud usage allotment.**
+  Every ship pushed three branches and started FOUR runs — `iosdev`, `macdev`, plus iOS
+  Release and Mac Release on `main` — so one fix cost four runs, and shipping several
+  fixes an hour apart exhausted the month. Once the allotment is gone, every run is
+  created and cancelled before it starts (`startedDate: null`, `cancelReason: null`) and
+  `POST /v1/ciBuildRuns` returns 500, which looks exactly like an Apple outage and cost
+  hours to diagnose. See [[xcode-cloud-runs-canceled]].
+
+  So: a task is DONE when it is merged into `iosdev` with `npm run predeploy` green. Say
+  in the completion report that it is merged and waiting to be built, rather than
+  claiming it shipped. Do not bump `CURRENT_PROJECT_VERSION` per fix either — see below.
+
+  - **When Jon DOES ask for a build**, push all three (`iosdev`, `macdev`, `main`) so
+    they cannot drift — the `Core/` tree is shared — and expect one build to carry
+    several tasks. That is the trade for not burning the allotment: a TestFlight build no
+    longer maps to a single change, so the completion reports have to carry the detail
+    instead.
+  - **`main` merging is still safe.** It starts the "iOS Release" and "Mac Release"
+    workflows, which archive and upload to App Store Connect, but nothing here submits
+    for review — that is a manual step in App Store Connect. Submitting still needs Jon.
+    It is ALSO where half the compute went, which is the other reason not to push it
+    casually.
+  - **`CURRENT_PROJECT_VERSION` does not name the TestFlight build.** Measured
+    2026-08-18: TestFlight's build numbers are the Xcode Cloud RUN numbers (877, 878,
+    882, 884…) while the repo said 254. So bumping it per fix achieves nothing visible
+    and is not worth a commit. Tell Jon the run number, or the commit, not the bump.
+  - **An App Store submission, deleting files, or a significant architecture change still
+    needs asking**, as before.
 - **One branch per task** (`fix/<short-description>`), and `npm run predeploy` green
   before the task is marked complete.
 - **Never push a red gate.** If a suite fails, fix it or stop and say so. A failing test
@@ -199,18 +213,16 @@ before marking it complete.
      2. Implement the minimum change to make it pass.
      3. Refactor while tests stay green.
    - Run `npm run predeploy` (plus the Mac suites for Mac tasks) and fix regressions.
-   - **Ship it** — see step 6. Do this BEFORE marking the task complete, so a task is
-     never closed on something Jon cannot yet test.
-   - Post a completion report on the task, including the build number it shipped in,
-     and mark it complete.
+   - **Land it** — see step 6. Merge into `iosdev` locally and STOP; do not push.
+   - Post a completion report on the task saying it is merged and waiting to be built,
+     and mark it complete. A task is done when it is merged with the gates green — the
+     build is a separate event now, and holding tasks open for it would leave the whole
+     board waiting on Jon asking for a build.
 
-6. **Ship the task to TestFlight.** Merge, bump, verify, push:
+6. **Land the task on `iosdev` — locally. Do not push.**
    ```bash
    git checkout iosdev && git merge --no-ff fix/<branch> -m "Merge: <what> (Task: <id>)"
    ```
-   - **Bump `CURRENT_PROJECT_VERSION`** in `Astrid App.xcodeproj/project.pbxproj` (all
-     occurrences) — a duplicate build number is the most common way a Xcode Cloud build
-     fails after everything else passed.
    - **Re-run the gates on the MERGED tree**, not just on the branch. A merge can break
      what neither side broke alone:
      ```bash
@@ -218,18 +230,28 @@ before marking it complete.
      xcodebuild test -scheme "Astrid Mac" -destination "platform=macOS" \
        -only-testing:"Astrid MacTests" -quiet
      ```
-   - Push both release branches, then integrate:
-     ```bash
-     git push origin iosdev
-     git checkout macdev && git merge --ff-only iosdev && git push origin macdev
-     git checkout main   && git merge --no-ff iosdev -m "Merge iosdev: <what> (build N)"
-     git push origin main && git checkout iosdev
-     ```
+   - **No `CURRENT_PROJECT_VERSION` bump.** It does not name the TestFlight build —
+     measured 2026-08-18, TestFlight numbers are the Xcode Cloud RUN numbers while the
+     repo said 254 — so a bump per fix is a commit that changes nothing anyone sees.
+   - **Stop here.** Unpushed work is not lost work; it is work waiting for a build Jon
+     has asked for.
+
+6b. **When Jon asks for a build**, push all three so they cannot drift, then watch:
+   ```bash
+   git push origin iosdev
+   git checkout macdev && git merge --ff-only iosdev && git push origin macdev
+   git checkout main   && git merge --no-ff iosdev -m "Merge iosdev: <what>"
+   git push origin main && git checkout iosdev
+   ```
+   - That push starts FOUR runs (iosdev, macdev, iOS Release, Mac Release). Budget for it.
    - Xcode Cloud picks the push up by webhook, which has been seen to lag anywhere from
      0 to ~36 minutes. That lag is normal — do not retrigger on a hunch. If you do need a
      manual `POST /v1/ciBuildRuns`, it **must** carry
      `relationships.sourceBranchOrTag` (an `scmGitReferences` id) or it defaults to
      `main` and 409s.
+   - **If runs are created and cancelled with `startedDate: null`, the allotment is gone.**
+     Say so and stop; pushing again only creates more cancelled runs. See
+     [[xcode-cloud-runs-canceled]].
 
 7. **RE-CHECK THE LIST AFTER EVERY TASK — never work from the opening snapshot.**
    New tasks arrive while work is in progress, and a REOPENED task looks exactly
