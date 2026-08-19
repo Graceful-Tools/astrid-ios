@@ -24,57 +24,14 @@ struct InlineAssigneePicker: View {
     @State private var aiAgents: [User] = AIAgentCache.shared.load() ?? []
     @State private var isLoadingAgents = false
 
-    // Get all unique members from task's lists, including AI agents
+    /// Who this task can be assigned to — from the SHARED rule, so the board, the task detail
+    /// and the list view cannot offer different people (task 1484ea4a). It used to be built
+    /// here, which made it a view detail rather than something a test could hold.
     private var availableMembers: [User] {
-        var membersMap: [String: User] = [:]
-
-        // Get lists that this task belongs to
-        let taskLists = availableLists.filter { taskListIds.contains($0.id) }
-
-        for list in taskLists {
-            // Owner + listMembers are the canonical member sources.
-            if let owner = list.owner {
-                membersMap[owner.id] = owner
-            }
-            if let listMembers = list.listMembers {
-                for listMember in listMembers {
-                    if let user = listMember.user {
-                        membersMap[user.id] = user
-                    }
-                }
-            }
-        }
-
-        // Add AI agents fetched from API (based on user's configured API keys)
-        for agent in aiAgents {
-            membersMap[agent.id] = agent
-        }
-
-        // For tasks without lists (e.g., "My Tasks"), add current user
-        if taskLists.isEmpty, let currentUser = authManager.currentUser {
-            membersMap[currentUser.id] = currentUser
-        }
-
-        return Array(membersMap.values).sorted { u1, u2 in
-            // Sort by: AI agents first, then current user, then alphabetically
-            let u1IsAI = u1.isAIAgent == true
-            let u2IsAI = u2.isAIAgent == true
-            if u1IsAI && !u2IsAI { return true }
-            if !u1IsAI && u2IsAI { return false }
-
-            if let currentUser = authManager.currentUser {
-                if u1.id == currentUser.id { return true }
-                if u2.id == currentUser.id { return false }
-            }
-
-            // Stable sort: use name first, then ID as tiebreaker
-            let name1 = (u1.name ?? u1.email ?? "")
-            let name2 = (u2.name ?? u2.email ?? "")
-            if name1 != name2 {
-                return name1 < name2
-            }
-            return u1.id < u2.id
-        }
+        AssigneeOptions.build(availableLists: availableLists,
+                              taskListIds: taskListIds,
+                              aiAgents: aiAgents,
+                              currentUser: authManager.currentUser)
     }
 
     // Fetch fresh AI agents from API (cache already loaded at init)
@@ -93,7 +50,17 @@ struct InlineAssigneePicker: View {
                 taskId: taskId,
                 listIds: taskListIds.isEmpty ? nil : taskListIds
             )
-            let agents = users.filter { $0.isAIAgent == true }
+            var agents = users.filter { $0.isAIAgent == true }
+
+            // Scoping the search to the task's lists can come back with no agents — a board
+            // card's lists include a STATUS list, which has no members of its own. Agents belong
+            // to the account, not to a list, so ask again without the scope rather than showing
+            // a picker with none (task 1484ea4a).
+            if agents.isEmpty {
+                let unscoped = try await RemoteResourceService.shared.searchUsersWithAIAgents(
+                    query: "", taskId: nil, listIds: nil)
+                agents = unscoped.filter { $0.isAIAgent == true }
+            }
 
             // Check if agent set has changed (ignore order differences)
             let newAgentIds = Set(agents.map { $0.id })
