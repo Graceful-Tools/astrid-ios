@@ -33,11 +33,15 @@ struct TaskQuickChanger: View {
     @StateObject private var listService = ListService.shared
 
     @State private var priority: Task.Priority
+    /// The assignee this popover has picked. Seeded from the task; the picker needs somewhere
+    /// real to write, or its selection cannot move (task 1484ea4a).
+    @State private var pickedAssigneeId: String?
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
         self.onDismiss = onDismiss
         _priority = State(initialValue: task.priority)
+        _pickedAssigneeId = State(initialValue: task.assigneeId)
     }
 
     var body: some View {
@@ -52,7 +56,10 @@ struct TaskQuickChanger: View {
 
             InlineAssigneePicker(
                 label: NSLocalizedString("tasks.assignee", comment: ""),
-                assigneeId: .constant(task.assigneeId),
+                // A real binding, not `.constant`: with a constant the picker's own selection
+                // could never move, so the row you tapped did not become the selected one
+                // (task 1484ea4a). The detail panel has always passed a real one.
+                assigneeId: $pickedAssigneeId,
                 taskListIds: task.listIds ?? [],
                 taskId: task.id,
                 availableLists: listService.lists,
