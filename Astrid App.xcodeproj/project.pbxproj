@@ -68,7 +68,7 @@
 /* Begin PBXFileReference section */
 		283B1791C98D43E490D42903 /* AstridApp.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AstridApp.xcdatamodel; sourceTree = "<group>"; };
 		CB5DE3892EBDCC150056928E /* Astrid.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Astrid.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB8DEFD13005D591003E5617 /* Astrid Mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Astrid Mac.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB8DEFD13005D591003E5617 /* Astrid.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Astrid.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8DEFE23005D591003E5617 /* Astrid MacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid MacTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB8DEFEC3005D591003E5617 /* Astrid MacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Astrid MacUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBB135842EAB27CD00D41E86 /* Astrid App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Astrid App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -85,13 +85,6 @@
 				Info.plist,
 			);
 			target = CB5DE3882EBDCC150056928E /* Astrid */;
-		};
-		CBFACADE0000000000000002 /* Exceptions for "Astrid Mac" folder in "Astrid Mac" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = CB8DEFD03005D591003E5617 /* Astrid Mac */;
 		};
 		CBFACADE0000000000000001 /* Exceptions for "Astrid App" folder in "Astrid Mac" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -207,6 +200,13 @@
 				Views/Tasks/TaskRowView.swift,
 				Views/Tasks/TaskTimerView.swift,
 				Views/UserProfileView.swift,
+			);
+			target = CB8DEFD03005D591003E5617 /* Astrid Mac */;
+		};
+		CBFACADE0000000000000002 /* Exceptions for "Astrid Mac" folder in "Astrid Mac" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
 			);
 			target = CB8DEFD03005D591003E5617 /* Astrid Mac */;
 		};
@@ -336,7 +336,7 @@
 				CBB135912EAB27CE00D41E86 /* Astrid AppTests.xctest */,
 				CBB1359B2EAB27CE00D41E86 /* Astrid AppUITests.xctest */,
 				CB5DE3892EBDCC150056928E /* Astrid.appex */,
-				CB8DEFD13005D591003E5617 /* Astrid Mac.app */,
+				CB8DEFD13005D591003E5617 /* Astrid.app */,
 				CB8DEFE23005D591003E5617 /* Astrid MacTests.xctest */,
 				CB8DEFEC3005D591003E5617 /* Astrid MacUITests.xctest */,
 			);
@@ -388,7 +388,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Astrid Mac";
-			productReference = CB8DEFD13005D591003E5617 /* Astrid Mac.app */;
+			productReference = CB8DEFD13005D591003E5617 /* Astrid.app */;
 			productType = "com.apple.product-type.application";
 		};
 		CB8DEFE13005D591003E5617 /* Astrid MacTests */ = {
