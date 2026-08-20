@@ -171,6 +171,27 @@ before marking it complete.
    filter — you are on your own for scope:
    `DATABASE_URL="$DATABASE_URL_PROD" npx tsx scripts/ios-tasks-direct.ts`
 
+   **A TASK WITH A DATE WAITS FOR ITS DATE** (Jon, 2026-08-19). The script holds anything
+   whose `dueDateTime` is still in the future and lists it separately with when it comes due,
+   so a queue waiting on the clock never looks like an idle one:
+
+   ```
+   (1 Ready task(s) scheduled for later — not yet due:)
+     — Weekly dependency audit  [due 2026-08-23 09:00 UTC]
+   ```
+
+   **THIS IS HOW RECURRING WORK RUNS.** Completing a repeating task rolls it forward to its
+   next occurrence — `RepeatingTaskCalculator` already does that — and the date gate then holds
+   it until that moment. So a recurring chore leaves the queue when you finish it and comes
+   back by itself when it is due, and the schedule lives in Astrid where Jon can see and change
+   it from his phone, rather than in a cron file or in this document. To make something
+   recurring, give the task a date and a repeat in Astrid; nothing here needs to change.
+
+   A task with no date is workable now, which is every task the loop has taken until this was
+   added. An all-day task carries midnight, so it becomes workable at the start of its day. An
+   unreadable date is treated as NO date rather than as "never" — stranding a task on a value
+   nobody can see would look exactly like an empty queue, every run.
+
    **ONLY tasks assigned to Claude.** Assignment is the handshake (Jon, 2026-08-15).
    Not unassigned, not "looks like agent work" — assigned.
 
@@ -184,7 +205,9 @@ before marking it complete.
    someone else's work never looks like an idle one. If something is genuinely yours,
    say so and let Jon assign it; do not work around the filter.
 
-3. **If the list is empty**, say so in one line and stop. Nothing else to do.
+3. **If the list is empty**, say so in one line and stop. Nothing else to do — but if the
+   script listed tasks as *scheduled for later*, say when the next one comes due rather than
+   just "empty", so a quiet run is distinguishable from a finished one.
 
 4. **Otherwise, report the queue** — task ids and titles in the order you will work
    them (priority high → low, then oldest first) — then start on the first one
