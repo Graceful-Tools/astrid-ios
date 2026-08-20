@@ -82,12 +82,18 @@ class AuthManager: ObservableObject {
         let name = UserDefaults.standard.string(forKey: Constants.UserDefaults.userName)
         let image = UserDefaults.standard.string(forKey: Constants.UserDefaults.userImage)
 
-        self.currentUser = User(
+        let restoredUser = User(
             id: userId,
             email: email,
             name: name,
             image: image
         )
+        self.currentUser = restoredUser
+
+        // A cached task restored from Core Data may carry only `assigneeId`. Restore the current
+        // user's URL lookup from the session and promote warm disk bytes to memory before My Tasks
+        // renders, so their photo is available on the first row frame (AITD-283).
+        UserImageCache.shared.prepareForLaunch(restoredUser)
 
         return true
     }

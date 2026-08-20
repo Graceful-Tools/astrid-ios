@@ -6,10 +6,17 @@ import Foundation
 class UserImageCache {
     static let shared = UserImageCache()
 
-    /// Cache: userId -> imageURL
-    private var cache: [String: String] = [:]
+    private static let persistedURLsKey = "UserImageCache.persistedURLs.v1"
 
-    private init() {}
+    /// Cache: userId -> imageURL
+    private var cache: [String: String]
+    private let defaults: UserDefaults
+
+    /// Internal so the cold-launch behavior can be tested with an isolated defaults suite.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        self.cache = defaults.dictionary(forKey: Self.persistedURLsKey) as? [String: String] ?? [:]
+    }
 
     // MARK: - Cache Operations
 
@@ -20,15 +27,31 @@ class UserImageCache {
 
     /// Store image URL for a user
     func setImageURL(_ imageURL: String?, for userId: String) {
-        guard let imageURL = imageURL, !imageURL.isEmpty else {
-            return // Don't cache nil/empty URLs
+        guard let imageURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !imageURL.isEmpty else {
+            cache.removeValue(forKey: userId)
+            persist()
+            return
         }
         cache[userId] = imageURL
+        persist()
     }
 
     /// Update cache from a User object
     func cacheUser(_ user: User) {
         setImageURL(user.image, for: user.id)
+    }
+
+    /// Prepare the locally restored session user's avatar before cached task rows render.
+    ///
+    /// The URL lookup survives launch here; image bytes remain keyed by that absolute URL in
+    /// `ImageCache`. Reading a warm disk entry into memory now avoids a visible initials-to-photo
+    /// transition on the first My Tasks frame (AITD-283).
+    func prepareForLaunch(_ user: User) {
+        cacheUser(user)
+        guard let imageURL = user.cachedImageURL,
+              let url = URL(string: imageURL) else { return }
+        _ = ImageCache.shared.get(url: url)
     }
 
     /// Update cache from list member data (called during list sync)
@@ -79,12 +102,17 @@ class UserImageCache {
     /// Clear all cached user images
     func clearCache() {
         cache.removeAll()
+        defaults.removeObject(forKey: Self.persistedURLsKey)
         // Silent clear
     }
 
     /// Get cache count for debugging
     var count: Int {
         return cache.count
+    }
+
+    private func persist() {
+        defaults.set(cache, forKey: Self.persistedURLsKey)
     }
 }
 

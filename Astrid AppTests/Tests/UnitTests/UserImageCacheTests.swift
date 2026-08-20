@@ -5,9 +5,13 @@ import XCTest
 /// These tests ensure profile photos display correctly in list members and other views
 final class UserImageCacheTests: XCTestCase {
 
+    private var defaults: UserDefaults!
+
     // MARK: - Setup/Teardown
 
     override func setUp() async throws {
+        defaults = UserDefaults(suiteName: "UserImageCacheTests.AITD-283")!
+        defaults.removePersistentDomain(forName: "UserImageCacheTests.AITD-283")
         // Clear cache before each test
         await MainActor.run {
             UserImageCache.shared.clearCache()
@@ -19,6 +23,8 @@ final class UserImageCacheTests: XCTestCase {
         await MainActor.run {
             UserImageCache.shared.clearCache()
         }
+        defaults.removePersistentDomain(forName: "UserImageCacheTests.AITD-283")
+        defaults = nil
     }
 
     // MARK: - Cache Operations Tests
@@ -70,6 +76,70 @@ final class UserImageCacheTests: XCTestCase {
 
         // Then
         XCTAssertNil(retrieved, "Should not cache empty URLs")
+    }
+
+    /// Regression for AITD-283: Core Data restores only the assignee id, so a cold-launch row
+    /// must recover the avatar URL before the first task sync rebuilds the in-memory lookup.
+    @MainActor
+    func testAITD283ImageURLLookupSurvivesFreshCacheInstance() {
+        let firstLaunch = UserImageCache(defaults: defaults)
+        firstLaunch.setImageURL("https://example.com/avatar-v1.jpg", for: "user-283")
+
+        let coldLaunch = UserImageCache(defaults: defaults)
+
+        XCTAssertEqual(coldLaunch.getImageURL(userId: "user-283"),
+                       "https://example.com/avatar-v1.jpg")
+    }
+
+    /// Regression for AITD-283: a server null/empty image means initials now. It must not leave
+    /// a prior photo pinned in the persisted lookup while the user waits for another sync.
+    @MainActor
+    func testAITD283NullOrEmptyImageRemovesStaleLookup() {
+        let cache = UserImageCache(defaults: defaults)
+        cache.setImageURL("https://example.com/old-avatar.jpg", for: "user-283")
+
+        cache.setImageURL(nil, for: "user-283")
+        XCTAssertNil(cache.getImageURL(userId: "user-283"))
+
+        cache.setImageURL("https://example.com/another-old-avatar.jpg", for: "user-283")
+        cache.setImageURL("", for: "user-283")
+        XCTAssertNil(cache.getImageURL(userId: "user-283"))
+    }
+
+    /// Regression for AITD-283: the URL is the image-byte cache identity, so a changed profile
+    /// photo must replace the lookup rather than retaining a user-id-keyed old image forever.
+    @MainActor
+    func testAITD283ChangedPhotoPersistsNewURL() {
+        let cache = UserImageCache(defaults: defaults)
+        cache.setImageURL("https://example.com/avatar-v1.jpg", for: "user-283")
+        cache.setImageURL("https://example.com/avatar-v2.jpg", for: "user-283")
+
+        let coldLaunch = UserImageCache(defaults: defaults)
+        XCTAssertEqual(coldLaunch.getImageURL(userId: "user-283"),
+                       "https://example.com/avatar-v2.jpg")
+    }
+
+    /// Regression for AITD-283: many visible rows for one person must share the same URL fetch,
+    /// including the window before the first response has populated the byte cache.
+    @MainActor
+    func testAITD283ConcurrentRowsCoalesceOneURLLoad() async {
+        let coordinator = URLLoadCoordinator<Int>()
+        var operationCount = 0
+        let url = URL(string: "https://example.com/avatar.jpg")!
+
+        async let first = coordinator.load(for: url) {
+            operationCount += 1
+            try? await _Concurrency.Task.sleep(for: .milliseconds(50))
+            return 283
+        }
+        async let second = coordinator.load(for: url) {
+            operationCount += 1
+            return 999
+        }
+
+        let values = await [first, second]
+        XCTAssertEqual(values, [283, 283])
+        XCTAssertEqual(operationCount, 1)
     }
 
     @MainActor

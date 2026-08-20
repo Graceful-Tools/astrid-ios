@@ -2,6 +2,28 @@ import Foundation
 import SwiftUI
 import Combine
 
+/// Coalesces simultaneous work for the same URL. A list can render the same person dozens of
+/// times before the first network response returns; URL-keyed in-flight work ensures those rows
+/// await one fetch instead of each starting their own (AITD-283).
+@MainActor
+final class URLLoadCoordinator<Value> {
+    private var inFlight: [URL: _Concurrency.Task<Value?, Never>] = [:]
+
+    func load(for url: URL, operation: @escaping @MainActor () async -> Value?) async -> Value? {
+        if let existing = inFlight[url] {
+            return await existing.value
+        }
+
+        let task = _Concurrency.Task { @MainActor in
+            await operation()
+        }
+        inFlight[url] = task
+        let value = await task.value
+        inFlight.removeValue(forKey: url)
+        return value
+    }
+}
+
 /// In-memory and disk image cache for fast loading
 class ImageCache {
     static let shared = ImageCache()
@@ -156,6 +178,8 @@ class ImageCache {
 /// Async image loader with caching
 @MainActor
 class CachedImageLoader: ObservableObject {
+    private static let loadCoordinator = URLLoadCoordinator<PlatformImage>()
+
     @Published var image: PlatformImage?
     @Published var isLoading = false
 
@@ -204,42 +228,48 @@ class CachedImageLoader: ObservableObject {
         loadTask = _Concurrency.Task {
             // First check disk cache asynchronously (safe from background)
             if let cached = await ImageCache.shared.getAsync(url: requested) {
-                guard requested == self.url else { return }
+                guard !_Concurrency.Task.isCancelled, requested == self.url else { return }
                 self.image = cached
                 isLoading = false
                 return
             }
 
-            do {
-                let data: Data
+            let loadedImage = await Self.loadCoordinator.load(for: requested) {
+                do {
+                    let data: Data
 
-                // Check if this is a secure-files URL that requires authentication.
-                // Match both /api/secure-files/ (older stored URLs) and /api/v1/secure-files/
-                // (new emissions) so cached attachments from before the v1 cutover keep loading.
-                if requested.path.contains("/api/secure-files/") || requested.path.contains("/api/v1/secure-files/") {
-                    var request = URLRequest(url: requested)
-                    // Add session cookie for authentication
-                    if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                        request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
+                    // Check if this is a secure-files URL that requires authentication.
+                    // Match both /api/secure-files/ (older stored URLs) and /api/v1/secure-files/
+                    // (new emissions) so cached attachments from before the v1 cutover keep loading.
+                    if requested.path.contains("/api/secure-files/") || requested.path.contains("/api/v1/secure-files/") {
+                        var request = URLRequest(url: requested)
+                        // Add session cookie for authentication
+                        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+                            request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
+                        }
+                        let (responseData, _) = try await URLSession.shared.data(for: request)
+                        data = responseData
+                    } else {
+                        // Public URL, no auth needed
+                        let (responseData, _) = try await URLSession.shared.data(from: requested)
+                        data = responseData
                     }
-                    let (responseData, _) = try await URLSession.shared.data(for: request)
-                    data = responseData
-                } else {
-                    // Public URL, no auth needed
-                    let (responseData, _) = try await URLSession.shared.data(from: requested)
-                    data = responseData
-                }
 
-                // Create PlatformImage on main thread to avoid "visual style disabled" warning
-                let loadedImage = PlatformImage(data: data)
-                if let loadedImage {
+                    // Create PlatformImage on main thread to avoid "visual style disabled" warning
+                    guard let image = PlatformImage(data: data) else { return nil }
                     // Cache asynchronously (encodes on main thread, writes on background)
-                    await ImageCache.shared.setAsync(loadedImage, for: requested)
-                    guard requested == self.url else { return }
-                    self.image = loadedImage
+                    await ImageCache.shared.setAsync(image, for: requested)
+                    return image
+                } catch {
+                    print("❌ [CachedImageLoader] Failed to load image: \(error)")
+                    return nil
                 }
-            } catch {
-                print("❌ [CachedImageLoader] Failed to load image: \(error)")
+            }
+            // The shared request intentionally survives one row disappearing, but that row's
+            // cancelled waiter must not paint the image after its URL was cleared or replaced.
+            guard !_Concurrency.Task.isCancelled, requested == self.url else { return }
+            if let loadedImage {
+                self.image = loadedImage
             }
             isLoading = false
         }
