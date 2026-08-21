@@ -37,6 +37,7 @@ struct MacMarkdownText: View {
             }
         }
         .multilineTextAlignment(.leading)
+        .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

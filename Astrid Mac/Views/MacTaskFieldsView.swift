@@ -67,6 +67,7 @@ struct MacTaskFieldsView: View {
                 fieldRow(row)
             }
         }
+        .macTextSelection()
         .task(id: task.id) { await load() }
         .onDisappear { saveNotes() }
         // Field-focus bare keys (d/i/s/c) for the fields this view owns (9a60b697).
@@ -162,6 +163,7 @@ struct MacTaskFieldsView: View {
                 .labelsHidden()
                 .textFieldStyle(.plain)
                 .font(MacTypography.detailTitle)
+                .macTextSelection()
                 .strikethrough(task.completed)
                 .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                 .focused($titleFocused)
@@ -284,6 +286,7 @@ struct MacTaskFieldsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     TextEditor(text: $notes)
                         .font(MacTypography.detailBody)
+                        .macTextSelection()
                         .scrollDisabled(true)
                         .scrollContentBackground(.hidden)
                         .focused($notesFocused)
@@ -311,6 +314,7 @@ struct MacTaskFieldsView: View {
                             // plain text, because what you edit has to be the characters you
                             // typed (task f5520874).
                             MacMarkdownText(source: text)
+                                .textSelection(.enabled)
                         case .placeholder:
                             Text(NSLocalizedString("mac.click_add_description", comment: ""))
                                 .font(MacTypography.detailBody)
