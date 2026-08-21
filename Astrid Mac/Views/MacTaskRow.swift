@@ -135,6 +135,7 @@ struct MacTaskRow: View {
                     TextField(NSLocalizedString("mac.title", comment: ""), text: $editingTitle)
                         .textFieldStyle(.plain)
                         .font(MacTypography.rowTitle)
+                        .macTextSelection()
                         .onSubmit(onCommitEdit)
                         .onExitCommand(perform: onCancelEdit)
                 } else {

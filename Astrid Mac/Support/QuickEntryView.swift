@@ -46,6 +46,7 @@ struct QuickEntryView: View {
                 .lineLimit(1...4)   // wraps + expands vertically (a02a6819)
                 .textFieldStyle(.plain)
                 .font(.title2)
+                .macTextSelection()
                 .onSubmit(save)
             HStack {
                 Spacer()
@@ -57,6 +58,7 @@ struct QuickEntryView: View {
         .padding(20)
         .frame(width: 520)
         .background(Theme.bgPrimary)
+        .macTextSelection()
     }
 
     private func save() {

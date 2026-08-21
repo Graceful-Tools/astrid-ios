@@ -635,6 +635,7 @@ struct MacRootView: View {
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
+                .macTextSelection()
                 .focused($addFieldFocused)
                 .onSubmit { commitDraft() }
                 // The caret was unreachable except by clicking the field: this FocusState was
@@ -687,6 +688,7 @@ struct MacRootView: View {
         // 8pt card padding alone left the add row wider than the rows above it.
         .padding(.horizontal, MacLayout.rowTrailingGap)
         .padding(.vertical, 8)
+        .macTextSelection()
     }
 
     /// Which tasks a row action targets: the whole selection when right-clicking a selected row in
