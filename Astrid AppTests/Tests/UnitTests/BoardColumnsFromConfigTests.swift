@@ -88,7 +88,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         XCTAssertNotNil(readyColumn.statusList)
     }
 
-    func testABackedMoveStillAppendsTheMembership() {
+    func testABackedMoveDoesNotPersistStatusMembership() {
         let ready = statusList("ready", "l-ready", "Ready")
         let lists = [domainList(), ready]
         let columns = getProjectBoardColumns(lists, projectId: project)
@@ -97,7 +97,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         let move = resolveProjectColumnMove(task(statusRole: nil), targetColumn: readyColumn, lists: lists)
 
         XCTAssertEqual(move.statusRole, "ready")
-        XCTAssertEqual(move.listIds, ["domain-1", "l-ready"])
+        XCTAssertEqual(move.listIds, ["domain-1"])
     }
 
     func testARenamedDefaultKeepsItsListName() {
