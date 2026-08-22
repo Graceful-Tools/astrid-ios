@@ -95,4 +95,29 @@ final class PublicListSectionsTests: XCTestCase {
                           "\(relative) must ask the shared rule rather than re-deriving the split")
         }
     }
+
+    func testDomainListPredicateTreatsStatusRowsAsNonLists() {
+        var status = TaskList(id: "status", name: "Ready")
+        status.listType = "status"
+        XCTAssertFalse(status.isDomainList)
+        XCTAssertTrue(status.isStatusList)
+
+        var regular = TaskList(id: "regular", name: "Inbox")
+        regular.listType = "regular"
+        XCTAssertTrue(regular.isDomainList)
+        XCTAssertFalse(regular.isStatusList)
+    }
+
+    func testBothSidebarsFilterWithDomainListPredicate() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+
+        for relative in ["Astrid App/Views/Lists/ListSidebarView.swift",
+                         "Astrid Mac/App/MacRootView.swift"] {
+            let source = try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
+            XCTAssertTrue(source.contains(".isDomainList"),
+                          "\(relative) must filter status rows out of sidebar list sections")
+        }
+    }
 }
