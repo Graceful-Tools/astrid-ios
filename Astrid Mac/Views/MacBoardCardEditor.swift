@@ -62,7 +62,10 @@ struct MacBoardCardEditor: View {
             HStack(spacing: 8) {
                 Button { attach() } label: { Image(systemName: "paperclip") }
                     .buttonStyle(.borderless).disabled(attaching).help(NSLocalizedString("mac.attach_file", comment: ""))
-                TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment).textFieldStyle(.plain).onSubmit(postComment)
+                TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
+                    .textFieldStyle(.plain)
+                    .macTextSelection()
+                    .onSubmit(postComment)
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     if timerRunning { Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent) }
                 }
@@ -72,6 +75,7 @@ struct MacBoardCardEditor: View {
             }
             .padding(8)
         }
+        .macTextSelection()
         .task(id: task.id) { await load() }
         .onDisappear { saveNotes() }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }

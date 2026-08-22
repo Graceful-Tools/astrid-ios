@@ -462,13 +462,13 @@ struct ListSidebarView: View {
 
     private var favoriteLists: [TaskList] {
         listService.lists
-            .filter { $0.isFavorite == true }
+            .filter { $0.isDomainList && $0.isFavorite == true }
             .sorted { ($0.favoriteOrder ?? 999) < ($1.favoriteOrder ?? 999) }
     }
 
     private var regularLists: [TaskList] {
         listService.lists
-            .filter { $0.isFavorite != true }
+            .filter { $0.isDomainList && $0.isFavorite != true }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 

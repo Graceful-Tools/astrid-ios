@@ -150,6 +150,13 @@ struct ListInvite: Identifiable, Codable, Equatable, Hashable {
 // consulting them here would diverge from the web's permission checks.
 
 extension TaskList {
+    /// True for status/state rows (Ready/Doing/Waiting/custom project states),
+    /// which are never rendered as ordinary lists in sidebars/pickers.
+    var isStatusList: Bool { listType == "status" }
+
+    /// True for list-shaped destinations users can navigate/file tasks into.
+    var isDomainList: Bool { !isStatusList }
+
     /// User's role on this list. Returns nil if user has no access.
     /// Matches web's `getUserRoleInList`.
     func role(for userId: String) -> ListRole? {
