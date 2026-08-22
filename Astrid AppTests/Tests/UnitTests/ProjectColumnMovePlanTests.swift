@@ -31,10 +31,14 @@ final class ProjectColumnMovePlanTests: XCTestCase {
         ProjectBoardColumn(id: id, name: id, description: "", kind: kind, statusList: list)
     }
 
-    private func task(_ id: String = "t1", completed: Bool = false, listIds: [String] = []) -> Task {
+    private func task(_ id: String = "t1",
+                      completed: Bool = false,
+                      listIds: [String] = [],
+                      statusRole: String? = nil) -> Task {
         var t = Task(id: id, title: "Task")
         t.completed = completed
         t.listIds = listIds
+        t.statusRole = statusRole
         return t
     }
 
@@ -43,7 +47,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// A no-op must be recognised as one. Re-writing the same membership would burn an API
     /// call and, worse, take a repeating task through completion again.
     func testMovingToItsCurrentColumnPlansNothing() {
-        let t = task(listIds: ["ready-id"])
+        let t = task(listIds: ["ready-id"], statusRole: "ready")
         let ready = column("ready-id", kind: .status, list: lists[0])
         XCTAssertEqual(planProjectColumnMove(task: t, column: ready, lists: lists), .none)
     }
@@ -88,7 +92,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// Inbox carries no status, and "" is the value that CLEARS the role rather than leaving
     /// it untouched. A nil here would read as "no change" and strand the task in its old column.
     func testMovingToInboxClearsTheRoleWithAnEmptyString() {
-        let t = task(listIds: ["ready-id"])
+        let t = task(listIds: ["ready-id"], statusRole: "ready")
         let inbox = column(VIRTUAL_INBOX_COLUMN_ID, kind: .inbox)
         guard case .setLists(_, let role) = planProjectColumnMove(task: t, column: inbox, lists: lists) else {
             return XCTFail("expected a plain list move")

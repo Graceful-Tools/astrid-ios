@@ -152,6 +152,16 @@ final class ProjectStatusTests: XCTestCase {
         )
     }
 
+    func test_ignoresStatusListMembershipWhenStatusRoleMissing() {
+        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: "project-1", listType: "regular")
+        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
+        let t = makeTask(lists: [ios, doing], statusRole: nil)
+        XCTAssertEqual(
+            getTaskProjectColumnId(t, lists: [ios, doing]),
+            VIRTUAL_INBOX_COLUMN_ID
+        )
+    }
+
     // MARK: - resolveProjectColumnMove
 
     func test_keepsRegularListWhileReplacingStatus() {
@@ -164,8 +174,23 @@ final class ProjectStatusTests: XCTestCase {
         let doingColumn = columns.first { $0.id == "doing" }!
         let result = resolveProjectColumnMove(t, targetColumn: doingColumn,
                                               lists: [ios, ready, doing])
-        XCTAssertEqual(result.listIds, ["ios", "doing"])
+        XCTAssertEqual(result.listIds, ["ios"])
+        XCTAssertEqual(result.statusRole, "doing")
         XCTAssertFalse(result.completed)
+    }
+
+    func test_statusMove_doesNotPersistStatusListMembership() {
+        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: "project-1", listType: "regular")
+        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
+        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
+        let t = makeTask(lists: [ios, ready], statusRole: "ready")
+
+        let columns = getProjectBoardColumns([ios, ready, doing])
+        let doingColumn = columns.first { $0.id == "doing" }!
+        let result = resolveProjectColumnMove(t, targetColumn: doingColumn,
+                                              lists: [ios, ready, doing])
+        XCTAssertEqual(result.listIds, ["ios"])
+        XCTAssertEqual(result.statusRole, "doing")
     }
 
     func test_movesToVirtualDone_strippingStatusesAndSettingCompleted() {
@@ -200,8 +225,9 @@ final class ProjectStatusTests: XCTestCase {
         let doingColumn = columns.first { $0.id == "doing" }!
         let move = resolveProjectColumnMove(cachedTask, targetColumn: doingColumn,
                                             lists: [ios, doing])
-        XCTAssertEqual(move.listIds, ["ios", "doing"],
+        XCTAssertEqual(move.listIds, ["ios"],
                        "Regular list membership must survive the move even when task.lists is nil")
+        XCTAssertEqual(move.statusRole, "doing")
         XCTAssertFalse(move.completed)
     }
 
@@ -317,9 +343,9 @@ final class ProjectStatusTests: XCTestCase {
         let projectId = "p-1"
         let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
-        let a = makeTask(id: "a", lists: [ios, doing])
-        let b = makeTask(id: "b", lists: [ios, doing])
-        let c = makeTask(id: "c", lists: [ios, doing])
+        let a = makeTask(id: "a", lists: [ios, doing], statusRole: "doing")
+        let b = makeTask(id: "b", lists: [ios, doing], statusRole: "doing")
+        let c = makeTask(id: "c", lists: [ios, doing], statusRole: "doing")
 
         let columns = getProjectBoardColumns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
@@ -358,9 +384,9 @@ final class ProjectStatusTests: XCTestCase {
         let projectId = "p-1"
         let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
-        let a = makeTask(id: "a", lists: [ios, doing])
-        let b = makeTask(id: "b", lists: [ios, doing])
-        let c = makeTask(id: "c", lists: [ios, doing])
+        let a = makeTask(id: "a", lists: [ios, doing], statusRole: "doing")
+        let b = makeTask(id: "b", lists: [ios, doing], statusRole: "doing")
+        let c = makeTask(id: "c", lists: [ios, doing], statusRole: "doing")
         let columns = getProjectBoardColumns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
@@ -377,18 +403,18 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertEqual(result.newManualOrder, ["a", "c", "b"])
         XCTAssertFalse(result.completed)
         XCTAssertTrue(result.listIds.contains("ios"))
-        XCTAssertTrue(result.listIds.contains("doing"))
+        XCTAssertFalse(result.listIds.contains("doing"))
     }
 
-    /// Drop an Inbox task at index 0 of Doing → task joins Doing's
-    /// listIds AND its id moves to before Doing's current first task.
+    /// Drop an Inbox task at index 0 of Doing → task gets Doing role and
+    /// its id moves to before Doing's current first task.
     func test_resolveBoardReorder_movesAcrossColumns_atSlotZero() {
         let projectId = "p-1"
         let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let inboxTask = makeTask(id: "i-1", lists: [ios])
-        let doing1 = makeTask(id: "d-1", lists: [ios, doing])
-        let doing2 = makeTask(id: "d-2", lists: [ios, doing])
+        let doing1 = makeTask(id: "d-1", lists: [ios, doing], statusRole: "doing")
+        let doing2 = makeTask(id: "d-2", lists: [ios, doing], statusRole: "doing")
         let columns = getProjectBoardColumns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
@@ -403,7 +429,7 @@ final class ProjectStatusTests: XCTestCase {
         )
         XCTAssertEqual(result.newManualOrder.firstIndex(of: "i-1"), 0)
         XCTAssertEqual(result.newManualOrder, ["i-1", "d-1", "d-2"])
-        XCTAssertTrue(result.listIds.contains("doing"))
+        XCTAssertFalse(result.listIds.contains("doing"))
     }
 
     /// Drop a task at the END of a column → appended after the column's
@@ -432,7 +458,7 @@ final class ProjectStatusTests: XCTestCase {
         let ci = result.newManualOrder.firstIndex(of: "c")!
         XCTAssertLessThan(ai, bi)
         XCTAssertLessThan(bi, ci)
-        XCTAssertTrue(result.listIds.contains("doing"))
+        XCTAssertFalse(result.listIds.contains("doing"))
     }
 
     /// Drop on Inbox (virtual) → strips status, completed=false, inserts
@@ -472,7 +498,7 @@ final class ProjectStatusTests: XCTestCase {
     func test_isTaskAlreadyInColumn_droppedOnOwnStatusColumn_isTrue() {
         let ios = makeList(id: "ios", name: "iOS", projectId: "project-1", listType: "regular")
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
-        let t = makeTask(lists: [ios, doing])
+        let t = makeTask(lists: [ios, doing], statusRole: "doing")
 
         let columns = getProjectBoardColumns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
@@ -620,9 +646,8 @@ final class ProjectStatusTests: XCTestCase {
     /// members of a board resolved different columns). As a field on the shared
     /// task both hold.
     ///
-    /// These also pin the BACKWARDS COMPATIBILITY this build depends on: a
-    /// deployment older than the field does not send it, so membership must
-    /// still resolve the column.
+    /// Status list membership is transitional and can be stale after Stage D.
+    /// Column resolution must therefore remain statusRole-only.
 
     func test_statusRoleField_winsOverMembership() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
@@ -632,17 +657,16 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready, doing]), "doing")
     }
 
-    func test_backwardsCompatible_membershipStillResolvesWhenFieldIsAbsent() {
-        // An older server sends no statusRole at all. The board must still work.
+    func test_missingStatusRoleFallsBackToInbox_notMembership() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let task = makeTask(lists: [ready], statusRole: nil)
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), "ready")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
     }
 
     func test_emptyStatusRoleIsTreatedAsAbsent() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let task = makeTask(lists: [ready], statusRole: "")
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), "ready")
+        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
     }
 
     func test_completedWinsOverStatusRole() {
@@ -674,7 +698,7 @@ final class ProjectStatusTests: XCTestCase {
         }
     }
 
-    // MARK: - Move writes the field as well as the membership
+    // MARK: - Move writes the field and preserves only domain memberships
 
     func test_moveToStatusReportsTheRoleToWrite() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
@@ -687,8 +711,7 @@ final class ProjectStatusTests: XCTestCase {
         let move = resolveProjectColumnMove(task, targetColumn: target, lists: [ready, doing, domain])
 
         XCTAssertEqual(move.statusRole, "doing")
-        // Dual-write: membership is still updated for older servers.
-        XCTAssertTrue(move.listIds.contains("doing"))
+        XCTAssertFalse(move.listIds.contains("doing"))
         XCTAssertFalse(move.listIds.contains("ready"))
         XCTAssertTrue(move.listIds.contains("domain"))
         XCTAssertFalse(move.completed)
