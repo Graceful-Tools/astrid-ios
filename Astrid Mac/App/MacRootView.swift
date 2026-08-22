@@ -387,8 +387,12 @@ struct MacRootView: View {
 
     // Favorites vs the rest is the only split in the sidebar. There is no name filter here
     // (task 1b0f034d) — "Search" under My Tasks searches tasks, not list names.
-    private var favoriteLists: [TaskList] { listService.lists.filter { $0.isFavorite ?? false } }
-    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) } }
+    private var favoriteLists: [TaskList] {
+        listService.lists.filter { $0.isDomainList && ($0.isFavorite ?? false) }
+    }
+    private var regularLists: [TaskList] {
+        listService.lists.filter { $0.isDomainList && !($0.isFavorite ?? false) }
+    }
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
