@@ -51,6 +51,9 @@ struct QuickAddTaskView: View {
     /// content inset to 24pt so the add-task checkbox lines up with
     /// the task cards' checkboxes (8pt column inset + 16pt row inset).
     var boardFooterStyle: Bool = false
+    /// Board state when creating a task in a board column (task a2c58f53).
+    /// When set, new tasks will be created with this statusRole.
+    var statusRole: String? = nil
 
     @State private var taskTitle = ""
     @FocusState private var isFocused: Bool
@@ -628,7 +631,8 @@ struct QuickAddTaskView: View {
                     repeating: repeating != "never" ? repeating : nil,
                     // Carry the parsed custom recurrence (e.g. "weekly Monday") so the
                     // task is actually created repeating, not just with a Monday due date.
-                    repeatingData: repeating == "custom" ? parsedRepeatingData : nil
+                    repeatingData: repeating == "custom" ? parsedRepeatingData : nil,
+                    statusRole: statusRole
                 )
 
                 // Navigate to task details only when explicitly requested (+ button tap)

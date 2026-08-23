@@ -264,7 +264,8 @@ struct BoardColumnView: View {
                 QuickAddTaskView(
                     selectedList: selectedList,
                     additionalListIds: footerStatusListIds,
-                    boardFooterStyle: true
+                    boardFooterStyle: true,
+                    statusRole: column.statusList?.statusRole ?? column.id
                 )
             }
         }

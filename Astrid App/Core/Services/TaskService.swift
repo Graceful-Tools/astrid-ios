@@ -403,6 +403,7 @@ class TaskService: ObservableObject {
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,
         parentTaskId: String? = nil,
+        statusRole: String? = nil,  // Board state when creating in a board column (task a2c58f53)
         source: SyncSource? = nil,  // Origin tag for provider echo suppression
         presumeCompletedAt: Date? = nil  // Sync history imports: born completed+backdated so the optimistic temp never flashes as an open row (the caller still calls completeTask to enqueue the server-side completion)
     ) async throws -> Task {
@@ -456,6 +457,7 @@ class TaskService: ObservableObject {
             completed: presumeCompletedAt != nil,
             completedAt: presumeCompletedAt,
             completedSource: presumeCompletedAt != nil ? (source?.rawValue ?? "astrid") : nil,
+            statusRole: statusRole,
             attachments: nil,
             comments: nil,
             createdAt: Date(),
@@ -502,6 +504,7 @@ class TaskService: ObservableObject {
                 repeatingData: repeatingData,
                 tempId: tempId,
                 parentTaskId: parentTaskId,
+                statusRole: statusRole,
                 source: source?.rawValue
             ),
             clientRequestId: clientRequestId
