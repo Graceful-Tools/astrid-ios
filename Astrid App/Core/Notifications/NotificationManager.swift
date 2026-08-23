@@ -98,9 +98,34 @@ class NotificationManager {
         print("✅ Scheduled notification for task '\(task.title)' at \(reminderDate)")
     }
 
-    /// Schedule notifications for multiple tasks
+    /// Schedule notifications for multiple tasks.
+    ///
+    /// Checks permission and pre-filters candidates **once** before the loop so we never
+    /// make N async IPC round-trips to the system notification service (one per task).
+    /// On a 2407-task sync pass that was 2407 sequential `notificationSettings()` calls
+    /// that all returned "not authorized" and logged a warning — blocking @MainActor for
+    /// several seconds and causing the app-not-responding hang.
     func scheduleNotifications(for tasks: [Task]) async {
-        for task in tasks {
+        // Single permission check for the whole batch.
+        guard settings.pushEnabled else { return }
+        let status = await checkPermissionStatus()
+        guard status == .authorized else { return }
+
+        // Pre-filter: only incomplete tasks whose reminder time is still in the future.
+        // This avoids iterating completed / undated / already-past tasks and keeps us
+        // under the OS limit of 64 pending local notifications.
+        let now = Date()
+        let offsetSeconds = TimeInterval(settings.defaultReminderOffset.rawValue * 60)
+        let candidates = tasks
+            .lazy
+            .filter { !$0.completed }
+            .filter {
+                guard let due = $0.dueDateTime else { return false }
+                return due.addingTimeInterval(-offsetSeconds) > now
+            }
+            .prefix(64)
+
+        for task in candidates {
             do {
                 try await scheduleNotification(for: task)
             } catch {

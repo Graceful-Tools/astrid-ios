@@ -31,6 +31,13 @@ class TaskService: ObservableObject {
     private var syncTimer: Timer?
     private var networkObserver: NSObjectProtocol?
 
+    /// Avoids `NSError.description` expansion in logs, which can traverse CoreData-backed
+    /// objects in `userInfo` and crash while formatting the error itself.
+    static func safeErrorSummary(_ error: Error) -> String {
+        let nsError = error as NSError
+        return "\(nsError.domain)(\(nsError.code)): \(nsError.localizedDescription)"
+    }
+
     /// Mapping of temp list IDs to their real server IDs (populated when lists sync)
     private var tempListIdMapping: [String: String] = [:]
 
@@ -265,7 +272,7 @@ class TaskService: ObservableObject {
                 self?.hydrateCompletedTasksFromCache()
             }
         } catch {
-            print("❌ [TaskService] Failed to load cached tasks: \(error)")
+            print("❌ [TaskService] Failed to load cached tasks: \(Self.safeErrorSummary(error))")
             self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
         }
     }
@@ -334,7 +341,7 @@ class TaskService: ObservableObject {
             self.tasks.append(contentsOf: completed)
             print("✅ [TaskService] Hydrated \(completed.count) completed tasks from cache")
         } catch {
-            print("⚠️ [TaskService] Failed to hydrate completed tasks: \(error)")
+            print("⚠️ [TaskService] Failed to hydrate completed tasks: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -480,7 +487,7 @@ class TaskService: ObservableObject {
             try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
             print("✅ [TaskService] Persisted new task to CoreData (clientRequestId: \(clientRequestId))")
         } catch {
-            print("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(error)")
+            print("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(Self.safeErrorSummary(error))")
         }
 
         // CRITICAL: Filter out temp_ list IDs - server doesn't know about them.
@@ -629,7 +636,7 @@ class TaskService: ObservableObject {
             try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
             print("✅ [TaskService] Persisted update to CoreData")
         } catch {
-            print("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(error)")
+            print("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(Self.safeErrorSummary(error))")
         }
 
         // Temp ids enqueue like any other update: UpdateTaskOutboxHandler
@@ -818,7 +825,7 @@ class TaskService: ObservableObject {
         do {
             try await saveTaskToCoreData(updatedTask, syncStatus: "synced")
         } catch {
-            print("⚠️ [TaskService] Failed to persist server-first update: \(error)")
+            print("⚠️ [TaskService] Failed to persist server-first update: \(Self.safeErrorSummary(error))")
         }
 
         await badgeManager.updateBadge(with: self.tasks)
@@ -1004,7 +1011,7 @@ class TaskService: ObservableObject {
             try await saveTaskToCoreData(deletedTaskCopy, syncStatus: "pending_delete")
             print("✅ [TaskService] Persisted deletion to CoreData")
         } catch {
-            print("⚠️ [TaskService] Failed to save deletion to CoreData, but task is removed from memory: \(error)")
+            print("⚠️ [TaskService] Failed to save deletion to CoreData, but task is removed from memory: \(Self.safeErrorSummary(error))")
         }
 
         // Cancel notification
@@ -1104,7 +1111,7 @@ class TaskService: ObservableObject {
                                     authorId: comment.authorId
                                 )
                             } catch {
-                                print("⚠️ [TaskService] Failed to copy comment: \(error) ")
+                                print("⚠️ [TaskService] Failed to copy comment: \(Self.safeErrorSummary(error))")
                                 // Continue copying other comments even if one fails
                             }
                         }
@@ -1117,7 +1124,7 @@ class TaskService: ObservableObject {
                     print("ℹ️ [TaskService] No comments to copy")
                 }
             } catch {
-                print("⚠️ [TaskService] Failed to fetch comments for copying: \(error)")
+                print("⚠️ [TaskService] Failed to fetch comments for copying: \(Self.safeErrorSummary(error))")
                 // Don't fail the entire copy operation if comment copying fails
             }
         }
@@ -1254,7 +1261,7 @@ class TaskService: ObservableObject {
             // Also update failed count
             updateFailedOperationsCount()
         } catch {
-            print("❌ [TaskService] Failed to count pending operations: \(error)")
+            print("❌ [TaskService] Failed to count pending operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1267,7 +1274,7 @@ class TaskService: ObservableObject {
             let count = try context.count(for: request)
             failedOperationsCount = count
         } catch {
-            print("❌ [TaskService] Failed to count failed operations: \(error)")
+            print("❌ [TaskService] Failed to count failed operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1279,7 +1286,7 @@ class TaskService: ObservableObject {
             let cdTasks = try coreDataManager.viewContext.fetch(request)
             return Set(cdTasks.map { $0.id })
         } catch {
-            print("⚠️ [TaskService] Failed to fetch pending delete IDs: \(error)")
+            print("⚠️ [TaskService] Failed to fetch pending delete IDs: \(Self.safeErrorSummary(error))")
             return []
         }
     }
@@ -1295,7 +1302,7 @@ class TaskService: ObservableObject {
             let cdTasks = try coreDataManager.viewContext.fetch(request)
             return Set(cdTasks.map { $0.id })
         } catch {
-            print("⚠️ [TaskService] Failed to fetch pending edit IDs: \(error)")
+            print("⚠️ [TaskService] Failed to fetch pending edit IDs: \(Self.safeErrorSummary(error))")
             return []
         }
     }
@@ -1318,7 +1325,7 @@ class TaskService: ObservableObject {
             // Trigger sync
             try await syncPendingOperations()
         } catch {
-            print("❌ [TaskService] Failed to retry operations: \(error)")
+            print("❌ [TaskService] Failed to retry operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1392,7 +1399,7 @@ class TaskService: ObservableObject {
             try await self.saveTasksToCoreData(tasksToSave)
             print("✅ [TaskService] Saved \(tasksToSave.count) synced tasks to CoreData for offline use")
         } catch {
-            print("⚠️ [TaskService] Failed to save synced tasks to CoreData: \(error)")
+            print("⚠️ [TaskService] Failed to save synced tasks to CoreData: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1585,7 +1592,7 @@ class TaskService: ObservableObject {
                 let updatedTask = try await updateTask(taskId: task.id, listIds: updatedListIds)
                 print("✅ [TaskService] Updated task '\(updatedTask.title)' with real list ID")
             } catch {
-                print("⚠️ [TaskService] Failed to update task '\(task.title)' with real list ID: \(error)")
+                print("⚠️ [TaskService] Failed to update task '\(task.title)' with real list ID: \(Self.safeErrorSummary(error))")
                 // Task stays with the updated local listIds, will retry on next sync
             }
         }
