@@ -361,7 +361,8 @@ class AstridAPIClient {
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,  // Custom recurrence pattern (e.g. weekly Mon/Wed/Fri)
         clientRequestId: String? = nil,  // Idempotency key for dedup
-        parentTaskId: String? = nil  // Subtasks: parent task id
+        parentTaskId: String? = nil,  // Subtasks: parent task id
+        statusRole: String? = nil  // Board state when creating in a board column (task a2c58f53)
     ) async throws -> Task {
         // Convert Date to ISO8601 string for API
         // Backend expects:
@@ -399,6 +400,7 @@ class AstridAPIClient {
         )
         body.listIds = listIds
         body.parentTaskId = parentTaskId
+        body.statusRole = statusRole
 
         let response: TaskResponse = try await request(
             method: "POST",
