@@ -9,6 +9,7 @@
 //   node scripts/asc-appstore.mjs builds  <ios|mac> [--limit N]   → recent uploads + state
 //   node scripts/asc-appstore.mjs status  <ios|mac> <buildNumber> → one build's processing state
 //   node scripts/asc-appstore.mjs wait    <ios|mac> <buildNumber> [--timeout-min N]
+//   node scripts/asc-appstore.mjs testflight <ios|mac> <buildNumber> → is it live for testers?
 //   node scripts/asc-appstore.mjs versions <ios|mac>              → App Store version states
 import crypto from 'crypto';
 import fs from 'fs';
@@ -56,6 +57,8 @@ const allBuilds = async (limit = 50) => {
   const pre = Object.fromEntries((res.included ?? []).map(i => [i.id, i.attributes]));
   return res.data
     .map(b => ({
+      id: b.id,
+      compliance: b.attributes.usesNonExemptEncryption,
       number: b.attributes.version,
       state: b.attributes.processingState,
       expired: b.attributes.expired,
@@ -66,6 +69,25 @@ const allBuilds = async (limit = 50) => {
 };
 
 const buildsFor = async (platform, limit = 50) => (await allBuilds(limit)).filter(b => b.platform === platform);
+
+
+// TestFlight availability is a SEPARATE question from processing. A build can be VALID and still
+// not reach anyone: export compliance may be unanswered, or the build may not be in a group.
+// Internal testers here are covered automatically — the "Family" group has access to all builds —
+// so a VALID build with compliance answered reaches them without any further step. External groups
+// need a beta review submission, which Xcode Cloud builds do not get either.
+const testflightState = async (platform, want) => {
+  const b = (await buildsFor(platform)).find(x => x.number === String(want));
+  if (!b) return { found: false };
+  const detail = await api(`/v1/builds/${b.id}/buildBetaDetail`);
+  return {
+    found: true,
+    processing: b.state,
+    complianceAnswered: b.compliance !== null,
+    internal: detail?.data?.attributes?.internalBuildState,
+    external: detail?.data?.attributes?.externalBuildState,
+  };
+};
 
 const [cmd, target] = process.argv.slice(2);
 const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions> <ios|mac> [...]');
@@ -97,11 +119,26 @@ if (cmd === 'next') {
     const b = (await buildsFor(platform)).find(x => x.number === want);
     const state = b?.state ?? 'NOT_FOUND';
     console.log(`  ${new Date().toISOString().slice(11, 19)}  build ${want}: ${state}`);
-    if (state === 'VALID') break;
+    if (state === 'VALID') {
+      const tf = await testflightState(platform, want);
+      console.log(`  TestFlight: internal=${tf.internal}, export compliance ${tf.complianceAnswered ? 'answered' : 'NOT ANSWERED'}`);
+      if (!tf.complianceAnswered) {
+        die(`Build ${want} is VALID but its export-compliance question is unanswered, so testers cannot install it. Every target's Info.plist should carry ITSAppUsesNonExemptEncryption; answer it in App Store Connect > TestFlight for this build.`);
+      }
+      if (tf.internal !== 'IN_BETA_TESTING') {
+        console.log(`  Note: internal state is ${tf.internal}, not IN_BETA_TESTING yet — it usually flips within a minute.`);
+      }
+      break;
+    }
     if (state === 'INVALID' || state === 'FAILED') die(`Build ${want} came back ${state} — check App Store Connect for the reason.`);
     if (Date.now() > deadline) die(`Timed out waiting for build ${want} (last state: ${state}).`);
     await new Promise(r => setTimeout(r, 60_000));
   }
+} else if (cmd === 'testflight') {
+  const want = process.argv[4] || die('testflight needs a build number');
+  const tf = await testflightState(platform, want);
+  if (!tf.found) { console.log('NOT_FOUND'); }
+  else console.log(`processing=${tf.processing}\tinternal=${tf.internal}\texternal=${tf.external}\tcompliance=${tf.complianceAnswered ? 'answered' : 'UNANSWERED'}`);
 } else if (cmd === 'versions') {
   const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&limit=5`);
   for (const v of res.data) console.log(`${v.attributes.versionString}\t${v.attributes.appStoreState}\t${v.attributes.createdDate}`);

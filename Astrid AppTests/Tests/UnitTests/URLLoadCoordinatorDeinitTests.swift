@@ -12,8 +12,8 @@
 //  Note what these tests can and cannot do. The crash is a COMPILE-time event under `-O`; no
 //  XCTest can observe it, and the real guard is any Release archive (`npm run release:mac
 //  --dry-run`). What is asserted here is that the hand-written deinit is correct and actually
-//  runs: coalescing still behaves, and the coordinator still deallocates once its callers are
-//  done. The cancellation in the deinit is deliberately not asserted — a caller awaiting `load`
+//  runs: the coordinator still deallocates once its callers are done. Coalescing itself is
+//  already covered by `UserImageCacheTests.testAITD283ConcurrentRowsCoalesceOneURLLoad`. The cancellation in the deinit is deliberately not asserted — a caller awaiting `load`
 //  holds the coordinator alive for the whole load, so `inFlight` is empty by the time deinit
 //  runs; the loop is defensive, for any future caller that abandons a load.
 
@@ -37,25 +37,5 @@ final class URLLoadCoordinatorDeinitTests: XCTestCase {
         }
 
         XCTAssertNil(weakCoordinator, "The coordinator should be released once its loads are done")
-    }
-
-    /// The behaviour the type exists for, unchanged by the deinit: simultaneous requests for one
-    /// URL share a single operation instead of each starting their own (AITD-283).
-    func testSimultaneousLoadsForOneURLShareOneOperation() async {
-        let coordinator = URLLoadCoordinator<Int>()
-        var operationCount = 0
-
-        let operation: @MainActor () async -> Int? = {
-            operationCount += 1
-            try? await _Concurrency.Task.sleep(nanoseconds: 50_000_000)
-            return 42
-        }
-
-        async let first = coordinator.load(for: url, operation: operation)
-        async let second = coordinator.load(for: url, operation: operation)
-        let results = await [first, second]
-
-        XCTAssertEqual(results, [42, 42])
-        XCTAssertEqual(operationCount, 1, "The second caller should await the first fetch")
     }
 }

@@ -48,9 +48,18 @@ The build lands in **TestFlight**. Putting it on the actual App Store is a separ
 App Store Connect (attach the build to a version, write What's New, submit for review) because it
 needs screenshots and review notes. The `RESULT: OK` line spells this out.
 
-If the app's marketing version is already on sale, the run says so early: the build still uploads
-and still reaches TestFlight, but shipping it as a *new* App Store release needs a higher
-`MARKETING_VERSION` in the project. Tell the user; do not bump it yourself.
+## An upload needs an unreleased version number
+
+Apple **closes a version's train once it has been released**: every further upload under that
+version is rejected outright, TestFlight included. So if the app is currently on, say, 1.8.3 and
+that version is on sale, no build of 1.8.3 can be uploaded ever again.
+
+The run stops in preflight when this is the case, in about twenty seconds, and says so. The fix is
+to raise `MARKETING_VERSION` for that target in `Astrid App.xcodeproj/project.pbxproj` (every build
+config). **Ask the user which version number to use — do not pick one yourself.** The two targets
+version independently: iOS is on a `1.8.x` train, Mac on a `1.0.x` train.
+
+Building (`npm run release:ios`) is unaffected and works at any version.
 
 ## Useful checks (read-only, instant)
 

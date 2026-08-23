@@ -113,13 +113,20 @@ fi
 green "✓ $SCHEME $VERSION — build $BUILD_NUM"
 if [ "$UPLOAD" = "1" ]; then echo "  Mode: UPLOAD (this build will be sent to Apple)"; else echo "  Mode: build only — nothing will be sent to Apple"; fi
 
-# Apple accepts this build either way, but it only becomes a NEW App Store release under a version
-# that is not already on sale. Say which one is happening before spending ten minutes on it.
+# Once a version has been released, Apple CLOSES that version's train: it rejects every further
+# upload under it, TestFlight included ("Invalid Pre-Release Train. The train version 'x.y.z' is
+# closed for new build submissions"). Measured 2026-08-23 on both apps. So this is a hard stop for
+# an upload, caught here rather than after twenty minutes of tests and archiving.
 VERSION_STATE=$(node scripts/asc-appstore.mjs versions "$TARGET" | awk -v v="$VERSION" '$1 == v { print $2; exit }')
-if [ "$VERSION_STATE" = "READY_FOR_SALE" ]; then
-  echo "  Note: $VERSION is already on sale, so this build lands in TestFlight."
-  echo "        Shipping it as a new App Store release needs a higher MARKETING_VERSION first."
-fi
+case "$VERSION_STATE" in
+  READY_FOR_SALE|REMOVED_FROM_SALE|REPLACED_WITH_NEW_INFO)
+    if [ "$UPLOAD" = "1" ]; then
+      fail "$SCHEME $VERSION has already been released ($VERSION_STATE), and Apple closes a released version to new builds — this upload would be rejected. Fix: raise MARKETING_VERSION for the $TARGET target in Astrid App.xcodeproj/project.pbxproj (every build config), then run this again. Ask the user which version number to use; do not pick one yourself."
+    fi
+    echo "  Note: $VERSION is already released, so Apple will not accept new builds under it."
+    echo "        Uploading needs a higher MARKETING_VERSION. Building is fine."
+    ;;
+esac
 
 # --- Quality gate -----------------------------------------------------------------
 # An upload can never be taken back, so it does not happen on untested code. Build-only runs skip
@@ -215,4 +222,8 @@ step "Waiting for App Store Connect to process the build (usually 5-15 minutes)"
 node scripts/asc-appstore.mjs wait "$TARGET" "$BUILD_NUM" --timeout-min 45 \
   || fail "$SCHEME build $BUILD_NUM was uploaded but did not become VALID. Apple emails the reason; App Store Connect > TestFlight shows it too."
 
-done_ok "$SCHEME $VERSION is live as build $BUILD_NUM — VALID in App Store Connect, installable from TestFlight. To put it on the App Store: App Store Connect > + Version, attach build $BUILD_NUM, add What's New, Submit for review."
+# The wait above also confirms the build actually reached TestFlight — VALID alone does not mean
+# a tester can install it. Internal testers are covered automatically (the internal group has
+# access to all builds); external groups need a beta review submission, which Xcode Cloud builds
+# do not get either.
+done_ok "$SCHEME $VERSION is live as build $BUILD_NUM — VALID in App Store Connect and available to INTERNAL TestFlight testers now. External TestFlight groups need a beta review submission in App Store Connect. To put it on the App Store: App Store Connect > + Version, attach build $BUILD_NUM, add What's New, Submit for review."
