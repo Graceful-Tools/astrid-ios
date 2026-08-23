@@ -246,56 +246,58 @@ struct InlineAssigneePicker: View {
     }
 
     @ViewBuilder private var editor: some View {
-                VStack(spacing: Theme.spacing12) {
-                    // Unassigned option
+        ScrollView {
+            VStack(spacing: Theme.spacing12) {
+                // Unassigned option
+                assigneeOption(
+                    id: nil,
+                    name: "Unassigned",
+                    email: nil,
+                    image: nil,
+                    icon: "person.slash",
+                    isAIAgent: false
+                )
+
+                // Loading indicator for AI agents
+                if isLoadingAgents {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text(NSLocalizedString("picker.loading_agents", comment: "Loading AI agents..."))
+                            .font(Theme.Typography.caption1())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
+                    .padding(.vertical, Theme.spacing8)
+                }
+
+                // Available members (includes AI agents)
+                ForEach(availableMembers) { member in
                     assigneeOption(
-                        id: nil,
-                        name: "Unassigned",
-                        email: nil,
-                        image: nil,
-                        icon: "person.slash",
-                        isAIAgent: false
+                        id: member.id,
+                        name: member.displayName,
+                        email: member.email,
+                        image: member.image,
+                        icon: nil,
+                        isAIAgent: member.isAIAgent == true
                     )
-
-                    // Loading indicator for AI agents
-                    if isLoadingAgents {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text(NSLocalizedString("picker.loading_agents", comment: "Loading AI agents..."))
-                                .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                        }
-                        .padding(.vertical, Theme.spacing8)
-                    }
-
-                    // Available members (includes AI agents)
-                    ForEach(availableMembers) { member in
-                        assigneeOption(
-                            id: member.id,
-                            name: member.displayName,
-                            email: member.email,
-                            image: member.image,
-                            icon: nil,
-                            isAIAgent: member.isAIAgent == true
-                        )
-                    }
-
-                    // Someone else — assign to a person who is not on this list yet, by email or
-                    // from your contacts (42013da7). Web has had this; iOS only ever offered the
-                    // list's existing members, so the answer to "assign this to Dana" was to go
-                    // and share the list first.
-                    Divider()
-                    someoneElseSection
                 }
-                .padding(compact ? 0 : Theme.spacing12)
-                .background(compact ? Color.clear
-                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                .task {
-                    // Fetch AI agents when picker opens
-                    await fetchAIAgents()
-                }
+
+                // Someone else — assign to a person who is not on this list yet, by email or
+                // from your contacts (42013da7). Web has had this; iOS only ever offered the
+                // list's existing members, so the answer to "assign this to Dana" was to go
+                // and share the list first.
+                Divider()
+                someoneElseSection
+            }
+            .padding(compact ? 0 : Theme.spacing12)
+        }
+        .background(compact ? Color.clear
+                            : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+        .task {
+            // Fetch AI agents when picker opens
+            await fetchAIAgents()
+        }
     }
 
     @ViewBuilder private var trigger: some View {
