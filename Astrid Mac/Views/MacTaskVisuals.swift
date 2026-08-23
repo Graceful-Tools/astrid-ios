@@ -156,8 +156,8 @@ struct MacPriorityPicker: View {
                 HStack(spacing: 8) {
                     ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                         priorityButton(p) {
-                            tap(p)
                             showingPicker = false
+                            tap(p)
                         }
                     }
                 }
@@ -181,7 +181,12 @@ struct MacPriorityPicker: View {
     private func tap(_ p: Task.Priority) {
         let outcome = MacPriorityTap.outcome(tapped: p, current: selection)
         selection = outcome.selection
-        if outcome.notify { onSelect?(outcome.selection) }
+        guard outcome.notify, let onSelect else { return }
+        // Defer callback one runloop turn so owner writes don't publish during this control's
+        // own update pass ("Publishing changes from within view updates…").
+        DispatchQueue.main.async {
+            onSelect(outcome.selection)
+        }
     }
 
     /// One coloured priority button. Shared by the inline row and the compact popover so the
