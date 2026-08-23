@@ -15,6 +15,14 @@ import Combine
 ///    republished and re-rendered the whole list.
 @MainActor
 final class TaskListStabilityTests: XCTestCase {
+    private struct DescriptionProbeError: Error, CustomStringConvertible, LocalizedError {
+        static var descriptionReads = 0
+        var description: String {
+            Self.descriptionReads += 1
+            return "probe-description"
+        }
+        var errorDescription: String? { "probe-localized" }
+    }
 
     private func tiedTask(_ n: Int, due: Date, created: Date) -> Task {
         Task(id: "tie-\(n)", title: "T\(n)", dueDateTime: due, isAllDay: true,
@@ -89,5 +97,16 @@ final class TaskListStabilityTests: XCTestCase {
         changed[0].updatedAt = Date(timeIntervalSince1970: 1_800_000_100)
         await service.updateTasksFromSync(changed)
         XCTAssertEqual(republishes, 1, "a real change must still publish")
+    }
+
+    func testSafeErrorSummaryDoesNotTouchErrorDescription() {
+        DescriptionProbeError.descriptionReads = 0
+        let summary = TaskService.safeErrorSummary(DescriptionProbeError())
+        XCTAssertTrue(summary.contains("probe-localized"))
+        XCTAssertEqual(
+            DescriptionProbeError.descriptionReads,
+            0,
+            "safe error logging must not evaluate Error.description (can crash for CoreData-backed NSError payloads)"
+        )
     }
 }
