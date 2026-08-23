@@ -102,6 +102,21 @@ Use `macdev` for Mac-only work; push to both when a change spans the shared
 `Core/` tree. Merge into `main` **only** when cutting an actual App Store
 release — a push to `main` starts a build intended for submission.
 
+### Local build → App Store Connect (no Xcode Cloud)
+
+When Xcode Cloud can't run — most often its monthly compute allotment is spent and every run is
+created then immediately `CANCELED` — archive and upload from this machine instead:
+
+```bash
+npm run release:ios -- --dry-run   # archive + export only, nothing uploaded
+npm run release:ios                # archive → upload → wait for the build to read VALID
+npm run release:mac
+```
+
+Signing is automatic via the App Store Connect API key already in `.env.local`; the script picks
+the next free build number itself. **Ask before a non-dry-run** — a build number can never be
+reused. Full procedure and gotchas: `.claude/skills/appstore-release/SKILL.md`.
+
 After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
 Check build status in App Store Connect.
 

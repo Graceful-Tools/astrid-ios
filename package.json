@@ -17,7 +17,9 @@
     "build": "xcodebuild build -scheme 'Astrid App' -destination 'platform=iOS Simulator,name=iPhone 17' -quiet",
     "build:verbose": "xcodebuild build -scheme 'Astrid App' -destination 'platform=iOS Simulator,name=iPhone 17'",
     "audit:dependencies": "npm audit --omit=dev",
-    "package:mac": "./scripts/package-mac.sh"
+    "package:mac": "./scripts/package-mac.sh",
+    "release:ios": "./scripts/appstore-release.sh ios",
+    "release:mac": "./scripts/appstore-release.sh mac"
   },
   "keywords": [
     "ios",
