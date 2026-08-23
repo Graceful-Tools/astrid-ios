@@ -9,6 +9,17 @@ import Combine
 final class URLLoadCoordinator<Value> {
     private var inFlight: [URL: _Concurrency.Task<Value?, Never>] = [:]
 
+    /// Outstanding loads are pointless once nobody is left to receive them, so cancel them.
+    ///
+    /// This deinit is also load-bearing for the BUILD: with the synthesized one, Swift 6.3.3
+    /// crashes in the optimizer (`EarlyPerfInliner` on `URLLoadCoordinator.deinit`) whenever this
+    /// file is compiled with `-O`, which is every Release archive. Giving the deinit a body avoids
+    /// the crashing path. Verified 2026-08-23 against `swiftc -O` for both the macOS and iOS
+    /// targets; if that compiler bug is ever fixed, this is still correct code to keep.
+    deinit {
+        for task in inFlight.values { task.cancel() }
+    }
+
     func load(for url: URL, operation: @escaping @MainActor () async -> Value?) async -> Value? {
         if let existing = inFlight[url] {
             return await existing.value

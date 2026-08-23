@@ -109,17 +109,19 @@ release — a push to `main` starts a build intended for submission.
 ### Local build → App Store Connect (no Xcode Cloud)
 
 When Xcode Cloud can't run — most often its monthly compute allotment is spent and every run is
-created then immediately `CANCELED` — archive and upload from this machine instead:
+created then immediately `CANCELED` — build and upload from this machine instead:
 
 ```bash
-npm run release:ios -- --dry-run   # archive + export only, nothing uploaded
-npm run release:ios                # archive → upload → wait for the build to read VALID
+npm run release:ios          # build + sign only, nothing sent to Apple
+npm run release:ios:upload   # gate, archive, upload, wait for the build to read VALID
 npm run release:mac
+npm run release:mac:upload
 ```
 
-Signing is automatic via the App Store Connect API key already in `.env.local`; the script picks
-the next free build number itself. **Ask before a non-dry-run** — a build number can never be
-reused. Full procedure and gotchas: `.claude/skills/appstore-release/SKILL.md`.
+Each run ends with a single `RESULT: OK` / `RESULT: FAILED` line saying what happened. Signing and
+the build number are automatic (the App Store Connect key in `.env.local` stands in for the Xcode
+account). **Ask before an `:upload`** — it cannot be undone. Full procedure:
+`.claude/skills/appstore-release/SKILL.md`.
 
 After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
 Check build status in App Store Connect.

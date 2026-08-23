@@ -19,7 +19,9 @@
     "audit:dependencies": "npm audit --omit=dev",
     "package:mac": "./scripts/package-mac.sh",
     "release:ios": "./scripts/appstore-release.sh ios",
-    "release:mac": "./scripts/appstore-release.sh mac"
+    "release:ios:upload": "./scripts/appstore-release.sh ios --upload",
+    "release:mac": "./scripts/appstore-release.sh mac",
+    "release:mac:upload": "./scripts/appstore-release.sh mac --upload"
   },
   "keywords": [
     "ios",
