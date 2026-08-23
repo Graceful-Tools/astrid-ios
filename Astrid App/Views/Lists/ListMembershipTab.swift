@@ -688,12 +688,28 @@ struct ListMembershipTab: View {
             do {
                 // Route through ListMemberService so the operation lands in
                 // the pending-ops queue and syncs on reconnect if offline.
-                _ = try await memberService.addMember(listId: list.id, email: email, role: role)
+                let addedMember = try await memberService.addMember(listId: list.id, email: email, role: role)
+
+                // Optimistic UI update: add member/invitation immediately so
+                // the sheet dismisses without waiting for the network. The follow-up
+                // fetchLists provides server-confirmed data; this is purely for
+                // immediate UX before we have it.
+                var updatedList = list
+                if addedMember.id.hasPrefix("invite_") || addedMember.id.hasPrefix("temp_") {
+                    // Optimistic invitation or pending member; add to listMembers
+                    updatedList.listMembers = (updatedList.listMembers ?? []) + [addedMember]
+                } else {
+                    // Real member was added on the server; add to listMembers
+                    updatedList.listMembers = (updatedList.listMembers ?? []) + [addedMember]
+                }
+                onUpdate(updatedList)
 
                 // Server-confirmed list refresh (picks up newly-created member/invitation)
                 _ = try? await listService.fetchLists()
             } catch {
                 errorMessage = error.localizedDescription
+                isProcessing = false
+                return
             }
 
             isProcessing = false
