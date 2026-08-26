@@ -364,6 +364,7 @@ struct MacTaskDetailView: View {
         .padding(10)
         }
         .background(MacDetailChrome.background)
+        .macTextSelection()
         .quickLookPreview($previewURL)   // native macOS Quick Look for a downloaded attachment
         // Field-focus bare keys (d/i/s/c) routed from MacAppModel (9a60b697). Only the
         // comment field still lives here — description, date and lists moved into
@@ -407,6 +408,7 @@ struct MacTaskDetailView: View {
                 if !mine { commentAvatar(who, authorId: c.authorId) }
                 Text(c.content)
                     .foregroundStyle(Theme.textPrimary)
+                    .textSelection(.enabled)
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
                                 in: RoundedRectangle(cornerRadius: 12))
@@ -485,6 +487,7 @@ struct MacTaskDetailView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).font(.headline)
             TextField("", text: text, axis: .vertical).lineLimit(2...6).textFieldStyle(.roundedBorder)
+                .macTextSelection()
             HStack {
                 Spacer()
                 Button(NSLocalizedString("actions.cancel", comment: "")) { editingComment = nil; editingSubtask = nil }.keyboardShortcut(.escape, modifiers: [])

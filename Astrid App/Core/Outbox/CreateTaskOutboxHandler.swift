@@ -21,6 +21,8 @@ nonisolated struct CreateTaskOutboxPayload: Codable, Equatable {
     /// Subtasks: parent task id — may be a temp id when the parent was created
     /// offline; the handler resolves it (or waits) before the server call.
     var parentTaskId: String?
+    /// Board state when creating in a board column (task a2c58f53)
+    var statusRole: String?
     /// Origin of this mutation (SyncSource.rawValue) for provider echo
     /// suppression. Optional so older journaled payloads still decode.
     var source: String?
@@ -58,7 +60,8 @@ enum CreateTaskOutboxHandler {
                 repeating: payload.repeating,
                 repeatingData: payload.repeatingData,
                 clientRequestId: entry.clientRequestId,
-                parentTaskId: parentTaskId
+                parentTaskId: parentTaskId,
+                statusRole: payload.statusRole
             )
             // Reconcile the optimistic temp task with the server task. Idempotent:
             // during dual-write the legacy path usually reconciles first and this

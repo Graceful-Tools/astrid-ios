@@ -160,12 +160,11 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
 
 /// Returns the board column id a task currently belongs to:
 ///   completed=true              → virtual Done id
-///   has a real status list      → that list's id
+///   has a matching status role  → that role's current column id
 ///   otherwise                   → virtual Inbox id
 ///
-/// Reads both `task.lists` (full join, present after a fresh fetch) and
-/// `task.listIds` (compact form, present after a Core Data load). Either
-/// is sufficient to assign a column.
+/// Column resolution is statusRole-only. Status-list membership is transitional
+/// state that can outlive its backing rows and must not drive columning.
 func getTaskProjectColumnId(_ task: Task, lists: [TaskList]) -> String {
     getTaskProjectColumnId(task, statusLists: getProjectStatusLists(lists))
 }
@@ -197,13 +196,6 @@ func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
         return VIRTUAL_INBOX_COLUMN_ID
     }
 
-    // BACKWARDS COMPATIBILITY: a server older than the field does not send it,
-    // and a task loaded from Core Data before this build wrote one has it nil.
-    // Membership still answers the question for both.
-    let taskListIds = taskListMembershipIds(task)
-    if let explicit = statusLists.first(where: { taskListIds.contains($0.id) }) {
-        return explicit.id
-    }
     return VIRTUAL_INBOX_COLUMN_ID
 }
 
@@ -251,14 +243,13 @@ func resolveProjectColumnMove(
     case .done:
         return ProjectColumnMove(listIds: retainedListIds, completed: true, statusRole: nil)
     case .status:
-        // The role comes from the column's backing list during the transition;
-        // once status lists are gone the column id IS the role.
+        // Status list membership is no longer written: status is represented by
+        // `statusRole`, while listIds retain only domain-list memberships.
+        // The role comes from the backing list while those rows exist; once they
+        // are gone the column id IS the role.
         let backing = lists.first(where: { $0.id == targetColumn.id })
         return ProjectColumnMove(
-            // Only append a membership when a real list backs the column.
-            // Otherwise the id is a ROLE, and persisting it would be a
-            // membership in a list that does not exist.
-            listIds: backing == nil ? retainedListIds : retainedListIds + [targetColumn.id],
+            listIds: retainedListIds,
             completed: false,
             statusRole: backing?.statusRole ?? targetColumn.id
         )

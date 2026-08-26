@@ -52,6 +52,7 @@ struct CreateTaskRequest: Codable {
     var clientRequestId: String?  // Idempotency key for dedup (server unique constraint)
     var timerDuration: Int?
     var parentTaskId: String?  // Subtasks: parent task id (nil = top-level)
+    var statusRole: String?  // Board state when creating in a board column (task a2c58f53)
 }
 
 nonisolated struct UpdateTaskRequest: Codable {

@@ -387,8 +387,12 @@ struct MacRootView: View {
 
     // Favorites vs the rest is the only split in the sidebar. There is no name filter here
     // (task 1b0f034d) — "Search" under My Tasks searches tasks, not list names.
-    private var favoriteLists: [TaskList] { listService.lists.filter { $0.isFavorite ?? false } }
-    private var regularLists: [TaskList] { listService.lists.filter { !($0.isFavorite ?? false) } }
+    private var favoriteLists: [TaskList] {
+        listService.lists.filter { $0.isDomainList && ($0.isFavorite ?? false) }
+    }
+    private var regularLists: [TaskList] {
+        listService.lists.filter { $0.isDomainList && !($0.isFavorite ?? false) }
+    }
 
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
@@ -676,6 +680,7 @@ struct MacRootView: View {
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
+                .macTextSelection()
                 .focused($addFieldFocused)
                 .onSubmit { commitDraft() }
                 // The caret was unreachable except by clicking the field: this FocusState was
@@ -728,6 +733,7 @@ struct MacRootView: View {
         // 8pt card padding alone left the add row wider than the rows above it.
         .padding(.horizontal, MacLayout.rowTrailingGap)
         .padding(.vertical, 8)
+        .macTextSelection()
     }
 
     /// Which tasks a row action targets: the whole selection when right-clicking a selected row in
