@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Weekly monkey run. Mondays at 09:00, on this Mac.
+
+  Install:
+    cp scripts/cc.astrid.monkey.weekly.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/cc.astrid.monkey.weekly.plist
+
+  Check / remove:
+    launchctl list | grep astrid.monkey
+    launchctl unload ~/Library/LaunchAgents/cc.astrid.monkey.weekly.plist
+
+  Two requirements, both one-time and both learned the hard way:
+    • developer mode must be on, or the Mac UI runner cannot attach:
+        sudo DevToolsSecurity -enable
+    • the Mac must be awake and logged in at the scheduled time. UI tests drive a real screen;
+      they cannot run against a locked or sleeping machine. launchd will run a missed job once
+      the Mac wakes, so a laptop that was shut on Monday runs it on Tuesday instead.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>cc.astrid.monkey.weekly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd "$HOME/Documents/mycode/astrid-dev/astrid-ios" &amp;&amp; ./scripts/monkey-weekly.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>1</integer>
+        <key>Hour</key><integer>9</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/astrid-monkey-weekly.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/astrid-monkey-weekly.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
