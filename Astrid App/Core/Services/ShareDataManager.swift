@@ -4,14 +4,21 @@ import Foundation
 class ShareDataManager {
     static let shared = ShareDataManager()
 
-    // IMPORTANT: This App Group identifier must be:
-    // 1. Created in Apple Developer Portal
-    // 2. Added to both main app and Share Extension entitlements
-    // 3. Configured in Xcode with proper provisioning profiles
-    private let appGroupIdentifier = "group.cc.astrid.app"
+    /// The App Group both the app and the Share Extension use to hand files and tasks to each
+    /// other. It must appear in BOTH targets' entitlements, and be registered in the developer
+    /// portal — otherwise `containerURL(forSecurityApplicationGroupIdentifier:)` returns nil and
+    /// every share silently goes nowhere.
+    ///
+    /// Not private, so a test can assert the app is actually entitled to it. This was wrong from
+    /// the initial commit until 2026-08-27: the SHARE EXTENSION and this file named
+    /// `group.cc.astrid.app` while the app was entitled to the identifier below, so the app
+    /// logged `container_create_or_lookup_app_group_path_by_app_group_identifier: client is not
+    /// entitled` and shared content never arrived. The app's group is the registered one, so the
+    /// extension moved to it. `ShareExtensionAppGroupTests` guards the pair now.
+    static let appGroupIdentifier = "group.gracefultools.astrid"
 
     private var sharedContainerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier)
     }
 
     private var pendingTasksURL: URL? {
@@ -167,7 +174,7 @@ class ShareDataManager {
     /// Check if App Group is properly configured
     func validateAppGroupAccess() -> Bool {
         guard let containerURL = sharedContainerURL else {
-            print("❌ [ShareDataManager] App Group not configured: \(appGroupIdentifier)")
+            print("❌ [ShareDataManager] App Group not configured: \(Self.appGroupIdentifier)")
             return false
         }
 
@@ -186,7 +193,7 @@ enum ShareDataError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .appGroupNotConfigured:
-            return "App Group 'group.cc.astrid.app' is not configured. Please add it to both app and extension entitlements."
+            return "App Group '\(ShareDataManager.appGroupIdentifier)' is not configured. Please add it to both app and extension entitlements."
         case .fileNotFound:
             return "Shared file not found"
         case .invalidData:

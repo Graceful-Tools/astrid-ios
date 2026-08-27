@@ -125,7 +125,11 @@ write_uitest_session() {
 
     if [[ -z "$cookie" && -d "$PROJECT_DIR/../astrid-web" ]]; then
         echo -e "${BLUE}Minting a session for uitest@astrid.cc...${NC}"
-        cookie="$(cd "$PROJECT_DIR/../astrid-web" && npx tsx scripts/uitest-account.ts --cookie 2>/dev/null | tail -1)" || cookie=""
+        # --env-file is not optional: tsx does not read .env.local on its own, so without it the
+        # mint dies on "NEXTAUTH_SECRET missing" — naming the file that does contain the secret,
+        # which sends you looking in the wrong place. Every sibling script in astrid-web's
+        # package.json passes it; this call was the one that did not.
+        cookie="$(cd "$PROJECT_DIR/../astrid-web" && npx tsx --env-file=.env.local scripts/uitest-account.ts --cookie 2>/dev/null | tail -1)" || cookie=""
     fi
 
     if [[ -z "$cookie" ]]; then
