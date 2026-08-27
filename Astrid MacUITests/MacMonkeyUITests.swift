@@ -87,11 +87,21 @@ final class MacMonkeyUITests: XCTestCase {
 
     @MainActor
     private func perform(_ action: MacMonkeyAction, on app: XCUIApplication, using rng: inout MacSeededGenerator) {
+        // Coordinates are taken from the WINDOW, never from the application element. On macOS
+        // XCUIApplication has no meaningful frame, so a normalised offset against it resolves to
+        // INFINITY and XCTest traps with "Invalid parameter not satisfying: point.x != INFINITY".
+        // On iOS the app element is the screen and this distinction does not exist, which is what
+        // makes it easy to write the iOS version and assume it ports.
+        let window = app.windows.firstMatch
+        let hasWindow = window.exists && window.frame.width > 1 && window.frame.height > 1
+
         switch action {
         case .click(let x, let y):
-            app.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).click()
+            guard hasWindow else { return }
+            window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).click()
         case .rightClick(let x, let y):
-            app.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).rightClick()
+            guard hasWindow else { return }
+            window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).rightClick()
         case .clickRandomButton:
             // Window controls excluded: closing the window is not a crash, but every action
             // after it would land on nothing and the run would report a wedged app.
@@ -104,7 +114,8 @@ final class MacMonkeyUITests: XCTestCase {
         case .escape:
             app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
         case .scroll(let delta):
-            app.windows.firstMatch.scroll(byDeltaX: 0, deltaY: delta)
+            guard hasWindow else { return }
+            window.scroll(byDeltaX: 0, deltaY: delta)
         }
     }
 
