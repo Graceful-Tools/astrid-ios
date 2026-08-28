@@ -88,23 +88,35 @@ xcodebuild test  -scheme "Astrid App" -destination "platform=iOS Simulator,name=
 
 ## Deployment
 
-**Day-to-day work ships from `iosdev` / `macdev`. `main` is the App Store branch.**
+**Work lands on `main`. Pushing `iosdev` / `macdev` is what makes a TestFlight build.**
 
 | Branch | Xcode Cloud workflow | Scheme | Goes to |
 |--------|---------------------|--------|---------|
+| `main` | *none — no automatic trigger* | — | where work lands |
 | `iosdev` | iOS Internal testers | `Astrid App` | TestFlight (internal) |
 | `macdev` | Mac app internal testers | `Astrid Mac` | TestFlight (internal) |
-| `main` | iOS Release + Mac Release | both | **App Store submission** |
+| `main` (manual) | iOS Release + Mac Release | both | **App Store submission** |
 
 ```bash
-npm run predeploy               # 1. Verify (must pass)
-git add -A && git commit        # 2. Commit (message includes task id if applicable)
-git push origin iosdev          # 3. Push → Xcode Cloud → TestFlight
+npm run predeploy                    # 1. Verify (must pass)
+git add -A && git commit             # 2. Commit (message includes task id if applicable)
+git push origin main                 # 3. Land the work — builds nothing
+git push origin iosdev macdev        # 4. Ask for builds → Xcode Cloud → TestFlight
 ```
 
-Use `macdev` for Mac-only work; push to both when a change spans the shared
-`Core/` tree. Merge into `main` **only** when cutting an actual App Store
-release — a push to `main` starts a build intended for submission.
+Landing and building are separate acts. A push to `main` starts nothing, so work
+can land freely; a push to a dev branch spends compute and produces an
+installable build, so do it when a build is actually wanted. Push both dev
+branches together — they share the `Core/` tree and drift is hard to see.
+
+**The two Release workflows are manual-only** (changed 2026-08-27). They no longer
+trigger on `main`: an App Store build is started deliberately, from App Store
+Connect or via `POST /v1/ciBuildRuns`. Before that change, one push to `main`
+started four runs — two TestFlight and two App Store — which is what exhausted
+the monthly compute allotment on 2026-08-18 and left every run cancelled for days.
+
+After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
+Check build status in App Store Connect.
 
 ### Local build → App Store Connect (no Xcode Cloud)
 
@@ -123,18 +135,20 @@ the build number are automatic (the App Store Connect key in `.env.local` stands
 account). **Ask before an `:upload`** — it cannot be undone. Full procedure:
 `.claude/skills/appstore-release/SKILL.md`.
 
-After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
-Check build status in App Store Connect.
-
 ---
 
 ## Approvals
 
-**Always ask the user before:** pushing to `main` (starts an App Store release
-build), significant architecture/API changes, or deleting files.
+**Always ask the user before:** starting an App Store release build (the manual
+iOS Release / Mac Release workflows, or a local `:upload`), significant
+architecture/API changes, or deleting files.
 
 **Autonomous (no approval needed):** code analysis, local builds/tests, implementation,
-local commits, documentation updates, pushing to `iosdev` / `macdev`.
+local commits, documentation updates, pushing to `main`.
+
+**Push `iosdev` / `macdev` when a build is wanted** — that is what spends compute
+and puts a build in TestFlight. Landing work on `main` costs nothing, so it needs
+no permission; asking for a build is a separate, cheap-to-say request.
 
 ---
 

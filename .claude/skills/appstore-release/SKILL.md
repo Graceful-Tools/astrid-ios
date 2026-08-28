@@ -5,7 +5,20 @@ description: Build the Astrid iOS or Mac app on this machine and upload it to Ap
 
 # Local build → App Store Connect
 
-Two commands. Pick by platform. Run them from the repo root.
+## First: is Xcode Cloud the right answer?
+
+Pushing `iosdev` / `macdev` builds and delivers to TestFlight on its own, and that is the normal
+path. A local upload of a commit Xcode Cloud already built just duplicates it — measured
+2026-08-27, a push produced builds 936/937 and a local upload of the identical commit produced
+938/939 for nothing.
+
+Use this skill only when Xcode Cloud can't or shouldn't run: its compute allotment is exhausted
+(every run is created then immediately `CANCELED`), or a build is needed faster than the queue
+allows. Otherwise push the dev branches and wait.
+
+## The commands
+
+Two of them. Pick by platform. Run them from the repo root.
 
 | What you were asked for | Command |
 |---|---|
