@@ -51,6 +51,9 @@ struct ListSortFiltersTab: View {
                     Text(NSLocalizedString("lists.due_date", comment: "")).tag("when")
                     Text(NSLocalizedString("tasks.priority", comment: "")).tag("priority")
                     Text(NSLocalizedString("lists.created_date", comment: "")).tag("createdAt")
+                    // Web's sortBy value verbatim — the field round-trips through
+                    // PUT /api/v1/lists/:id and both platforms read the same key.
+                    Text(NSLocalizedString("lists.recently_completed", comment: "")).tag("completedAt")
                 }
                 .onChange(of: sortBy) { oldValue, newValue in
                     print("🔄 [ListSortFiltersTab] sortBy changed: \(oldValue) → \(newValue)")

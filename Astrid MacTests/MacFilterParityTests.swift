@@ -15,8 +15,10 @@ final class MacFilterParityTests: XCTestCase {
     private func values(_ options: [MacListFilter.Option]) -> [String] { options.map(\.value) }
 
     func testSortOptionsMatchIOS() {
+        // "completedAt" is web's Recently-completed sort (task c6e87fb8); the key
+        // round-trips through PUT /api/v1/lists/:id, so all three platforms offer it.
         XCTAssertEqual(Set(values(MacListFilter.sort)),
-                       ["auto", "manual", "when", "priority", "createdAt"],
+                       ["auto", "manual", "when", "priority", "createdAt", "completedAt"],
                        "Mac must offer exactly the sort keys iOS writes to list.sortBy")
     }
 

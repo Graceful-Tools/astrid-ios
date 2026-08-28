@@ -6,7 +6,7 @@ import Foundation
 /// "when || dueDate" fallbacks collapse to "dueDateTime".
 
 enum TaskSortBy: String {
-    case auto, priority, when, assignee, completed, incomplete, manual
+    case auto, priority, when, assignee, completed, incomplete, completedAt, manual
 }
 
 /// Comparator returning `< 0` if a < b, `0` if equal, `> 0` if a > b.
@@ -38,6 +38,22 @@ func compareTasksBySort(
         if a.completed == b.completed { return 0 }
         return a.completed ? -1 : 1
 
+    case "completedAt":
+        // Most recently completed first. Completed tasks LEAD — the sort exists
+        // to review what got done — and the open half keeps the default auto
+        // ordering so it stays a usable to-do list rather than scrambling.
+        if a.completed != b.completed { return a.completed ? -1 : 1 }
+        if a.completed && b.completed {
+            // `completedAt` is the real stamp and is backdatable by sync;
+            // `updatedAt` is the legacy fallback for tasks finished before the
+            // column existed. Same convention as the recently-completed window
+            // (RecentlyCompletedPresets) — a task with neither sorts last.
+            return compareDates(a.completedAt ?? a.updatedAt,
+                                b.completedAt ?? b.updatedAt,
+                                descending: true)
+        }
+        return autoCompare(a, b)
+
     case "manual":
         if let map = manualOrderMap {
             let aRank = map[a.id] ?? map.count
@@ -67,14 +83,17 @@ private func autoCompare(_ a: Task, _ b: Task) -> Int {
            a.title.localizedCompare(b.title) == .orderedDescending ? 1 : 0
 }
 
-private func compareDates(_ a: Date?, _ b: Date?) -> Int {
+/// Nils sort last in BOTH directions — `descending` flips the comparison of two
+/// real dates, not the treatment of a missing one. A task with no stamp belongs
+/// at the bottom whichever way the column is pointed.
+private func compareDates(_ a: Date?, _ b: Date?, descending: Bool = false) -> Int {
     switch (a, b) {
     case (nil, nil): return 0
     case (nil, _):   return 1   // nils sort last
     case (_, nil):   return -1
     case let (a?, b?):
-        if a < b { return -1 }
-        if a > b { return 1 }
+        if a < b { return descending ? 1 : -1 }
+        if a > b { return descending ? -1 : 1 }
         return 0
     }
 }
