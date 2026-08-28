@@ -684,29 +684,38 @@ struct ListMembershipTab: View {
     private func addMember(email: String, role: String) {
         isProcessing = true
 
+        // Optimistic FIRST — this used to sit behind `await memberService.addMember`,
+        // so the new row only appeared once the network answered (task 33fc21fc).
+        // `list` is this sheet's own snapshot; the service updates its rosters and the
+        // ListService cache in parallel.
+        let placeholderId = ListMemberOptimistic.newPlaceholderId()
+        let placeholder = ListMemberOptimistic.placeholder(
+            id: placeholderId, listId: list.id, email: email, role: role
+        )
+        let originalList = list
+        onUpdate(ListMemberOptimistic.applyingAdd(list, member: placeholder))
+
         _Concurrency.Task {
             do {
                 // Route through ListMemberService so the operation lands in
                 // the pending-ops queue and syncs on reconnect if offline.
                 let addedMember = try await memberService.addMember(listId: list.id, email: email, role: role)
 
-                // Optimistic UI update: add member/invitation immediately so
-                // the sheet dismisses without waiting for the network. The follow-up
-                // fetchLists provides server-confirmed data; this is purely for
-                // immediate UX before we have it.
-                var updatedList = list
-                if addedMember.id.hasPrefix("invite_") || addedMember.id.hasPrefix("temp_") {
-                    // Optimistic invitation or pending member; add to listMembers
-                    updatedList.listMembers = (updatedList.listMembers ?? []) + [addedMember]
-                } else {
-                    // Real member was added on the server; add to listMembers
-                    updatedList.listMembers = (updatedList.listMembers ?? []) + [addedMember]
-                }
-                onUpdate(updatedList)
+                // A real membership replaces the placeholder. An invitation or a
+                // still-pending add leaves it in place as the pending row.
+                let isStub = ListMemberOptimistic.isPlaceholder(addedMember.id)
+                    || addedMember.id.hasPrefix("invite_")
+                let confirmed: ListMember? = isStub ? nil : addedMember
+                onUpdate(ListMemberOptimistic.reconcilingAdd(
+                    ListMemberOptimistic.applyingAdd(originalList, member: placeholder),
+                    placeholderId: placeholderId,
+                    confirmed: confirmed
+                ))
 
                 // Server-confirmed list refresh (picks up newly-created member/invitation)
                 _ = try? await listService.fetchLists()
             } catch {
+                onUpdate(ListMemberOptimistic.applyingRemoval(originalList, memberId: placeholderId))
                 errorMessage = error.localizedDescription
                 isProcessing = false
                 return
@@ -717,6 +726,11 @@ struct ListMembershipTab: View {
     }
 
     private func changeRole(userId: String, currentRole: String, newRole: String) {
+        // The picker used to sit on the old role until a fetchLists came back
+        // (task 33fc21fc). Show the new one now; put it back if the server refuses.
+        let originalList = list
+        onUpdate(ListMemberOptimistic.applyingRoleChange(list, userId: userId, role: newRole))
+
         _Concurrency.Task {
             do {
                 try await memberService.updateMemberRole(listId: list.id, userId: userId, role: newRole)
@@ -724,6 +738,7 @@ struct ListMembershipTab: View {
                 // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
             } catch {
+                onUpdate(originalList)
                 errorMessage = error.localizedDescription
             }
         }
@@ -739,11 +754,7 @@ struct ListMembershipTab: View {
         // View-level optimistic update on the current list snapshot so the
         // row disappears immediately. The service also updates its caches
         // and queues the API call for offline resilience.
-        var updatedList = list
-        updatedList.admins?.removeAll { $0.id == userId }
-        updatedList.members?.removeAll { $0.id == userId }
-        updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
-        onUpdate(updatedList)
+        onUpdate(ListMemberOptimistic.applyingRemoval(list, userId: userId))
 
         let originalList = list
         ListService.shared.removeMemberFromCachedList(listId: list.id, userId: userId)
