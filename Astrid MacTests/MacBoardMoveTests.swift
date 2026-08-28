@@ -8,9 +8,9 @@ import XCTest
 final class MacBoardMoveTests: XCTestCase {
 
     private let inbox = ProjectBoardColumn(id: VIRTUAL_INBOX_COLUMN_ID, name: "Inbox",
-                                           description: "", kind: .inbox, statusList: nil)
+                                           description: "", kind: .inbox)
     private let done = ProjectBoardColumn(id: VIRTUAL_DONE_COLUMN_ID, name: "Done",
-                                          description: "", kind: .done, statusList: nil)
+                                          description: "", kind: .done)
 
     private func task(_ id: String, completed: Bool, lists: [String]) -> Task {
         var t = Task(id: id, title: id, completed: completed)

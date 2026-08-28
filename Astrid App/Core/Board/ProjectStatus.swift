@@ -32,11 +32,14 @@ enum ProjectBoardColumnKind: Equatable {
 }
 
 struct ProjectBoardColumn: Equatable, Identifiable {
+    /// The ROLE — `ready`, `doing`, `waiting`, a `custom-*` role, or one of the two
+    /// virtual ids. Never a list id (task e5c74b5e): the `listType: 'status'` rows
+    /// this used to key off are deleted, so a cached one must not decide the shape
+    /// of the board, and its id must never go out on the wire.
     let id: String
     let name: String
     let description: String
     let kind: ProjectBoardColumnKind
-    let statusList: TaskList?
 
     static func == (lhs: ProjectBoardColumn, rhs: ProjectBoardColumn) -> Bool {
         lhs.id == rhs.id && lhs.kind == rhs.kind
@@ -96,12 +99,19 @@ let DEFAULT_STATUS_ROLES: Set<String> = Set(DEFAULT_PROJECT_STATUSES.map { $0.ro
 /// Inbox and Done and nothing else — so those rows could not be deleted at all
 /// while iOS depended on them. Now the deletion is a no-op here.
 ///
-/// The column id stays the LIST id while a list backs the role, because the
-/// membership dual-write keys off it and older servers still read membership.
-/// Once the rows are gone the id is the role itself.
+/// **The column id is the ROLE, always** (task e5c74b5e). It used to be the LIST
+/// id whenever a row happened to be cached, which handed the shape of the board
+/// to whatever a client had lying around from before the migration: two clients
+/// disagreed about the same card, and the id leaked onto the wire as a membership
+/// in a list that no longer exists. A cached row may still supply a renamed
+/// default's NAME while any survive; it may not supply an id.
 ///
 /// Custom states are per-project (task 109d8a91): a custom column belongs to
 /// one board and must not leak onto another, so `projectId` filters them.
+///
+/// Web has since moved its equivalent to read `Project.customStates` instead of
+/// rows (b346e377 / 9ddf4a6f). iOS's `Project` has no such field yet, so custom
+/// states still come from project-scoped rows here — a separate port.
 func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [ProjectBoardColumn] {
     let statuses = getProjectStatusLists(lists)
     var byRole: [String: TaskList] = [:]
@@ -114,21 +124,21 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
             id: VIRTUAL_INBOX_COLUMN_ID,
             name: "Inbox",
             description: "Move them to \"Ready\" when they are... ready!",
-            kind: .inbox,
-            statusList: nil
+            kind: .inbox
         )
     ]
 
     for state in DEFAULT_PROJECT_STATUSES {
         let backing = byRole[state.role.rawValue]
         result.append(ProjectBoardColumn(
-            // A renamed default is a PUT on the list, so its name wins while
-            // the rows exist.
-            id: backing?.id ?? state.role.rawValue,
+            id: state.role.rawValue,
+            // A renamed default was a PUT on the list, so its name still wins
+            // while any of those rows survive in a cache. Only the NAME — the id
+            // is the role either way, so the board's shape does not depend on
+            // whether this client has the row.
             name: backing?.name ?? state.name,
             description: backing?.statusDescription ?? backing?.description ?? state.description,
-            kind: .status,
-            statusList: backing
+            kind: .status
         ))
     }
 
@@ -138,11 +148,10 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
         guard let role = status.statusRole, !DEFAULT_STATUS_ROLES.contains(role) else { continue }
         guard let projectId, status.projectId == projectId else { continue }
         result.append(ProjectBoardColumn(
-            id: status.id,
+            id: role,
             name: status.name,
             description: status.statusDescription ?? status.description ?? "",
-            kind: .status,
-            statusList: status
+            kind: .status
         ))
     }
 
@@ -150,8 +159,7 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
         id: VIRTUAL_DONE_COLUMN_ID,
         name: "Done",
         description: "Complete — congrats!",
-        kind: .done,
-        statusList: nil
+        kind: .done
     ))
     return result
 }
@@ -179,20 +187,16 @@ func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
     // the shared task, so two members of a board cannot resolve different
     // columns — the failure that status-as-list-membership could not fix
     // without duplicating a Ready/Doing/Waiting set per project.
-    //
-    // Falls back to Inbox rather than the bare role when no column matches:
-    // columns are keyed by LIST id during the transition, so an unmatched role
-    // would match no column and the card would vanish from the board while
-    // still existing in the list view. Showing a card in the wrong column is
-    // recoverable; losing it is not.
     if let role = task.statusRole, !role.isEmpty {
-        if let match = statusLists.first(where: { $0.statusRole == role }) {
-            return match.id
-        }
-        // A default role always has a column now, backed or not, so a card no
-        // longer falls to Inbox merely because the rows are missing or have not
-        // loaded yet. Only an unknown custom role does.
+        // A default role always has a column, backed or not, so a card does not
+        // fall to Inbox merely because the rows are gone or have not loaded.
         if DEFAULT_STATUS_ROLES.contains(role) { return role }
+        // A custom role has a column only while this board declares it. The id
+        // is the ROLE, not the row's id (task e5c74b5e) — returning the row id
+        // resolved the card to a column the board does not render, and a card
+        // matching NO column is gone from the board while still in the list view.
+        if statusLists.contains(where: { $0.statusRole == role }) { return role }
+        // Showing a card in the wrong column is recoverable; losing it is not.
         return VIRTUAL_INBOX_COLUMN_ID
     }
 
@@ -207,10 +211,11 @@ struct ProjectColumnMove: Equatable {
     /// The status to write to `Task.statusRole`. Nil for Inbox and Done, which
     /// carry no status.
     ///
-    /// Written ALONGSIDE the list membership, not instead of it: an older
-    /// server still resolves boards from membership, so dropping it here would
-    /// break this build against an unmigrated deployment. Dual-write, not
-    /// dual-truth — the field is authoritative wherever it exists.
+    /// The only thing written. The membership half of the old dual-write is gone
+    /// (task e5c74b5e): the rows it pointed at are deleted, and `PUT /tasks/[id]`
+    /// rejects the ENTIRE write when one id in `listIds` does not exist — so a
+    /// client still appending one makes every board move fail, silently, and only
+    /// for sessions that were open across the deploy.
     let statusRole: String?
 }
 
@@ -244,14 +249,12 @@ func resolveProjectColumnMove(
         return ProjectColumnMove(listIds: retainedListIds, completed: true, statusRole: nil)
     case .status:
         // Status list membership is no longer written: status is represented by
-        // `statusRole`, while listIds retain only domain-list memberships.
-        // The role comes from the backing list while those rows exist; once they
-        // are gone the column id IS the role.
-        let backing = lists.first(where: { $0.id == targetColumn.id })
+        // `statusRole`, while listIds retain only domain-list memberships. The
+        // column id IS the role, so there is nothing to look up.
         return ProjectColumnMove(
             listIds: retainedListIds,
             completed: false,
-            statusRole: backing?.statusRole ?? targetColumn.id
+            statusRole: targetColumn.id
         )
     }
 }

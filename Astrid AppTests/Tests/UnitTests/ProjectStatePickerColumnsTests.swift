@@ -46,7 +46,7 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
     /// Filtering by name rather than by kind is the obvious wrong way to write this.
     func testACustomStateNamedDoneIsNotDropped() {
         let custom = ProjectBoardColumn(id: "custom-done", name: "Done",
-                                        description: "", kind: .status, statusList: nil)
+                                        description: "", kind: .status)
         let offered = ProjectStatePicker.columns(from: [custom] + allColumns)
         XCTAssertTrue(offered.contains { $0.id == "custom-done" },
                       "a project's own column called Done is a state, not the completion column")

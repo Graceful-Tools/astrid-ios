@@ -190,20 +190,17 @@ struct BoardColumnView: View {
     /// scrolls with the cards, the comparison stays right mid-scroll.
     private var columnSpaceName: String { "board-column-\(column.id)" }
 
-    private var footerStatusListIds: [String] {
-        guard column.kind == .status, let statusList = column.statusList else { return [] }
-        return [statusList.id]
-    }
-
-    /// List ids the board context already conveys on each card:
-    /// the project's domain list (the whole board lives inside it)
-    /// plus this column's status list (the column header IS the
-    /// status name). Hidden from chip rendering on each row.
+    /// List ids the board context already conveys on each card: the project's
+    /// domain list, because the whole board lives inside it. Hidden from chip
+    /// rendering on each row.
+    ///
+    /// This used to also carry the column's status list id — the column header
+    /// IS the status name, so the chip was noise. There is no such list any more
+    /// (task e5c74b5e): a column is a role, and a card's status is its
+    /// `statusRole`, never a membership.
     private var rowHiddenListIds: Set<String> {
-        var ids: Set<String> = []
-        if let domainListId = selectedList?.id { ids.insert(domainListId) }
-        if let statusList = column.statusList { ids.insert(statusList.id) }
-        return ids
+        guard let domainListId = selectedList?.id else { return [] }
+        return [domainListId]
     }
 
     private var shouldShowFooter: Bool {
@@ -261,11 +258,14 @@ struct BoardColumnView: View {
             if shouldShowFooter {
                 // Flush footer: full column width, transparent — the
                 // column frame provides the white surface behind it.
+                // No `additionalListIds`: quick-adding into a column used to
+                // attach the column's status list, which is now a deleted row —
+                // and one dangling id fails the whole create (task e5c74b5e).
+                // The column id IS the role, so `statusRole` carries all of it.
                 QuickAddTaskView(
                     selectedList: selectedList,
-                    additionalListIds: footerStatusListIds,
                     boardFooterStyle: true,
-                    statusRole: column.statusList?.statusRole ?? column.id
+                    statusRole: column.id
                 )
             }
         }
