@@ -150,28 +150,21 @@ no permission; asking for a build is a separate, cheap-to-say request.
 
 ## "Let's fix stuff" (or `/fixstuff`)
 
-When the user says "let's fix stuff" / "just fix stuff" / similar:
+When the user says "let's fix stuff" / "just fix stuff" / similar, pull the iOS queue
+**through the `astrid` MCP server** — `get_agent_queue { agent: "claude", listId:
+"aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` — present the tasks, ask which to work on, then
+implement. Run `npm run predeploy` **after** implementation, not before.
 
-```bash
-# 1. Ensure env is set up (credentials copied from astrid-web)
-cp ../astrid-web/.env.local .env.local 2>/dev/null || true
+**Never read or write Astrid tasks through the database** (`DATABASE_URL_PROD`, Prisma,
+`ios-tasks-direct.ts`) unless doing deep repair Jon has asked for. The MCP tools
+(`get_agent_queue`, `get_task`, `get_task_comments`, `add_comment`, `update_task`,
+`create_task`) are the interface; if only `mcp__astrid__authenticate` is available, run it and
+hand the user the URL. Details and the two OAuth-script exceptions (status / assign) are in
+`.claude/commands/fixall.md`.
 
-# 2. Pull the iOS To-do list
-cd ../astrid-web && npx tsx scripts/get-astrid-tasks.ts ios
-```
-
-Present the tasks, ask which to work on, then implement. Run `npm run predeploy`
-**after** implementation, not before.
-
-**Per-task process** (canonical, cross-repo — see `astrid-web/ASTRID_WORKFLOW.md`):
+**Per-task process** (canonical, cross-repo — see `astrid-web/docs/FIXALL_WORKFLOW.md`):
 post a strategy comment → RED-GREEN-refactor TDD with a task-id-linked regression
 test → run quality gates → post a completion report → then mark the task complete.
-
-**Required env vars** (in `.env.local`, copied from astrid-web):
-`ASTRID_OAUTH_CLIENT_ID`, `ASTRID_OAUTH_CLIENT_SECRET`,
-`ASTRID_IOS_LIST_ID` (= `aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36`).
-
----
 
 ## Documentation map
 
