@@ -653,8 +653,11 @@ final class GitHubSyncService: ObservableObject {
             let mappedLocalIds = Set(entries.map(\.localId))
             let remoteCommentCount = Int(pulledByRemoteId[remoteId]?.metadata?["commentCount"] ?? "") ?? 0
             let localComments = CommentService.shared.cachedComments[dto.astridTaskId] ?? []
+            // A mirror can never push, so an unmapped one must not keep waking
+            // the pass forever (Task: ab77476c).
             let hasUnmappedLocal = localComments.contains {
                 $0.authorId != nil && !$0.id.hasPrefix("temp_") && !mappedLocalIds.contains($0.id)
+                    && !CommentSyncPlanner.isMirroredFromRemote($0.content)
             }
             // Sync when: new remote comments, unmapped local comments, a local
             // deletion of a mapped comment (cache present = authoritative view),
@@ -722,6 +725,10 @@ final class GitHubSyncService: ObservableObject {
 
             let mapping = Dictionary(entries.map { ($0.remoteId, $0.localId) }, uniquingKeysWith: { a, _ in a })
             let plan = CommentSyncPlanner.plan(remote: liveRemote, local: liveLocal, mapping: mapping)
+
+            // Pairs the planner recognised as this sync's own earlier writes:
+            // record them so the lost mapping heals instead of duplicating.
+            entries.append(contentsOf: plan.adoptions)
 
             // GitHub → Astrid creates (attributed; resolve the Outbox temp id so
             // the mapping survives — a temp id would push back later).

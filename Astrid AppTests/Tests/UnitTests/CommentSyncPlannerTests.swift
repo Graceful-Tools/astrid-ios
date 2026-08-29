@@ -181,6 +181,73 @@ final class CommentSyncPlannerTests: XCTestCase {
         XCTAssertTrue(plan.deleteLocalIds.isEmpty)
     }
 
+    // MARK: - Echo loop (Task: ab77476c) — the sync must recognise its own writes
+
+    func testMirroredComment_neverPushesBack_evenWithNoMapping_ab77476c() {
+        // The map is the only loop breaker today; when its write is lost the
+        // Astrid twin of a GitHub comment pushed back, and the round trip
+        // stacked another "**jonparis** (GitHub):" prefix every ~3 seconds.
+        let twin = Local(
+            id: "cX",
+            content: CommentSyncPlanner.pulledContent(author: "jonparis", body: "from github"),
+            isSystem: false)
+        let plan = CommentSyncPlanner.plan(remote: [r1], local: [twin], mapping: [:])
+        XCTAssertTrue(plan.pushCreates.isEmpty, "a mirrored comment must never push back to GitHub")
+    }
+
+    func testStackedPrefixComment_neverPushesBack_ab77476c() {
+        let stacked = Local(
+            id: "cX",
+            content: CommentSyncPlanner.pulledContent(
+                author: "jonparis",
+                body: CommentSyncPlanner.pulledContent(author: "jonparis", body: "from github")),
+            isSystem: false)
+        let plan = CommentSyncPlanner.plan(remote: [], local: [stacked], mapping: [:])
+        XCTAssertTrue(plan.pushCreates.isEmpty)
+    }
+
+    func testLostMapping_adoptsExistingMirror_insteadOfPullingAgain_ab77476c() {
+        let twin = Local(
+            id: "cX",
+            content: CommentSyncPlanner.pulledContent(author: "jonparis", body: "from github"),
+            isSystem: false)
+        let plan = CommentSyncPlanner.plan(remote: [r1], local: [twin], mapping: [:])
+        XCTAssertTrue(plan.pullCreates.isEmpty, "the mirror already exists — re-pulling duplicates it")
+        XCTAssertEqual(plan.adoptions, [Entry(remoteId: "gh1", localId: "cX", pushed: false)])
+    }
+
+    func testLostMapping_recognisesItsOwnPush_insteadOfReIngestingIt_ab77476c() {
+        // Our push came back on the next pull as an unmapped remote comment.
+        // Ingesting it would create a prefixed copy of Jon's own comment,
+        // which then looks like a mirror — the other half of the echo.
+        let echo = Remote(id: "gh9", body: "from astrid", author: "jonparis")
+        let plan = CommentSyncPlanner.plan(remote: [echo], local: [l1], mapping: [:])
+        XCTAssertTrue(plan.pullCreates.isEmpty)
+        XCTAssertTrue(plan.pushCreates.isEmpty)
+        XCTAssertEqual(plan.adoptions, [Entry(remoteId: "gh9", localId: "c1", pushed: true)])
+    }
+
+    func testAdoption_claimsEachLocalCommentOnce_ab77476c() {
+        // Two GitHub comments with the same body must not both adopt the one
+        // local mirror; the second is a genuine new comment.
+        let body = "from github"
+        let twin = Local(
+            id: "cX",
+            content: CommentSyncPlanner.pulledContent(author: "jonparis", body: body),
+            isSystem: false)
+        let dupe = Remote(id: "gh2", body: body, author: "jonparis")
+        let plan = CommentSyncPlanner.plan(remote: [r1, dupe], local: [twin], mapping: [:])
+        XCTAssertEqual(plan.adoptions.count, 1)
+        XCTAssertEqual(plan.pullCreates, [dupe])
+    }
+
+    func testGenuineRemoteComment_stillPulls_ab77476c() {
+        let plan = CommentSyncPlanner.plan(remote: [r1, r2], local: [l1], mapping: [:])
+        XCTAssertEqual(plan.pullCreates, [r1, r2])
+        XCTAssertEqual(plan.pushCreates, [l1])
+        XCTAssertTrue(plan.adoptions.isEmpty)
+    }
+
     func testPulledContent_carriesAttribution() {
         let content = CommentSyncPlanner.pulledContent(author: "jonparis", body: "hello")
         XCTAssertTrue(content.contains("jonparis"))
