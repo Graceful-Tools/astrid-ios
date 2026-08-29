@@ -4,10 +4,16 @@ import Foundation
 /// comments ↔ Astrid comments). Developed red-green; the spec lives in
 /// `CommentSyncPlannerTests`.
 ///
-/// The mapping (remote comment id → astrid comment id) is the loop breaker:
-/// a pulled comment is recorded so it never pulls twice, and its Astrid twin
-/// (a mapping VALUE) never pushes back. It persists in the task link's
-/// metadata under `commentMap` via the flat codec below.
+/// The mapping (remote comment id → astrid comment id) is the first loop
+/// breaker: a pulled comment is recorded so it never pulls twice, and its
+/// Astrid twin (a mapping VALUE) never pushes back. It persists in the task
+/// link's metadata under `commentMap` via the flat codec below.
+///
+/// It is not the only one, because it is a single point of failure. The
+/// planner also recognises the sync's own writes by CONTENT — a mirror never
+/// pushes back whatever the map says, and a remote comment that matches an
+/// existing mirror or one of our own pushes is adopted into the map instead of
+/// being ingested again. See `plan`.
 enum CommentSyncPlanner {
     struct RemoteComment: Equatable {
         let id: String
@@ -31,20 +37,58 @@ enum CommentSyncPlanner {
         let pushed: Bool
     }
 
+    /// Creates in both directions, plus `adoptions`: pairs the sync recognised
+    /// as its OWN earlier writes and re-mapped by content. The map alone was
+    /// the loop breaker, and it is a single point of failure — one lost
+    /// metadata write (or a pulled comment whose Outbox temp id never
+    /// reconciled) made every mirror look unmapped, so it re-pulled AND pushed
+    /// back, stacking one more attribution prefix per round (Task: ab77476c).
     static func plan(
         remote: [RemoteComment],
         local: [LocalComment],
         mapping: [String: String]
-    ) -> (pullCreates: [RemoteComment], pushCreates: [LocalComment]) {
-        let mirroredLocalIds = Set(mapping.values)
-        let pullCreates = remote.filter { mapping[$0.id] == nil }
+    ) -> (pullCreates: [RemoteComment], pushCreates: [LocalComment], adoptions: [MapEntry]) {
+        var claimedLocalIds = Set(mapping.values)
+        let candidates = local.filter {
+            !$0.isSystem && !$0.id.hasPrefix("temp_") && !claimedLocalIds.contains($0.id)
+        }
+        var pullCreates: [RemoteComment] = []
+        var adoptions: [MapEntry] = []
+
+        for remoteComment in remote where mapping[remoteComment.id] == nil {
+            // A mirror of this comment already sits in Astrid: adopt it rather
+            // than ingesting a second copy.
+            let twin = candidates.first {
+                !claimedLocalIds.contains($0.id) && mirroredBody($0.content) == remoteComment.body
+            }
+            if let twin {
+                claimedLocalIds.insert(twin.id)
+                adoptions.append(.init(remoteId: remoteComment.id, localId: twin.id, pushed: false))
+                continue
+            }
+            // Our own push, come back around unrecognised: re-ingesting it
+            // would wrap Jon's comment in a GitHub attribution.
+            let origin = candidates.first {
+                !claimedLocalIds.contains($0.id)
+                    && mirroredBody($0.content) == nil
+                    && pushBody(content: $0.content, attachmentNames: $0.attachmentNames) == remoteComment.body
+            }
+            if let origin {
+                claimedLocalIds.insert(origin.id)
+                adoptions.append(.init(remoteId: remoteComment.id, localId: origin.id, pushed: true))
+                continue
+            }
+            pullCreates.append(remoteComment)
+        }
+
         let pushCreates = local.filter {
             !$0.isSystem
                 && !$0.id.hasPrefix("temp_")   // offline comment — wait for reconcile
-                && !mirroredLocalIds.contains($0.id)
+                && !claimedLocalIds.contains($0.id)
+                && !isMirroredFromRemote($0.content)  // never echo a mirror back
                 && isPushable($0)              // attachment-only OK; truly empty isn't
         }
-        return (pullCreates, pushCreates)
+        return (pullCreates, pushCreates, adoptions)
     }
 
     /// Edits on mapped pairs: converge the non-canonical side.
@@ -152,6 +196,20 @@ enum CommentSyncPlanner {
 
     /// Attribution wrapper for comments mirrored INTO Astrid.
     static func pulledContent(author: String, body: String) -> String {
-        "**\(author)** (GitHub):\n\n\(body)"
+        "**\(author)**\(attributionSuffix)\n\n\(body)"
     }
+
+    private static let attributionSuffix = " (GitHub):"
+
+    /// The GitHub body a local comment mirrors, or nil when it is not a mirror.
+    /// Content-level recognition of the sync's own writes: it survives a lost
+    /// `commentMap`, which the id mapping by definition cannot.
+    static func mirroredBody(_ content: String) -> String? {
+        guard let blankLine = content.range(of: "\n\n") else { return nil }
+        let firstLine = content[content.startIndex..<blankLine.lowerBound]
+        guard firstLine.hasPrefix("**"), firstLine.hasSuffix(attributionSuffix) else { return nil }
+        return String(content[blankLine.upperBound...])
+    }
+
+    static func isMirroredFromRemote(_ content: String) -> Bool { mirroredBody(content) != nil }
 }
