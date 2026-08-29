@@ -39,10 +39,63 @@ final class MacUndoCoordinator: NSObject, ObservableObject {
                                           .NSUndoManagerDidCloseUndoGroup,
                                           NSText.didBeginEditingNotification,
                                           NSText.didEndEditingNotification] {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self?.objectWillChange.send()
+                    self?.menuStateMayHaveChanged()
                 }
+            }
+        }
+    }
+
+    /// Publish the Edit-menu refresh on the NEXT main-queue turn, and only when the menu
+    /// would actually look different (task 1d995968).
+    ///
+    /// **Why deferred.** `objectWillChange.send()` used to happen right in the observer, and a
+    /// block-based NotificationCenter observer runs INLINE when it is already on its own queue
+    /// — it is not enqueued. Two of the five notifications above,
+    /// `NSText.didBeginEditingNotification` and `didEndEditingNotification`, are posted while
+    /// AppKit makes a text view first responder, and on macOS that happens inside the SwiftUI
+    /// update that put the TextField on screen. So the send landed in the middle of a view
+    /// update, with the Edit menu subscribed to it: "Publishing changes from within view
+    /// updates is not allowed, this will cause undefined behavior." That is a real publish to
+    /// a real subscriber mid-update, and undefined behavior is the whole problem — it shows up
+    /// as a glitched update or a crash and fails no test, which is why a random-input run found
+    /// it and nothing else had.
+    ///
+    /// **Why the state is read HERE and not in the deferred block, and why the equality
+    /// check.** Both guard the same hazard the note above records: a menu rebuild checkpoints,
+    /// and a checkpoint can close an undo group, which posts `NSUndoManagerDidCloseUndoGroup`
+    /// — one of the five observed here. A synchronous send is largely absorbed by the update
+    /// already in flight; a DEFERRED one starts a fresh update cycle, so without a brake that
+    /// round trip can run again and again. Two brakes, then: publish only when the titles
+    /// actually differ, so the second pass sends nothing and it settles; and read the titles
+    /// in the notification callback, where they always were read and where the note above says
+    /// NSApp is safe to touch, rather than from the deferred block — reading `UndoManager`
+    /// there would checkpoint on every scheduled turn, which is a main-queue spin that needs
+    /// no SwiftUI to keep itself alive.
+    ///
+    private var published: MenuState?
+    private var sendScheduled = false
+
+    private struct MenuState: Equatable {
+        let canUndo: Bool, canRedo: Bool, undoTitle: String, redoTitle: String
+    }
+
+    private func menuStateMayHaveChanged() {
+        let state = MenuState(canUndo: canUndo, canRedo: canRedo,
+                              undoTitle: undoTitle, redoTitle: redoTitle)
+        // Also the re-entrancy stop: reading the titles above can itself post one of the
+        // notifications that got us here, and the second time through the state matches.
+        guard state != published else { return }
+        published = state
+
+        guard !sendScheduled else { return }
+        sendScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.sendScheduled = false
+                self.objectWillChange.send()
             }
         }
     }
