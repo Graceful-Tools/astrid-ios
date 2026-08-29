@@ -42,13 +42,15 @@
 				<integer>0</integer>
 			</dict>
 		</dict>
+		<!-- The entry point, named ONCE. MainInterface.storyboard binds
+		     customClass="ShareViewController" (customModuleProvider="target"),
+		     so it instantiates the real controller. Adding
+		     NSExtensionPrincipalClass alongside this builds and signs fine and
+		     is then rejected at upload as an ambiguous Info.plist. -->
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.share-services</string>
-		<!-- Principal class for UIKit-based extension -->
-		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>
 	</dict>
 	<!-- Privacy - Photo Library Usage Description -->
 	<key>NSPhotoLibraryUsageDescription</key>
