@@ -59,11 +59,27 @@ class SyncManager: ObservableObject {
 
     /// Perform a full sync (initial sync or after long time)
     /// - Parameter includeUserTasks: If true, also fetches user tasks (heavy operation, use sparingly)
-    func performFullSync(includeUserTasks: Bool = false) async throws {
-        guard !isSyncing else {
+    /// - Parameter isUserInitiated: true when a person asked for it (pull to
+    ///   refresh). Such a pass WAITS for an in-flight one rather than returning
+    ///   silently — the old `guard !isSyncing` made a refresh that landed
+    ///   during the 60-second background pass fetch nothing at all, with only
+    ///   the spinner to suggest otherwise (Task: 3173727d).
+    func performFullSync(includeUserTasks: Bool = false, isUserInitiated: Bool = true) async throws {
+        switch SyncPassPolicy.admission(isSyncing: isSyncing, isUserInitiated: isUserInitiated) {
+        case .start:
+            break
+        case .skip:
             print("⏳ [SyncManager] Full sync already in progress, skipping")
             return
+        case .waitForInFlight:
+            guard await waitForInFlightPass() else {
+                print("⏳ [SyncManager] In-flight sync outlasted the wait — refresh skipped")
+                return
+            }
         }
+        // No await between the check and the claim (@MainActor), so the slot
+        // cannot be taken twice.
+        guard !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
@@ -277,7 +293,8 @@ class SyncManager: ObservableObject {
         guard let lastSync = lastSyncDate else {
             // No previous sync, do full sync (but don't throw on error)
             do {
-                return try await performFullSync()
+                // A timer tick, not a person: never wait on an in-flight pass.
+                return try await performFullSync(isUserInitiated: false)
             } catch {
                 print("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
                 // Don't throw - allow offline mode
@@ -289,7 +306,8 @@ class SyncManager: ObservableObject {
         if listService.lists.isEmpty && taskService.tasks.isEmpty {
             print("🔄 [SyncManager] No cached data - performing full sync instead")
             do {
-                return try await performFullSync()
+                // A timer tick, not a person: never wait on an in-flight pass.
+                return try await performFullSync(isUserInitiated: false)
             } catch {
                 print("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
                 // Don't throw - allow offline mode
@@ -297,7 +315,8 @@ class SyncManager: ObservableObject {
             }
         }
 
-        guard !isSyncing else {
+        // Background pass: the in-flight one is already doing this work.
+        guard SyncPassPolicy.admission(isSyncing: isSyncing, isUserInitiated: false) == .start else {
             print("⏳ [SyncManager] Sync already in progress, skipping")
             return
         }
@@ -311,13 +330,20 @@ class SyncManager: ObservableObject {
 
         do {
             // CRITICAL: Push pending local operations FIRST, before fetching server data.
-            do {
-                try await taskService.syncPendingOperations()
-            } catch {
-                print("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
+            //
+            // Every push is best-effort and the fetch runs regardless. These
+            // were bare `try`s, so one stuck local write — a pending comment on
+            // a task the server kept rejecting — aborted the pass BEFORE it
+            // fetched, and remote changes silently stopped arriving until the
+            // app was relaunched (Task: 3173727d).
+            let failedPushes = await SyncPassPolicy.runPushSteps([
+                .init(name: "tasks", run: { [taskService] in try await taskService.syncPendingOperations() }),
+                .init(name: "comments", run: { [commentService] in try await commentService.syncPendingComments() }),
+                .init(name: "list members", run: { [listMemberService] in try await listMemberService.syncPendingOperations() }),
+            ])
+            if !failedPushes.isEmpty {
+                print("⚠️ [SyncManager] Pending pushes failed (fetching anyway): \(failedPushes.joined(separator: ", "))")
             }
-            try await commentService.syncPendingComments()
-            try await listMemberService.syncPendingOperations()
 
             // Fetch all lists and apply only newer changes
             let serverLists = try await apiClient.getLists()
@@ -364,6 +390,17 @@ class SyncManager: ObservableObject {
             print("⚠️ [SyncManager] Incremental sync failed (offline mode): \(error)")
             // Don't throw - allow offline mode
         }
+    }
+
+    /// Wait for an in-flight pass to finish so a user-initiated refresh can run.
+    /// Bounded: a refresh that cannot get the slot gives up rather than leaving
+    /// the spinner turning forever.
+    private func waitForInFlightPass(timeout: TimeInterval = 15) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while isSyncing, Date() < deadline {
+            try? await _Concurrency.Task.sleep(nanoseconds: 100_000_000)
+        }
+        return !isSyncing
     }
 
     /// Perform a quick sync - only syncs pending local operations without fetching server data
