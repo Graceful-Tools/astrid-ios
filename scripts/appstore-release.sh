@@ -173,6 +173,56 @@ set -e
 [ "$ARCHIVE_RC" -eq 0 ] || fail "the archive did not build. Search $LOG for 'error:'"
 green "✓ Archived"
 
+# --- Signed entitlements ----------------------------------------------------------
+#
+# codesign silently DROPS an entitlement whose capability is not enabled on the App ID.
+# It does not warn and it does not fail, so a target can ship with an entitlement its
+# .entitlements file plainly asks for and nothing anywhere says otherwise.
+#
+# That is exactly what happened to the Share Extension (task a915a6b2). Commit b2677c2
+# fixed the App Group mismatch in the FILES; the extension's App ID still had no
+# APP_GROUPS capability, so every archive signed the appex with no
+# `application-groups` entitlement at all. `containerURL(forSecurityApplicationGroupIdentifier:)`
+# then returns nil, and every ShareDataManager read and write quietly does nothing —
+# the same silent failure b2677c2 was meant to end. The task that filed it expected a
+# SIGNING FAILURE to be the tell. There is none. This is the tell.
+#
+# So: compare what each bundle ASKED for against what it was actually SIGNED with.
+step "Verifying signed entitlements"
+
+check_app_groups() {   # $1 = built bundle, $2 = source .entitlements it was built from
+  [ -e "$1" ] || return 0
+  [ -f "$2" ] || return 0
+
+  local want signed missing=""
+  want=$(/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups" "$2" 2>/dev/null \
+         | sed -n 's/^ *\(group\..*\)$/\1/p')
+  [ -n "$want" ] || return 0          # this bundle asks for no groups; nothing to drop
+
+  signed=$(codesign -d --entitlements :- "$1" 2>/dev/null | plutil -p - 2>/dev/null || true)
+  for group in $want; do
+    case "$signed" in *"$group"*) ;; *) missing="$missing $group" ;; esac
+  done
+
+  if [ -n "$missing" ]; then
+    fail "$(basename "$1") was signed WITHOUT App Group(s)$missing, which $2 asks for.
+  codesign drops an entitlement the App ID has no capability for, without failing — so the
+  build looks fine and the group container is unreachable at runtime.
+  Fix: developer.apple.com -> Certificates, Identifiers & Profiles -> Identifiers -> the App ID
+  for this bundle -> App Groups -> Configure -> tick$missing -> Save. Then re-run this script;
+  -allowProvisioningUpdates regenerates the profile."
+  fi
+  green "✓ $(basename "$1") signed with:$(echo $want | tr '\n' ' ')"
+}
+
+if [ "$TARGET" = "ios" ]; then
+  APP_BUNDLE="$ARCHIVE/Products/Applications/$SCHEME.app"
+  check_app_groups "$APP_BUNDLE" "$ROOT/Astrid App/Astrid App.entitlements"
+  for appex in "$APP_BUNDLE"/PlugIns/*.appex; do
+    check_app_groups "$appex" "$ROOT/ShareExtension/ShareExtension.entitlements"
+  done
+fi
+
 # --- Export (+ upload) ------------------------------------------------------------
 if [ "$UPLOAD" = "1" ]; then DEST_KEY="upload"; else DEST_KEY="export"; fi
 cat > "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" <<PLIST
