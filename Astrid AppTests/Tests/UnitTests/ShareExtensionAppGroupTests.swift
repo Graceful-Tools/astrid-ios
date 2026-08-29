@@ -44,12 +44,56 @@ final class ShareExtensionAppGroupTests: XCTestCase {
     /// are edited in two separate files that nothing otherwise keeps in step.
     func testAppAndShareExtensionEntitlementsNameTheSameGroup() throws {
         let appGroups = try groups(inEntitlementsNamed: "Astrid App")
-        let extensionGroups = try groups(inEntitlementsNamed: "ShareExtension")
+        let extensionGroups = try groups(inEntitlementsNamed: "Astrid")
 
         XCTAssertTrue(appGroups.contains(ShareDataManager.appGroupIdentifier),
                       "The app's entitlements should include \(ShareDataManager.appGroupIdentifier); they list \(appGroups)")
         XCTAssertTrue(extensionGroups.contains(ShareDataManager.appGroupIdentifier),
                       "The extension's entitlements should include \(ShareDataManager.appGroupIdentifier); they list \(extensionGroups)")
+    }
+
+    // MARK: - The entitlements file has to actually reach codesign (task a915a6b2)
+    //
+    // The checks above compare two .entitlements FILES. Both passed for months while
+    // sharing was completely broken, because the Share Extension target had no
+    // CODE_SIGN_ENTITLEMENTS setting at all — so the file they agree about was never
+    // handed to codesign, and the signed appex carried no application-groups. A file
+    // nothing builds can say anything.
+
+    /// The setting whose absence dropped the entitlement.
+    func testTheShareExtensionTargetDeclaresItsEntitlements() throws {
+        let project = try sourceFile("Astrid App.xcodeproj/project.pbxproj")
+
+        let declarations = project.components(separatedBy: "CODE_SIGN_ENTITLEMENTS = Astrid/Astrid.entitlements;").count - 1
+        XCTAssertEqual(declarations, 2, """
+            The Share Extension needs CODE_SIGN_ENTITLEMENTS in BOTH its Debug and Release             configurations. Without it codesign is handed no entitlements, drops the App Group             silently, and every ShareDataManager call reaches a container it cannot open.
+            """)
+    }
+
+    /// The extension used to ship the untouched Xcode template — `didSelectPost()` completed
+    /// the request and did nothing else — while the real implementation sat in a directory
+    /// that belonged to no target. Nothing failed, because nothing was built.
+    func testTheShippedShareViewControllerIsTheRealOne() throws {
+        let controller = try sourceFile("Astrid/ShareViewController.swift")
+
+        XCTAssertTrue(controller.contains("ShareDataManager"), """
+            Astrid/ShareViewController.swift does not reference ShareDataManager, so it is the             template stub again. That file is what the extension target compiles.
+            """)
+        XCTAssertFalse(controller.contains("SLComposeServiceViewController"),
+                       "that is the Xcode template's base class — the real controller is a UIViewController")
+    }
+
+    /// ShareDataManager has to be compiled INTO the extension, not merely referenced by it.
+    /// It lives in `Shared/` for that reason: the extension, the iOS app and the Mac app all
+    /// build that folder, so one copy serves all three.
+    func testShareDataManagerLivesWhereTheExtensionCanCompileIt() throws {
+        let project = try sourceFile("Astrid App.xcodeproj/project.pbxproj")
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: repoRoot.appendingPathComponent("Shared/ShareDataManager.swift").path),
+                      "ShareDataManager moved out of Shared/ — the extension can no longer compile it")
+        // Three targets: the extension, the iOS app, the Mac app.
+        let memberships = project.components(separatedBy: "/* Shared */,").count - 1
+        XCTAssertEqual(memberships, 3, "every target that touches the App Group container must build Shared/")
     }
 
     // MARK: - Private
@@ -60,12 +104,19 @@ final class ShareExtensionAppGroupTests: XCTestCase {
     /// repo through `#filePath` there has hung a suite before (see the Mac test-host notes). The
     /// runtime check above is the one that matters on both platforms; this one exists to say
     /// WHICH file is wrong when it fails.
-    private func groups(inEntitlementsNamed name: String) throws -> [String] {
-        let repoRoot = URL(fileURLWithPath: #filePath)
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // UnitTests
             .deletingLastPathComponent()   // Tests
             .deletingLastPathComponent()   // Astrid AppTests
             .deletingLastPathComponent()   // repo root
+    }
+
+    private func sourceFile(_ path: String) throws -> String {
+        try String(contentsOf: repoRoot.appendingPathComponent(path), encoding: .utf8)
+    }
+
+    private func groups(inEntitlementsNamed name: String) throws -> [String] {
         let url = repoRoot
             .appendingPathComponent(name)
             .appendingPathComponent("\(name).entitlements")

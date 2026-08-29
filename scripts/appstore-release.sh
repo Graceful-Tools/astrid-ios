@@ -235,8 +235,10 @@ rm -rf "$VERIFY_DIR"; mkdir -p "$VERIFY_DIR"
 unzip -q "$IPA" -d "$VERIFY_DIR" || fail "could not unpack $IPA to check its entitlements."
 
 check_app_groups() {   # $1 = bundle inside the ipa, $2 = source .entitlements it was built from
-  [ -e "$1" ] || return 0
-  [ -f "$2" ] || return 0
+  [ -e "$1" ] || fail "expected bundle $1 in the export, and it is not there."
+  # NOT a silent skip: a missing entitlements file is exactly the shape of the bug this
+  # guard exists for, and returning 0 here once turned a moved file into a green run.
+  [ -f "$2" ] || fail "$2 does not exist, so $(basename "$1") could not be checked. If the file moved, update this script."
 
   local want signed missing=""
   want=$(/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups" "$2" 2>/dev/null \
@@ -263,7 +265,7 @@ if [ "$TARGET" = "ios" ]; then
   APP_BUNDLE=$(ls -d "$VERIFY_DIR"/Payload/*.app 2>/dev/null | head -1)
   check_app_groups "$APP_BUNDLE" "$ROOT/Astrid App/Astrid App.entitlements"
   for appex in "$APP_BUNDLE"/PlugIns/*.appex; do
-    check_app_groups "$appex" "$ROOT/ShareExtension/ShareExtension.entitlements"
+    check_app_groups "$appex" "$ROOT/Astrid/Astrid.entitlements"
   done
 fi
 rm -rf "$VERIFY_DIR"

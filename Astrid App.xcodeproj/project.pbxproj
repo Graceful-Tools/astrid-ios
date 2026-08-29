@@ -234,6 +234,11 @@
 			path = "Astrid MacTests";
 			sourceTree = "<group>";
 		};
+		CBFACADE0000000000000010 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		CB8DEFEF3005D592003E5617 /* Astrid MacUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Astrid MacUITests";
@@ -360,6 +365,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB5DE38A2EBDCC150056928E /* Astrid */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = Astrid;
 			packageProductDependencies = (
@@ -383,6 +389,7 @@
 			fileSystemSynchronizedGroups = (
 				CB8DEFD23005D591003E5617 /* Astrid Mac */,
 				CBB135862EAB27CD00D41E86 /* Astrid App */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = "Astrid Mac";
 			packageProductDependencies = (
@@ -453,6 +460,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB135862EAB27CD00D41E86 /* Astrid App */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = "Astrid App";
 			packageProductDependencies = (
@@ -721,6 +729,7 @@
 		CB5DE3962EBDCC160056928E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Astrid/Astrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 260;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
@@ -750,6 +759,7 @@
 		CB5DE3972EBDCC160056928E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Astrid/Astrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 260;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
