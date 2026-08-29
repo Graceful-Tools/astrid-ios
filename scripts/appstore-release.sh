@@ -173,9 +173,15 @@ set -e
 [ "$ARCHIVE_RC" -eq 0 ] || fail "the archive did not build. Search $LOG for 'error:'"
 green "✓ Archived"
 
-# --- Export (+ upload) ------------------------------------------------------------
-if [ "$UPLOAD" = "1" ]; then DEST_KEY="upload"; else DEST_KEY="export"; fi
-cat > "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" <<PLIST
+# --- Export -----------------------------------------------------------------------
+#
+# ALWAYS exports to disk first, even when uploading, because the entitlements check below has
+# to open the .ipa. An upload export (`destination = upload`) ships straight from the archive
+# and leaves nothing behind, so the check found no .ipa, failed its own guard, and printed
+# RESULT: FAILED after a perfectly good upload — while the App Group check it exists for never
+# ran on a shipping build at all. Verify first, ship second. (Task 3f964556.)
+write_export_options() {   # $1 = destination ("export" or "upload"), $2 = file to write
+  cat > "$2" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -183,26 +189,32 @@ cat > "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" <<PLIST
     <key>method</key><string>app-store-connect</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <key>signingStyle</key><string>automatic</string>
-    <key>destination</key><string>$DEST_KEY</string>
+    <key>destination</key><string>$1</string>
     <key>uploadSymbols</key><true/>
     <key>manageAppVersionAndBuildNumber</key><false/>
 </dict>
 </plist>
 PLIST
+}
 
-if [ "$UPLOAD" = "1" ]; then step "Uploading to App Store Connect"; else step "Exporting (no upload)"; fi
-set +e
-xcodebuild -exportArchive \
-  -archivePath "$ARCHIVE" \
-  -exportPath "$EXPORT_DIR" \
-  -exportOptionsPlist "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$KEY_FILE" \
-  -authenticationKeyID "$KEY_ID" \
-  -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee -a "$LOG" | grep -vE "^ +|^$"
-EXPORT_RC=${PIPESTATUS[0]}
-set -e
-[ "$EXPORT_RC" -eq 0 ] || fail "the $([ "$UPLOAD" = 1 ] && echo upload || echo export) step failed. Search $LOG for 'error:'"
+export_archive() {   # $1 = exportOptions plist, $2 = export path, $3 = what to say on failure
+  set +e
+  xcodebuild -exportArchive \
+    -archivePath "$ARCHIVE" \
+    -exportPath "$2" \
+    -exportOptionsPlist "$1" \
+    -allowProvisioningUpdates \
+    -authenticationKeyPath "$KEY_FILE" \
+    -authenticationKeyID "$KEY_ID" \
+    -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee -a "$LOG" | grep -vE "^ +|^$"
+  local rc=${PIPESTATUS[0]}
+  set -e
+  [ "$rc" -eq 0 ] || fail "the $3 step failed. Search $LOG for 'error:'"
+}
+
+step "Exporting (nothing sent to Apple yet)"
+write_export_options export "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist"
+export_archive "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" "$EXPORT_DIR" export
 
 # --- Signed entitlements ---------------------------------------------------------
 #
@@ -275,6 +287,18 @@ if [ "$UPLOAD" = "0" ]; then
   done_ok "$SCHEME $VERSION built and signed as build $BUILD_NUM. Nothing was uploaded — re-run with --upload to send it to Apple. Artifact: $EXPORT_DIR"
   exit 0
 fi
+
+# --- Upload -----------------------------------------------------------------------
+# A SECOND export of the same archive, this one with `destination = upload`. Deliberately the
+# same xcodebuild invocation the upload always used — a reporting bug is no reason to swap the
+# shipping path for `xcrun altool` or anything else. It costs a minute or two.
+#
+# The verified .ipa and the uploaded one are two exports, so they are not byte-identical. What
+# the check asserts — which capabilities the distribution profile carried into the signature —
+# is the same for both: same archive, same profile, same options but the destination.
+step "Uploading to App Store Connect"
+write_export_options upload "$BUILD_DIR/ExportOptions-appstore-$TARGET-upload.plist"
+export_archive "$BUILD_DIR/ExportOptions-appstore-$TARGET-upload.plist" "$BUILD_DIR/appstore-upload-$TARGET" upload
 green "✓ Upload accepted"
 
 # --- Verify -----------------------------------------------------------------------
