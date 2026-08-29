@@ -79,13 +79,15 @@ final class BoardColumnsFromConfigTests: XCTestCase {
 
     // MARK: - While the rows still exist
 
-    func testABackedRoleKeepsTheListIdSoTheDualWriteKeepsWorking() {
+    func testABackedRoleIsStillKeyedByItsRole() {
+        // This asserted `readyColumn.id == "l-ready"` while the dual-write needed
+        // the list id. The rows are deleted, so the id is the role whether or not
+        // a client still has one cached — see BoardColumnIdIsTheRoleTests (e5c74b5e).
         let ready = statusList("ready", "l-ready", "Ready")
         let columns = getProjectBoardColumns([domainList(), ready], projectId: project)
         let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
 
-        XCTAssertEqual(readyColumn.id, "l-ready")
-        XCTAssertNotNil(readyColumn.statusList)
+        XCTAssertEqual(readyColumn.id, "ready")
     }
 
     func testABackedMoveDoesNotPersistStatusMembership() {

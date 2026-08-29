@@ -128,6 +128,10 @@ final class CoreDataStatusRoleTests: XCTestCase {
         let restored = try XCTUnwrap(CDTask.fetchById("t-cached", context: context)).toDomainModel()
 
         XCTAssertTrue(restored.listIds?.isEmpty ?? true, "no membership — the role is the only signal")
-        XCTAssertEqual(getTaskProjectColumnId(restored, lists: [ready]), "l-ready")
+        // The column id is the ROLE, not the id of the row that used to back it
+        // (task e5c74b5e) — so a client holding a stale row resolves the same
+        // column as one that never had it.
+        XCTAssertEqual(getTaskProjectColumnId(restored, lists: [ready]), "ready")
+        XCTAssertEqual(getTaskProjectColumnId(restored, lists: []), "ready")
     }
 }

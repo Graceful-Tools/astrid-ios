@@ -47,6 +47,7 @@ enum MacListFilter {
         .init("auto", L("lists.auto")), .init("manual", L("lists.manual")),
         .init("when", L("lists.due_date")), .init("priority", L("tasks.priority")),
         .init("createdAt", L("lists.created_date")),
+        .init("completedAt", L("lists.recently_completed")),
     ]
     static let assignedBy: [Option] = [
         .init("all", L("lists.all")), .init("current_user", L("lists.me")),

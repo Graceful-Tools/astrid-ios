@@ -234,6 +234,11 @@
 			path = "Astrid MacTests";
 			sourceTree = "<group>";
 		};
+		CBFACADE0000000000000010 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		CB8DEFEF3005D592003E5617 /* Astrid MacUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Astrid MacUITests";
@@ -360,6 +365,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB5DE38A2EBDCC150056928E /* Astrid */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = Astrid;
 			packageProductDependencies = (
@@ -383,6 +389,7 @@
 			fileSystemSynchronizedGroups = (
 				CB8DEFD23005D591003E5617 /* Astrid Mac */,
 				CBB135862EAB27CD00D41E86 /* Astrid App */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = "Astrid Mac";
 			packageProductDependencies = (
@@ -453,6 +460,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB135862EAB27CD00D41E86 /* Astrid App */,
+				CBFACADE0000000000000010 /* Shared */,
 			);
 			name = "Astrid App";
 			packageProductDependencies = (
@@ -721,8 +729,9 @@
 		CB5DE3962EBDCC160056928E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Astrid/Astrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -750,8 +759,9 @@
 		CB5DE3972EBDCC160056928E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Astrid/Astrid.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Astrid/Info.plist;
@@ -783,7 +793,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
@@ -823,7 +833,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1068,7 +1078,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1098,7 +1108,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1126,7 +1136,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.9.0;
@@ -1148,7 +1158,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 259;
+				CURRENT_PROJECT_VERSION = 261;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

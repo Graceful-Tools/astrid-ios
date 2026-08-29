@@ -127,17 +127,18 @@ final class UserImageCacheTests: XCTestCase {
         var operationCount = 0
         let url = URL(string: "https://example.com/avatar.jpg")!
         let firstRowIsFetching = expectation(description: "the first row's fetch is in flight")
+        let releaseFirstRow = expectation(description: "the test is ready for the first row's fetch to end")
 
-        // Wait for the first row's fetch to be registered before the second row asks. That IS the
-        // AITD-283 situation — a row arriving while a fetch is already running — and two bare
-        // `async let`s do not order themselves: whichever child task starts first wins, and if
-        // that was the second row then both callers coalesce onto ITS operation and the values
-        // below are [999, 999]. Coalescing is working in that case; the test was simply asserting
-        // which of two equally valid orderings happened. Flaky roughly one run in three.
+        // The first row's fetch is HELD OPEN until this test releases it. It used to sleep 50ms
+        // instead, which meant the second row had to reach `load` inside that window — and on a
+        // busy machine it did not. `load` removes its `inFlight` entry the moment the operation
+        // returns, so a fetch that finished early left nothing to coalesce onto and the second
+        // row legitimately started its own. That is what "flaky roughly one run in three" was.
+        // Holding the fetch open removes the window rather than widening it.
         async let first = coordinator.load(for: url) {
             operationCount += 1
             firstRowIsFetching.fulfill()
-            try? await _Concurrency.Task.sleep(for: .milliseconds(50))
+            await self.fulfillment(of: [releaseFirstRow], timeout: 5.0)
             return 283
         }
         await fulfillment(of: [firstRowIsFetching], timeout: 2.0)
@@ -146,10 +147,20 @@ final class UserImageCacheTests: XCTestCase {
             operationCount += 1
             return 999
         }
+        // Give the second row time to reach `load`. It cannot miss the in-flight entry now —
+        // the first row is still parked above and stays there until the next line.
+        try? await _Concurrency.Task.sleep(for: .milliseconds(250))
+        releaseFirstRow.fulfill()
 
         let values = await [first, second]
-        XCTAssertEqual(values, [283, 283], "The second row should receive the first row's result")
-        XCTAssertEqual(operationCount, 1, "The second row should not start its own fetch")
+
+        // The contract is "one fetch, one shared result", NOT which of two equally valid
+        // orderings won. Asserting [283, 283] baked the ordering in: when the second row's
+        // child task happened to start first, both callers correctly coalesced onto ITS
+        // operation and the values were [999, 999] — coalescing working, test failing.
+        XCTAssertEqual(operationCount, 1, "the second row must not start its own fetch")
+        XCTAssertEqual(values[0], values[1], "both rows must receive the same result")
+        XCTAssertNotNil(values[0])
     }
 
     @MainActor

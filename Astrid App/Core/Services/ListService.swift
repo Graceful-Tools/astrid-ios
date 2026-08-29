@@ -349,14 +349,27 @@ class ListService: ObservableObject {
         }
     }
 
+    /// Apply an optimistic membership edit to the cached list so the change survives
+    /// a view dismissal and every surface reading `ListService.lists` sees it at once
+    /// (task 33fc21fc). `ListMemberOptimistic` owns what each edit means; this only
+    /// decides where the result is written.
+    func applyMemberChange(listId: String, _ transform: (TaskList) -> TaskList) {
+        if let index = lists.firstIndex(where: { $0.id == listId }) {
+            let updated = transform(lists[index])
+            lists[index] = updated
+            cachedLists[listId] = updated
+        } else if let cached = cachedLists[listId] {
+            // Not in the visible array (a list the user isn't currently browsing)
+            // but still cached — keep the two from drifting apart.
+            cachedLists[listId] = transform(cached)
+        }
+    }
+
     /// Remove a member from the cached list so the change persists across view dismissals.
     /// Called after optimistic removal in the UI — reverted if the API call fails.
     func removeMemberFromCachedList(listId: String, userId: String) {
-        if let index = lists.firstIndex(where: { $0.id == listId }) {
-            lists[index].admins?.removeAll { $0.id == userId }
-            lists[index].members?.removeAll { $0.id == userId }
-            lists[index].listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
-            cachedLists[listId] = lists[index]
+        applyMemberChange(listId: listId) {
+            ListMemberOptimistic.applyingRemoval($0, userId: userId)
         }
     }
 

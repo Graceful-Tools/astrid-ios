@@ -54,6 +54,9 @@ final class BoardMoveRoundTripTests: XCTestCase {
     private var project: TaskList { domainList("project-list", projectId: "p1") }
     private var allLists: [TaskList] { [ready, doing, project] }
 
+    /// Columns are addressed by ROLE — never by the id of the status row that used to
+    /// back them (task e5c74b5e). `allLists` keeps those rows so the membership strip is
+    /// still exercised; they just no longer name a column.
     private func column(_ id: String) -> ProjectBoardColumn {
         getProjectBoardColumns(allLists).first { $0.id == id }!
     }
@@ -93,13 +96,13 @@ final class BoardMoveRoundTripTests: XCTestCase {
     func testMovingBetweenTwoStatusColumnsLandsInTheTarget() {
         let start = task(lists: [project, ready], statusRole: "ready")
 
-        XCTAssertEqual(columnAfterMoving(start, to: column("doing-list")), "doing-list")
+        XCTAssertEqual(columnAfterMoving(start, to: column("doing")), "doing")
     }
 
     func testMovingFromInboxIntoAStatusColumnLandsThere() {
         let start = task(lists: [project], statusRole: nil)
 
-        XCTAssertEqual(columnAfterMoving(start, to: column("ready-list")), "ready-list")
+        XCTAssertEqual(columnAfterMoving(start, to: column("ready")), "ready")
     }
 
     /// The old model: a task with no role at all still moves by membership alone.
@@ -127,11 +130,11 @@ final class BoardMoveRoundTripTests: XCTestCase {
     func testMovingOutOfDoneClearsCompletion() {
         let start = task(lists: [project], statusRole: nil, completed: true)
 
-        let move = resolveProjectColumnMove(start, targetColumn: column("ready-list"), lists: allLists)
+        let move = resolveProjectColumnMove(start, targetColumn: column("ready"), lists: allLists)
         let moved = start.applyingBoardMove(move)
 
         XCTAssertFalse(moved.completed)
-        XCTAssertEqual(getTaskProjectColumnId(moved, lists: allLists), "ready-list")
+        XCTAssertEqual(getTaskProjectColumnId(moved, lists: allLists), "ready")
     }
 
     /// Round-tripping every column must be stable — drop it anywhere, it lands there.

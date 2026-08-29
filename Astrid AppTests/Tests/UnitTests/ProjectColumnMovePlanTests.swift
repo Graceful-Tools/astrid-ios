@@ -27,8 +27,12 @@ final class ProjectColumnMovePlanTests: XCTestCase {
          statusList("doing-id", "Doing", role: "doing")]
     }
 
-    private func column(_ id: String, kind: ProjectBoardColumnKind, list: TaskList? = nil) -> ProjectBoardColumn {
-        ProjectBoardColumn(id: id, name: id, description: "", kind: kind, statusList: list)
+    /// A column id is a ROLE, never a list id (task e5c74b5e). `lists` still holds the
+    /// stale `listType: 'status'` rows a session open across the migration would have
+    /// cached, so the membership strip is still exercised — they just no longer name
+    /// the columns.
+    private func column(_ id: String, kind: ProjectBoardColumnKind) -> ProjectBoardColumn {
+        ProjectBoardColumn(id: id, name: id, description: "", kind: kind)
     }
 
     private func task(_ id: String = "t1",
@@ -48,7 +52,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// call and, worse, take a repeating task through completion again.
     func testMovingToItsCurrentColumnPlansNothing() {
         let t = task(listIds: ["ready-id"], statusRole: "ready")
-        let ready = column("ready-id", kind: .status, list: lists[0])
+        let ready = column("ready", kind: .status)
         XCTAssertEqual(planProjectColumnMove(task: t, column: ready, lists: lists), .none)
     }
 
@@ -68,7 +72,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// it the task keeps its tick and the board shows a finished task sitting in Ready.
     func testMovingOutOfDonePlansAnUncomplete() {
         let t = task(completed: true)
-        let ready = column("ready-id", kind: .status, list: lists[0])
+        let ready = column("ready", kind: .status)
         guard case .uncomplete = planProjectColumnMove(task: t, column: ready, lists: lists) else {
             return XCTFail("a completed task leaving Done must be un-completed")
         }
@@ -82,7 +86,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// bug, where "not always" meant "not for any task that has a role".
     func testMovingToAStatusColumnCarriesThatRole() {
         let t = task(listIds: ["ready-id"])
-        let doing = column("doing-id", kind: .status, list: lists[1])
+        let doing = column("doing", kind: .status)
         guard case .setLists(_, let role) = planProjectColumnMove(task: t, column: doing, lists: lists) else {
             return XCTFail("expected a plain list move")
         }
@@ -107,7 +111,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     /// looks like a board bug.
     func testANonStatusListMembershipIsPreserved() {
         let t = task(listIds: ["my-list", "ready-id"])
-        let doing = column("doing-id", kind: .status, list: lists[1])
+        let doing = column("doing", kind: .status)
         guard case .setLists(let ids, _) = planProjectColumnMove(task: t, column: doing, lists: lists) else {
             return XCTFail("expected a plain list move")
         }

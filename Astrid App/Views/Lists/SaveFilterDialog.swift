@@ -183,6 +183,7 @@ struct SaveFilterDialog: View {
         case "assignee": return "Who"
         case "completed": return "Completed First"
         case "incomplete": return "Incomplete First"
+        case "completedAt": return "Recently Completed"
         case "manual": return "Manual"
         default: return value
         }

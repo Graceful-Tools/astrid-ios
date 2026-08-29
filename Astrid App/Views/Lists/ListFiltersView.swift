@@ -42,6 +42,7 @@ struct ListFiltersView: View {
                     Text(NSLocalizedString("filters.who", comment: "")).tag("assignee")
                     Text(NSLocalizedString("tasks.completed", comment: "")).tag("completed")
                     Text(NSLocalizedString("tasks.incomplete", comment: "")).tag("incomplete")
+                    Text(NSLocalizedString("lists.recently_completed", comment: "")).tag("completedAt")
                     Text(NSLocalizedString("filters.manual", comment: "")).tag("manual")
                 }
                 .onChange(of: sortBy) { saveFilters() }

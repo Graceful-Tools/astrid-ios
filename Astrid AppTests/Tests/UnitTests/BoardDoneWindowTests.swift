@@ -18,7 +18,7 @@ final class BoardDoneWindowTests: XCTestCase {
 
     private func doneColumn() -> ProjectBoardColumn {
         ProjectBoardColumn(id: VIRTUAL_DONE_COLUMN_ID, name: "Done",
-                           description: "", kind: .done, statusList: nil)
+                           description: "", kind: .done)
     }
 
     private func completedTask(id: String, completedAgo: TimeInterval) -> Task {

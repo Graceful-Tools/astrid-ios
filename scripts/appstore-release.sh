@@ -204,6 +204,73 @@ EXPORT_RC=${PIPESTATUS[0]}
 set -e
 [ "$EXPORT_RC" -eq 0 ] || fail "the $([ "$UPLOAD" = 1 ] && echo upload || echo export) step failed. Search $LOG for 'error:'"
 
+# --- Signed entitlements ---------------------------------------------------------
+#
+# Checked on the EXPORTED artifact, not the archive. `archive` signs with a development
+# profile and `-exportArchive` RE-SIGNS with the distribution one, so the archive's copy
+# of an extension can be carrying the team wildcard profile (`34K3P7PD2W.*`) — which by
+# construction cannot hold an App Group. Only the export is the thing that ships.
+#
+# Why check at all: codesign silently DROPS an entitlement whose capability is not enabled
+# on the App ID. It does not warn and it does not fail, so a target ships without an
+# entitlement its .entitlements file plainly asks for and nothing says otherwise.
+#
+# That is what happened to the Share Extension (task a915a6b2). Commit b2677c2 fixed the
+# App Group mismatch in the FILES; the extension's App ID still had no APP_GROUPS
+# capability, so every build signed the appex with no `application-groups` at all.
+# `containerURL(forSecurityApplicationGroupIdentifier:)` then returns nil and every
+# ShareDataManager read and write quietly does nothing — the same silent failure b2677c2
+# was meant to end. The task that filed it expected a SIGNING FAILURE to be the tell.
+# There is none. This is the tell.
+step "Verifying signed entitlements"
+
+IPA=$(ls "$EXPORT_DIR"/*.ipa 2>/dev/null | head -1)
+if [ -z "$IPA" ]; then
+  # Never pass silently: an unverified upload is the situation this exists to prevent.
+  fail "no .ipa in $EXPORT_DIR, so the signed entitlements could not be checked."
+fi
+
+VERIFY_DIR="$BUILD_DIR/.entitlement-check"
+rm -rf "$VERIFY_DIR"; mkdir -p "$VERIFY_DIR"
+unzip -q "$IPA" -d "$VERIFY_DIR" || fail "could not unpack $IPA to check its entitlements."
+
+check_app_groups() {   # $1 = bundle inside the ipa, $2 = source .entitlements it was built from
+  [ -e "$1" ] || fail "expected bundle $1 in the export, and it is not there."
+  # NOT a silent skip: a missing entitlements file is exactly the shape of the bug this
+  # guard exists for, and returning 0 here once turned a moved file into a green run.
+  [ -f "$2" ] || fail "$2 does not exist, so $(basename "$1") could not be checked. If the file moved, update this script."
+
+  local want signed missing=""
+  want=$(/usr/libexec/PlistBuddy -c "Print :com.apple.security.application-groups" "$2" 2>/dev/null \
+         | sed -n 's/^ *\(group\..*\)$/\1/p')
+  [ -n "$want" ] || return 0          # this bundle asks for no groups; nothing to drop
+
+  signed=$(codesign -d --entitlements :- "$1" 2>/dev/null | plutil -p - 2>/dev/null || true)
+  for group in $want; do
+    case "$signed" in *"$group"*) ;; *) missing="$missing $group" ;; esac
+  done
+
+  if [ -n "$missing" ]; then
+    fail "$(basename "$1") was signed WITHOUT App Group(s)$missing, which $2 asks for.
+  codesign drops an entitlement the App ID has no capability for, without failing — so the
+  build looks fine and the group container is unreachable at runtime.
+  Fix: developer.apple.com -> Certificates, Identifiers & Profiles -> Identifiers -> the App ID
+  for this bundle -> App Groups -> Configure -> tick$missing -> Save. Then re-run this script;
+  -allowProvisioningUpdates regenerates the profile."
+  fi
+  green "✓ $(basename "$1") signed with:$(echo $want | tr '\n' ' ')"
+}
+
+if [ "$TARGET" = "ios" ]; then
+  APP_BUNDLE=$(ls -d "$VERIFY_DIR"/Payload/*.app 2>/dev/null | head -1)
+  check_app_groups "$APP_BUNDLE" "$ROOT/Astrid App/Astrid App.entitlements"
+  for appex in "$APP_BUNDLE"/PlugIns/*.appex; do
+    check_app_groups "$appex" "$ROOT/Astrid/Astrid.entitlements"
+  done
+fi
+rm -rf "$VERIFY_DIR"
+
+
 if [ "$UPLOAD" = "0" ]; then
   done_ok "$SCHEME $VERSION built and signed as build $BUILD_NUM. Nothing was uploaded — re-run with --upload to send it to Apple. Artifact: $EXPORT_DIR"
   exit 0
