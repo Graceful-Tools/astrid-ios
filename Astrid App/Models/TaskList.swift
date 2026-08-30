@@ -28,6 +28,9 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
     var fallbackAiProvider: String?
     var githubRepositoryId: String?
     var aiAgentsEnabled: [String]?
+    /// Full per-list agent config as the server emits it beside `aiAgentsEnabled`
+    /// (added 2026-08-29). Carries the default agent the array cannot express.
+    var aiAgentConfig: ListAgentConfig?
     var aiAgentConfiguredBy: String?
     var copyCount: Int?
     var createdAt: Date?
@@ -80,7 +83,7 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
         case defaultAssigneeId, defaultAssignee, defaultPriority, defaultRepeating
         case defaultIsPrivate, defaultDueDate, defaultDueTime
         case mcpEnabled, mcpAccessLevel, aiAstridEnabled
-        case preferredAiProvider, fallbackAiProvider, githubRepositoryId, aiAgentsEnabled
+        case preferredAiProvider, fallbackAiProvider, githubRepositoryId, aiAgentsEnabled, aiAgentConfig
         case aiAgentConfiguredBy, copyCount
         case createdAt, updatedAt, description, tasks, taskCount
         case isFavorite, favoriteOrder, isVirtual, virtualListType, sortBy, manualSortOrder
@@ -94,6 +97,215 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
     var displayColor: String {
         color ?? "#3b82f6"
     }
+
+    // MARK: - Memberwise init
+
+    /// The memberwise init Swift stops synthesizing once `init(from:)` exists — same parameter
+    /// order as the declarations above, every optional defaulting to nil, so call sites are unchanged.
+    init(
+        id: String,
+        name: String,
+        color: String? = nil,
+        imageUrl: String? = nil,
+        coverImageUrl: String? = nil,
+        privacy: Privacy? = nil,
+        publicListType: String? = nil,
+        ownerId: String? = nil,
+        owner: User? = nil,
+        admins: [User]? = nil,
+        members: [User]? = nil,
+        listMembers: [ListMember]? = nil,
+        invitations: [ListInvite]? = nil,
+        defaultAssigneeId: String? = nil,
+        defaultAssignee: User? = nil,
+        defaultPriority: Int? = nil,
+        defaultRepeating: String? = nil,
+        defaultIsPrivate: Bool? = nil,
+        defaultDueDate: String? = nil,
+        defaultDueTime: String? = nil,
+        mcpEnabled: Bool? = nil,
+        mcpAccessLevel: String? = nil,
+        aiAstridEnabled: Bool? = nil,
+        preferredAiProvider: String? = nil,
+        fallbackAiProvider: String? = nil,
+        githubRepositoryId: String? = nil,
+        aiAgentsEnabled: [String]? = nil,
+        aiAgentConfig: ListAgentConfig? = nil,
+        aiAgentConfiguredBy: String? = nil,
+        copyCount: Int? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil,
+        description: String? = nil,
+        tasks: [Task]? = nil,
+        taskCount: Int? = nil,
+        isFavorite: Bool? = nil,
+        favoriteOrder: Int? = nil,
+        isVirtual: Bool? = nil,
+        virtualListType: String? = nil,
+        sortBy: String? = nil,
+        manualSortOrder: [String]? = nil,
+        showSubtasks: Bool? = nil,
+        filterCompletion: String? = nil,
+        filterDueDate: String? = nil,
+        filterAssignee: String? = nil,
+        filterAssignedBy: String? = nil,
+        filterRepeating: String? = nil,
+        filterPriority: String? = nil,
+        filterInLists: String? = nil,
+        projectId: String? = nil,
+        listType: String? = nil,
+        statusRole: String? = nil,
+        statusOrder: Int? = nil,
+        statusDescription: String? = nil,
+        statusCompleted: Bool? = nil,
+        recentlyCompletedWindow: RecentlyCompletedWindow? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.imageUrl = imageUrl
+        self.coverImageUrl = coverImageUrl
+        self.privacy = privacy
+        self.publicListType = publicListType
+        self.ownerId = ownerId
+        self.owner = owner
+        self.admins = admins
+        self.members = members
+        self.listMembers = listMembers
+        self.invitations = invitations
+        self.defaultAssigneeId = defaultAssigneeId
+        self.defaultAssignee = defaultAssignee
+        self.defaultPriority = defaultPriority
+        self.defaultRepeating = defaultRepeating
+        self.defaultIsPrivate = defaultIsPrivate
+        self.defaultDueDate = defaultDueDate
+        self.defaultDueTime = defaultDueTime
+        self.mcpEnabled = mcpEnabled
+        self.mcpAccessLevel = mcpAccessLevel
+        self.aiAstridEnabled = aiAstridEnabled
+        self.preferredAiProvider = preferredAiProvider
+        self.fallbackAiProvider = fallbackAiProvider
+        self.githubRepositoryId = githubRepositoryId
+        self.aiAgentsEnabled = aiAgentsEnabled
+        self.aiAgentConfig = aiAgentConfig
+        self.aiAgentConfiguredBy = aiAgentConfiguredBy
+        self.copyCount = copyCount
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.description = description
+        self.tasks = tasks
+        self.taskCount = taskCount
+        self.isFavorite = isFavorite
+        self.favoriteOrder = favoriteOrder
+        self.isVirtual = isVirtual
+        self.virtualListType = virtualListType
+        self.sortBy = sortBy
+        self.manualSortOrder = manualSortOrder
+        self.showSubtasks = showSubtasks
+        self.filterCompletion = filterCompletion
+        self.filterDueDate = filterDueDate
+        self.filterAssignee = filterAssignee
+        self.filterAssignedBy = filterAssignedBy
+        self.filterRepeating = filterRepeating
+        self.filterPriority = filterPriority
+        self.filterInLists = filterInLists
+        self.projectId = projectId
+        self.listType = listType
+        self.statusRole = statusRole
+        self.statusOrder = statusOrder
+        self.statusDescription = statusDescription
+        self.statusCompleted = statusCompleted
+        self.recentlyCompletedWindow = recentlyCompletedWindow
+    }
+
+    // MARK: - Decoding
+
+    /// Hand-written so that ONE field on ONE list can never fail the decode of the whole
+    /// `/api/v1/lists` response. On 2026-08-29 a single list carrying `aiAgentsEnabled` in
+    /// the server's stored object form `{ enabledTypes, defaultAgentId }` threw a typeMismatch
+    /// at `lists[10].aiAgentsEnabled`, and because the array decodes as a unit, every list in
+    /// the account vanished ("offline mode, 0 lists"). Everything else is decoded exactly as the
+    /// synthesized init would; `encode(to:)` stays synthesized so PUT bodies keep sending the
+    /// plain array the server has always accepted.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        coverImageUrl = try c.decodeIfPresent(String.self, forKey: .coverImageUrl)
+        privacy = try c.decodeIfPresent(Privacy.self, forKey: .privacy)
+        publicListType = try c.decodeIfPresent(String.self, forKey: .publicListType)
+        ownerId = try c.decodeIfPresent(String.self, forKey: .ownerId)
+        owner = try c.decodeIfPresent(User.self, forKey: .owner)
+        admins = try c.decodeIfPresent([User].self, forKey: .admins)
+        members = try c.decodeIfPresent([User].self, forKey: .members)
+        listMembers = try c.decodeIfPresent([ListMember].self, forKey: .listMembers)
+        invitations = try c.decodeIfPresent([ListInvite].self, forKey: .invitations)
+        defaultAssigneeId = try c.decodeIfPresent(String.self, forKey: .defaultAssigneeId)
+        defaultAssignee = try c.decodeIfPresent(User.self, forKey: .defaultAssignee)
+        defaultPriority = try c.decodeIfPresent(Int.self, forKey: .defaultPriority)
+        defaultRepeating = try c.decodeIfPresent(String.self, forKey: .defaultRepeating)
+        defaultIsPrivate = try c.decodeIfPresent(Bool.self, forKey: .defaultIsPrivate)
+        defaultDueDate = try c.decodeIfPresent(String.self, forKey: .defaultDueDate)
+        defaultDueTime = try c.decodeIfPresent(String.self, forKey: .defaultDueTime)
+        mcpEnabled = try c.decodeIfPresent(Bool.self, forKey: .mcpEnabled)
+        mcpAccessLevel = try c.decodeIfPresent(String.self, forKey: .mcpAccessLevel)
+        aiAstridEnabled = try c.decodeIfPresent(Bool.self, forKey: .aiAstridEnabled)
+        preferredAiProvider = try c.decodeIfPresent(String.self, forKey: .preferredAiProvider)
+        fallbackAiProvider = try c.decodeIfPresent(String.self, forKey: .fallbackAiProvider)
+        githubRepositoryId = try c.decodeIfPresent(String.self, forKey: .githubRepositoryId)
+
+        // `aiAgentsEnabled`: the contract says string[], the server once leaked its stored
+        // object form, and null/absent are both common. Accept all three.
+        let sibling = try c.decodeIfPresent(ListAgentConfig.self, forKey: .aiAgentConfig)
+        if let types = try? c.decodeIfPresent([String].self, forKey: .aiAgentsEnabled) {
+            aiAgentsEnabled = types
+            aiAgentConfig = sibling
+        } else if let embedded = try? c.decodeIfPresent(ListAgentConfig.self, forKey: .aiAgentsEnabled) {
+            aiAgentsEnabled = embedded.enabledTypes
+            aiAgentConfig = sibling ?? embedded
+        } else {
+            aiAgentsEnabled = nil
+            aiAgentConfig = sibling
+        }
+
+        aiAgentConfiguredBy = try c.decodeIfPresent(String.self, forKey: .aiAgentConfiguredBy)
+        copyCount = try c.decodeIfPresent(Int.self, forKey: .copyCount)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        tasks = try c.decodeIfPresent([Task].self, forKey: .tasks)
+        taskCount = try c.decodeIfPresent(Int.self, forKey: .taskCount)
+        isFavorite = try c.decodeIfPresent(Bool.self, forKey: .isFavorite)
+        favoriteOrder = try c.decodeIfPresent(Int.self, forKey: .favoriteOrder)
+        isVirtual = try c.decodeIfPresent(Bool.self, forKey: .isVirtual)
+        virtualListType = try c.decodeIfPresent(String.self, forKey: .virtualListType)
+        sortBy = try c.decodeIfPresent(String.self, forKey: .sortBy)
+        manualSortOrder = try c.decodeIfPresent([String].self, forKey: .manualSortOrder)
+        showSubtasks = try c.decodeIfPresent(Bool.self, forKey: .showSubtasks)
+        filterCompletion = try c.decodeIfPresent(String.self, forKey: .filterCompletion)
+        filterDueDate = try c.decodeIfPresent(String.self, forKey: .filterDueDate)
+        filterAssignee = try c.decodeIfPresent(String.self, forKey: .filterAssignee)
+        filterAssignedBy = try c.decodeIfPresent(String.self, forKey: .filterAssignedBy)
+        filterRepeating = try c.decodeIfPresent(String.self, forKey: .filterRepeating)
+        filterPriority = try c.decodeIfPresent(String.self, forKey: .filterPriority)
+        filterInLists = try c.decodeIfPresent(String.self, forKey: .filterInLists)
+        projectId = try c.decodeIfPresent(String.self, forKey: .projectId)
+        listType = try c.decodeIfPresent(String.self, forKey: .listType)
+        statusRole = try c.decodeIfPresent(String.self, forKey: .statusRole)
+        statusOrder = try c.decodeIfPresent(Int.self, forKey: .statusOrder)
+        statusDescription = try c.decodeIfPresent(String.self, forKey: .statusDescription)
+        statusCompleted = try c.decodeIfPresent(Bool.self, forKey: .statusCompleted)
+        recentlyCompletedWindow = try c.decodeIfPresent(RecentlyCompletedWindow.self, forKey: .recentlyCompletedWindow)
+    }
+}
+
+/// `{ enabledTypes, defaultAgentId }` — the shape the server stores and, since 2026-08-29,
+/// emits as `aiAgentConfig` beside the plain `aiAgentsEnabled` array.
+struct ListAgentConfig: Codable, Equatable, Hashable {
+    var enabledTypes: [String]
+    var defaultAgentId: String?
 }
 
 struct ListMember: Identifiable, Codable, Equatable, Hashable {
