@@ -13,6 +13,7 @@
 import Foundation
 import SwiftUI
 import AuthenticationServices
+import UserNotifications
 
 #if canImport(UIKit)
 import UIKit
@@ -39,8 +40,11 @@ public enum PlatformApplication {
     /// Set the Dock / app-icon badge. Pass 0 to clear.
     public static func setBadgeCount(_ count: Int) {
         #if canImport(UIKit)
-        // iOS 17+: UNUserNotificationCenter.current().setBadgeCount — keep existing call site.
-        UIApplication.shared.applicationIconBadgeNumber = count
+        UNUserNotificationCenter.current().setBadgeCount(count) { error in
+            if let error {
+                print("❌ [PlatformApplication] Failed to set badge count: \(error)")
+            }
+        }
         #elseif canImport(AppKit)
         NSApp.dockTile.badgeLabel = count > 0 ? String(count) : nil
         #endif
