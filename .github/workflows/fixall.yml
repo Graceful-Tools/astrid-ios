@@ -44,7 +44,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          ref: main
+          # Temporary pin for the structured queue contract in astrid-web PR #251.
+          # Return to main (or its merge commit) after that PR lands, before merging this PR.
+          ref: defc3599a3063db67e10d7d4dd600dab0ffbf76d
           path: astrid-web
           persist-credentials: false
 
@@ -78,28 +80,11 @@ jobs:
             DRY_RUN_ARGS+=(--dry-run)
           fi
 
-          OUTPUT=$(npx tsx scripts/ready-tasks.ts ios --harness "${HARNESS}" "${DRY_RUN_ARGS[@]}" 2>&1)
-          echo "${OUTPUT}"
+          QUEUE_JSON=$(npx tsx scripts/ready-tasks.ts ios --json --harness "${HARNESS}" "${DRY_RUN_ARGS[@]}")
 
           TASK_IDS=$(
-            printf '%s\n' "${OUTPUT}" |
-              awk '
-                /^(READY|RECHECK|REVIEW) \([0-9]+\)/ { in_work_section = 1; next }
-                in_work_section && /^  [[:xdigit:]-]+  / {
-                  id = $1
-                  count = split(id, part, "-")
-                  if (
-                    count == 5 &&
-                    length(part[1]) == 8 &&
-                    length(part[2]) == 4 &&
-                    length(part[3]) == 4 &&
-                    length(part[4]) == 4 &&
-                    length(part[5]) == 12
-                  ) print id
-                  next
-                }
-                in_work_section && !/^  / { in_work_section = 0 }
-              ' |
+            printf '%s' "${QUEUE_JSON}" |
+              npx tsx scripts/parse-ready-tasks-output.ts |
               paste -sd, -
           )
           if [ -n "${TASK_IDS}" ]; then
@@ -161,7 +146,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          ref: main
+          # Keep this identical to the queue checkout above.
+          ref: defc3599a3063db67e10d7d4dd600dab0ffbf76d
           path: astrid-web
           persist-credentials: false
 
