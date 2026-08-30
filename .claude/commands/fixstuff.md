@@ -9,10 +9,11 @@ Pull tasks from the Astrid iOS to-do list and work through them until the list i
 
 2. **Pull the queue**:
    ```bash
-   cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios
+   cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios --harness copilot
    ```
-   Same script the web loop uses, with the board as an argument: `Ready` ∩
-   `Astrid iOS To-do`, and only tasks that are unassigned or assigned to Claude.
+   Same script the web loop uses, with the board and harness as arguments:
+   incomplete ∩ `Ready` ∩ `Astrid iOS To-do`, and only tasks that are
+   unassigned or assigned to Copilot.
 
    **An assignee is a claim.** A task assigned to a person is that person's even
    when it is in Ready; the script names whoever it skipped. If something assigned
