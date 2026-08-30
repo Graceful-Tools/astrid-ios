@@ -105,6 +105,25 @@ enum SyncPassFloor {
     }
 }
 
+/// Bounds first-time remote mirroring so a large linked Astrid list cannot turn
+/// one provider pass into hundreds of sequential create/link requests.
+enum SyncPushBatch {
+    static let defaultBudget = 5
+
+    struct Selection: Equatable {
+        let taskIds: [String]
+        let hasMore: Bool
+    }
+
+    nonisolated static func select(taskIds: [String], budget: Int) -> Selection {
+        let limit = max(0, budget)
+        return Selection(
+            taskIds: Array(taskIds.prefix(limit)),
+            hasMore: taskIds.count > limit
+        )
+    }
+}
+
 /// Shared time gate for expensive complete remote listings. Only successful,
 /// non-truncated pulls update the stored timestamp at the call site.
 enum FullPullThrottle {

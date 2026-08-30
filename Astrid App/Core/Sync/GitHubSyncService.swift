@@ -373,6 +373,11 @@ final class GitHubSyncService: ObservableObject {
                     && !$0.id.hasPrefix("temp_")     // wait for the Outbox to sync the create
             }
             .sorted { ($0.parentTaskId == nil ? 0 : 1) < ($1.parentTaskId == nil ? 0 : 1) }
+        let unlinkedSelection = SyncPushBatch.select(
+            taskIds: listTasks.filter { byTaskId[$0.id] == nil }.map(\.id),
+            budget: SyncPushBatch.defaultBudget)
+        let unlinkedTaskIds = Set(unlinkedSelection.taskIds)
+        var completedUnlinkedWork = 0
         var fullRemoteItems: [GitHubIssueItemDTO]?  // lazy, one cursor-free fetch per pass
         var fullListingTruncated = true             // trust only an explicit server flag
         var fullListingUnavailable = false
@@ -427,6 +432,7 @@ final class GitHubSyncService: ObservableObject {
                 byTaskId[task.id] = refreshed
                 byRemoteId[existing.remoteId] = refreshed
             } else {
+                guard unlinkedTaskIds.contains(task.id) else { continue }
                 // Push-side adopt guard: before CREATING a remote issue for an
                 // unlinked task, scan the FULL remote list (cursor-free, fetched
                 // once per pass) for an unlinked same-title issue and link to it
@@ -444,7 +450,7 @@ final class GitHubSyncService: ObservableObject {
                     byRemoteId[$0.remoteId] == nil && $0.title == task.title
                 })
                 if let candidate {
-                    try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                    try await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: candidate.remoteId,
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt, remoteUpdatedAt: candidate.remoteUpdatedAt,
@@ -454,6 +460,7 @@ final class GitHubSyncService: ObservableObject {
                         remoteContainerId: link.remoteContainerId,
                         astridUpdatedAt: task.updatedAt,
                         remoteUpdatedAt: RFC3339.parse(candidate.remoteUpdatedAt), metadata: candidate.metadata)
+                    completedUnlinkedWork += 1
                     continue
                 }
                 guard SyncAdoptionSafety.mayCreateRemote(
@@ -475,11 +482,12 @@ final class GitHubSyncService: ObservableObject {
                         linkId: link.id, title: nil, body: nil,
                         state: "closed", remoteId: response.remoteId))
                 }
-                try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
+                try await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                     astridTaskId: task.id, remoteId: response.remoteId,
                     remoteContainerId: link.remoteContainerId,
                     astridUpdatedAt: task.updatedAt, remoteUpdatedAt: response.remoteUpdatedAt,
                     metadata: nil))
+                completedUnlinkedWork += 1
             }
           } catch {
             // One task's push failing (e.g. its issue was deleted remotely)
@@ -487,6 +495,10 @@ final class GitHubSyncService: ObservableObject {
             pushErrors += 1
             print("⚠️ [GitHubSync] push failed for \(task.id): \(error)")
           }
+        }
+        if unlinkedSelection.hasMore,
+           completedUnlinkedWork == unlinkedSelection.taskIds.count {
+            rerunAfterPass = true
         }
         if pushErrors > 0 {
             lastError = "\(link.remoteContainerId): \(pushErrors) task(s) failed to push"
