@@ -46,9 +46,15 @@ jobs:
         if: ${{ inputs.mode == 'quick' }}
         run: npm run predeploy:quick
 
-      - name: Run predeploy (full — unit + UI tests)
+      - name: Run predeploy (full — through unit tests)
         if: ${{ inputs.mode == 'full' }}
-        run: npm run predeploy:full
+        run: npm run predeploy
+
+      - name: Run UI tests (full)
+        if: ${{ inputs.mode == 'full' }}
+        env:
+          ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
+        run: npm run test:ui
 
       - name: Summary
         if: always()

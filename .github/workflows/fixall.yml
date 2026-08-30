@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       harness:
-        description: 'Agent harness identity (determines which assigned tasks are claimed)'
+        description: 'Agent identity to claim (must match ASTRID_MCP_TOKEN)'
         required: false
         default: 'github-copilot'
         type: choice
@@ -38,35 +38,78 @@ jobs:
     outputs:
       has_tasks: ${{ steps.list.outputs.has_tasks }}
       task_count: ${{ steps.list.outputs.task_count }}
+      task_ids: ${{ steps.list.outputs.task_ids }}
     steps:
-      - name: Checkout
+      - name: Checkout Astrid task tooling
         uses: actions/checkout@v4
+        with:
+          repository: Graceful-Tools/astrid-web
+          ref: main
+          path: astrid-web
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: astrid-web/package-lock.json
 
-      - name: Install dependencies
+      - name: Install Astrid task-tool dependencies
+        working-directory: astrid-web
         run: npm ci
 
       - name: List ready tasks
         id: list
+        working-directory: astrid-web
         env:
-          ASTRID_MCP_TOKEN: ${{ secrets.ASTRID_MCP_TOKEN }}
+          ASTRID_OAUTH_CLIENT_ID: ${{ secrets.ASTRID_OAUTH_CLIENT_ID }}
+          ASTRID_OAUTH_CLIENT_SECRET: ${{ secrets.ASTRID_OAUTH_CLIENT_SECRET }}
           # Scheduled runs always use github-copilot so only tasks assigned to
           # copilot@<domain> are claimed. Manual dispatch can override this.
           ASTRID_FIXALL_HARNESS: ${{ inputs.harness || 'github-copilot' }}
+          ASTRID_FIXALL_DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
           HARNESS="${ASTRID_FIXALL_HARNESS}"
           echo "Fetching ready iOS tasks for harness: ${HARNESS}"
 
-          OUTPUT=$(npx tsx scripts/ready-tasks.ts --harness "${HARNESS}" ios 2>&1)
+          DRY_RUN_ARGS=()
+          if [ "${ASTRID_FIXALL_DRY_RUN}" = "true" ]; then
+            DRY_RUN_ARGS+=(--dry-run)
+          fi
+
+          OUTPUT=$(npx tsx scripts/ready-tasks.ts ios --harness "${HARNESS}" "${DRY_RUN_ARGS[@]}" 2>&1)
           echo "${OUTPUT}"
 
-          TASK_COUNT=$(echo "${OUTPUT}" | grep -c '"id"' || true)
+          TASK_IDS=$(
+            printf '%s\n' "${OUTPUT}" |
+              awk '
+                /^(READY|RECHECK|REVIEW) \([0-9]+\)/ { in_work_section = 1; next }
+                in_work_section && /^  [[:xdigit:]-]+  / {
+                  id = $1
+                  count = split(id, part, "-")
+                  if (
+                    count == 5 &&
+                    length(part[1]) == 8 &&
+                    length(part[2]) == 4 &&
+                    length(part[3]) == 4 &&
+                    length(part[4]) == 4 &&
+                    length(part[5]) == 12
+                  ) print id
+                  next
+                }
+                in_work_section && !/^  / { in_work_section = 0 }
+              ' |
+              paste -sd, -
+          )
+          if [ -n "${TASK_IDS}" ]; then
+            TASK_COUNT=$(awk -F, '{ print NF }' <<< "${TASK_IDS}")
+          else
+            TASK_COUNT=0
+          fi
+
           echo "task_count=${TASK_COUNT}" >> "${GITHUB_OUTPUT}"
+          echo "task_ids=${TASK_IDS}" >> "${GITHUB_OUTPUT}"
 
           if [ "${TASK_COUNT}" -gt 0 ]; then
             echo "has_tasks=true" >> "${GITHUB_OUTPUT}"
@@ -106,30 +149,92 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Work ready tasks via Astrid coding agent
+      - name: Run standard predeploy checks
+        run: npm run predeploy
+
+      - name: Run UI tests
+        env:
+          ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
+        run: npm run test:ui
+
+      - name: Checkout Astrid task tooling
+        uses: actions/checkout@v4
+        with:
+          repository: Graceful-Tools/astrid-web
+          ref: main
+          path: astrid-web
+          persist-credentials: false
+
+      - name: Install Astrid task-tool dependencies
+        working-directory: astrid-web
+        run: npm ci
+
+      - name: Trigger Astrid coding agent for each ready task
         env:
           ASTRID_MCP_TOKEN: ${{ secrets.ASTRID_MCP_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASTRID_OAUTH_CLIENT_ID: ${{ secrets.ASTRID_OAUTH_CLIENT_ID }}
+          ASTRID_OAUTH_CLIENT_SECRET: ${{ secrets.ASTRID_OAUTH_CLIENT_SECRET }}
+          ASTRID_OAUTH_LIST_ID: a623f322-4c3c-49b5-8a94-d2d9f00c82ba
+          ASTRID_WEBHOOK_URL: ${{ secrets.ASTRID_WEBHOOK_URL || 'https://astrid.cc' }}
           ASTRID_FIXALL_HARNESS: ${{ inputs.harness || 'github-copilot' }}
+          ASTRID_FIXALL_TASK_IDS: ${{ needs.list-ready-tasks.outputs.task_ids }}
         run: |
           HARNESS="${ASTRID_FIXALL_HARNESS}"
           TASK_COUNT="${{ needs.list-ready-tasks.outputs.task_count }}"
           echo "Working ready iOS tasks for harness: ${HARNESS}"
           echo "Task count: ${TASK_COUNT}"
-          echo ""
-          echo "NOTE: Each task committed to its own branch. No merges or deploys."
-          echo ""
+
+          case "${HARNESS}" in
+            github-copilot) AGENT_EMAIL="copilot@astrid.cc" ;;
+            claude-code) AGENT_EMAIL="claude@astrid.cc" ;;
+            codex) AGENT_EMAIL="codex@astrid.cc" ;;
+            astrid-server) AGENT_EMAIL="astrid@astrid.cc" ;;
+            *)
+              echo "Unsupported harness: ${HARNESS}" >&2
+              exit 1
+              ;;
+          esac
+
+          IFS=',' read -ra TASK_IDS <<< "${ASTRID_FIXALL_TASK_IDS}"
+          for TASK_ID in "${TASK_IDS[@]}"; do
+            (
+              cd astrid-web
+              npx tsx scripts/assign-task.ts "${TASK_ID}" "${AGENT_EMAIL}"
+            )
+
+            echo "Triggering coding agent for task ${TASK_ID}"
+            PAYLOAD=$(node -e '
+              const [taskId, repository, ref, sha, actor, workflow, runId, runNumber] = process.argv.slice(1)
+              process.stdout.write(JSON.stringify({
+                taskId,
+                githubContext: { repository, ref, sha, actor, workflow, runId, runNumber }
+              }))
+            ' \
+              "${TASK_ID}" \
+              "${{ github.repository }}" \
+              "${{ github.ref }}" \
+              "${{ github.sha }}" \
+              "${{ github.actor }}" \
+              "${{ github.workflow }}" \
+              "${{ github.run_id }}" \
+              "${{ github.run_number }}")
+
+            curl --fail-with-body --silent --show-error \
+              -X POST "${ASTRID_WEBHOOK_URL}/api/coding-agent/github-trigger" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${ASTRID_MCP_TOKEN}" \
+              --data "${PAYLOAD}"
+            echo ""
+          done
 
           {
             echo "## Fix All Summary (iOS)"
             echo "- Harness: \`${HARNESS}\`"
-            echo "- Tasks attempted: ${TASK_COUNT}"
+            echo "- Tasks triggered: ${TASK_COUNT}"
+            echo "- Local predeploy gate: passed"
             echo ""
-            echo "> Tasks are committed on feature branches. Merge and deploy separately."
+            echo "> Each task is handed to the Astrid coding agent. Merge and deploy separately."
           } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Run complete predeploy checks
-        run: npm run predeploy:full
 
   no-tasks:
     name: 'Nothing to do'
