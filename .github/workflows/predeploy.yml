@@ -17,7 +17,7 @@ on:
 jobs:
   predeploy:
     name: 'Run Predeploy Checks'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,15 +31,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure Xcode tools on PATH
+        run: |
+          # Runner shells are non-login and don't inherit /usr/bin/xcodebuild
+          # via xcode-select. Resolve it explicitly.
+          XCODE_PATH=$(xcode-select -p 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer")
+          echo "${XCODE_PATH}/usr/bin" >> "${GITHUB_PATH}"
+          echo "DEVELOPER_DIR=${XCODE_PATH}" >> "${GITHUB_ENV}"
+
       - name: Run predeploy (standard)
         if: ${{ inputs.mode == 'standard' }}
         run: npm run predeploy
 
-      - name: Run predeploy (quick — TS + lint only)
+      - name: Run predeploy (quick — TS + lint + build)
         if: ${{ inputs.mode == 'quick' }}
         run: npm run predeploy:quick
 
-      - name: Run predeploy (full — includes E2E)
+      - name: Run predeploy (full)
         if: ${{ inputs.mode == 'full' }}
         run: npm run predeploy:full
 
