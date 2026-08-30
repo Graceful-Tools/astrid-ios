@@ -8,15 +8,30 @@ on:
   workflow_dispatch:
     inputs:
       include_ui_tests:
-        description: 'Include UI tests (slower, requires simulator)'
+        description: 'Include UI tests (requires simulator or connected device)'
         required: false
         default: false
         type: boolean
+      runner:
+        description: 'Runner to use'
+        required: false
+        default: 'self-hosted'
+        type: choice
+        options:
+          - self-hosted
+          - macos-latest
+
+# Self-hosted Mac is preferred: faster builds, no simulator spin-up delay,
+# can target a real connected device. Falls back to macos-latest if the
+# runner is offline (set runner input to macos-latest manually).
+env:
+  RUNNER: ${{ inputs.runner || 'self-hosted' }}
 
 jobs:
   unit-tests:
     name: 'Unit Tests'
-    runs-on: macos-latest
+    # Uses self-hosted Mac runner by default; fall back via manual dispatch
+    runs-on: ${{ inputs.runner || 'self-hosted' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,9 +59,8 @@ jobs:
           retention-days: 14
 
   ui-tests:
-    name: 'UI Tests (Simulator)'
-    runs-on: macos-latest
-    # Run on PRs to main, manual dispatch with ui flag, or push to main
+    name: 'UI Tests (Simulator / Device)'
+    runs-on: ${{ inputs.runner || 'self-hosted' }}
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.base_ref == 'main') ||
@@ -67,16 +81,24 @@ jobs:
       - name: Select Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app
 
-      - name: Boot simulator
+      - name: Boot simulator (if no real device attached)
         run: |
-          UDID=$(xcrun simctl list devices available | grep "iPhone 17 " | head -1 | grep -o '[A-F0-9-]\{36\}')
-          if [ -z "${UDID}" ]; then
-            # Fall back to iPhone 16 if 17 not available
-            UDID=$(xcrun simctl list devices available | grep "iPhone 16 " | head -1 | grep -o '[A-F0-9-]\{36\}')
+          # Check for a connected real device first
+          REAL_DEVICE=$(xcrun xctrace list devices 2>/dev/null | grep -v Simulator | grep iPhone | head -1 || true)
+          if [ -n "${REAL_DEVICE}" ]; then
+            echo "✅ Real device found: ${REAL_DEVICE}"
+            echo "DESTINATION=platform=iOS,name=$(echo ${REAL_DEVICE} | sed 's/ (.*)//')" >> "${GITHUB_ENV}"
+          else
+            echo "No real device — using simulator"
+            UDID=$(xcrun simctl list devices available | grep "iPhone 17 " | head -1 | grep -oE '[A-F0-9-]{36}' || true)
+            if [ -z "${UDID}" ]; then
+              UDID=$(xcrun simctl list devices available | grep "iPhone 16 " | head -1 | grep -oE '[A-F0-9-]{36}' || true)
+            fi
+            echo "Booting simulator: ${UDID}"
+            xcrun simctl boot "${UDID}" 2>/dev/null || true
+            xcrun simctl bootstatus "${UDID}" -b
+            echo "DESTINATION=platform=iOS Simulator,name=iPhone 17" >> "${GITHUB_ENV}"
           fi
-          echo "Booting simulator: ${UDID}"
-          xcrun simctl boot "${UDID}" || true
-          xcrun simctl bootstatus "${UDID}" -b
 
       - name: Run UI tests
         run: npm run test:ui
@@ -94,7 +116,7 @@ jobs:
 
   build-check:
     name: 'Build Check'
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner || 'self-hosted' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
