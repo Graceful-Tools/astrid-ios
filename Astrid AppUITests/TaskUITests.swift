@@ -117,6 +117,8 @@ final class TaskUITests: XCTestCase {
         // The row's own title, which is the first static text inside it.
         let title = firstRow.staticTexts.firstMatch.label
         XCTAssertFalse(title.isEmpty, "a task row should carry its title")
+        let remaining = app.staticTexts.matching(NSPredicate(format: "label == %@", title))
+        let initialCount = remaining.count
 
         // The checkbox is the row's `taskRow`-identified BUTTON — the title beside it carries
         // the same identifier, which is exactly the trap that made tapping a row complete it
@@ -130,13 +132,12 @@ final class TaskUITests: XCTestCase {
         // Completing re-sorts the list and drops the task out of it. Poll rather than sleep,
         // and say WHICH title was being watched if it never goes — a bare timeout on a
         // predicate cannot tell "the tap did nothing" from "the wrong text was captured".
-        let remaining = app.staticTexts.matching(NSPredicate(format: "label == %@", title))
         let deadline = Date().addingTimeInterval(10)
-        while remaining.count > 0 && Date() < deadline {
+        while remaining.count >= initialCount && Date() < deadline {
             Thread.sleep(forTimeInterval: 0.25)
         }
-        XCTAssertEqual(remaining.count, 0,
-                       "completing should drop \"\(title)\" out of the list; still showing after 10s")
+        XCTAssertEqual(remaining.count, initialCount - 1,
+                       "completing should remove one \"\(title)\" row; count stayed at \(initialCount)")
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "After Task Completion"
