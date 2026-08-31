@@ -34,8 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          # Temporary pin for the structured queue contract in astrid-web PR #251.
-          # Return to main (or its merge commit) after that PR lands, before merging this PR.
+          # Pin the merged structured queue and atomic claim contract from astrid-web PR #251.
           ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
           path: astrid-web
           persist-credentials: false
@@ -138,7 +137,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          # Keep this identical to the queue checkout above.
+          # Keep this identical to the merged contract checkout above.
           ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
           path: astrid-web
           persist-credentials: false
