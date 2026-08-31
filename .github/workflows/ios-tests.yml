@@ -81,13 +81,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout Astrid UI test helper
+        uses: actions/checkout@v4
+        with:
+          repository: Graceful-Tools/astrid-web
+          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
+          path: astrid-web
+          persist-credentials: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            astrid-web/package-lock.json
 
       - name: Install dependencies
+        run: npm ci
+
+      - name: Install Astrid UI test helper dependencies
+        working-directory: astrid-web
         run: npm ci
 
       - name: Ensure Xcode tools on PATH
@@ -101,8 +116,18 @@ jobs:
 
       - name: Run UI tests
         env:
-          ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
-        run: npm run test:ui -- --destination "${DESTINATION}"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          set -euo pipefail
+          cookie="$(cd astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
+          if [ -z "${cookie}" ]; then
+            echo "::error::UI test cookie mint returned empty output"
+            exit 1
+          fi
+          echo "::add-mask::${cookie}"
+          ASTRID_UITEST_COOKIE="${cookie}" npm run test:ui -- --destination "${DESTINATION}"
+          unset cookie
         timeout-minutes: 30
 
       - name: Upload UI test results

@@ -112,13 +112,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout Astrid task and UI test tooling
+        uses: actions/checkout@v4
+        with:
+          repository: Graceful-Tools/astrid-web
+          # Keep this identical to the merged contract checkout used by the queue job.
+          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
+          path: astrid-web
+          persist-credentials: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            astrid-web/package-lock.json
 
       - name: Install dependencies
+        run: npm ci
+
+      - name: Install Astrid task-tool dependencies
+        working-directory: astrid-web
         run: npm ci
 
       - name: Run standard predeploy checks
@@ -126,25 +142,22 @@ jobs:
 
       - name: Run UI tests
         env:
-          ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
-        run: npm run test:ui
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          set -euo pipefail
+          cookie="$(cd astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
+          if [ -z "${cookie}" ]; then
+            echo "::error::UI test cookie mint returned empty output"
+            exit 1
+          fi
+          echo "::add-mask::${cookie}"
+          ASTRID_UITEST_COOKIE="${cookie}" npm run test:ui
+          unset cookie
 
       - name: Run Mac tests
         run: npm run test:mac
         timeout-minutes: 30
-
-      - name: Checkout Astrid task tooling
-        uses: actions/checkout@v4
-        with:
-          repository: Graceful-Tools/astrid-web
-          # Keep this identical to the merged contract checkout above.
-          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
-          path: astrid-web
-          persist-credentials: false
-
-      - name: Install Astrid task-tool dependencies
-        working-directory: astrid-web
-        run: npm ci
 
       - name: Trigger Astrid coding agent for each ready task
         env:
