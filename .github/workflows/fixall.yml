@@ -130,6 +130,10 @@ jobs:
           ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
         run: npm run test:ui
 
+      - name: Run Mac tests
+        run: npm run test:mac
+        timeout-minutes: 30
+
       - name: Checkout Astrid task tooling
         uses: actions/checkout@v4
         with:

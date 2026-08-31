@@ -56,6 +56,11 @@ jobs:
           ASTRID_UITEST_COOKIE: ${{ secrets.ASTRID_UITEST_COOKIE }}
         run: npm run test:ui
 
+      - name: Run Mac tests (full)
+        if: ${{ inputs.mode == 'full' }}
+        run: npm run test:mac
+        timeout-minutes: 30
+
       - name: Summary
         if: always()
         run: |

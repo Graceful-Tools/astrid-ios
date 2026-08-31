@@ -10,6 +10,8 @@
     "test": "./scripts/run-tests.sh",
     "test:ui": "./scripts/run-tests.sh --ui --no-unit",
     "test:all": "./scripts/run-tests.sh --ui",
+    "test:mac": "./scripts/run-mac-tests.sh",
+    "simulator:prepare": "./scripts/prepare-ios-simulator.sh",
     "check:localizations": "./scripts/check-localizations.sh",
     "check:brand": "./scripts/check-brand.sh",
     "check:brands": "./scripts/check-brands.sh",

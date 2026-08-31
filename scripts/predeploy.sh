@@ -73,7 +73,7 @@ echo ""
 STEP=0
 TOTAL_STEPS=5
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=6
+    TOTAL_STEPS=7
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
     TOTAL_STEPS=3
@@ -171,6 +171,20 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
         echo -e "${GREEN}✓ UI tests passed${NC}"
     else
         echo -e "${RED}✗ UI tests failed${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+# Step 7: Mac tests (only with --full)
+if [[ "$RUN_UI_TESTS" == "true" ]]; then
+    STEP=$((STEP + 1))
+    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running Mac tests...${NC}"
+    echo ""
+    if "$SCRIPT_DIR/run-mac-tests.sh"; then
+        echo -e "${GREEN}✓ Mac tests passed${NC}"
+    else
+        echo -e "${RED}✗ Mac tests failed${NC}"
         exit 1
     fi
     echo ""
