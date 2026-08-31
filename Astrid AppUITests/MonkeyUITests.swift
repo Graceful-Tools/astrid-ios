@@ -126,7 +126,12 @@ final class MonkeyUITests: XCTestCase {
             }
 
         case .tapRandomButton:
-            let buttons = app.buttons.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+            let appFrame = app.frame
+            let buttons = app.buttons.allElementsBoundByIndex.filter { button in
+                guard button.exists else { return false }
+                let frame = button.frame
+                return !frame.isEmpty && !frame.isNull && !frame.isInfinite && frame.intersects(appFrame)
+            }
             if let target = buttons.randomElement(using: &rng) {
                 UITestLaunch.tapCenter(target)
             }
