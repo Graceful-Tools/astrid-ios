@@ -22,6 +22,7 @@ struct InlineAssigneePicker: View {
     @State private var someoneElseError: String?
     // Initialize with cached agents to prevent flash on first render
     @State private var aiAgents: [User] = AIAgentCache.shared.load() ?? []
+    @State private var discoveredUsers: [User] = []
     @State private var isLoadingAgents = false
 
     /// Who this task can be assigned to — from the SHARED rule, so the board, the task detail
@@ -30,12 +31,13 @@ struct InlineAssigneePicker: View {
     private var availableMembers: [User] {
         AssigneeOptions.build(availableLists: availableLists,
                               taskListIds: taskListIds,
+                              discoveredUsers: discoveredUsers,
                               aiAgents: aiAgents,
                               currentUser: authManager.currentUser)
     }
 
-    // Fetch fresh AI agents from API (cache already loaded at init)
-    private func fetchAIAgents() async {
+    // Fetch fresh assignees from API (AI agents are also cached across launches).
+    private func fetchAssignees() async {
         guard !isLoadingAgents else { return }
 
         // Only show loading indicator if we have no cached data
@@ -51,6 +53,7 @@ struct InlineAssigneePicker: View {
                 listIds: taskListIds.isEmpty ? nil : taskListIds
             )
             var agents = users.filter { $0.isAIAgent == true }
+            let people = users.filter { $0.isAIAgent != true }
 
             // Scoping the search to the task's lists can come back with no agents — a board
             // card's lists include a STATUS list, which has no members of its own. Agents belong
@@ -68,6 +71,7 @@ struct InlineAssigneePicker: View {
             let hasChanged = newAgentIds != currentAgentIds
 
             await MainActor.run {
+                self.discoveredUsers = people
                 if hasChanged {
                     self.aiAgents = agents
                     // Cache AI agent images in UserImageCache for avatar display
@@ -138,6 +142,9 @@ struct InlineAssigneePicker: View {
                     }
             }
             .presentationDetents([.medium, .large])
+        }
+        .task {
+            await fetchAssignees()
         }
     }
 
@@ -294,10 +301,6 @@ struct InlineAssigneePicker: View {
         .background(compact ? Color.clear
                             : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-        .task {
-            // Fetch AI agents when picker opens
-            await fetchAIAgents()
-        }
     }
 
     @ViewBuilder private var trigger: some View {

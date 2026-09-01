@@ -47,6 +47,20 @@ final class AssigneeOptionsTests: XCTestCase {
                       "the board could not offer an AI agent at all — the whole task")
     }
 
+    func testTask8ffe30ceScopedSearchUsersFillOptionsBeforeListsLoad() {
+        let teammate = user("dana", "Dana")
+
+        let options = AssigneeOptions.build(
+            availableLists: [TaskList(id: "project-list", name: "Project")],
+            taskListIds: ["project-list", "status-doing"],
+            discoveredUsers: [teammate],
+            aiAgents: [],
+            currentUser: user("me", "Jon"))
+
+        XCTAssertTrue(options.contains { $0.id == teammate.id },
+                      "the board discarded members returned by its scoped assignee search")
+    }
+
     /// And when they ARE loaded, agents still come through alongside the members.
     func testAgentsAndMembersAreBothOffered() {
         let me = user("me", "Jon")
