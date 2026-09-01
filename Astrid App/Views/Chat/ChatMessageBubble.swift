@@ -206,19 +206,14 @@ struct ChatMessageBubble: View {
     @ViewBuilder
     private var avatarView: some View {
         if let url = resolvedImageURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
-                case .failure, .empty:
-                    initialsAvatar
-                @unknown default:
-                    initialsAvatar
-                }
+            CachedAsyncImage(url: url) { image in
+                image.resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                initialsAvatar
             }
+            .frame(width: 32, height: 32)
+            .clipShape(Circle())
         } else {
             initialsAvatar
         }
