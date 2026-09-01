@@ -13,7 +13,7 @@ import EventKit
 enum MacRemindersStatus {
     static func isGranted(_ status: EKAuthorizationStatus) -> Bool {
         if #available(macOS 14.0, *) { return status == .fullAccess }
-        return status == .authorized
+        return status.rawValue == 3
     }
     static func label(_ status: EKAuthorizationStatus) -> String {
         switch status {
