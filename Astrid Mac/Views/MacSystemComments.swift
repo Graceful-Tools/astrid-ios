@@ -13,7 +13,7 @@
 import Foundation
 
 enum MacSystemComments {
-    static func isSystem(_ comment: Comment) -> Bool { comment.authorId == nil }
+    nonisolated static func isSystem(_ comment: Comment) -> Bool { comment.authorId == nil }
 
     static func displayed(_ comments: [Comment], showingSystem: Bool, isOffline: Bool) -> [Comment] {
         guard !isOffline, !showingSystem else { return comments }

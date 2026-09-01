@@ -66,7 +66,7 @@ struct MacAuthGateView: View {
         .onChange(of: auth.isAuthenticated) { _, isAuth in
             _Concurrency.Task {
                 if isAuth { await startSession() }
-                else { SSEClient.shared.disconnect(); SyncManager.shared.stopAutoSync() }
+                else { await SSEClient.shared.disconnect(); SyncManager.shared.stopAutoSync() }
             }
         }
         // Global Quick Add hotkey (and menu-bar/command actions) post this; open + focus the
