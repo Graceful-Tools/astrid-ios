@@ -98,6 +98,20 @@ final class ShareExtensionAppGroupTests: XCTestCase {
             """)
     }
 
+    /// A direct xcodebuild upload consumes its temporary package, leaving nothing for the
+    /// entitlement guard. The release path must export, verify, and only then upload.
+    func testLocalAppStoreReleaseVerifiesExportBeforeUpload() throws {
+        let script = try sourceFile("scripts/appstore-release.sh")
+        let export = try XCTUnwrap(script.range(of: "xcodebuild -exportArchive"))
+        let verify = try XCTUnwrap(script.range(of: "step \"Verifying signed entitlements\""))
+        let upload = try XCTUnwrap(script.range(of: "xcrun altool --upload-app"))
+
+        XCTAssertLessThan(export.lowerBound, verify.lowerBound)
+        XCTAssertLessThan(verify.lowerBound, upload.lowerBound)
+        XCTAssertTrue(script.contains("<key>destination</key><string>export</string>"),
+                      "xcodebuild must retain the signed package for entitlement verification")
+    }
+
     /// ShareDataManager has to be compiled INTO the extension, not merely referenced by it.
     /// It lives in `Shared/` for that reason: the extension, the iOS app and the Mac app all
     /// build that folder, so one copy serves all three.

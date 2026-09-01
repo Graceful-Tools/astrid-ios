@@ -173,8 +173,7 @@ set -e
 [ "$ARCHIVE_RC" -eq 0 ] || fail "the archive did not build. Search $LOG for 'error:'"
 green "✓ Archived"
 
-# --- Export (+ upload) ------------------------------------------------------------
-if [ "$UPLOAD" = "1" ]; then DEST_KEY="upload"; else DEST_KEY="export"; fi
+# --- Export -----------------------------------------------------------------------
 cat > "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -183,14 +182,14 @@ cat > "$BUILD_DIR/ExportOptions-appstore-$TARGET.plist" <<PLIST
     <key>method</key><string>app-store-connect</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <key>signingStyle</key><string>automatic</string>
-    <key>destination</key><string>$DEST_KEY</string>
+    <key>destination</key><string>export</string>
     <key>uploadSymbols</key><true/>
     <key>manageAppVersionAndBuildNumber</key><false/>
 </dict>
 </plist>
 PLIST
 
-if [ "$UPLOAD" = "1" ]; then step "Uploading to App Store Connect"; else step "Exporting (no upload)"; fi
+step "Exporting signed package"
 set +e
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
@@ -202,7 +201,7 @@ xcodebuild -exportArchive \
   -authenticationKeyIssuerID "$ISSUER" 2>&1 | tee -a "$LOG" | grep -vE "^ +|^$"
 EXPORT_RC=${PIPESTATUS[0]}
 set -e
-[ "$EXPORT_RC" -eq 0 ] || fail "the $([ "$UPLOAD" = 1 ] && echo upload || echo export) step failed. Search $LOG for 'error:'"
+[ "$EXPORT_RC" -eq 0 ] || fail "the export step failed. Search $LOG for 'error:'"
 
 # --- Signed entitlements ---------------------------------------------------------
 #
@@ -222,18 +221,6 @@ set -e
 # ShareDataManager read and write quietly does nothing — the same silent failure b2677c2
 # was meant to end. The task that filed it expected a SIGNING FAILURE to be the tell.
 # There is none. This is the tell.
-step "Verifying signed entitlements"
-
-IPA=$(ls "$EXPORT_DIR"/*.ipa 2>/dev/null | head -1)
-if [ -z "$IPA" ]; then
-  # Never pass silently: an unverified upload is the situation this exists to prevent.
-  fail "no .ipa in $EXPORT_DIR, so the signed entitlements could not be checked."
-fi
-
-VERIFY_DIR="$BUILD_DIR/.entitlement-check"
-rm -rf "$VERIFY_DIR"; mkdir -p "$VERIFY_DIR"
-unzip -q "$IPA" -d "$VERIFY_DIR" || fail "could not unpack $IPA to check its entitlements."
-
 check_app_groups() {   # $1 = bundle inside the ipa, $2 = source .entitlements it was built from
   [ -e "$1" ] || fail "expected bundle $1 in the export, and it is not there."
   # NOT a silent skip: a missing entitlements file is exactly the shape of the bug this
@@ -262,19 +249,45 @@ check_app_groups() {   # $1 = bundle inside the ipa, $2 = source .entitlements i
 }
 
 if [ "$TARGET" = "ios" ]; then
+  step "Verifying signed entitlements"
+  UPLOAD_PACKAGE=$(find "$EXPORT_DIR" -maxdepth 1 -type f -name '*.ipa' -print | head -1)
+  if [ -z "$UPLOAD_PACKAGE" ]; then
+    fail "no .ipa in $EXPORT_DIR, so the signed entitlements could not be checked."
+  fi
+
+  VERIFY_DIR="$BUILD_DIR/.entitlement-check"
+  rm -rf "$VERIFY_DIR"; mkdir -p "$VERIFY_DIR"
+  unzip -q "$UPLOAD_PACKAGE" -d "$VERIFY_DIR" \
+    || fail "could not unpack $UPLOAD_PACKAGE to check its entitlements."
   APP_BUNDLE=$(ls -d "$VERIFY_DIR"/Payload/*.app 2>/dev/null | head -1)
   check_app_groups "$APP_BUNDLE" "$ROOT/Astrid App/Astrid App.entitlements"
   for appex in "$APP_BUNDLE"/PlugIns/*.appex; do
     check_app_groups "$appex" "$ROOT/Astrid/Astrid.entitlements"
   done
+  rm -rf "$VERIFY_DIR"
+else
+  UPLOAD_PACKAGE=$(find "$EXPORT_DIR" -maxdepth 1 -type f -name '*.pkg' -print | head -1)
+  [ -n "$UPLOAD_PACKAGE" ] || fail "no .pkg in $EXPORT_DIR to upload."
 fi
-rm -rf "$VERIFY_DIR"
 
 
 if [ "$UPLOAD" = "0" ]; then
   done_ok "$SCHEME $VERSION built and signed as build $BUILD_NUM. Nothing was uploaded — re-run with --upload to send it to Apple. Artifact: $EXPORT_DIR"
   exit 0
 fi
+
+# Upload only after the exported artifact has passed local verification. Xcode's
+# `destination=upload` consumes its temporary package, so verifying afterwards is impossible.
+step "Uploading to App Store Connect"
+set +e
+xcrun altool --upload-app \
+  -f "$UPLOAD_PACKAGE" \
+  --apiKey "$KEY_ID" \
+  --apiIssuer "$ISSUER" \
+  --p8-file-path "$KEY_FILE" 2>&1 | tee -a "$LOG" | grep -vE "^ +|^$"
+UPLOAD_RC=${PIPESTATUS[0]}
+set -e
+[ "$UPLOAD_RC" -eq 0 ] || fail "the upload step failed. Search $LOG for 'error:'"
 green "✓ Upload accepted"
 
 # --- Verify -----------------------------------------------------------------------
