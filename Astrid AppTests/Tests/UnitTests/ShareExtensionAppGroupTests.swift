@@ -83,6 +83,21 @@ final class ShareExtensionAppGroupTests: XCTestCase {
                        "that is the Xcode template's base class — the real controller is a UIViewController")
     }
 
+    /// App Store Connect rejects an extension that declares both entry-point mechanisms.
+    /// MainInterface already instantiates ShareViewController, so the plist must use only it.
+    func testShareExtensionDeclaresOneEntryPointForAppStoreExport() throws {
+        let data = try Data(contentsOf: repoRoot.appendingPathComponent("Astrid/Info.plist"))
+        let plist = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let extensionConfig = try XCTUnwrap(plist["NSExtension"] as? [String: Any])
+
+        XCTAssertEqual(extensionConfig["NSExtensionMainStoryboard"] as? String, "MainInterface")
+        XCTAssertNil(extensionConfig["NSExtensionPrincipalClass"], """
+            App Store Connect rejects an appex that has both NSExtensionMainStoryboard and \
+            NSExtensionPrincipalClass. MainInterface already owns ShareViewController.
+            """)
+    }
+
     /// ShareDataManager has to be compiled INTO the extension, not merely referenced by it.
     /// It lives in `Shared/` for that reason: the extension, the iOS app and the Mac app all
     /// build that folder, so one copy serves all three.
