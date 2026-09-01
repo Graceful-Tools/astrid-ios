@@ -32,7 +32,7 @@ enum UITestSession {
     /// — which is the status quo, and the status quo is a suite running against a real
     /// account. Accepting both makes the protection work now; the tests pass `-uiTesting`
     /// from this change on.
-    static let flags: Set<String> = ["-uiTesting", "--uitesting", "--uiTesting"]
+    nonisolated static let flags: Set<String> = ["-uiTesting", "--uitesting", "--uiTesting"]
 
     /// Launch argument carrying the session cookie.
     static let cookieArgument = "-uiTestSessionCookie"
@@ -41,7 +41,7 @@ enum UITestSession {
     /// visible in `ps`, an environment variable is not.
     static let cookieEnvironmentKey = "ASTRID_UITEST_COOKIE"
 
-    static func isUITesting(arguments: [String]) -> Bool {
+    nonisolated static func isUITesting(arguments: [String]) -> Bool {
         arguments.contains { flags.contains($0) }
     }
 
@@ -66,7 +66,7 @@ enum UITestSession {
     static var suppressesInterruptingPrompts: Bool { isUITesting }
 
     /// The live answer for this process.
-    static let isUITesting = isUITesting(arguments: ProcessInfo.processInfo.arguments)
+    nonisolated static let isUITesting = isUITesting(arguments: ProcessInfo.processInfo.arguments)
 
     /// The session cookie this test run was handed, or nil.
     ///

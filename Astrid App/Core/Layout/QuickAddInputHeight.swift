@@ -58,13 +58,17 @@ final class KeyboardLayoutObserver: ObservableObject {
         ) { [weak self] note in
             let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?
                 .cgRectValue
-            _Concurrency.Task { @MainActor in self?.apply(keyboardFrame: frame) }
+            MainActor.assumeIsolated {
+                self?.apply(keyboardFrame: frame)
+            }
         })
         observers.append(center.addObserver(
             forName: UIResponder.keyboardWillHideNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in self?.apply(keyboardFrame: nil) }
+            MainActor.assumeIsolated {
+                self?.apply(keyboardFrame: nil)
+            }
         })
     }
 

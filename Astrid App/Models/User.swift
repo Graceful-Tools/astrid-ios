@@ -46,6 +46,7 @@ struct User: Identifiable, Codable, Equatable, Hashable {
         case "claude", "claude_agent": return "ai-claude"
         case "openai", "openai_agent": return "ai-openai"
         case "gemini", "gemini_agent": return "ai-gemini"
+        case "copilot", "copilot_agent": return "ai-copilot"
         case "openclaw", "astrid": return "ai-openclaw"
         default: return nil
         }

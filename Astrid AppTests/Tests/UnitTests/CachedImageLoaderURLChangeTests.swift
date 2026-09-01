@@ -124,4 +124,16 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
         XCTAssertTrue(view.contains("onChange(of: url)") || view.contains("task(id: url)"),
                       "CachedAsyncImage must follow its url, not capture it once in init")
     }
+
+    /// Tasks be508751 / 2f1ec1af: the Copilot endpoint serves SVG without a file extension.
+    /// PlatformImage cannot decode it, so the shared image view must choose the bundled mascot.
+    func testTasks_be508751_2f1ec1afCopilotEndpointUsesBundledMascot() {
+        let url = URL(string: "https://astrid.cc/api/v1/agent-icon/copilot")!
+        let user = User(
+            id: "copilot", email: "copilot@astrid.cc", name: "GitHub Copilot Agent",
+            image: url.absoluteString, isAIAgent: true, aiAgentType: "copilot_agent")
+
+        XCTAssertEqual(AgentAvatarAsset.assetName(for: url), "ai-copilot")
+        XCTAssertEqual(user.agentBrandImageAsset, "ai-copilot")
+    }
 }
