@@ -67,7 +67,8 @@ Xcode will generate default Share Extension files. Replace them with our custom 
 2. **Go to Info tab**
 3. **Verify/Update these keys:**
    - `NSExtension` → `NSExtensionPointIdentifier`: `com.apple.share-services`
-   - `NSExtension` → `NSExtensionPrincipalClass`: `$(PRODUCT_MODULE_NAME).ShareViewController`
+   - `NSExtension` → `NSExtensionMainStoryboard`: `MainInterface`
+   - Do not also set `NSExtensionPrincipalClass`; App Store Connect rejects extensions that declare both entry points.
    - `NSExtensionActivationSupportsImageWithMaxCount`: `1`
    - `NSExtensionActivationSupportsFileWithMaxCount`: `1`
 

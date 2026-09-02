@@ -56,6 +56,24 @@ final class ChatMessageTests: XCTestCase {
         XCTAssertEqual(message.author?.isAIAgent, true)
     }
 
+    /// Regression for task 68bebdaa: Copilot's avatar URL serves SVG without an extension.
+    /// Chat must use the shared loader that substitutes the bundled mascot before decoding.
+    func testTask_68bebdaaChatAvatarUsesAssetAwareImageLoader() throws {
+        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Astrid App/Views/Chat/ChatMessageBubble.swift"), encoding: .utf8)
+        let avatarView = try XCTUnwrap(
+            source.components(separatedBy: "private var avatarView").last?
+                .components(separatedBy: "private var initialsAvatar").first
+        )
+
+        XCTAssertTrue(avatarView.contains("CachedAsyncImage(url: url)"),
+                      "Chat avatars must recognize bundled agent assets instead of decoding SVG")
+        XCTAssertFalse(avatarView.contains("\n            AsyncImage(url: url)"),
+                       "AsyncImage falls back to initials for Copilot's SVG endpoint")
+    }
+
     func testPendingMessage() {
         let message = createTestMessage(
             id: "temp_abc123",

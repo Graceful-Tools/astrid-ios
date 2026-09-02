@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 
-## Current client — `AstridAPIClient` (43 paths)
+## Current client — `AstridAPIClient` (46 paths)
 
 
 ### `/api/v1/capabilities`
@@ -42,6 +42,11 @@ Regenerate: see the test — it prints the expected list on failure.
 
 - `/api/v1/github/repositories`
 - `/api/v1/github/status`
+
+### `/api/v1/integrations`
+
+- `/api/v1/integrations/copilot/authorize`
+- `/api/v1/integrations/copilot/status`
 
 ### `/api/v1/lists`
 
@@ -83,6 +88,7 @@ Regenerate: see the test — it prints the expected list on failure.
 ### `/api/v1/users`
 
 - `/api/v1/users/me`
+- `/api/v1/users/me/agent-modes`
 - `/api/v1/users/me/ai-credentials`
 - `/api/v1/users/me/ai-credentials/test`
 - `/api/v1/users/me/ai-preferences`
