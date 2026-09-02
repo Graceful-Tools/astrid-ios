@@ -31,7 +31,27 @@ final class RemoteResourceService {
         try await apiClient.updateUserSettings(reminderSettings: reminderSettings)
     }
 
-    // MARK: - AI API keys
+    // MARK: - AI agents and API keys
+
+    func getAgentModes() async throws -> AgentModesResponse {
+        try await apiClient.getAgentModes()
+    }
+
+    func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse {
+        try await apiClient.updateAgentMode(agent: agent, mode: mode)
+    }
+
+    func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
+        try await apiClient.getCopilotIntegrationStatus()
+    }
+
+    func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse {
+        try await apiClient.getCopilotAuthorization()
+    }
+
+    func disconnectCopilot() async throws -> CopilotIntegrationStatus {
+        try await apiClient.disconnectCopilot()
+    }
 
     func getAIAPIKeys() async throws -> AIAPIKeysResponse {
         try await apiClient.getAIAPIKeys()

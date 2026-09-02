@@ -1224,3 +1224,29 @@
 "settings.task_display.list" = "Lista";
 "settings.task_display.project" = "Projeto";
 "settings.appearance.task_details_footer" = "Escolha como os detalhes da tarefa são dispostos. Lista dá à prioridade e ao responsável as suas próprias linhas. Projeto é compacto e a caixa abre um seletor em vez de concluir a tarefa.";
+
+/* AI agent runtimes (task 920155a6) */
+"settings.agents.title" = "AI Agents";
+"settings.agents.description" = "Choose who runs each agent. %@ can run it in the cloud, your own harness can poll the queue, or your webhook server can receive work.";
+"settings.agents.loading" = "Loading agent settings…";
+"settings.agents.load_failed" = "Could not load agent settings: %@";
+"settings.agents.save_failed" = "Could not save agent mode: %@";
+"settings.agents.needs_setup" = "Needs setup";
+"settings.agents.mode.api" = "%@ runs it";
+"settings.agents.mode.polling" = "My harness polls";
+"settings.agents.mode.webhook" = "Webhook server";
+"settings.agents.mode.off" = "Don't use";
+"settings.agents.api_description" = "%@ runs this agent in the cloud, so it works without a computer running at home.";
+"settings.agents.manage_key" = "Manage provider API key";
+"settings.agents.test_key" = "Test";
+"settings.agents.copilot_connected" = "Connected. Your Copilot subscription can run this agent.";
+"settings.agents.copilot_disconnected" = "Authorize GitHub so your Copilot subscription can run this agent.";
+"settings.agents.copilot_connect" = "Connect GitHub Copilot";
+"settings.agents.copilot_disconnect" = "Disconnect GitHub Copilot";
+"settings.agents.polling_description" = "Your own %@ setup does the work. Connect it once, assign this agent a task, and mark the task Ready.";
+"settings.agents.copied" = "Copied";
+"settings.agents.webhook_description" = "A server you host receives this agent's work as soon as it appears. Webhook secrets are session-protected, so configure the server on the web.";
+"settings.agents.webhook_configure" = "Configure webhook on the web";
+"settings.agents.off_description" = "This agent is hidden from assignee pickers and %@ never runs it. Saved settings and keys are kept.";
+"settings.agents.preferences" = "AI Preferences";
+"settings.agents.default_model" = "Default model";

@@ -946,6 +946,42 @@ class AstridAPIClient {
 
     // MARK: - AI API Key Management
 
+    func getAgentModes() async throws -> AgentModesResponse {
+        try await request(
+            method: "GET",
+            path: "/api/v1/users/me/agent-modes"
+        )
+    }
+
+    func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse {
+        try await request(
+            method: "PUT",
+            path: "/api/v1/users/me/agent-modes",
+            body: UpdateAgentModeRequest(agent: agent, mode: mode)
+        )
+    }
+
+    func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
+        try await request(
+            method: "GET",
+            path: "/api/v1/integrations/copilot/status"
+        )
+    }
+
+    func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse {
+        try await request(
+            method: "GET",
+            path: "/api/v1/integrations/copilot/authorize"
+        )
+    }
+
+    func disconnectCopilot() async throws -> CopilotIntegrationStatus {
+        try await request(
+            method: "DELETE",
+            path: "/api/v1/integrations/copilot/status"
+        )
+    }
+
     /// Get user's AI API keys status (without revealing actual keys)
     func getAIAPIKeys() async throws -> AIAPIKeysResponse {
         return try await request(
