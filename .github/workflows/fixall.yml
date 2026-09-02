@@ -220,7 +220,7 @@ jobs:
             curl --fail-with-body --silent --show-error \
               -X POST "${ASTRID_WEBHOOK_URL}/api/coding-agent/github-trigger" \
               -H "Content-Type: application/json" \
-              --oauth2-bearer "${ASTRID_MCP_TOKEN}" \
+              -H "Authorization: Bearer ${ASTRID_MCP_TOKEN}" \
               --data "${PAYLOAD}"
             echo ""
             TRIGGERED=$((TRIGGERED + 1))
