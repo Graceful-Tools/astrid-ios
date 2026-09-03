@@ -5,6 +5,9 @@ concurrency:
   group: fixall-ios-github-copilot
   cancel-in-progress: false
 
+# Scheduled queue work is owned by the Copilot app workflow "Work Astrid iOS queue"
+# on the local host (cron: 22,52 * * * *). Keep Actions manual for diagnostics/fallback
+# so it cannot compete for or claim the same Astrid tasks.
 on:
   workflow_dispatch:
     inputs:
@@ -13,10 +16,6 @@ on:
         required: false
         default: false
         type: boolean
-
-  schedule:
-    # Every 30 minutes, offset 15 min from astrid-web to avoid competing for quota.
-    - cron: '15,45 * * * *'
 
 env:
   NODE_VERSION: '20'
