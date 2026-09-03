@@ -21,11 +21,9 @@ struct MacDetailReveal: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .scaleEffect(x: max(progress, 0.001),
-                         // Collapsed, the panel is about as tall as the arrow; it grows to full
-                         // height as it unfolds.
-                         y: MacDetailReveal.verticalScale(progress: progress),
-                         anchor: UnitPoint(x: MacDetailReveal.collapseAnchorX, y: anchorY))
+            // Keep AppKit-backed controls at their natural scale. Scaling the whole hierarchy
+            // makes SwiftUI's PlatformTextFieldAdaptor generate invalid min/max constraints.
+            .clipShape(MacDetailRevealMask(progress: progress, anchorY: anchorY))
             // Dissolve on the way out instead of shrinking at full strength (65b81ff8).
             .opacity(MacDetailReveal.fade(progress: progress))
     }
@@ -65,6 +63,36 @@ struct MacDetailReveal: ViewModifier {
     static func anchor(rowMidY: CGFloat?, contentMinY: CGFloat, contentHeight: CGFloat) -> CGFloat {
         guard let rowMidY, contentHeight > 0 else { return 0.5 }
         return min(max((rowMidY - contentMinY) / contentHeight, 0), 1)
+    }
+}
+
+/// Reveals the panel from its arrow without transforming AppKit-backed child controls.
+struct MacDetailRevealMask: Shape {
+    var progress: CGFloat
+    var anchorY: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(progress, anchorY) }
+        set {
+            progress = newValue.first
+            anchorY = newValue.second
+        }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        Path(Self.visibleRect(in: rect, progress: progress, anchorY: anchorY))
+    }
+
+    static func visibleRect(in rect: CGRect, progress: CGFloat, anchorY: CGFloat) -> CGRect {
+        let clampedProgress = min(max(progress, 0), 1)
+        let clampedAnchor = min(max(anchorY, 0), 1)
+        let width = rect.width * clampedProgress
+        let height = rect.height * MacDetailReveal.verticalScale(progress: clampedProgress)
+        let fixedY = rect.minY + rect.height * clampedAnchor
+        return CGRect(x: rect.minX,
+                      y: fixedY - height * clampedAnchor,
+                      width: width,
+                      height: height)
     }
 }
 
