@@ -20,4 +20,19 @@ final class MacMonkeyHarnessTests: XCTestCase {
         XCTAssertFalse(source.contains("[\"close\", \"minimize\", \"zoom\"].contains"),
                        "window-control identifiers are empty on macOS")
     }
+
+    func testAITD_295WeeklyRunSurfacesLastSuccessfulMacRun() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let weekly = try String(contentsOf: root.appendingPathComponent("scripts/monkey-weekly.sh"),
+                                encoding: .utf8)
+        XCTAssertTrue(weekly.contains("last-success-mac"))
+        XCTAssertTrue(weekly.contains("Mac monkey has not run successfully since"))
+
+        let setup = try String(contentsOf: root.appendingPathComponent("docs/XCODE_SETUP.md"),
+                               encoding: .utf8)
+        XCTAssertTrue(setup.contains("sudo DevToolsSecurity -enable"))
+        XCTAssertTrue(setup.contains("Privacy & Security > Accessibility"))
+    }
 }
