@@ -149,11 +149,12 @@ struct iPadTaskManagerView: View {
 
     @ViewBuilder
     private func threeColumnLandscapeLayout(width: CGFloat) -> some View {
+        let safeWidth = iPadPaneLayout.frameDimension(width)
         let showsMessages = showsMessagesPane(columns: 3)
-        let panes = iPadPaneLayout.widths(total: width, columns: 3,
+        let panes = iPadPaneLayout.widths(total: safeWidth, columns: 3,
                                           showsMessages: showsMessages,
                                           boardFullScreen: isBoardFullScreen)
-        let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
+        let detailWidth = iPadPaneLayout.detailWidth(total: safeWidth, columns: 3,
                                                      showsMessages: showsMessages,
                                                      isFullScreen: detailFullScreen)
 
@@ -216,7 +217,7 @@ struct iPadTaskManagerView: View {
                         messagesPane(listId: listId, width: panes.messages)
                     }
                 }
-                .frame(width: width - panes.sidebar)
+                .frame(width: panes.list + panes.messages)
 
                 if let task = selectedTask {
                     taskDetailPanel(for: task)
@@ -224,7 +225,7 @@ struct iPadTaskManagerView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .frame(width: width - panes.sidebar)
+            .frame(width: panes.list + panes.messages)
             // Slide the detail overlay + board scroll room in/out on selection.
             .animation(Self.panelAnimation, value: selectedTask?.id)
         }
@@ -259,12 +260,13 @@ struct iPadTaskManagerView: View {
 
     @ViewBuilder
     private func threeColumnPortraitLayout(width: CGFloat, isLandscape: Bool) -> some View {
-        let sidebarWidth = width * 0.40  // 40% drawer width for iPad
+        let safeWidth = iPadPaneLayout.frameDimension(width)
+        let sidebarWidth = safeWidth * 0.40  // 40% drawer width for iPad
         let showsMessages = showsMessagesPane(columns: 2)
-        let panes = iPadPaneLayout.widths(total: width, columns: 2,
+        let panes = iPadPaneLayout.widths(total: safeWidth, columns: 2,
                                           showsMessages: showsMessages,
                                           boardFullScreen: isBoardFullScreen)
-        let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 2,
+        let detailWidth = iPadPaneLayout.detailWidth(total: safeWidth, columns: 2,
                                                      showsMessages: showsMessages,
                                                      isFullScreen: detailFullScreen)
 
@@ -326,7 +328,7 @@ struct iPadTaskManagerView: View {
                         })
                             .environmentObject(authManager)
                     }
-                    .frame(width: width)
+                    .frame(width: safeWidth)
                 } else if selectedListId == "profile", let userId = authManager.userId {
                     NavigationStack {
                         UserProfileView(userId: userId, isRootDestination: true)
@@ -350,7 +352,7 @@ struct iPadTaskManagerView: View {
                                     }
                             )
                     }
-                    .frame(width: width)
+                    .frame(width: safeWidth)
                 } else {
                     // Task list + list messages side by side. The picker stays the sliding
                     // drawer here, so it costs no width (a34d0163).
@@ -381,7 +383,7 @@ struct iPadTaskManagerView: View {
                             messagesPane(listId: listId, width: panes.messages)
                         }
                     }
-                    .frame(width: width)
+                    .frame(width: safeWidth)
                 }
 
                 // Task Detail Panel — sized to the messages pane so details appear OVER the
@@ -394,7 +396,7 @@ struct iPadTaskManagerView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .frame(width: width)
+            .frame(width: safeWidth)
             // Slide the detail overlay (and the board's scroll room) in/out when
             // the selected task changes. The flat list opts out so its selected
             // row highlights instantly.
@@ -421,7 +423,7 @@ struct iPadTaskManagerView: View {
                         ) else { return }
                         // Only act for swipes that begin in the list area; the task
                         // detail panel (the trailing pane when open) handles its own.
-                        let listWidth = selectedTask != nil ? width - detailWidth : width
+                        let listWidth = selectedTask != nil ? safeWidth - detailWidth : safeWidth
                         guard value.startLocation.x < listWidth else { return }
                         if isLandscape && selectedTask != nil {
                             // Landscape WITH a task open: just close it to reveal the
@@ -454,7 +456,7 @@ struct iPadTaskManagerView: View {
 
                     // Right side - main content area, captures drags and taps to close
                     Color.clear
-                        .frame(width: width - sidebarWidth)
+                        .frame(width: safeWidth - sidebarWidth)
                         .contentShape(Rectangle())
                         .gesture(
                             DragGesture(minimumDistance: 10)

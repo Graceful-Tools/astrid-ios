@@ -103,6 +103,24 @@ final class iPadPaneLayoutTests: XCTestCase {
         }
     }
 
+    /// AITD-292: transient invalid geometry during keyboard movement must never reach
+    /// SwiftUI's frame modifiers.
+    func testAITD_292PaneDimensionsStayFiniteAndNonnegative() {
+        for total in [CGFloat.zero, -1, .nan, .infinity, -.infinity] {
+            let panes = iPadPaneLayout.widths(total: total, columns: 3,
+                                              showsMessages: true, boardFullScreen: false)
+            for dimension in [panes.sidebar, panes.list, panes.messages] {
+                XCTAssertTrue(dimension.isFinite, "total=\(total)")
+                XCTAssertGreaterThanOrEqual(dimension, 0, "total=\(total)")
+            }
+
+            let detail = iPadPaneLayout.detailWidth(total: total, columns: 3,
+                                                    showsMessages: true)
+            XCTAssertTrue(detail.isFinite, "total=\(total)")
+            XCTAssertGreaterThanOrEqual(detail, 0, "total=\(total)")
+        }
+    }
+
     // MARK: board full screen (item 4)
 
     /// Full screen means full screen: no picker, no messages, board takes the window.
