@@ -125,6 +125,8 @@ trap stop_log_capture EXIT INT TERM
 # iOS needs the shared test account; the Mac suite is hermetic and runs offline.
 if [ "$TARGET" = "ios" ]; then
   SESSION_PLIST="$ROOT/Astrid AppUITests/UITestSession.plist"
+  IOS_MONKEY_MODE="offline"
+  [ -f "$SESSION_PLIST" ] && IOS_MONKEY_MODE="signed-in"
   if [ ! -f "$SESSION_PLIST" ] && [ -d "$ROOT/../astrid-web" ]; then
     echo "  Minting a session for uitest@astrid.cc..."
     # --env-file is not optional: tsx does not load .env.local on its own, so without it the
@@ -133,6 +135,7 @@ if [ "$TARGET" = "ios" ]; then
     case "$COOKIE" in *"❌"*|"") COOKIE="" ;; esac
     if [ -n "$COOKIE" ]; then
       /usr/libexec/PlistBuddy -c "Add :sessionCookie string $COOKIE" "$SESSION_PLIST" >/dev/null 2>&1 || true
+      IOS_MONKEY_MODE="signed-in"
       echo "  Signed-in run"
     else
       echo "  No session could be minted — the monkey will run OFFLINE instead of skipping."
@@ -232,6 +235,10 @@ echo "  Full app log: $OUT/system-$TARGET.log ($(wc -l < "$OUT/system-$TARGET.lo
 
 echo ""
 if [ "$VERDICT" = "ok" ]; then
+  if [ "$TARGET" = "ios" ] && [ "$IOS_MONKEY_MODE" = "offline" ]; then
+    echo "RESULT: OK (OFFLINE — signed-in paths not stressed) — $SCHEME survived $ACTIONS random actions. Log findings counted in $FINDINGS"
+    exit 0
+  fi
   echo "RESULT: OK — $SCHEME survived $ACTIONS random actions. Log findings counted in $FINDINGS"
   exit 0
 fi
