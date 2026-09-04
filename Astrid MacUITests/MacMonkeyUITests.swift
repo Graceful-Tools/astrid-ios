@@ -75,10 +75,21 @@ final class MacMonkeyUITests: XCTestCase {
                     """)
                 return
             }
+
+            if !hasDriveableWindow(app) {
+                attach(journal: journal, app: app, named: "window disappeared at step \(step)")
+                XCTFail("""
+                    The Mac app has no driveable window after action \(step) (\(action.description)). \
+                    Replay: MONKEY_SEED=\(seed).
+                    """)
+                return
+            }
         }
 
         XCTAssertEqual(app.state, .runningForeground, "The app did not survive the monkey run")
-        XCTAssertTrue(app.descendants(matching: .any).firstMatch.waitForExistence(timeout: 20),
+        XCTAssertTrue(hasDriveableWindow(app),
+                      "The app is running but has no window — almost every monkey action was a no-op")
+        XCTAssertTrue(app.windows.descendants(matching: .any).firstMatch.waitForExistence(timeout: 20),
                       "The app is running but has no accessible UI left — wedged. Replay: MONKEY_SEED=\(seed)")
 
         attach(journal: journal, app: app, named: "monkey run (seed \(seed))")
@@ -93,7 +104,7 @@ final class MacMonkeyUITests: XCTestCase {
         // On iOS the app element is the screen and this distinction does not exist, which is what
         // makes it easy to write the iOS version and assume it ports.
         let window = app.windows.firstMatch
-        let hasWindow = window.exists && window.frame.width > 1 && window.frame.height > 1
+        let hasWindow = hasDriveableWindow(app)
 
         switch action {
         case .click(let x, let y):
@@ -103,10 +114,12 @@ final class MacMonkeyUITests: XCTestCase {
             guard hasWindow else { return }
             window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).rightClick()
         case .clickRandomButton:
-            // Window controls excluded: closing the window is not a crash, but every action
-            // after it would land on nothing and the run would report a wedged app.
+            // Window controls expose empty or localized names, so identify the traffic-light
+            // region geometrically. Closing the only window would make every later action a no-op.
+            let windowFrame = window.frame
             let buttons = app.windows.buttons.allElementsBoundByIndex.filter {
-                $0.exists && $0.isHittable && !["close", "minimize", "zoom"].contains($0.identifier)
+                $0.exists && $0.isHittable
+                    && !isWindowControl(buttonFrame: $0.frame, windowFrame: windowFrame)
             }
             if let target = buttons.randomElement(using: &rng) { target.click() }
         case .type(let text):
@@ -117,6 +130,18 @@ final class MacMonkeyUITests: XCTestCase {
             guard hasWindow else { return }
             window.scroll(byDeltaX: 0, deltaY: delta)
         }
+    }
+
+    @MainActor
+    private func hasDriveableWindow(_ app: XCUIApplication) -> Bool {
+        let window = app.windows.firstMatch
+        return window.exists && window.frame.width > 1 && window.frame.height > 1
+    }
+
+    private func isWindowControl(buttonFrame: CGRect, windowFrame: CGRect) -> Bool {
+        guard !buttonFrame.isEmpty, !buttonFrame.isNull, !buttonFrame.isInfinite else { return false }
+        return buttonFrame.midY <= windowFrame.minY + 44
+            && buttonFrame.maxX <= windowFrame.minX + 100
     }
 
     @MainActor
