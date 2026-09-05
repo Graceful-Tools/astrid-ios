@@ -179,7 +179,7 @@ class ListService: ObservableObject {
 
             // A list the server has stopped returning was deleted elsewhere — drop it from the
             // in-memory cache too, or `listsById` keeps serving it for the rest of the session.
-            let serverIds = Set(fetchedLists.map(\.id))
+            let serverIds = Set(liveLists.map(\.id))
             for id in cachedLists.keys where !serverIds.contains(id) && !id.hasPrefix(SyncOrphanPrune.localIdPrefix) {
                 cachedLists.removeValue(forKey: id)
             }
@@ -187,7 +187,7 @@ class ListService: ObservableObject {
             // Save lists to CoreData for offline support
             _Concurrency.Task.detached { [weak self] in
                 guard let self = self else { return }
-                for list in fetchedLists {
+                for list in liveLists {
                     do {
                         try await self.saveListToCoreData(list, syncStatus: "synced")
                     } catch {

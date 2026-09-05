@@ -120,8 +120,13 @@ final class ShareExtensionAppGroupTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: repoRoot.appendingPathComponent("Shared/ShareDataManager.swift").path),
                       "ShareDataManager moved out of Shared/ — the extension can no longer compile it")
-        // Three targets: the extension, the iOS app, the Mac app.
-        let memberships = project.components(separatedBy: "/* Shared */,").count - 1
+        // Three targets: the extension, the iOS app, the Mac app. Counted inside the targets'
+        // fileSystemSynchronizedGroups lists only — the group also appears once in the project's
+        // group tree, and that entry is navigation, not membership.
+        let memberships = project.components(separatedBy: "fileSystemSynchronizedGroups = (")
+            .dropFirst()
+            .filter { ($0.components(separatedBy: ");").first ?? "").contains("/* Shared */") }
+            .count
         XCTAssertEqual(memberships, 3, "every target that touches the App Group container must build Shared/")
     }
 

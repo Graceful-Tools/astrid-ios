@@ -35,5 +35,5 @@ xcodebuild test-without-building \
     "${COMMON_ARGS[@]}" \
     -only-testing:"Astrid MacTests" \
     -parallel-testing-enabled NO \
-    "${TEST_ARGS[@]}" \
+    ${TEST_ARGS[@]+"${TEST_ARGS[@]}"} \
     "${SIGNING_ARGS[@]}"
