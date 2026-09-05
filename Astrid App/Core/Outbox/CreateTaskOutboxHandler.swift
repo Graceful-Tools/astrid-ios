@@ -64,9 +64,8 @@ enum CreateTaskOutboxHandler {
                 statusRole: payload.statusRole
             )
             // Reconcile the optimistic temp task with the server task. Idempotent:
-            // during dual-write the legacy path usually reconciles first and this
-            // no-ops; when the Outbox is authoritative, this owns the swap +
-            // mark-synced + temp→real mapping.
+            // retries may observe that reconciliation already happened, while the
+            // first successful run owns the swap + mark-synced + temp→real mapping.
             if let tempId = payload.tempId {
                 await TaskService.shared.reconcileOutboxCreatedTask(tempId: tempId, serverTask: task)
             }
