@@ -32,4 +32,9 @@ final class BuildWarningRegressionTests: XCTestCase {
         let brand = try source("Astrid App/Utilities/Brand.swift")
         XCTAssertTrue(brand.contains("nonisolated static let agentName"))
     }
+
+    func testAITD_293OfflineMonkeyResultNamesMissingSignedInCoverage() throws {
+        let monkey = try source("scripts/monkey-test.sh")
+        XCTAssertTrue(monkey.contains("RESULT: OK (OFFLINE — signed-in paths not stressed)"))
+    }
 }

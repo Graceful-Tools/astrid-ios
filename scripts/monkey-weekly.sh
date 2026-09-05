@@ -45,16 +45,37 @@ mkdir -p "$ROOT/build/monkey"
 OVERALL="ok"
 for target in ios mac; do
   echo "=== $target ==="
+  if [ "$target" = "mac" ]; then
+    LAST_SUCCESS_FILE="$ROOT/build/monkey/last-success-mac.txt"
+  else
+    LAST_SUCCESS_FILE="$ROOT/build/monkey/last-success-ios.txt"
+  fi
   set +e
   ./scripts/monkey-test.sh "$target" --actions "$ACTIONS" --seed "$SEED" 2>&1 | tail -40
   rc=${PIPESTATUS[0]}
   set -e
-  [ "$rc" -eq 0 ] || OVERALL="failed"
+  STATUS_NOTE=""
+  if [ "$rc" -eq 0 ]; then
+    date -u +"%Y-%m-%dT%H:%M:%SZ" > "$LAST_SUCCESS_FILE"
+  else
+    OVERALL="failed"
+    if [ "$target" = "mac" ]; then
+      if [ -s "$LAST_SUCCESS_FILE" ]; then
+        STATUS_NOTE="Mac monkey has not run successfully since $(cat "$LAST_SUCCESS_FILE")."
+      else
+        STATUS_NOTE="Mac monkey has not run successfully since this schedule was installed (no successful run recorded)."
+      fi
+      echo "WARNING: $STATUS_NOTE"
+      osascript -e "display notification \"$STATUS_NOTE\" with title \"Astrid weekly monkey\"" \
+        >/dev/null 2>&1 || true
+    fi
+  fi
 
   {
     echo "## $target"
     echo ""
     if [ "$rc" -eq 0 ]; then echo "Survived $ACTIONS random actions."; else echo "**FAILED** — see \`build/monkey/monkey-$target.log\`."; fi
+    [ -z "$STATUS_NOTE" ] || echo "**$STATUS_NOTE**"
     echo ""
     echo '```'
     cat "$ROOT/build/monkey/findings-$target.txt" 2>/dev/null || echo "(no findings file)"

@@ -26,6 +26,11 @@ enum iPadPaneLayout {
     /// list — the thing you came for — always stays the wider of the two.
     private static let messagesShare: CGFloat = 0.45
 
+    static func frameDimension(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return max(0, value)
+    }
+
     /// Selections that are not a list with a chat channel. `my-tasks` is deliberately absent:
     /// it is virtual but DOES have a channel, which `ChatPanelView` resolves from a virtual key,
     /// the same one web and Mac resolve. Showing an empty pane for the others would be worse
@@ -52,6 +57,7 @@ enum iPadPaneLayout {
 
     static func widths(total: CGFloat, columns: Int,
                        showsMessages: Bool, boardFullScreen: Bool) -> Panes {
+        let total = frameDimension(total)
         if boardFullScreen {
             return Panes(sidebar: 0, list: total, messages: 0)
         }
@@ -78,6 +84,7 @@ enum iPadPaneLayout {
     /// glyphs. In 2-column the picker is a sliding drawer costing no width, so this is the window.
     static func detailWidth(total: CGFloat, columns: Int, showsMessages: Bool,
                             isFullScreen: Bool = false) -> CGFloat {
+        let total = frameDimension(total)
         if isFullScreen {
             return total - (columns >= 3 ? total * sidebarShare : 0)
         }

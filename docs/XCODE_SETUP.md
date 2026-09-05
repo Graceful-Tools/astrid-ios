@@ -33,6 +33,28 @@ xcodebuild build -scheme "Astrid App" \
   -destination "platform=iOS Simulator,name=iPhone 17" -quiet
 ```
 
+### Mac UI tests and the weekly monkey
+
+Mac UI tests need two one-time permissions before they can run unattended:
+
+1. Enable developer-tool control:
+
+   ```bash
+   sudo DevToolsSecurity -enable
+   ```
+
+2. Run `npm run monkey:mac -- --actions 2` interactively from the same launcher that
+   will invoke `xcodebuild`, then approve its automation prompt. In **System Settings >
+   Privacy & Security > Accessibility**, enable that responsible launcher (for example
+   Terminal, GitHub Copilot, or the automation runner). The permission belongs to the
+   launcher, not just to Xcode, so changing how the command is started can require a new
+   grant. The settings path is `Privacy & Security > Accessibility`.
+
+Install `scripts/cc.astrid.monkey.weekly.plist` only after the interactive smoke run
+passes. The weekly script records each platform's last successful run; if the Mac
+runner later loses authorization, its digest, terminal output, and macOS notification
+say when the Mac monkey last completed instead of leaving the failure buried in a log.
+
 See the root `CLAUDE.md` for the full quality-gate commands and the deploy
 workflow (push to `iosdev` / `macdev` → Xcode Cloud → TestFlight; `main` is
 reserved for App Store release builds).
