@@ -80,7 +80,7 @@ struct MacSettingsView: View {
             MacSyncSettingsView()
                 .tabItem { Label(NSLocalizedString("sync", comment: ""), systemImage: "arrow.triangle.2.circlepath") }
 
-            MacAISettingsView()
+            MacAgentHubView()
                 .tabItem { Label(NSLocalizedString("mac.ai", comment: ""), systemImage: "sparkles") }
 
             MacLanguageSettingsView()

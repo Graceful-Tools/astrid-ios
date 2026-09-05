@@ -344,6 +344,13 @@ class ChatService: ObservableObject {
         }
     }
 
+    /// The models that can power the default assistant: only what the server can run itself
+    /// (`?serverRun=true`). NOT cached — the mention cache must keep the unfiltered list, which
+    /// includes polling agents that cannot power the assistant but can be assigned (AITD-297).
+    func fetchServerRunAgents() async throws -> [AvailableAgent] {
+        try await apiClient.getAvailableAgents(serverRunOnly: true)
+    }
+
     func fetchAvailableAgentUsers(useCacheOnFailure: Bool = true) async throws -> [User] {
         let agents = try await fetchAvailableAgents(useCacheOnFailure: useCacheOnFailure)
         return agents.map(Self.agentUser)

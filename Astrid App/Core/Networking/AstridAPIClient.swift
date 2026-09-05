@@ -1036,35 +1036,68 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - OpenClaw Agents
+    // MARK: - Custom Agents
 
-    /// Get user's OpenClaw agents
-    func getOpenClawAgents() async throws -> [OpenClawAgent] {
-        let response: OpenClawAgentsResponse = try await request(
+    /// The user's registered Custom Agents. The old `openclaw` paths are legacy aliases of these.
+    func getCustomAgents() async throws -> [CustomAgent] {
+        let response: CustomAgentsResponse = try await request(
             method: "GET",
-            path: "/api/v1/openclaw/agents"
+            path: "/api/v1/custom-agents/agents"
         )
         return response.agents
     }
 
-    /// Register a new OpenClaw agent
-    func registerOpenClawAgent(name: String) async throws -> OpenClawRegistrationResult {
-        struct RegisterRequest: Codable { let agentName: String }
-        let body = RegisterRequest(agentName: name)
-        return try await request(
+    /// Register a Custom Agent. The answer carries one-time OAuth client credentials.
+    func registerCustomAgent(name: String, listIds: [String]? = nil) async throws -> CustomAgentRegistrationResult {
+        try await request(
             method: "POST",
-            path: "/api/v1/openclaw/register",
-            body: body
+            path: "/api/v1/custom-agents/register",
+            body: RegisterCustomAgentRequest(agentName: name, listIds: listIds)
         )
     }
 
-    /// Delete an OpenClaw agent
-    func deleteOpenClawAgent(id: String) async throws {
-        struct DeleteResponse: Codable { let success: Bool? }
-        let _: DeleteResponse = try await request(
-            method: "DELETE",
-            path: "/api/v1/openclaw/agents/\(id)"
+    /// Update a Custom Agent's profile (its photo is the editable field).
+    func updateCustomAgent(id: String, image: String?) async throws -> CustomAgentUpdateResponse {
+        try await request(
+            method: "PATCH",
+            path: "/api/v1/custom-agents/agents/\(id)",
+            body: UpdateCustomAgentRequest(image: image)
         )
+    }
+
+    /// Delete a Custom Agent and revoke its OAuth client.
+    func deleteCustomAgent(id: String) async throws {
+        let _: CustomAgentDeleteResponse = try await request(
+            method: "DELETE",
+            path: "/api/v1/custom-agents/agents/\(id)"
+        )
+    }
+
+    // MARK: - Webhook transport
+
+    func getWebhookSettings() async throws -> WebhookSettings {
+        try await request(method: "GET", path: "/api/v1/users/me/webhook-settings")
+    }
+
+    func updateWebhookSettings(_ settings: UpdateWebhookSettingsRequest) async throws -> WebhookSettingsSaveResponse {
+        try await request(method: "PUT", path: "/api/v1/users/me/webhook-settings", body: settings)
+    }
+
+    func deleteWebhookSettings() async throws -> WebhookDeleteResponse {
+        try await request(method: "DELETE", path: "/api/v1/users/me/webhook-settings")
+    }
+
+    /// Fire a `test.ping` at the configured URL.
+    func testWebhook() async throws -> WebhookTestResult {
+        try await request(method: "POST", path: "/api/v1/users/me/webhook-settings")
+    }
+
+    // MARK: - Copilot cloud agent token
+
+    /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.
+    /// Not a v1 path: this is the same route the web setup card calls (AITD-297).
+    func createCopilotCloudAgentToken() async throws -> MCPUserTokenResponse {
+        try await request(method: "POST", path: "/api/mcp/user-tokens", body: MCPUserTokenRequest.copilotCloudAgent)
     }
 
     // MARK: - Chat Channels
@@ -1189,13 +1222,22 @@ class AstridAPIClient {
         try await request(method: "GET", path: "/api/v1/capabilities")
     }
 
-    /// Get available AI agents for the current user
-    func getAvailableAgents() async throws -> [AvailableAgent] {
+    /// Get available AI agents for the current user.
+    ///
+    /// `serverRunOnly` narrows to what the server can execute — api-mode built-ins with a
+    /// credential, plus Custom Agents — which is what can power the default assistant. The
+    /// unfiltered list is for assignee pickers and includes polling agents that cannot (AITD-297).
+    func getAvailableAgents(serverRunOnly: Bool = false) async throws -> [AvailableAgent] {
         let response: AvailableAgentsResponse = try await request(
             method: "GET",
-            path: "/api/v1/users/me/available-agents"
+            path: "/api/v1/users/me/available-agents",
+            queryItems: Self.availableAgentsQueryItems(serverRunOnly: serverRunOnly)
         )
         return response.agents
+    }
+
+    nonisolated static func availableAgentsQueryItems(serverRunOnly: Bool) -> [URLQueryItem]? {
+        serverRunOnly ? [URLQueryItem(name: "serverRun", value: "true")] : nil
     }
 
     /// Get current user's AI assistant settings
@@ -1555,49 +1597,6 @@ struct TestAPIKeyResponse: Codable {
 
 struct DeleteAPIKeyResponse: Codable {
     let success: Bool
-}
-
-// MARK: - OpenClaw Agent Types
-
-struct OpenClawAgent: Codable, Identifiable {
-    let id: String
-    let email: String
-    let name: String
-    let image: String?
-    let agentName: String
-    let status: String          // "active" or "idle"
-    let registeredAt: String
-    let lastActiveAt: String?
-    let oauthClientId: String?
-}
-
-struct OpenClawAgentsResponse: Codable {
-    let agents: [OpenClawAgent]
-}
-
-struct OpenClawRegistrationAgent: Codable {
-    let id: String
-    let email: String
-    let name: String
-    let aiAgentType: String
-}
-
-struct OpenClawRegistrationOAuth: Codable {
-    let clientId: String
-    let clientSecret: String
-    let scopes: [String]
-}
-
-struct OpenClawRegistrationConfig: Codable {
-    let sseEndpoint: String
-    let apiBase: String
-    let tokenEndpoint: String
-}
-
-struct OpenClawRegistrationResult: Codable {
-    let agent: OpenClawRegistrationAgent
-    let oauth: OpenClawRegistrationOAuth
-    let config: OpenClawRegistrationConfig
 }
 
 // MARK: - Client Error Type

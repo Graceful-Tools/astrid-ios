@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 
-## Current client — `AstridAPIClient` (46 paths)
+## Current client — `AstridAPIClient` (47 paths)
 
 
 ### `/api/v1/capabilities`
@@ -38,6 +38,12 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/contacts/recommended`
 - `/api/v1/contacts/search`
 
+### `/api/v1/custom-agents`
+
+- `/api/v1/custom-agents/agents`
+- `/api/v1/custom-agents/agents/{id}`
+- `/api/v1/custom-agents/register`
+
 ### `/api/v1/github`
 
 - `/api/v1/github/repositories`
@@ -57,12 +63,6 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/lists/{id}/leave`
 - `/api/v1/lists/{id}/members`
 - `/api/v1/lists/{id}/members/{id}`
-
-### `/api/v1/openclaw`
-
-- `/api/v1/openclaw/agents`
-- `/api/v1/openclaw/agents/{id}`
-- `/api/v1/openclaw/register`
 
 ### `/api/v1/projects`
 
@@ -100,6 +100,7 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/me/verify-email`
+- `/api/v1/users/me/webhook-settings`
 - `/api/v1/users/search`
 
 ## Legacy client — `APIEndpoint` (27 paths)
@@ -134,5 +135,6 @@ five services still on this client are `AuthManager`, `AccountService`, `Attachm
 - `/api/v1/users/me/delete`
 - `/api/v1/users/me/export`
 - `/api/v1/users/me/verify-email`
+- `/api/v1/users/me/webhook-settings`
 - `/api/v1/users/search`
 - `/api/v1/users/{id}/profile`

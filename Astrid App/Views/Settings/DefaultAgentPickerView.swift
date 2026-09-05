@@ -58,7 +58,7 @@ struct DefaultAgentPickerView: View {
                         .foregroundColor(Theme.error)
                 }
             } else {
-                Section(footer: Text("Choose the model that powers \(Brand.appName) for My Tasks and your private lists. Mention @\(Brand.appName) in any chat or comment to get help.")) {
+                Section(footer: Text(String(format: NSLocalizedString("settings.agents.model.footer", comment: ""), Brand.appName, Brand.appName))) {
                     // Apple Intelligence (on-device, free) — shown first when available
                     if AppleFoundationModelService.shared.isAvailable {
                         Button {
@@ -281,7 +281,8 @@ struct DefaultAgentPickerView: View {
         errorMessage = nil
 
         do {
-            async let fetchedAgents = ChatService.shared.fetchAvailableAgents()
+            // Only what the server can run itself can power the assistant (AITD-297).
+            async let fetchedAgents = ChatService.shared.fetchServerRunAgents()
             async let fetchedSettings = ChatService.shared.getAIAssistantSettings()
 
             agents = try await fetchedAgents
@@ -293,8 +294,8 @@ struct DefaultAgentPickerView: View {
                 selectAgent(kAppleFoundationModelId)
             }
 
-            // Cache agents for mention autocomplete
-            AIAgentCache.shared.save(agents)
+            // NOT cached: this is the serverRun-filtered list, and the mention cache must keep
+            // the unfiltered one (polling agents are assignable but cannot power the assistant).
         } catch {
             errorMessage = "Failed to load agents"
             logger.error("Failed to load agent data: \(error.localizedDescription, privacy: .public)")

@@ -2,7 +2,7 @@ import Foundation
 
 /// Canonical service facade for the remaining backend-backed resources that the
 /// settings / list-admin / picker screens consume: user reminder settings, AI
-/// API keys, OpenClaw agents, shortcodes, public-list discovery/copy, user &
+/// API keys, Custom Agents, webhook settings, shortcodes, public-list discovery/copy, user &
 /// agent search, and Google/GitHub integration discovery.
 ///
 /// Per the canonical control points in CLAUDE.md, UI must not call
@@ -69,18 +69,44 @@ final class RemoteResourceService {
         try await apiClient.deleteAIAPIKey(serviceId: serviceId)
     }
 
-    // MARK: - OpenClaw agents
+    // MARK: - Custom Agents
 
-    func getOpenClawAgents() async throws -> [OpenClawAgent] {
-        try await apiClient.getOpenClawAgents()
+    func getCustomAgents() async throws -> [CustomAgent] {
+        try await apiClient.getCustomAgents()
     }
 
-    func registerOpenClawAgent(name: String) async throws -> OpenClawRegistrationResult {
-        try await apiClient.registerOpenClawAgent(name: name)
+    func registerCustomAgent(name: String, listIds: [String]? = nil) async throws -> CustomAgentRegistrationResult {
+        try await apiClient.registerCustomAgent(name: name, listIds: listIds)
     }
 
-    func deleteOpenClawAgent(id: String) async throws {
-        try await apiClient.deleteOpenClawAgent(id: id)
+    func updateCustomAgent(id: String, image: String?) async throws -> CustomAgentUpdateResponse {
+        try await apiClient.updateCustomAgent(id: id, image: image)
+    }
+
+    func deleteCustomAgent(id: String) async throws {
+        try await apiClient.deleteCustomAgent(id: id)
+    }
+
+    func createCopilotCloudAgentToken() async throws -> MCPUserTokenResponse {
+        try await apiClient.createCopilotCloudAgentToken()
+    }
+
+    // MARK: - Webhook transport
+
+    func getWebhookSettings() async throws -> WebhookSettings {
+        try await apiClient.getWebhookSettings()
+    }
+
+    func updateWebhookSettings(_ request: UpdateWebhookSettingsRequest) async throws -> WebhookSettingsSaveResponse {
+        try await apiClient.updateWebhookSettings(request)
+    }
+
+    func deleteWebhookSettings() async throws -> WebhookDeleteResponse {
+        try await apiClient.deleteWebhookSettings()
+    }
+
+    func testWebhook() async throws -> WebhookTestResult {
+        try await apiClient.testWebhook()
     }
 
     // MARK: - Shortcodes
