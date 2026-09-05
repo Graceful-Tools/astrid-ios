@@ -47,7 +47,7 @@ final class OutboxManager {
     }
 
     /// Drain any journal persisted from a previous session. Safe to call when
-    /// the journal is empty.
+    /// the journal is empty, such as after sign-out or a clean launch.
     func start() {
         _Concurrency.Task { await runner.drain() }
     }
@@ -119,13 +119,13 @@ final class OutboxManager {
         noteMutation(source: source)
     }
 
-    /// Enqueue a task creation.
+    /// Enqueue an authoritative task creation entry.
     func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
                       tempId: payload.tempId, source: payload.source)
     }
 
-    /// Enqueue a chat message send.
+    /// Enqueue an authoritative chat message send entry.
     func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.sendChatMessage, payload: payload, clientRequestId: clientRequestId)
     }
@@ -170,7 +170,7 @@ final class OutboxManager {
         noteMutation()
     }
 
-    /// Enqueue a task update.
+    /// Enqueue an authoritative task update entry.
     func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
                       tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil,

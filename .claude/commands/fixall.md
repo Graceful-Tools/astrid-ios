@@ -2,31 +2,65 @@ Check the Astrid iOS to-do list and autonomously work every open task to complet
 
 ## Goal
 
-**Drive the iOS list to empty.** Unlike `/fixstuff`, this does not ask which task to work on —
-it takes them in priority order and keeps going until nothing is left. It stops on its own when
-the list is clear, so a scheduled re-run that finds an empty list is a no-op, not busywork.
+**Drive the iOS queue to empty.** Unlike `/fixstuff`, this does not ask which task to work on —
+it takes them in the order the queue returns them and keeps going until nothing is left. It
+stops on its own when the queue is clear, so a scheduled re-run that finds an empty queue is a
+no-op, not busywork.
+
+## Talk to Astrid through the MCP server — never the database
+
+The `astrid` MCP server (`https://www.astrid.cc/mcp`, configured for this project) is the
+**only** way this loop reads or writes tasks. Its tools:
+
+| Need | Tool |
+|------|------|
+| The queue | `get_agent_queue` `{ agent: "claude", listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` |
+| Read a task | `get_task` `{ taskId }` and `get_task_comments` `{ taskId }` |
+| Comment (strategy, progress, report) | `add_comment` `{ taskId, content, type: "MARKDOWN" }` |
+| Complete | `update_task` `{ taskId, completed: true }` |
+| File the other repo's half | `create_task` `{ listId: <other board>, title, description, priority }` |
+
+If the MCP tools are not loaded, they are deferred — load them with
+`ToolSearch "select:mcp__astrid__get_agent_queue,mcp__astrid__get_task,mcp__astrid__get_task_comments,mcp__astrid__add_comment,mcp__astrid__update_task,mcp__astrid__create_task"`.
+If only `mcp__astrid__authenticate` exists, the server needs OAuth: call it, give Jon the URL,
+and stop until he has authorised — do not fall back to scripts.
+
+**Direct database access (`DATABASE_URL_PROD`, `ios-tasks-direct.ts`, `create-ios-tasks.ts`,
+Prisma) is for deep repair only** — Jon, 2026-08-29 — and never part of this loop. It bypasses
+visibility, the assignee handshake and the due-date gate, and a queue read that way hands back
+work that was deliberately scoped out.
+
+**What the MCP cannot do yet:** move a task to `Doing` / `Waiting`, or reassign it. For those
+two board-etiquette steps only, use the OAuth scripts (not the DB):
+```bash
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Doing      # or Waiting
+cd ../astrid-web && npx tsx scripts/assign-task.ts <taskId> jonparis@gmail.com
+```
+If those fail (OAuth flakiness), say so on the task with `add_comment` and carry on — a
+missing status change is a cosmetic gap; a task worked through the DB is not.
 
 ## The workflow itself is shared
 
 **Read [`../astrid-web/docs/FIXALL_WORKFLOW.md`](../../../astrid-web/docs/FIXALL_WORKFLOW.md)
-— it is the canonical description** of the queue (board ∩ Ready ∩ assignee ∩ due date), the
-board etiquette (`Doing` / `Waiting` / handing back), the per-task loop (strategy comment →
-branch → RED-GREEN TDD → gates → report), filing the other repo's half, and re-checking after
-every task.
+— it is the canonical description** of the queue, the board etiquette (`Doing` / `Waiting` /
+handing back), the per-task loop (strategy comment → branch → RED-GREEN TDD → gates → report),
+filing the other repo's half, and re-checking after every task. It is one workflow, not two;
+this file holds only what is different about the iOS repo.
 
-It lives in astrid-web because this loop already depends on that checkout — every queue and
-board command is a script in it — and because it is one workflow, not two. The two command
-files had drifted by 440 lines before they were consolidated, which is what a rule written
-twice does.
+### What `get_agent_queue` returns
 
-Pull the queue with:
+A task is in the queue only when **all** hold: Ready status, **assigned to `claude`**, on the
+given list, and due now (a task with a future `dueDateTime` is listed under `held.scheduled`
+with when it comes due). It answers `empty: true` when there is nothing to do.
 
-```bash
-cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios --harness claude-code
-```
-
-(The board argument is required here — it defaults to `web`. The harness never defaults;
-guessing would claim another agent's work.)
+- **Assignment is required.** Unlike the old `ready-tasks.ts` script, an unassigned Ready task
+  is NOT in the queue — it is someone's untriaged note. If something unassigned is genuinely
+  yours, say so and let Jon assign it; do not work around the filter.
+- **A queue held up by the clock is not an idle one.** If `empty` but `held.scheduled` is
+  non-empty, say when the next task comes due rather than just "empty".
+- **Re-check after every task with the same call** — never work from the opening snapshot. New
+  tasks arrive mid-run and a REOPENED task looks exactly like one never done; a reopened task
+  means the previous fix missed, so find a different cause.
 
 ## What is different here
 
@@ -79,12 +113,9 @@ git push origin main && git checkout iosdev
 - **If runs are created and cancelled with `startedDate: null`, the allotment is gone.** Say so
   and stop; pushing again only makes more cancelled runs.
 
-**Xcode Cloud is not the only way out.** A build can be archived locally and uploaded straight
-to App Store Connect — TestFlight included — with the ASC API key already in `.env.local`:
-`xcodebuild archive` → `-exportArchive` with `method: app-store-connect` → `xcrun altool
---upload-app`, all three passing `-allowProvisioningUpdates` and the `-authenticationKey*`
-flags so automatic signing can mint a distribution certificate. That is how builds 900–909
-shipped while the allotment was out. See [[xcode-cloud-runs-canceled]].
+**Xcode Cloud is not the only way out.** `npm run release:ios:upload` archives locally and
+uploads straight to App Store Connect / TestFlight with the ASC key in `.env.local` — see
+`.claude/skills/appstore-release/SKILL.md`. Ask before an `:upload`.
 
 See [ASTRID.md](../../ASTRID.md) for architecture and the full coding workflow, and `/fixstuff`
 for the interactive, pick-one-task-at-a-time version.
