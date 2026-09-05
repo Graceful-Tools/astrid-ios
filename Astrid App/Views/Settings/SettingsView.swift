@@ -50,7 +50,7 @@ struct SettingsView: View {
 
                 // Exploratory Features section
                 Section(NSLocalizedString("exploratory_features", comment: "")) {
-                    NavigationLink(destination: LazyView { AIAgentRuntimeSettingsView() }) {
+                    NavigationLink(destination: LazyView { AgentHubView() }) {
                         Label(
                             NSLocalizedString("settings.agents.title", comment: ""),
                             systemImage: "cpu"

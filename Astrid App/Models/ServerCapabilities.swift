@@ -47,6 +47,8 @@ struct ServerCapabilities: Codable, Equatable {
 
     struct Integrations: Codable, Equatable {
         var mcp = true
+        /// Custom Agents (OAuth + REST + SSE). `openclaw` is the legacy name of the same surface.
+        var customAgents = true
         var openclaw = true
         var chatgptActions = true
 
@@ -55,6 +57,7 @@ struct ServerCapabilities: Codable, Equatable {
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             mcp = try c.decodeIfPresent(Bool.self, forKey: .mcp) ?? true
+            customAgents = try c.decodeIfPresent(Bool.self, forKey: .customAgents) ?? true
             openclaw = try c.decodeIfPresent(Bool.self, forKey: .openclaw) ?? true
             chatgptActions = try c.decodeIfPresent(Bool.self, forKey: .chatgptActions) ?? true
         }

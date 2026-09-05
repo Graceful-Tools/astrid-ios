@@ -88,7 +88,7 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
             encoding: .utf8
         )
 
-        XCTAssertTrue(source.contains("AIAgentRuntimeSettingsView()"))
+        XCTAssertTrue(source.contains("AgentHubView()"))
         XCTAssertTrue(source.contains("\"settings.agents.title\""))
     }
 }

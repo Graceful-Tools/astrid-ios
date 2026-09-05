@@ -818,10 +818,10 @@
 "splash.loading" = "Loading your tasks...";
 
 /* OpenClaw Settings */
-"settings.openclaw.section" = "OpenClaw Agents";
-"settings.openclaw.title" = "OpenClaw Agents";
-"settings.openclaw.subtitle" = "Connect your own AI agents";
-"settings.openclaw.description" = "Register AI agents that connect via the OpenClaw protocol. Each agent gets a unique identity and OAuth credentials.";
+"settings.openclaw.section" = "Custom Agents";
+"settings.openclaw.title" = "Custom Agents";
+"settings.openclaw.subtitle" = "Agents you operate over OAuth + REST + SSE";
+"settings.openclaw.description" = "Register agents that connect over OAuth, REST and SSE. Each agent gets a unique identity and OAuth client credentials.";
 "settings.openclaw.loading" = "Loading agents...";
 "settings.openclaw.no_agents" = "No agents connected";
 "settings.openclaw.no_agents_hint" = "Register an agent to get started. Agents get OAuth credentials to communicate with %1$@ via REST and SSE.";
@@ -851,8 +851,8 @@
 "settings.openclaw.delete_agent" = "Remove Agent";
 "settings.openclaw.delete_confirm" = "This will permanently delete %@ and revoke its OAuth credentials. This cannot be undone.";
 "settings.openclaw.agent_deleted" = "Agent removed";
-"settings.openclaw.about" = "About OpenClaw";
-"settings.openclaw.about_description" = "OpenClaw is an open protocol for connecting AI agents to %1$@. Agents authenticate via OAuth, receive tasks through REST API, and get real-time updates via SSE. Works with any AI provider.";
+"settings.openclaw.about" = "About Custom Agents";
+"settings.openclaw.about_description" = "A Custom Agent is any agent you operate that talks to %1$@ over an open protocol: it authenticates with OAuth, reads and writes tasks through the REST API, and gets real-time updates over SSE. Works with any AI provider.";
 "settings.openclaw.tip_title" = "Tip: List descriptions = agent instructions";
 "settings.openclaw.tip_description" = "Each list's description is used as instructions for AI agents working on tasks in that list. Write markdown to tell agents how to handle tasks.";
 "settings.openclaw.agent_created" = "Agent created successfully";
@@ -1235,7 +1235,7 @@
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";
-"settings.agents.description" = "Choose who runs each agent. %@ can run it in the cloud, your own harness can poll the queue, or your webhook server can receive work.";
+"settings.agents.description" = "Pick who runs each agent. %@ runs it needs that provider's API key. I run it uses the coding tool you already pay for — native harness polling, a Custom Agent, or a webhook server you host.";
 "settings.agents.loading" = "Loading agent settings…";
 "settings.agents.load_failed" = "Could not load agent settings: %@";
 "settings.agents.save_failed" = "Could not save agent mode: %@";
@@ -1253,8 +1253,71 @@
 "settings.agents.copilot_disconnect" = "Disconnect GitHub Copilot";
 "settings.agents.polling_description" = "Your own %@ setup does the work. Connect it once, assign this agent a task, and mark the task Ready.";
 "settings.agents.copied" = "Copied";
-"settings.agents.webhook_description" = "A server you host receives this agent's work as soon as it appears. Webhook secrets are session-protected, so configure the server on the web.";
+"settings.agents.webhook_description" = "A server you host is pushed this agent's work the moment it appears — for machines with a permanent address.";
 "settings.agents.webhook_configure" = "Configure webhook on the web";
 "settings.agents.off_description" = "This agent is hidden from assignee pickers and %@ never runs it. Saved settings and keys are kept.";
 "settings.agents.preferences" = "AI Preferences";
 "settings.agents.default_model" = "Default model";
+
+/* Agent Hub — ownership-first agent settings (AITD-297) */
+"settings.agents.your_agents" = "Your agents";
+"settings.agents.ownership.astrid" = "%@ runs it";
+"settings.agents.ownership.user" = "I run it";
+"settings.agents.ownership.off" = "Off";
+"settings.agents.transport" = "Transport";
+"settings.agents.transport.polling" = "Native coding harness";
+"settings.agents.transport.webhook" = "Webhook server";
+"settings.agents.transport.sse" = "Custom Agent (SSE)";
+"settings.agents.guide_link" = "Connect my coding agent guide";
+"settings.agents.download_skill" = "Download the workflow skill";
+"settings.agents.polling_guide_hint" = "Connect, install, schedule and test recipes for every harness live in the guide; the workflow skill is generated to match.";
+"settings.agents.get_key" = "Get a key";
+"settings.agents.key_footer" = "Encrypted at rest, used only server-side.";
+"settings.agents.key_replace_placeholder" = "Key saved — paste to replace";
+"settings.agents.copilot_waiting" = "Waiting for GitHub to confirm…";
+"settings.agents.copilot_cloud.title" = "Copilot cloud agent (GitHub.com)";
+"settings.agents.copilot_cloud.description" = "Let the Copilot coding agent on GitHub.com reach %@ through MCP: create a token, add it as a repository secret, then paste the config into the repository's Copilot settings.";
+"settings.agents.copilot_cloud.oauth_warning" = "The token acts as copilot@ on your behalf. Keep it in a repository secret, never in the repository itself.";
+"settings.agents.copilot_cloud.create" = "Create token & config";
+"settings.agents.copilot_cloud.secret_step" = "1. Add a repository secret named %@ with this token.";
+"settings.agents.copilot_cloud.config_step" = "2. Add this MCP configuration to the repository's Copilot settings.";
+"settings.agents.copilot_cloud.token" = "Token (shown once)";
+"settings.agents.copilot_cloud.config" = "MCP configuration";
+"settings.agents.copilot_cloud.open_docs" = "Open GitHub docs";
+"settings.agents.webhook.configure" = "Configure webhook server";
+"settings.agents.webhook.url" = "Webhook URL";
+"settings.agents.webhook.url_hint" = "Your server's endpoint. Runs on the %@ SDK (npx astrid-agent serve); it gets its own credentials from API Access on the web.";
+"settings.agents.webhook.enabled" = "Enabled";
+"settings.agents.webhook.agents" = "Agents this webhook handles";
+"settings.agents.webhook.agents_hint" = "Unselected agents fall back to polling.";
+"settings.agents.webhook.no_agents" = "No agents selected. All work falls back to polling.";
+"settings.agents.webhook.regenerate" = "Regenerate secret on save";
+"settings.agents.webhook.save" = "Save configuration";
+"settings.agents.webhook.update" = "Update configuration";
+"settings.agents.webhook.remove" = "Remove webhook";
+"settings.agents.webhook.remove_confirm" = "Remove your webhook configuration? Your server will stop receiving work.";
+"settings.agents.webhook.test" = "Test webhook";
+"settings.agents.webhook.status" = "Status";
+"settings.agents.webhook.active" = "Active";
+"settings.agents.webhook.disabled" = "Disabled";
+"settings.agents.webhook.failures" = "%d failures";
+"settings.agents.webhook.no_failures" = "No failures";
+"settings.agents.webhook.last_fired" = "Last fired %@";
+"settings.agents.webhook.secret_title" = "Save your webhook secret";
+"settings.agents.webhook.secret_warning" = "Shown once. Add it to your server's environment as ASTRID_WEBHOOK_SECRET.";
+"settings.agents.webhook.test_response" = "Response time: %d ms";
+"settings.agents.session_required" = "This change needs a signed-in web session. Open the web settings to do it there.";
+"settings.agents.open_web" = "Open web settings";
+"settings.agents.github.title" = "GitHub connection";
+"settings.agents.github.description" = "Only needed when %@ runs it: server-run agents create branches and pull requests through this connection. A harness or webhook server you run uses its own GitHub access. Pick the repository per list in List Settings → Admin.";
+"settings.agents.github.connected" = "Connected";
+"settings.agents.github.not_connected" = "Not connected";
+"settings.agents.github.repositories" = "%d repositories";
+"settings.agents.github.manage" = "Manage on the web";
+"settings.agents.custom.title" = "Custom Agents";
+"settings.agents.custom.subtitle" = "Agents you operate over OAuth + REST + SSE";
+"settings.agents.model.title" = "%@'s model";
+"settings.agents.model.description" = "Only models %@ can run server-side are listed: providers with a key, and Custom Agents.";
+"settings.agents.model.empty" = "Add a provider key under \"%@ runs it\" or register a Custom Agent to power %@.";
+"settings.agents.model.footer" = "Choose the model that powers %@ for My Tasks and your private lists. Mention @%@ in any chat or comment to get help.";
+"mac.change_photo" = "Change photo…";
