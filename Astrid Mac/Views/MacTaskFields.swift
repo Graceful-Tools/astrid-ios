@@ -23,7 +23,7 @@ enum MacTaskFieldRow: Equatable {
 
     /// The Mac's name for a shared field, so `MacTaskFields.rows` can build list mode straight
     /// from `TaskDetailFieldOrder.listMode` (task c8a1ff51).
-    init(_ field: TaskDetailField) {
+    nonisolated init(_ field: TaskDetailField) {
         switch field {
         case .assignee: self = .assignee
         case .when:     self = .when

@@ -143,9 +143,7 @@ struct ListAgentSettingsView: View {
 
             // Check current list's agent setting
             if let list = ListService.shared.lists.first(where: { $0.id == listId }) {
-                // TODO: Read aiAgentsEnabled from list model when available
-                // For now, default to "use default"
-                _ = list
+                selectedAgentId = list.aiAgentConfig?.defaultAgentId
             }
         } catch {
             errorMessage = "Failed to load agents"

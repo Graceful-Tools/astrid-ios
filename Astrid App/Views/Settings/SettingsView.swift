@@ -50,34 +50,11 @@ struct SettingsView: View {
 
                 // Exploratory Features section
                 Section(NSLocalizedString("exploratory_features", comment: "")) {
-                    NavigationLink(destination: LazyView { DefaultAgentPickerView() }) {
-                        HStack {
-                            Image("AstridCharacter")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 24, height: 24)
-                                .clipShape(Circle())
-                            Text("\(Brand.appName)'s AI")
-                        }
-                    }
-
-                    NavigationLink(destination: LazyView { AIAssistantSettingsView() }) {
-                        HStack {
-                            Image(systemName: "cpu")
-                                .foregroundColor(Theme.accent)
-                            Text(NSLocalizedString("ai_assistant", comment: ""))
-                        }
-                    }
-
-                    NavigationLink(destination: LazyView { OpenClawSettingsView() }) {
-                        HStack {
-                            Image("ai-openclaw")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 24, height: 24)
-                                .clipShape(Circle())
-                            Text(NSLocalizedString("settings.openclaw.title", comment: ""))
-                        }
+                    NavigationLink(destination: LazyView { AIAgentRuntimeSettingsView() }) {
+                        Label(
+                            NSLocalizedString("settings.agents.title", comment: ""),
+                            systemImage: "cpu"
+                        )
                     }
 
                     NavigationLink(destination: LazyView { AppleRemindersSettingsView() }) {

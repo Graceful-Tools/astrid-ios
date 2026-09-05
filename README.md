@@ -115,10 +115,13 @@ npm run test
 # Run all tests (unit + UI)
 npm run test:all
 
+# Boot the exact iPhone 17 simulator once; later runs reuse it
+npm run simulator:prepare
+
 # Predeploy checks (before pushing)
 npm run predeploy
 
-# Full predeploy (includes UI tests)
+# Full predeploy (includes iOS UI and Mac tests)
 npm run predeploy:full
 ```
 
@@ -126,10 +129,7 @@ npm run predeploy:full
 
 ```bash
 # Build + unit-test the Mac target
-xcodebuild build-for-testing -scheme "Astrid Mac" -destination "platform=macOS" \
-  -derivedDataPath /tmp/astrid-mac-dd -allowProvisioningUpdates
-xcodebuild test-without-building -scheme "Astrid Mac" -destination "platform=macOS" \
-  -derivedDataPath /tmp/astrid-mac-dd -only-testing:"Astrid MacTests"
+npm run test:mac
 
 # Build a signed, notarized DMG (needs a Developer ID certificate)
 npm run package:mac
@@ -140,6 +140,10 @@ node scripts/mac-ci-build.mjs --open
 
 `build-for-testing` matters after any entitlements change — `build` alone leaves stale test
 products and the test host fails to launch.
+
+The first simulator boot after installing a new runtime can spend several minutes migrating
+system data. `npm run simulator:prepare` leaves that exact device booted, so local and Actions
+test runs reuse it instead of selecting a similarly named Pro model or paying another cold boot.
 
 TestFlight on iPhone/iPad never lists Mac builds; they appear only in the **TestFlight app on
 macOS**. `scripts/mac-ci-build.mjs` sidesteps that by downloading the newest successful Xcode

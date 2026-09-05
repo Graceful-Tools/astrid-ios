@@ -388,7 +388,7 @@ struct RichTextInput: View {
     private func attachmentPreview(file: AttachedFileInfo) -> some View {
         let fileExtension: String = file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE"
 
-        return ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topTrailing) {
             if file.isImage, let imageData = file.imageData, let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
                     .resizable()

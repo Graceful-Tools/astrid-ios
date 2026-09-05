@@ -59,8 +59,8 @@ which takes another 5–15 minutes. Only then does it print `RESULT: OK`.
 The verification comes before the upload on purpose, so an unverified build cannot ship. It used
 to come after, where it could never run at all: an upload export leaves no .ipa on disk, so the
 check failed its own guard and every successful upload ended in `RESULT: FAILED` (task 3f964556).
-The upload is a second export of the same archive, which is why an `:upload` run does the export
-step twice.
+The upload sends that same verified package with `xcrun altool --upload-app`, authenticated by the
+App Store Connect key, so what was checked is byte-for-byte what Apple receives.
 An upload that Apple accepted is not yet an installable build, so do not call anything shipped
 before that line appears.
 

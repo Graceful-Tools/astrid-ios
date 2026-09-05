@@ -589,4 +589,75 @@ final class TaskListModelTests: XCTestCase {
         XCTAssertEqual(decoded.projectId, "p-1")
         XCTAssertEqual(decoded.recentlyCompletedWindow, .duration(amount: 7, unit: .day))
     }
+
+    // MARK: - aiAgentsEnabled wire shapes
+
+    /// Regression for the 2026-08-29 Mac log
+    /// `typeMismatch … Path: lists[10].aiAgentsEnabled … Expected to decode Array<Any> but
+    /// found a dictionary instead` — one list whose agent config had been saved on the web in the
+    /// server's stored object form `{ enabledTypes, defaultAgentId }` failed the decode of the
+    /// WHOLE `/api/v1/lists` response, and every list in the account disappeared ("offline mode,
+    /// 0 lists"). The server now emits the array again plus a sibling `aiAgentConfig`, but the
+    /// client must never let one field on one list zero the cache: an array, a dictionary, and
+    /// null must all decode, and the other lists must survive whatever the eleventh one holds.
+    func testDecode_aiAgentsEnabled_objectForm_doesNotZeroTheList() throws {
+        let json = """
+        {"lists":[
+          {"id":"l-object","name":"Web-configured","createdAt":"2026-08-29T10:00:00.000Z",
+           "aiAgentsEnabled":{"enabledTypes":["claude","coding"],"defaultAgentId":"agent-1"}},
+          {"id":"l-array","name":"Legacy","aiAgentsEnabled":["claude"],
+           "aiAgentConfig":{"enabledTypes":["claude"],"defaultAgentId":null}},
+          {"id":"l-null","name":"Untouched","aiAgentsEnabled":null}
+        ]}
+        """
+        let decoder = TaskListModelTests.apiDecoder()
+
+        let response = try decoder.decode(ListsResponse.self, from: Data(json.utf8))
+
+        XCTAssertEqual(response.lists.map(\.id), ["l-object", "l-array", "l-null"])
+
+        let object = response.lists[0]
+        XCTAssertEqual(object.aiAgentsEnabled, ["claude", "coding"])
+        XCTAssertEqual(object.aiAgentConfig?.enabledTypes, ["claude", "coding"],
+                       "a dictionary carries the full config — keep it, it's what the web reads")
+        XCTAssertEqual(object.aiAgentConfig?.defaultAgentId, "agent-1")
+
+        let array = response.lists[1]
+        XCTAssertEqual(array.aiAgentsEnabled, ["claude"])
+        XCTAssertEqual(array.aiAgentConfig?.enabledTypes, ["claude"])
+        XCTAssertNil(array.aiAgentConfig?.defaultAgentId)
+
+        let untouched = response.lists[2]
+        XCTAssertNil(untouched.aiAgentsEnabled)
+        XCTAssertNil(untouched.aiAgentConfig, "absent on the wire stays absent — no invented config")
+    }
+
+    /// PUT bodies keep sending the array the server has always accepted.
+    func testEncode_aiAgentsEnabled_staysAnArray() throws {
+        var list = TestHelpers.createTestList(id: "l-1", name: "List")
+        list.aiAgentsEnabled = ["claude"]
+
+        let json = try XCTUnwrap(String(data: JSONEncoder().encode(list), encoding: .utf8))
+
+        XCTAssertTrue(json.contains("\"aiAgentsEnabled\":[\"claude\"]"), json)
+    }
+
+    /// Mirrors `AstridAPIClient`'s decoder (which is private): ISO8601 with or without
+    /// fractional seconds. The field under test doesn't depend on it, but the payload above is
+    /// what the real endpoint returns and should decode through the same configuration.
+    private static func apiDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            let fractional = ISO8601DateFormatter()
+            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractional.date(from: dateString) { return date }
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            if let date = plain.date(from: dateString) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+        }
+        return decoder
+    }
 }

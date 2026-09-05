@@ -19,6 +19,7 @@ enum AssigneeOptions {
 
     static func build(availableLists: [TaskList],
                       taskListIds: [String],
+                      discoveredUsers: [User] = [],
                       aiAgents: [User],
                       currentUser: User?) -> [User] {
         var byId: [String: User] = [:]
@@ -31,6 +32,7 @@ enum AssigneeOptions {
             }
         }
 
+        for user in discoveredUsers { byId[user.id] = user }
         for agent in aiAgents { byId[agent.id] = agent }
 
         // A task with no resolvable lists — "My Tasks", or a board card whose lists this screen

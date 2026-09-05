@@ -295,6 +295,18 @@ class CachedImageLoader: ObservableObject {
     }
 }
 
+/// AI-agent endpoints serve SVGs, which PlatformImage cannot decode. Resolve known
+/// agent slugs to bundled vector assets before starting a network image load.
+enum AgentAvatarAsset {
+    nonisolated static func assetName(for url: URL?) -> String? {
+        guard let url, url.path.hasPrefix("/api/v1/agent-icon/") else { return nil }
+        switch url.lastPathComponent {
+        case "copilot": return "ai-copilot"
+        default: return nil
+        }
+    }
+}
+
 /// SwiftUI view for cached async images
 struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     let url: URL?
@@ -317,14 +329,16 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
 
     var body: some View {
         Group {
-            if let image = loader.image {
+            if let assetName = AgentAvatarAsset.assetName(for: url) {
+                content(Image(assetName))
+            } else if let image = loader.image {
                 content(Image(platformImage: image))
             } else {
                 placeholder()
             }
         }
         .onAppear {
-            if let url {
+            if let url, AgentAvatarAsset.assetName(for: url) == nil {
                 loader.load(url: url)
             }
         }
@@ -332,7 +346,11 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         // `.id(url)` — exactly one of them ever did, so a changed picture silently did not redraw
         // anywhere else (Task 16f39f36).
         .onChange(of: url) {
-            if let url { loader.load(url: url) } else { loader.clear() }
+            if let url, AgentAvatarAsset.assetName(for: url) == nil {
+                loader.load(url: url)
+            } else {
+                loader.clear()
+            }
         }
         .onDisappear {
             loader.cancel()

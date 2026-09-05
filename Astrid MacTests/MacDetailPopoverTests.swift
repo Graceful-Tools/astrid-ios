@@ -19,6 +19,30 @@ final class MacDetailPopoverTests: XCTestCase {
 
 extension MacDetailPopoverTests {
 
+    /// Regression for the macOS console storm where scaling the detail's
+    /// PlatformTextFieldAdaptors emitted invalid min/max length warnings.
+    func testRevealMaskKeepsContentAtFullScale() {
+        let bounds = CGRect(x: 0, y: 0, width: 400, height: 800)
+        let visible = MacDetailRevealMask.visibleRect(in: bounds, progress: 0.5, anchorY: 0.25)
+
+        XCTAssertEqual(visible.width, 200, accuracy: 0.001)
+        XCTAssertEqual(visible.height, 432, accuracy: 0.001)
+        XCTAssertEqual(visible.minX, bounds.minX, accuracy: 0.001)
+        XCTAssertEqual(visible.minY + visible.height * 0.25,
+                       bounds.minY + bounds.height * 0.25,
+                       accuracy: 0.001)
+    }
+
+    func testRevealDoesNotScaleAppKitBackedTextFields() throws {
+        let source = try String(contentsOf: macDetailPopoverSource(), encoding: .utf8)
+        let modifier = try XCTUnwrap(source.components(separatedBy: "struct MacDetailReveal: ViewModifier").last?
+            .components(separatedBy: "struct MacDetailRevealMask").first)
+
+        XCTAssertFalse(modifier.contains(".scaleEffect("),
+                       "Scaling the detail hierarchy produces PlatformTextFieldAdaptor constraint warnings")
+        XCTAssertTrue(modifier.contains(".clipShape(MacDetailRevealMask("))
+    }
+
     /// Collapsed, the panel is about as tall as the arrow — that is what makes the motion read as
     /// the ARROW widening rather than a whole box appearing.
     func testCollapsedStateIsArrowSized() {
@@ -61,5 +85,12 @@ extension MacDetailPopoverTests {
     func testAnchorClampsIntoThePanel() {
         XCTAssertEqual(MacDetailReveal.anchor(rowMidY: -500, contentMinY: 0, contentHeight: 800), 0)
         XCTAssertEqual(MacDetailReveal.anchor(rowMidY: 5_000, contentMinY: 0, contentHeight: 800), 1)
+    }
+
+    private func macDetailPopoverSource() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Astrid Mac/Views/MacDetailPopover.swift")
     }
 }

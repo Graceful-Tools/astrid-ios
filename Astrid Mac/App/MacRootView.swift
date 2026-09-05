@@ -258,7 +258,6 @@ struct MacRootView: View {
     }
 
     /// Make `droppedId` a subtask of `parent` (drag-to-indent), guarding against cycles.
-    @discardableResult
     private func beginInlineEdit(_ t: Task) { editingTaskId = t.id; editingTaskTitle = t.title }
     private func commitInlineEdit(_ t: Task) {
         let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)

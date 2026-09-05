@@ -12,10 +12,10 @@
 import Foundation
 
 enum UITestNetworkIsolation {
-    static let isUITesting = UITestSession.isUITesting
+    nonisolated static let isUITesting = UITestSession.isUITesting
 
     /// Apply to any URLSessionConfiguration that would otherwise carry ambient cookies.
-    static func harden(_ configuration: URLSessionConfiguration) -> URLSessionConfiguration {
+    nonisolated static func harden(_ configuration: URLSessionConfiguration) -> URLSessionConfiguration {
         guard isUITesting else { return configuration }
         configuration.httpCookieAcceptPolicy = .never
         configuration.httpShouldSetCookies = false

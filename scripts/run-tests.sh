@@ -168,23 +168,45 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     write_uitest_session
     echo ""
 
+    RESULTS_DIR="$PROJECT_DIR/test-results"
+    RESULTS_SUFFIX="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$(date +%s)"
+    mkdir -p "$RESULTS_DIR"
+    : > /tmp/ui_monkey_tests.log
+    : > /tmp/ui_functional_tests.log
+
+    run_ui_batch() {
+        local log_path="$1"
+        local result_path="$2"
+        shift 2
+
+        xcodebuild test \
+            -scheme "Astrid App" \
+            -destination "$DESTINATION" \
+            -resultBundlePath "$result_path" \
+            "$@" \
+            $QUIET_FLAG 2>&1 | tee "$log_path"
+        return "${PIPESTATUS[0]}"
+    }
+
     set +e
-    if [[ "$QUIET_MODE" == "true" ]]; then
-        xcodebuild test \
-            -scheme "Astrid App" \
-            -destination "$DESTINATION" \
+    # The monkey measures per-action hangs, so competing simulator clones create false
+    # positives. Run it alone, then let the deterministic functional suite use parallel clones.
+    run_ui_batch \
+        /tmp/ui_monkey_tests.log \
+        "$RESULTS_DIR/ui-monkey-$RESULTS_SUFFIX.xcresult" \
+        -only-testing:"Astrid AppUITests/MonkeyUITests" \
+        -parallel-testing-enabled NO
+    UI_EXIT=$?
+
+    if [[ $UI_EXIT -eq 0 ]]; then
+        run_ui_batch \
+            /tmp/ui_functional_tests.log \
+            "$RESULTS_DIR/ui-functional-$RESULTS_SUFFIX.xcresult" \
             -only-testing:"Astrid AppUITests" \
-            -quiet 2>&1 | tee /tmp/ui_tests.log
-
-        UI_EXIT=${PIPESTATUS[0]}
-    else
-        xcodebuild test \
-            -scheme "Astrid App" \
-            -destination "$DESTINATION" \
-            -only-testing:"Astrid AppUITests" 2>&1 | tee /tmp/ui_tests.log
-
-        UI_EXIT=${PIPESTATUS[0]}
+            -skip-testing:"Astrid AppUITests/MonkeyUITests"
+        UI_EXIT=$?
     fi
+    cat /tmp/ui_monkey_tests.log /tmp/ui_functional_tests.log 2>/dev/null > /tmp/ui_tests.log
     set -e
 
     if [[ $UI_EXIT -eq 0 ]]; then

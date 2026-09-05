@@ -21,7 +21,7 @@ enum Brand {
     // MARK: - Identity
 
     /// Short product name, e.g. "Astrid". Used wherever copy names the app.
-    static let appName = infoString("BrandName") ?? "Astrid"
+    nonisolated static let appName = infoString("BrandName") ?? "Astrid"
 
     /// Apex web host, without scheme. Universal Links and the production API live here.
     static let host = infoString("BrandHost") ?? "astrid.cc"
@@ -72,7 +72,7 @@ enum Brand {
     /// Distinct from `appName` because a brand may name its assistant separately from its
     /// product, and because the on-device model is *told* this name and then repeats it
     /// to the user — it is user-visible copy, not an internal identifier.
-    static let agentName = infoString("BrandAgentName") ?? appName
+    nonisolated static let agentName = infoString("BrandAgentName") ?? appName
 
     // MARK: - Appearance
 
@@ -183,7 +183,7 @@ enum Brand {
     }
 
     /// Read a non-empty string from the running bundle's Info.plist.
-    private static func infoString(_ key: String) -> String? {
+    private nonisolated static func infoString(_ key: String) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         // An unsubstituted build setting (`$(BRAND_NAME)`) is not a brand — ignore it.

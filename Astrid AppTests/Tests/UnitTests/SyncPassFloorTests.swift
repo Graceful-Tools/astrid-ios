@@ -68,4 +68,22 @@ final class SyncPassFloorTests: XCTestCase {
                                              now: now, floor: 30),
                       "a future 'last pass' means the clock moved, not that a pass just ran")
     }
+
+    /// THE BUG: one pass tried to mirror every unlinked task in a large list,
+    /// issuing an uninterrupted POST/PUT burst while Mac interactions stalled.
+    func testUnlinkedTaskMirroringIsBoundedPerPass() {
+        let selection = SyncPushBatch.select(
+            taskIds: (1...21).map { "task-\($0)" },
+            budget: SyncPushBatch.defaultBudget)
+
+        XCTAssertEqual(selection.taskIds, (1...5).map { "task-\($0)" })
+        XCTAssertTrue(selection.hasMore, "remaining mirrors must continue on a later pass")
+    }
+
+    func testACompleteUnlinkedBatchDoesNotScheduleAnotherPass() {
+        let selection = SyncPushBatch.select(taskIds: ["a", "b"], budget: 5)
+
+        XCTAssertEqual(selection.taskIds, ["a", "b"])
+        XCTAssertFalse(selection.hasMore)
+    }
 }

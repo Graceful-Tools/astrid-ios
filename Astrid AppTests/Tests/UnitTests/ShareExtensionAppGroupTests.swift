@@ -83,6 +83,35 @@ final class ShareExtensionAppGroupTests: XCTestCase {
                        "that is the Xcode template's base class — the real controller is a UIViewController")
     }
 
+    /// App Store Connect rejects an extension that declares both entry-point mechanisms.
+    /// MainInterface already instantiates ShareViewController, so the plist must use only it.
+    func testShareExtensionDeclaresOneEntryPointForAppStoreExport() throws {
+        let data = try Data(contentsOf: repoRoot.appendingPathComponent("Astrid/Info.plist"))
+        let plist = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let extensionConfig = try XCTUnwrap(plist["NSExtension"] as? [String: Any])
+
+        XCTAssertEqual(extensionConfig["NSExtensionMainStoryboard"] as? String, "MainInterface")
+        XCTAssertNil(extensionConfig["NSExtensionPrincipalClass"], """
+            App Store Connect rejects an appex that has both NSExtensionMainStoryboard and \
+            NSExtensionPrincipalClass. MainInterface already owns ShareViewController.
+            """)
+    }
+
+    /// A direct xcodebuild upload consumes its temporary package, leaving nothing for the
+    /// entitlement guard. The release path must export, verify, and only then upload.
+    func testLocalAppStoreReleaseVerifiesExportBeforeUpload() throws {
+        let script = try sourceFile("scripts/appstore-release.sh")
+        let export = try XCTUnwrap(script.range(of: "xcodebuild -exportArchive"))
+        let verify = try XCTUnwrap(script.range(of: "step \"Verifying signed entitlements\""))
+        let upload = try XCTUnwrap(script.range(of: "xcrun altool --upload-app"))
+
+        XCTAssertLessThan(export.lowerBound, verify.lowerBound)
+        XCTAssertLessThan(verify.lowerBound, upload.lowerBound)
+        XCTAssertTrue(script.contains("<key>destination</key><string>export</string>"),
+                      "xcodebuild must retain the signed package for entitlement verification")
+    }
+
     /// ShareDataManager has to be compiled INTO the extension, not merely referenced by it.
     /// It lives in `Shared/` for that reason: the extension, the iOS app and the Mac app all
     /// build that folder, so one copy serves all three.
@@ -91,8 +120,13 @@ final class ShareExtensionAppGroupTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: repoRoot.appendingPathComponent("Shared/ShareDataManager.swift").path),
                       "ShareDataManager moved out of Shared/ — the extension can no longer compile it")
-        // Three targets: the extension, the iOS app, the Mac app.
-        let memberships = project.components(separatedBy: "/* Shared */,").count - 1
+        // Three targets: the extension, the iOS app, the Mac app. Counted inside the targets'
+        // fileSystemSynchronizedGroups lists only — the group also appears once in the project's
+        // group tree, and that entry is navigation, not membership.
+        let memberships = project.components(separatedBy: "fileSystemSynchronizedGroups = (")
+            .dropFirst()
+            .filter { ($0.components(separatedBy: ");").first ?? "").contains("/* Shared */") }
+            .count
         XCTAssertEqual(memberships, 3, "every target that touches the App Group container must build Shared/")
     }
 
