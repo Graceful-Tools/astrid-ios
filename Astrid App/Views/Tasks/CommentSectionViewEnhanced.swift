@@ -1816,54 +1816,14 @@ struct ChatAttachmentItem<MenuContent: View>: View {
         isLoading = true
         defer { isLoading = false }
 
-        // Check if local temp file
-        if file.id.hasPrefix("temp_") {
-            if let localData = attachmentService.getLocalFileData(for: file.id) {
-                let img = await MainActor.run { UIImage(data: localData) }
-                if let img {
-                    image = img
-                    ThumbnailCache.shared.set(img, for: file.id)
-                }
-            }
-            return
-        }
-
-        // Check disk cache
-        if let cachedData = attachmentService.getCachedDownload(for: file.id) {
-            let img = await MainActor.run { UIImage(data: cachedData) }
-            if let img {
-                image = img
-                ThumbnailCache.shared.set(img, for: file.id)
-                return
-            }
-        }
-
-        // Download from server
-        do {
-            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
-            guard let url = URL(string: infoURL) else { return }
-
-            var request = URLRequest(url: url)
-            AnalyticsPlatformHeader.apply(to: &request)
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            }
-
-            let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else { return }
-
-            let fileInfo = try JSONDecoder().decode(SecureFileInfo.self, from: infoData)
-            guard let downloadURL = URL(string: fileInfo.url) else { return }
-
-            let (fileData, _) = try await URLSession.shared.data(from: downloadURL)
-            let img = await MainActor.run { UIImage(data: fileData) }
-            if let img {
-                image = img
-                ThumbnailCache.shared.set(img, for: file.id)
-                attachmentService.cacheDownload(fileId: file.id, data: fileData)
-            }
-        } catch {
-            print("❌ [ChatAttachmentItem] Failed to load image: \(error)")
+        // Staged-locally → download cache → server is ONE ladder, and the Mac comment bubble
+        // walks the same one (AITD-304). It lives in AttachmentService so there is a single
+        // copy of it rather than one per surface that shows an attachment.
+        guard let data = await attachmentService.fileData(for: file.id) else { return }
+        let img = await MainActor.run { UIImage(data: data) }
+        if let img {
+            image = img
+            ThumbnailCache.shared.set(img, for: file.id)
         }
     }
 

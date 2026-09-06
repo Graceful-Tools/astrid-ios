@@ -303,6 +303,34 @@ class AttachmentService: ObservableObject {
         return URL(string: fileInfo.url)
     }
 
+    /// The bytes of a secure file, wherever they already are: the local staging copy of a file
+    /// that has not finished uploading, then the download cache, then the server.
+    ///
+    /// One ladder, two platforms. iOS's chat attachment view and the Mac comment bubble both
+    /// need exactly this, and the Mac copy was written by transcribing the iOS one — which is
+    /// how the two drift. Returns nil rather than throwing: a thumbnail that cannot load is a
+    /// placeholder, not an error to surface.
+    func fileData(for fileId: String) async -> Data? {
+        // 1. Staged locally and not uploaded yet — the bytes are on this machine.
+        if fileId.hasPrefix("temp_") {
+            return getLocalFileData(for: fileId)
+        }
+        // 2. Already downloaded once.
+        if let cached = getCachedDownload(for: fileId) {
+            return cached
+        }
+        // 3. Ask the server for a signed URL, then fetch it and cache the result.
+        do {
+            guard let downloadURL = try await getSecureFileDownloadURL(for: fileId) else { return nil }
+            let (data, _) = try await URLSession.shared.data(from: downloadURL)
+            cacheDownload(fileId: fileId, data: data)
+            return data
+        } catch {
+            print("❌ [AttachmentService] Failed to load file data for \(fileId): \(error)")
+            return nil
+        }
+    }
+
     /// Prepare multiple files for preview
     func prepareFilesForPreview(files: [SecureFile]) async -> [(fileId: String, url: URL)] {
         var results: [(fileId: String, url: URL)] = []
