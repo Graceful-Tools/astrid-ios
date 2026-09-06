@@ -356,10 +356,23 @@ struct MacTaskDetailView: View {
                     Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent)
                 }
             }
-            Button { toggleTimer() } label: { Image(systemName: "timer") }
-                .buttonStyle(.borderless)
-                .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
-                .help(timerRunning ? "Stop timer" : "Start timer")
+            // The trailing slot becomes Send as soon as there is something to send (AITD-303).
+            // Return already posted; nothing said so, and a staged screenshot had no visible way
+            // out. Stopping a running timer stays reachable — the detail shows a Timer section
+            // with Stop while one runs.
+            if MacCommentSend.showsSend(text: newComment, stagedCount: stagedFiles.count) {
+                Button(action: addComment) { Image(systemName: "paperplane.fill") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.accent)
+                    .macPointingHand()
+                    .help(NSLocalizedString("chat.send", comment: ""))
+                    .accessibilityIdentifier("comment.send")
+            } else {
+                Button { toggleTimer() } label: { Image(systemName: "timer") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
+                    .help(timerRunning ? "Stop timer" : "Start timer")
+            }
         }
         .padding(10)
         }
@@ -398,20 +411,33 @@ struct MacTaskDetailView: View {
 
     /// Web-style comment bubble (df22157f): own comments right-aligned in a lavender card with an
     /// avatar and a "You · date" caption; others left-aligned with the author's name.
+    ///
+    /// The bubble also draws the comment's OWN files (AITD-304). It used to draw `c.content` and
+    /// nothing else, so a file posted without a caption arrived as an empty pill — which is what
+    /// "the attachment is broken" turned out to mean: it attached, and nothing ever showed it.
     @ViewBuilder private func commentBubble(_ c: Comment) -> some View {
         // One shared decision for every surface that shows an author (283a03df).
         let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
         let mine = who.isCurrentUser
+        let files = MacCommentBubble.attachments(of: c)
         VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
             HStack(alignment: .bottom, spacing: 8) {
                 if mine { Spacer(minLength: 30) }
                 if !mine { commentAvatar(who, authorId: c.authorId) }
-                Text(c.content)
-                    .foregroundStyle(Theme.textPrimary)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
-                                in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 6) {
+                    if !files.isEmpty {
+                        MacCommentAttachmentsView(files: files) { previewSecureFile($0) }
+                    }
+                    // No text, no text bubble — an empty pill under a photo reads as a failure.
+                    if MacCommentBubble.showsText(c.content) {
+                        Text(c.content)
+                            .foregroundStyle(Theme.textPrimary)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
+                            in: RoundedRectangle(cornerRadius: 12))
                 if mine { commentAvatar(who, authorId: c.authorId) }
                 if !mine { Spacer(minLength: 30) }
             }
@@ -582,6 +608,18 @@ struct MacTaskDetailView: View {
                 // Fall back to opening in the default app if the download/preview fails.
                 PlatformApplication.open(remote)
             }
+        }
+    }
+
+    /// Open a comment's file in Quick Look (AITD-304). The SHARED preparer resolves the bytes —
+    /// a still-uploading staged file from the local copy, anything else from the cache or the
+    /// server — so a photo can be opened full size the moment it is posted, offline included.
+    private func previewSecureFile(_ file: SecureFile) {
+        previewLoadingId = file.id
+        _Concurrency.Task {
+            defer { previewLoadingId = nil }
+            let items = await AttachmentService.shared.prepareFilesForPreview(files: [file])
+            if let first = items.first { previewURL = first.url }
         }
     }
 
