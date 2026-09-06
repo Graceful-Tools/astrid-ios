@@ -535,17 +535,22 @@ struct MacRootView: View {
         // Compute the row pipeline ONCE per body eval (4e0ce183) — previously displayedTasks/
         // tasksForSelection/renderedTasks were each re-run per reference (3–5 full passes).
         let rows = renderedTasks
+        let showsQuickAdd = MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
+                                                    hasSelection: selectedListId != nil,
+                                                    isMyTasks: selectedListId == Self.myTasksId)
         VStack(spacing: 0) {
+            // The quick-add FLOATS as a lifted card, no divider — at the TOP of the list, where
+            // the rule says (AITD-300); it used to trail the rows, the iPhone placement.
+            if showsQuickAdd, MacAddTaskBar.placement == .top {
+                quickAddBar
+            }
             if rows.isEmpty {
                 // Branded Astrid empty states (1c3562e9) — character + speech bubble, not system chrome.
                 MacEmptyState(copy: tasksForSelection.isEmpty ? .noTasks : .filteredOut)
             } else {
                 taskTableBody(rows)
             }
-            // Quick-add FLOATS at the bottom (iPad/iOS placement) as a lifted card — no divider.
-            if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
-                                       hasSelection: selectedListId != nil,
-                                       isMyTasks: selectedListId == Self.myTasksId) {
+            if showsQuickAdd, MacAddTaskBar.placement == .bottom {
                 quickAddBar
             }
         }
@@ -726,7 +731,8 @@ struct MacRootView: View {
         // fill — the add row should read as a task card you are about to fill in, like iOS.
         .background(MacSelectionStyle.fill(isSelected: false), in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: -2)
+        // The lift shadow falls AWAY from the rows: down when the card leads the list, up when it trails.
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: MacAddTaskBar.placement == .top ? 2 : -2)
         .frame(maxWidth: .infinity)
         // Same outer margin as a row CARD: the rows sit inside an inset List, so matching their
         // 8pt card padding alone left the add row wider than the rows above it.

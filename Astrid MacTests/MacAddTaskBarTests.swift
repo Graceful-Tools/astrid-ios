@@ -54,5 +54,15 @@ final class MacAddTaskBarTests: XCTestCase {
     func testKeepsFocusAfterAddingATask() {
         XCTAssertTrue(MacAddTaskBar.retainsFocusAfterCommit)
     }
+
+    // MARK: - Placement (AITD-300)
+
+    /// "[MAC] move Add a task to top of the list (not bottom)". The bar used to be the last thing
+    /// in the list column, below every row; on a desktop the place you add is the top, where the
+    /// eye starts and where the newest work sits. The placement is a rule so a layout refactor
+    /// cannot quietly drop it back to the bottom.
+    func testAITD300_QuickAddSitsAtTheTopOfTheList() {
+        XCTAssertEqual(MacAddTaskBar.placement, .top)
+    }
 }
 #endif
