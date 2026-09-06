@@ -5,7 +5,7 @@
 import Foundation
 
 enum MacAddTaskBar {
-    /// The bottom quick-add bar shows for a real list AND for My Tasks, matching iOS: adding from
+    /// The quick-add bar shows for a real list AND for My Tasks, matching iOS: adding from
     /// My Tasks creates a task with NO list (unless the text names one with #list), which still
     /// lands in My Tasks because that view shows tasks that are mine or unassigned.
     ///
@@ -32,5 +32,15 @@ enum MacAddTaskBar {
     /// The caret stays in the field after a task is added, so several can be typed in a row
     /// without clicking back in each time.
     static let retainsFocusAfterCommit = true
+
+    /// Where the bar sits in the list column. (AITD-300)
+    ///
+    /// It was the last thing in the column, under every row — the iPhone placement, where the
+    /// keyboard rises from the bottom. On a desktop the place you add is the top: it is where the
+    /// eye starts, and a new task appears next to where you typed it rather than a scroll away.
+    /// The board keeps its own affordances (per-column inline "+ Add task"); this rule is the
+    /// list's.
+    enum Placement { case top, bottom }
+    static let placement: Placement = .top
 }
 #endif
