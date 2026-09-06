@@ -43,17 +43,27 @@ final class MacLayoutTests: XCTestCase {
 
 extension MacLayoutTests {
 
-    /// The arrow TIP must land exactly on the row card's trailing edge. Both sides are computed
-    /// from the same constants, so this is the real invariant: derive the chat width, then check
-    /// the two edges coincide.
-    func testArrowTipMeetsTheRowTrailingEdge() {
+    /// The arrow TIP must CLEAR the row card's trailing edge by the gap, not land on it
+    /// (AITD-302). It used to be derived to coincide with that edge exactly — and a filled notch
+    /// meeting a 1.5pt accent outline renders as an overlap, which is what was reported. Both
+    /// sides are computed from the same constants, so this is the real invariant.
+    func testArrowTipClearsTheRowTrailingEdge() {
         let contentRight: CGFloat = 1_000
         let cardLeft = contentRight - MacLayout.detailPanelMargin - MacLayout.detailPanelWidth
         let arrowTip = cardLeft - (MacLayout.detailArrowWidth - MacLayout.arrowOverlap)
         let rowRight = contentRight - MacLayout.chatColumnWidth
             - MacLayout.columnDividerWidth - MacLayout.rowTrailingGap
-        XCTAssertEqual(arrowTip, rowRight, accuracy: 0.001,
-                       "The arrow must touch the row card, not float short of it")
+        XCTAssertEqual(arrowTip - rowRight, MacLayout.detailArrowRowGap, accuracy: 0.001,
+                       "The arrow must clear the row by the gap — touching it reads as overlapping it")
+        XCTAssertGreaterThan(MacLayout.detailArrowRowGap, 0,
+                             "A zero gap is the bug: the tip lands on the row's selection outline")
+    }
+
+    /// …and it still points AT the rows rather than floating off somewhere near them. The gap is
+    /// a few points of breathing room, not a disconnection.
+    func testTheGapStaysSmallEnoughToStillReadAsPointing() {
+        XCTAssertLessThan(MacLayout.detailArrowRowGap, MacLayout.detailArrowWidth,
+                          "A gap wider than the arrow itself would break the connection it draws")
     }
 
     /// The panel still fits beside the rows: it may overlap the divider by the arrow, but the
@@ -90,6 +100,7 @@ extension MacLayoutTests {
         let expected = MacLayout.detailPanelMargin + MacLayout.detailPanelWidth
             + (MacLayout.detailArrowWidth - MacLayout.arrowOverlap)
             - MacLayout.rowTrailingGap - MacLayout.columnDividerWidth
+            + MacLayout.detailArrowRowGap
         XCTAssertEqual(MacLayout.chatColumnWidth, expected, accuracy: 0.001)
     }
 

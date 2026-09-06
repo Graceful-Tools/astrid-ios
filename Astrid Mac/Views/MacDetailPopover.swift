@@ -117,4 +117,20 @@ struct MacPopoverArrow: Shape {
         return p
     }
 }
+
+/// The arrow's two OUTER edges as an OPEN path — the outline that carries the card's selection
+/// border around the notch (AITD-302).
+///
+/// Stroking `MacPopoverArrow` itself would draw its base as well: a vertical accent line across
+/// the card's face, exactly where the notch is supposed to merge into it. The fill and this
+/// outline are the same geometry, so they cannot disagree about where the arrow is.
+struct MacPopoverArrowEdges: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        return p
+    }
+}
 #endif
