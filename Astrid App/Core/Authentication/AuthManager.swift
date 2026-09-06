@@ -403,7 +403,10 @@ class AuthManager: ObservableObject {
 
     // MARK: - Sign In with Passkey
 
-    func signInWithPasskey(email: String? = nil) async throws {
+    /// - Parameter presentation: `.localOnly` asks for passkeys on this device only (no nearby-device
+    ///   QR) and throws `PasskeyError.noLocalPasskey` when there are none; `.fullSheet` is the
+    ///   complete system flow. See `PasskeySignInPlan` (AITD-298).
+    func signInWithPasskey(email: String? = nil, presentation: PasskeyPresentation = .fullSheet) async throws {
         print("🔑 [AuthManager] Starting Passkey sign-in...")
         isLoading = true
         errorMessage = nil
@@ -412,7 +415,7 @@ class AuthManager: ObservableObject {
 
         do {
             // Authenticate with passkey
-            let userResponse = try await PasskeyManager.shared.authenticate(email: email)
+            let userResponse = try await PasskeyManager.shared.authenticate(email: email, presentation: presentation)
 
             // Convert PasskeyManager.UserResponse to User
             let user = User(
@@ -446,6 +449,12 @@ class AuthManager: ObservableObject {
             // Don't show error for user cancellation
             if case .userCancelled = error {
                 print("ℹ️ [AuthManager] Passkey sign-in cancelled by user")
+                throw error
+            }
+            // Nothing local answered a local-only request: the caller offers the alternatives,
+            // so this is not an error banner either (AITD-298).
+            if case .noLocalPasskey = error {
+                print("ℹ️ [AuthManager] No local passkey for a local-only sign-in")
                 throw error
             }
             print("❌ [AuthManager] Passkey sign-in failed: \(error.localizedDescription)")

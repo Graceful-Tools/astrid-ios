@@ -1315,3 +1315,9 @@
 "settings.agents.model.empty" = "Add a provider key under \"%@ runs it\" or register a Custom Agent to power %@.";
 "settings.agents.model.footer" = "Choose the model that powers %@ for My Tasks and your private lists. Mention @%@ in any chat or comment to get help.";
 "mac.change_photo" = "Change photo…";
+
+/* Mac passkey sign-in: local first, explicit fallbacks (AITD-298) */
+"mac.passkey_no_local" = "이 Mac에서 패스키를 찾을 수 없습니다.";
+"mac.passkey_use_other_device" = "다른 기기의 패스키 사용…";
+"mac.passkey_password_manager" = "암호 관리자 사용 (Dashlane, 1Password 등)";
+"mac.passkey_password_manager_hint" = "시스템 설정 › 암호 › 암호 옵션에서 켠 다음 다시 시도하세요.";

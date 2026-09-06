@@ -1313,3 +1313,9 @@
 "settings.agents.model.empty" = "Add a provider key under \"%@ runs it\" or register a Custom Agent to power %@.";
 "settings.agents.model.footer" = "Choose the model that powers %@ for My Tasks and your private lists. Mention @%@ in any chat or comment to get help.";
 "mac.change_photo" = "Change photo…";
+
+/* Mac passkey sign-in: local first, explicit fallbacks (AITD-298) */
+"mac.passkey_no_local" = "Nessuna passkey trovata su questo Mac.";
+"mac.passkey_use_other_device" = "Usa una passkey da un altro dispositivo…";
+"mac.passkey_password_manager" = "Usa un gestore di password (Dashlane, 1Password…)";
+"mac.passkey_password_manager_hint" = "Attivalo in Impostazioni di Sistema › Password › Opzioni password, poi riprova.";

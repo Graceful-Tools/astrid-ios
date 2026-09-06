@@ -131,6 +131,9 @@ struct MacLoginView: View {
     @ObservedObject private var serverCapabilities = ServerCapabilityService.shared
     @State private var showSignUp = false
     @State private var email = ""
+    /// A local-only passkey request found nothing on this Mac: offer the routes explicitly
+    /// instead of greeting the user with the nearby-device QR (AITD-298).
+    @State private var showPasskeyAlternatives = false
 
     private var emailValid: Bool {
         let e = email.trimmingCharacters(in: .whitespaces)
@@ -154,13 +157,19 @@ struct MacLoginView: View {
             .padding(.bottom, 4)
 
             VStack(spacing: 10) {
-                // Passkey — primary sign-in (discoverable credential; no email needed).
-                Button { run { try await auth.signInWithPasskey(email: nil) } } label: {
+                // Passkey — primary sign-in (discoverable credential; no email needed). Local
+                // credentials first: iCloud Keychain and enabled password managers, never the
+                // nearby-device QR as the opening move (AITD-298).
+                Button { signInWithPasskey(PasskeySignInPlan.initialPresentation(isMac: true)) } label: {
                     Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
                 .accessibilityIdentifier("login.passkey")
+
+                if showPasskeyAlternatives {
+                    passkeyAlternatives
+                }
 
                 secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
                 // Hidden in the direct-download build: Developer ID profiles cannot carry the
@@ -231,6 +240,54 @@ struct MacLoginView: View {
 
     private func run(_ op: @escaping () async throws -> Void) {
         _Concurrency.Task { try? await op() }
+    }
+
+    // MARK: - Passkey (AITD-298)
+
+    /// The routes offered when nothing on this Mac answered: a passkey on another device (the
+    /// full system sheet — the QR, when asked for), or a password manager enabled as a provider.
+    private var passkeyAlternatives: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(NSLocalizedString("mac.passkey_no_local", comment: ""))
+                .font(.callout).foregroundStyle(Theme.textPrimary)
+            Button {
+                signInWithPasskey(PasskeySignInPlan.otherDevicePresentation)
+            } label: {
+                Label(NSLocalizedString("mac.passkey_use_other_device", comment: ""), systemImage: "qrcode")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered).disabled(auth.isLoading)
+            .accessibilityIdentifier("login.passkey.otherDevice")
+            Button {
+                PlatformApplication.open(PasskeySignInPlan.passwordOptionsSettingsURL)
+            } label: {
+                Label(NSLocalizedString("mac.passkey_password_manager", comment: ""), systemImage: "key.horizontal")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("login.passkey.passwordManager")
+            Text(NSLocalizedString("mac.passkey_password_manager_hint", comment: ""))
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+        }
+        .padding(12)
+        .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityIdentifier("login.passkey.alternatives")
+    }
+
+    private func signInWithPasskey(_ presentation: PasskeyPresentation) {
+        _Concurrency.Task {
+            do {
+                try await auth.signInWithPasskey(email: nil, presentation: presentation)
+                showPasskeyAlternatives = false
+            } catch let error as PasskeyError {
+                switch PasskeySignInPlan.nextStep(after: presentation, error: error) {
+                case .offerAlternatives: showPasskeyAlternatives = true
+                case .surfaceError, .none: break   // AuthManager already set errorMessage for real failures
+                }
+            } catch {
+                // Non-passkey failures (network, server) are surfaced by AuthManager.errorMessage.
+            }
+        }
     }
 }
 #endif
