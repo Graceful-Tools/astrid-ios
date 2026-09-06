@@ -43,6 +43,15 @@ enum MacLayout {
     /// The arrow overlaps the card by 1pt so its base merges into the card surface.
     static let arrowOverlap: CGFloat = 1
 
+    /// Clearance between the selected row's trailing edge and the arrow's TIP (AITD-302).
+    ///
+    /// The tip used to be derived to land exactly ON that edge. A filled notch meeting a 1.5pt
+    /// accent outline does not read as "meeting" — it reads as overlapping, which is how it was
+    /// reported. The points come out of the row column (chatColumnWidth below) rather than out of
+    /// the arrow: shifting the arrow toward the card would have shortened the notch to a stub,
+    /// since the card's leading edge is fixed by the panel's width and margin.
+    static let detailArrowRowGap: CGFloat = 6
+
     /// Height of the opaque strip painted across the top of the sidebar (task 46f66cb8).
     ///
     /// The sidebar sits under a transparent titlebar, so without this the list scrolls up behind
@@ -51,18 +60,21 @@ enum MacLayout {
     /// couple of points generous costs nothing and being short is immediately visible.
     static let sidebarTitlebarInset: CGFloat = 28
 
-    /// Chat column width, derived so the ARROW TIP lands exactly on the row card's trailing edge.
+    /// Chat column width, derived so the ARROW TIP clears the row card's trailing edge by
+    /// `detailArrowRowGap`.
     ///
     /// With the pop-out right-aligned in the content area:
     ///   card right   = contentRight − margin
     ///   card left    = contentRight − margin − panel
     ///   arrow tip    = card left − (arrow − overlap)
     ///   row right    = contentRight − chatWidth − divider − rowTrailingGap
-    /// Setting arrow tip == row right and solving for chatWidth gives the expression below, so the
-    /// tip touches the row instead of floating short of it.
+    /// Setting arrow tip == row right + gap and solving for chatWidth gives the expression below.
+    /// The gap term is why the rows give up those points rather than the arrow: the card's leading
+    /// edge is pinned by the panel width and margin, so taking the clearance out of the arrow
+    /// would shorten the notch instead of moving it (AITD-302).
     static var chatColumnWidth: CGFloat {
         detailPanelMargin + detailPanelWidth + (detailArrowWidth - arrowOverlap)
-            - rowTrailingGap - columnDividerWidth
+            - rowTrailingGap - columnDividerWidth + detailArrowRowGap
     }
 
     /// Show the persistent chat column? Wide WINDOW + a selection that has a channel, and NOT in

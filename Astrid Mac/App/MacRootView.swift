@@ -435,7 +435,13 @@ struct MacRootView: View {
             .frame(maxHeight: .infinity, alignment: .top)
             .background(MacDetailChrome.background)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.border, lineWidth: 0.5))
+            // The SELECTION outline, not a neutral hairline (AITD-302). The panel unfolds out of
+            // the selected row, so it wears the same border that row wears — the same call, so
+            // the two cannot drift, and every theme follows Theme.accent for free. In the grey
+            // hairline it read as an unrelated card resting against the row.
+            .overlay(RoundedRectangle(cornerRadius: 14)
+                .stroke(MacSelectionStyle.borderColor(isSelected: true),
+                        lineWidth: MacSelectionStyle.selectedWidth))
             .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
             // The arrow is drawn ON TOP of the card, overlapping its edge by a point, so its base
             // MERGES into the card surface. Previously it sat in its own column beside the card:
@@ -450,10 +456,18 @@ struct MacRootView: View {
                     // Global on BOTH sides (row + panel): a named-space mismatch offset the arrow
                     // by about one row height, so it pointed one row below the tapped one.
                     let originY = g.frame(in: .global).minY
-                    MacPopoverArrow()
-                        .fill(MacDetailChrome.background)
+                    ZStack {
+                        // The fill erases the card's border along the 1pt overlap, which is what
+                        // lets the notch's mouth open into the card face — and is why the outline
+                        // has to be redrawn around the two outer edges, or the selection border
+                        // would simply stop for the arrow's height (AITD-302).
+                        MacPopoverArrow().fill(MacDetailChrome.background)
+                        MacPopoverArrowEdges()
+                            .stroke(MacSelectionStyle.borderColor(isSelected: true),
+                                    lineWidth: MacSelectionStyle.selectedWidth)
+                    }
                         .frame(width: MacLayout.detailArrowWidth, height: 24)
-                        .position(x: -MacLayout.detailArrowWidth / 2 + 1,   // 1pt overlap hides the border seam
+                        .position(x: -MacLayout.detailArrowWidth / 2 + MacLayout.arrowOverlap,
                                   y: MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
                                                                    panelOriginY: originY,
                                                                    panelHeight: g.size.height))
