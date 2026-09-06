@@ -1313,3 +1313,9 @@
 "settings.agents.model.empty" = "Add a provider key under \"%@ runs it\" or register a Custom Agent to power %@.";
 "settings.agents.model.footer" = "Choose the model that powers %@ for My Tasks and your private lists. Mention @%@ in any chat or comment to get help.";
 "mac.change_photo" = "Change photo…";
+
+/* Mac passkey sign-in: local first, explicit fallbacks (AITD-298) */
+"mac.passkey_no_local" = "このMacにパスキーが見つかりませんでした。";
+"mac.passkey_use_other_device" = "別のデバイスのパスキーを使用…";
+"mac.passkey_password_manager" = "パスワードマネージャーを使用（Dashlane、1Passwordなど）";
+"mac.passkey_password_manager_hint" = "システム設定 › パスワード › パスワードオプションで有効にしてから、もう一度お試しください。";

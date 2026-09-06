@@ -1315,3 +1315,9 @@
 "settings.agents.model.empty" = "Add a provider key under \"%@ runs it\" or register a Custom Agent to power %@.";
 "settings.agents.model.footer" = "Choose the model that powers %@ for My Tasks and your private lists. Mention @%@ in any chat or comment to get help.";
 "mac.change_photo" = "Change photo…";
+
+/* Mac passkey sign-in: local first, explicit fallbacks (AITD-298) */
+"mac.passkey_no_local" = "在這台 Mac 上找不到密碼金鑰。";
+"mac.passkey_use_other_device" = "使用其他裝置上的密碼金鑰…";
+"mac.passkey_password_manager" = "使用密碼管理員（Dashlane、1Password 等）";
+"mac.passkey_password_manager_hint" = "請在「系統設定 › 密碼 › 密碼選項」中開啟，然後再試一次。";

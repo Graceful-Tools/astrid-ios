@@ -11,6 +11,8 @@ class PasskeyManager: NSObject, ObservableObject {
 
     private var registrationContinuation: CheckedContinuation<PasskeyRegistrationResult, Error>?
     private var authenticationContinuation: CheckedContinuation<PasskeyAuthenticationResult, Error>?
+    /// The sheet the in-flight assertion asked for — decides what a `.canceled` means (AITD-298).
+    private var currentPresentation: PasskeyPresentation = .fullSheet
 
     // MARK: - Response Types
 
@@ -174,7 +176,10 @@ class PasskeyManager: NSObject, ObservableObject {
 
     // MARK: - Authentication
 
-    func authenticate(email: String? = nil) async throws -> UserResponse {
+    /// - Parameter presentation: which system sheet to ask for (AITD-298). `.localOnly` never
+    ///   shows the nearby-device QR and ends as `PasskeyError.noLocalPasskey` when nothing on
+    ///   this device answers; `.fullSheet` is the complete system flow.
+    func authenticate(email: String? = nil, presentation: PasskeyPresentation = .fullSheet) async throws -> UserResponse {
         isProcessing = true
         error = nil
 
@@ -184,7 +189,7 @@ class PasskeyManager: NSObject, ObservableObject {
         let optionsResponse = try await getAuthenticationOptions(email: email)
 
         // 2. Perform WebAuthn authentication ceremony
-        let authResult = try await performAuthentication(options: optionsResponse.options)
+        let authResult = try await performAuthentication(options: optionsResponse.options, presentation: presentation)
 
         // 3. Verify with server
         let verifyResult = try await verifyAuthentication(
@@ -558,10 +563,12 @@ class PasskeyManager: NSObject, ObservableObject {
         }
     }
 
-    private func performAuthentication(options: PublicKeyCredentialRequestOptions) async throws -> PasskeyAuthenticationResult {
+    private func performAuthentication(options: PublicKeyCredentialRequestOptions,
+                                       presentation: PasskeyPresentation) async throws -> PasskeyAuthenticationResult {
         guard let challengeData = Data(base64URLEncoded: options.challenge) else {
             throw PasskeyError.invalidChallenge
         }
+        currentPresentation = presentation
 
         let rpId = options.rpId ?? Brand.host
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: rpId)
@@ -588,7 +595,10 @@ class PasskeyManager: NSObject, ObservableObject {
             let authController = ASAuthorizationController(authorizationRequests: [assertionRequest])
             authController.delegate = self
             authController.presentationContextProvider = self
-            authController.performRequests()
+            // `.localOnly` → `.preferImmediatelyAvailableCredentials`: iCloud Keychain and enabled
+            // third-party providers only, no nearby-device QR; nothing available ends the request
+            // at once as `.canceled`, which the delegate maps to `.noLocalPasskey` (AITD-298).
+            authController.performRequests(options: presentation.requestOptions)
         }
     }
 }
@@ -628,11 +638,36 @@ extension PasskeyManager: ASAuthorizationControllerDelegate {
     /// only on iOS 18 / macOS 15. Matching it unguarded pins the Mac deployment floor to macOS 15,
     /// which would drop Sonoma for the sake of one error message, so it is probed behind an
     /// availability check and reported as a generic failure on older systems.
-    private static func isMatchedExcludedCredential(_ code: ASAuthorizationError.Code) -> Bool {
+    nonisolated private static func isMatchedExcludedCredential(_ code: ASAuthorizationError.Code) -> Bool {
         if #available(iOS 18, macOS 15, *) {
             return code == .matchedExcludedCredential
         }
         return false
+    }
+
+    /// `ASAuthorizationError` → `PasskeyError`, given the sheet that was asked for.
+    ///
+    /// Under `.localOnly` (`.preferImmediatelyAvailableCredentials`) the system reports "nothing
+    /// available on this device" as `.canceled`, with no UI shown — the same code as a user
+    /// dismissing the sheet. That is not a "no" from the user, so it becomes `.noLocalPasskey`
+    /// and the caller offers the alternatives (AITD-298).
+    nonisolated static func passkeyError(forAuthorizationCode code: ASAuthorizationError.Code,
+                                         presentation: PasskeyPresentation,
+                                         description: String = "") -> PasskeyError {
+        if code == .canceled {
+            return presentation == .localOnly ? .noLocalPasskey : .userCancelled
+        } else if code == .failed {
+            return .authenticationFailed(description)
+        } else if code == .invalidResponse {
+            return .invalidResponse
+        } else if code == .notHandled || code == .notInteractive {
+            return .notSupported
+        } else if isMatchedExcludedCredential(code) {
+            return .authenticationFailed("This passkey is already registered")
+        } else {
+            // Handles .unknown and any future cases
+            return .unknown(description)
+        }
     }
 
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
@@ -640,22 +675,12 @@ extension PasskeyManager: ASAuthorizationControllerDelegate {
 
         let passkeyError: PasskeyError
         if let authError = error as? ASAuthorizationError {
-            // Map ASAuthorizationError codes to PasskeyError
-            let code = authError.code
-            if code == .canceled {
-                passkeyError = .userCancelled
-            } else if code == .failed {
-                passkeyError = .authenticationFailed(error.localizedDescription)
-            } else if code == .invalidResponse {
-                passkeyError = .invalidResponse
-            } else if code == .notHandled || code == .notInteractive {
-                passkeyError = .notSupported
-            } else if Self.isMatchedExcludedCredential(code) {
-                passkeyError = .authenticationFailed("This passkey is already registered")
-            } else {
-                // Handles .unknown and any future cases
-                passkeyError = .unknown(error.localizedDescription)
-            }
+            // A registration ceremony never asks for local-only, so `.fullSheet` is right for it;
+            // the assertion uses whatever it asked for.
+            let presentation = authenticationContinuation != nil ? currentPresentation : .fullSheet
+            passkeyError = Self.passkeyError(forAuthorizationCode: authError.code,
+                                             presentation: presentation,
+                                             description: error.localizedDescription)
         } else {
             passkeyError = .unknown(error.localizedDescription)
         }
@@ -681,6 +706,8 @@ extension PasskeyManager: ASAuthorizationControllerPresentationContextProviding 
 enum PasskeyError: LocalizedError {
     case notSupported
     case userCancelled
+    /// A local-only request found nothing on this device (AITD-298) — not a dismissal.
+    case noLocalPasskey
     case invalidChallenge
     case invalidUserId
     case invalidResponse
@@ -696,6 +723,8 @@ enum PasskeyError: LocalizedError {
             return "Passkeys are not supported on this device"
         case .userCancelled:
             return "Passkey operation was cancelled"
+        case .noLocalPasskey:
+            return "No passkey is available on this device. Use a passkey from another device, or enable your password manager as a passkey provider."
         case .invalidChallenge:
             return "Invalid challenge from server"
         case .invalidUserId:
