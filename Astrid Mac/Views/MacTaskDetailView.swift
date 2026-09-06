@@ -356,10 +356,23 @@ struct MacTaskDetailView: View {
                     Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent)
                 }
             }
-            Button { toggleTimer() } label: { Image(systemName: "timer") }
-                .buttonStyle(.borderless)
-                .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
-                .help(timerRunning ? "Stop timer" : "Start timer")
+            // The trailing slot becomes Send as soon as there is something to send (AITD-303).
+            // Return already posted; nothing said so, and a staged screenshot had no visible way
+            // out. Stopping a running timer stays reachable — the detail shows a Timer section
+            // with Stop while one runs.
+            if MacCommentSend.showsSend(text: newComment, stagedCount: stagedFiles.count) {
+                Button(action: addComment) { Image(systemName: "paperplane.fill") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.accent)
+                    .macPointingHand()
+                    .help(NSLocalizedString("chat.send", comment: ""))
+                    .accessibilityIdentifier("comment.send")
+            } else {
+                Button { toggleTimer() } label: { Image(systemName: "timer") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
+                    .help(timerRunning ? "Stop timer" : "Start timer")
+            }
         }
         .padding(10)
         }
