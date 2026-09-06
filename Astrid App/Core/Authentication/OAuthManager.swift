@@ -131,6 +131,7 @@ class OAuthManager {
 
         let endpoint = baseURL.appendingPathComponent("/api/v1/oauth/token")
         var request = URLRequest(url: endpoint)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 

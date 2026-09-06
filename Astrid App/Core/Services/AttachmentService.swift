@@ -287,6 +287,7 @@ class AttachmentService: ObservableObject {
         guard let url = URL(string: infoURL) else { return nil }
         
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
@@ -330,6 +331,7 @@ class AttachmentService: ObservableObject {
                 guard let url = URL(string: infoURL) else { continue }
                 
                 var request = URLRequest(url: url)
+                AnalyticsPlatformHeader.apply(to: &request)
                 if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                     request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
                 }
@@ -430,6 +432,7 @@ class AttachmentService: ObservableObject {
         // Create request
         let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         // Note: Do NOT set httpBody when using upload(for:from:) - pass body data directly to upload method
@@ -495,6 +498,7 @@ class AttachmentService: ObservableObject {
 
         let getUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/get-upload-url")!
         var getUrlRequest = URLRequest(url: getUrlEndpoint)
+        AnalyticsPlatformHeader.apply(to: &getUrlRequest)
         getUrlRequest.httpMethod = "POST"
         getUrlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -540,6 +544,8 @@ class AttachmentService: ObservableObject {
         // Step 2: Upload file directly to Vercel Blob
         print("📡 [AttachmentService] Step 2: Uploading to Vercel Blob...")
 
+        // No platform header: Vercel Blob is a third party, and our analytics contract is
+        // with our own server only (AITD-301).
         var blobRequest = URLRequest(url: URL(string: uploadUrlResponse.uploadUrl)!)
         blobRequest.httpMethod = "PUT"
         // Vercel Blob expects the client token in the Authorization header
@@ -601,6 +607,7 @@ class AttachmentService: ObservableObject {
         // Create request to secure upload endpoint
         let url = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/request-upload")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         // Note: Do NOT set httpBody when using upload(for:from:) - pass body data directly to upload method
@@ -693,6 +700,7 @@ class AttachmentService: ObservableObject {
         print("📤 [AttachmentService] Step 1: Getting upload URL...")
         let uploadUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/upload-url")!
         var uploadUrlRequest = URLRequest(url: uploadUrlEndpoint)
+        AnalyticsPlatformHeader.apply(to: &uploadUrlRequest)
         uploadUrlRequest.httpMethod = "POST"
         uploadUrlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         uploadUrlRequest.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
@@ -768,6 +776,7 @@ class AttachmentService: ObservableObject {
         print("📤 [AttachmentService] Step 3: Confirming upload...")
         let confirmEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/confirm-upload")!
         var confirmRequest = URLRequest(url: confirmEndpoint)
+        AnalyticsPlatformHeader.apply(to: &confirmRequest)
         confirmRequest.httpMethod = "POST"
         confirmRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         confirmRequest.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
@@ -835,6 +844,7 @@ class AttachmentService: ObservableObject {
     func deleteAttachment(taskId: String, attachmentId: String) async throws {
         let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments/\(attachmentId)")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "DELETE"
         
         // Add session cookie

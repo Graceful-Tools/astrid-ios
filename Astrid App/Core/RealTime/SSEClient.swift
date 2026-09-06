@@ -54,6 +54,8 @@ actor SSEClient {
         }
 
         var request = URLRequest(url: url)
+        // The live connection is the clearest evidence the app is open on this platform (AITD-301).
+        AnalyticsPlatformHeader.apply(to: &request)
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.timeoutInterval = .infinity
