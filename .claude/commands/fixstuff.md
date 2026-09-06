@@ -37,7 +37,12 @@ MCP cannot do (status / assign) are in `/fixall`; the rules below are the intera
    previous fix missed — re-read it and find a different cause rather than re-closing it on
    the same reasoning.
 
-5. **When the queue is empty**, say so and ask whether to ship. Shipping means pushing to
-   `iosdev` (or `macdev` for Mac work), which builds to TestFlight. `main` is the App Store
-   branch — pushing there starts a release build, so that always waits for an explicit
-   go-ahead.
+5. **When the queue is empty, push — do not ask** (Jon, 2026-09-06). Push `main`, then
+   fast-forward `iosdev` and `macdev` to it and push both; that is two Xcode Cloud runs and a
+   TestFlight build of each app, ready for Jon to look at. Say what went out and that a build
+   is on the way. Pushing `main` itself starts nothing — the two Release workflows have been
+   manual-only since 2026-08-27 — so an **App Store submission** is still a separate act that
+   waits for an explicit go-ahead, and so is a local `:upload`.
+
+   Push once, at the end, carrying the whole run. A push per task is what exhausted the Xcode
+   Cloud allotment on 2026-08-18; see `/fixall` for what that looked like.

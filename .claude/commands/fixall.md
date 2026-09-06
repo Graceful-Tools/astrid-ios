@@ -64,20 +64,25 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
 
 ## What is different here
 
-- **DO NOT PUSH unless Jon asks for a build** (Jon, 2026-08-18). Work locally: branch, commit,
-  merge into `iosdev`, keep the gates green — and stop there. Push `iosdev`, `macdev` or `main`
-  only when he asks to build or test.
+- **PUSH WHEN THE RUN IS DONE — do not ask** (Jon, 2026-09-06, superseding the 2026-08-18
+  ask-first rule). Emptying the queue ends with `main`, `iosdev` and `macdev` pushed, so a
+  TestFlight build is already on its way by the time Jon looks. His reason: *"I want to look at
+  work when you are done. I don't want to tell you to push it so I can look at it and then
+  wait."* Asking made him wait twice — once for the ask, once for the run.
 
-  The reason is concrete rather than cautious: **it burned through the Xcode Cloud usage
+- **ONE push per run, at the end — never per task.** This is what the old ask-first rule was
+  actually protecting, and it still holds: **a push per fix burned through the Xcode Cloud
   allotment.** Every ship pushed three branches and started FOUR runs — `iosdev`, `macdev`,
   plus iOS Release and Mac Release on `main` — so one fix cost four runs, and shipping several
   fixes an hour apart exhausted the month. Once it is gone, every run is created and cancelled
   before it starts (`startedDate: null`, `cancelReason: null`) and `POST /v1/ciBuildRuns`
   returns 500, which looks exactly like an Apple outage and cost hours to diagnose. See
-  [[xcode-cloud-runs-canceled]].
+  [[xcode-cloud-runs-canceled]]. (The two Release workflows became manual-only on 2026-08-27,
+  so a push now starts two runs rather than four — batching still matters.)
 
-- **A task is DONE when it is merged into `iosdev` with the gates green.** Say in the
-  completion report that it is merged and waiting to be built, rather than claiming it shipped.
+- **A task is DONE when it is merged into `main` with the gates green.** Say in the completion
+  report that it is merged, and — once the run's push has happened — that a build is on the
+  way. Never say it shipped: an App Store submission is a separate, deliberate act.
 
 - **Gates:** `npm run predeploy`, plus the Mac suite for anything touching `Core/` or Mac:
   ```bash
@@ -94,17 +99,18 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
 - **An App Store submission, deleting files, or a significant architecture change still needs
   asking.**
 
-## When Jon asks for a build
+## Pushing, at the end of the run
 
-Push all three so they cannot drift — the `Core/` tree is shared — and expect one build to
-carry several tasks. That is the trade for not burning the allotment: a build no longer maps to
-a single change, so the completion reports have to carry the detail instead.
+Work lands on `main` (that is where the per-task branches merge), then both dev branches
+fast-forward to it. Push all three so they cannot drift — the `Core/` tree is shared — and
+expect one build to carry several tasks. That is the trade for not burning the allotment: a
+build no longer maps to a single change, so the completion reports have to carry the detail.
 
 ```bash
-git push origin iosdev
-git checkout macdev && git merge --ff-only iosdev && git push origin macdev
-git checkout main   && git merge --no-ff iosdev -m "Merge iosdev: <what>"
-git push origin main && git checkout iosdev
+git push origin main                                    # lands the work — builds nothing
+git checkout iosdev && git merge --ff-only main && git push origin iosdev
+git checkout macdev && git merge --ff-only main && git push origin macdev
+git checkout main
 ```
 
 - Xcode Cloud picks the push up by webhook, which has lagged 0 to ~36 minutes. That is normal —

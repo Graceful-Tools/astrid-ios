@@ -88,7 +88,8 @@ xcodebuild test  -scheme "Astrid App" -destination "platform=iOS Simulator,name=
 
 ## Deployment
 
-**Work lands on `main`. Pushing `iosdev` / `macdev` is what makes a TestFlight build.**
+**Work lands on `main`. Pushing `iosdev` / `macdev` is what makes a TestFlight build —
+and finished work gets pushed without being asked for** (Jon, 2026-09-06).
 
 | Branch | Xcode Cloud workflow | Scheme | Goes to |
 |--------|---------------------|--------|---------|
@@ -101,13 +102,22 @@ xcodebuild test  -scheme "Astrid App" -destination "platform=iOS Simulator,name=
 npm run predeploy                    # 1. Verify (must pass)
 git add -A && git commit             # 2. Commit (message includes task id if applicable)
 git push origin main                 # 3. Land the work — builds nothing
-git push origin iosdev macdev        # 4. Ask for builds → Xcode Cloud → TestFlight
+git push origin iosdev macdev        # 4. Build it → Xcode Cloud → TestFlight
 ```
 
-Landing and building are separate acts. A push to `main` starts nothing, so work
-can land freely; a push to a dev branch spends compute and produces an
-installable build, so do it when a build is actually wanted. Push both dev
-branches together — they share the `Core/` tree and drift is hard to see.
+**Step 4 is not a question.** Jon, 2026-09-06: *"I want to look at work when you are
+done. I don't want to tell you to push it so I can look at it and then wait."* A build
+he has to ask for is a build he waits for twice — once for the ask to be answered, once
+for the run. So finishing ends with the push, and the report says a build is on the way
+rather than offering one. Push both dev branches together — they share the `Core/` tree
+and drift is hard to see.
+
+**But push ONCE per session, not once per task.** This is the constraint the old
+ask-first rule was really protecting: a push used to start four Xcode Cloud runs, and
+shipping several fixes an hour apart exhausted the monthly allotment on 2026-08-18,
+after which every run was created and cancelled before it started. Batching a session's
+work into one push is what keeps that from coming back — so one build carries several
+tasks, and the completion reports have to carry the per-task detail instead.
 
 **The two Release workflows are manual-only** (changed 2026-08-27). They no longer
 trigger on `main`: an App Store build is started deliberately, from App Store
@@ -115,7 +125,10 @@ Connect or via `POST /v1/ciBuildRuns`. Before that change, one push to `main`
 started four runs — two TestFlight and two App Store — which is what exhausted
 the monthly compute allotment on 2026-08-18 and left every run cancelled for days.
 
-After iOS changes, bump `CURRENT_PROJECT_VERSION` (build number) before pushing.
+**No `CURRENT_PROJECT_VERSION` bump per push.** It does not name the TestFlight build:
+measured 2026-08-18, TestFlight's numbers are the Xcode Cloud RUN numbers (877, 878,
+882…) while the repo said 254. Tell Jon the run number or the commit, not the bump.
+A version bump belongs to an App Store submission, which is a deliberate act anyway.
 Check build status in App Store Connect.
 
 ### Local build → App Store Connect (no Xcode Cloud)
@@ -139,16 +152,18 @@ account). **Ask before an `:upload`** — it cannot be undone. Full procedure:
 
 ## Approvals
 
-**Always ask the user before:** starting an App Store release build (the manual
-iOS Release / Mac Release workflows, or a local `:upload`), significant
-architecture/API changes, or deleting files.
+**Always ask the user before:** an App Store **submission** — the manual iOS Release /
+Mac Release workflows, or a local `:upload` — significant architecture/API changes, or
+deleting files. Those reach real users or are hard to undo.
 
 **Autonomous (no approval needed):** code analysis, local builds/tests, implementation,
-local commits, documentation updates, pushing to `main`.
+local commits, documentation updates, and **pushing `main`, `iosdev` and `macdev`**.
 
-**Push `iosdev` / `macdev` when a build is wanted** — that is what spends compute
-and puts a build in TestFlight. Landing work on `main` costs nothing, so it needs
-no permission; asking for a build is a separate, cheap-to-say request.
+**A TestFlight build is how Jon looks at the work, so it is part of finishing, not a
+separate request** (2026-09-06). The line is not "how much compute does this spend" but
+"does anyone outside see it": an internal build is for looking at, an App Store
+submission goes to real users. Spend is handled by batching — one push per session (see
+Deployment) — not by waiting to be told.
 
 ---
 
@@ -187,6 +202,7 @@ test → run quality gates → post a completion report → then mark the task c
 | `docs/API_CONTRACT.md` | Backend API specification |
 | `docs/LOCAL_FIRST_PATTERN.md` | Offline-first / Outbox architecture |
 | `docs/SYNC_ARCHITECTURE.md` | External sync providers |
+| [`../astrid-web/docs/WEEKLY_DEEP_REVIEW.md`](../astrid-web/docs/WEEKLY_DEEP_REVIEW.md) | Weekly cross-repo deep review — driven from this board by a repeating Astrid task (`/weekly-deep-review`) |
 | `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md` | Setup guides |
 
 ---

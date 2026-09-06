@@ -7,5 +7,9 @@ stop and say nothing is queued — but if `held.scheduled` is non-empty, say whe
 comes due.
 
 Per task: `get_task` + `get_task_comments` → strategy comment → branch → RED-GREEN TDD →
-`npm run predeploy` → merge into `iosdev` → completion report → `update_task completed:true`.
-Full rules in `/fixall`. Do not push unless Jon asks for a build.
+`npm run predeploy` → merge into `main` → completion report → `update_task completed:true`.
+
+When the queue is empty, **push without asking** (Jon, 2026-09-06): `main`, then `iosdev` and
+`macdev` fast-forwarded to it, so a TestFlight build is already on its way. Once per run, not
+per task — an App Store submission still waits for an explicit go-ahead. Full rules in
+`/fixall`.
