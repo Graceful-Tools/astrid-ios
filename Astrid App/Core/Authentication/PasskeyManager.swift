@@ -213,6 +213,7 @@ class PasskeyManager: NSObject, ObservableObject {
     func getPasskeys() async throws -> [PasskeyInfo] {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
@@ -235,6 +236,7 @@ class PasskeyManager: NSObject, ObservableObject {
     func deletePasskey(id: String) async throws {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys?id=\(id)")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "DELETE"
 
         // Add session cookie
@@ -253,6 +255,7 @@ class PasskeyManager: NSObject, ObservableObject {
     func renamePasskey(id: String, name: String) async throws {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["id": id, "name": name])
@@ -275,6 +278,7 @@ class PasskeyManager: NSObject, ObservableObject {
     private func getRegistrationOptions(email: String) async throws -> RegistrationOptionsResponse {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/options")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["email": email])
@@ -304,6 +308,7 @@ class PasskeyManager: NSObject, ObservableObject {
     private func getRegistrationOptionsAuthenticated() async throws -> RegistrationOptionsResponse {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/options")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = "{}".data(using: .utf8)
@@ -333,6 +338,7 @@ class PasskeyManager: NSObject, ObservableObject {
         }
 
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -369,6 +375,7 @@ class PasskeyManager: NSObject, ObservableObject {
     private func verifyRegistration(sessionId: String, result: PasskeyRegistrationResult, name: String) async throws -> VerifyResponse {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/verify")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -418,6 +425,7 @@ class PasskeyManager: NSObject, ObservableObject {
     private func verifyAuthentication(sessionId: String, result: PasskeyAuthenticationResult) async throws -> VerifyResponse {
         let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/authenticate/verify")!
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 

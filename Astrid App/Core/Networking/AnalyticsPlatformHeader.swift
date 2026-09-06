@@ -37,4 +37,21 @@ enum AnalyticsPlatformHeader {
         return iOS
         #endif
     }
+
+    /// Stamp the platform on a request bound for the Astrid backend (AITD-301).
+    ///
+    /// Every call site goes through this rather than restating the header name and value: the two
+    /// clients did state them correctly, but `APIEndpoint` hardcoded `"ios-app"` — in a file the
+    /// Mac target compiles too — and the SSE stream, the passkey calls, attachments and the OAuth
+    /// token identified nothing at all. Mac activity cannot be told apart from iOS, or from
+    /// nothing, unless it is stated on the way out.
+    ///
+    /// `setValue` rather than `addValue`: the server matches the value by equality, so a
+    /// duplicated header would read as an unrecognised platform and land in UNKNOWN.
+    ///
+    /// **Astrid-bound requests only.** Vercel Blob uploads and Google's token endpoint are third
+    /// parties; our analytics header is not theirs to receive.
+    static func apply(to request: inout URLRequest) {
+        request.setValue(current, forHTTPHeaderField: headerName)
+    }
 }

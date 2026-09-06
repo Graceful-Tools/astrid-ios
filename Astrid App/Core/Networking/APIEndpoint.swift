@@ -190,7 +190,9 @@ enum APIEndpoint {
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("ios-app", forHTTPHeaderField: "x-platform")
+        // Was a hardcoded "ios-app" — in a file the Mac target compiles too, so any caller that
+        // did not go through APIClient.request (which overwrote it) reported the Mac as iOS.
+        AnalyticsPlatformHeader.apply(to: &request)
 
         // Add request body for non-GET requests
         switch self {

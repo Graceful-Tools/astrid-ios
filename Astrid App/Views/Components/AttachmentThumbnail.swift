@@ -195,6 +195,7 @@ struct AttachmentThumbnail: View {
             guard let url = URL(string: infoURL) else { return }
 
             var request = URLRequest(url: url)
+            AnalyticsPlatformHeader.apply(to: &request)
             if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                 request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
             }
@@ -308,6 +309,7 @@ struct AttachmentThumbnail: View {
             }
 
             var request = URLRequest(url: url)
+            AnalyticsPlatformHeader.apply(to: &request)
             if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                 request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
             }
@@ -443,6 +445,7 @@ struct AttachmentThumbnail: View {
             }
 
             var request = URLRequest(url: url)
+            AnalyticsPlatformHeader.apply(to: &request)
 
             // Add session cookie for authentication
             if let sessionCookie = try? KeychainService.shared.getSessionCookie() {

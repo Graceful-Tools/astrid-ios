@@ -416,6 +416,7 @@ struct ImagePickerView: View {
         }
 
         var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
