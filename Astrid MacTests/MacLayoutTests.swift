@@ -117,14 +117,22 @@ extension MacLayoutTests {
     }
 }
 
-// MARK: - Board and chat are mutually exclusive (task f1430338)
+// MARK: - Board and chat compete for the width (task f1430338, narrowed by AITD-330)
 
 extension MacLayoutTests {
 
-    /// A board needs the full width for its columns, so the chat column stands down for it.
-    func testBoardModeHidesTheChatColumn() {
+    /// A board needs room for its columns, so the chat column stands down when there is not
+    /// enough for both.
+    ///
+    /// This used to read "even on a very wide window, a board takes the horizontal space" — an
+    /// outright exclusion. AITD-330 made it a measurement, because past a certain width the board
+    /// has room for its columns AND the messages, and refusing to show them spends screen on
+    /// nothing. The unmeasured call below still answers false: a caller that passes no board
+    /// geometry gets the conservative answer, which is what keeps this narrowing safe.
+    /// `MacBoardWidthTests` holds the measured cases.
+    func testBoardModeHidesTheChatColumnWhenTheBoardIsNotMeasured() {
         XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 1_600, isRealList: true, isBoard: true),
-                       "Even on a very wide window, a board takes the horizontal space")
+                       "With no measured width, a board must not be handed the chat column")
     }
 
     /// …and the list view is unaffected.

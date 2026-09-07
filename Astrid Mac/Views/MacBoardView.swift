@@ -31,6 +31,14 @@ struct MacBoardView: View {
     /// with. Only a repeat of this is worth suppressing.
     @State private var lastWrittenPriority: [String: Task.Priority] = [:]
 
+    /// The board's own width, measured — the columns divide it (AITD-330).
+    @State private var boardWidth: CGFloat = 0
+
+    /// What each column gets: an equal share of the room, never below the floor.
+    private var columnWidth: CGFloat {
+        MacLayout.boardColumnWidth(columnCount: columns.count, availableWidth: boardWidth)
+    }
+
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
     private var columns: [ProjectBoardColumn] { getProjectBoardColumns(listService.lists) }
@@ -67,12 +75,15 @@ struct MacBoardView: View {
             .padding(.horizontal, 12).padding(.vertical, 6)
             Divider()
             ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: MacLayout.boardColumnSpacing) {
                     let buckets = groupTasksByColumn()   // ONE pass over tasks (6042bde0)
                     ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []) }
                 }
-                .padding()
+                .padding(MacLayout.boardPadding)
             }
+            // The columns share whatever room the board has, down to their minimum — below that
+            // this still scrolls, exactly as it did when the width was fixed (AITD-330).
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { boardWidth = $0 }
             .macScrollBars(showScrollBars)
             .scrollContentBackground(.hidden)
         }
@@ -127,7 +138,7 @@ struct MacBoardView: View {
             addCardField(col)          // stays at the bottom of the column (iPad/web placement)
         }
         .padding(10)
-        .frame(width: 250, alignment: .leading)
+        .frame(width: columnWidth, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 8)
             .fill(dropTargetColumnId == col.id ? Theme.accent.opacity(0.15) : Theme.bgTertiary.opacity(0.4)))

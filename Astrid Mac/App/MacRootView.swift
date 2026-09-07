@@ -87,7 +87,15 @@ struct MacRootView: View {
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
     private var chatColumnVisible: Bool {
         MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil,
-                                  isBoard: contentMode == .board)
+                                  isBoard: contentMode == .board,
+                                  boardColumnCount: boardColumnCount,
+                                  contentWidth: contentWidth)
+    }
+
+    /// How many columns the board would draw. Only asked in board mode — off a board the chat
+    /// rule never reaches the measurement, so the list scan is not paid for.
+    private var boardColumnCount: Int {
+        contentMode == .board ? getProjectBoardColumns(listService.lists).count : 0
     }
     @Environment(\.openWindow) private var openWindow
     /// The window's undo manager — handed to MacUndoCoordinator so ⌘Z / Edit ▸ Undo reverse
@@ -454,6 +462,31 @@ struct MacRootView: View {
                     )
                     .accessibilityIdentifier("content.columnResizer")
             }
+    }
+
+    /// The middle column when the chat column is up. The board reaches here now that a wide
+    /// enough window shows both (AITD-330); `.chat` mode does not, because chat IS the right
+    /// column there and drawing it twice would be the whole content area saying one thing.
+    @ViewBuilder private func middleColumnBesideChat(_ listId: String) -> some View {
+        if contentMode == .board, listId != Self.myTasksId {
+            boardColumn(listId)
+        } else {
+            listColumn
+        }
+    }
+
+    /// The board, with the SAME floating quick-add the list gets, pinned at the bottom and adding
+    /// into this board's list (task e466eab8). One definition, because it is drawn in two places
+    /// now — with the chat column and without it.
+    @ViewBuilder private func boardColumn(_ listId: String) -> some View {
+        VStack(spacing: 0) {
+            MacBoardView(listId: listId)
+            if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
+                                       hasSelection: true,
+                                       isMyTasks: listId == Self.myTasksId) {
+                quickAddBar
+            }
+        }
     }
 
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
@@ -1381,7 +1414,7 @@ struct MacRootView: View {
                         // the middle shows list or board (23c98550). My Tasks reaches here too —
                         // it has a virtual channel, same as iOS and web (51703e2a).
                         HStack(spacing: 0) {
-                            listColumn      // board never reaches here — see chatColumnVisible
+                            middleColumnBesideChat(listId)
                             columnResizer
                             MacChatPanelView(source: chatSource)
                                 .frame(width: resolvedChatColumnWidth)
@@ -1389,16 +1422,7 @@ struct MacRootView: View {
                     } else {
                         switch contentMode {
                         case .board where listId != Self.myTasksId:
-                            // The board gets the SAME floating quick-add as the list, pinned at the
-                            // bottom, adding into this board's list (task e466eab8).
-                            VStack(spacing: 0) {
-                                MacBoardView(listId: listId)
-                                if MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
-                                                           hasSelection: true,
-                                                           isMyTasks: listId == Self.myTasksId) {
-                                    quickAddBar
-                                }
-                            }
+                            boardColumn(listId)
                         case .chat:
                             if let chatSource { MacChatPanelView(source: chatSource) } else { listColumn }
                         default: listColumn

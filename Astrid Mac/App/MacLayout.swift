@@ -120,11 +120,58 @@ enum MacLayout {
         detailPanelMargin + max(0, width - chatColumnMinWidth)
     }
 
-    /// Show the persistent chat column? Wide WINDOW + a selection that has a channel, and NOT in
-    /// board mode — a board needs the full horizontal width for its columns, so the two are
-    /// mutually exclusive (task f1430338).
-    static func showsChatColumn(windowWidth: CGFloat, isRealList: Bool, isBoard: Bool = false) -> Bool {
-        isRealList && !isBoard && windowWidth >= chatColumnWindowThreshold
+    // MARK: - Board columns (AITD-330)
+
+    /// A board column's floor. It was a fixed `.frame(width: 250)`, so three columns in a 1600pt
+    /// window left half the board empty; it is the MINIMUM now, and the columns share what is
+    /// there.
+    static let boardColumnMinWidth: CGFloat = 250
+    /// The gap between columns, and the board's own inset. Named rather than left to `.padding()`'s
+    /// platform default because the fill arithmetic below has to subtract exactly what the layout
+    /// spends — a guess here shows up as a column clipped at the trailing edge.
+    static let boardColumnSpacing: CGFloat = 12
+    static let boardPadding: CGFloat = 16
+
+    /// Width for each column, given how many there are and how much room they have.
+    ///
+    /// Fills when there is room and floors when there is not — below the floor the board scrolls
+    /// horizontally, exactly as it does today.
+    static func boardColumnWidth(columnCount: Int, availableWidth: CGFloat) -> CGFloat {
+        guard columnCount > 0 else { return boardColumnMinWidth }
+        let gaps = boardColumnSpacing * CGFloat(columnCount - 1)
+        let usable = availableWidth - boardPadding * 2 - gaps
+        return max(boardColumnMinWidth, usable / CGFloat(columnCount))
+    }
+
+    /// The width a board needs before it starts scrolling horizontally — every column at its
+    /// floor, plus the gaps and the inset.
+    static func boardMinimumWidth(columnCount: Int) -> CGFloat {
+        guard columnCount > 0 else { return 0 }
+        return boardColumnMinWidth * CGFloat(columnCount)
+            + boardColumnSpacing * CGFloat(columnCount - 1)
+            + boardPadding * 2
+    }
+
+    /// Show the persistent chat column? Wide WINDOW + a selection that has a channel.
+    ///
+    /// A board used to be excluded outright — "a board needs the full horizontal width for its
+    /// columns, so the two are mutually exclusive" (task f1430338). True of the window that
+    /// argument was written for, and false of a very wide one: past a certain width the board has
+    /// room for its columns AND the messages, and refusing to show them is spending screen on
+    /// nothing (AITD-330).
+    ///
+    /// So the exclusion becomes a MEASUREMENT: a board keeps the chat column only while both
+    /// still fit at their minimums. Below that the columns win — the board is what the user chose
+    /// to look at.
+    static func showsChatColumn(windowWidth: CGFloat,
+                                isRealList: Bool,
+                                isBoard: Bool = false,
+                                boardColumnCount: Int = 0,
+                                contentWidth: CGFloat = 0) -> Bool {
+        guard isRealList, windowWidth >= chatColumnWindowThreshold else { return false }
+        guard isBoard else { return true }
+        let leftForBoard = contentWidth - chatColumnMinWidth - columnDividerWidth
+        return leftForBoard >= boardMinimumWidth(columnCount: boardColumnCount)
     }
 }
 #endif
