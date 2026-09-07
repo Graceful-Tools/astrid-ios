@@ -159,11 +159,18 @@ struct MacBoardView: View {
         let title = (draftByColumn[col.id] ?? "").trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
         draftByColumn[col.id] = ""
+        let spec = MacBoardAdd.newCard(in: col, domainListId: listId, lists: listService.lists)
         MacActions.perform("Add card") {
-            let created = try await taskService.createTask(listIds: [listId], title: title)
-            let (ids, complete) = MacBoardAdd.apply(MacBoardMove.plan(task: created, column: col, lists: listService.lists))
-            if let ids { _ = try await taskService.updateTask(taskId: created.id, listIds: ids, task: created) }
-            if complete { _ = try await taskService.completeTask(id: created.id, completed: true, task: created) }
+            // Born in the column it was typed into, role and all (AITD-328). It used to be
+            // created bare and then moved, and the move dropped the role — so a card typed into
+            // Doing resolved to Inbox and appeared there.
+            let created = try await taskService.createTask(listIds: spec.listIds, title: title,
+                                                          statusRole: spec.statusRole)
+            // Done goes through completeTask, never updateTask(completed:) — the only path that
+            // rolls a repeating task forward (ASTRID.md §0 rule 2).
+            if spec.complete {
+                _ = try await taskService.completeTask(id: created.id, completed: true, task: created)
+            }
         }
     }
 
