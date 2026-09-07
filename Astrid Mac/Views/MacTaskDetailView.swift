@@ -68,6 +68,11 @@ struct MacTaskDetailView: View {
     @ObservedObject private var network = NetworkMonitor.shared
     @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
     @State private var commentHit: MacAutocompleteHit?
+    /// ⌘V with a screenshot or a file on the clipboard attaches it to the comment (AITD-306).
+    /// A local monitor rather than `.onPasteCommand`: the comment field is an NSTextField, and it
+    /// swallows `paste:` whether or not it found a string to insert — so an image paste never
+    /// reached a SwiftUI paste modifier at all.
+    @State private var pasteMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -387,6 +392,7 @@ struct MacTaskDetailView: View {
             if field == .comment { commentFocused = true }
         }
         .task(id: task.id) { load() }
+        .onAppear { installPasteMonitor() }
         // Exclusivity, applied: when the session hands the editor over, the fields that lost it
         // actually resign — and resigning is what saves, so the displaced edit is committed
         // rather than dropped (55010e29).
@@ -397,7 +403,7 @@ struct MacTaskDetailView: View {
         }
         // Leaving the detail — closing it, or switching to another task — commits whatever was
         // open. Same click-out rule, applied to the view going away.
-        .onDisappear { editing.commitAll() }
+        .onDisappear { editing.commitAll(); removePasteMonitor() }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
         .sheet(item: $editingComment) { _ in editSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: NSLocalizedString("mac.rename_subtask", comment: ""), text: $editingSubtaskText, onSave: renameSubtask) }
@@ -781,6 +787,80 @@ struct MacTaskDetailView: View {
                     to: stagedFiles)
             }
         }
+    }
+
+    // MARK: paste to attach (AITD-306)
+
+    /// Watch for ⌘V while this detail is on screen. The event is CONSUMED only when the paste is
+    /// going to attach something; every other ⌘V is handed straight back so text still pastes.
+    private func installPasteMonitor() {
+        guard pasteMonitor == nil else { return }
+        pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handlePaste(event) ? nil : event
+        }
+    }
+
+    private func removePasteMonitor() {
+        if let m = pasteMonitor { NSEvent.removeMonitor(m); pasteMonitor = nil }
+    }
+
+    /// Returns true when the paste was turned into a staged attachment.
+    private func handlePaste(_ event: NSEvent) -> Bool {
+        guard event.modifierFlags.intersection([.command, .control, .option, .shift]) == [.command],
+              event.charactersIgnoringModifiers?.lowercased() == "v" else { return false }
+        guard !AttachmentQueue.isFull(stagedFiles) else { return false }
+        let candidates = MacCommentPaste.candidates(from: pasteboardSnapshot(), now: Date())
+        // A text editor other than the comment field owns its own ⌘V — the title and the notes
+        // are still plain text paste.
+        let otherEditor = !commentFocused
+            && (NSApp.keyWindow?.firstResponder is NSText
+                || NSApp.keyWindow?.firstResponder is NSTextView)
+        guard MacCommentPaste.handlesPaste(hasAttachableContent: !candidates.isEmpty,
+                                           commentFieldFocused: commentFocused,
+                                           otherEditorFocused: otherEditor) else { return false }
+        let taskId = task.id
+        stagedFiles = MacCommentPaste.staged(candidates, onto: stagedFiles) { candidate in
+            // Same call the paperclip makes: offline-first, returns a temp id immediately, and
+            // the Outbox carries the bytes. Nothing is posted until Send.
+            AttachmentService.shared.saveLocallyAndUploadAsync(
+                fileData: candidate.data, fileName: candidate.name,
+                mimeType: candidate.mimeType, taskId: taskId)
+        }
+        // Attaching implies you meant to comment; put the caret where the caption goes.
+        commentFocused = true
+        return true
+    }
+
+    /// Read the general pasteboard into the pure `Snapshot` the rules work on.
+    ///
+    /// File URLs first — a file copied in Finder puts BOTH a URL and an image rendition on the
+    /// board, and the file keeps the real name and the original bytes. `.png` is preferred over
+    /// `.tiff` for a nameless rendition because a screenshot is already PNG and the TIFF is a
+    /// much larger re-encode of the same pixels.
+    private func pasteboardSnapshot() -> MacCommentPaste.Snapshot {
+        let pb = NSPasteboard.general
+        let urls = pb.readObjects(forClasses: [NSURL.self],
+                                  options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        let files: [MacCommentPaste.Candidate] = urls.compactMap { url in
+            // A folder has no bytes to attach, and `Data(contentsOf:)` on one throws.
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue,
+                  let data = try? Data(contentsOf: url) else { return nil }
+            return MacCommentPaste.file(named: url.lastPathComponent, data: data)
+        }
+        if !files.isEmpty { return MacCommentPaste.Snapshot(files: files) }
+        if let png = pb.data(forType: .png) {
+            return MacCommentPaste.Snapshot(imageData: png, imageExtension: "png")
+        }
+        if let tiff = pb.data(forType: .tiff) {
+            // Re-encode to PNG: a pasted TIFF is several times the size for the same pixels, and
+            // the thumbnail path and the server both prefer PNG.
+            let encoded = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
+            return MacCommentPaste.Snapshot(imageData: encoded ?? tiff,
+                                            imageExtension: encoded == nil ? "tiff" : "png")
+        }
+        return MacCommentPaste.Snapshot()
     }
 
     /// The staged files, above the comment field — a strip, since several can be queued.
