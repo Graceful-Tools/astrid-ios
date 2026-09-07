@@ -35,9 +35,9 @@ final class MacCommentPostTests: XCTestCase {
     /// The regression: a comment you just posted must show up in the thread immediately.
     func testAJustPostedCommentIsVisibleInTheThread() {
         let comment = posted(authorId: MacCommentPost.authorId(currentUserId: "user_1"))
-        XCTAssertFalse(MacSystemComments.isSystem(comment),
+        XCTAssertFalse(CommentVisibility.isSystem(authorId: comment.authorId, isOffline: false),
                        "Your own comment must never be mistaken for system chatter")
-        XCTAssertEqual(MacSystemComments.displayed([comment], showingSystem: false, isOffline: false).count, 1,
+        XCTAssertEqual(CommentVisibility.displayed([comment], showSystem: false, isOffline: false).count, 1,
                        "Task a3f868b4: the first comment must appear without waiting for a refresh")
     }
 
@@ -45,8 +45,8 @@ final class MacCommentPostTests: XCTestCase {
     /// comment is hidden. This is what the Mac was doing.
     func testACommentPostedWithoutAnAuthorIsHiddenAsSystemChatter() {
         let comment = posted(authorId: nil)
-        XCTAssertTrue(MacSystemComments.isSystem(comment))
-        XCTAssertTrue(MacSystemComments.displayed([comment], showingSystem: false, isOffline: false).isEmpty,
+        XCTAssertTrue(CommentVisibility.isSystem(authorId: comment.authorId, isOffline: false))
+        XCTAssertTrue(CommentVisibility.displayed([comment], showSystem: false, isOffline: false).isEmpty,
                       "Authorless comments are filtered — which is why posting without one lost the comment")
     }
 

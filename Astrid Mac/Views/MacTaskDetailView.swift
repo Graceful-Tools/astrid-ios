@@ -213,7 +213,7 @@ struct MacTaskDetailView: View {
                 // A repeating task appends a completion line per rollover; a run of them folds
                 // into one streak row you can expand (dd3fda86).
                 ForEach(CompletionStreak.fold(
-                    MacSystemComments.displayed(comments, showingSystem: showSystemComments,
+                    CommentVisibility.displayed(comments, showSystem: showSystemComments,
                                                 isOffline: !network.isConnected))) { item in
                     switch item {
                     case .comment(let c):
@@ -225,7 +225,7 @@ struct MacTaskDetailView: View {
             } header: {
                 HStack {
                     Text(String(format: NSLocalizedString("mac.comments_count", comment: ""),
-                                MacSystemComments.count(comments, showingSystem: showSystemComments,
+                                CommentVisibility.count(comments, showSystem: showSystemComments,
                                                         isOffline: !network.isConnected)))
                     if MacSystemComments.showsToggle(comments, isOffline: !network.isConnected) {
                         Button(MacSystemComments.toggleTitle(showingSystem: showSystemComments)) {
