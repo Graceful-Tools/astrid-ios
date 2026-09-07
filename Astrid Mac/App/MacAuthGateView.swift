@@ -66,7 +66,12 @@ struct MacAuthGateView: View {
         .onChange(of: auth.isAuthenticated) { _, isAuth in
             _Concurrency.Task {
                 if isAuth { await startSession() }
-                else { await SSEClient.shared.disconnect(); SyncManager.shared.stopAutoSync() }
+                else {
+                    // Re-arm, or signing back in inside this process gets no SSE and no sync timer.
+                    MacSessionStart.release()
+                    await SSEClient.shared.disconnect()
+                    SyncManager.shared.stopAutoSync()
+                }
             }
         }
         // Global Quick Add hotkey (and menu-bar/command actions) post this; open + focus the
@@ -97,7 +102,17 @@ struct MacAuthGateView: View {
     /// Post-auth service startup — mirrors AstridApp.swift (SSE real-time + sync workers).
     private func startSession() async {
         // Local-only mode has no server session — skip network services.
+        //
+        // This guard comes FIRST so local-only mode does not consume the launch latch below:
+        // nothing has started, so nothing should be marked as started, and switching to an online
+        // mode later must still be able to bring the session up.
         guard ConnectionModeManager.shared.currentMode != .offlineOnly else { return }
+
+        // AITD-315: cold launch reaches this down two paths — `checkAuthentication()` flipping
+        // `isAuthenticated` fires `.onChange`, and the enclosing `.task` then calls it again on the
+        // next line. Both used to run, so every launch with a stored session pulled all lists and
+        // all tasks twice and hit GitHub twice. Whoever gets here first owns the startup.
+        guard MacSessionStart.claim() else { return }
         await SSEClient.shared.connect()                 // live updates
 
         // Full task+list sync via the SHARED SyncManager (same path as iOS): fetches every list
