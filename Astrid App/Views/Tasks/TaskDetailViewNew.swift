@@ -530,6 +530,26 @@ struct TaskDetailViewNew: View {
                     }
                 }
 
+                // 7a. PROJECT STATE, in LIST mode, and only for a task that actually has a
+                // board column (AITD-332 — the iOS half of the Mac's AITD-327).
+                //
+                // After Lists and before the description on purpose: state belongs with WHERE
+                // the task lives. The Who/Date/Priority/Lists order above is a cross-platform
+                // contract (task c8a1ff51), so the row is appended after it, never interleaved.
+                //
+                // Whether it appears at all is asked of `TaskDetailProjectStateRow`, which the
+                // Mac asks too — the condition is not spelled here — and "does this task have a
+                // column" of `isTaskInProject`, the same derivation the board uses.
+                if showsProjectStateRow {
+                    TwoColumnRow(label: NSLocalizedString("board.project_state", comment: ""),
+                                 icon: "square.grid.2x2") {
+                        // The SAME chips the project-mode quick changer offers, whose move goes
+                        // through `planProjectColumnMove`, so this row and the board cannot come
+                        // to disagree about which states exist or what moving to Done means.
+                        ProjectStateQuickPicker(task: task, onMoved: {})
+                    }
+                }
+
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
 
@@ -1580,6 +1600,18 @@ struct TaskDetailViewNew: View {
     /// both land on the usable layout instead of an empty one.
     private var displayMode: TaskDisplayMode {
         TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+    }
+
+    /// Whether task details carry a board-state row (AITD-332).
+    ///
+    /// Both halves are shared rules rather than conditions written here: `isTaskInProject` is the
+    /// board's own derivation of "does this task have a column", and `TaskDetailProjectStateRow`
+    /// is the Mac's rule for when a detail view shows the row. Neither is restated, so the phone,
+    /// the Mac and the board cannot drift into three answers.
+    private var showsProjectStateRow: Bool {
+        TaskDetailProjectStateRow.isVisible(displayMode: displayMode,
+                                            isInProject: isTaskInProject(task, lists: listService.lists),
+                                            isReadOnly: isReadOnly)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.

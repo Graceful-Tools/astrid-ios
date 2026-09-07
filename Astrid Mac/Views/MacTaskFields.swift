@@ -64,15 +64,18 @@ enum MacTaskFields {
             // is no order to share and no state row to add.
             return leading + [.when, .lists, .description]
         }
-        // Board state gets a row in LIST mode when the task is in a project (AITD-327).
+        // Board state gets a row in LIST mode when the task is in a project (AITD-327), and the
+        // reasoning behind that lives with the rule in `TaskDetailProjectStateRow`. It was
+        // spelled here until iOS needed the same row (AITD-332): the phone would have spelled it
+        // a second time, and a layout question each platform answers for itself is exactly what
+        // the shared field order above exists to prevent.
         //
-        // This narrows an older, blunter rule. `MacLeadingPicker` reasoned that "a board column
-        // is a project idea, and a row for it in the list layout rebuilds the hybrid" — sound for
-        // a task with no board column, since a row for a state it cannot have is the hybrid. But
-        // for a task that IS on a board, its column is real information the list layout was
-        // simply hiding, and the only way to change it was to switch display modes. The condition
-        // is what keeps this from being the hybrid: no project, no row.
-        let state: [MacTaskFieldRow] = isInProject ? [.projectState] : []
+        // `isReadOnly: false` because this editor has no view-only mode — every row it draws is
+        // one the user can change (see `isEditable`). iOS's public-list detail does, and hides
+        // the row there rather than offering chips that cannot write.
+        let state: [MacTaskFieldRow] = TaskDetailProjectStateRow.isVisible(
+            displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
+            ? [.projectState] : []
         return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + [.description]
     }
 
