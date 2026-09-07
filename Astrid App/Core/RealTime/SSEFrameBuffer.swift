@@ -13,7 +13,7 @@
 
 import Foundation
 
-struct SSEFrameBuffer {
+nonisolated struct SSEFrameBuffer {
 
     /// A server that never sends a blank line must not be able to grow this without bound.
     /// Well past any real event; reaching it means the stream is malformed.

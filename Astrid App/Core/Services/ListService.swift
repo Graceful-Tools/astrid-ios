@@ -31,6 +31,68 @@ class ListService: ObservableObject {
         // Load cached lists synchronously to ensure data is available before any UI renders
         // This is CRITICAL for offline mode - lists must be in memory before network calls fail
         loadCachedLists()
+
+        subscribeToLiveListUpdates()
+    }
+
+    // MARK: - Live Updates (SSE)
+
+    /// Subscribe to the `list_*` stream so a list renamed, created or deleted elsewhere shows up
+    /// now rather than at the next 60 s pull (AITD-314).
+    ///
+    /// Cache-only, like the task side: no API call and no write back to the server.
+    private func subscribeToLiveListUpdates() {
+        _Concurrency.Task {
+            let sse = SSEClient.shared
+
+            await sse.onListCreated { list in
+                _Concurrency.Task { @MainActor in ListService.shared.applyLiveListUpsert(list) }
+            }
+            await sse.onListUpdated { list in
+                _Concurrency.Task { @MainActor in ListService.shared.applyLiveListUpsert(list) }
+            }
+            await sse.onListDeleted { listId in
+                _Concurrency.Task { @MainActor in ListService.shared.applyLiveListDelete(listId) }
+            }
+        }
+    }
+
+    /// Merge a list that arrived over SSE into the cache. `LiveUpdatePolicy` decides whether it may
+    /// be applied — a stale event must not clobber a newer local edit.
+    func applyLiveListUpsert(_ list: TaskList) {
+        let decision = LiveUpdatePolicy.listUpsert(incoming: list, cached: cachedLists[list.id])
+        guard decision == .apply else {
+            print("📡 [ListService] Live list \(list.id) ignored: \(decision)")
+            return
+        }
+
+        cachedLists[list.id] = list
+
+        if let index = lists.firstIndex(where: { $0.id == list.id }) {
+            let sortKeysChanged = ListOrdering.isOrderedBefore(lists[index], list)
+                || ListOrdering.isOrderedBefore(list, lists[index])
+            if sortKeysChanged {
+                // A rename or a favorite toggle moves the row; put it where a fetch would.
+                lists.remove(at: index)
+                lists.insert(list, at: ListOrdering.insertionIndex(for: list, in: lists))
+            } else {
+                lists[index] = list
+            }
+        } else {
+            lists.insert(list, at: ListOrdering.insertionIndex(for: list, in: lists))
+        }
+
+        print("📡 [ListService] Applied live list update: \(list.name)")
+    }
+
+    /// Remove a list that was deleted elsewhere.
+    func applyLiveListDelete(_ listId: String) {
+        guard LiveUpdatePolicy.listDelete(id: listId) == .apply else { return }
+        guard cachedLists[listId] != nil || lists.contains(where: { $0.id == listId }) else { return }
+
+        cachedLists.removeValue(forKey: listId)
+        lists.removeAll { $0.id == listId }
+        print("📡 [ListService] Applied live list delete: \(listId)")
     }
 
     // MARK: - Initialization
@@ -56,14 +118,7 @@ class ListService: ObservableObject {
             }
 
             // Sort lists (favorites first, then alphabetical)
-            lists = lists.sorted { list1, list2 in
-                let fav1 = list1.isFavorite ?? false
-                let fav2 = list2.isFavorite ?? false
-                if fav1 != fav2 {
-                    return fav1
-                }
-                return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
-            }
+            lists = lists.sorted(by: ListOrdering.isOrderedBefore)
 
             updatePendingListsCount()
             hasCompletedInitialLoad = true
@@ -148,16 +203,7 @@ class ListService: ObservableObject {
             // Never resurrect a deleted list from a stale in-flight response.
             let deletedIds = recentlyDeletedListIds
             let liveLists = deletedIds.isEmpty ? fetchedLists : fetchedLists.filter { !deletedIds.contains($0.id) }
-            var mergedLists = liveLists.sorted { list1, list2 in
-                // Favorites first, then alphabetical
-                let fav1 = list1.isFavorite ?? false
-                let fav2 = list2.isFavorite ?? false
-
-                if fav1 != fav2 {
-                    return fav1
-                }
-                return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
-            }
+            var mergedLists = liveLists.sorted(by: ListOrdering.isOrderedBefore)
 
             // Add pending lists at the top
             for pendingList in pendingLists {
@@ -631,14 +677,7 @@ class ListService: ObservableObject {
         }
 
         // Re-sort lists (favorites first)
-        lists = lists.sorted { list1, list2 in
-            let fav1 = list1.isFavorite ?? false
-            let fav2 = list2.isFavorite ?? false
-            if fav1 != fav2 {
-                return fav1
-            }
-            return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
-        }
+        lists = lists.sorted(by: ListOrdering.isOrderedBefore)
 
         print("⚡️ [ListService] Optimistically toggled favorite: \(optimisticList.name)")
 
@@ -671,14 +710,7 @@ class ListService: ObservableObject {
             }
 
             // Re-sort again to restore order
-            lists = lists.sorted { list1, list2 in
-                let fav1 = list1.isFavorite ?? false
-                let fav2 = list2.isFavorite ?? false
-                if fav1 != fav2 {
-                    return fav1
-                }
-                return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
-            }
+            lists = lists.sorted(by: ListOrdering.isOrderedBefore)
 
             print("❌ [ListService] Failed to toggle favorite, rolled back: \(error)")
             throw error

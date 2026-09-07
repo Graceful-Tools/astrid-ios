@@ -261,6 +261,12 @@ actor SSEClient {
     nonisolated private func handleEvent(type: String, data: String) {
         guard let jsonData = data.data(using: .utf8) else { return }
 
+        // AITD-314 asked for this decode to move off the main actor. It cannot move locally: this
+        // target builds with SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor, so `Task`, `TaskList`,
+        // `Comment` and friends have main-actor-isolated `Decodable` conformances. Decoding them
+        // from a nonisolated context is a warning today and an error under Swift 6. Moving it for
+        // real means marking the model layer's conformances `nonisolated`, which is a change to
+        // the models rather than to the SSE client — filed separately rather than smuggled in.
         _Concurrency.Task { @MainActor in
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601

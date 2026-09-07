@@ -227,6 +227,79 @@ class TaskService: ObservableObject {
         // Load cached tasks synchronously to ensure data is available before any UI renders
         // This is CRITICAL for offline mode - tasks must be in memory before network calls fail
         loadCachedTasks()
+
+        subscribeToLiveTaskUpdates()
+    }
+
+    // MARK: - Live Updates (SSE)
+
+    /// Subscribe to the `task_*` stream so a collaborator's edit shows up now rather than at the
+    /// next 60 s pull (AITD-314).
+    ///
+    /// Before this, `SSEClient` decoded every one of these events and delivered them to handler
+    /// arrays that nothing had ever subscribed to — the parse cost was paid and nothing changed on
+    /// screen. Everything here is CACHE-ONLY: no API call, no write back to the server. A live
+    /// event that triggered a write would be the ping-pong the web board has an open task about.
+    private func subscribeToLiveTaskUpdates() {
+        _Concurrency.Task {
+            let sse = SSEClient.shared
+
+            await sse.onTaskCreated { task in
+                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskUpsert(task) }
+            }
+            await sse.onTaskUpdated { task in
+                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskUpsert(task) }
+            }
+            await sse.onTaskDeleted { taskId in
+                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskDelete(taskId) }
+            }
+        }
+    }
+
+    /// Merge a task that arrived over SSE into the cache.
+    ///
+    /// `LiveUpdatePolicy` owns whether it may be applied — an event can arrive after a local edit
+    /// the server has not seen, or for a task the user just deleted, and blindly overwriting would
+    /// undo either. The rules match the 60 s pull's, so the two cannot disagree about a row.
+    func applyLiveTaskUpsert(_ task: Task) {
+        let decision = LiveUpdatePolicy.taskUpsert(
+            incoming: task,
+            cached: cachedTasks[task.id],
+            locallyDeletedIds: recentlyDeletedIds
+        )
+        guard decision == .apply else {
+            print("📡 [TaskService] Live task \(task.id) ignored: \(decision)")
+            return
+        }
+
+        cachedTasks[task.id] = task
+
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            let sortKeysChanged = TaskOrdering.isOrderedBefore(tasks[index], task)
+                || TaskOrdering.isOrderedBefore(task, tasks[index])
+            if sortKeysChanged {
+                // Due date or creation date moved — the row has to move with it, to the same
+                // place the next sync pull would put it.
+                tasks.remove(at: index)
+                tasks.insert(task, at: TaskOrdering.insertionIndex(for: task, in: tasks))
+            } else {
+                tasks[index] = task
+            }
+        } else {
+            tasks.insert(task, at: TaskOrdering.insertionIndex(for: task, in: tasks))
+        }
+
+        print("📡 [TaskService] Applied live task update: \(task.title)")
+    }
+
+    /// Remove a task that was deleted elsewhere.
+    func applyLiveTaskDelete(_ taskId: String) {
+        guard LiveUpdatePolicy.taskDelete(id: taskId) == .apply else { return }
+        guard cachedTasks[taskId] != nil || tasks.contains(where: { $0.id == taskId }) else { return }
+
+        cachedTasks.removeValue(forKey: taskId)
+        tasks.removeAll { $0.id == taskId }
+        print("📡 [TaskService] Applied live task delete: \(taskId)")
     }
 
     // MARK: - Initialization
@@ -1521,19 +1594,7 @@ class TaskService: ObservableObject {
                 // so without it, rows with equal keys (a batch of all-day
                 // tasks due the same day) shuffled on every background
                 // refresh — visible flicker on large lists.
-                let sorted = Array(mergedDict.values).sorted { task1, task2 in
-                    if task1.dueDateTime != task2.dueDateTime {
-                        guard let date1 = task1.dueDateTime else { return false }
-                        guard let date2 = task2.dueDateTime else { return true }
-                        return date1 < date2
-                    }
-                    let created1 = task1.createdAt ?? .distantPast
-                    let created2 = task2.createdAt ?? .distantPast
-                    if created1 != created2 {
-                        return created1 > created2
-                    }
-                    return task1.id < task2.id
-                }
+                let sorted = Array(mergedDict.values).sorted(by: TaskOrdering.isOrderedBefore)
 
                 continuation.resume(returning: sorted)
             }
