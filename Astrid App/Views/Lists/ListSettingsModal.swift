@@ -35,10 +35,12 @@ struct ListSettingsModal: View {
         ListPermissions.canEditSettings(currentList, userId: AuthManager.shared.userId)
     }
 
-    /// Check if current user is the list owner
+    /// Check if current user is the list owner.
+    /// Through `TaskList.role(for:)` rather than comparing ids inline, so this cannot drift from
+    /// web's `getUserRoleInList` (ASTRID.md §8 row 3, AITD-316).
     private var isOwner: Bool {
         guard let currentUserId = AuthManager.shared.userId else { return false }
-        return currentList.ownerId == currentUserId || currentList.owner?.id == currentUserId
+        return currentList.role(for: currentUserId) == .owner
     }
 
     /// Update local state AND forward to parent (for sort/filter/admin changes)
@@ -124,8 +126,8 @@ struct ListSettingsModal: View {
                 // pending member removals so stale parent data can't revert them
                 var incoming = list
                 if !removedMemberEmails.isEmpty {
-                    incoming.admins?.removeAll { removedMemberEmails.contains($0.email ?? "") }
-                    incoming.members?.removeAll { removedMemberEmails.contains($0.email ?? "") }
+                    // `listMembers` only (AITD-316) — re-applying to the legacy arrays as well
+                    // just kept two rosters alive that must never be branched on.
                     incoming.listMembers?.removeAll { removedMemberEmails.contains($0.user?.email ?? "") }
                 }
                 currentList = incoming

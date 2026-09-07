@@ -68,12 +68,10 @@ struct CommentSectionViewEnhanced: View {
                 if let owner = fullList.owner {
                     users[owner.id] = owner
                 }
-                for member in fullList.members ?? [] {
-                    users[member.id] = member
-                }
-                for admin in fullList.admins ?? [] {
-                    users[admin.id] = admin
-                }
+                // `listMembers` is the source of truth (ASTRID.md §8 row 3). The legacy
+                // `admins` / `members` arrays used to be read here too; they are not populated by
+                // the endpoints iOS consumes, so branching on them can only produce a mention list
+                // that disagrees with web's (AITD-316).
                 for lm in fullList.listMembers ?? [] {
                     if let user = lm.user {
                         users[user.id] = user

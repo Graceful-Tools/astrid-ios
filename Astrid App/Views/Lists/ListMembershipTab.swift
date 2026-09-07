@@ -117,8 +117,6 @@ struct ListMembershipTab: View {
                 let _ = {
                     print("👥 [ListMembershipTab] Rendering members for list: \(list.id)")
                     print("  Owner: \(list.owner?.displayName ?? "nil") (id: \(list.owner?.id ?? "nil"))")
-                    print("  admins: \(list.admins?.map { "\($0.displayName) (id: \($0.id))" } ?? ["nil"])")
-                    print("  members: \(list.members?.map { "\($0.displayName) (id: \($0.id))" } ?? ["nil"])")
                     print("  listMembers: \(list.listMembers?.map { "userId: \($0.userId), role: \($0.role), user: \($0.user?.displayName ?? "nil")" } ?? ["nil"])")
                     print("  removedEmails: \(removedMemberEmails)")
                     print("  canEditSettings: \(canEditSettings)")
@@ -166,157 +164,10 @@ struct ListMembershipTab: View {
                     }
                 }
 
-                // Admins (exclude owner; skip if listMembers is populated to avoid duplicates)
-                if let admins = list.admins, !admins.isEmpty, (list.listMembers ?? []).isEmpty {
-                    ForEach(admins.filter { $0.id != list.owner?.id }) { admin in
-                        ZStack(alignment: .leading) {
-                            NavigationLink(destination: UserProfileView(userId: admin.id)) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-
-                            HStack(spacing: Theme.spacing12) {
-                                CachedAsyncImage(url: admin.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Theme.accent)
-                                        Text(admin.initials)
-                                            .font(Theme.Typography.caption1())
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .frame(width: 32, height: 32)
-                                .clipShape(Circle())
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(admin.displayName)
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    Text(admin.email ?? NSLocalizedString("profile.no_email", comment: ""))
-                                        .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                }
-
-                                Spacer()
-
-                                if canEditSettings {
-                                    Menu {
-                                        Button {
-                                            changeRole(userId: admin.id, currentRole: "admin", newRole: "member")
-                                        } label: {
-                                            Label(NSLocalizedString("lists.make_member", comment: ""), systemImage: "person")
-                                        }
-
-                                        Button(role: .destructive) {
-                                            removeMember(userId: admin.id, email: admin.email ?? "")
-                                        } label: {
-                                            Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
-                                        }
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Text(NSLocalizedString("lists.admin_role", comment: ""))
-                                                .font(Theme.Typography.caption1())
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-
-                                            Image(systemName: "ellipsis")
-                                                .rotationEffect(.degrees(90))
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    Text(NSLocalizedString("lists.admin_role", comment: ""))
-                                        .font(Theme.Typography.caption1())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Regular Members (from legacy members array; skip if listMembers is populated)
-                if let members = list.members, !members.isEmpty, (list.listMembers ?? []).isEmpty {
-                    ForEach(members) { member in
-                        ZStack(alignment: .leading) {
-                            NavigationLink(destination: UserProfileView(userId: member.id)) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-
-                            HStack(spacing: Theme.spacing12) {
-                                CachedAsyncImage(url: member.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Theme.accent)
-                                        Text(member.initials)
-                                            .font(Theme.Typography.caption1())
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .frame(width: 32, height: 32)
-                                .clipShape(Circle())
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(member.displayName)
-                                        .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    Text(member.email ?? NSLocalizedString("profile.no_email", comment: ""))
-                                        .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                }
-
-                                Spacer()
-
-                                if canEditSettings {
-                                    Menu {
-                                        Button {
-                                            changeRole(userId: member.id, currentRole: "member", newRole: "admin")
-                                        } label: {
-                                            Label(NSLocalizedString("lists.make_admin", comment: ""), systemImage: "star")
-                                        }
-
-                                        Button(role: .destructive) {
-                                            removeMember(userId: member.id, email: member.email ?? "")
-                                        } label: {
-                                            Label(NSLocalizedString("lists.remove", comment: ""), systemImage: "trash")
-                                        }
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Text(NSLocalizedString("lists.member_role", comment: ""))
-                                                .font(Theme.Typography.caption1())
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-
-                                            Image(systemName: "ellipsis")
-                                                .rotationEffect(.degrees(90))
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 6)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    Text(NSLocalizedString("lists.member_role", comment: ""))
-                                        .font(Theme.Typography.caption1())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                                }
-                            }
-                        }
-                    }
-                }
+                // The roster comes from `listMembers` ONLY (ASTRID.md §8 row 3). Two legacy
+                // fallback blocks used to render `admins` / `members` here when `listMembers`
+                // happened to be empty, which meant the tab could show a different roster than
+                // web depending on which array was populated (AITD-316).
 
                 // ListMembers (from new listMembers table with roles, exclude owner to prevent duplicate)
                 if let listMembers = list.listMembers, !listMembers.isEmpty {
@@ -910,8 +761,7 @@ struct ListMembershipTab: View {
 
         // Optimistic update: remove agent from list immediately
         var updatedList = list
-        updatedList.admins?.removeAll { $0.id == userId }
-        updatedList.members?.removeAll { $0.id == userId }
+        // `listMembers` only — the legacy arrays are not a roster this screen reads (AITD-316).
         updatedList.listMembers?.removeAll { $0.userId == userId || $0.user?.id == userId }
         onUpdate(updatedList)
 

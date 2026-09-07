@@ -23,18 +23,14 @@ struct MacListMembersView: View {
     private var members: [ListMember] { svc.membersByList[list.id] ?? [] }
     private var canInvite: Bool { email.contains("@") && email.contains(".") }
 
-    /// The current user's role on this list ("owner" via ownerId, else their member role).
-    private var myRole: String? {
-        let uid = AuthManager.shared.userId
-        if list.ownerId == uid { return "owner" }
-        return members.first { $0.userId == uid }?.role
-    }
     /// The SHARED rule (task da56d096). This used to compare role STRINGS against the separately
     /// fetched `members` roster, so Mac and iOS could answer the same question differently.
     private var canManage: Bool {
         ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)
     }
-    private func isOwner(_ m: ListMember) -> Bool { m.userId == list.ownerId }
+    /// Through the SHARED `TaskList.role(for:)`, not an inline id comparison — Mac and iOS must
+    /// answer "is this the owner?" the same way (ASTRID.md §8 row 3, AITD-316).
+    private func isOwner(_ m: ListMember) -> Bool { list.role(for: m.userId) == .owner }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
