@@ -99,32 +99,26 @@ enum ListMemberOptimistic {
         return result
     }
 
-    // MARK: - TaskList mirror
+    // MARK: - TaskList roster
     //
-    // The membership views read `listMembers`, but the permission helpers and the
-    // older surfaces read `admins` / `members`. An optimistic update that touched
-    // only one of them shows a half-applied list, so all three move together.
+    // `listMembers` is the ONLY roster these functions touch (AITD-322). The legacy
+    // `admins[]` / `members[]` arrays are not populated by the endpoints iOS consumes and
+    // nothing reads them — ASTRID.md §8 row 3, pinned by `ListPermissionsContractTests`.
+    // Mirroring into them here was the one way a cached `TaskList` could carry NON-EMPTY
+    // legacy arrays into a later build, which is what turns a re-introduced legacy branch
+    // from harmlessly dead into live and disagreeing with web.
 
     static func applyingAdd(_ list: TaskList, member: ListMember) -> TaskList {
         var result = list
         let roster = applyingAdd(list.listMembers ?? [], member: member)
         guard roster.count != (list.listMembers ?? []).count else { return result }
         result.listMembers = roster
-        if let user = member.user {
-            if isAdminRole(member.role) {
-                result.admins = (result.admins ?? []) + [user]
-            } else {
-                result.members = (result.members ?? []) + [user]
-            }
-        }
         return result
     }
 
     static func applyingRemoval(_ list: TaskList, userId: String) -> TaskList {
         var result = list
         result.listMembers = list.listMembers.map { applyingRemoval($0, userId: userId) }
-        result.admins?.removeAll { $0.id == userId }
-        result.members?.removeAll { $0.id == userId }
         return result
     }
 
@@ -133,8 +127,6 @@ enum ListMemberOptimistic {
     static func applyingRemoval(_ list: TaskList, memberId: String) -> TaskList {
         var result = list
         result.listMembers = list.listMembers.map { applyingRemoval($0, memberId: memberId) }
-        result.admins?.removeAll { $0.id == memberId }
-        result.members?.removeAll { $0.id == memberId }
         return result
     }
 
@@ -145,32 +137,17 @@ enum ListMemberOptimistic {
         return applyingAdd(applyingRemoval(list, memberId: placeholderId), member: confirmed)
     }
 
+    /// A promotion rewrites the person's row in place. It used to also move them between
+    /// `admins` and `members`, and to fall back to those arrays when the roster had no row
+    /// for `userId` — someone missing from `listMembers` is not on the list at all, so
+    /// there is now nothing to apply.
     static func applyingRoleChange(_ list: TaskList, userId: String, role: String) -> TaskList {
         var result = list
         result.listMembers = list.listMembers.map { applyingRoleChange($0, userId: userId, role: role) }
-
-        // A promotion MOVES the person between the two rosters. Copying instead
-        // would render them twice.
-        let user = result.listMembers?.first { $0.userId == userId || $0.user?.id == userId }?.user
-            ?? list.admins?.first { $0.id == userId }
-            ?? list.members?.first { $0.id == userId }
-        guard let user else { return result }
-
-        result.admins?.removeAll { $0.id == userId }
-        result.members?.removeAll { $0.id == userId }
-        if isAdminRole(role) {
-            result.admins = (result.admins ?? []) + [user]
-        } else {
-            result.members = (result.members ?? []) + [user]
-        }
         return result
     }
 
     // MARK: - Internals
-
-    static func isAdminRole(_ role: String) -> Bool {
-        role == "admin" || role == "owner"
-    }
 
     /// Same person? By row id, by user id, or by email — the last one matters
     /// because a placeholder is known only by the email that was typed.

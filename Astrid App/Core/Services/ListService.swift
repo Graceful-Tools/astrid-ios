@@ -219,8 +219,7 @@ class ListService: ObservableObject {
                 cachedLists[list.id] = list
                 print("  📋 List: \(list.name) (tasks: \(list.taskCount ?? 0))")
                 print("    👥 Owner: \(list.owner?.displayName ?? "nil")")
-                print("    👥 Admins: \(list.admins?.count ?? 0)")
-                print("    👥 Members: \(list.members?.count ?? 0)")
+                print("    👥 Members: \(list.listMembers?.count ?? 0)")
             }
 
             // A list the server has stopped returning was deleted elsewhere — drop it from the

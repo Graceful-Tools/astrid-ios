@@ -140,45 +140,118 @@ final class ListMemberOptimisticTests: XCTestCase {
                        "Rebuilding the row must not blank the avatar and name")
     }
 
-    // MARK: - TaskList mirror
+    // MARK: - TaskList roster
 
-    func testTaskListMirrorAddsToEveryRosterTheViewsRead() {
-        var subject = list([member("u1")])
-        subject.members = [User(id: "u1", email: "u1@example.com", name: "u1", image: nil)]
-        subject.admins = []
-
+    func testTaskListAddLandsInTheRoster() {
+        let subject = list([member("u1")])
         let placeholder = ListMemberOptimistic.placeholder(
             id: "temp_1", listId: "list-1", email: "new@example.com", role: "admin"
         )
+
         let after = ListMemberOptimistic.applyingAdd(subject, member: placeholder)
 
-        XCTAssertEqual(after.listMembers?.count, 2)
-        XCTAssertEqual(after.admins?.map(\.id), ["temp_1"], "An admin add shows up in `admins`")
-        XCTAssertEqual(after.members?.map(\.id), ["u1"], "…and not in `members`")
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1", "temp_1"])
+        XCTAssertEqual(after.listMembers?.last?.role, "admin", "The role rides on the roster row")
     }
 
-    func testTaskListMirrorRemovesFromEveryRoster() {
-        var subject = list([member("u1"), member("u2", role: "admin")])
-        subject.members = [User(id: "u1", email: "u1@example.com", name: "u1", image: nil)]
-        subject.admins = [User(id: "u2", email: "u2@example.com", name: "u2", image: nil)]
+    func testTaskListRemovalDropsTheRosterRow() {
+        let subject = list([member("u1"), member("u2", role: "admin")])
 
         let after = ListMemberOptimistic.applyingRemoval(subject, userId: "u2")
 
         XCTAssertEqual(after.listMembers?.map(\.userId), ["u1"])
-        XCTAssertEqual(after.admins?.count, 0)
-        XCTAssertEqual(after.members?.map(\.id), ["u1"])
     }
 
-    func testTaskListMirrorMovesThePersonBetweenRostersOnRoleChange() {
-        var subject = list([member("u1", role: "member")])
-        subject.members = [User(id: "u1", email: "u1@example.com", name: "u1", image: nil)]
-        subject.admins = []
+    func testTaskListRoleChangeMovesTheRowRatherThanCopyingIt() {
+        let subject = list([member("u1", role: "member"), member("u2", role: "member")])
 
         let after = ListMemberOptimistic.applyingRoleChange(subject, userId: "u1", role: "admin")
 
+        XCTAssertEqual(after.listMembers?.count, 2, "Promotion has to move the row, not copy it")
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1", "u2"], "…and not reorder it")
         XCTAssertEqual(after.listMembers?.first?.role, "admin")
-        XCTAssertEqual(after.admins?.map(\.id), ["u1"], "Promotion has to move the row, not copy it")
-        XCTAssertEqual(after.members?.count, 0)
+        XCTAssertEqual(after.listMembers?.last?.role, "member", "Only the target changes")
+    }
+
+    // MARK: - The legacy arrays are never written (AITD-322)
+    //
+    // `admins[]` / `members[]` are not populated by the endpoints iOS consumes and nothing
+    // reads them any more (ASTRID.md §8 row 3, pinned on the read side by
+    // `ListPermissionsContractTests`). The optimistic edit used to mirror into them anyway,
+    // which was the one remaining way a cached `TaskList` could carry NON-EMPTY legacy arrays
+    // into a later build — the exact condition that turns a re-introduced legacy branch from
+    // harmlessly dead into live and disagreeing with web.
+
+    /// Legacy arrays full, `listMembers` holding the real roster: the same pathological shape
+    /// `ListPermissionsContractTests` builds, seen from the write side.
+    private func legacyArmed(_ members: [ListMember]) -> TaskList {
+        var l = list(members)
+        l.admins = [User(id: "legacy-admin", email: "legacy-admin@example.com", name: "legacy-admin", image: nil)]
+        l.members = [User(id: "legacy-member", email: "legacy-member@example.com", name: "legacy-member", image: nil)]
+        return l
+    }
+
+    private func assertLegacyArraysUntouched(_ list: TaskList,
+                                             _ message: String,
+                                             file: StaticString = #filePath,
+                                             line: UInt = #line) {
+        XCTAssertEqual(list.admins?.map(\.id), ["legacy-admin"], message, file: file, line: line)
+        XCTAssertEqual(list.members?.map(\.id), ["legacy-member"], message, file: file, line: line)
+    }
+
+    func testAddDoesNotWriteTheLegacyArrays() {
+        let placeholder = ListMemberOptimistic.placeholder(
+            id: "temp_1", listId: "list-1", email: "new@example.com", role: "admin"
+        )
+
+        let after = ListMemberOptimistic.applyingAdd(legacyArmed([member("u1")]), member: placeholder)
+
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1", "temp_1"], "The roster still updates")
+        assertLegacyArraysUntouched(after, "An optimistic add must not populate the dead arrays")
+    }
+
+    func testRemovalDoesNotWriteTheLegacyArrays() {
+        // The removed person is also a legacy-array entry, which is what makes this bite:
+        // the old code stripped them from `admins` / `members` by id as well.
+        let armed = legacyArmed([member("u1"), member("legacy-admin")])
+
+        let after = ListMemberOptimistic.applyingRemoval(armed, userId: "legacy-admin")
+
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1"], "The roster row still goes")
+        assertLegacyArraysUntouched(after, "An optimistic removal must not rewrite the dead arrays")
+    }
+
+    func testRollingBackAFailedAddDoesNotWriteTheLegacyArrays() {
+        let armed = legacyArmed([member("u1")])
+        let placeholder = ListMemberOptimistic.placeholder(
+            id: "temp_1", listId: "list-1", email: "new@example.com", role: "member"
+        )
+        let added = ListMemberOptimistic.applyingAdd(armed, member: placeholder)
+
+        let after = ListMemberOptimistic.applyingRemoval(added, memberId: "temp_1")
+
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1"], "The placeholder is rolled back")
+        assertLegacyArraysUntouched(after, "The rollback must not rewrite the dead arrays either")
+    }
+
+    func testRoleChangeDoesNotWriteTheLegacyArrays() {
+        let after = ListMemberOptimistic.applyingRoleChange(legacyArmed([member("u1", role: "member")]),
+                                                            userId: "u1", role: "admin")
+
+        XCTAssertEqual(after.listMembers?.first?.role, "admin")
+        assertLegacyArraysUntouched(after, "A promotion must not move anyone between the dead arrays")
+    }
+
+    func testRoleChangeForSomeoneOnlyInTheLegacyArraysDoesNothing() {
+        // `applyingRoleChange` used to fall back to `list.admins` / `list.members` to find the
+        // person, so promoting a legacy-only entry rewrote both arrays. Someone who is not in
+        // `listMembers` is not on the list at all — the edit has nothing to apply.
+        let armed = legacyArmed([member("u1")])
+
+        let after = ListMemberOptimistic.applyingRoleChange(armed, userId: "legacy-member", role: "admin")
+
+        XCTAssertEqual(after.listMembers?.map(\.userId), ["u1"], "Nobody is added to the roster")
+        assertLegacyArraysUntouched(after, "A legacy-only entry stays exactly where it was")
     }
 
     // MARK: - ListService cache
@@ -210,17 +283,12 @@ final class ListMemberOptimisticTests: XCTestCase {
         let saved = service.lists
         defer { service.lists = saved }
 
-        var subject = list([member("u1"), member("u2")])
-        subject.members = [
-            User(id: "u1", email: "u1@example.com", name: "u1", image: nil),
-            User(id: "u2", email: "u2@example.com", name: "u2", image: nil)
-        ]
-        service.lists = [subject]
+        service.lists = [list([member("u1"), member("u2")])]
 
         service.removeMemberFromCachedList(listId: "list-1", userId: "u2")
 
         XCTAssertEqual(service.lists.first?.listMembers?.map(\.userId), ["u1"])
-        XCTAssertEqual(service.lists.first?.members?.map(\.id), ["u1"])
-        XCTAssertEqual(service.listsById["list-1"]?.listMembers?.map(\.userId), ["u1"])
+        XCTAssertEqual(service.listsById["list-1"]?.listMembers?.map(\.userId), ["u1"],
+                       "The cached copy is what survives a view dismissal")
     }
 }
