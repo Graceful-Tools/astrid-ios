@@ -80,8 +80,8 @@ struct MacConnectionSettingsView: View {
     var body: some View {
         Form {
             Section(NSLocalizedString("Connection", comment: "")) {
-                LabeledContent("Mode", value: conn.currentMode.displayName)
-                LabeledContent("Server", value: Constants.API.baseURL)
+                LabeledContent(NSLocalizedString("sync.mode", comment: ""), value: conn.currentMode.displayName)
+                LabeledContent(NSLocalizedString("mac.server", comment: ""), value: Constants.API.baseURL)
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -138,8 +138,8 @@ struct MacSyncSettingsView: View {
                     Spacer()
                     Button(NSLocalizedString("mac.manage", comment: "")) { showReminders = true }
                 }
-                if apple.linkedListCount > 0 { LabeledContent("Linked lists", value: "\(apple.linkedListCount)") }
-                if let d = apple.lastSyncDate { LabeledContent("Last sync") { Text(d, style: .relative) } }
+                if apple.linkedListCount > 0 { LabeledContent(NSLocalizedString("sync.linked_lists", comment: ""), value: "\(apple.linkedListCount)") }
+                if let d = apple.lastSyncDate { LabeledContent(NSLocalizedString("last_sync", comment: "")) { Text(d, style: .relative) } }
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -185,8 +185,9 @@ struct MacSyncSettingsView: View {
         Section(title) {
             HStack {
                 Circle().fill(connected ? Theme.success : Theme.textMuted).frame(width: 8, height: 8)
-                Text(connected ? (account ?? "Connected")
-                     : isConnecting ? "Connecting…" : "Not connected").foregroundStyle(Theme.textPrimary)
+                Text(connected ? (account ?? NSLocalizedString("sync.connected", comment: ""))
+                     : isConnecting ? NSLocalizedString("sync.connecting", comment: "")
+                     : NSLocalizedString("sync.not_connected", comment: "")).foregroundStyle(Theme.textPrimary)
                 if isConnecting { ProgressView().controlSize(.small) }
                 Spacer()
                 if connected {
@@ -203,7 +204,7 @@ struct MacSyncSettingsView: View {
             if connected, let manage {
                 Button(NSLocalizedString("mac.manage_links", comment: "")) { manage() }
             }
-            if let d = lastSync { LabeledContent("Last sync") { Text(d, style: .relative) } }
+            if let d = lastSync { LabeledContent(NSLocalizedString("last_sync", comment: "")) { Text(d, style: .relative) } }
         }
     }
 }

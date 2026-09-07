@@ -66,7 +66,7 @@ struct MacAppleRemindersView: View {
                                 if apple.isSyncing { Spacer(); ProgressView().controlSize(.small) } }
                         }
                         .disabled(apple.isSyncing || apple.linkedListCount == 0)
-                        if let d = apple.lastSyncDate { LabeledContent("Last sync") { Text(d, style: .relative) } }
+                        if let d = apple.lastSyncDate { LabeledContent(NSLocalizedString("last_sync", comment: "")) { Text(d, style: .relative) } }
                     }
                 }
             }

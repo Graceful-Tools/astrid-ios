@@ -1399,9 +1399,9 @@ struct MacRootView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
-            .navigationTitle(selectedListId == Self.searchId ? "Search"
-                             : selectedListId == Self.myTasksId ? "My Tasks"
-                             : (listService.lists.first { $0.id == selectedListId }?.name ?? "Tasks"))
+            .navigationTitle(selectedListId == Self.searchId ? NSLocalizedString("navigation.search", comment: "")
+                             : selectedListId == Self.myTasksId ? NSLocalizedString("navigation.my_tasks", comment: "")
+                             : (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     // Drawn only when there is something to switch BETWEEN — see

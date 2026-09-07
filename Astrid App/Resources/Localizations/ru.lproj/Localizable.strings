@@ -1319,3 +1319,15 @@
 "mac.passkey_use_other_device" = "Использовать ключ доступа с другого устройства…";
 "mac.passkey_password_manager" = "Использовать менеджер паролей (Dashlane, 1Password…)";
 "mac.passkey_password_manager_hint" = "Включите его в Системных настройках › Пароли › Параметры паролей и повторите попытку.";
+
+/* Strings the widened hardcoded-string guard uncovered on Mac (AITD-325) */
+"mac.server" = "Сервер";
+"mac.choose_image" = "Выбрать изображение…";
+"mac.mark_complete" = "Отметить выполненной";
+"mac.a11y_completed_toggle" = "Выполнено, отметить невыполненной";
+"mac.a11y_not_completed_toggle" = "Не выполнено, отметить выполненной";
+"mac.not_completed" = "Не выполнено";
+"mac.timer_stop_menu" = "Остановить таймер";
+"sync.connecting" = "Подключение…";
+"sync.not_connected" = "Не подключено";
+"sync.linked" = "Связано";

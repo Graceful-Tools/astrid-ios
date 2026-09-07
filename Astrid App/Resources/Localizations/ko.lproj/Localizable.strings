@@ -1321,3 +1321,15 @@
 "mac.passkey_use_other_device" = "다른 기기의 패스키 사용…";
 "mac.passkey_password_manager" = "암호 관리자 사용 (Dashlane, 1Password 등)";
 "mac.passkey_password_manager_hint" = "시스템 설정 › 암호 › 암호 옵션에서 켠 다음 다시 시도하세요.";
+
+/* Strings the widened hardcoded-string guard uncovered on Mac (AITD-325) */
+"mac.server" = "서버";
+"mac.choose_image" = "이미지 선택…";
+"mac.mark_complete" = "완료로 표시";
+"mac.a11y_completed_toggle" = "완료됨, 미완료로 표시";
+"mac.a11y_not_completed_toggle" = "미완료, 완료로 표시";
+"mac.not_completed" = "미완료";
+"mac.timer_stop_menu" = "타이머 중지";
+"sync.connecting" = "연결 중…";
+"sync.not_connected" = "연결되지 않음";
+"sync.linked" = "연결됨";

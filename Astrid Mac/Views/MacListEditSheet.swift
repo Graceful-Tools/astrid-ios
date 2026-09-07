@@ -32,7 +32,7 @@ struct MacListEditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(existing == nil ? "New List" : "Edit List")
+            Text(existing == nil ? NSLocalizedString("lists.new_list", comment: "") : NSLocalizedString("lists.edit_list", comment: ""))
                 .font(.headline).foregroundStyle(Theme.textPrimary)
 
             TextField(NSLocalizedString("lists.list_name", comment: ""), text: $name)
@@ -50,7 +50,7 @@ struct MacListEditSheet: View {
                     Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
                     HStack(spacing: 10) {
                         imagePreview
-                        Button(uploadingImage ? "Uploading…" : "Choose Image…") { pickImage(for: e) }
+                        Button(uploadingImage ? NSLocalizedString("image_picker.uploading", comment: "") : NSLocalizedString("mac.choose_image", comment: "")) { pickImage(for: e) }
                             .disabled(uploadingImage)
                         if imageUrl != nil {
                             Button(NSLocalizedString("actions.remove", comment: "")) { setImage(nil, for: e) }.foregroundStyle(Theme.error)
@@ -123,7 +123,7 @@ struct MacListEditSheet: View {
             HStack {
                 Spacer()
                 Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-                Button(existing == nil ? "Create" : "Save", action: save)
+                Button(existing == nil ? NSLocalizedString("actions.create", comment: "") : NSLocalizedString("actions.save", comment: ""), action: save)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: [])
                     .disabled(!isValid)

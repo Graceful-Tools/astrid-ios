@@ -150,10 +150,11 @@ struct MacTaskRow: View {
                         }
                     }
                     .macPointingHand()
-                    .help(task.completed ? "Mark incomplete" : "Mark complete")
+                    .help(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "") : NSLocalizedString("mac.mark_complete", comment: ""))
                     .accessibilityElement()
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(task.completed ? "Completed, mark incomplete" : "Not completed, mark complete")
+                    .accessibilityLabel(task.completed ? NSLocalizedString("mac.a11y_completed_toggle", comment: "")
+                                                      : NSLocalizedString("mac.a11y_not_completed_toggle", comment: ""))
                     .accessibilityAction { onToggle() }
             }
             }

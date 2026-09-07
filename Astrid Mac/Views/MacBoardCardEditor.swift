@@ -71,7 +71,7 @@ struct MacBoardCardEditor: View {
                 }
                 Button { toggleTimer() } label: { Image(systemName: "timer") }
                     .buttonStyle(.borderless).foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
-                    .help(timerRunning ? "Stop timer" : "Start timer")
+                    .help(timerRunning ? NSLocalizedString("mac.timer_stop_menu", comment: "") : NSLocalizedString("mac.timer_start_menu", comment: ""))
             }
             .padding(8)
         }

@@ -21,7 +21,7 @@ struct MacSidebarAccountBar: View {
             HStack(spacing: 10) {
                 avatar.frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(auth.currentUser?.displayName ?? "Account")
+                    Text(auth.currentUser?.displayName ?? NSLocalizedString("account", comment: ""))
                         .font(.callout).foregroundStyle(Theme.textPrimary).lineLimit(1)
                     if let email = auth.currentUser?.email, !email.isEmpty {
                         Text(email).font(.caption2).foregroundStyle(Theme.textMuted).lineLimit(1)

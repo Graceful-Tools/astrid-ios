@@ -1319,3 +1319,15 @@
 "mac.passkey_use_other_device" = "別のデバイスのパスキーを使用…";
 "mac.passkey_password_manager" = "パスワードマネージャーを使用（Dashlane、1Passwordなど）";
 "mac.passkey_password_manager_hint" = "システム設定 › パスワード › パスワードオプションで有効にしてから、もう一度お試しください。";
+
+/* Strings the widened hardcoded-string guard uncovered on Mac (AITD-325) */
+"mac.server" = "サーバー";
+"mac.choose_image" = "画像を選択…";
+"mac.mark_complete" = "完了にする";
+"mac.a11y_completed_toggle" = "完了済み、未完了にする";
+"mac.a11y_not_completed_toggle" = "未完了、完了にする";
+"mac.not_completed" = "未完了";
+"mac.timer_stop_menu" = "タイマーを停止";
+"sync.connecting" = "接続中…";
+"sync.not_connected" = "未接続";
+"sync.linked" = "リンク済み";

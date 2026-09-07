@@ -69,7 +69,7 @@ struct MacTaskCheckbox: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size)
                 .animation(MacMotion.spring, value: completed)
-                .accessibilityLabel(completed ? "Completed" : "Not completed")
+                .accessibilityLabel(completed ? NSLocalizedString("tasks.completed", comment: "") : NSLocalizedString("mac.not_completed", comment: ""))
         } else {
             drawnFallback
         }
@@ -93,7 +93,7 @@ struct MacTaskCheckbox: View {
             }
             // Spring, not a linear fade: the check should pop in when the row DOES stay in place.
             .animation(MacMotion.spring, value: completed)
-            .accessibilityLabel(completed ? "Completed" : "Not completed")
+            .accessibilityLabel(completed ? NSLocalizedString("tasks.completed", comment: "") : NSLocalizedString("mac.not_completed", comment: ""))
     }
 }
 

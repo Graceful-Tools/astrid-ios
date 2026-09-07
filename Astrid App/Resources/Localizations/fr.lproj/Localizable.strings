@@ -1335,3 +1335,15 @@
 "mac.passkey_use_other_device" = "Utiliser une clé d’accès d’un autre appareil…";
 "mac.passkey_password_manager" = "Utiliser un gestionnaire de mots de passe (Dashlane, 1Password…)";
 "mac.passkey_password_manager_hint" = "Activez-le dans Réglages Système › Mots de passe › Options des mots de passe, puis réessayez.";
+
+/* Strings the widened hardcoded-string guard uncovered on Mac (AITD-325) */
+"mac.server" = "Serveur";
+"mac.choose_image" = "Choisir une image…";
+"mac.mark_complete" = "Marquer comme terminée";
+"mac.a11y_completed_toggle" = "Terminée, marquer comme non terminée";
+"mac.a11y_not_completed_toggle" = "Non terminée, marquer comme terminée";
+"mac.not_completed" = "Non terminée";
+"mac.timer_stop_menu" = "Arrêter le minuteur";
+"sync.connecting" = "Connexion…";
+"sync.not_connected" = "Non connecté";
+"sync.linked" = "Liée";

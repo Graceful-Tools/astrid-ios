@@ -56,7 +56,7 @@ struct MacGoogleTasksLinksView: View {
                                 Text(list.name)
                                 Spacer()
                                 if let l = MacSyncLinks.link(google.links, for: list.id) {
-                                    Text(l.remoteContainerName ?? "Linked").foregroundStyle(Theme.textSecondary)
+                                    Text(l.remoteContainerName ?? NSLocalizedString("sync.linked", comment: "")).foregroundStyle(Theme.textSecondary)
                                     Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { _Concurrency.Task { await google.unlink(l.id) } }
                                 } else {
                                     Button(NSLocalizedString("mac.create_and_link", comment: "")) {
@@ -98,7 +98,7 @@ struct MacGitHubLinksView: View {
                             Text(list.name)
                             Spacer()
                             if let l = MacSyncLinks.link(github.links, for: list.id) {
-                                Text(l.remoteContainerName ?? "Linked").foregroundStyle(Theme.textSecondary)
+                                Text(l.remoteContainerName ?? NSLocalizedString("sync.linked", comment: "")).foregroundStyle(Theme.textSecondary)
                                 Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { _Concurrency.Task { await github.unlink(l.id) } }
                             } else {
                                 TextField(NSLocalizedString("mac.owner_repo", comment: ""), text: Binding(
@@ -147,7 +147,7 @@ private extension View {
                     if isSyncing { Spacer(); ProgressView().controlSize(.small) } }
             }
             .disabled(isSyncing)
-            if let d = lastSync { LabeledContent("Last sync") { Text(d, style: .relative) } }
+            if let d = lastSync { LabeledContent(NSLocalizedString("last_sync", comment: "")) { Text(d, style: .relative) } }
         }
     }
 }

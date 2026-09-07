@@ -1319,3 +1319,15 @@
 "mac.passkey_use_other_device" = "Gebruik een passkey van een ander apparaat…";
 "mac.passkey_password_manager" = "Gebruik een wachtwoordmanager (Dashlane, 1Password…)";
 "mac.passkey_password_manager_hint" = "Schakel deze in via Systeeminstellingen › Wachtwoorden › Wachtwoordopties en probeer het opnieuw.";
+
+/* Strings the widened hardcoded-string guard uncovered on Mac (AITD-325) */
+"mac.server" = "Server";
+"mac.choose_image" = "Kies afbeelding…";
+"mac.mark_complete" = "Markeer als voltooid";
+"mac.a11y_completed_toggle" = "Voltooid, markeer als niet voltooid";
+"mac.a11y_not_completed_toggle" = "Niet voltooid, markeer als voltooid";
+"mac.not_completed" = "Niet voltooid";
+"mac.timer_stop_menu" = "Timer stoppen";
+"sync.connecting" = "Verbinden…";
+"sync.not_connected" = "Niet verbonden";
+"sync.linked" = "Gekoppeld";

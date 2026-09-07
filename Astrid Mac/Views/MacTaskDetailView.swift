@@ -376,7 +376,7 @@ struct MacTaskDetailView: View {
                 Button { toggleTimer() } label: { Image(systemName: "timer") }
                     .buttonStyle(.borderless)
                     .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
-                    .help(timerRunning ? "Stop timer" : "Start timer")
+                    .help(timerRunning ? NSLocalizedString("mac.timer_stop_menu", comment: "") : NSLocalizedString("mac.timer_start_menu", comment: ""))
             }
         }
         .padding(10)
@@ -882,7 +882,8 @@ struct MacTaskDetailView: View {
                                         .frame(width: 56, height: 56)
                                     VStack(spacing: 2) {
                                         Image(systemName: "doc").font(.system(size: 18))
-                                        Text(file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
+                                        // A file extension, not prose — verbatim so the hardcoded-string guard passes it deliberately.
+                                        Text(verbatim: file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
                                             .font(.system(size: 9, weight: .medium))
                                     }
                                     .foregroundStyle(Theme.textMuted)

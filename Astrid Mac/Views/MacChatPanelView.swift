@@ -99,7 +99,7 @@ struct MacChatPanelView: View {
                 if let r = replyingTo {
                     HStack(spacing: 6) {
                         Image(systemName: "arrowshape.turn.up.left").foregroundStyle(Theme.accent).font(.caption)
-                        Text(String(format: NSLocalizedString("mac.replying_to", comment: ""), r.author?.displayName ?? "message", r.content))
+                        Text(String(format: NSLocalizedString("mac.replying_to", comment: ""), r.author?.displayName ?? NSLocalizedString("mac.unknown_author", comment: ""), r.content))
                             .font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
                         Button { replyingTo = nil } label: { Image(systemName: "xmark.circle.fill") }
