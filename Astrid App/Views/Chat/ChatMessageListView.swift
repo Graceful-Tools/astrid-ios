@@ -101,15 +101,8 @@ struct ChatMessageListView: View {
     }
 
     private func formatGroupDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE, MMM d"
-            return formatter.string(from: date)
-        }
+        // Shared with every other Today/Yesterday label in the app (AITD-317) — these three words
+        // were English literals here, in a app that ships in 12 languages.
+        DueDateLabel.dayHeading(for: date)
     }
 }

@@ -36,7 +36,7 @@ struct CompactTaskRow: View {
                     HStack(spacing: Theme.spacing8) {
                         // Date (left side)
                         if let dueDate = task.dueDateTime {
-                            Text(formatDateShort(dueDate))
+                            Text(DueDateLabel.rowText(for: dueDate, isAllDay: task.isAllDay))
                                 .font(Theme.Typography.subheadline())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                         }
@@ -148,23 +148,6 @@ struct CompactTaskRow: View {
         .frame(width: 34, height: 34)
     }
 
-    // MARK: - Date Formatting
-
-    private func formatDateShort(_ date: Date) -> String {
-        let calendar = Calendar.current
-
-        if calendar.isDateInToday(date) {
-            return "Today"
-        } else if calendar.isDateInTomorrow(date) {
-            return "Tomorrow"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: date)
-        }
-    }
 }
 
 #Preview {

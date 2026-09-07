@@ -84,10 +84,9 @@ struct MacTaskRow: View {
 
     private var dueText: String? {
         guard let due = task.dueDateTime else { return nil }
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = task.isAllDay ? .none : .short
-        return f.string(from: due)
+        // Shared with iOS (AITD-317). This used to format an all-day date — stored at midnight UTC
+        // — in the user's own zone, so a 25 December task printed as the 24th west of UTC.
+        return DueDateLabel.rowMediumText(for: due, isAllDay: task.isAllDay)
     }
 
     var body: some View {

@@ -171,3 +171,200 @@ final class NewTaskDefaultTimeOfDayTests: XCTestCase {
         XCTAssertNil(NewTaskDefaults.timeOfDay("-1:30"))
     }
 }
+
+// MARK: - Task c035ea55 (AITD-317)
+//
+// Five surfaces re-implemented this label by hand: CompactTaskRow, TaskRowView, the two chat
+// views, and MacTaskRow. Each got something wrong.
+//
+// The user-visible one was CompactTaskRow. It ran `Calendar.current.isDateInToday` on the raw
+// stored date with no `isAllDay` handling at all — and an all-day task is stored at midnight UTC,
+// which is the PREVIOUS EVENING anywhere west of UTC. So for every user in the Americas, an
+// all-day task due today read "Yesterday", and one due tomorrow read "Today". MacTaskRow had the
+// same bug in its formatter: it printed an all-day date in the user's own zone, so 25 December
+// showed as the 24th.
+//
+// The other three wrote "Today" / "Tomorrow" / "Yesterday" as English literals, in an app that
+// ships in 12 languages, plus hardcoded American time patterns.
+
+final class DueDateLabelSharedSurfaceTests: XCTestCase {
+
+    private let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+    private let utc = TimeZone(identifier: "UTC")!
+
+    private func calendar(_ zone: TimeZone) -> Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = zone
+        return c
+    }
+
+    /// Midnight UTC on the given day — how an all-day task is stored.
+    private func allDay(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar(utc).date(from: DateComponents(year: year, month: month, day: day,
+                                                hour: 0, minute: 0, second: 0))!
+    }
+
+    /// A real instant, in Los Angeles local time.
+    private func instant(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        calendar(losAngeles).date(from: DateComponents(year: year, month: month, day: day,
+                                                       hour: hour, minute: minute))!
+    }
+
+    // MARK: - The bug CompactTaskRow shipped
+
+    func testAnAllDayTaskDueTodayReadsTodayWestOfUTC() {
+        // 21:00 in Los Angeles on 8 August. In UTC it is already the 9th, and the task's stored
+        // instant (2026-08-08T00:00Z) is 17:00 on the 7th locally — which is what made the old
+        // code say "Yesterday".
+        let now = instant(2026, 8, 8, 21)
+
+        XCTAssertEqual(
+            DueDateLabel.rowText(for: allDay(2026, 8, 8), isAllDay: true,
+                                 now: now, localCalendar: calendar(losAngeles)),
+            NSLocalizedString("time.today", comment: ""),
+            "an all-day task due today must not read Yesterday in the Americas"
+        )
+    }
+
+    func testAnAllDayTaskDueTomorrowDoesNotReadToday() {
+        let now = instant(2026, 8, 8, 21)
+
+        XCTAssertEqual(
+            DueDateLabel.rowText(for: allDay(2026, 8, 9), isAllDay: true,
+                                 now: now, localCalendar: calendar(losAngeles)),
+            NSLocalizedString("time.tomorrow", comment: "")
+        )
+    }
+
+    func testAnAllDayTaskDueYesterdayStillReadsYesterday() {
+        let now = instant(2026, 8, 8, 21)
+
+        XCTAssertEqual(
+            DueDateLabel.rowText(for: allDay(2026, 8, 7), isAllDay: true,
+                                 now: now, localCalendar: calendar(losAngeles)),
+            NSLocalizedString("time.yesterday", comment: "")
+        )
+    }
+
+    func testTheBugIsSpecificallyTheMissingAllDayHandling() {
+        // The same instant read as a TIMED date genuinely is yesterday evening locally. The label
+        // must differ between the two readings — that difference is the whole point of isAllDay.
+        let now = instant(2026, 8, 8, 21)
+        let stored = allDay(2026, 8, 8)
+        let cal = calendar(losAngeles)
+
+        XCTAssertEqual(DueDateLabel.rowText(for: stored, isAllDay: true, now: now, localCalendar: cal),
+                       NSLocalizedString("time.today", comment: ""))
+        XCTAssertEqual(DueDateLabel.rowText(for: stored, isAllDay: false, now: now, localCalendar: cal),
+                       NSLocalizedString("time.yesterday", comment: ""))
+    }
+
+    // MARK: - A far-off all-day date must print the day it is stored on
+
+    func testAFarOffAllDayDateFormatsInUTCNotTheUsersZone() {
+        // MacTaskRow's bug: 25 December, formatted in Los Angeles, is the 24th.
+        let now = instant(2026, 8, 8, 21)
+        let christmas = allDay(2026, 12, 25)
+
+        for text in [
+            DueDateLabel.rowText(for: christmas, isAllDay: true, now: now, localCalendar: calendar(losAngeles)),
+            DueDateLabel.rowMediumText(for: christmas, isAllDay: true, now: now, localCalendar: calendar(losAngeles)),
+        ] {
+            XCTAssertTrue(text.contains("25"), "\(text) should name the 25th, not the 24th")
+            XCTAssertFalse(text.contains("24"))
+        }
+    }
+
+    func testATimedDateKeepsItsTimeAndTheUsersZone() {
+        let now = instant(2026, 8, 8, 9)
+        let text = DueDateLabel.rowMediumText(for: instant(2026, 8, 8, 14, 30), isAllDay: false,
+                                              now: now, localCalendar: calendar(losAngeles))
+
+        XCTAssertTrue(text.hasPrefix(NSLocalizedString("time.today", comment: "")))
+        XCTAssertTrue(text.count > NSLocalizedString("time.today", comment: "").count,
+                      "a timed task must still show its time of day")
+    }
+
+    func testAnAllDayDateCarriesNoTimeOfDay() {
+        let now = instant(2026, 8, 8, 9)
+        XCTAssertEqual(
+            DueDateLabel.rowMediumText(for: allDay(2026, 8, 8), isAllDay: true,
+                                       now: now, localCalendar: calendar(losAngeles)),
+            NSLocalizedString("time.today", comment: ""),
+            "an all-day task has no time to show"
+        )
+    }
+
+    // MARK: - Chat
+
+    func testAChatHeadingNamesTodayAndYesterday() {
+        let now = instant(2026, 8, 8, 21)
+        let cal = calendar(losAngeles)
+
+        XCTAssertEqual(DueDateLabel.dayHeading(for: instant(2026, 8, 8, 10), now: now, localCalendar: cal),
+                       NSLocalizedString("time.today", comment: ""))
+        XCTAssertEqual(DueDateLabel.dayHeading(for: instant(2026, 8, 7, 10), now: now, localCalendar: cal),
+                       NSLocalizedString("time.yesterday", comment: ""))
+    }
+
+    func testAChatHeadingNeverSaysTomorrow() {
+        // A message cannot arrive from tomorrow; clock skew saying so would be worse than a date.
+        let now = instant(2026, 8, 8, 21)
+        let heading = DueDateLabel.dayHeading(for: instant(2026, 8, 9, 10), now: now,
+                                              localCalendar: calendar(losAngeles))
+
+        XCTAssertNotEqual(heading, NSLocalizedString("time.tomorrow", comment: ""))
+    }
+
+    func testAChatTimestampShowsTimeTodayAndYesterdayBeforeThat() {
+        let now = instant(2026, 8, 8, 21)
+        let cal = calendar(losAngeles)
+
+        let today = DueDateLabel.timestamp(for: instant(2026, 8, 8, 14, 30), now: now, localCalendar: cal)
+        XCTAssertFalse(today.isEmpty)
+        XCTAssertFalse(today.contains("Aug"), "a message from today shows only its time")
+
+        XCTAssertEqual(DueDateLabel.timestamp(for: instant(2026, 8, 7, 14), now: now, localCalendar: cal),
+                       NSLocalizedString("time.yesterday", comment: ""))
+
+        let older = DueDateLabel.timestamp(for: instant(2026, 8, 1, 14), now: now, localCalendar: cal)
+        XCTAssertNotEqual(older, NSLocalizedString("time.yesterday", comment: ""))
+        XCTAssertFalse(older.isEmpty)
+    }
+
+    // MARK: - The guard: nobody hand-rolls these three words again
+
+    func testNoSurfaceHardcodesTheDayNames() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+
+        let audited = [
+            "Astrid App/Views/Components/CompactTaskRow.swift",
+            "Astrid App/Views/Tasks/TaskRowView.swift",
+            "Astrid App/Views/Chat/ChatMessageListView.swift",
+            "Astrid App/Views/Chat/ChatMessageBubble.swift",
+            "Astrid Mac/Views/MacTaskRow.swift",
+            "Astrid Mac/App/MacQuickAddPreview.swift",
+        ]
+
+        for relative in audited {
+            let source = try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
+
+            for (index, line) in source.components(separatedBy: .newlines).enumerated() {
+                let code = line.trimmingCharacters(in: .whitespaces)
+                guard !code.hasPrefix("//") else { continue }
+
+                for literal in ["\"Today\"", "\"Tomorrow\"", "\"Yesterday\""] {
+                    XCTAssertFalse(code.contains(literal),
+                                   "\(relative):\(index + 1) writes \(literal) as an English literal — "
+                                   + "route it through DueDateLabel, which is localized and "
+                                   + "handles all-day dates (AITD-317)")
+                }
+                XCTAssertFalse(code.contains("isDateInToday") || code.contains("isDateInYesterday"),
+                               "\(relative):\(index + 1) re-implements the day comparison — "
+                               + "it is wrong for all-day dates west of UTC (AITD-317)")
+            }
+        }
+    }
+}

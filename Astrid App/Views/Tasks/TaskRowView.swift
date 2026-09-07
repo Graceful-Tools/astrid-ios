@@ -236,7 +236,7 @@ struct TaskRowView: View {
                             if let dueDateTime = task.dueDateTime {
                                 if task.isAllDay {
                                     // All-day task - show relative date (Today/Tomorrow/etc) using UTC calendar
-                                    Text(formatDate(dueDateTime))
+                                    Text(DueDateLabel.rowMediumText(for: dueDateTime, isAllDay: true))
                                         .font(Theme.Typography.subheadline()) // 15pt
                                         .foregroundColor(effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
                                 } else {
@@ -464,43 +464,6 @@ struct TaskRowView: View {
         return "\(dateFormatter.string(from: date)) \(timeFormatter.string(from: date))"
     }
 
-    private func formatDate(_ date: Date) -> String {
-        // CRITICAL: Get "today" from LOCAL calendar first, then convert to UTC
-        // This ensures "Today" means the user's local day, not UTC day
-        let localCalendar = Calendar.current
-        let todayLocal = localCalendar.startOfDay(for: Date())
-        let todayComponents = localCalendar.dateComponents([.year, .month, .day], from: todayLocal)
-
-        var utcCalendar = Calendar(identifier: .gregorian)
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-        // Create UTC midnight for today's local date
-        guard let todayUTC = utcCalendar.date(from: DateComponents(
-            year: todayComponents.year,
-            month: todayComponents.month,
-            day: todayComponents.day,
-            hour: 0,
-            minute: 0,
-            second: 0
-        )) else { return date.description }
-
-        let compareDate = utcCalendar.startOfDay(for: date)
-        let daysDiff = utcCalendar.dateComponents([.day], from: todayUTC, to: compareDate).day ?? 0
-
-        if daysDiff == 0 {
-            return "Today"
-        } else if daysDiff == 1 {
-            return "Tomorrow"
-        } else if daysDiff == -1 {
-            return "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            formatter.timeZone = TimeZone(identifier: "UTC")  // Display in UTC
-            return formatter.string(from: date)
-        }
-    }
 
 }
 

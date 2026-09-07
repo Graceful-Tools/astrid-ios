@@ -246,15 +246,8 @@ struct ChatMessageBubble: View {
     }
 
     private func formatMessageDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            formatter.dateFormat = "h:mm a"
-        } else if calendar.isDateInYesterday(date) {
-            return "Yesterday"
-        } else {
-            formatter.dateFormat = "MMM d 'at' h:mm a"
-        }
-        return formatter.string(from: date)
+        // Shared (AITD-317). "Yesterday" was an English literal, and the patterns were hardcoded
+        // American ones — "h:mm a" prints a 12-hour clock to locales that use 24.
+        DueDateLabel.timestamp(for: date)
     }
 }

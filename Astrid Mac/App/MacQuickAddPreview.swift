@@ -17,8 +17,15 @@ enum MacQuickAddPreview {
 
     /// Short, row-style date text ("Tomorrow", "Fri", "12 Mar"), matching how a task row reads.
     static func label(for date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
-        if calendar.isDateInToday(date) { return NSLocalizedString("time.today", comment: "") }
-        if calendar.isDateInTomorrow(date) { return NSLocalizedString("time.tomorrow", comment: "") }
+        // The day naming is SHARED (AITD-317) rather than re-compared here. These dates come from
+        // `NewTaskDefaults`, which builds them in the local calendar, so `isAllDay: false` is the
+        // correct reading — but the words themselves must come from one place, or the quick-add
+        // bar and the row it previews can disagree about what to call the same day.
+        if let name = DueDateLabel.relativeDayName(for: date, isAllDay: false,
+                                                   now: now, localCalendar: calendar),
+           name != NSLocalizedString("time.yesterday", comment: "") {
+            return name
+        }
 
         let formatter = DateFormatter()
         // Inside the coming week a weekday is the most readable; beyond that it is ambiguous.

@@ -30,12 +30,119 @@ enum DueDateLabel {
             return NSLocalizedString("picker.no_due_date", comment: "No due date")
         }
 
+        return relativeDayName(for: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar)
+            ?? formatted(date, isAllDay: isAllDay)
+    }
+
+    /// "Today" / "Tomorrow" / "Yesterday" — or nil when the date is far enough out to need a real
+    /// format. The caller supplies that format, because a task row, a chat separator and a date
+    /// picker each want a different one; what they must NOT each supply is this decision.
+    ///
+    /// Five surfaces used to hand-roll it, and every one of them got the all-day case wrong or
+    /// wrote the three words as English literals (AITD-317). Keys are the `time.*` family, which
+    /// is the complete one — `picker.today` / `picker.tomorrow` translate identically in all 12
+    /// languages but have no yesterday.
+    static func relativeDayName(for date: Date,
+                                isAllDay: Bool,
+                                now: Date = Date(),
+                                localCalendar: Calendar = .current) -> String? {
         switch dayOffset(to: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
-        case 0:  return NSLocalizedString("picker.today", comment: "Today")
-        case 1:  return NSLocalizedString("picker.tomorrow", comment: "Tomorrow")
+        case 0:  return NSLocalizedString("time.today", comment: "Today")
+        case 1:  return NSLocalizedString("time.tomorrow", comment: "Tomorrow")
         case -1: return NSLocalizedString("time.yesterday", comment: "Yesterday")
-        default: return formatted(date, isAllDay: isAllDay)
+        default: return nil
         }
+    }
+
+    /// The timezone a date of this kind must be READ in.
+    ///
+    /// All-day dates are stored at midnight UTC, so formatting one in the user's zone prints the
+    /// wrong day for everyone west of UTC — a 25 December task shows as the 24th. nil means "the
+    /// user's own zone", which is right for a timed date because that is a real instant.
+    static func displayTimeZone(isAllDay: Bool) -> TimeZone? {
+        isAllDay ? TimeZone(identifier: "UTC") : nil
+    }
+
+    /// Compact text for a task row: a day name, else a short date ("12 Mar").
+    static func rowText(for date: Date,
+                        isAllDay: Bool,
+                        now: Date = Date(),
+                        localCalendar: Calendar = .current) -> String {
+        if let name = relativeDayName(for: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
+            return name
+        }
+        let formatter = DateFormatter()
+        // A localized TEMPLATE, not a literal pattern, so the field order follows the locale.
+        formatter.setLocalizedDateFormatFromTemplate("MMM d")
+        formatter.timeZone = displayTimeZone(isAllDay: isAllDay)
+        return formatter.string(from: date)
+    }
+
+    /// Fuller text for a task row that has room: a day name, else a medium date, plus the time of
+    /// day when the task actually has one.
+    static func rowMediumText(for date: Date,
+                           isAllDay: Bool,
+                           now: Date = Date(),
+                           localCalendar: Calendar = .current) -> String {
+        let time: String
+        if isAllDay {
+            time = ""
+        } else {
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateStyle = .none
+            timeFormatter.timeStyle = .short
+            time = " " + timeFormatter.string(from: date)
+        }
+
+        if let name = relativeDayName(for: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
+            return name + time
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        formatter.timeZone = displayTimeZone(isAllDay: isAllDay)
+        return formatter.string(from: date) + time
+    }
+
+    /// The heading over a day's worth of chat messages: "Today", "Yesterday", else the weekday and
+    /// date. Chat timestamps are real instants, so there is no all-day case here.
+    static func dayHeading(for date: Date,
+                           now: Date = Date(),
+                           localCalendar: Calendar = .current) -> String {
+        // Tomorrow cannot happen for a message that has already been sent, and reading "Tomorrow"
+        // over a clock-skewed message would be worse than a date.
+        if let name = relativeDayName(for: date, isAllDay: false, now: now, localCalendar: localCalendar),
+           name != NSLocalizedString("time.tomorrow", comment: "Tomorrow") {
+            return name
+        }
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("EEEE MMM d")
+        return formatter.string(from: date)
+    }
+
+    /// A single chat message's timestamp: the time alone if it is from today, "Yesterday", else
+    /// the date and time together.
+    static func timestamp(for date: Date,
+                          now: Date = Date(),
+                          localCalendar: Calendar = .current) -> String {
+        let offset = dayOffset(to: date, isAllDay: false, now: now, localCalendar: localCalendar)
+
+        if offset == 0 {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        if offset == -1 {
+            return NSLocalizedString("time.yesterday", comment: "Yesterday")
+        }
+
+        let formatter = DateFormatter()
+        // .medium + .short joins them the way the locale does, rather than with an English "at".
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     /// Whole days from today to `date`, counted in whichever calendar the date
