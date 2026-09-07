@@ -76,7 +76,10 @@ struct MacListMembersView: View {
                                             size: 26)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(m.user?.displayName ?? m.userId).foregroundStyle(Theme.textPrimary)
-                                Text(isOwner(m) ? "Owner" : m.role.capitalized)
+                                // The row and the picker below it name the same role, so they go
+                                // through the same localized label (AITD-323). `isOwner` wins over
+                                // `m.role` because list.role(for:) is the authority on ownership.
+                                Text(MacMemberRoleLabel.title(for: isOwner(m) ? "owner" : m.role))
                                     .font(.caption).foregroundStyle(Theme.textMuted)
                             }
                         }
