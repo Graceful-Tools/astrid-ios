@@ -101,22 +101,14 @@ class SyncManager: ObservableObject {
             let lists = try await apiClient.getLists()
             print("✅ [SyncManager] Lists fetched: \(lists.count)")
 
-            // Get pending lists before processing (quick operation)
-            let pendingLists = listService.lists.filter { $0.id.hasPrefix("temp_") }
-
-            // Process lists in background to avoid blocking main thread
-            let mergedLists = await Self.processListsInBackground(
-                serverLists: lists,
-                pendingLists: pendingLists
-            )
-
-            // Update UI on main actor (quick assignment)
-            listService.lists = mergedLists
-            // …and cache what we just fetched. Before AITD-324 this pass wrote nothing: the
-            // sidebar updated while CoreData — the only thing an offline launch reads — kept
-            // whatever some earlier `fetchLists()` had left there. Caching happens here, ahead of
-            // the task fetch below, so a failure there cannot cost us the list cache.
-            listService.cacheListsLocally(merged: mergedLists, serverLists: lists)
+            // Hand the response to the service, which owns what a fetched collection means: drop
+            // what was deleted locally, keep unsynced lists on top, sort it the one way the
+            // sidebar sorts, and cache it. This pass used to do all of that itself (AITD-326) —
+            // from the RAW response, so a sync could put a list the user had just deleted back on
+            // screen, and with its own copy of the comparator `ListOrdering` exists to be the only
+            // one of. Caching happens here, ahead of the task fetch below, so a failure there
+            // cannot cost us the list cache (AITD-324).
+            listService.applyFetchedLists(lists)
             print("✅ [SyncManager] Lists synced: \(listService.lists.count)")
 
             // Cache user images in background (doesn't block UI)
@@ -220,35 +212,6 @@ class SyncManager: ObservableObject {
     }
 
     // MARK: - Background Processing Helpers
-
-    /// Process lists in background to avoid blocking main thread during sync
-    /// This handles sorting and merging which can be slow with many lists
-    private static nonisolated func processListsInBackground(
-        serverLists: [TaskList],
-        pendingLists: [TaskList]
-    ) async -> [TaskList] {
-        // Run heavy processing on background thread
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                // Sort lists: favorites first, then alphabetical
-                var sorted = serverLists.sorted { list1, list2 in
-                    let fav1 = list1.isFavorite ?? false
-                    let fav2 = list2.isFavorite ?? false
-                    if fav1 != fav2 { return fav1 }
-                    return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
-                }
-
-                // Keep pending (temp) lists at the top
-                for pendingList in pendingLists {
-                    if !sorted.contains(where: { $0.id == pendingList.id }) {
-                        sorted.insert(pendingList, at: 0)
-                    }
-                }
-
-                continuation.resume(returning: sorted)
-            }
-        }
-    }
 
     /// Process tasks in background to avoid blocking main thread during sync
     /// This handles deduplication and validation which can be slow with many tasks

@@ -242,6 +242,28 @@ class ListService: ObservableObject {
         }
     }
 
+    /// Apply a list collection that just came back from the server: drop anything deleted
+    /// locally, keep unsynced local lists on top, put it on screen in the one sidebar order, and
+    /// cache it.
+    ///
+    /// AITD-326: both fetch paths land here. `SyncManager.performFullSync` used to do all of this
+    /// itself — from the raw response, with its own copy of the comparator — so a sync could show
+    /// a list the user had just deleted and could order the sidebar differently from the next
+    /// `fetchLists()`. The deletion filter stays inside `ListService` because
+    /// `recentlyDeletedListIds` does.
+    @discardableResult
+    func applyFetchedLists(_ fetchedLists: [TaskList]) -> [TaskList] {
+        // Never resurrect a deleted list from a stale in-flight response (task c6615a5d).
+        let liveLists = ListCachePlan.persistable(serverLists: fetchedLists,
+                                                  deletedIds: recentlyDeletedListIds)
+        let pendingLists = lists.filter { $0.id.hasPrefix(SyncOrphanPrune.localIdPrefix) }
+        let mergedLists = ListCachePlan.merged(serverLists: liveLists, pendingLists: pendingLists)
+
+        self.lists = mergedLists
+        cacheListsLocally(merged: mergedLists, serverLists: liveLists)
+        return mergedLists
+    }
+
     func fetchLists() async throws -> [TaskList] {
         isLoading = true
         errorMessage = nil
@@ -253,23 +275,7 @@ class ListService: ObservableObject {
             let fetchedLists = try await apiClient.getLists()
             print("📡 [ListService] Response received with \(fetchedLists.count) lists")
 
-            // Merge with pending lists (temp_ IDs not synced yet)
-            let pendingLists = self.lists.filter { $0.id.hasPrefix("temp_") }
-            // Never resurrect a deleted list from a stale in-flight response.
-            let deletedIds = recentlyDeletedListIds
-            let liveLists = deletedIds.isEmpty ? fetchedLists : fetchedLists.filter { !deletedIds.contains($0.id) }
-            var mergedLists = liveLists.sorted(by: ListOrdering.isOrderedBefore)
-
-            // Add pending lists at the top
-            for pendingList in pendingLists {
-                if !mergedLists.contains(where: { $0.id == pendingList.id }) {
-                    mergedLists.insert(pendingList, at: 0)
-                }
-            }
-
-            self.lists = mergedLists
-
-            cacheListsLocally(merged: mergedLists, serverLists: liveLists)
+            applyFetchedLists(fetchedLists)
 
             for list in self.lists {
                 print("  📋 List: \(list.name) (tasks: \(list.taskCount ?? 0))")

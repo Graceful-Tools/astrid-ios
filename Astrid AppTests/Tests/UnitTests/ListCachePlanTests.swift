@@ -19,6 +19,12 @@ final class ListCachePlanTests: XCTestCase {
 
     private func list(_ id: String) -> TaskList { TaskList(id: id, name: id) }
 
+    private func list(_ id: String, name: String, favorite: Bool = false) -> TaskList {
+        var l = TaskList(id: id, name: name)
+        l.isFavorite = favorite
+        return l
+    }
+
     // MARK: - What gets held and written
 
     func testEverythingInTheResponseIsCachedWhenNothingWasDeletedLocally() {
@@ -67,5 +73,53 @@ final class ListCachePlanTests: XCTestCase {
 
     func testNothingIsStaleWhenTheResponseCarriesEverything() {
         XCTAssertTrue(ListCachePlan.stale(cachedIds: ["a", "b"], serverIds: ["a", "b"]).isEmpty)
+    }
+    // MARK: - The merge that reaches the sidebar (AITD-326)
+    //
+    // `SyncManager.performFullSync` used to build this array itself, from the raw response and a
+    // second copy of the sidebar comparator. Neither the deletion filter nor `ListOrdering`
+    // reached it, so a full sync could put a locally-deleted list back on screen and could order
+    // the sidebar differently from the next `fetchLists()`.
+
+    func testTheMergeOrdersExactlyLikeTheSidebarComparator() {
+        let fetched = [list("c", name: "Cherry"), list("a", name: "Apple"),
+                       list("f", name: "Fig", favorite: true)]
+
+        let merged = ListCachePlan.merged(serverLists: fetched, pendingLists: [])
+
+        XCTAssertEqual(merged.map(\.id), fetched.sorted(by: ListOrdering.isOrderedBefore).map(\.id),
+                       "one comparator, or a synced list sits where the next fetch will move it")
+        XCTAssertEqual(merged.first?.id, "f", "favourites first")
+    }
+
+    func testAListCreatedOfflineStaysOnTopOfTheMerge() {
+        let pending = list("\(SyncOrphanPrune.localIdPrefix)new", name: "Zzz just made")
+
+        let merged = ListCachePlan.merged(serverLists: [list("a", name: "Apple")],
+                                          pendingLists: [pending])
+
+        XCTAssertEqual(merged.map(\.id), [pending.id, "a"],
+                       "a list you just made must not sort itself out of sight")
+    }
+
+    func testAPendingListTheServerHasSinceReturnedIsNotDuplicated() {
+        let confirmed = list("\(SyncOrphanPrune.localIdPrefix)new", name: "Made offline")
+
+        let merged = ListCachePlan.merged(serverLists: [confirmed], pendingLists: [confirmed])
+
+        XCTAssertEqual(merged.map(\.id), [confirmed.id])
+    }
+
+    /// The AITD-326 bug: the response still carries a list deleted locally, and the merge is what
+    /// decides whether it goes back on screen.
+    func testAStaleResponseCannotPutADeletedListBackOnScreen() {
+        let response = [list("kept"), list("deleted-here")]
+
+        let visible = ListCachePlan.merged(
+            serverLists: ListCachePlan.persistable(serverLists: response, deletedIds: ["deleted-here"]),
+            pendingLists: [])
+
+        XCTAssertEqual(visible.map(\.id), ["kept"],
+                       "a full sync must not resurrect a list the user just deleted")
     }
 }

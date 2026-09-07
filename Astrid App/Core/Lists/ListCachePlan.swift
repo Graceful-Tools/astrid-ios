@@ -30,4 +30,21 @@ enum ListCachePlan {
     static func stale(cachedIds: some Sequence<String>, serverIds: Set<String>) -> [String] {
         cachedIds.filter { !serverIds.contains($0) && !$0.hasPrefix(SyncOrphanPrune.localIdPrefix) }
     }
+
+    /// The array the sidebar shows: the server's collection in `ListOrdering`'s order, with any
+    /// not-yet-synced local list kept on top so a list you just made does not sort itself out of
+    /// sight while it waits for an id.
+    ///
+    /// AITD-326: `SyncManager.performFullSync` used to build this itself, with a second copy of
+    /// the comparator `ListOrdering` exists to be the only one of (task 63e75630) — and with no
+    /// deletion filter, so a sync could put a locally-deleted list back on screen. Pass
+    /// `serverLists` through `persistable(serverLists:deletedIds:)` first; both fetch paths reach
+    /// this through `ListService.applyFetchedLists`.
+    static func merged(serverLists: [TaskList], pendingLists: [TaskList]) -> [TaskList] {
+        var result = serverLists.sorted(by: ListOrdering.isOrderedBefore)
+        for pending in pendingLists where !result.contains(where: { $0.id == pending.id }) {
+            result.insert(pending, at: 0)
+        }
+        return result
+    }
 }

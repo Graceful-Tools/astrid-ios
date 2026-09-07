@@ -29,11 +29,22 @@ final class MacLaunchListLoadTests: XCTestCase {
 
     // MARK: - The full sync is what caches now
 
+    /// The chain, not the spelling: the sync hands its response to `ListService`, and applying a
+    /// fetched collection is what caches it. Both links have to hold — with the launch fetch gone,
+    /// this is the only thing that writes the offline list cache.
     func testTheFullSyncCachesTheListCollectionItFetched() throws {
         let sync = try source("Astrid App/Core/Services/SyncManager.swift")
-        XCTAssertTrue(sync.contains("cacheListsLocally"),
-                      "performFullSync must cache the lists it fetched, or nothing writes the "
-                      + "offline list cache once the launch fetch is gone (AITD-324)")
+        XCTAssertTrue(sync.contains("applyFetchedLists"),
+                      "performFullSync must hand its response to ListService (AITD-324)")
+
+        let service = try source("Astrid App/Core/Services/ListService.swift")
+        let lines = service.components(separatedBy: .newlines)
+        let start = try XCTUnwrap(lines.firstIndex { $0.contains("func applyFetchedLists(") })
+        let end = try XCTUnwrap(lines[(start + 1)...].firstIndex { $0 == "    }" })
+
+        XCTAssertTrue(lines[start...end].contains { $0.contains("cacheListsLocally") },
+                      "applying a fetched collection must cache it, or nothing writes the offline "
+                      + "list cache once the launch fetch is gone (AITD-324)")
     }
 
     func testTheLaunchTaskNoLongerRefetchesLists() throws {
@@ -77,6 +88,22 @@ final class MacLaunchListLoadTests: XCTestCase {
 
         XCTAssertFalse(lines[start].contains("async"),
                        "an async cache load renders the sidebar empty first (AITD-324)")
+    }
+
+    // MARK: - One merge, not two (AITD-326)
+
+    /// AITD-326: the sync must not build the sidebar array itself. It did, from the raw response
+    /// and its own copy of the comparator, so neither the locally-deleted filter nor `ListOrdering`
+    /// reached the visible list.
+    func testTheFullSyncDoesNotBuildTheSidebarArrayItself() throws {
+        let sync = try source("Astrid App/Core/Services/SyncManager.swift")
+
+        XCTAssertTrue(sync.contains("applyFetchedLists"),
+                      "the sync must hand its response to ListService, which owns the merge")
+        XCTAssertFalse(sync.contains("processListsInBackground"),
+                       "a second list merge is what let the two fetch paths drift (AITD-326)")
+        XCTAssertFalse(sync.contains("localizedCaseInsensitiveCompare"),
+                       "ListOrdering is the one sidebar comparator (task 63e75630)")
     }
 }
 #endif
