@@ -637,15 +637,19 @@ actor SSEClient {
     @MainActor
     private func triggerLocalNotificationIfNeeded(comment: Comment, taskId: String) {
         guard let currentUserId = AuthManager.shared.currentUser?.id else { return }
-        guard comment.authorId != currentUserId else { return }
-        
+
         let content = comment.content
         let isMentioned = content.contains("(\(currentUserId))")
-        
+
         // Check if user is assignee of the task
         let isAssignee = TaskService.shared.tasks.first(where: { $0.id == taskId })?.assigneeId == currentUserId
-        
-        if isMentioned || isAssignee {
+
+        // The fan-out now includes a comment's own author, so this device receives the comments it
+        // wrote. Notifying on those would buzz you for your own words (AITD-331).
+        if CommentNotificationPolicy.shouldNotify(authorId: comment.authorId,
+                                                  currentUserId: currentUserId,
+                                                  isMentioned: isMentioned,
+                                                  isAssignee: isAssignee) {
             let notificationContent = UNMutableNotificationContent()
             notificationContent.title = isMentioned ? "\(comment.author?.displayName ?? "Someone") mentioned you" : "New comment on your task"
             notificationContent.body = comment.content

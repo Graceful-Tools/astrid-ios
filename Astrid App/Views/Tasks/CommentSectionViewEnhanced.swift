@@ -396,25 +396,13 @@ struct CommentSectionViewEnhanced: View {
                             isTextFieldFocused = true
                         },
                         onDelete: {
-                            // Remove comment from UI immediately
-                            comments.removeAll { $0.id == comment.id }
+                            // Same rule the SSE handler uses, so the local removal and the echo
+                            // that follows it cannot disagree.
+                            comments = CommentThread.remove(id: comment.id, from: comments)
                         },
                         onEdit: { commentId, newContent in
-                            // Update comment in UI immediately (top-level or reply)
-                            if let idx = comments.firstIndex(where: { $0.id == commentId }) {
-                                comments[idx].content = newContent
-                                comments[idx].updatedAt = Date()
-                            } else {
-                                for i in comments.indices {
-                                    if var replies = comments[i].replies,
-                                       let j = replies.firstIndex(where: { $0.id == commentId }) {
-                                        replies[j].content = newContent
-                                        replies[j].updatedAt = Date()
-                                        comments[i].replies = replies
-                                        break
-                                    }
-                                }
-                            }
+                            comments = CommentThread.applyEdit(id: commentId, content: newContent,
+                                                               updatedAt: Date(), to: comments)
                         }
                     )
                     }
@@ -673,8 +661,11 @@ struct CommentSectionViewEnhanced: View {
 
         // Keep track of our local comments (for merging)
         // Use uniquingKeysWith to safely handle duplicate IDs (can occur with corrupted data)
-        let localComments = Dictionary(comments.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let pendingComments = comments.filter { $0.id.hasPrefix("temp_") }
+        // Flattened first: `comments` is a tree, and a reply we already resolved locally would be
+        // invisible to both of these if we only looked at the top level (AITD-331).
+        let localFlat = CommentThread.flatten(comments)
+        let localComments = Dictionary(localFlat.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let pendingComments = localFlat.filter { $0.id.hasPrefix("temp_") }
 
         do {
             let fetchedComments = try await commentService.fetchComments(taskId: taskId, useCache: true)
@@ -729,7 +720,9 @@ struct CommentSectionViewEnhanced: View {
             // Sort by createdAt to maintain correct order (pending comments may have earlier timestamps)
             mergedComments.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
 
-            comments = mergedComments
+            // The response returns every comment as a top-level row carrying parentCommentId —
+            // there is no replies relation — so the tree is built here or not at all (AITD-331).
+            comments = CommentThread.nest(mergedComments)
             logger.notice("✅ Final: \(self.comments.count, privacy: .public) comments")
         } catch {
             logger.error("❌ loadComments failed: \(error.localizedDescription, privacy: .public)")
@@ -750,27 +743,15 @@ struct CommentSectionViewEnhanced: View {
             guard relatedTaskId == taskId else { return }
             print("✅ [CommentSection] SSE comment_added: \(comment.id)")
             _Concurrency.Task { @MainActor in
-                // Skip if we already have this comment
-                if comments.contains(where: { $0.id == comment.id }) {
-                    print("⚠️ [CommentSection] Skipping duplicate: \(comment.id)")
-                    return
-                }
-
                 // Clear typing indicator if agent comment arrived
                 if comment.author?.isAIAgent == true {
                     agentTypingName = nil
                 }
 
-                // Check if this is a synced version of a temp comment (match by content)
-                if let index = comments.firstIndex(where: { $0.id.hasPrefix("temp_") && $0.content == comment.content }) {
-                    // Just update the ID - keep our local data (author, secureFiles, etc.)
-                    comments[index].id = comment.id
-                    print("✅ [CommentSection] Updated temp → real ID: \(comment.id)")
-                } else {
-                    // Truly new comment from another user/device
-                    comments.append(comment)
-                    print("✅ [CommentSection] Added new comment: \(comment.id)")
-                }
+                // Dedupe on comment id, never on author. The fan-out now includes the comment's
+                // own author, so this arrives for comments THIS device wrote — and for comments
+                // the same user wrote on another device, which must still be accepted (AITD-331).
+                comments = CommentThread.settle(comment, in: comments)
             }
         }
 
@@ -778,12 +759,10 @@ struct CommentSectionViewEnhanced: View {
             guard relatedTaskId == taskId else { return }
             print("✅ [CommentSection] SSE comment_updated: \(comment.id)")
             _Concurrency.Task { @MainActor in
-                if let index = comments.firstIndex(where: { $0.id == comment.id }) {
-                    // Only update content - keep our local secureFiles, author, etc.
-                    comments[index].content = comment.content
-                    comments[index].updatedAt = comment.updatedAt
-                    print("✅ [CommentSection] Updated content for: \(comment.id)")
-                }
+                // Reply-aware: an edit to a reply must find it under its parent, not only at the
+                // top level. Content and updatedAt only — the event can omit the author and the
+                // secure files this device already resolved (AITD-331).
+                comments = CommentThread.applyEdit(comment, to: comments)
             }
         }
 
@@ -794,14 +773,9 @@ struct CommentSectionViewEnhanced: View {
             }
             print("✅ [CommentSection] Received comment_deleted for task \(taskId)")
             _Concurrency.Task { @MainActor in
-                let beforeCount = comments.count
-                comments.removeAll { $0.id == commentId }
-                let afterCount = comments.count
-                if beforeCount > afterCount {
-                    print("✅ [CommentSection] Removed comment from UI: \(commentId)")
-                } else {
-                    print("⚠️ [CommentSection] Comment not found for deletion: \(commentId)")
-                }
+                // Applied whoever the actor was, reply-aware, and a no-op when it is already gone
+                // — the delete we made ourselves echoes back to us now (AITD-331).
+                comments = CommentThread.remove(id: commentId, from: comments)
             }
         }
 
@@ -897,6 +871,9 @@ struct CommentSectionViewEnhanced: View {
 
         // OPTIMISTIC UPDATE: show every comment immediately, one per attachment.
         let replyToId = replyingTo?.id
+        // The id of each row on screen, so the server can echo it back as clientRequestId and the
+        // settle becomes identity rather than a content guess (AITD-331).
+        var optimisticIds: [String] = []
         for (index, draft) in drafts.enumerated() {
             // Preview metadata comes from the queued file, keyed on its TEMP id — that is
             // what the thumbnail cache is keyed on, so the image shows before the upload lands.
@@ -920,14 +897,8 @@ struct CommentSectionViewEnhanced: View {
                 secureFiles: file.map { [SecureFile(id: $0.fileId, name: $0.fileName, size: $0.fileSize, mimeType: $0.mimeType)] }
             )
 
-            if let replyToId, let parentIndex = comments.firstIndex(where: { $0.id == replyToId }) {
-                if comments[parentIndex].replies == nil {
-                    comments[parentIndex].replies = []
-                }
-                comments[parentIndex].replies?.append(optimisticComment)
-            } else {
-                comments.append(optimisticComment)
-            }
+            comments = CommentThread.upsert(optimisticComment, into: comments)
+            optimisticIds.append(optimisticComment.id)
         }
 
         // Clear input immediately (feels instant!)
@@ -942,7 +913,7 @@ struct CommentSectionViewEnhanced: View {
         // Create each comment via the service — CoreData write plus background sync.
         // Each send is caught individually: one failure must not abandon the attachments
         // after it. A failed one stays pending in CoreData and syncs on retry.
-        for draft in drafts {
+        for (index, draft) in drafts.enumerated() {
             do {
                 _ = try await commentService.createComment(
                     taskId: taskId,
@@ -950,7 +921,8 @@ struct CommentSectionViewEnhanced: View {
                     type: draft.type,
                     fileId: draft.fileId,
                     parentCommentId: replyToId,
-                    authorId: author.id
+                    authorId: author.id,
+                    clientRequestId: optimisticIds[index]
                 )
                 print("✅ [CommentSection] Comment created (file: \(draft.fileId ?? "none")), sync in progress...")
             } catch {

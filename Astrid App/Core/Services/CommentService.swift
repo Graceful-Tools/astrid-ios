@@ -422,9 +422,14 @@ class CommentService: ObservableObject {
     }
 
     /// Create a new comment (local-first with optimistic update)
-    func createComment(taskId: String, content: String, type: Comment.CommentType = .TEXT, fileId: String? = nil, parentCommentId: String? = nil, authorId: String? = nil) async throws -> Comment {
-        // 1. Generate temp ID for optimistic update
-        let tempId = "temp_\(UUID().uuidString)"
+    /// - Parameter clientRequestId: the id of the row already on screen, when a view made its own
+    ///   optimistic comment. The Outbox sends it as the idempotency key and the server echoes it
+    ///   back on the created comment, so the echo can be matched to that exact row instead of
+    ///   guessing from its content — which is ambiguous for two attachments (both empty) or the
+    ///   same word posted twice (AITD-331).
+    func createComment(taskId: String, content: String, type: Comment.CommentType = .TEXT, fileId: String? = nil, parentCommentId: String? = nil, authorId: String? = nil, clientRequestId: String? = nil) async throws -> Comment {
+        // 1. The caller's row id when it has one, so the two cannot drift apart
+        let tempId = clientRequestId ?? "temp_\(UUID().uuidString)"
 
         // 2. Look up attachment info for temp fileIds (for offline display)
         var secureFiles: [SecureFile]? = nil
