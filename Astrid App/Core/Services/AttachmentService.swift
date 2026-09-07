@@ -284,8 +284,10 @@ class AttachmentService: ObservableObject {
         guard fileManager.fileExists(atPath: cachedPath.path) else { return nil }
 
         // Create a temp file with the proper extension for QuickLook
+        // AITD-312: the name is server-supplied, and this method removes the target before
+        // copying onto it — join it through the sanitiser, never directly.
         let tempDir = fileManager.temporaryDirectory
-        let tempFile = tempDir.appendingPathComponent(fileName)
+        let tempFile = AttachmentFileName.temporaryURL(in: tempDir, for: fileName)
 
         do {
             // Remove existing temp file if any
@@ -358,7 +360,7 @@ class AttachmentService: ObservableObject {
             if file.id.hasPrefix("temp_") {
                 if let localData = getLocalFileData(for: file.id) {
                     let tempDir = fileManager.temporaryDirectory
-                    let tempFileURL = tempDir.appendingPathComponent(file.name)
+                    let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
                     try? localData.write(to: tempFileURL)
                     results.append((fileId: file.id, url: tempFileURL))
                 }
@@ -394,7 +396,7 @@ class AttachmentService: ObservableObject {
                 cacheDownload(fileId: file.id, data: fileData)
                 
                 let tempDir = fileManager.temporaryDirectory
-                let tempFileURL = tempDir.appendingPathComponent(file.name)
+                let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
                 try? fileData.write(to: tempFileURL)
                 results.append((fileId: file.id, url: tempFileURL))
             } catch {

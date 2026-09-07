@@ -607,7 +607,8 @@ struct MacTaskDetailView: View {
                 let tmp = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString, isDirectory: true)
                 try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-                let fileURL = tmp.appendingPathComponent(name)
+                // AITD-312: `name` is server-supplied; the UUID directory alone does not contain it.
+                let fileURL = AttachmentFileName.temporaryURL(in: tmp, for: name)
                 try data.write(to: fileURL)
                 previewURL = fileURL
             } catch {

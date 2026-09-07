@@ -373,7 +373,11 @@ struct AttachmentThumbnail: View {
     }
 
     private func generateThumbnail(from data: Data, fileName: String) async -> UIImage? {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + "_" + fileName)
+        // AITD-312: the UUID prefix does not stop "../" — the name still has to be sanitised.
+        let tempURL = AttachmentFileName.temporaryURL(
+            in: FileManager.default.temporaryDirectory,
+            for: UUID().uuidString + "_" + AttachmentFileName.sanitized(fileName)
+        )
         try? data.write(to: tempURL)
         defer { try? FileManager.default.removeItem(at: tempURL) }
         
@@ -413,7 +417,7 @@ struct AttachmentThumbnail: View {
             print("📥 [AttachmentThumbnail] Loading preview from pending uploads...")
             if let localData = attachmentService.getLocalFileData(for: file.id) {
                 let tempDir = FileManager.default.temporaryDirectory
-                let tempFileURL = tempDir.appendingPathComponent(file.name)
+                let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
 
                 do {
                     try localData.write(to: tempFileURL)
@@ -486,7 +490,7 @@ struct AttachmentThumbnail: View {
 
             // Save to temporary directory with proper filename for QuickLook
             let tempDir = FileManager.default.temporaryDirectory
-            let tempFileURL = tempDir.appendingPathComponent(file.name)
+            let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
 
             try fileData.write(to: tempFileURL)
 
