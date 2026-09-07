@@ -619,12 +619,10 @@ struct MacRootView: View {
     /// failures were live here: the strips painted ocean once and stayed (task 6531e684).
     ///
     /// `Theme.themed(mode:)` exists for exactly this (task f040f28e) — the mapping as a pure
-    /// function of a mode someone hands it.
+    /// function of a mode someone hands it. It lives in `MacSidebarChrome` because the account
+    /// bar paints the same strip and needs the same answer (AITD-307).
     private var sidebarChromeBackground: Color {
-        Theme.themed(mode: themeMode.rawValue,
-                     light: .white,
-                     dark: Theme.Dark.bgPrimary,
-                     ocean: Theme.Ocean.bgPrimary)
+        MacSidebarChrome.background(mode: themeMode.rawValue)
     }
 
     /// The same control for My Tasks, whose filters live in the account-wide preferences rather

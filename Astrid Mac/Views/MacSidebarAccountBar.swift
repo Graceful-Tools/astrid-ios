@@ -9,6 +9,10 @@ import AppKit
 
 struct MacSidebarAccountBar: View {
     @StateObject private var auth = AuthManager.shared
+    /// OBSERVED, not read from the cached global (AITD-307). This view otherwise depends only on
+    /// AuthManager, so without this its body never re-runs on a theme change and the footer keeps
+    /// whatever colour it painted first — which is what "white in all themes" was.
+    @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     @State private var profileTarget: MacProfileTarget?   // your photo/name → your profile (0994eabb)
 
     var body: some View {
@@ -42,7 +46,10 @@ struct MacSidebarAccountBar: View {
             .help(NSLocalizedString("mac.account_settings", comment: ""))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(Theme.bgPrimary)
+        // The same strip the container behind it paints, from the same definition and from a mode
+        // this view observes — `Theme.bgPrimary` would resolve through a cache nothing here reads
+        // again (AITD-307).
+        .background(MacSidebarChrome.background(mode: themeMode.rawValue))
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
     }
 
