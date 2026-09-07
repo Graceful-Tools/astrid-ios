@@ -16,9 +16,23 @@ import Foundation
 
 enum MacListChrome {
 
+    /// `MacFilterSheet` opens with a Sort section of its own — sort is saved on the list next to
+    /// the filters, exactly as iOS and web store it. That is what makes a separate sort menu a
+    /// second control for the same setting (AITD-305).
+    static let filterSheetOffersSort = true
+
     /// Sort rides with the rows it sorts. Board and chat are not a sorted row list.
-    static func showsSort(hasSelection: Bool, isListMode: Bool) -> Bool {
-        hasSelection && isListMode
+    ///
+    /// …but only where nothing else already offers it. On a real list the strip drew the sort
+    /// menu AND the filter button three pixels apart, and the sheet behind the filter button
+    /// sorts too — so the same setting had two controls (AITD-305). The sheet is the one that has
+    /// all the things (sort + six filters + saved filter + subtasks), so the standalone menu is
+    /// the one that goes. Where no such sheet stands behind the rows — a saved-filter list, and
+    /// My Tasks, whose own sheet offers the three iOS filters and no sort — the menu stays, and
+    /// it is the only way to sort there.
+    static func showsSort(hasSelection: Bool, isListMode: Bool,
+                          filterSheetOffersSort: Bool) -> Bool {
+        hasSelection && isListMode && !filterSheetOffersSort
     }
 
     /// The filter editor writes a REAL list's saved filters. My Tasks keeps its own prefs

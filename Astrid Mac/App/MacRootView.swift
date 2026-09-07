@@ -587,10 +587,14 @@ struct MacRootView: View {
     /// 3-column mode they right-aligned above the CHAT column and read as its controls.
     @ViewBuilder
     private var listChrome: some View {
-        let showsSort = MacListChrome.showsSort(hasSelection: selectedListId != nil,
-                                                isListMode: contentMode == .list)
         let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil,
                                                     isListMode: contentMode == .list)
+        // Where the filter button is showing, its sheet already sorts — so the standalone sort
+        // menu would be the same setting twice, side by side (AITD-305).
+        let showsSort = MacListChrome.showsSort(
+            hasSelection: selectedListId != nil,
+            isListMode: contentMode == .list,
+            filterSheetOffersSort: showsFilter && MacListChrome.filterSheetOffersSort)
         if showsSort || showsFilter {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
