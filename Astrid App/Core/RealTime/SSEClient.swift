@@ -132,8 +132,12 @@ actor SSEClient {
             print("✅ [SSE] Connected and streaming")
             resetReconnectAttempts()
 
-            // Process bytes as they stream in
-            var buffer = ""
+            // Process bytes as they stream in.
+            //
+            // AITD-313: these accumulate as BYTES. Decoding one byte at a time as UTF-8 returns
+            // nil for anything >= 0x80, which silently deleted every accent, CJK glyph and emoji
+            // before the JSON decoder saw it. `SSEFrameBuffer` decodes once per complete event.
+            var frames = SSEFrameBuffer()
             var bytesReceived = 0
 
             for try await byte in bytes {
@@ -145,16 +149,9 @@ actor SSEClient {
 
                 bytesReceived += 1
 
-                // Convert byte to character and append to buffer
-                if let character = String(bytes: [byte], encoding: .utf8) {
-                    buffer.append(character)
-
-                    // Process complete events (SSE events end with double newline)
-                    if buffer.hasSuffix("\n\n") {
-                        print("📦 [SSE] Received complete event, bytes so far: \(bytesReceived)")
-                        await processSSEBuffer(buffer)
-                        buffer = ""
-                    }
+                for frame in frames.append(byte) {
+                    print("📦 [SSE] Received complete event, bytes so far: \(bytesReceived)")
+                    await processSSEBuffer(frame)
                 }
             }
 
@@ -220,12 +217,15 @@ actor SSEClient {
     }
 
     private func processSSEBuffer(_ buffer: String) async {
-        let lines = buffer.components(separatedBy: "\n")
+        // Split on any line break, not just LF: SSE allows CRLF and CR, and
+        // `CharacterSet.whitespaces` is space and tab only — a trailing CR would otherwise ride
+        // into the JSON and fail the decode (AITD-313).
+        let lines = buffer.components(separatedBy: .newlines)
         var eventType: String?
         var eventData: String?
 
         for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if trimmedLine.hasPrefix("event:") {
                 eventType = trimmedLine
