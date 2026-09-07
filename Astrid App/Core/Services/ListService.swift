@@ -187,6 +187,61 @@ class ListService: ObservableObject {
         UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedListIdsKey)
     }
 
+    /// Write a freshly-fetched list collection into the local caches — the in-memory `listsById`
+    /// map, then CoreData.
+    ///
+    /// `merged` is what the sidebar shows: the server's lists plus any not-yet-synced `temp_`
+    /// ones. `serverLists` is what the response actually contained, and it is what decides a
+    /// prune — `GET /api/v1/lists` returns the whole collection, so absence from it really does
+    /// mean the list was deleted elsewhere (`SyncOrphanPrune` decides which absences count, so a
+    /// list created offline — absent from every response by definition — survives).
+    ///
+    /// AITD-324: this used to sit inside `fetchLists()`, which made that function the only thing
+    /// in the app that persisted a list. `SyncManager.performFullSync` fetches the same collection
+    /// at launch and assigned `lists` without caching any of it, so the CoreData store — the one
+    /// thing an offline launch reads — held whatever the last view that happened to call
+    /// `fetchLists()` had left behind, and a list deleted on web was never pruned from it
+    /// (task 53071260). Both fetch paths now cache what they fetched.
+    func cacheListsLocally(merged: [TaskList], serverLists: [TaskList]) {
+        // A fetch that started before a local delete must not write its stale copy of the list
+        // back (task c6615a5d). The filter lives HERE, not at the call site, so every caching
+        // path inherits it: `performFullSync` does not filter its own response, and before
+        // AITD-324 it did not need to, because it cached nothing.
+        let deletedIds = recentlyDeletedListIds
+        let liveLists = ListCachePlan.persistable(serverLists: serverLists, deletedIds: deletedIds)
+
+        for list in ListCachePlan.inMemory(merged: merged, deletedIds: deletedIds) {
+            cachedLists[list.id] = list
+        }
+
+        // A list the server has stopped returning was deleted elsewhere — drop it from the
+        // in-memory cache too, or `listsById` keeps serving it for the rest of the session.
+        let serverIds = Set(liveLists.map(\.id))
+        for id in ListCachePlan.stale(cachedIds: cachedLists.keys, serverIds: serverIds) {
+            cachedLists.removeValue(forKey: id)
+        }
+
+        // Save lists to CoreData for offline support…
+        _Concurrency.Task.detached { [weak self] in
+            guard let self = self else { return }
+            for list in liveLists {
+                do {
+                    try await self.saveListToCoreData(list, syncStatus: "synced")
+                } catch {
+                    print("⚠️ [ListService] Failed to cache list to CoreData: \(error)")
+                }
+            }
+            // …and remove the rows it stopped returning. Without this half, deleting a list
+            // on web left its row behind and `loadCachedLists` brought it back on the next
+            // launch (task 53071260).
+            do {
+                try await self.pruneListsMissingFromServer(serverIds: serverIds)
+            } catch {
+                print("⚠️ [ListService] Failed to prune deleted lists from CoreData: \(error)")
+            }
+        }
+    }
+
     func fetchLists() async throws -> [TaskList] {
         isLoading = true
         errorMessage = nil
@@ -214,40 +269,12 @@ class ListService: ObservableObject {
 
             self.lists = mergedLists
 
-            // Cache lists
+            cacheListsLocally(merged: mergedLists, serverLists: liveLists)
+
             for list in self.lists {
-                cachedLists[list.id] = list
                 print("  📋 List: \(list.name) (tasks: \(list.taskCount ?? 0))")
                 print("    👥 Owner: \(list.owner?.displayName ?? "nil")")
                 print("    👥 Members: \(list.listMembers?.count ?? 0)")
-            }
-
-            // A list the server has stopped returning was deleted elsewhere — drop it from the
-            // in-memory cache too, or `listsById` keeps serving it for the rest of the session.
-            let serverIds = Set(liveLists.map(\.id))
-            for id in cachedLists.keys where !serverIds.contains(id) && !id.hasPrefix(SyncOrphanPrune.localIdPrefix) {
-                cachedLists.removeValue(forKey: id)
-            }
-
-            // Save lists to CoreData for offline support
-            _Concurrency.Task.detached { [weak self] in
-                guard let self = self else { return }
-                for list in liveLists {
-                    do {
-                        try await self.saveListToCoreData(list, syncStatus: "synced")
-                    } catch {
-                        print("⚠️ [ListService] Failed to cache list to CoreData: \(error)")
-                    }
-                }
-                // …and remove the rows it stopped returning. Without this half, deleting a list
-                // on web left its row behind and `loadCachedLists` brought it back on the next
-                // launch (task 53071260). GET /api/v1/lists is the whole collection, so absence
-                // here really does mean deleted — SyncOrphanPrune decides which absences count.
-                do {
-                    try await self.pruneListsMissingFromServer(serverIds: serverIds)
-                } catch {
-                    print("⚠️ [ListService] Failed to prune deleted lists from CoreData: \(error)")
-                }
             }
 
             print("✅ [ListService] Synced \(self.lists.count) lists")

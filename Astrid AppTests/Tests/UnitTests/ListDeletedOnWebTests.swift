@@ -89,19 +89,27 @@ final class ListDeletedOnWebTests: XCTestCase {
     }
 
     /// Task c6615a5d-7c1a-41e7-b5c0-825cea0eddb0: a fetch started before a local delete
-    /// must not write its stale copy of the deleted list back to Core Data.
-    func testRecentlyDeletedListIsExcludedFromThePersistedFetchSnapshot() throws {
+    /// must not write its stale copy of the deleted list back to Core Data. The rule itself is
+    /// pinned in `ListCachePlanTests`; this is about where it is applied.
+    /// The rule has to be applied where the caching happens, or it is a well-tested no-op.
+    func testTheDeletionFilterLivesWhereBothFetchPathsCache() throws {
         let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Astrid App/Core/Services/ListService.swift"),
             encoding: .utf8)
 
-        XCTAssertTrue(source.contains("let serverIds = Set(liveLists.map"),
+        let lines = source.components(separatedBy: .newlines)
+        let start = try XCTUnwrap(lines.firstIndex { $0.contains("func cacheListsLocally(") })
+        let end = try XCTUnwrap(lines[(start + 1)...].firstIndex { $0 == "    }" })
+        let body = lines[start...end].joined(separator: "\n")
+
+        XCTAssertTrue(body.contains("recentlyDeletedListIds"),
+                      "the caching helper must drop locally-deleted lists — performFullSync does "
+                      + "not filter its own response (AITD-324)")
+        XCTAssertTrue(body.contains("for list in liveLists"),
+                      "the Core Data write must use the deletion-filtered snapshot")
+        XCTAssertTrue(body.contains("Set(liveLists.map"),
                       "pruning must treat recently deleted lists as absent")
-        XCTAssertTrue(source.contains("for list in liveLists"),
-                      "the cache write must use the deletion-filtered snapshot")
-        XCTAssertFalse(source.contains("for list in fetchedLists"),
-                       "a stale response must not persist a locally deleted list")
     }
 }

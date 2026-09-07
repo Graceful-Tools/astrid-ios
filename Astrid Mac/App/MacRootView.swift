@@ -1474,8 +1474,11 @@ struct MacRootView: View {
             myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId, preferences: myTasksPreferences.preferences).count
             listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
                                              currentUserId: auth.userId)
-            // Hydrate lists from the shared service (cache-first, offline-safe).
-            _ = try? await listService.fetchLists()
+            // No list fetch here (AITD-324). `startSession()` has already run
+            // `performFullSync(includeUserTasks: true)`, which pulls the whole list collection and
+            // — since AITD-324 — caches it. Local-only mode never reaches that sync, but it does
+            // not need this either: `ListService.init()` loads the CoreData cache synchronously,
+            // so the sidebar is populated before this body ever runs.
             await loadPublicLists()
         }
         .onChange(of: selectedListId) { _, id in

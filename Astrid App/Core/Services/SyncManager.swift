@@ -112,6 +112,11 @@ class SyncManager: ObservableObject {
 
             // Update UI on main actor (quick assignment)
             listService.lists = mergedLists
+            // …and cache what we just fetched. Before AITD-324 this pass wrote nothing: the
+            // sidebar updated while CoreData — the only thing an offline launch reads — kept
+            // whatever some earlier `fetchLists()` had left there. Caching happens here, ahead of
+            // the task fetch below, so a failure there cannot cost us the list cache.
+            listService.cacheListsLocally(merged: mergedLists, serverLists: lists)
             print("✅ [SyncManager] Lists synced: \(listService.lists.count)")
 
             // Cache user images in background (doesn't block UI)
