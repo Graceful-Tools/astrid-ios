@@ -2,6 +2,9 @@ import Foundation
 #if canImport(UIKit)
 import UIKit
 #endif
+#if canImport(AppKit)
+import AppKit   // PlatformImage is NSImage on macOS — the thumbnail seed decodes one (AITD-308)
+#endif
 import UniformTypeIdentifiers
 import Combine
 
@@ -175,6 +178,21 @@ class AttachmentService: ObservableObject {
 
         pendingUploads[tempFileId] = pending
         savePendingUploads()
+
+        // Seed the thumbnail with the bytes we are ALREADY holding (AITD-308).
+        //
+        // Two things were paying for not doing this. The compose surface drops its copy of the
+        // bytes when the comment posts, so the new bubble asked an empty cache, drew a grey
+        // placeholder, and re-read the same file off disk asynchronously. And `recordOutboxUpload`
+        // aliases temp→real, but `ThumbnailCache.alias` copies only what is there — so an upload
+        // that finished before the bubble's own load aliased NOTHING, and the server's copy of the
+        // comment made us download an image we had just uploaded.
+        //
+        // Here rather than in a view because every compose path funnels through this call: the Mac
+        // paperclip and ⌘V paste, the iOS picker, and chat.
+        if mimeType.lowercased().hasPrefix("image/"), let image = PlatformImage(data: fileData) {
+            ThumbnailCache.shared.set(image, for: tempFileId)
+        }
 
         // No upload starts here: the comment/chat compose path builds an Outbox
         // upload→comment dependency chain from this pending record, so the Outbox

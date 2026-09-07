@@ -82,10 +82,33 @@ struct MacCommentAttachmentItem: View {
         .macPointingHand()
         .help(file.name)
         .accessibilityLabel(file.name)
+        // Synchronous first (AITD-308): a file whose bytes are already here draws on the very
+        // first render, with no placeholder frame in between. `.task` then covers only the case
+        // that genuinely has to fetch.
+        .onAppear { resolveWithoutWaiting() }
         .task(id: file.id) {
+            resolveWithoutWaiting()
             guard isImage, image == nil else { return }
             await loadImage()
         }
+    }
+
+    /// Take the picture from memory, or decode the bytes already on disk — both without an await,
+    /// so a file this Mac staged or has downloaded before never flashes a placeholder (AITD-308).
+    private func resolveWithoutWaiting() {
+        guard image == nil, isImage else { return }
+        if let cached = ThumbnailCache.shared.get(file.id) {
+            image = cached
+            return
+        }
+        // Read the download cache ONCE and ask about what came back — probing for existence and
+        // then reading is two disk reads for the same bytes.
+        let bytes = AttachmentService.shared.getCachedDownload(for: file.id)
+        guard MacAttachmentThumbnail.source(mimeType: file.mimeType, hasCachedImage: false,
+                                            hasCachedBytes: bytes != nil) == .cachedBytes,
+              let data = bytes, let loaded = NSImage(data: data) else { return }
+        ThumbnailCache.shared.set(loaded, for: file.id)
+        image = loaded
     }
 
     @ViewBuilder private var imageBody: some View {
