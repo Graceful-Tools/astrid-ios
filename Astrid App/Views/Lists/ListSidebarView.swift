@@ -644,26 +644,10 @@ struct ListSidebarView: View {
             print("📡 [ListSidebarView] Fetching public lists...")
             let response = try await apiClient.getPublicLists(limit: 10, sortBy: "popular") // Fetch more to show 2 of each type
 
-            // Convert PublicListData to TaskList
+            // One shared mapper (AITD-319) — this was written out verbatim here and in
+            // PublicListBrowserView, and a third, shorter time on the Mac.
             publicLists = response.lists.map { listData in
-                TaskList(
-                    id: listData.id,
-                    name: listData.name,
-                    color: listData.color,
-                    imageUrl: listData.imageUrl,
-                    privacy: listData.privacy == "PUBLIC" ? .PUBLIC : .PRIVATE,
-                    publicListType: listData.publicListType,
-                    ownerId: listData.owner.id,
-                    owner: User(
-                        id: listData.owner.id,
-                        email: listData.owner.email,
-                        name: listData.owner.name,
-                        image: listData.owner.image
-                    ),
-                    createdAt: listData.createdAt,
-                    updatedAt: listData.updatedAt,
-                    description: listData.description
-                )
+                TaskList(publicList: listData)
             }
 
             // Update cached filtered lists

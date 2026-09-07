@@ -1209,16 +1209,13 @@ struct MacRootView: View {
     /// leaves the sections absent: this is a browse affordance, and an error banner for "we could
     /// not offer you other people's lists" would be noise on every offline launch.
     private func loadPublicLists() async {
-        guard let response = try? await AstridAPIClient.shared.getPublicLists(limit: 10, sortBy: "popular")
+        // Through the SERVICE, not the network client (ASTRID.md §0 rule 1, AITD-319). The guard
+        // that catches this only walked `Astrid App/`, so the Mac target was invisible to it.
+        guard let response = try? await RemoteResourceService.shared.getPublicLists(limit: 10, sortBy: "popular")
         else { return }
-        publicLists = response.lists.map { data in
-            var l = TaskList(id: data.id, name: data.name, privacy: .PUBLIC)
-            l.color = data.color
-            l.imageUrl = data.imageUrl
-            l.publicListType = data.publicListType
-            l.ownerId = data.owner.id
-            return l
-        }
+        // The shared mapper. The hand-written one here dropped `owner`, which `role(for:)`
+        // consults — a public list opened on the Mac knew less about itself than on iOS.
+        publicLists = response.lists.map(TaskList.init(publicList:))
     }
 
     /// A public list's tasks are not in the local store, so fetch them when one is opened. Cached

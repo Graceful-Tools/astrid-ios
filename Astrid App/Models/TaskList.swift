@@ -351,6 +351,38 @@ struct ListInvite: Identifiable, Codable, Equatable, Hashable {
     var createdBy: String?
 }
 
+// MARK: - Public lists
+
+extension TaskList {
+    /// A public list, as the browse endpoints return it.
+    ///
+    /// Written out by hand in three places before this (task 698717b9 / AITD-319): twice verbatim
+    /// in the iOS views, and once on the Mac in a shorter form that dropped `owner`, `createdAt`
+    /// and `description`. The missing `owner` was not cosmetic — `role(for:)` consults it, so a
+    /// public list opened on the Mac answered the permission question with less information than
+    /// the same list opened on iOS.
+    init(publicList data: PublicListData) {
+        self.init(
+            id: data.id,
+            name: data.name,
+            color: data.color,
+            imageUrl: data.imageUrl,
+            privacy: data.privacy == "PUBLIC" ? .PUBLIC : .PRIVATE,
+            publicListType: data.publicListType,
+            ownerId: data.owner.id,
+            owner: User(
+                id: data.owner.id,
+                email: data.owner.email,
+                name: data.owner.name,
+                image: data.owner.image
+            ),
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            description: data.description
+        )
+    }
+}
+
 // MARK: - TaskList Permission Checks
 //
 // These mirror `astrid-web/lib/list-permissions.ts` — `listMembers` is the
