@@ -1,6 +1,9 @@
 import Foundation
 
-struct TaskList: Identifiable, Codable, Equatable, Hashable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// holds only value-type fields, so it is inherently thread-safe.
+nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     let id: String
     var name: String
     var color: String?
@@ -303,7 +306,10 @@ struct TaskList: Identifiable, Codable, Equatable, Hashable {
 
 /// `{ enabledTypes, defaultAgentId }` — the shape the server stores and, since 2026-08-29,
 /// emits as `aiAgentConfig` beside the plain `aiAgentsEnabled` array.
-struct ListAgentConfig: Codable, Equatable, Hashable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). It holds only
+// value-type fields, so it is inherently thread-safe.
+nonisolated struct ListAgentConfig: Codable, Equatable, Hashable {
     var enabledTypes: [String]
     var defaultAgentId: String?
 }

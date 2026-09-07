@@ -2,7 +2,10 @@ import Foundation
 import Combine
 
 /// User settings synced across devices
-struct UserSettings: Codable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// holds only value-type fields, so it is inherently thread-safe.
+nonisolated struct UserSettings: Codable {
     var smartTaskCreationEnabled: Bool?
     var emailToTaskEnabled: Bool?
     var defaultTaskDueOffset: String?

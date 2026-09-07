@@ -13,7 +13,10 @@ import Foundation
 /// - `{ "kind": "since-weekday", "weekday": 0...6 }`  (0 = Sunday)
 /// - `{ "kind": "since-day-of-month", "day": 1...31 }`
 /// - `{ "kind": "since-date", "date": "YYYY-MM-DD" }`
-enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). It holds only
+// value-type fields, so it is inherently thread-safe.
+nonisolated enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
     enum DurationUnit: String, Codable, Equatable, Hashable {
         case hour, day, week, month
     }

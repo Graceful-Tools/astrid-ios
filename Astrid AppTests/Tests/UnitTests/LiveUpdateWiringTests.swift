@@ -261,6 +261,59 @@ final class LiveUpdateWiringTests: XCTestCase {
         }
     }
 
+    // MARK: - The guard: the decode must not run on the main actor (AITD-320)
+
+    func testTheSSEDecodeDoesNotHopToTheMainActor() throws {
+        // AITD-314 wired the SSE handlers up, which made every event cost a real decode. AITD-320
+        // moved that decode off the main actor. If the `@MainActor` hop comes back, a collaborator's
+        // keystroke-batch is main-thread `JSONSerialization` + `decode(Task.self)` again — invisible
+        // in every behavioural test in this file, because the cache ends up identical either way.
+        let source = try String(contentsOf: repoRoot.appendingPathComponent(
+            "Astrid App/Core/RealTime/SSEClient.swift"), encoding: .utf8)
+        let body = try XCTUnwrap(functionBody(named: "handleEvent", in: source),
+                                 "handleEvent not found in SSEClient.swift")
+
+        // Comments are stripped first: the one in `handleEvent` names `@MainActor` in order to
+        // explain why it is gone, and a guard that its own explanation trips is a useless guard.
+        XCTAssertFalse(strippingComments(body).contains("@MainActor"),
+                       "SSEClient.handleEvent must decode off the main actor (AITD-320) — the "
+                       + "model layer's Codable conformances are nonisolated precisely so it can")
+    }
+
+    func testTheDecodedModelsCarryNonisolatedConformances() throws {
+        // The counterpart to the test above, and the reason it can pass: a nonisolated decode of a
+        // main-actor-isolated `Decodable` conformance is a warning today and an error under Swift 6.
+        // Whichever of the two is reverted first, the other one fails and says why.
+        for (file, types) in [
+            ("Astrid App/Models/Task.swift", ["Task", "Comment"]),
+            ("Astrid App/Models/TaskList.swift", ["TaskList"]),
+            ("Astrid App/Models/ChatMessage.swift", ["ChatMessage"]),
+            ("Astrid App/Models/MyTasksPreferences.swift", ["MyTasksPreferences"]),
+            ("Astrid App/Models/UserSettingsService.swift", ["UserSettings"]),
+            ("Astrid App/Models/User.swift", ["User"]),
+        ] {
+            let source = try String(contentsOf: repoRoot.appendingPathComponent(file), encoding: .utf8)
+            for type in types {
+                XCTAssertTrue(
+                    source.contains("nonisolated struct \(type):"),
+                    "\(type) must be declared `nonisolated` so SSEClient can decode it off the "
+                    + "main actor (AITD-320)")
+            }
+        }
+    }
+
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func strippingComments(_ source: String) -> String {
+        source.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+    }
+
     /// Crude but sufficient: from `func <name>` to the first line that is a closing brace at the
     /// method's own indentation.
     private func functionBody(named name: String, in source: String) -> String? {

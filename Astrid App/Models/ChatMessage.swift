@@ -13,7 +13,10 @@ struct ChatChannel: Identifiable, Codable, Equatable, Hashable {
 
 // MARK: - Chat Message
 
-struct ChatMessage: Identifiable, Codable, Equatable, Hashable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// holds only value-type fields, so it is inherently thread-safe.
+nonisolated struct ChatMessage: Identifiable, Codable, Equatable, Hashable {
     var id: String  // Mutable to allow updating temp ID → real ID
     var channelId: String
     var authorId: String?  // Optional for system messages

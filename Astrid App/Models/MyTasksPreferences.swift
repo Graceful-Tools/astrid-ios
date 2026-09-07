@@ -2,7 +2,10 @@ import Foundation
 import Combine
 
 /// My Tasks filter preferences synced across devices
-struct MyTasksPreferences: Codable {
+// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
+// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// holds only value-type fields, so it is inherently thread-safe.
+nonisolated struct MyTasksPreferences: Codable {
     var filterPriority: [Int]?
     var filterAssignee: [String]?
     var filterDueDate: String?
