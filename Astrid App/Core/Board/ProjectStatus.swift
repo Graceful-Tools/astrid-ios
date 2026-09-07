@@ -203,6 +203,22 @@ func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
     return VIRTUAL_INBOX_COLUMN_ID
 }
 
+/// Is this task part of a project — i.e. does it have a board column at all? (AITD-327)
+///
+/// Two ways of being in one, and both are needed. The list memberships are the ordinary answer:
+/// a task in a list that carries a `projectId` is on that project's board. The `statusRole` is
+/// the fallback for the case that answer cannot cover — a task whose lists have not loaded, or
+/// whose project list is not in this client's cache, still carries the role it was moved to, and
+/// a task sitting in a Doing column is in a project whatever the list array currently says.
+///
+/// Shared rather than written at the call site because "is this a project task" is the same
+/// question on both platforms, and the Mac's detail row and the board must not disagree about it.
+func isTaskInProject(_ task: Task, lists: [TaskList]) -> Bool {
+    if let role = task.statusRole, !role.isEmpty { return true }
+    let membership = taskListMembershipIds(task)
+    return lists.contains { membership.contains($0.id) && $0.projectId != nil }
+}
+
 // MARK: - Move resolution
 
 struct ProjectColumnMove: Equatable {

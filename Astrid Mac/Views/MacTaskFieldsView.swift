@@ -62,7 +62,8 @@ struct MacTaskFieldsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle,
-                                             displayMode: displayMode).enumerated()),
+                                             displayMode: displayMode,
+                                             isInProject: isInProject).enumerated()),
                     id: \.offset) { _, row in
                 fieldRow(row)
             }
@@ -109,7 +110,25 @@ struct MacTaskFieldsView: View {
         case .assignee:
             labeled(icon: "person.crop.circle",
                     NSLocalizedString("tasks.assignee", comment: "Assignee")) { assigneeRow }
+        case .projectState:
+            // Only reached in list mode, and only for a task that has a board column at all —
+            // `MacTaskFields.rows` decides both (AITD-327).
+            labeled(icon: "square.grid.2x2",
+                    NSLocalizedString("board.project_state", comment: "")) { projectStateRow }
         }
+    }
+
+    /// Does this task have a board column? Asked of the shared rule, not spelled here, so the
+    /// row and the board cannot disagree about what a project task is.
+    private var isInProject: Bool {
+        isTaskInProject(task, lists: listService.lists)
+    }
+
+    /// The SAME chips the leading control's popover offers, so the two surfaces cannot come to
+    /// disagree about which states exist or what moving to one does — the move goes through
+    /// `MacBoardMove.plan` either way (ASTRID.md §0 rule 8).
+    private var projectStateRow: some View {
+        MacProjectStateSection(task: task, onMoved: {})
     }
 
     // MARK: - Priority and assignee, as rows (list mode only — task 729a190e)

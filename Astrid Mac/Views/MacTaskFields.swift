@@ -21,6 +21,9 @@ enum MacTaskFieldRow: Equatable {
     case priority
     case assignee
 
+    /// The board column, in LIST mode, and only for a task that actually has one (AITD-327).
+    case projectState
+
     /// The Mac's name for a shared field, so `MacTaskFields.rows` can build list mode straight
     /// from `TaskDetailFieldOrder.listMode` (task c8a1ff51).
     nonisolated init(_ field: TaskDetailField) {
@@ -49,14 +52,28 @@ enum MacTaskFields {
     /// the same wrong order: the same mistake twice, which is what two views deciding for
     /// themselves produces. Derived rather than restated, so a change to the shared list
     /// reaches the Mac without anyone remembering to come here.
-    static func rows(showsTitle: Bool, displayMode: TaskDisplayMode) -> [MacTaskFieldRow] {
+    /// - Parameter isInProject: whether this task has a board column at all (AITD-327). List mode
+    ///   shows a state row only when it does — see the note on `.projectState` below.
+    static func rows(showsTitle: Bool,
+                     displayMode: TaskDisplayMode,
+                     isInProject: Bool = false) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
         guard displayMode.showsSeparateAssigneeAndPriorityRows else {
             // Project mode: priority and assignee are not rows at all — the leading control
-            // depicts both (task 42013da7) — so there is no order to share.
+            // depicts both (task 42013da7) — and board state is in that same popover, so there
+            // is no order to share and no state row to add.
             return leading + [.when, .lists, .description]
         }
-        return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + [.description]
+        // Board state gets a row in LIST mode when the task is in a project (AITD-327).
+        //
+        // This narrows an older, blunter rule. `MacLeadingPicker` reasoned that "a board column
+        // is a project idea, and a row for it in the list layout rebuilds the hybrid" — sound for
+        // a task with no board column, since a row for a state it cannot have is the hybrid. But
+        // for a task that IS on a board, its column is real information the list layout was
+        // simply hiding, and the only way to change it was to switch display modes. The condition
+        // is what keeps this from being the hybrid: no project, no row.
+        let state: [MacTaskFieldRow] = isInProject ? [.projectState] : []
+        return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + [.description]
     }
 
     /// Every field the editor shows is one the user can change. The Lists row
