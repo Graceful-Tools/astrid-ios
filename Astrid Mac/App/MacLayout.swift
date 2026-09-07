@@ -77,6 +77,49 @@ enum MacLayout {
             - rowTrailingGap - columnDividerWidth + detailArrowRowGap
     }
 
+    // MARK: - Resizable columns (AITD-329)
+    //
+    // Both side columns can be dragged. The widths that used to be fixed become the FLOOR, per
+    // Jon: "current column width a fine minimum". Nothing gets narrower than it is today; the
+    // window just stops being the only thing that decides how the space is split.
+
+    /// Sidebar floor. Was 200 while the ideal was 240, so a drag could take the list rail
+    /// noticeably below the width it ships at; the shipped width is the floor now.
+    static let sidebarMinWidth: CGFloat = 240
+    static let sidebarIdealWidth: CGFloat = 240
+    /// A rail past this stops being a rail. It is a cap on the DRAG, not on the window.
+    static let sidebarMaxWidth: CGFloat = 420
+
+    /// What the middle column keeps no matter how wide the chat column is dragged. Roughly a task
+    /// title plus its due date and assignee — below this the rows stop being readable, which is a
+    /// worse outcome than refusing the drag.
+    static let listColumnMinWidth: CGFloat = 320
+
+    /// The chat column's floor: the derived width above, which is the one that makes the pop-out's
+    /// arrow meet the rows.
+    static var chatColumnMinWidth: CGFloat { chatColumnWidth }
+
+    /// The chat column width actually used, given what the user dragged and the space available.
+    ///
+    /// The upper bound is whatever leaves `listColumnMinWidth` for the rows — and when the content
+    /// area is too narrow to satisfy both, the FLOOR wins: a chat column below `chatColumnMinWidth`
+    /// would put the pop-out's arrow through the rows it is pointing at.
+    static func resolvedChatColumnWidth(requested: CGFloat, contentWidth: CGFloat) -> CGFloat {
+        let available = contentWidth - listColumnMinWidth - columnDividerWidth
+        return max(chatColumnMinWidth, min(requested, max(chatColumnMinWidth, available)))
+    }
+
+    /// Trailing padding for the floating detail pop-out at a given chat column width.
+    ///
+    /// The arrow-meets-the-rows geometry (AITD-302) is derived from `chatColumnWidth`, so a
+    /// dragged-wider chat column would leave the arrow pointing at empty space where the rows used
+    /// to end. Giving the pop-out back exactly the width the chat column gained keeps the tip the
+    /// same `detailArrowRowGap` from the row edge at every column width — the invariant survives
+    /// the resize instead of holding only at the default.
+    static func detailPopoutTrailingPadding(chatColumnWidth width: CGFloat) -> CGFloat {
+        detailPanelMargin + max(0, width - chatColumnMinWidth)
+    }
+
     /// Show the persistent chat column? Wide WINDOW + a selection that has a channel, and NOT in
     /// board mode — a board needs the full horizontal width for its columns, so the two are
     /// mutually exclusive (task f1430338).

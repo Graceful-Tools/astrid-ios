@@ -56,6 +56,11 @@ struct MacRootView: View {
     @State private var contentFrame: CGRect = .zero  // global frame — anchors the pop-out reveal
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false   // task 01d8cfa1
     @State private var columnVisibility: NavigationSplitViewVisibility = .all   // fixed sidebar in 3-col (1a71c0e7)
+    /// Survives relaunch — a column width the user set is a preference, not view state (AITD-329).
+    @AppStorage("mac.chatColumnWidth") private var chatColumnWidthPreference: Double = 0
+    /// Width when the current drag began, so the column tracks the pointer instead of accelerating
+    /// away from it — a delta applied to the LIVE width compounds on every gesture callback.
+    @State private var chatColumnDragStart: CGFloat?
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
@@ -420,6 +425,37 @@ struct MacRootView: View {
                                     fullScreen: detailFullScreen)
     }
 
+    /// The chat column width in force: what the user dragged to, clamped to what fits (AITD-329).
+    private var resolvedChatColumnWidth: CGFloat {
+        MacLayout.resolvedChatColumnWidth(requested: CGFloat(chatColumnWidthPreference), contentWidth: contentWidth)
+    }
+
+    /// The divider between the task rows and the chat column, draggable.
+    ///
+    /// It is still a 1pt `Divider` — the grab area is a wider transparent overlay, because a 1pt
+    /// hit target is not one. Dragging LEFT widens the chat column, so the delta is subtracted.
+    private var columnResizer: some View {
+        Divider()
+            .overlay {
+                Color.clear
+                    .frame(width: 9)
+                    .contentShape(Rectangle())
+                    .onHover { $0 ? NSCursor.resizeLeftRight.push() : NSCursor.pop() }
+                    .gesture(
+                        DragGesture(coordinateSpace: .global)
+                            .onChanged { drag in
+                                let base = chatColumnDragStart ?? resolvedChatColumnWidth
+                                if chatColumnDragStart == nil { chatColumnDragStart = base }
+                                chatColumnWidthPreference = Double(MacLayout.resolvedChatColumnWidth(
+                                    requested: base - drag.translation.width,
+                                    contentWidth: contentWidth))
+                            }
+                            .onEnded { _ in chatColumnDragStart = nil }
+                    )
+                    .accessibilityIdentifier("content.columnResizer")
+            }
+    }
+
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
     private var selectionIsVirtual: Bool {
         selectedListId == Self.myTasksId || selectedListId == Self.searchId
@@ -475,7 +511,9 @@ struct MacRootView: View {
                 }
             }
             .padding(.leading, MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
-            .padding(.trailing, MacLayout.detailPanelMargin)
+            // Grows with the chat column so the arrow tip keeps the SAME clearance from the row
+            // edge at every width — the AITD-302 geometry has to survive a resize (AITD-329).
+            .padding(.trailing, MacLayout.detailPopoutTrailingPadding(chatColumnWidth: resolvedChatColumnWidth))
         .padding(.vertical, 14)
         // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
         // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.
@@ -1327,7 +1365,11 @@ struct MacRootView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .accessibilityIdentifier("sidebar.footerBackground")
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+            // The shipped width is the FLOOR, not the ideal — a drag used to be able to take the
+            // rail down to 200 (AITD-329). Max keeps a rail a rail.
+            .navigationSplitViewColumnWidth(min: MacLayout.sidebarMinWidth,
+                                            ideal: MacLayout.sidebarIdealWidth,
+                                            max: MacLayout.sidebarMaxWidth)
 
         } detail: {
             Group {
@@ -1340,9 +1382,9 @@ struct MacRootView: View {
                         // it has a virtual channel, same as iOS and web (51703e2a).
                         HStack(spacing: 0) {
                             listColumn      // board never reaches here — see chatColumnVisible
-                            Divider()
+                            columnResizer
                             MacChatPanelView(source: chatSource)
-                                .frame(width: MacLayout.chatColumnWidth)
+                                .frame(width: resolvedChatColumnWidth)
                         }
                     } else {
                         switch contentMode {
