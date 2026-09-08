@@ -12,6 +12,18 @@ final class ReleaseLoggingHygieneTests: XCTestCase {
     /// The shipping source trees. Test targets may print freely.
     private static let sourceTrees = ["Astrid App", "Astrid Mac", "Shared", "Astrid"]
 
+    /// `AstridApp.swift` — the iOS entry point — sits at the repository root rather
+    /// than in any of those trees, so a tree-only scan silently skipped 50 calls in
+    /// the file that ships in every build. Anything else that lands at the root is
+    /// picked up automatically.
+    private static var rootSwiftFiles: [URL] {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: repositoryRoot,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        return contents.filter { $0.pathExtension == "swift" }
+    }
+
     func testShippingSourceHasNoBarePrintCalls() throws {
         var offenders: [String] = []
         for file in try Self.swiftFiles() {
@@ -66,7 +78,7 @@ final class ReleaseLoggingHygieneTests: XCTestCase {
         .deletingLastPathComponent()   // repository root
 
     private static func swiftFiles() throws -> [URL] {
-        var files: [URL] = []
+        var files: [URL] = rootSwiftFiles
         for tree in sourceTrees {
             let root = repositoryRoot.appendingPathComponent(tree)
             guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
