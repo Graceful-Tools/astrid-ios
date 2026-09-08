@@ -31,7 +31,6 @@ class ChatService: ObservableObject {
 
     init() {
         _Concurrency.Task { @MainActor in
-            await self.loadCachedMessages()
             await self.loadCachedChannels()
             await self.updatePendingOperationsCount()
         }
@@ -131,43 +130,20 @@ class ChatService: ObservableObject {
 
     // MARK: - Cache Management
 
-    /// Load cached messages from CoreData on startup
-    private func loadCachedMessages() async {
-        await coreDataManager.waitForStoreLoad()
-
-        do {
-            let messagesByChannel: [String: [ChatMessage]] = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let cdMessages = try CDChatMessage.fetchAll(context: context)
-                        var result: [String: [ChatMessage]] = [:]
-                        for cdMessage in cdMessages {
-                            let message = cdMessage.toDomainModel()
-                            if result[message.channelId] == nil {
-                                result[message.channelId] = []
-                            }
-                            result[message.channelId]?.append(message)
-                        }
-                        // Sort by createdAt ascending within each channel
-                        for (channelId, messages) in result {
-                            result[channelId] = messages.sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-                        }
-                        continuation.resume(returning: result)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-
-            self.cachedMessages = messagesByChannel
-            let total = messagesByChannel.values.reduce(0) { $0 + $1.count }
-            if total > 0 {
-                logger.notice("Chat messages loaded: \(total, privacy: .public) messages for \(messagesByChannel.count, privacy: .public) channels")
-            }
-        } catch {
-            logger.error("Failed to load cached chat messages: \(error.localizedDescription, privacy: .public)")
-        }
-    }
+    // Chat messages are NOT hydrated at launch (task AITD-341, the companion to AITD-335).
+    //
+    // `loadCachedMessages` used to do `CDChatMessage.fetchAll`, a domain model for every row and
+    // a sort per channel, before any chat panel had been opened — and then hold the lot in memory
+    // for the session. Chat messages accumulate the same way comments did, and nothing prunes
+    // them.
+    //
+    // `fetchMessages(channelId:)` already walks memory → CoreData → network, and its CoreData
+    // step is `loadMessagesFromCoreData(channelId:)`, scoped to one channel. Every bucket the
+    // eager pass built is one the lazy path builds when the channel is opened, and only for the
+    // channel opened. Deleting the eager pass is the whole fix.
+    //
+    // `loadCachedChannels` below is a different thing and stays: it is a small list→channel id
+    // mapping, and it is what lets a chat panel know which channel to ask for at all.
 
     /// Load cached channel mappings from CoreData
     private func loadCachedChannels() async {
