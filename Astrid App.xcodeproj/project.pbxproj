@@ -104,7 +104,6 @@
 				"Extensions/View+ScrollToTop.swift",
 				"Extensions/View+SwipeToDismiss.swift",
 				"Extensions/View+TextEditorInsets.swift",
-				PrivacyInfo.xcprivacy,
 				Utilities/KeyboardEngineWarmer.swift,
 				ViewModels/AccountViewModel.swift,
 				ViewModels/EditProfileViewModel.swift,
