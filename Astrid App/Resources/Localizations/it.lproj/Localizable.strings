@@ -117,6 +117,7 @@
 "lists.all_lists" = "Tutte le liste";
 "lists.empty_state_message" = "Crea una lista per organizzare i tuoi compiti!";
 "lists.copy_to_list" = "Copia nella lista";
+"lists.copy_failed" = "Impossibile copiare quella lista. Riprova.";
 "lists.target_list" = "Lista di destinazione";
 "lists.my_tasks_only" = "Solo i miei compiti";
 "lists.include_comments" = "Includi commenti";

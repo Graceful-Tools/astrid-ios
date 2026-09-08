@@ -118,6 +118,7 @@
 "lists.all_lists" = "すべてのリスト";
 "lists.empty_state_message" = "リストを作成してタスクを整理しましょう！";
 "lists.copy_to_list" = "リストにコピー";
+"lists.copy_failed" = "リストをコピーできませんでした。もう一度お試しください。";
 "lists.target_list" = "コピー先リスト";
 "lists.my_tasks_only" = "マイタスクのみ";
 "lists.include_comments" = "コメントを含める";

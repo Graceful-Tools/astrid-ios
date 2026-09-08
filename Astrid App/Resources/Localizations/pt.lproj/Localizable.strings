@@ -118,6 +118,7 @@
 "lists.all_lists" = "Todas as Listas";
 "lists.empty_state_message" = "Crie uma lista para organizar suas tarefas!";
 "lists.copy_to_list" = "Copiar para Lista";
+"lists.copy_failed" = "Não foi possível copiar essa lista. Tente novamente.";
 "lists.target_list" = "Lista de Destino";
 "lists.my_tasks_only" = "Apenas Minhas Tarefas";
 "lists.include_comments" = "Incluir Comentários";

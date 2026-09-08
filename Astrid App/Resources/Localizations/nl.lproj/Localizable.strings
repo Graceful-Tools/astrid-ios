@@ -118,6 +118,7 @@
 "lists.all_lists" = "Alle lijsten";
 "lists.empty_state_message" = "Maak een lijst om je taken te organiseren!";
 "lists.copy_to_list" = "Kopiëren naar lijst";
+"lists.copy_failed" = "Kon die lijst niet kopiëren. Probeer het opnieuw.";
 "lists.target_list" = "Doellijst";
 "lists.my_tasks_only" = "Alleen mijn taken";
 "lists.include_comments" = "Inclusief opmerkingen";

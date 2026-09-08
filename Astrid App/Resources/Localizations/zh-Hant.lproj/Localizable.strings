@@ -118,6 +118,7 @@
 "lists.all_lists" = "所有清單";
 "lists.empty_state_message" = "創建一個清單來整理您的任務！";
 "lists.copy_to_list" = "複製到清單";
+"lists.copy_failed" = "無法複製該清單，請重試。";
 "lists.target_list" = "目標清單";
 "lists.my_tasks_only" = "僅我的任務";
 "lists.include_comments" = "包含評論";

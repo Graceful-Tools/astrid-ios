@@ -107,6 +107,7 @@
 "lists.list_description" = "Description";
 "lists.list_settings" = "Paramètres de la liste";
 "lists.copy_to_list" = "Copier vers la Liste";
+"lists.copy_failed" = "Impossible de copier cette liste. Veuillez réessayer.";
 "lists.target_list" = "Liste Cible";
 "lists.my_tasks_only" = "Mes Tâches (uniquement)";
 "lists.include_comments" = "Inclure les Commentaires";

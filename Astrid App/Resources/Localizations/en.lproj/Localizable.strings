@@ -143,6 +143,7 @@
 "lists.all_lists" = "All Lists";
 "lists.empty_state_message" = "Create a list to organize your tasks and keep everything in order!";
 "lists.copy_to_list" = "Copy to List";
+"lists.copy_failed" = "Couldn't copy that list. Please try again.";
 "lists.target_list" = "Target List";
 "lists.my_tasks_only" = "My Tasks (only)";
 "lists.include_comments" = "Include Comments";
