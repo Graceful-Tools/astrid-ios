@@ -122,6 +122,7 @@
 "lists.list_description" = "Descripción";
 "lists.list_settings" = "Configuración de Lista";
 "lists.copy_to_list" = "Copiar a Lista";
+"lists.copy_failed" = "No se pudo copiar esa lista. Inténtalo de nuevo.";
 "lists.target_list" = "Lista Destino";
 "lists.my_tasks_only" = "Mis Tareas (solo)";
 "lists.include_comments" = "Incluir Comentarios";

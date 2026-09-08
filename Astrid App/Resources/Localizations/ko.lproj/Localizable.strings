@@ -118,6 +118,7 @@
 "lists.all_lists" = "모든 목록";
 "lists.empty_state_message" = "목록을 만들어 작업을 정리해 보세요!";
 "lists.copy_to_list" = "목록으로 복사";
+"lists.copy_failed" = "목록을 복사하지 못했습니다. 다시 시도해 주세요.";
 "lists.target_list" = "대상 목록";
 "lists.my_tasks_only" = "내 작업만";
 "lists.include_comments" = "댓글 포함";

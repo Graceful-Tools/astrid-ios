@@ -1298,13 +1298,27 @@ struct TaskListView: View {
 
     // MARK: - Actions
 
+    /// Copy the featured list being viewed into the user's own lists.
+    ///
+    /// This used to be a stub whose TODO outlived the endpoint it was waiting for: the button was
+    /// user-reachable, showed a spinner for one frame, and copied nothing (AITD-348). The Mac has
+    /// been doing it correctly all along — see `MacSettingsPanels.copy(_:)`.
     private func copyList() async {
-        guard let _ = selectedList else { return }
+        guard case .copy(let listId) = FeaturedListCopyPlan.decide(
+            selectedListId: selectedList?.id, isCopying: isCopyingList
+        ) else { return }
 
         isCopyingList = true
-        // TODO: Implement copy list API v1 endpoint — restore `defer { isCopyingList = false }`
-        // above the network call once there's async work to bracket.
-        do { isCopyingList = false }
+        defer { isCopyingList = false }
+
+        do {
+            _ = try await RemoteResourceService.shared.copyList(listId: listId, includeTasks: true)
+            // Refresh so the copy actually appears in the user's lists — without this the request
+            // succeeds invisibly, which reads to the user exactly like the old no-op.
+            _ = try? await listService.fetchLists()
+        } catch {
+            taskService.errorMessage = Brand.localized("lists.copy_failed")
+        }
     }
 
     private func loadFeaturedListTasks(listId: String) async {

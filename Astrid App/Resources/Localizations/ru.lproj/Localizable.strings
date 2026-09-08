@@ -118,6 +118,7 @@
 "lists.all_lists" = "Все списки";
 "lists.empty_state_message" = "Создайте список, чтобы организовать свои задачи!";
 "lists.copy_to_list" = "Копировать в список";
+"lists.copy_failed" = "Не удалось скопировать список. Попробуйте ещё раз.";
 "lists.target_list" = "Целевой список";
 "lists.my_tasks_only" = "Только мои задачи";
 "lists.include_comments" = "Включить комментарии";
