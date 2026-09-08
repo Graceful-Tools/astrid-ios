@@ -13,6 +13,7 @@ struct ChatPanelView: View {
 
     @StateObject private var chatService = ChatService.shared
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @ObservedObject private var sseState = SSEConnectionState.shared
 
     @State private var channelId: String?
     @State private var isLoadingChannel = true
@@ -31,7 +32,7 @@ struct ChatPanelView: View {
     @State private var unsubscribeUpdated: (@Sendable () -> Void)?
     @State private var unsubscribeDeleted: (@Sendable () -> Void)?
 
-    // Polling fallback for when SSE is unreliable
+    // Fallback poll, used only while the SSE stream is down — see ChatPollingPolicy
     @State private var pollTimer: Timer?
 
     // Sign-in sheet for unauthenticated users
@@ -179,13 +180,11 @@ struct ChatPanelView: View {
             NavigationStack {
                 LoginView()
             }
-            .onReceive(NotificationCenter.default.publisher(for: .networkDidBecomeAvailable).merge(with:
-                // Poll every second while sheet is open to detect sign-in
-                Timer.publish(every: 1, on: .main, in: .common).autoconnect().map { _ in Notification(name: .networkDidBecomeAvailable) }
-            )) { _ in
-                if isSignedInToServer && showingSignInSheet {
-                    showingSignInSheet = false
-                }
+            .onReceive(AuthManager.shared.$isAuthenticated) { _ in
+                dismissSignInSheetIfSignedIn()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .networkDidBecomeAvailable)) { _ in
+                dismissSignInSheetIfSignedIn()
             }
         }
         .task {
@@ -194,6 +193,9 @@ struct ChatPanelView: View {
         .onDisappear {
             unsubscribeSSE()
             stopPolling()
+        }
+        .onChange(of: sseState.isStreamLive) { _, _ in
+            updatePolling()
         }
         .onChange(of: chatService.cachedMessages) { _, newValue in
             if let channelId = channelId {
@@ -231,9 +233,9 @@ struct ChatPanelView: View {
             let fetchedMessages = try await chatService.fetchMessages(channelId: resolvedChannelId)
             messages = fetchedMessages
 
-            // Subscribe to SSE events + polling fallback
+            // Subscribe to SSE events; the poll is a fallback and only runs if the stream is down
             subscribeToSSE(channelId: resolvedChannelId)
-            startPolling(channelId: resolvedChannelId)
+            updatePolling()
 
             // Fetch available agents for @mention (fire-and-forget)
             _Concurrency.Task {
@@ -324,10 +326,25 @@ struct ChatPanelView: View {
 
     // MARK: - Polling Fallback
 
-    /// Start polling for new messages every 3 seconds as SSE backup
-    private func startPolling(channelId: String) {
+    /// Run the fallback poll only while the stream is down. Called on channel load and on every
+    /// stream transition, so a chat left open on a healthy connection fetches nothing at all.
+    private func updatePolling() {
+        let shouldPoll = ChatPollingPolicy.shouldPoll(
+            isStreamLive: sseState.isStreamLive,
+            hasChannel: channelId != nil,
+            isAuthenticated: AuthManager.shared.isAuthenticated
+        )
+        if shouldPoll {
+            startPolling()
+        } else {
+            stopPolling()
+        }
+    }
+
+    /// Refetch messages while SSE is not delivering them.
+    private func startPolling() {
         stopPolling()
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: ChatPollingPolicy.interval, repeats: true) { _ in
             _Concurrency.Task { @MainActor in
                 guard AuthManager.shared.isAuthenticated else { return }
                 guard let channelId = self.channelId else { return }
@@ -347,5 +364,13 @@ struct ChatPanelView: View {
     private func stopPolling() {
         pollTimer?.invalidate()
         pollTimer = nil
+    }
+
+    /// Chat needs a real server session, and `AuthManager.isAuthenticated` is also true in
+    /// local/offline mode — so the keychain, not the flag, is what decides here.
+    private func dismissSignInSheetIfSignedIn() {
+        if isSignedInToServer && showingSignInSheet {
+            showingSignInSheet = false
+        }
     }
 }
