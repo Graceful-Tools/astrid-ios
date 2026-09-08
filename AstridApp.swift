@@ -11,22 +11,22 @@ struct AstridApp: App {
 
     init() {
         FeatureFlagService.recordAppLaunch()
-        print("🚀 [AstridApp] App launching...")
-        print("📍 [AstridApp] Init started - about to configure app...")
+        AppLog.debug("🚀 [AstridApp] App launching...")
+        AppLog.debug("📍 [AstridApp] Init started - about to configure app...")
 
         // Configure localization FIRST before any UI strings are loaded
         configureLocalization()
 
         configureAppearance()
         configureLogs()
-        print("📍 [AstridApp] About to configure OAuth...")
-        print("📍 [AstridApp] OAuth configuration complete")
+        AppLog.debug("📍 [AstridApp] About to configure OAuth...")
+        AppLog.debug("📍 [AstridApp] OAuth configuration complete")
 
         // Initialize ReminderPresenter SYNCHRONOUSLY before configuring notifications
         // This ensures it's ready to handle notification taps during cold start
-        print("🔔 [AstridApp] Initializing ReminderPresenter...")
+        AppLog.debug("🔔 [AstridApp] Initializing ReminderPresenter...")
         _ = ReminderPresenter.shared
-        print("✅ [AstridApp] ReminderPresenter initialized and ready")
+        AppLog.debug("✅ [AstridApp] ReminderPresenter initialized and ready")
 
         configureNotifications()
         configureBadgeManagement()
@@ -39,13 +39,13 @@ struct AstridApp: App {
         // This moves initialization from first-use to app startup, eliminating latency
         warmUpServices()
 
-        print("✅ [AstridApp] Init complete")
+        AppLog.debug("✅ [AstridApp] Init complete")
     }
 
     /// Warm up commonly-used services during app startup to eliminate first-use latency
     /// This runs on a background thread to not block UI, but completes before user interaction
     private func warmUpServices() {
-        print("⚡️ [AstridApp] Starting service warm-up...")
+        AppLog.debug("⚡️ [AstridApp] Starting service warm-up...")
         let start = CFAbsoluteTimeGetCurrent()
 
         // Pre-compile SmartTaskParser regex patterns (synchronous, fast)
@@ -79,7 +79,7 @@ struct AstridApp: App {
             await MainActor.run { KeyboardEngineWarmer.warmOnce() }
 
             let elapsed = CFAbsoluteTimeGetCurrent() - start
-            print("⚡️ [AstridApp] Service warm-up completed in \(String(format: "%.3f", elapsed))s")
+            AppLog.debug("⚡️ [AstridApp] Service warm-up completed in \(String(format: "%.3f", elapsed))s")
         }
     }
 
@@ -88,14 +88,14 @@ struct AstridApp: App {
             contentView
                 .preferredColorScheme(themeMode.colorScheme)
                 .onAppear {
-                    print("👁️ [AstridApp] Root view appeared")
-                    print("🎨 [AstridApp] Theme mode: \(themeMode.displayName)")
+                    AppLog.debug("👁️ [AstridApp] Root view appeared")
+                    AppLog.debug("🎨 [AstridApp] Theme mode: \(themeMode.displayName)")
                     // Set UIKit window override to match theme
                     updateWindowUserInterfaceStyle(for: themeMode)
                     _Concurrency.Task {
                         // Try to restore local user first (offline-only mode)
                         if connectionModeManager.restoreLocalUserIfNeeded() {
-                            print("✅ [AstridApp] Restored local user - skipping network auth check")
+                            AppLog.debug("✅ [AstridApp] Restored local user - skipping network auth check")
                             return
                         }
 
@@ -104,13 +104,13 @@ struct AstridApp: App {
 
                         // Only proceed with network operations if authenticated
                         guard authManager.isAuthenticated else {
-                            print("⚠️ [AstridApp] Not authenticated - skipping network operations")
+                            AppLog.debug("⚠️ [AstridApp] Not authenticated - skipping network operations")
                             return
                         }
 
                         // Skip network operations for offline-only mode
                         if connectionModeManager.currentMode == .offlineOnly {
-                            print("📴 [AstridApp] Offline-only mode - skipping network operations")
+                            AppLog.debug("📴 [AstridApp] Offline-only mode - skipping network operations")
                             await updateAppBadge()
                             return
                         }
@@ -136,17 +136,17 @@ struct AstridApp: App {
                     }
                 }
                 .onChange(of: themeMode) { oldValue, newValue in
-                    print("🎨 [AstridApp] Theme changed: \(oldValue.displayName) -> \(newValue.displayName)")
+                    AppLog.debug("🎨 [AstridApp] Theme changed: \(oldValue.displayName) -> \(newValue.displayName)")
                     // Update UIKit window override when theme changes
                     updateWindowUserInterfaceStyle(for: newValue)
                 }
                 .onChange(of: authManager.isAuthenticated) { oldValue, newValue in
-                    print("📡 [AstridApp] Auth changed: \(oldValue) -> \(newValue)")
+                    AppLog.debug("📡 [AstridApp] Auth changed: \(oldValue) -> \(newValue)")
                     _Concurrency.Task {
                         if newValue {
                             // User just logged in - establish SSE connection with delay
                             // Wait a bit to ensure session is fully established
-                            print("📡 [AstridApp] User logged in - will connect to SSE in 2s...")
+                            AppLog.debug("📡 [AstridApp] User logged in - will connect to SSE in 2s...")
                             try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
                             await connectSSE()
 
@@ -161,14 +161,14 @@ struct AstridApp: App {
                             await ReviewPromptManager.shared.checkAndPromptForReview()
                         } else {
                             // User logged out - disconnect from SSE
-                            print("📡 [AstridApp] User logged out - disconnecting from SSE...")
+                            AppLog.debug("📡 [AstridApp] User logged out - disconnecting from SSE...")
                             await SSEClient.shared.disconnect()
                         }
                     }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
-                        print("📱 [AstridApp] App became active - refreshing image cache")
+                        AppLog.debug("📱 [AstridApp] App became active - refreshing image cache")
                         // Clear memory cache so images reload fresh from server
                         // This ensures web-updated images show on iOS
                         ImageCache.shared.clearMemoryCache()
@@ -183,7 +183,7 @@ struct AstridApp: App {
                             await ReviewPromptManager.shared.checkAndPromptForReview()
                         }
                     } else if newPhase == .background {
-                        print("📱 [AstridApp] App went to background - scheduling sync")
+                        AppLog.debug("📱 [AstridApp] App went to background - scheduling sync")
                         // Schedule background sync to complete pending operations
                         BackgroundSyncHandler.shared.scheduleBackgroundSync()
                     }
@@ -283,16 +283,16 @@ struct AstridApp: App {
     }
 
     private func configureLocalization() {
-        print("🌍 [AstridApp] Configuring localization...")
+        AppLog.debug("🌍 [AstridApp] Configuring localization...")
         // Apply intelligent locale-based language selection
         // This checks device locale and preferred languages to select the best match
         // Example: US user with Spanish preference (es-US) will get Spanish (es) not English (en)
         LocalizationManager.shared.applyIntelligentLocale()
-        print("✅ [AstridApp] Localization configured")
+        AppLog.debug("✅ [AstridApp] Localization configured")
     }
 
     private func configureAppearance() {
-        print("🎨 [AstridApp] Configuring appearance...")
+        AppLog.debug("🎨 [AstridApp] Configuring appearance...")
 
         // Create adaptive UIColors that respond to dark mode
         // Ocean theme uses same headers as light mode
@@ -339,13 +339,13 @@ struct AstridApp: App {
     }
 
     private func configureLogs() {
-        print("📋 [AstridApp] Logging configured")
-        print("📋 [AstridApp] Base URL: \(Constants.API.baseURL)")
-        print("📋 [AstridApp] Environment: \(Constants.API.environment)")
+        AppLog.debug("📋 [AstridApp] Logging configured")
+        AppLog.debug("📋 [AstridApp] Base URL: \(Constants.API.baseURL)")
+        AppLog.debug("📋 [AstridApp] Environment: \(Constants.API.environment)")
     }
 
     private func configureNotifications() {
-        print("🔔 [AstridApp] Configuring notifications...")
+        AppLog.debug("🔔 [AstridApp] Configuring notifications...")
         _Concurrency.Task { @MainActor in
             NotificationManager.shared.registerNotificationCategories()
             // Register timer notification category for background timer completion
@@ -354,43 +354,43 @@ struct AstridApp: App {
     }
 
     private func configureBadgeManagement() {
-        print("📛 [AstridApp] Initializing badge management...")
+        AppLog.debug("📛 [AstridApp] Initializing badge management...")
         // Initialize BadgeManager singleton
         _ = BadgeManager.shared
-        print("✅ [AstridApp] Badge management configured")
+        AppLog.debug("✅ [AstridApp] Badge management configured")
     }
 
     private func validateAppGroupAccess() {
-        print("🔐 [AstridApp] Validating App Group access...")
+        AppLog.debug("🔐 [AstridApp] Validating App Group access...")
         if ShareDataManager.shared.validateAppGroupAccess() {
-            print("✅ [AstridApp] App Group access validated")
+            AppLog.debug("✅ [AstridApp] App Group access validated")
         } else {
-            print("⚠️ [AstridApp] App Group not configured - Share Extension will not work")
+            AppLog.debug("⚠️ [AstridApp] App Group not configured - Share Extension will not work")
         }
     }
 
     private func processSharedTasks() async {
         guard authManager.isAuthenticated else {
-            print("⚠️ [AstridApp] Not authenticated - skipping shared tasks processing")
+            AppLog.debug("⚠️ [AstridApp] Not authenticated - skipping shared tasks processing")
             return
         }
 
         // Check network availability before attempting to process shared tasks
         guard NetworkMonitor.shared.isConnected else {
-            print("⚠️ [AstridApp] No network connection - shared tasks will be processed when online")
+            AppLog.debug("⚠️ [AstridApp] No network connection - shared tasks will be processed when online")
             return
         }
 
-        print("📥 [AstridApp] Checking for shared tasks...")
+        AppLog.debug("📥 [AstridApp] Checking for shared tasks...")
 
         do {
             let pendingTasks = try ShareDataManager.shared.loadPendingTasks()
             guard !pendingTasks.isEmpty else {
-                print("📭 [AstridApp] No pending shared tasks")
+                AppLog.debug("📭 [AstridApp] No pending shared tasks")
                 return
             }
 
-            print("📋 [AstridApp] Found \(pendingTasks.count) pending shared task(s)")
+            AppLog.debug("📋 [AstridApp] Found \(pendingTasks.count) pending shared task(s)")
 
             for item in pendingTasks where item.status == .pending {
                 await processSingleSharedTask(item)
@@ -399,19 +399,19 @@ struct AstridApp: App {
             // Clean up completed tasks
             try ShareDataManager.shared.removeCompletedTasks()
         } catch {
-            print("❌ [AstridApp] Failed to process shared tasks: \(error)")
+            AppLog.debug("❌ [AstridApp] Failed to process shared tasks: \(error)")
         }
     }
 
     private func updateAppBadge() async {
-        print("📛 [AstridApp] Updating app badge...")
+        AppLog.debug("📛 [AstridApp] Updating app badge...")
         let taskService = TaskService.shared
         await BadgeManager.shared.updateBadge(with: taskService.tasks)
     }
 
     private func processSingleSharedTask(_ item: SharedTaskItem) async {
         let taskData = item.data
-        print("🔄 [AstridApp] Processing shared task: \(taskData.title)")
+        AppLog.debug("🔄 [AstridApp] Processing shared task: \(taskData.title)")
 
         do {
             // Update status to creating
@@ -434,14 +434,14 @@ struct AstridApp: App {
                 repeating: nil
             )
 
-            print("✅ [AstridApp] Task created: \(createdTask.id)")
+            AppLog.debug("✅ [AstridApp] Task created: \(createdTask.id)")
 
             // If there's a file attachment, upload it
             if let fileURL = taskData.fileURL,
                let fileName = taskData.fileName,
                let mimeType = taskData.mimeType {
 
-                print("📤 [AstridApp] Uploading attachment: \(fileName)")
+                AppLog.debug("📤 [AstridApp] Uploading attachment: \(fileName)")
 
                 // Update status to uploading
                 try ShareDataManager.shared.updateTaskStatus(
@@ -459,7 +459,7 @@ struct AstridApp: App {
                     taskId: createdTask.id
                 )
 
-                print("✅ [AstridApp] Attachment uploaded successfully")
+                AppLog.debug("✅ [AstridApp] Attachment uploaded successfully")
             }
 
             // Mark as completed
@@ -469,10 +469,10 @@ struct AstridApp: App {
                 createdTaskId: createdTask.id
             )
 
-            print("✅ [AstridApp] Shared task processed successfully")
+            AppLog.debug("✅ [AstridApp] Shared task processed successfully")
 
         } catch {
-            print("❌ [AstridApp] Failed to process shared task: \(error)")
+            AppLog.debug("❌ [AstridApp] Failed to process shared task: \(error)")
 
             // Mark as failed
             try? ShareDataManager.shared.updateTaskStatus(
@@ -485,20 +485,20 @@ struct AstridApp: App {
 
     private func connectSSE() async {
         guard authManager.isAuthenticated else {
-            print("⚠️ [AstridApp] Not authenticated - skipping SSE connection")
+            AppLog.debug("⚠️ [AstridApp] Not authenticated - skipping SSE connection")
             return
         }
 
         // Only connect SSE if we have a real server session (not local-only mode)
         let hasCookie = (try? KeychainService.shared.getSessionCookie()) != nil
         guard hasCookie else {
-            print("⚠️ [AstridApp] No session cookie - skipping SSE (local-only mode)")
+            AppLog.debug("⚠️ [AstridApp] No session cookie - skipping SSE (local-only mode)")
             return
         }
 
-        print("📡 [AstridApp] Establishing SSE connection...")
+        AppLog.debug("📡 [AstridApp] Establishing SSE connection...")
         await SSEClient.shared.connect()
-        print("✅ [AstridApp] SSE connection established")
+        AppLog.debug("✅ [AstridApp] SSE connection established")
     }
 
     /// Updates all UIKit windows to use the specified user interface style
@@ -519,7 +519,7 @@ struct AstridApp: App {
             if let windowScene = scene as? UIWindowScene {
                 for window in windowScene.windows {
                     window.overrideUserInterfaceStyle = style
-                    print("🎨 [AstridApp] Window override set to: \(style.rawValue) (\(theme.displayName))")
+                    AppLog.debug("🎨 [AstridApp] Window override set to: \(style.rawValue) (\(theme.displayName))")
                 }
             }
         }
