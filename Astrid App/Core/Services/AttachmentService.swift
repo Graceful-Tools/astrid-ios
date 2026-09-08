@@ -8,77 +8,6 @@ import AppKit   // PlatformImage is NSImage on macOS — the thumbnail seed deco
 import UniformTypeIdentifiers
 import Combine
 
-/// Info about a locally cached attachment pending upload
-struct PendingAttachment: Codable {
-    let tempFileId: String
-    let localPath: String
-    let fileName: String
-    let mimeType: String
-    let fileSize: Int
-    let uploadContext: [String: String]  // e.g. {"taskId": "..."} or {"listId": "..."}
-    var realFileId: String?  // Set when upload completes
-    var uploadStatus: UploadStatus
-
-    /// Backward compatibility — reads taskId from context
-    var taskId: String { uploadContext["taskId"] ?? "" }
-
-    enum UploadStatus: String, Codable {
-        case pending
-        case uploading
-        case completed
-        case failed
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case tempFileId, localPath, fileName, mimeType, fileSize
-        case uploadContext, realFileId, uploadStatus
-        case taskId  // Legacy field for decoding old data
-    }
-
-    init(tempFileId: String, localPath: String, fileName: String, mimeType: String, fileSize: Int, uploadContext: [String: String], realFileId: String? = nil, uploadStatus: UploadStatus) {
-        self.tempFileId = tempFileId
-        self.localPath = localPath
-        self.fileName = fileName
-        self.mimeType = mimeType
-        self.fileSize = fileSize
-        self.uploadContext = uploadContext
-        self.realFileId = realFileId
-        self.uploadStatus = uploadStatus
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        tempFileId = try container.decode(String.self, forKey: .tempFileId)
-        localPath = try container.decode(String.self, forKey: .localPath)
-        fileName = try container.decode(String.self, forKey: .fileName)
-        mimeType = try container.decode(String.self, forKey: .mimeType)
-        fileSize = try container.decode(Int.self, forKey: .fileSize)
-        realFileId = try container.decodeIfPresent(String.self, forKey: .realFileId)
-        uploadStatus = try container.decode(UploadStatus.self, forKey: .uploadStatus)
-
-        // Try new context dict first, fall back to legacy taskId string
-        if let ctx = try? container.decode([String: String].self, forKey: .uploadContext) {
-            uploadContext = ctx
-        } else if let legacyTaskId = try? container.decode(String.self, forKey: .taskId) {
-            uploadContext = ["taskId": legacyTaskId]
-        } else {
-            uploadContext = [:]
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(tempFileId, forKey: .tempFileId)
-        try container.encode(localPath, forKey: .localPath)
-        try container.encode(fileName, forKey: .fileName)
-        try container.encode(mimeType, forKey: .mimeType)
-        try container.encode(fileSize, forKey: .fileSize)
-        try container.encode(uploadContext, forKey: .uploadContext)
-        try container.encodeIfPresent(realFileId, forKey: .realFileId)
-        try container.encode(uploadStatus, forKey: .uploadStatus)
-    }
-}
-
 @MainActor
 class AttachmentService: ObservableObject {
     static let shared = AttachmentService(apiClient: APIClient.shared)
@@ -618,6 +547,34 @@ class AttachmentService: ObservableObject {
         uploadProgress = 1.0
 
         return uploadUrlResponse.fileId
+    }
+
+    /// Download a URL-backed attachment to a local file Quick Look can open.
+    ///
+    /// The `SecureFile` equivalent is `prepareFilesForPreview`; this is the older `Attachment`
+    /// shape, which the Mac's attachment list still uses (task AITD-353). Each preview gets its
+    /// own directory, so two attachments sharing a name cannot share a path — the same rule
+    /// `DownloadedAttachmentCache.previewURL` applies for secure files (AITD-344).
+    func previewURL(for attachment: Attachment) async throws -> URL {
+        let data = try await downloadAttachment(attachment)
+        let fileURL = downloadCache.previewURL(fileId: attachment.id, fileName: attachment.name)
+        try data.write(to: fileURL)
+        return fileURL
+    }
+
+    /// Upload one file through the server and return its `/api/v1/secure-files/<id>` path.
+    ///
+    /// The public door onto `uploadViaServer` (task AITD-353). `ImagePickerView` had its own copy
+    /// of that multipart request — same body, same endpoint, same response shape — which meant
+    /// AITD-338's hardening reached the original and not the duplicate. A view should ask for an
+    /// upload, not compose one.
+    func uploadSecureFile(data: Data,
+                          fileName: String,
+                          mimeType: String,
+                          context: [String: String]) async throws -> String {
+        let fileId = try await uploadViaServer(
+            fileData: data, fileName: fileName, mimeType: mimeType, context: context)
+        return "/api/v1/secure-files/\(fileId)"
     }
 
     /// Upload via server (for smaller files)

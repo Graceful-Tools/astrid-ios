@@ -597,23 +597,17 @@ struct MacTaskDetailView: View {
 
     /// Download the attachment to a temp file (Quick Look needs a local URL), then present it.
     private func previewAttachment(_ a: Attachment) {
-        guard let remote = URL(string: a.url) else { return }
         previewLoadingId = a.id
-        let name = a.name
         _Concurrency.Task {
             defer { previewLoadingId = nil }
             do {
-                let (data, _) = try await URLSession.shared.data(from: remote)
-                let tmp = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-                // AITD-312: `name` is server-supplied; the UUID directory alone does not contain it.
-                let fileURL = AttachmentFileName.temporaryURL(in: tmp, for: name)
-                try data.write(to: fileURL)
-                previewURL = fileURL
+                // The service downloads it and hands back a local file (AITD-353). This used to
+                // fetch over `URLSession.shared`, which meant no app timeout, no UI-test cookie
+                // isolation, and a view doing its own networking.
+                previewURL = try await AttachmentService.shared.previewURL(for: a)
             } catch {
                 // Fall back to opening in the default app if the download/preview fails.
-                PlatformApplication.open(remote)
+                if let remote = URL(string: a.url) { PlatformApplication.open(remote) }
             }
         }
     }
