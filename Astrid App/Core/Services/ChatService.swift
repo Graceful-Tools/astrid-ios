@@ -235,7 +235,9 @@ class ChatService: ObservableObject {
                     self.hasMore[channelId] = response.hasMore
                 }
 
-                try await self.saveMessagesToCoreData(response.messages, channelId: channelId)
+                try await self.saveMessagesToCoreData(
+                    response.messages, channelId: channelId,
+                    prune: Self.prunePage(response.messages, isFirstPage: true, hasMore: response.hasMore))
 
                 await MainActor.run {
                     let pendingMessages = self.cachedMessages[channelId]?.filter { $0.id.hasPrefix("temp_") } ?? []
@@ -285,7 +287,9 @@ class ChatService: ObservableObject {
         hasMore[channelId] = response.hasMore
 
         // Save to CoreData
-        try await saveMessagesToCoreData(response.messages, channelId: channelId)
+        try await saveMessagesToCoreData(
+            response.messages, channelId: channelId,
+            prune: Self.prunePage(response.messages, isFirstPage: false, hasMore: response.hasMore))
 
         // Prepend to cache
         var current = cachedMessages[channelId] ?? []
@@ -358,7 +362,9 @@ class ChatService: ObservableObject {
         cachedMessages[channelId] = merged
         lastFetchTime[channelId] = Date()
 
-        try await saveMessagesToCoreData(serverMessages, channelId: channelId)
+        try await saveMessagesToCoreData(
+            serverMessages, channelId: channelId,
+            prune: Self.prunePage(serverMessages, isFirstPage: true, hasMore: response.hasMore))
         NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
         return merged
     }
@@ -402,7 +408,9 @@ class ChatService: ObservableObject {
             guard let self = self else { return }
             do {
                 let response = try await self.apiClient.getChatMessages(channelId: channelId)
-                try await self.saveMessagesToCoreData(response.messages, channelId: channelId)
+                try await self.saveMessagesToCoreData(
+                    response.messages, channelId: channelId,
+                    prune: Self.prunePage(response.messages, isFirstPage: true, hasMore: response.hasMore))
                 await MainActor.run {
                     self.hasMore[channelId] = response.hasMore
                     let pendingMessages = self.cachedMessages[channelId]?.filter { $0.id.hasPrefix("temp_") } ?? []
@@ -839,7 +847,25 @@ class ChatService: ObservableObject {
 // MARK: - CoreData Persistence
 
 extension ChatService {
-    private func saveMessagesToCoreData(_ messages: [ChatMessage], channelId: String) async throws {
+    /// Build the pruning window for a fetch, or nil when the fetch cannot speak for one.
+    ///
+    /// `isFirstPage` means no `before` cursor was sent. Combined with `hasMore == false` that
+    /// makes the response the entire channel, which is the only case where absence anywhere is
+    /// evidence of deletion — see `ChatMessageCachePruner` (AITD-354).
+    private static func prunePage(_ messages: [ChatMessage],
+                                  isFirstPage: Bool,
+                                  hasMore: Bool) -> ChatMessageCachePruner.Page {
+        let dates = messages.compactMap(\.createdAt).sorted()
+        return ChatMessageCachePruner.Page(
+            ids: Set(messages.map(\.id)),
+            oldest: dates.first,
+            newest: dates.last,
+            coversWholeChannel: isFirstPage && !hasMore)
+    }
+
+    private func saveMessagesToCoreData(_ messages: [ChatMessage],
+                                        channelId: String,
+                                        prune page: ChatMessageCachePruner.Page? = nil) async throws {
         await coreDataManager.waitForStoreLoad()
 
         try await coreDataManager.saveInBackground { context in
@@ -872,6 +898,26 @@ extension ChatService {
                     cdMessage.syncStatus = "synced"
                     cdMessage.lastSyncedAt = Date()
                 }
+            }
+
+            // Drop what the server no longer has, in the same transaction as the upsert
+            // (AITD-354). The RULE is `ChatMessageCachePruner` rather than a condition written
+            // here, because the dangerous halves — never taking an undelivered write, and never
+            // taking history that is merely outside this page's window — are asserted there.
+            guard let page else { return }
+            let channelRequest = CDChatMessage.fetchRequest()
+            channelRequest.predicate = NSPredicate(format: "channelId == %@", channelId)
+            let cachedForChannel = try context.fetch(channelRequest)
+            let stale = Set(ChatMessageCachePruner.idsToPrune(
+                page: page,
+                cached: cachedForChannel.map {
+                    ChatMessageCachePruner.CachedRow(id: $0.id,
+                                                     syncStatus: $0.syncStatus,
+                                                     createdAt: $0.createdAt)
+                }))
+            guard !stale.isEmpty else { return }
+            for cdMessage in cachedForChannel where stale.contains(cdMessage.id) {
+                context.delete(cdMessage)
             }
         }
     }
