@@ -165,61 +165,19 @@ struct AttachmentThumbnail: View {
             return
         }
 
-        // Check if this is a local temp file (not yet uploaded)
-        if file.id.hasPrefix("temp_") {
-            if let localData = attachmentService.getLocalFileData(for: file.id) {
-                // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-                let image = await MainActor.run { UIImage(data: localData) }
-                if let image {
-                    fullImage = image
-                    onEdit?(file, image)
-                }
-            }
+        // The bytes, wherever they already are: staged local copy, disk cache, then the server.
+        // That ladder is `AttachmentService.fileData(for:)` — this view used to spell it out for
+        // itself, over `URLSession.shared`, which skipped the app timeout, the path-safety
+        // backstop and UI-test cookie isolation (AITD-353).
+        guard let data = await attachmentService.fileData(for: file.id) else {
+            AppLog.debug("❌ [AttachmentThumbnail] No data for editing: \(file.id)")
             return
         }
 
-        // Check disk cache first
-        if let cachedData = attachmentService.getCachedDownload(for: file.id) {
-            // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-            let image = await MainActor.run { UIImage(data: cachedData) }
-            if let image {
-                fullImage = image
-                onEdit?(file, image)
-            }
-            return
-        }
-
-        // Download from server
-        do {
-            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
-            guard let url = URL(string: infoURL) else { return }
-
-            var request = URLRequest(url: url)
-            AnalyticsPlatformHeader.apply(to: &request)
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            }
-
-            let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else { return }
-
-            struct FileInfo: Codable { let url: String }
-            let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
-            guard let downloadURL = URL(string: fileInfo.url) else { return }
-
-            let (fileData, _) = try await URLSession.shared.data(from: downloadURL)
-
-            // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-            let image = await MainActor.run { UIImage(data: fileData) }
-            if let image {
-                // Cache for future use
-                attachmentService.cacheDownload(fileId: file.id, data: fileData)
-                fullImage = image
-                onEdit?(file, image)
-            }
-        } catch {
-            AppLog.debug("❌ [AttachmentThumbnail] Failed to load image for editing: \(error)")
-        }
+        // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
+        guard let image = await MainActor.run(body: { UIImage(data: data) }) else { return }
+        fullImage = image
+        onEdit?(file, image)
     }
 
     // MARK: - Image Properties
@@ -241,134 +199,45 @@ struct AttachmentThumbnail: View {
     private func loadThumbnail() async {
         guard isImage || isVideo || isPDF else { return }
 
-        // Check in-memory cache first
+        // In-memory first — this one is per-thumbnail and not the service's business.
         if let cached = ThumbnailCache.shared.get(file.id) {
             thumbnailImage = cached
             return
         }
 
-        // Check persistent disk cache (for offline viewing)
-        if let cachedData = attachmentService.getCachedDownload(for: file.id) {
-            AppLog.debug("✅ [AttachmentThumbnail] Found in disk cache: \(file.id)")
-
-            if isImage {
-                // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-                let image = await MainActor.run { UIImage(data: cachedData) }
-                if let image {
-                    thumbnailImage = image
-                    ThumbnailCache.shared.set(image, for: file.id)
-                    return
-                }
-            } else if isVideo || isPDF {
-                // Generate thumbnail from cached data
-                if let thumbnail = await generateThumbnail(from: cachedData, fileName: file.name) {
-                    thumbnailImage = thumbnail
-                    ThumbnailCache.shared.set(thumbnail, for: file.id)
-                    return
-                }
-            }
-        }
-
         isLoadingThumbnail = true
+        defer { isLoadingThumbnail = false }
 
         AppLog.debug("🖼️ [AttachmentThumbnail] Loading thumbnail for: \(file.name) (id: \(file.id))")
 
-        // Check if this is a local temp file (not yet uploaded)
-        if file.id.hasPrefix("temp_") {
-            AppLog.debug("🖼️ [AttachmentThumbnail] Loading from pending uploads cache...")
-            if let localData = attachmentService.getLocalFileData(for: file.id) {
-                if isImage {
-                    // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-                    let image = await MainActor.run { UIImage(data: localData) }
-                    if let image {
-                        thumbnailImage = image
-                        ThumbnailCache.shared.set(image, for: file.id)
-                    }
-                } else {
-                    if let thumbnail = await generateThumbnail(from: localData, fileName: file.name) {
-                        thumbnailImage = thumbnail
-                        ThumbnailCache.shared.set(thumbnail, for: file.id)
-                    }
-                }
-                isLoadingThumbnail = false
-                return
-            } else {
-                AppLog.debug("❌ [AttachmentThumbnail] Failed to load from pending cache")
-                isLoadingThumbnail = false
-                return
-            }
+        // A video can give up a poster frame from its signed URL without downloading the file at
+        // all, so it is worth asking for the URL before asking for the bytes. This is the one
+        // reason the view still needs `getSecureFileDownloadURL` rather than only `fileData`.
+        if isVideo, !file.id.hasPrefix("temp_"),
+           let downloadURL = try? await attachmentService.getSecureFileDownloadURL(for: file.id),
+           let thumbnail = await generateVideoThumbnail(from: downloadURL) {
+            thumbnailImage = thumbnail
+            ThumbnailCache.shared.set(thumbnail, for: file.id)
+            return
         }
 
-        // Load from server for uploaded files
-        do {
-            // Get the signed download URL from the API
-            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
-            guard let url = URL(string: infoURL) else {
-                isLoadingThumbnail = false
-                return
+        // Otherwise the bytes, from wherever they already are (AITD-353): the service walks the
+        // staged copy → disk cache → server ladder this view used to re-implement, and caches
+        // what it downloads, so the `cacheDownload` calls that used to live here are gone too.
+        guard let data = await attachmentService.fileData(for: file.id) else {
+            AppLog.debug("❌ [AttachmentThumbnail] No data for thumbnail: \(file.id)")
+            return
+        }
+
+        if isImage {
+            // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
+            if let image = await MainActor.run(body: { UIImage(data: data) }) {
+                thumbnailImage = image
+                ThumbnailCache.shared.set(image, for: file.id)
             }
-
-            var request = URLRequest(url: url)
-            AnalyticsPlatformHeader.apply(to: &request)
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            }
-
-            let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                isLoadingThumbnail = false
-                return
-            }
-
-            struct FileInfo: Codable { let url: String }
-            let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
-
-            guard let downloadURL = URL(string: fileInfo.url) else {
-                isLoadingThumbnail = false
-                return
-            }
-
-            // For videos, we can try to get a thumbnail without downloading the whole file
-            if isVideo {
-                if let thumbnail = await generateVideoThumbnail(from: downloadURL) {
-                    thumbnailImage = thumbnail
-                    ThumbnailCache.shared.set(thumbnail, for: file.id)
-                    isLoadingThumbnail = false
-                    return
-                }
-            }
-
-            // For images and PDFs, we need the data
-            let (fileData, _) = try await URLSession.shared.data(from: downloadURL)
-
-            if isImage {
-                // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
-                let image = await MainActor.run { UIImage(data: fileData) }
-                if let image {
-                    thumbnailImage = image
-                    ThumbnailCache.shared.set(image, for: file.id)
-                    attachmentService.cacheDownload(fileId: file.id, data: fileData)
-                }
-            } else if isPDF {
-                if let thumbnail = await generateThumbnail(from: fileData, fileName: file.name) {
-                    thumbnailImage = thumbnail
-                    ThumbnailCache.shared.set(thumbnail, for: file.id)
-                    attachmentService.cacheDownload(fileId: file.id, data: fileData)
-                }
-            } else if isVideo {
-                // If remote thumbnail failed, try from downloaded data
-                if let thumbnail = await generateThumbnail(from: fileData, fileName: file.name) {
-                    thumbnailImage = thumbnail
-                    ThumbnailCache.shared.set(thumbnail, for: file.id)
-                    attachmentService.cacheDownload(fileId: file.id, data: fileData)
-                }
-            }
-
-            isLoadingThumbnail = false
-
-        } catch {
-            AppLog.debug("❌ [AttachmentThumbnail] Failed to load thumbnail: \(error)")
-            isLoadingThumbnail = false
+        } else if let thumbnail = await generateThumbnail(from: data, fileName: file.name) {
+            thumbnailImage = thumbnail
+            ThumbnailCache.shared.set(thumbnail, for: file.id)
         }
     }
 
@@ -412,98 +281,18 @@ struct AttachmentThumbnail: View {
 
         AppLog.debug("📥 [AttachmentThumbnail] Opening file: \(file.name) (id: \(file.id))")
 
-        // Check if this is a local temp file (not yet uploaded)
-        if file.id.hasPrefix("temp_") {
-            AppLog.debug("📥 [AttachmentThumbnail] Loading preview from pending uploads...")
-            if let localData = attachmentService.getLocalFileData(for: file.id) {
-                let tempDir = FileManager.default.temporaryDirectory
-                let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
-
-                do {
-                    try localData.write(to: tempFileURL)
-                    AppLog.debug("✅ [AttachmentThumbnail] Local file ready for preview")
-                    quickLookURL = tempFileURL
-                } catch {
-                    AppLog.debug("❌ [AttachmentThumbnail] Failed to write temp file: \(error)")
-                }
-            } else {
-                AppLog.debug("❌ [AttachmentThumbnail] Failed to load from pending cache")
-            }
+        // The SAME preparer the Mac's comment attachments use — staged local copy, disk cache,
+        // then the server, ending in a file Quick Look can open (AITD-353). Beyond dropping the
+        // duplicated ladder, this inherits AITD-344's per-file preview directories: the temp path
+        // this view used to build was keyed on the file NAME, so two attachments both called
+        // "photo.png" resolved to one path and overwrote each other.
+        let prepared = await attachmentService.prepareFilesForPreview(files: [file])
+        guard let first = prepared.first else {
+            AppLog.debug("❌ [AttachmentThumbnail] Could not prepare \(file.id) for preview")
             return
         }
-
-        // Check disk cache first (for offline viewing)
-        if let cachedURL = attachmentService.getCachedFileURL(for: file.id, fileName: file.name) {
-            AppLog.debug("✅ [AttachmentThumbnail] Opening from disk cache: \(file.id)")
-            quickLookURL = cachedURL
-            return
-        }
-
-        // Download from server for uploaded files
-        do {
-            // Get the signed download URL from the API
-            let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
-            guard let url = URL(string: infoURL) else {
-                AppLog.debug("❌ [AttachmentThumbnail] Invalid URL")
-                return
-            }
-
-            var request = URLRequest(url: url)
-            AnalyticsPlatformHeader.apply(to: &request)
-
-            // Add session cookie for authentication
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-            }
-
-            // Get the signed URL
-            let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = infoResponse as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                AppLog.debug("❌ [AttachmentThumbnail] Failed to get file info: \(infoResponse)")
-                return
-            }
-
-            struct FileInfo: Codable {
-                let url: String
-                let fileName: String
-                let mimeType: String
-                let fileSize: Int
-            }
-
-            let decoder = JSONDecoder()
-            let fileInfo = try decoder.decode(FileInfo.self, from: infoData)
-
-            AppLog.debug("📥 [AttachmentThumbnail] Got signed URL, downloading...")
-
-            // Download from the signed URL
-            guard let downloadURL = URL(string: fileInfo.url) else {
-                AppLog.debug("❌ [AttachmentThumbnail] Invalid download URL")
-                return
-            }
-
-            let (fileData, _) = try await URLSession.shared.data(from: downloadURL)
-
-            // Cache to disk for offline viewing
-            attachmentService.cacheDownload(fileId: file.id, data: fileData)
-
-            // Save to temporary directory with proper filename for QuickLook
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
-
-            try fileData.write(to: tempFileURL)
-
-            AppLog.debug("✅ [AttachmentThumbnail] File downloaded and cached: \(tempFileURL.path)")
-
-            // Show QuickLook preview
-            quickLookURL = tempFileURL
-
-        } catch {
-            AppLog.debug("❌ [AttachmentThumbnail] Failed to download file: \(error)")
-        }
+        quickLookURL = first.url
     }
-
     private var fileIcon: String {
         let mimeType = file.mimeType.lowercased()
 

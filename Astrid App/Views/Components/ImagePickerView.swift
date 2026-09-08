@@ -390,52 +390,16 @@ struct ImagePickerView: View {
     }
 
     private func uploadImage(data: Data) async throws -> String {
-        // Create multipart form data
-        let boundary = UUID().uuidString
-        var body = Data()
-
-        // Add file data
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"list-image.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n".data(using: .utf8)!)
-
-        // Add context
-        let contextJSON = "{\"listId\":\"\(list.id)\"}"
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"context\"\r\n\r\n".data(using: .utf8)!)
-        body.append(contextJSON.data(using: .utf8)!)
-        body.append("\r\n".data(using: .utf8)!)
-
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-        // Make request
-        guard let url = URL(string: "\(Constants.API.baseURL)/api/v1/secure-upload/request-upload") else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        AnalyticsPlatformHeader.apply(to: &request)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
-
-        // Add session cookie for authentication
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-        }
-
-        let (responseData, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-
-        // Parse response
-        let json = try JSONDecoder().decode(SecureFileUploadResponse.self, from: responseData)
-        return "/api/v1/secure-files/\(json.fileId)"
+        // The multipart request used to be composed here, byte for byte, against
+        // `URLSession.shared` — a second copy of `AttachmentService.uploadViaServer` that
+        // AITD-338's hardening never reached, and a JSON context built by string interpolation
+        // (AITD-353). The service owns both now.
+        try await AttachmentService.shared.uploadSecureFile(
+            data: data,
+            fileName: "list-image.jpg",
+            mimeType: "image/jpeg",
+            context: ["listId": list.id]
+        )
     }
 }
 
