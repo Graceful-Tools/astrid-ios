@@ -76,11 +76,28 @@ public enum PlatformApplication {
     /// Window to anchor ASAuthorization / ASWebAuthenticationSession UI to.
     @MainActor public static func presentationAnchor() -> ASPresentationAnchor {
         #if canImport(UIKit)
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first else {
-            fatalError("No window available")
+        // `connectedScenes` is a SET and the app declares `UIApplicationSupportsMultipleScenes`,
+        // so `.first` used to be an arbitrary scene — possibly backgrounded, possibly windowless,
+        // possibly not a `UIWindowScene`. Starting a sign-in from a second iPad window then hit a
+        // `fatalError` and terminated the app (AITD-347). Ask the tested rule instead, which
+        // prefers the scene the user is actually looking at.
+        let candidates = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .map { scene in
+                PresentationAnchorSelection.SceneCandidate(
+                    activationState: scene.activationState,
+                    windows: scene.windows,
+                    keyWindow: scene.windows.first(where: { $0.isKeyWindow })
+                )
+            }
+        if let window = PresentationAnchorSelection.choose(from: candidates) {
+            return window
         }
-        return window
+        // Genuinely no window. Presenting will fail, but the macOS branch below has always
+        // fallen back rather than trapping and it is the right call on both: a sheet that does
+        // not appear is recoverable, and killing the app during sign-in is not.
+        AppLog.debug("⚠️ [Platform] No window to anchor to — presentation will not appear")
+        return UIWindow()
         #elseif canImport(AppKit)
         // Prefer a real, presentable window. `windows.first` is non-deterministic in a
         // multi-scene app (can be the menu-bar-extra/hidden window), and a throwaway
