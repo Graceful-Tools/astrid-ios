@@ -190,6 +190,19 @@ final class GitHubSyncService: ObservableObject {
         var byRemoteId = Dictionary(taskLinks.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
 
+        // The persisted comment maps, captured HERE — from the one fetch — because the upserts
+        // below replace entries in `byRemoteId` with locally-built DTOs that do not carry the
+        // server-merged `commentMap`. That is what the comments phase used to re-fetch the whole
+        // link set for, once per linked list on every pass (task AITD-343).
+        //
+        // Capturing early is equivalent, not merely close: `commentMap` is only ever written by
+        // `syncComments`, which runs AFTER this point, so nothing between here and there can
+        // change it. Links created during the pass (`taskLinks.append` below) are new twins with
+        // no map yet, and read as an empty entry list either way.
+        let commentMaps = Dictionary(
+            taskLinks.map { ($0.remoteId, CommentSyncPlanner.decodeEntries($0.metadata?["commentMap"])) },
+            uniquingKeysWith: { a, _ in a })
+
         // Refresh the delete-capture cache for this container's tasks.
         // One persist for the whole pass, as before — `merge` is the explicit form of what the
         // hoisted local copy was doing by hand.
@@ -651,12 +664,7 @@ final class GitHubSyncService: ObservableObject {
         }
 
         // ── COMMENTS: two-way per linked task ──────────────────────────────
-        // Original taskLinks carry the persisted commentMap (fresh pull upserts
-        // send issue metadata; the server merges, but local DTO copies don't).
-        let commentMaps = Dictionary(
-            (try? await apiClient.getGitHubTaskLinks(listId: link.astridListId).links.map {
-                ($0.remoteId, CommentSyncPlanner.decodeEntries($0.metadata?["commentMap"]))
-            }) ?? [], uniquingKeysWith: { a, _ in a })
+        // `commentMaps` came off the single task-link fetch at the top of this pass.
         for (remoteId, dto) in byRemoteId {
             let entries = commentMaps[remoteId] ?? []
             let mappedLocalIds = Set(entries.map(\.localId))
