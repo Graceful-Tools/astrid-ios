@@ -303,8 +303,9 @@ class AttachmentService: ObservableObject {
 
     /// Get the signed download URL for a secure file
     func getSecureFileDownloadURL(for fileId: String) async throws -> URL? {
-        let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(fileId)?info=true"
-        guard let url = URL(string: infoURL) else { return nil }
+        guard let url = try? AstridHTTP.apiURL("/api/v1/secure-files/\(fileId)",
+                                               query: [URLQueryItem(name: "info", value: "true")])
+        else { return nil }
         
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
@@ -312,7 +313,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
+        let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
         guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             return nil
         }
@@ -342,7 +343,7 @@ class AttachmentService: ObservableObject {
         // 3. Ask the server for a signed URL, then fetch it and cache the result.
         do {
             guard let downloadURL = try await getSecureFileDownloadURL(for: fileId) else { return nil }
-            let (data, _) = try await URLSession.shared.data(from: downloadURL)
+            let (data, _) = try await AstridHTTP.session.data(from: downloadURL)
             cacheDownload(fileId: fileId, data: data)
             return data
         } catch {
@@ -375,8 +376,9 @@ class AttachmentService: ObservableObject {
             
             // 3. Download if not cached
             do {
-                let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
-                guard let url = URL(string: infoURL) else { continue }
+                guard let url = try? AstridHTTP.apiURL("/api/v1/secure-files/\(file.id)",
+                                                       query: [URLQueryItem(name: "info", value: "true")])
+                else { continue }
                 
                 var request = URLRequest(url: url)
                 AnalyticsPlatformHeader.apply(to: &request)
@@ -384,14 +386,14 @@ class AttachmentService: ObservableObject {
                     request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
                 }
                 
-                let (infoData, infoResponse) = try await URLSession.shared.data(for: request)
+                let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
                 guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else { continue }
                 
                 struct FileInfo: Codable { let url: String }
                 let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
                 
                 guard let downloadURL = URL(string: fileInfo.url) else { continue }
-                let (fileData, _) = try await URLSession.shared.data(from: downloadURL)
+                let (fileData, _) = try await AstridHTTP.session.data(from: downloadURL)
                 
                 cacheDownload(fileId: file.id, data: fileData)
                 
@@ -471,14 +473,14 @@ class AttachmentService: ObservableObject {
 
         // Add file data
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(AstridHTTP.multipartFilename(fileName))\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         body.append(fileData)
         body.append("\r\n".data(using: .utf8)!)
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         // Create request
-        let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments")!
+        let url = try AstridHTTP.apiURL("/api/v1/tasks/\(taskId)/attachments")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -491,7 +493,7 @@ class AttachmentService: ObservableObject {
         }
 
         // Upload with progress - body is passed here, not set on request.httpBody
-        let (data, response) = try await URLSession.shared.upload(for: request, from: body)
+        let (data, response) = try await AstridHTTP.session.upload(for: request, from: body)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -544,7 +546,7 @@ class AttachmentService: ObservableObject {
         // Step 1: Get upload URL and token from server
         AppLog.debug("📡 [AttachmentService] Step 1: Requesting upload URL...")
 
-        let getUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/get-upload-url")!
+        let getUrlEndpoint = try AstridHTTP.apiURL("/api/v1/secure-upload/get-upload-url")
         var getUrlRequest = URLRequest(url: getUrlEndpoint)
         AnalyticsPlatformHeader.apply(to: &getUrlRequest)
         getUrlRequest.httpMethod = "POST"
@@ -567,7 +569,7 @@ class AttachmentService: ObservableObject {
         ]
         getUrlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        let (urlData, urlResponse) = try await URLSession.shared.data(for: getUrlRequest)
+        let (urlData, urlResponse) = try await AstridHTTP.session.data(for: getUrlRequest)
 
         guard let httpResponse = urlResponse as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -594,7 +596,7 @@ class AttachmentService: ObservableObject {
 
         // No platform header: Vercel Blob is a third party, and our analytics contract is
         // with our own server only (AITD-301).
-        var blobRequest = URLRequest(url: URL(string: uploadUrlResponse.uploadUrl)!)
+        var blobRequest = URLRequest(url: try AstridHTTP.remoteURL(uploadUrlResponse.uploadUrl))
         blobRequest.httpMethod = "PUT"
         // Vercel Blob expects the client token in the Authorization header
         blobRequest.setValue("Bearer \(uploadUrlResponse.uploadToken)", forHTTPHeaderField: "Authorization")
@@ -638,7 +640,7 @@ class AttachmentService: ObservableObject {
 
         // Add file field
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(AstridHTTP.multipartFilename(fileName))\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         body.append(fileData)
         body.append("\r\n".data(using: .utf8)!)
@@ -653,7 +655,7 @@ class AttachmentService: ObservableObject {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         // Create request to secure upload endpoint
-        let url = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/request-upload")!
+        let url = try AstridHTTP.apiURL("/api/v1/secure-upload/request-upload")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -670,7 +672,7 @@ class AttachmentService: ObservableObject {
         PrivacyLogger.request("AttachmentService", method: "POST", url: url)
 
         // Upload - body is passed here, not set on request.httpBody
-        let (data, response) = try await URLSession.shared.upload(for: request, from: body)
+        let (data, response) = try await AstridHTTP.session.upload(for: request, from: body)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid response type")
@@ -714,7 +716,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await AstridHTTP.session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -746,7 +748,7 @@ class AttachmentService: ObservableObject {
 
         // Step 1: Request upload URL from server
         AppLog.debug("📤 [AttachmentService] Step 1: Getting upload URL...")
-        let uploadUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/upload-url")!
+        let uploadUrlEndpoint = try AstridHTTP.apiURL("/api/v1/secure-files/\(fileId)/upload-url")
         var uploadUrlRequest = URLRequest(url: uploadUrlEndpoint)
         AnalyticsPlatformHeader.apply(to: &uploadUrlRequest)
         uploadUrlRequest.httpMethod = "POST"
@@ -757,7 +759,7 @@ class AttachmentService: ObservableObject {
             "fileSize": newFileData.count
         ])
 
-        let (uploadUrlData, uploadUrlResponse) = try await URLSession.shared.data(for: uploadUrlRequest)
+        let (uploadUrlData, uploadUrlResponse) = try await AstridHTTP.session.data(for: uploadUrlRequest)
 
         guard let httpResponse = uploadUrlResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid response type")
@@ -796,7 +798,7 @@ class AttachmentService: ObservableObject {
             blobRequest.setValue(value, forHTTPHeaderField: key)
         }
 
-        let (blobData, blobResponse) = try await URLSession.shared.upload(for: blobRequest, from: newFileData)
+        let (blobData, blobResponse) = try await AstridHTTP.session.upload(for: blobRequest, from: newFileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid blob response type")
@@ -822,7 +824,7 @@ class AttachmentService: ObservableObject {
 
         // Step 3: Confirm upload with our server
         AppLog.debug("📤 [AttachmentService] Step 3: Confirming upload...")
-        let confirmEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/confirm-upload")!
+        let confirmEndpoint = try AstridHTTP.apiURL("/api/v1/secure-files/\(fileId)/confirm-upload")
         var confirmRequest = URLRequest(url: confirmEndpoint)
         AnalyticsPlatformHeader.apply(to: &confirmRequest)
         confirmRequest.httpMethod = "POST"
@@ -835,7 +837,7 @@ class AttachmentService: ObservableObject {
             "oldBlobUrl": uploadUrlInfo.oldBlobUrl ?? ""
         ])
 
-        let (confirmData, confirmResponse) = try await URLSession.shared.data(for: confirmRequest)
+        let (confirmData, confirmResponse) = try await AstridHTTP.session.data(for: confirmRequest)
 
         guard let confirmHttpResponse = confirmResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid confirm response type")
@@ -890,7 +892,7 @@ class AttachmentService: ObservableObject {
     // MARK: - Delete
 
     func deleteAttachment(taskId: String, attachmentId: String) async throws {
-        let url = URL(string: Constants.API.baseURL + "/api/v1/tasks/\(taskId)/attachments/\(attachmentId)")!
+        let url = try AstridHTTP.apiURL("/api/v1/tasks/\(taskId)/attachments/\(attachmentId)")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "DELETE"
@@ -900,7 +902,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await AstridHTTP.session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {

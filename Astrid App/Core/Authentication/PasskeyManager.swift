@@ -211,7 +211,7 @@ class PasskeyManager: NSObject, ObservableObject {
     // skipped the WebAuthn paths.
 
     func getPasskeys() async throws -> [PasskeyInfo] {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/passkeys")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "GET"
@@ -222,7 +222,7 @@ class PasskeyManager: NSObject, ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -234,7 +234,8 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     func deletePasskey(id: String) async throws {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys?id=\(id)")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/passkeys",
+                                        query: [URLQueryItem(name: "id", value: id)])
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "DELETE"
@@ -244,7 +245,7 @@ class PasskeyManager: NSObject, ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -253,7 +254,7 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     func renamePasskey(id: String, name: String) async throws {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/passkeys")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/passkeys")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "PATCH"
@@ -265,7 +266,7 @@ class PasskeyManager: NSObject, ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -276,7 +277,7 @@ class PasskeyManager: NSObject, ObservableObject {
     // MARK: - Private API Methods
 
     private func getRegistrationOptions(email: String) async throws -> RegistrationOptionsResponse {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/options")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/register/options")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -285,8 +286,7 @@ class PasskeyManager: NSObject, ObservableObject {
 
         // IMPORTANT: Use ephemeral session to avoid sending existing cookies
         // This ensures new account registration doesn't accidentally use an existing session
-        let ephemeralConfig = URLSessionConfiguration.ephemeral
-        let ephemeralSession = URLSession(configuration: ephemeralConfig)
+        let ephemeralSession = AstridHTTP.ephemeralSession()
 
         let (data, response) = try await ephemeralSession.data(for: request)
 
@@ -306,7 +306,7 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     private func getRegistrationOptionsAuthenticated() async throws -> RegistrationOptionsResponse {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/options")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/register/options")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -318,7 +318,7 @@ class PasskeyManager: NSObject, ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -330,12 +330,10 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     private func getAuthenticationOptions(email: String?) async throws -> AuthenticationOptionsResponse {
-        let urlString = "\(Constants.API.baseURL)/api/auth/webauthn/authenticate/options"
-        PrivacyLogger.request("PasskeyManager", method: "POST", url: URL(string: urlString))
-
-        guard let url = URL(string: urlString) else {
-            throw PasskeyError.serverError("Invalid URL: \(urlString)")
+        guard let url = try? AstridHTTP.apiURL("/api/auth/webauthn/authenticate/options") else {
+            throw PasskeyError.serverError("Invalid URL")
         }
+        PrivacyLogger.request("PasskeyManager", method: "POST", url: url)
 
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
@@ -349,7 +347,7 @@ class PasskeyManager: NSObject, ObservableObject {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await AstridHTTP.session.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw PasskeyError.serverError("Invalid response type")
@@ -373,7 +371,7 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     private func verifyRegistration(sessionId: String, result: PasskeyRegistrationResult, name: String) async throws -> VerifyResponse {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/register/verify")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/register/verify")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -403,7 +401,7 @@ class PasskeyManager: NSObject, ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: responseBody)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PasskeyError.serverError("Invalid response")
@@ -423,7 +421,7 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     private func verifyAuthentication(sessionId: String, result: PasskeyAuthenticationResult) async throws -> VerifyResponse {
-        let url = URL(string: "\(Constants.API.baseURL)/api/auth/webauthn/authenticate/verify")!
+        let url = try AstridHTTP.apiURL("/api/auth/webauthn/authenticate/verify")
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
         request.httpMethod = "POST"
@@ -456,7 +454,7 @@ class PasskeyManager: NSObject, ObservableObject {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: responseBody)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await AstridHTTP.session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PasskeyError.serverError("Invalid response")
