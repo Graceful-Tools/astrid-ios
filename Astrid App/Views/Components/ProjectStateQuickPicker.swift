@@ -18,6 +18,11 @@ import SwiftUI
 struct ProjectStateQuickPicker: View {
     let task: Task
     let onMoved: () -> Void
+    /// The task the move produced, handed back so a view holding its own snapshot can redraw
+    /// (task AITD-352). The board does not need this — it reads from the observed `TaskService`
+    /// — but `TaskDetailViewNew` keeps a `@State` copy taken when it opened, and without this
+    /// the chips kept lighting the pre-move column and the buttons looked dead.
+    var onTaskUpdated: ((Task) -> Void)? = nil
 
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
@@ -61,24 +66,21 @@ struct ProjectStateQuickPicker: View {
         let plan = planProjectColumnMove(task: task, column: column, lists: listService.lists)
         _Concurrency.Task {
             do {
-                switch plan {
-                case .none:
-                    break
-                case .setLists(let ids, let role):
-                    _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
+                // The sequencing (and ASTRID.md rule 2 — completion only ever through
+                // `completeTask`) lives in `ProjectStateMove`, shared rather than spelled here.
+                let moved = try await ProjectStateMove.apply(
+                    plan: plan,
+                    update: { ids, role in
+                        try await taskService.updateTask(taskId: task.id, listIds: ids,
                                                          task: task, statusRole: role)
-                case .complete(let ids, let role):
-                    _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                         task: task, statusRole: role)
-                    // Completion goes through `completeTask`, never `updateTask(completed:)` —
-                    // that is the only path that rolls a repeating task forward
-                    // (ASTRID.md rule 2).
-                    _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
-                case .uncomplete(let ids, let role):
-                    _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
-                    _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                         task: task, statusRole: role)
-                }
+                    },
+                    complete: { flag in
+                        try await taskService.completeTask(id: task.id, completed: flag, task: task)
+                    }
+                )
+                // `updateTask` / `completeTask` return the OPTIMISTIC task with nothing awaited,
+                // so this lands as fast as any other control in the detail view.
+                if let moved { onTaskUpdated?(moved) }
             } catch {
                 // The Outbox owns the retry; surfacing a failure here would be a second,
                 // contradictory story about whether the move happened.

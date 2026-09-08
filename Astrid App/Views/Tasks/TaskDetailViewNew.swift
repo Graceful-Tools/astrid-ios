@@ -546,7 +546,8 @@ struct TaskDetailViewNew: View {
                         // The SAME chips the project-mode quick changer offers, whose move goes
                         // through `planProjectColumnMove`, so this row and the board cannot come
                         // to disagree about which states exist or what moving to Done means.
-                        ProjectStateQuickPicker(task: task, onMoved: {})
+                        ProjectStateQuickPicker(task: task, onMoved: {},
+                                                onTaskUpdated: { self.task = $0 })
                     }
                 }
 
@@ -1568,7 +1569,8 @@ struct TaskDetailViewNew: View {
                         .font(Theme.Typography.caption1())
                         .foregroundColor(Theme.textMuted)
                     ProjectStateQuickPicker(task: task,
-                                            onMoved: { showingLeadingPicker = false })
+                                            onMoved: { showingLeadingPicker = false },
+                                            onTaskUpdated: { self.task = $0 })
                 }
             }
 
