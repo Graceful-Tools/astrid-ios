@@ -1,5 +1,8 @@
 import BackgroundTasks
 import Foundation
+import os
+
+private let logger = Logger(subsystem: Brand.logSubsystem, category: "BackgroundSync")
 
 /// Handles background sync using BGTaskScheduler
 /// Completes pending sync operations when the app goes to background
@@ -26,7 +29,15 @@ class BackgroundSyncHandler {
             forTaskWithIdentifier: Self.syncTaskIdentifier,
             using: nil
         ) { task in
-            self.handleSyncTask(task as! BGProcessingTask)
+            guard let processingTask = task as? BGProcessingTask else {
+                // The scheduler only hands back the type matching the request that
+                // was submitted, so this cannot happen — but a force-cast here would
+                // crash the app from a background launch, where nobody would see why.
+                logger.error("Background task was not a BGProcessingTask; nothing to sync")
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleSyncTask(processingTask)
         }
         AppLog.debug("✅ [BackgroundSync] Background task registered: \(Self.syncTaskIdentifier)")
     }
@@ -44,7 +55,13 @@ class BackgroundSyncHandler {
             try BGTaskScheduler.shared.submit(request)
             AppLog.debug("✅ [BackgroundSync] Scheduled background sync")
         } catch {
-            AppLog.debug("⚠️ [BackgroundSync] Failed to schedule: \(error)")
+            // Logged at Release level on purpose. This throw is how the app spent its
+            // whole life never syncing in the background: UIBackgroundModes was missing,
+            // BGTaskScheduler answered .unavailable every time, and a debug-only log
+            // meant no shipping build ever said so.
+            logger.error(
+                "Failed to schedule background sync: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
