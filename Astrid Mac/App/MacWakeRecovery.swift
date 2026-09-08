@@ -28,7 +28,7 @@ enum MacWakeRecovery {
             _Concurrency.Task { @MainActor in
                 guard shouldReconnect(isAuthenticated: AuthManager.shared.isAuthenticated,
                                       isOfflineOnly: ConnectionModeManager.shared.isOfflineOnly) else { return }
-                print("☀️ [Wake] Reviving live updates after sleep")
+                AppLog.debug("☀️ [Wake] Reviving live updates after sleep")
                 await SSEClient.shared.reconnectNow()
                 try? await SyncManager.shared.performQuickSync()
             }

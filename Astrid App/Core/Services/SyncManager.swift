@@ -69,11 +69,11 @@ class SyncManager: ObservableObject {
         case .start:
             break
         case .skip:
-            print("⏳ [SyncManager] Full sync already in progress, skipping")
+            AppLog.debug("⏳ [SyncManager] Full sync already in progress, skipping")
             return
         case .waitForInFlight:
             guard await waitForInFlightPass() else {
-                print("⏳ [SyncManager] In-flight sync outlasted the wait — refresh skipped")
+                AppLog.debug("⏳ [SyncManager] In-flight sync outlasted the wait — refresh skipped")
                 return
             }
         }
@@ -83,23 +83,23 @@ class SyncManager: ObservableObject {
         isSyncing = true
         defer { isSyncing = false }
 
-        print("🔄 [SyncManager] Starting full sync with OAuth + API v1...")
+        AppLog.debug("🔄 [SyncManager] Starting full sync with OAuth + API v1...")
 
         do {
             // CRITICAL: Push pending local operations FIRST, before fetching server data.
             // This ensures edits/creates are on the server so the fetch returns correct data.
             // Without this, server data overwrites pending local edits → edits lost or duplicates.
-            print("🔄 [SyncManager] Pushing pending operations before fetch...")
+            AppLog.debug("🔄 [SyncManager] Pushing pending operations before fetch...")
             do {
                 try await taskService.syncPendingOperations()
             } catch {
-                print("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
+                AppLog.debug("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
             }
 
             // Fetch all lists using new API (network call - doesn't block main thread)
-            print("📋 [SyncManager] Fetching lists via API v1...")
+            AppLog.debug("📋 [SyncManager] Fetching lists via API v1...")
             let lists = try await apiClient.getLists()
-            print("✅ [SyncManager] Lists fetched: \(lists.count)")
+            AppLog.debug("✅ [SyncManager] Lists fetched: \(lists.count)")
 
             // Hand the response to the service, which owns what a fetched collection means: drop
             // what was deleted locally, keep unsynced lists on top, sort it the one way the
@@ -109,7 +109,7 @@ class SyncManager: ObservableObject {
             // one of. Caching happens here, ahead of the task fetch below, so a failure there
             // cannot cost us the list cache (AITD-324).
             listService.applyFetchedLists(lists)
-            print("✅ [SyncManager] Lists synced: \(listService.lists.count)")
+            AppLog.debug("✅ [SyncManager] Lists synced: \(listService.lists.count)")
 
             // Cache user images in background (doesn't block UI)
             _Concurrency.Task.detached(priority: .utility) {
@@ -117,13 +117,13 @@ class SyncManager: ObservableObject {
             }
 
             // Fetch all tasks using new API v1 (network call - doesn't block main thread)
-            print("📝 [SyncManager] Fetching all tasks via API v1 (with pagination)...")
+            AppLog.debug("📝 [SyncManager] Fetching all tasks via API v1 (with pagination)...")
             let tasks: [Task]
             do {
                 tasks = try await apiClient.getAllTasks()
-                print("  ✅ Fetched \(tasks.count) tasks from API v1")
+                AppLog.debug("  ✅ Fetched \(tasks.count) tasks from API v1")
             } catch {
-                print("  ⚠️ Failed to fetch tasks: \(error)")
+                AppLog.debug("  ⚠️ Failed to fetch tasks: \(error)")
                 throw error
             }
 
@@ -142,11 +142,11 @@ class SyncManager: ObservableObject {
                 throw error
             }
 
-            print("✅ [SyncManager] Total unique tasks: \(uniqueTasks.count)")
+            AppLog.debug("✅ [SyncManager] Total unique tasks: \(uniqueTasks.count)")
 
             // Update TaskService with the fetched tasks
             await taskService.updateTasksFromSync(uniqueTasks)
-            print("✅ [SyncManager] Tasks synced: \(taskService.tasks.count)")
+            AppLog.debug("✅ [SyncManager] Tasks synced: \(taskService.tasks.count)")
 
             // Cache user images in background (doesn't block UI)
             _Concurrency.Task.detached(priority: .utility) {
@@ -154,35 +154,35 @@ class SyncManager: ObservableObject {
             }
 
             // Sync pending comments (local-first offline support)
-            print("🔄 [SyncManager] Syncing pending comments...")
+            AppLog.debug("🔄 [SyncManager] Syncing pending comments...")
             do {
                 try await commentService.syncPendingComments()
-                print("✅ [SyncManager] Comments synced successfully")
+                AppLog.debug("✅ [SyncManager] Comments synced successfully")
             } catch {
-                print("⚠️ [SyncManager] Comment sync failed (non-critical): \(error)")
+                AppLog.debug("⚠️ [SyncManager] Comment sync failed (non-critical): \(error)")
             }
 
             // Sync pending list member operations (local-first offline support)
-            print("🔄 [SyncManager] Syncing pending list member operations...")
+            AppLog.debug("🔄 [SyncManager] Syncing pending list member operations...")
             do {
                 try await listMemberService.syncPendingOperations()
-                print("✅ [SyncManager] List members synced successfully")
+                AppLog.debug("✅ [SyncManager] List members synced successfully")
             } catch {
-                print("⚠️ [SyncManager] List member sync failed (non-critical): \(error)")
+                AppLog.debug("⚠️ [SyncManager] List member sync failed (non-critical): \(error)")
             }
 
             // Sync pending reminder settings (local-first offline support)
-            print("🔄 [SyncManager] Syncing pending reminder settings...")
+            AppLog.debug("🔄 [SyncManager] Syncing pending reminder settings...")
             await reminderSettings.syncPendingChanges()
 
             // Refresh projects (status boards) — non-critical, runs after
             // lists/tasks so failure here doesn't poison the rest of the sync.
-            print("📊 [SyncManager] Refreshing projects via API v1...")
+            AppLog.debug("📊 [SyncManager] Refreshing projects via API v1...")
             do {
                 let projects = try await projectService.refreshFromServer()
-                print("✅ [SyncManager] Projects synced: \(projects.count)")
+                AppLog.debug("✅ [SyncManager] Projects synced: \(projects.count)")
             } catch {
-                print("⚠️ [SyncManager] Project sync failed (non-critical): \(error)")
+                AppLog.debug("⚠️ [SyncManager] Project sync failed (non-critical): \(error)")
             }
 
             // Update sync timestamps
@@ -198,13 +198,13 @@ class SyncManager: ObservableObject {
             UserDefaults.standard.set(syncTime, forKey: lastCommentSyncKey)
             UserDefaults.standard.set(syncTime, forKey: lastProjectSyncKey)
 
-            print("✅ [SyncManager] Full sync completed: \(lists.count) lists, \(taskService.tasks.count) tasks")
+            AppLog.debug("✅ [SyncManager] Full sync completed: \(lists.count) lists, \(taskService.tasks.count) tasks")
             hasCompletedInitialSync = true
         } catch {
-            print("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
-            print("⚠️ [SyncManager] Error details: \(error.localizedDescription)")
-            print("📱 [SyncManager] Using cached data for offline support")
-            print("📊 [SyncManager] Available offline: \(listService.lists.count) lists, \(taskService.tasks.count) tasks")
+            AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
+            AppLog.debug("⚠️ [SyncManager] Error details: \(error.localizedDescription)")
+            AppLog.debug("📱 [SyncManager] Using cached data for offline support")
+            AppLog.debug("📊 [SyncManager] Available offline: \(listService.lists.count) lists, \(taskService.tasks.count) tasks")
 
             // Mark as complete even on error to not block UI forever
             hasCompletedInitialSync = true
@@ -236,7 +236,7 @@ class SyncManager: ObservableObject {
 
                     // If we got tasks but none belong to the current user, flag error
                     if !uniqueTasks.isEmpty && userOwnedTasks.isEmpty {
-                        print("🚨 [SyncManager] DATA ISOLATION ALERT: Received \(uniqueTasks.count) tasks but none belong to current user \(userId)")
+                        AppLog.debug("🚨 [SyncManager] DATA ISOLATION ALERT: Received \(uniqueTasks.count) tasks but none belong to current user \(userId)")
                         let error = SyncError.dataIsolationViolation(
                             expectedUserId: userId,
                             receivedTaskCount: uniqueTasks.count
@@ -245,7 +245,7 @@ class SyncManager: ObservableObject {
                         return
                     }
 
-                    print("✅ [SyncManager] Data validation passed: \(userOwnedTasks.count)/\(uniqueTasks.count) tasks belong to current user")
+                    AppLog.debug("✅ [SyncManager] Data validation passed: \(userOwnedTasks.count)/\(uniqueTasks.count) tasks belong to current user")
                 }
 
                 continuation.resume(returning: (uniqueTasks, nil))
@@ -264,7 +264,7 @@ class SyncManager: ObservableObject {
                 // A timer tick, not a person: never wait on an in-flight pass.
                 return try await performFullSync(isUserInitiated: false)
             } catch {
-                print("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
+                AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
                 // Don't throw - allow offline mode
                 return
             }
@@ -272,12 +272,12 @@ class SyncManager: ObservableObject {
 
         // If no data cached, force full sync even if we have a lastSyncDate
         if listService.lists.isEmpty && taskService.tasks.isEmpty {
-            print("🔄 [SyncManager] No cached data - performing full sync instead")
+            AppLog.debug("🔄 [SyncManager] No cached data - performing full sync instead")
             do {
                 // A timer tick, not a person: never wait on an in-flight pass.
                 return try await performFullSync(isUserInitiated: false)
             } catch {
-                print("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
+                AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
                 // Don't throw - allow offline mode
                 return
             }
@@ -285,14 +285,14 @@ class SyncManager: ObservableObject {
 
         // Background pass: the in-flight one is already doing this work.
         guard SyncPassPolicy.admission(isSyncing: isSyncing, isUserInitiated: false) == .start else {
-            print("⏳ [SyncManager] Sync already in progress, skipping")
+            AppLog.debug("⏳ [SyncManager] Sync already in progress, skipping")
             return
         }
         isSyncing = true
         defer { isSyncing = false }
 
-        print("🔄 [SyncManager] Starting incremental sync (client-side delta)...")
-        print("   Last sync: \(lastSync)")
+        AppLog.debug("🔄 [SyncManager] Starting incremental sync (client-side delta)...")
+        AppLog.debug("   Last sync: \(lastSync)")
 
         var stats = IncrementalSyncStats()
 
@@ -310,7 +310,7 @@ class SyncManager: ObservableObject {
                 .init(name: "list members", run: { [listMemberService] in try await listMemberService.syncPendingOperations() }),
             ])
             if !failedPushes.isEmpty {
-                print("⚠️ [SyncManager] Pending pushes failed (fetching anyway): \(failedPushes.joined(separator: ", "))")
+                AppLog.debug("⚠️ [SyncManager] Pending pushes failed (fetching anyway): \(failedPushes.joined(separator: ", "))")
             }
 
             // Fetch all lists and apply only newer changes
@@ -350,12 +350,12 @@ class SyncManager: ObservableObject {
             UserDefaults.standard.set(syncTime, forKey: lastTaskSyncKey)
             UserDefaults.standard.set(syncTime, forKey: lastListSyncKey)
 
-            print("✅ [SyncManager] Incremental sync completed:")
-            print("   Lists: \(stats.listsCreated) new, \(stats.listsUpdated) updated (checked \(stats.listsChecked))")
-            print("   Tasks: \(stats.tasksChecked) checked")
+            AppLog.debug("✅ [SyncManager] Incremental sync completed:")
+            AppLog.debug("   Lists: \(stats.listsCreated) new, \(stats.listsUpdated) updated (checked \(stats.listsChecked))")
+            AppLog.debug("   Tasks: \(stats.tasksChecked) checked")
 
         } catch {
-            print("⚠️ [SyncManager] Incremental sync failed (offline mode): \(error)")
+            AppLog.debug("⚠️ [SyncManager] Incremental sync failed (offline mode): \(error)")
             // Don't throw - allow offline mode
         }
     }
@@ -374,15 +374,15 @@ class SyncManager: ObservableObject {
     /// Perform a quick sync - only syncs pending local operations without fetching server data
     /// Useful for immediately pushing local changes without full refresh
     func performQuickSync() async throws {
-        print("🔄 [SyncManager] Starting quick sync (pending operations only)...")
+        AppLog.debug("🔄 [SyncManager] Starting quick sync (pending operations only)...")
 
         do {
             try await taskService.syncPendingOperations()
             try await commentService.syncPendingComments()
             try await listMemberService.syncPendingOperations()
-            print("✅ [SyncManager] Quick sync completed")
+            AppLog.debug("✅ [SyncManager] Quick sync completed")
         } catch {
-            print("⚠️ [SyncManager] Quick sync failed: \(error)")
+            AppLog.debug("⚠️ [SyncManager] Quick sync failed: \(error)")
             throw error
         }
     }
@@ -398,7 +398,7 @@ class SyncManager: ObservableObject {
                 do {
                     try await self?.performIncrementalSync()
                 } catch {
-                    print("⚠️ [SyncManager] Auto-sync failed: \(error)")
+                    AppLog.debug("⚠️ [SyncManager] Auto-sync failed: \(error)")
                 }
             }
         }
@@ -426,7 +426,7 @@ class SyncManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: lastListSyncKey)
         UserDefaults.standard.removeObject(forKey: lastCommentSyncKey)
 
-        print("🔄 [SyncManager] Sync state fully reset (all timestamps cleared)")
+        AppLog.debug("🔄 [SyncManager] Sync state fully reset (all timestamps cleared)")
     }
 }
 

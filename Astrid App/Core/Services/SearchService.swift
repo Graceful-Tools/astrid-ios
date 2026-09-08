@@ -71,7 +71,7 @@ class SearchService: ObservableObject {
     // MARK: - Private Implementation
 
     private func searchOnline(query: String, listId: String?, includeCompleted: Bool) async {
-        print("🔍 [SearchService] Online search: \"\(query)\"")
+        AppLog.debug("🔍 [SearchService] Online search: \"\(query)\"")
 
         // Use cached tasks from TaskService
         let allTasks = TaskService.shared.tasks
@@ -93,11 +93,11 @@ class SearchService: ObservableObject {
         isOfflineSearch = false
         isSearching = false
 
-        print("✅ [SearchService] Online search found \(results.count) results")
+        AppLog.debug("✅ [SearchService] Online search found \(results.count) results")
     }
 
     private func searchOffline(query: String, listId: String?, includeCompleted: Bool) async {
-        print("🔍 [SearchService] Offline search: \"\(query)\"")
+        AppLog.debug("🔍 [SearchService] Offline search: \"\(query)\"")
 
         do {
             let cdTasks = try await performCoreDataSearch(
@@ -115,9 +115,9 @@ class SearchService: ObservableObject {
             isOfflineSearch = true
             isSearching = false
 
-            print("✅ [SearchService] Offline search found \(tasks.count) results")
+            AppLog.debug("✅ [SearchService] Offline search found \(tasks.count) results")
         } catch {
-            print("❌ [SearchService] Offline search failed: \(error)")
+            AppLog.debug("❌ [SearchService] Offline search failed: \(error)")
             errorMessage = "Search failed: \(error.localizedDescription)"
             searchResults = []
             isSearching = false
@@ -150,15 +150,15 @@ class SearchService: ObservableObject {
 
     /// Rebuild search index for all tasks (run after migration or data repair)
     func rebuildSearchIndex() async {
-        print("🔧 [SearchService] Rebuilding search index...")
+        AppLog.debug("🔧 [SearchService] Rebuilding search index...")
 
         do {
             try await coreDataManager.saveInBackground { context in
                 try CDTask.rebuildSearchIndex(context: context)
             }
-            print("✅ [SearchService] Search index rebuilt")
+            AppLog.debug("✅ [SearchService] Search index rebuilt")
         } catch {
-            print("❌ [SearchService] Failed to rebuild search index: \(error)")
+            AppLog.debug("❌ [SearchService] Failed to rebuild search index: \(error)")
         }
     }
 }

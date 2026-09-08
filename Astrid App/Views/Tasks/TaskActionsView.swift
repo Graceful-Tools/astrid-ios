@@ -257,12 +257,12 @@ struct CopyTaskView: View {
                 preserveAssignee: true   // Preserve assignee by default
             )
 
-            print("✅ Copied task with comments: \(includeComments)")
+            AppLog.debug("✅ Copied task with comments: \(includeComments)")
 
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
-            print("❌ Failed to copy task: \(error)")
+            AppLog.debug("❌ Failed to copy task: \(error)")
         }
     }
 }

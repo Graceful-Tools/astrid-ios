@@ -42,7 +42,7 @@ public enum PlatformApplication {
         #if canImport(UIKit)
         UNUserNotificationCenter.current().setBadgeCount(count) { error in
             if let error {
-                print("❌ [PlatformApplication] Failed to set badge count: \(error)")
+                AppLog.debug("❌ [PlatformApplication] Failed to set badge count: \(error)")
             }
         }
         #elseif canImport(AppKit)

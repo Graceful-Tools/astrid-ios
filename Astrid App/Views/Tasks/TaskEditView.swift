@@ -43,9 +43,9 @@ struct TaskEditView: View {
             _selectedListIds = State(initialValue: Set(task.listIds ?? []))
         } else if let list = list {
             // Creating new task - apply list defaults
-            print("📝 [TaskEditView] Creating new task for list: \(list.name)")
-            print("  - defaultAssigneeId from list: \(list.defaultAssigneeId ?? "nil")")
-            print("  - defaultPriority: \(list.defaultPriority ?? -1)")
+            AppLog.debug("📝 [TaskEditView] Creating new task for list: \(list.name)")
+            AppLog.debug("  - defaultAssigneeId from list: \(list.defaultAssigneeId ?? "nil")")
+            AppLog.debug("  - defaultPriority: \(list.defaultPriority ?? -1)")
             _selectedListIds = State(initialValue: [list.id])
 
             // Apply list defaults
@@ -56,7 +56,7 @@ struct TaskEditView: View {
                 _isPrivate = State(initialValue: defaultIsPrivate)
             }
             if let defaultAssigneeId = list.defaultAssigneeId {
-                print("  - Applying defaultAssigneeId: \(defaultAssigneeId)")
+                AppLog.debug("  - Applying defaultAssigneeId: \(defaultAssigneeId)")
                 _assigneeId = State(initialValue: defaultAssigneeId)
             }
             if let defaultRepeating = list.defaultRepeating {
@@ -371,7 +371,7 @@ struct TaskEditView: View {
                     )
                 }
             } catch {
-                print("⚠️ [TaskEditView] Background save failed: \(error)")
+                AppLog.debug("⚠️ [TaskEditView] Background save failed: \(error)")
                 // TaskService keeps optimistic version as pending for offline sync
             }
         }

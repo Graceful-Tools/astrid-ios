@@ -74,10 +74,10 @@ class EditProfileViewModel: ObservableObject {
 
             // Store the uploaded URL
             uploadedImageUrl = response.url
-            print("✅ [EditProfileViewModel] Image uploaded: \(response.url)")
+            AppLog.debug("✅ [EditProfileViewModel] Image uploaded: \(response.url)")
 
         } catch {
-            print("❌ [EditProfileViewModel] Upload failed: \(error)")
+            AppLog.debug("❌ [EditProfileViewModel] Upload failed: \(error)")
             errorMessage = "Failed to upload image: \(error.localizedDescription)"
             showError = true
             selectedImage = nil
@@ -117,7 +117,7 @@ class EditProfileViewModel: ObservableObject {
             // Send update to server
             let response: UpdateAccountResponse = try await apiClient.updateAccount(updateRequest)
 
-            print("✅ [EditProfileViewModel] Profile updated: \(response.message)")
+            AppLog.debug("✅ [EditProfileViewModel] Profile updated: \(response.message)")
 
             // Fetch updated account data to get the latest user info
             let accountResponse: AccountResponse = try await apiClient.fetchAccountResponse()
@@ -138,7 +138,7 @@ class EditProfileViewModel: ObservableObject {
             showSuccess = true
 
         } catch let error as APIError {
-            print("❌ [EditProfileViewModel] Save failed: \(error)")
+            AppLog.debug("❌ [EditProfileViewModel] Save failed: \(error)")
             switch error {
             case .httpError(let statusCode, let message):
                 errorMessage = message ?? "Failed to update profile (HTTP \(statusCode))"
@@ -149,7 +149,7 @@ class EditProfileViewModel: ObservableObject {
             }
             showError = true
         } catch {
-            print("❌ [EditProfileViewModel] Save failed: \(error)")
+            AppLog.debug("❌ [EditProfileViewModel] Save failed: \(error)")
             errorMessage = "Failed to update profile: \(error.localizedDescription)"
             showError = true
         }

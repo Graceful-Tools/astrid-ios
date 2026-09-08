@@ -376,7 +376,7 @@ struct AIAPIKeyManagerView: View {
 
             keyStatuses = newStatuses
         } catch {
-            print("Failed to load API keys: \(error)")
+            AppLog.debug("Failed to load API keys: \(error)")
             errorMessage = "Failed to load API keys"
 
             // Initialize empty statuses
@@ -422,7 +422,7 @@ struct AIAPIKeyManagerView: View {
                 // Reload to get preview
                 await loadAPIKeys()
             } catch {
-                print("Failed to save API key: \(error)")
+                AppLog.debug("Failed to save API key: \(error)")
                 errorMessage = "Failed to save key: \(error.localizedDescription)"
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     errorMessage = nil
@@ -459,7 +459,7 @@ struct AIAPIKeyManagerView: View {
                     }
                 }
             } catch {
-                print("Failed to test API key: \(error)")
+                AppLog.debug("Failed to test API key: \(error)")
                 var status = keyStatuses[service] ?? APIKeyUIStatus()
                 status.isValid = false
                 status.error = error.localizedDescription
@@ -491,7 +491,7 @@ struct AIAPIKeyManagerView: View {
                     successMessage = nil
                 }
             } catch {
-                print("Failed to delete API key: \(error)")
+                AppLog.debug("Failed to delete API key: \(error)")
                 errorMessage = "Failed to delete key: \(error.localizedDescription)"
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     errorMessage = nil

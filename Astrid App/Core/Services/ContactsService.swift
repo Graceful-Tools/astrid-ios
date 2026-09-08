@@ -79,7 +79,7 @@ class ContactsService: ObservableObject {
             }
             return granted
         } catch {
-            print("❌ [ContactsService] Error requesting access: \(error)")
+            AppLog.debug("❌ [ContactsService] Error requesting access: \(error)")
             return false
         }
     }
@@ -135,7 +135,7 @@ class ContactsService: ObservableObject {
             }
         }
 
-        print("📇 [ContactsService] Fetched \(contacts.count) contacts with emails")
+        AppLog.debug("📇 [ContactsService] Fetched \(contacts.count) contacts with emails")
         return contacts
     }
 

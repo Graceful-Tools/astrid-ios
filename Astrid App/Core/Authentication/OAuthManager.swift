@@ -117,17 +117,17 @@ class OAuthManager {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        print("🔐 [OAuthManager] Refreshing access token...")
+        AppLog.debug("🔐 [OAuthManager] Refreshing access token...")
 
         // Check if we have credentials
         let clientSecret = OAuthConfig.clientSecret
         if clientSecret.isEmpty {
-            print("❌ [OAuthManager] No client secret found in Keychain!")
-            print("⚠️ [OAuthManager] OAuth secret must be configured. Call OAuthManager.shared.configure(clientSecret:)")
+            AppLog.debug("❌ [OAuthManager] No client secret found in Keychain!")
+            AppLog.debug("⚠️ [OAuthManager] OAuth secret must be configured. Call OAuthManager.shared.configure(clientSecret:)")
             throw OAuthError.noCredentials
         }
 
-        print("✅ [OAuthManager] Client secret found, requesting token...")
+        AppLog.debug("✅ [OAuthManager] Client secret found, requesting token...")
 
         let endpoint = baseURL.appendingPathComponent("/api/v1/oauth/token")
         var request = URLRequest(url: endpoint)
@@ -153,13 +153,13 @@ class OAuthManager {
             }
 
             if httpResponse.statusCode == 401 {
-                print("❌ [OAuthManager] Invalid credentials")
+                AppLog.debug("❌ [OAuthManager] Invalid credentials")
                 throw OAuthError.invalidCredentials
             }
 
             guard httpResponse.statusCode == 200 else {
                 let errorMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
-                print("❌ [OAuthManager] Token request failed: \(errorMsg)")
+                AppLog.debug("❌ [OAuthManager] Token request failed: \(errorMsg)")
                 throw OAuthError.requestFailed(httpResponse.statusCode)
             }
 
@@ -172,7 +172,7 @@ class OAuthManager {
             // Persist token material in Keychain; UserDefaults contains only expiry metadata.
             try cacheToken(token: tokenResponse.accessToken, expiresAt: tokenExpiresAt!)
 
-            print("✅ [OAuthManager] Access token obtained (expires in \(tokenResponse.expiresIn)s)")
+            AppLog.debug("✅ [OAuthManager] Access token obtained (expires in \(tokenResponse.expiresIn)s)")
 
             // Notify any waiting callers
             notifyRefreshCallbacks(.success(tokenResponse.accessToken))
@@ -180,7 +180,7 @@ class OAuthManager {
             return tokenResponse.accessToken
 
         } catch {
-            print("❌ [OAuthManager] Token refresh failed: \(error)")
+            AppLog.debug("❌ [OAuthManager] Token refresh failed: \(error)")
             notifyRefreshCallbacks(.failure(error))
             throw error
         }
@@ -236,9 +236,9 @@ class OAuthManager {
         if expiresAt > Date() {
             accessToken = token
             tokenExpiresAt = expiresAt
-            print("✅ [OAuthManager] Loaded cached token (expires at \(expiresAt))")
+            AppLog.debug("✅ [OAuthManager] Loaded cached token (expires at \(expiresAt))")
         } else {
-            print("⏰ [OAuthManager] Cached token expired, will refresh on next request")
+            AppLog.debug("⏰ [OAuthManager] Cached token expired, will refresh on next request")
             clearCachedToken()
         }
     }

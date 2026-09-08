@@ -141,9 +141,9 @@ struct TaskQuickCreateView: View {
             fileSize: fileData?.fileSize
         )
 
-        print("✅ [TaskQuickCreateView] Task created: \(trimmedTitle)")
+        AppLog.debug("✅ [TaskQuickCreateView] Task created: \(trimmedTitle)")
         if fileData != nil {
-            print("   📎 With attachment: \(fileData!.fileName)")
+            AppLog.debug("   📎 With attachment: \(fileData!.fileName)")
         }
 
         onSave(taskData)

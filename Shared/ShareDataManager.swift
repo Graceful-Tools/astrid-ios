@@ -40,14 +40,14 @@ class ShareDataManager {
 
     /// Save a new shared task from Share Extension
     func saveSharedTask(_ taskData: SharedTaskData) throws {
-        print("📤 [ShareDataManager] Saving shared task: \(taskData.title)")
+        AppLog.debug("📤 [ShareDataManager] Saving shared task: \(taskData.title)")
 
         var pendingTasks = try loadPendingTasks()
         let item = SharedTaskItem(data: taskData, status: .pending)
         pendingTasks.append(item)
 
         try savePendingTasks(pendingTasks)
-        print("✅ [ShareDataManager] Shared task saved. Total pending: \(pendingTasks.count)")
+        AppLog.debug("✅ [ShareDataManager] Shared task saved. Total pending: \(pendingTasks.count)")
     }
 
     // MARK: - Load Pending Tasks
@@ -59,7 +59,7 @@ class ShareDataManager {
         }
 
         guard FileManager.default.fileExists(atPath: url.path) else {
-            print("📭 [ShareDataManager] No pending tasks file found")
+            AppLog.debug("📭 [ShareDataManager] No pending tasks file found")
             return []
         }
 
@@ -68,7 +68,7 @@ class ShareDataManager {
         decoder.dateDecodingStrategy = .iso8601
 
         let tasks = try decoder.decode([SharedTaskItem].self, from: data)
-        print("📥 [ShareDataManager] Loaded \(tasks.count) pending tasks")
+        AppLog.debug("📥 [ShareDataManager] Loaded \(tasks.count) pending tasks")
         return tasks
     }
 
@@ -79,7 +79,7 @@ class ShareDataManager {
         var pendingTasks = try loadPendingTasks()
 
         guard let index = pendingTasks.firstIndex(where: { $0.data.id == taskId }) else {
-            print("⚠️ [ShareDataManager] Task not found: \(taskId)")
+            AppLog.debug("⚠️ [ShareDataManager] Task not found: \(taskId)")
             return
         }
 
@@ -93,7 +93,7 @@ class ShareDataManager {
         }
 
         try savePendingTasks(pendingTasks)
-        print("✅ [ShareDataManager] Updated task \(taskId) status to \(status.rawValue)")
+        AppLog.debug("✅ [ShareDataManager] Updated task \(taskId) status to \(status.rawValue)")
     }
 
     // MARK: - Remove Completed Tasks
@@ -106,7 +106,7 @@ class ShareDataManager {
         pendingTasks.removeAll { $0.status == .completed }
 
         try savePendingTasks(pendingTasks)
-        print("🗑️ [ShareDataManager] Removed \(beforeCount - pendingTasks.count) completed tasks")
+        AppLog.debug("🗑️ [ShareDataManager] Removed \(beforeCount - pendingTasks.count) completed tasks")
     }
 
     // MARK: - File Management
@@ -124,7 +124,7 @@ class ShareDataManager {
 
         // Copy file
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
-        print("📁 [ShareDataManager] Copied file to shared container: \(uniqueFilename)")
+        AppLog.debug("📁 [ShareDataManager] Copied file to shared container: \(uniqueFilename)")
 
         return destinationURL
     }
@@ -132,7 +132,7 @@ class ShareDataManager {
     /// Delete file from shared container
     func deleteSharedFile(at url: URL) throws {
         try FileManager.default.removeItem(at: url)
-        print("🗑️ [ShareDataManager] Deleted shared file: \(url.lastPathComponent)")
+        AppLog.debug("🗑️ [ShareDataManager] Deleted shared file: \(url.lastPathComponent)")
     }
 
     /// Clean up old shared files (older than 7 days)
@@ -149,7 +149,7 @@ class ShareDataManager {
                let creationDate = attributes[.creationDate] as? Date,
                creationDate < sevenDaysAgo {
                 try? fileManager.removeItem(at: fileURL)
-                print("🗑️ [ShareDataManager] Cleaned up old file: \(fileURL.lastPathComponent)")
+                AppLog.debug("🗑️ [ShareDataManager] Cleaned up old file: \(fileURL.lastPathComponent)")
             }
         }
     }
@@ -174,11 +174,11 @@ class ShareDataManager {
     /// Check if App Group is properly configured
     func validateAppGroupAccess() -> Bool {
         guard let containerURL = sharedContainerURL else {
-            print("❌ [ShareDataManager] App Group not configured: \(Self.appGroupIdentifier)")
+            AppLog.debug("❌ [ShareDataManager] App Group not configured: \(Self.appGroupIdentifier)")
             return false
         }
 
-        print("✅ [ShareDataManager] App Group access validated: \(containerURL.path)")
+        AppLog.debug("✅ [ShareDataManager] App Group access validated: \(containerURL.path)")
         return true
     }
 }

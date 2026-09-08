@@ -14,11 +14,11 @@ final class LocalizationManager {
     /// Applies intelligent locale selection based on device locale and available localizations
     /// Should be called during app initialization before any UI strings are loaded
     func applyIntelligentLocale() {
-        print("🌍 [LocalizationManager] Starting intelligent locale selection...")
+        AppLog.debug("🌍 [LocalizationManager] Starting intelligent locale selection...")
 
         // Check if user has manually overridden language selection
         if let userOverride = getUserLanguageOverride() {
-            print("✅ [LocalizationManager] User has manually selected language: \(userOverride)")
+            AppLog.debug("✅ [LocalizationManager] User has manually selected language: \(userOverride)")
             applyLanguage(userOverride)
             return
         }
@@ -27,8 +27,8 @@ final class LocalizationManager {
         let currentLocale = Locale.current
         let preferredLanguages = Locale.preferredLanguages
 
-        print("🌍 [LocalizationManager] Current locale: \(currentLocale.identifier)")
-        print("🌍 [LocalizationManager] Preferred languages: \(preferredLanguages.prefix(3).joined(separator: ", "))")
+        AppLog.debug("🌍 [LocalizationManager] Current locale: \(currentLocale.identifier)")
+        AppLog.debug("🌍 [LocalizationManager] Preferred languages: \(preferredLanguages.prefix(3).joined(separator: ", "))")
 
         // Find best matching language
         let selectedLanguage = findBestMatchingLanguage(
@@ -36,7 +36,7 @@ final class LocalizationManager {
             preferredLanguages: preferredLanguages
         )
 
-        print("✅ [LocalizationManager] Selected language: \(selectedLanguage)")
+        AppLog.debug("✅ [LocalizationManager] Selected language: \(selectedLanguage)")
         applyLanguage(selectedLanguage)
     }
 
@@ -44,11 +44,11 @@ final class LocalizationManager {
     /// - Parameter languageCode: ISO 639-1 language code (e.g., "en", "es", "fr")
     func setLanguage(_ languageCode: String) {
         guard Constants.Localization.supportedLanguages.contains(languageCode) else {
-            print("⚠️ [LocalizationManager] Unsupported language code: \(languageCode)")
+            AppLog.debug("⚠️ [LocalizationManager] Unsupported language code: \(languageCode)")
             return
         }
 
-        print("🌍 [LocalizationManager] User manually selected language: \(languageCode)")
+        AppLog.debug("🌍 [LocalizationManager] User manually selected language: \(languageCode)")
         UserDefaults.standard.set(languageCode, forKey: Constants.Localization.userLanguageOverrideKey)
         applyLanguage(languageCode)
     }
@@ -74,7 +74,7 @@ final class LocalizationManager {
 
     /// Clear user language override and revert to automatic selection
     func clearLanguageOverride() {
-        print("🌍 [LocalizationManager] Clearing language override...")
+        AppLog.debug("🌍 [LocalizationManager] Clearing language override...")
         UserDefaults.standard.removeObject(forKey: Constants.Localization.userLanguageOverrideKey)
         applyIntelligentLocale()
     }
@@ -145,20 +145,20 @@ final class LocalizationManager {
             }
         }
 
-        print("🌍 [LocalizationManager] Language priority from preferences: \(languagePriority)")
+        AppLog.debug("🌍 [LocalizationManager] Language priority from preferences: \(languagePriority)")
 
         // Check for language-region affinity
         // If user is in a Spanish-speaking region, prioritize Spanish
         if let regionCode = locale.region?.identifier {
-            print("🌍 [LocalizationManager] User region: \(regionCode)")
+            AppLog.debug("🌍 [LocalizationManager] User region: \(regionCode)")
 
             // Check if this region has strong affinity with any of our supported languages
             if let affinityLanguage = findLanguageAffinityForRegion(regionCode) {
-                print("🌍 [LocalizationManager] Region \(regionCode) has affinity with \(affinityLanguage)")
+                AppLog.debug("🌍 [LocalizationManager] Region \(regionCode) has affinity with \(affinityLanguage)")
 
                 // If the affinity language is in preferred languages (even if not first), prioritize it
                 if languagePriority.contains(affinityLanguage) {
-                    print("✅ [LocalizationManager] Prioritizing \(affinityLanguage) based on region affinity")
+                    AppLog.debug("✅ [LocalizationManager] Prioritizing \(affinityLanguage) based on region affinity")
                     return affinityLanguage
                 }
             }
@@ -170,7 +170,7 @@ final class LocalizationManager {
         }
 
         // Default to English
-        print("🌍 [LocalizationManager] No matching language found, defaulting to English")
+        AppLog.debug("🌍 [LocalizationManager] No matching language found, defaulting to English")
         return "en"
     }
 
@@ -201,14 +201,14 @@ final class LocalizationManager {
 
     /// Apply the selected language to the app
     private func applyLanguage(_ languageCode: String) {
-        print("🌍 [LocalizationManager] Applying language: \(languageCode)")
+        AppLog.debug("🌍 [LocalizationManager] Applying language: \(languageCode)")
 
         // Set the AppleLanguages user default to override app language
         // This affects Bundle.main.localizedString lookups
         UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
         UserDefaults.standard.synchronize()
 
-        print("✅ [LocalizationManager] Language applied: \(languageCode)")
-        print("🌍 [LocalizationManager] Note: Some UI elements may require app restart to update")
+        AppLog.debug("✅ [LocalizationManager] Language applied: \(languageCode)")
+        AppLog.debug("🌍 [LocalizationManager] Note: Some UI elements may require app restart to update")
     }
 }

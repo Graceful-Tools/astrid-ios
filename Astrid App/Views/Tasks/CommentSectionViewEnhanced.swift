@@ -581,7 +581,7 @@ struct CommentSectionViewEnhanced: View {
             if newValue && !oldValue {
                 // Connection restored - sync pending comments first, then reload
                 _Concurrency.Task {
-                    print("🔄 [CommentSection] Network restored - syncing pending comments...")
+                    AppLog.debug("🔄 [CommentSection] Network restored - syncing pending comments...")
                     await retryPendingComments()
                     await subscribeToSSE()
                 }
@@ -625,7 +625,7 @@ struct CommentSectionViewEnhanced: View {
                     }
                 }
             case .failure(let error):
-                print("❌ Document picker error: \(error)")
+                AppLog.debug("❌ Document picker error: \(error)")
                 uploadError = "Failed to select document: \(error.localizedDescription)"
             }
         }
@@ -711,9 +711,9 @@ struct CommentSectionViewEnhanced: View {
                 }
                 if !synced {
                     mergedComments.append(pending)
-                    print("📝 [CommentSection] Keeping pending comment: \(pending.id.prefix(20))")
+                    AppLog.debug("📝 [CommentSection] Keeping pending comment: \(pending.id.prefix(20))")
                 } else {
-                    print("✅ [CommentSection] Pending comment synced: \(pending.id.prefix(20))")
+                    AppLog.debug("✅ [CommentSection] Pending comment synced: \(pending.id.prefix(20))")
                 }
             }
 
@@ -732,16 +732,16 @@ struct CommentSectionViewEnhanced: View {
     private func subscribeToSSE() async {
         // Skip SSE subscription when offline
         guard networkMonitor.isConnected else {
-            print("📵 [CommentSection] Skipping SSE subscription - device is offline")
+            AppLog.debug("📵 [CommentSection] Skipping SSE subscription - device is offline")
             return
         }
 
-        print("📡 [CommentSection] Subscribing to SSE events for task \(taskId)")
+        AppLog.debug("📡 [CommentSection] Subscribing to SSE events for task \(taskId)")
 
         // Subscribe to comment events and store unsubscribe closures
         unsubscribeCommentAdded = await SSEClient.shared.onCommentAdded { [taskId] comment, relatedTaskId in
             guard relatedTaskId == taskId else { return }
-            print("✅ [CommentSection] SSE comment_added: \(comment.id)")
+            AppLog.debug("✅ [CommentSection] SSE comment_added: \(comment.id)")
             _Concurrency.Task { @MainActor in
                 // Clear typing indicator if agent comment arrived
                 if comment.author?.isAIAgent == true {
@@ -757,7 +757,7 @@ struct CommentSectionViewEnhanced: View {
 
         unsubscribeCommentUpdated = await SSEClient.shared.onCommentUpdated { [taskId] comment, relatedTaskId in
             guard relatedTaskId == taskId else { return }
-            print("✅ [CommentSection] SSE comment_updated: \(comment.id)")
+            AppLog.debug("✅ [CommentSection] SSE comment_updated: \(comment.id)")
             _Concurrency.Task { @MainActor in
                 // Reply-aware: an edit to a reply must find it under its parent, not only at the
                 // top level. Content and updatedAt only — the event can omit the author and the
@@ -768,10 +768,10 @@ struct CommentSectionViewEnhanced: View {
 
         unsubscribeCommentDeleted = await SSEClient.shared.onCommentDeleted { [taskId] commentId, relatedTaskId in
             guard relatedTaskId == taskId else {
-                print("🔕 [CommentSection] Ignoring comment_deleted for different task (got \(relatedTaskId), want \(taskId))")
+                AppLog.debug("🔕 [CommentSection] Ignoring comment_deleted for different task (got \(relatedTaskId), want \(taskId))")
                 return
             }
-            print("✅ [CommentSection] Received comment_deleted for task \(taskId)")
+            AppLog.debug("✅ [CommentSection] Received comment_deleted for task \(taskId)")
             _Concurrency.Task { @MainActor in
                 // Applied whoever the actor was, reply-aware, and a no-op when it is already gone
                 // — the delete we made ourselves echoes back to us now (AITD-331).
@@ -794,11 +794,11 @@ struct CommentSectionViewEnhanced: View {
             }
         }
 
-        print("✅ [CommentSection] SSE subscriptions registered")
+        AppLog.debug("✅ [CommentSection] SSE subscriptions registered")
     }
 
     private func unsubscribeFromSSE() {
-        print("📡 [CommentSection] Unsubscribing from SSE events for task \(taskId)")
+        AppLog.debug("📡 [CommentSection] Unsubscribing from SSE events for task \(taskId)")
 
         unsubscribeCommentAdded?()
         unsubscribeCommentUpdated?()
@@ -812,11 +812,11 @@ struct CommentSectionViewEnhanced: View {
         unsubscribeTypingStart = nil
         unsubscribeTypingStop = nil
 
-        print("✅ [CommentSection] SSE subscriptions cleaned up")
+        AppLog.debug("✅ [CommentSection] SSE subscriptions cleaned up")
     }
 
     private func submitComment() async {
-        print("🚀 [CommentSection] submitComment() called, network: \(networkMonitor.isConnected)")
+        AppLog.debug("🚀 [CommentSection] submitComment() called, network: \(networkMonitor.isConnected)")
 
         let trimmedText = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
         let queuedFiles = attachedFiles
@@ -840,11 +840,11 @@ struct CommentSectionViewEnhanced: View {
                                                    fileIds: fileIdsToSend,
                                                    useMarkdown: useMarkdown)
         guard !drafts.isEmpty else {
-            print("⚠️ [CommentSection] Empty comment and no attachment - skipping")
+            AppLog.debug("⚠️ [CommentSection] Empty comment and no attachment - skipping")
             return
         }
 
-        print("📋 [CommentSection] Sending \(drafts.count) comment(s), \(queuedFiles.count) attachment(s)")
+        AppLog.debug("📋 [CommentSection] Sending \(drafts.count) comment(s), \(queuedFiles.count) attachment(s)")
 
         insertedReferences = []
 
@@ -867,7 +867,7 @@ struct CommentSectionViewEnhanced: View {
             image: userImage
         )
 
-        print("📝 [Comment] Creating \(drafts.count) optimistic comment(s) for author: \(author.displayName)")
+        AppLog.debug("📝 [Comment] Creating \(drafts.count) optimistic comment(s) for author: \(author.displayName)")
 
         // OPTIMISTIC UPDATE: show every comment immediately, one per attachment.
         let replyToId = replyingTo?.id
@@ -924,11 +924,11 @@ struct CommentSectionViewEnhanced: View {
                     authorId: author.id,
                     clientRequestId: optimisticIds[index]
                 )
-                print("✅ [CommentSection] Comment created (file: \(draft.fileId ?? "none")), sync in progress...")
+                AppLog.debug("✅ [CommentSection] Comment created (file: \(draft.fileId ?? "none")), sync in progress...")
             } catch {
                 // DON'T remove the comment - CommentService already saved it as pending.
                 // It will sync when network is restored or the user triggers a retry.
-                print("❌ [CommentSection] Failed to create comment: \(error) — kept as pending")
+                AppLog.debug("❌ [CommentSection] Failed to create comment: \(error) — kept as pending")
             }
         }
 
@@ -938,11 +938,11 @@ struct CommentSectionViewEnhanced: View {
     /// Retry syncing all pending comments and attachments
     private func retryPendingComments() async {
         guard networkMonitor.isConnected else {
-            print("📵 [CommentSection] Cannot retry - no network connection")
+            AppLog.debug("📵 [CommentSection] Cannot retry - no network connection")
             return
         }
 
-        print("🔄 [CommentSection] Retrying pending uploads and comments...")
+        AppLog.debug("🔄 [CommentSection] Retrying pending uploads and comments...")
 
         do {
             // Retry any failed comment operations, then drain the Outbox
@@ -953,7 +953,7 @@ struct CommentSectionViewEnhanced: View {
             // Reload to get updated IDs
             await loadComments()
         } catch {
-            print("❌ [CommentSection] Retry failed: \(error)")
+            AppLog.debug("❌ [CommentSection] Retry failed: \(error)")
         }
     }
 
@@ -974,7 +974,7 @@ struct CommentSectionViewEnhanced: View {
         defer { isUploadingFile = false }
 
         do {
-            print("📸 [CommentSection] Starting photo upload... (network: \(networkMonitor.isConnected))")
+            AppLog.debug("📸 [CommentSection] Starting photo upload... (network: \(networkMonitor.isConnected))")
 
             // Load via PhotoKit with a no-network read first so an on-device photo
             // attaches instantly even offline, and a cloud-only photo offline fails
@@ -987,18 +987,18 @@ struct CommentSectionViewEnhanced: View {
                 await MainActor.run { uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: false) }
                 return
             case .failed:
-                print("❌ [CommentSection] Failed to load image data from PhotosPicker")
+                AppLog.debug("❌ [CommentSection] Failed to load image data from PhotosPicker")
                 await MainActor.run {
                     uploadError = OfflinePhotoPolicy.unavailableMessage(isConnected: networkMonitor.isConnected)
                 }
                 return
             }
 
-            print("📸 [CommentSection] Photo loaded: \(formatFileSize(imageData.count))")
+            AppLog.debug("📸 [CommentSection] Photo loaded: \(formatFileSize(imageData.count))")
 
             // Check file size
             if imageData.count > maxFileSize {
-                print("❌ [CommentSection] Photo too large: \(formatFileSize(imageData.count)) (max 100 MB)")
+                AppLog.debug("❌ [CommentSection] Photo too large: \(formatFileSize(imageData.count)) (max 100 MB)")
                 await MainActor.run {
                     uploadError = "Photo is too large (\(formatFileSize(imageData.count))). Maximum size is 100 MB. For larger files, please upload to a file service (Google Drive, Dropbox, etc.) and share a link instead."
                 }
@@ -1017,7 +1017,7 @@ struct CommentSectionViewEnhanced: View {
                 taskId: taskId
             )
 
-            print("📸 [CommentSection] Photo saved locally, uploading in background: \(tempFileId)")
+            AppLog.debug("📸 [CommentSection] Photo saved locally, uploading in background: \(tempFileId)")
 
             // Set attached file immediately (no waiting for upload!)
             // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
@@ -1035,10 +1035,10 @@ struct CommentSectionViewEnhanced: View {
                 // Already on MainActor, so UIImage(data:) is safe here
                 if let uiImage = UIImage(data: imageData) {
                     ThumbnailCache.shared.set(uiImage, for: tempFileId)
-                    print("📸 [CommentSection] Thumbnail cached for: \(tempFileId)")
+                    AppLog.debug("📸 [CommentSection] Thumbnail cached for: \(tempFileId)")
                 }
 
-                print("📸 [CommentSection] attached: fileId=\(tempFileId), size=\(imageData.count), queued=\(attachedFiles.count)")
+                AppLog.debug("📸 [CommentSection] attached: fileId=\(tempFileId), size=\(imageData.count), queued=\(attachedFiles.count)")
             }
 
         }
@@ -1081,7 +1081,7 @@ struct CommentSectionViewEnhanced: View {
             ),
                 to: attachedFiles)
             ThumbnailCache.shared.set(image, for: tempFileId)
-            print("📷 [CommentSection] Captured photo attached: \(tempFileId), queued=\(attachedFiles.count)")
+            AppLog.debug("📷 [CommentSection] Captured photo attached: \(tempFileId), queued=\(attachedFiles.count)")
         }
     }
 
@@ -1090,22 +1090,22 @@ struct CommentSectionViewEnhanced: View {
         defer { isUploadingFile = false }
 
         do {
-            print("🎥 [CommentSection] Starting video upload...")
+            AppLog.debug("🎥 [CommentSection] Starting video upload...")
 
             // Load video data
             guard let videoData = try await videoItem.loadTransferable(type: Data.self) else {
-                print("❌ [CommentSection] Failed to load video data from PhotosPicker")
+                AppLog.debug("❌ [CommentSection] Failed to load video data from PhotosPicker")
                 await MainActor.run {
                     uploadError = "Failed to load video. Please try again."
                 }
                 return
             }
 
-            print("🎥 [CommentSection] Video loaded: \(formatFileSize(videoData.count))")
+            AppLog.debug("🎥 [CommentSection] Video loaded: \(formatFileSize(videoData.count))")
 
             // Check file size
             if videoData.count > maxFileSize {
-                print("❌ [CommentSection] Video too large: \(formatFileSize(videoData.count)) (max 100 MB)")
+                AppLog.debug("❌ [CommentSection] Video too large: \(formatFileSize(videoData.count)) (max 100 MB)")
                 await MainActor.run {
                     uploadError = "Video is too large (\(formatFileSize(videoData.count))). Maximum size is 100 MB. For larger files, please upload to a file service (Google Drive, Dropbox, etc.) and share a link instead."
                 }
@@ -1124,7 +1124,7 @@ struct CommentSectionViewEnhanced: View {
                 taskId: taskId
             )
 
-            print("🎥 [CommentSection] Video saved locally, uploading in background: \(tempFileId)")
+            AppLog.debug("🎥 [CommentSection] Video saved locally, uploading in background: \(tempFileId)")
 
             // Set attached file immediately (no waiting for upload!)
             await MainActor.run {
@@ -1139,7 +1139,7 @@ struct CommentSectionViewEnhanced: View {
             }
 
         } catch {
-            print("❌ [CommentSection] Failed to load video: \(error)")
+            AppLog.debug("❌ [CommentSection] Failed to load video: \(error)")
             await MainActor.run {
                 uploadError = "Failed to load video: \(error.localizedDescription)"
             }
@@ -1153,7 +1153,7 @@ struct CommentSectionViewEnhanced: View {
         do {
             // Access the file
             guard url.startAccessingSecurityScopedResource() else {
-                print("❌ [CommentSection] Failed to access document at: \(url.path)")
+                AppLog.debug("❌ [CommentSection] Failed to access document at: \(url.path)")
                 await MainActor.run {
                     uploadError = "Failed to access document. Please try again."
                 }
@@ -1168,7 +1168,7 @@ struct CommentSectionViewEnhanced: View {
 
             // Check file size
             if fileData.count > maxFileSize {
-                print("❌ [CommentSection] Document too large: \(formatFileSize(fileData.count)) (max 100 MB)")
+                AppLog.debug("❌ [CommentSection] Document too large: \(formatFileSize(fileData.count)) (max 100 MB)")
                 await MainActor.run {
                     uploadError = "Document is too large (\(formatFileSize(fileData.count))). Maximum size is 100 MB. For larger files, please upload to a file service (Google Drive, Dropbox, etc.) and share a link instead."
                 }
@@ -1197,7 +1197,7 @@ struct CommentSectionViewEnhanced: View {
             }
 
         } catch {
-            print("❌ [CommentSection] Failed to load document: \(error)")
+            AppLog.debug("❌ [CommentSection] Failed to load document: \(error)")
             await MainActor.run {
                 uploadError = "Failed to load document: \(error.localizedDescription)"
             }
@@ -1499,7 +1499,7 @@ struct CommentRowViewEnhanced: View {
                             onDelete()
                             try await CommentService.shared.deleteComment(id: comment.id)
                         } catch {
-                            print("❌ Delete comment failed: \(error)")
+                            AppLog.debug("❌ Delete comment failed: \(error)")
                         }
                     }
                 }

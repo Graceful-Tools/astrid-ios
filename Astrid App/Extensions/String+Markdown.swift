@@ -9,7 +9,7 @@ extension String {
             return try AttributedString(markdown: self, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))
         } catch {
             // Fallback to plain text if markdown parsing fails
-            print("⚠️ Failed to parse markdown: \(error)")
+            AppLog.debug("⚠️ Failed to parse markdown: \(error)")
             return AttributedString(self)
         }
     }

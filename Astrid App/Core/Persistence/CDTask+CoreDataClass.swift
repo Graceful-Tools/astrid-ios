@@ -312,6 +312,6 @@ extension CDTask {
         }
 
         try context.save()
-        print("🔍 [CDTask] Rebuilt search index for \(updatedCount) tasks")
+        AppLog.debug("🔍 [CDTask] Rebuilt search index for \(updatedCount) tasks")
     }
 }

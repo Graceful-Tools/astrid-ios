@@ -36,7 +36,7 @@ class ProjectService: ObservableObject {
             let cached = try CDProject.fetchAll(context: coreDataManager.viewContext)
             self.projects = cached.map { $0.toDomainModel() }
         } catch {
-            print("⚠️ [ProjectService] Failed to load cached projects: \(error)")
+            AppLog.debug("⚠️ [ProjectService] Failed to load cached projects: \(error)")
         }
     }
 
@@ -55,7 +55,7 @@ class ProjectService: ObservableObject {
             cd.lastSyncedAt = Date()
             try context.save()
         } catch {
-            print("⚠️ [ProjectService] Failed to save project to Core Data: \(error)")
+            AppLog.debug("⚠️ [ProjectService] Failed to save project to Core Data: \(error)")
         }
     }
 
@@ -67,7 +67,7 @@ class ProjectService: ObservableObject {
                 try context.save()
             }
         } catch {
-            print("⚠️ [ProjectService] Failed to delete cached project: \(error)")
+            AppLog.debug("⚠️ [ProjectService] Failed to delete cached project: \(error)")
         }
     }
 

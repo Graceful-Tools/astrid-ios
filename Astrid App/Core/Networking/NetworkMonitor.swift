@@ -62,10 +62,10 @@ class NetworkMonitor: ObservableObject {
                 strongSelf.updateConnectionQuality(path)
 
                 if path.status == .satisfied {
-                    print("🌐 [NetworkMonitor] Network connection restored (quality: \(strongSelf.connectionQuality))")
+                    AppLog.debug("🌐 [NetworkMonitor] Network connection restored (quality: \(strongSelf.connectionQuality))")
                     NotificationCenter.default.post(name: .networkDidBecomeAvailable, object: nil)
                 } else {
-                    print("📵 [NetworkMonitor] Network connection lost")
+                    AppLog.debug("📵 [NetworkMonitor] Network connection lost")
                     // Track disconnection for flaky detection
                     if wasConnected {
                         strongSelf.recordDisconnection()
@@ -148,7 +148,7 @@ class NetworkMonitor: ObservableObject {
         }
 
         if isFlaky {
-            print("⚠️ [NetworkMonitor] Connection is flaky (\(disconnectionTimestamps.count) disconnects in \(Int(flakyWindowSeconds/60)) min)")
+            AppLog.debug("⚠️ [NetworkMonitor] Connection is flaky (\(disconnectionTimestamps.count) disconnects in \(Int(flakyWindowSeconds/60)) min)")
         }
     }
 }

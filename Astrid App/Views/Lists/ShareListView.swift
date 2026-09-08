@@ -218,10 +218,10 @@ struct ShareListView: View {
                 targetId: list.id
             )
             shareUrl = response.url
-            print("✅ [ShareListView] Generated share URL: \(response.url)")
+            AppLog.debug("✅ [ShareListView] Generated share URL: \(response.url)")
         } catch {
             errorMessage = "Failed to generate share link. Please try again."
-            print("❌ [ShareListView] Failed to generate share link: \(error)")
+            AppLog.debug("❌ [ShareListView] Failed to generate share link: \(error)")
         }
 
         isLoading = false

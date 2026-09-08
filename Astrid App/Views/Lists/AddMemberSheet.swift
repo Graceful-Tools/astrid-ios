@@ -330,7 +330,7 @@ struct AddMemberSheet: View {
                     isSearching = false
                 }
             } catch {
-                print("AddMemberSheet Contact search failed: \(error)")
+                AppLog.debug("AddMemberSheet Contact search failed: \(error)")
                 await MainActor.run {
                     searchResults = []
                     isSearching = false
@@ -360,7 +360,7 @@ struct AddMemberSheet: View {
                     // Reload recommendations
                     await loadRecommendedCollaborators()
                 } catch {
-                    print("AddMemberSheet Contact sync failed: \(error)")
+                    AppLog.debug("AddMemberSheet Contact sync failed: \(error)")
                 }
             }
         }
@@ -395,7 +395,7 @@ struct AddMemberSheet: View {
                 loadingRecommendations = false
             }
         } catch {
-            print("AddMemberSheet Failed to load recommendations: \(error)")
+            AppLog.debug("AddMemberSheet Failed to load recommendations: \(error)")
             await MainActor.run {
                 recommendedCollaborators = []
                 loadingRecommendations = false
@@ -423,7 +423,7 @@ struct AddMemberSheet: View {
 #Preview {
     AddMemberSheet(
         onAdd: { email, role in
-            print("Adding \(email) as \(role)")
+            AppLog.debug("Adding \(AppLog.redact(email: email)) as \(role)")
         },
         excludeListId: nil,
         showRolePicker: true,

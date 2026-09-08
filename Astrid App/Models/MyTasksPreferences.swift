@@ -45,11 +45,11 @@ class MyTasksPreferencesService: ObservableObject {
         if let savedData = UserDefaults.standard.data(forKey: userDefaultsKey),
            let savedPrefs = try? JSONDecoder().decode(MyTasksPreferences.self, from: savedData) {
             self.preferences = savedPrefs
-            print("✅ [MyTasksPrefs] Loaded from UserDefaults")
+            AppLog.debug("✅ [MyTasksPrefs] Loaded from UserDefaults")
         } else {
             // Start with default preferences
             self.preferences = MyTasksPreferences()
-            print("ℹ️ [MyTasksPrefs] Using default preferences")
+            AppLog.debug("ℹ️ [MyTasksPrefs] Using default preferences")
         }
 
         // Load from server in background
@@ -69,10 +69,10 @@ class MyTasksPreferencesService: ObservableObject {
 
             if let encoded = try? JSONEncoder().encode(fetchedPrefs) {
                 UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-                print("✅ [MyTasksPrefs] Loaded from server and saved to UserDefaults")
+                AppLog.debug("✅ [MyTasksPrefs] Loaded from server and saved to UserDefaults")
             }
         } catch {
-            print("❌ [MyTasksPrefs] Error fetching preferences: \(error)")
+            AppLog.debug("❌ [MyTasksPrefs] Error fetching preferences: \(error)")
         }
     }
 
@@ -87,7 +87,7 @@ class MyTasksPreferencesService: ObservableObject {
         self.preferences = updates
         if let encoded = try? JSONEncoder().encode(updates) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            print("💾 [MyTasksPrefs] Saved to UserDefaults")
+            AppLog.debug("💾 [MyTasksPrefs] Saved to UserDefaults")
         }
 
         // Debounced network push.
@@ -97,22 +97,22 @@ class MyTasksPreferencesService: ObservableObject {
 
             do {
                 try await AstridAPIClient.shared.updateMyTasksPreferences(updates)
-                print("✅ Updated My Tasks preferences on server")
+                AppLog.debug("✅ Updated My Tasks preferences on server")
             } catch {
-                print("❌ Error updating My Tasks preferences: \(error)")
+                AppLog.debug("❌ Error updating My Tasks preferences: \(error)")
             }
         }
     }
 
     /// Handle SSE update from another device
     func handleSSEUpdate(_ newPreferences: MyTasksPreferences) {
-        print("🔔 [SSE] My Tasks preferences updated from another device")
+        AppLog.debug("🔔 [SSE] My Tasks preferences updated from another device")
         self.preferences = newPreferences
 
         // Save to UserDefaults for offline support
         if let encoded = try? JSONEncoder().encode(newPreferences) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            print("💾 [MyTasksPrefs] Saved SSE update to UserDefaults")
+            AppLog.debug("💾 [MyTasksPrefs] Saved SSE update to UserDefaults")
         }
     }
 
@@ -129,6 +129,6 @@ class MyTasksPreferencesService: ObservableObject {
         // Clear persisted data
         UserDefaults.standard.removeObject(forKey: userDefaultsKey)
 
-        print("🗑️ [MyTasksPrefs] Data cleared for logout")
+        AppLog.debug("🗑️ [MyTasksPrefs] Data cleared for logout")
     }
 }

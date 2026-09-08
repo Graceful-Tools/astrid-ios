@@ -470,7 +470,7 @@ struct AccountSettingsView: View {
         do {
             passkeys = try await PasskeyManager.shared.getPasskeys()
         } catch {
-            print("Failed to load passkeys: \(error)")
+            AppLog.debug("Failed to load passkeys: \(error)")
         }
         isLoadingPasskeys = false
     }

@@ -16,12 +16,12 @@ class ListPresenter: ObservableObject {
     @Published var featuredListToShow: TaskList?
 
     private init() {
-        print("🎯 [ListPresenter] Initializing...")
+        AppLog.debug("🎯 [ListPresenter] Initializing...")
     }
 
     /// Navigate to a user's own list by ID
     func showList(listId: String) {
-        print("🔄 [ListPresenter] Navigating to list: \(listId)")
+        AppLog.debug("🔄 [ListPresenter] Navigating to list: \(listId)")
         self.isShowingFeaturedList = false
         self.featuredListToShow = nil
         self.listIdToShow = listId
@@ -29,7 +29,7 @@ class ListPresenter: ObservableObject {
 
     /// Navigate to a public/featured list
     func showFeaturedList(_ list: TaskList) {
-        print("🔄 [ListPresenter] Navigating to featured list: \(list.name)")
+        AppLog.debug("🔄 [ListPresenter] Navigating to featured list: \(list.name)")
         self.featuredListToShow = list
         self.isShowingFeaturedList = true
         self.listIdToShow = list.id
@@ -37,7 +37,7 @@ class ListPresenter: ObservableObject {
 
     /// Navigate to a public list by ID and name (creates minimal TaskList for display)
     func showPublicList(listId: String, name: String) {
-        print("🔄 [ListPresenter] Navigating to public list: \(name) (\(listId))")
+        AppLog.debug("🔄 [ListPresenter] Navigating to public list: \(name) (\(listId))")
         // Create a minimal TaskList object for display purposes
         let publicList = TaskList(
             id: listId,

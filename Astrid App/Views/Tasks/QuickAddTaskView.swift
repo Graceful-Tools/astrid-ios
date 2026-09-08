@@ -486,7 +486,7 @@ struct QuickAddTaskView: View {
                     parsedListIds = parsed.listIds
                     parsedRepeating = parsed.repeating
                     parsedRepeatingData = parsed.customRepeatingData
-                    print("📝 [SmartParsing] Parsed: title='\(title)', dueDateTime=\(parsedDueDateTime?.description ?? "nil"), priority=\(parsedPriority ?? -1), listIds=\(parsedListIds), repeating=\(parsedRepeating?.rawValue ?? "nil")")
+                    AppLog.debug("📝 [SmartParsing] Parsed: title='\(title)', dueDateTime=\(parsedDueDateTime?.description ?? "nil"), priority=\(parsedPriority ?? -1), listIds=\(parsedListIds), repeating=\(parsedRepeating?.rawValue ?? "nil")")
                 }
 
                 // CRITICAL FIX: Get fresh list data from ListService in case settings were updated
@@ -501,11 +501,11 @@ struct QuickAddTaskView: View {
                 }
 
                 // Use selected priority/assignee from checkbox picker (overrides list defaults)
-                print("📝 [QuickAdd] Selected list: \(currentList?.name ?? "nil")")
-                print("  Selected priority: \(taskPriority.rawValue)")
-                print("  Selected assigneeId: \(taskAssigneeId ?? "nil (unassigned)")")
-                print("  defaultDueDate: \(currentList?.defaultDueDate ?? "nil")")
-                print("  defaultDueTime: \(currentList?.defaultDueTime ?? "nil")")
+                AppLog.debug("📝 [QuickAdd] Selected list: \(currentList?.name ?? "nil")")
+                AppLog.debug("  Selected priority: \(taskPriority.rawValue)")
+                AppLog.debug("  Selected assigneeId: \(taskAssigneeId ?? "nil (unassigned)")")
+                AppLog.debug("  defaultDueDate: \(currentList?.defaultDueDate ?? "nil")")
+                AppLog.debug("  defaultDueTime: \(currentList?.defaultDueTime ?? "nil")")
 
                 // Use parsed priority if available, otherwise picker-selected priority
                 let priority = parsedPriority ?? taskPriority.rawValue
@@ -560,7 +560,7 @@ struct QuickAddTaskView: View {
                     // Smart parsing detected a date - use it as all-day
                     whenDate = parsedDate
                     whenTime = nil // Smart-parsed dates are all-day
-                    print("📝 [SmartParsing] Using parsed due date: \(parsedDate)")
+                    AppLog.debug("📝 [SmartParsing] Using parsed due date: \(parsedDate)")
                 } else if let date = calculatedDate {
                     // We have a date from list defaults - check if it's all-day or timed
                     whenDate = date
@@ -581,14 +581,14 @@ struct QuickAddTaskView: View {
                 // Use parsed repeating if available, otherwise use list default
                 let repeating = parsedRepeating?.rawValue ?? currentList?.defaultRepeating
 
-                print("📝 [QuickAdd] Creating task with selected values:")
-                print("  Priority: \(priority)")
-                print("  AssigneeId: \(assigneeId ?? "nil (unassigned)")")
-                print("  WhenDate: \(whenDate?.description ?? "none")")
-                print("  WhenTime: \(whenTime?.description ?? "none (all-day)")")
-                print("  All-day: \(calculatedDate != nil && !hasDefaultDueTime)")
-                print("  IsPrivate: \(isPrivate ?? false)")
-                print("  Repeating: \(repeating ?? "never")")
+                AppLog.debug("📝 [QuickAdd] Creating task with selected values:")
+                AppLog.debug("  Priority: \(priority)")
+                AppLog.debug("  AssigneeId: \(assigneeId ?? "nil (unassigned)")")
+                AppLog.debug("  WhenDate: \(whenDate?.description ?? "none")")
+                AppLog.debug("  WhenTime: \(whenTime?.description ?? "none (all-day)")")
+                AppLog.debug("  All-day: \(calculatedDate != nil && !hasDefaultDueTime)")
+                AppLog.debug("  IsPrivate: \(isPrivate ?? false)")
+                AppLog.debug("  Repeating: \(repeating ?? "never")")
 
                 // CRITICAL: Only add list ID if it's NOT a virtual list
                 // Virtual lists (saved filters) should NOT be added to tasks
@@ -598,16 +598,16 @@ struct QuickAddTaskView: View {
                 // First, add parsed hashtag list IDs (from smart parsing)
                 if !parsedListIds.isEmpty {
                     listIdsToAdd.append(contentsOf: parsedListIds)
-                    print("  Adding parsed hashtag lists: \(parsedListIds)")
+                    AppLog.debug("  Adding parsed hashtag lists: \(parsedListIds)")
                 }
 
                 // Then, add selected list if it's a real list and not already included
                 if let list = currentList, list.isVirtual != true, !listIdsToAdd.contains(list.id) {
                     listIdsToAdd.append(list.id)
-                    print("  Adding to real list: \(list.name)")
+                    AppLog.debug("  Adding to real list: \(list.name)")
                 } else if parsedListIds.isEmpty {
                     // Virtual list or no list and no parsed lists - don't add any list ID
-                    print("  Virtual list or no list - not adding list ID")
+                    AppLog.debug("  Virtual list or no list - not adding list ID")
                 }
 
                 // Finally, append any extra list ids the caller wired in.
@@ -645,7 +645,7 @@ struct QuickAddTaskView: View {
                 // For quick add, haptic already fired and user can keep typing
                 await MainActor.run { isSubmitting = false }
             } catch {
-                print("Failed to create task: \(error)")
+                AppLog.debug("Failed to create task: \(error)")
                 await MainActor.run {
                     // On error, restore title so user doesn't lose their input
                     if !navigateToDetails {
@@ -660,7 +660,7 @@ struct QuickAddTaskView: View {
     /// Calculate due date/time from list defaults or My Tasks filter
     /// Matches web behavior: defaultDueTime=nil means "all day" (midnight), not no date
     private func calculateDateTime(from defaultDueDate: String?, time defaultDueTime: String?) -> Date? {
-        print("🗓️ [calculateDateTime] Input: defaultDueDate=\(defaultDueDate ?? "nil"), defaultDueTime=\(defaultDueTime ?? "nil")")
+        AppLog.debug("🗓️ [calculateDateTime] Input: defaultDueDate=\(defaultDueDate ?? "nil"), defaultDueTime=\(defaultDueTime ?? "nil")")
 
         let calendar = Calendar.current
 
@@ -739,7 +739,7 @@ struct QuickAddTaskView: View {
         }
         // else: defaultDueTime is nil (All Day) - keep time at midnight (already set)
 
-        print("🗓️ [calculateDateTime] Result: \(dateToModify)")
+        AppLog.debug("🗓️ [calculateDateTime] Result: \(dateToModify)")
         return dateToModify
     }
 }
@@ -901,7 +901,7 @@ struct QuickAddPickerSheet: View {
             // Cache for offline use
             AIAgentCache.shared.save(agents)
         } catch {
-            print("❌ [QuickAddPickerSheet] Failed to fetch AI agents: \(error)")
+            AppLog.debug("❌ [QuickAddPickerSheet] Failed to fetch AI agents: \(error)")
             await MainActor.run {
                 // Keep cached agents if we have them, otherwise aiAgents stays as loaded from cache
                 self.isLoadingAgents = false

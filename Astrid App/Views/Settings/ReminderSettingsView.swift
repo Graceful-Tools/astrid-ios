@@ -146,7 +146,7 @@ struct ReminderSettingsView: View {
             await checkNotificationPermission()
             await settings.save()
         } catch {
-            print("Failed to request notification permission: \(error)")
+            AppLog.debug("Failed to request notification permission: \(error)")
         }
     }
 
@@ -165,7 +165,7 @@ struct ReminderSettingsView: View {
         } catch {
             reminderTestError = error.localizedDescription
             showingReminderTest = true
-            print("❌ Failed to schedule test reminder: \(error)")
+            AppLog.debug("❌ Failed to schedule test reminder: \(error)")
         }
     }
 }

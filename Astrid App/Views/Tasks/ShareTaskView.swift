@@ -203,10 +203,10 @@ struct ShareTaskView: View {
                 targetId: task.id
             )
             shareUrl = response.url
-            print("✅ [ShareTaskView] Generated share URL: \(response.url)")
+            AppLog.debug("✅ [ShareTaskView] Generated share URL: \(response.url)")
         } catch {
             errorMessage = "Failed to generate share link. Please try again."
-            print("❌ [ShareTaskView] Failed to generate share link: \(error)")
+            AppLog.debug("❌ [ShareTaskView] Failed to generate share link: \(error)")
         }
 
         isLoading = false

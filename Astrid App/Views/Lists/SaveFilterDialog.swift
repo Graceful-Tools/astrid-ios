@@ -136,7 +136,7 @@ struct SaveFilterDialog: View {
                     privacy: "PRIVATE"
                 )
 
-                print("✅ Created Smart List: \(listName) (ID: \(newList.id))")
+                AppLog.debug("✅ Created Smart List: \(listName) (ID: \(newList.id))")
 
                 // Step 2: Update with filter settings and isVirtual flag
                 let updates: [String: Any] = [
@@ -154,7 +154,7 @@ struct SaveFilterDialog: View {
                     updates: updates
                 )
 
-                print("✅ Applied filter settings to Smart List")
+                AppLog.debug("✅ Applied filter settings to Smart List")
 
                 // Refresh lists to show updated smart list
                 _ = try await listService.fetchLists()
@@ -164,7 +164,7 @@ struct SaveFilterDialog: View {
                     dismiss()
                 }
             } catch {
-                print("❌ Failed to create Smart List: \(error)")
+                AppLog.debug("❌ Failed to create Smart List: \(error)")
                 await MainActor.run {
                     errorMessage = "Failed to save: \(error.localizedDescription)"
                     isSaving = false

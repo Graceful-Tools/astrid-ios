@@ -40,15 +40,15 @@ struct AttachmentEditorView: View {
                 }
             }
             .onAppear {
-                print("🎨 [AttachmentEditor] View appeared for file: \(file.id)")
-                print("🎨 [AttachmentEditor] Image size: \(originalImage.size)")
+                AppLog.debug("🎨 [AttachmentEditor] View appeared for file: \(file.id)")
+                AppLog.debug("🎨 [AttachmentEditor] Image size: \(originalImage.size)")
             }
             .navigationTitle("Markup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        print("🎨 [AttachmentEditor] Cancel tapped")
+                        AppLog.debug("🎨 [AttachmentEditor] Cancel tapped")
                         onCancel()
                     }
                     .foregroundColor(.white)
@@ -140,16 +140,16 @@ struct AttachmentEditorView: View {
 
     private func saveEditedImage() {
         isSaving = true
-        print("📤 [AttachmentEditor] Starting save for file: \(file.id)")
-        print("📤 [AttachmentEditor] Original image size: \(originalImage.size)")
+        AppLog.debug("📤 [AttachmentEditor] Starting save for file: \(file.id)")
+        AppLog.debug("📤 [AttachmentEditor] Original image size: \(originalImage.size)")
 
         // Get the canvas bounds from the editor state
         let canvasBounds = editorState.canvasBounds
-        print("📤 [AttachmentEditor] Canvas bounds: \(canvasBounds)")
+        AppLog.debug("📤 [AttachmentEditor] Canvas bounds: \(canvasBounds)")
 
         // Safety check for canvas bounds
         guard canvasBounds.width > 0, canvasBounds.height > 0 else {
-            print("⚠️ [AttachmentEditor] Canvas bounds are zero, using original image")
+            AppLog.debug("⚠️ [AttachmentEditor] Canvas bounds are zero, using original image")
             // Just save the original image if canvas isn't ready
             guard let imageData = originalImage.jpegData(compressionQuality: 0.9) else {
                 isSaving = false
@@ -169,7 +169,7 @@ struct AttachmentEditorView: View {
 
             // Scale and draw the canvas drawing
             let scale = originalImage.size.width / canvasBounds.width
-            print("📤 [AttachmentEditor] Scale factor: \(scale)")
+            AppLog.debug("📤 [AttachmentEditor] Scale factor: \(scale)")
             context.cgContext.scaleBy(x: scale, y: scale)
 
             // Convert PKDrawing to image and draw it
@@ -182,11 +182,11 @@ struct AttachmentEditorView: View {
             isSaving = false
             errorMessage = "Failed to encode edited image"
             showingError = true
-            print("❌ [AttachmentEditor] Failed to encode image")
+            AppLog.debug("❌ [AttachmentEditor] Failed to encode image")
             return
         }
 
-        print("📤 [AttachmentEditor] Encoded image: \(imageData.count) bytes, calling onSave...")
+        AppLog.debug("📤 [AttachmentEditor] Encoded image: \(imageData.count) bytes, calling onSave...")
         onSave(imageData)
     }
 }
@@ -248,7 +248,7 @@ struct MarkupCanvasView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> PKCanvasView {
-        print("🎨 [MarkupCanvasView] makeUIView called")
+        AppLog.debug("🎨 [MarkupCanvasView] makeUIView called")
 
         let canvasView = PKCanvasView()
         canvasView.drawingPolicy = .anyInput
@@ -281,12 +281,12 @@ struct MarkupCanvasView: UIViewRepresentable {
     }
 
     private func setupToolPicker(for canvasView: PKCanvasView, coordinator: Coordinator) {
-        print("🎨 [MarkupCanvasView] Setting up tool picker...")
+        AppLog.debug("🎨 [MarkupCanvasView] Setting up tool picker...")
 
         // Find the window scene
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let _ = windowScene.windows.first(where: { $0.isKeyWindow }) ?? windowScene.windows.first else {
-            print("⚠️ [MarkupCanvasView] Could not get window for tool picker")
+            AppLog.debug("⚠️ [MarkupCanvasView] Could not get window for tool picker")
             // Try again after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.setupToolPicker(for: canvasView, coordinator: coordinator)
@@ -304,7 +304,7 @@ struct MarkupCanvasView: UIViewRepresentable {
         // Make canvas first responder to show tool picker
         canvasView.becomeFirstResponder()
 
-        print("🎨 [MarkupCanvasView] Tool picker configured, canvas is first responder: \(canvasView.isFirstResponder)")
+        AppLog.debug("🎨 [MarkupCanvasView] Tool picker configured, canvas is first responder: \(canvasView.isFirstResponder)")
     }
 
     class Coordinator: NSObject, PKCanvasViewDelegate {

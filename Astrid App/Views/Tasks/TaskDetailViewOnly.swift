@@ -216,7 +216,7 @@ struct TaskDetailViewOnly: View {
             _ = try? await CommentService.shared.fetchComments(taskId: task.id, useCache: false)
         } catch {
             // Silent failure - just fail gracefully if offline
-            print("⚠️ [TaskDetailViewOnly] Failed to refresh task details: \(error)")
+            AppLog.debug("⚠️ [TaskDetailViewOnly] Failed to refresh task details: \(error)")
         }
     }
 

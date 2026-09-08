@@ -637,7 +637,7 @@ struct ImageCropView: View {
             color: "#3b82f6"
         ),
         onSelectImage: { imageUrl in
-            print("Selected image: \(imageUrl)")
+            AppLog.debug("Selected image: \(imageUrl)")
         }
     )
 }

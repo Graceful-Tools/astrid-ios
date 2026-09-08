@@ -728,7 +728,7 @@ final class GoogleTasksSyncService: ObservableObject {
             // One task's push failing (e.g. its remote task was deleted)
             // must not abort the rest of the pass.
             pushErrors += 1
-            print("⚠️ [GoogleSync] push failed for \(task.id): \(error)")
+            AppLog.debug("⚠️ [GoogleSync] push failed for \(task.id): \(error)")
           }
         }
         if pushErrors > 0 {
@@ -1098,7 +1098,7 @@ final class GoogleTasksSyncService: ObservableObject {
                 }
               } catch {
                 pushErrors += 1
-                print("⚠️ [GoogleSync] My Tasks push failed for \(task.id): \(error)")
+                AppLog.debug("⚠️ [GoogleSync] My Tasks push failed for \(task.id): \(error)")
               }
             }
             if pushErrors > 0 {

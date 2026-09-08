@@ -19,28 +19,28 @@ class TaskPresenter: ObservableObject {
     private let taskService = TaskService.shared
 
     private init() {
-        print("🎯 [TaskPresenter] Initializing...")
+        AppLog.debug("🎯 [TaskPresenter] Initializing...")
     }
 
     /// Show task detail view for a task ID
     func showTask(taskId: String) {
-        print("🔄 [TaskPresenter] Fetching task \(taskId)...")
+        AppLog.debug("🔄 [TaskPresenter] Fetching task \(taskId)...")
         _Concurrency.Task {
             do {
                 let task = try await taskService.fetchTask(id: taskId)
-                print("✅ [TaskPresenter] Task fetched: \(task.title)")
+                AppLog.debug("✅ [TaskPresenter] Task fetched: \(task.title)")
                 await MainActor.run {
                     self.showTask(task)
                 }
             } catch {
-                print("❌ [TaskPresenter] Failed to fetch task for navigation: \(error)")
+                AppLog.debug("❌ [TaskPresenter] Failed to fetch task for navigation: \(error)")
             }
         }
     }
 
     /// Show task detail view with an existing task object
     func showTask(_ task: Task) {
-        print("🎯 [TaskPresenter] Showing task: \(task.title)")
+        AppLog.debug("🎯 [TaskPresenter] Showing task: \(task.title)")
         if let panelHandler {
             panelHandler(task)
             return

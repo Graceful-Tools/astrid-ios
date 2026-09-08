@@ -119,7 +119,7 @@ class NotificationPromptManager: ObservableObject {
 
             return granted
         } catch {
-            print("❌ Failed to request notification permission: \(error)")
+            AppLog.debug("❌ Failed to request notification permission: \(error)")
             return false
         }
     }

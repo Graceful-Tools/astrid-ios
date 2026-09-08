@@ -65,7 +65,7 @@ class AuthManager: ObservableObject {
             do {
                 _ = try keychainService.getSessionCookie()
             } catch {
-                print("⚠️ [AuthManager] UserId found in UserDefaults but no session cookie in Keychain - clearing stale auth state")
+                AppLog.debug("⚠️ [AuthManager] UserId found in UserDefaults but no session cookie in Keychain - clearing stale auth state")
                 // Clear stale UserDefaults data to prevent future mismatches
                 UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userId)
                 UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userEmail)
@@ -99,7 +99,7 @@ class AuthManager: ObservableObject {
     }
 
     func checkAuthentication() async {
-        print("🔐 [AuthManager] Checking authentication...")
+        AppLog.debug("🔐 [AuthManager] Checking authentication...")
 
         // OFFLINE FIRST: Check local auth state immediately
         let hasLocalAuth = checkLocalAuthentication()
@@ -107,7 +107,7 @@ class AuthManager: ObservableObject {
         if hasLocalAuth {
             // User has local auth - set authenticated immediately
             self.isAuthenticated = true
-            print("⚡ [AuthManager] User authenticated offline - will validate in background")
+            AppLog.debug("⚡ [AuthManager] User authenticated offline - will validate in background")
 
             // Mark auth check as complete immediately (don't block UI)
             self.isCheckingAuth = false
@@ -131,7 +131,7 @@ class AuthManager: ObservableObject {
             do {
                 // Try to get session cookie
                 _ = try keychainService.getSessionCookie()
-                print("🔑 [AuthManager] Session cookie found")
+                AppLog.debug("🔑 [AuthManager] Session cookie found")
 
                 // Validate session with backend
                 let response: SessionResponse = try await apiClient.request(.session)
@@ -156,10 +156,10 @@ class AuthManager: ObservableObject {
             } catch {
                 // Only log if it's not a "no session" error (which is expected on first launch)
                 if case KeychainError.notFound = error {
-                    print("ℹ️ [AuthManager] No session cookie found (expected on first launch)")
+                    AppLog.debug("ℹ️ [AuthManager] No session cookie found (expected on first launch)")
                 } else {
-                    print("❌ [AuthManager] Session validation failed (offline or network error): \(error)")
-                    print("⚠️ [AuthManager] If user has cached data, they can still use the app offline")
+                    AppLog.debug("❌ [AuthManager] Session validation failed (offline or network error): \(error)")
+                    AppLog.debug("⚠️ [AuthManager] If user has cached data, they can still use the app offline")
                 }
                 self.isAuthenticated = false
                 self.currentUser = nil
@@ -174,8 +174,8 @@ class AuthManager: ObservableObject {
         // Check network availability before attempting validation
         // This avoids unnecessary error logs when offline
         guard NetworkMonitor.shared.isConnected else {
-            print("ℹ️ [AuthManager] Skipping background session validation - no network connection")
-            print("✅ [AuthManager] User remains authenticated with cached credentials (offline mode)")
+            AppLog.debug("ℹ️ [AuthManager] Skipping background session validation - no network connection")
+            AppLog.debug("✅ [AuthManager] User remains authenticated with cached credentials (offline mode)")
             return
         }
 
@@ -189,7 +189,7 @@ class AuthManager: ObservableObject {
 
             await MainActor.run {
                 self.currentUser = response.user
-                print("✅ [AuthManager] Background session validation successful")
+                AppLog.debug("✅ [AuthManager] Background session validation successful")
 
                 // Update UserDefaults with latest user info
                 UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
@@ -203,31 +203,31 @@ class AuthManager: ObservableObject {
             }
         } catch KeychainError.notFound {
             // No session cookie - this is a critical mismatch, clear auth state
-            print("⚠️ [AuthManager] Background validation failed: no session cookie in Keychain")
+            AppLog.debug("⚠️ [AuthManager] Background validation failed: no session cookie in Keychain")
             await MainActor.run {
                 self.clearStaleAuthState()
             }
         } catch let error as APIError {
             // Check if this is an explicit session rejection (401 Unauthorized)
             if case .httpError(let statusCode, _) = error, statusCode == 401 {
-                print("🔒 [AuthManager] Session rejected by server (401) - logging out user")
+                AppLog.debug("🔒 [AuthManager] Session rejected by server (401) - logging out user")
                 await MainActor.run {
                     self.clearStaleAuthState()
                 }
             } else {
                 // Network or other transient error - keep user authenticated
-                print("⚠️ [AuthManager] Background session validation failed (keeping offline mode): \(error)")
+                AppLog.debug("⚠️ [AuthManager] Background session validation failed (keeping offline mode): \(error)")
             }
         } catch {
             // Other errors (network issues, etc.) - keep user authenticated for offline access
-            print("⚠️ [AuthManager] Background session validation failed (offline mode): \(error)")
+            AppLog.debug("⚠️ [AuthManager] Background session validation failed (offline mode): \(error)")
         }
     }
 
     /// Clear stale authentication state when session is invalid
     /// This is a lighter cleanup than full signOut - just clears auth state without API calls
     private func clearStaleAuthState() {
-        print("🧹 [AuthManager] Clearing stale auth state...")
+        AppLog.debug("🧹 [AuthManager] Clearing stale auth state...")
 
         // Clear Keychain
         try? keychainService.deleteSessionCookie()
@@ -242,7 +242,7 @@ class AuthManager: ObservableObject {
         self.isAuthenticated = false
         self.currentUser = nil
 
-        print("✅ [AuthManager] Stale auth state cleared - user will see login screen")
+        AppLog.debug("✅ [AuthManager] Stale auth state cleared - user will see login screen")
     }
     
     // MARK: - Passwordless Sign Up
@@ -261,7 +261,7 @@ class AuthManager: ObservableObject {
 
             self.currentUser = response.user
 
-            print("✅ [AuthManager] Passwordless sign-up successful")
+            AppLog.debug("✅ [AuthManager] Passwordless sign-up successful")
 
             // Save user info
             UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
@@ -280,11 +280,11 @@ class AuthManager: ObservableObject {
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
         } catch let error as APIError {
-            print("❌ [AuthManager] Passwordless sign-up failed: \(error.localizedDescription)")
+            AppLog.debug("❌ [AuthManager] Passwordless sign-up failed: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
-            print("❌ [AuthManager] Passwordless sign-up failed: \(error)")
+            AppLog.debug("❌ [AuthManager] Passwordless sign-up failed: \(error)")
             self.errorMessage = "An unexpected error occurred"
             throw error
         }
@@ -293,7 +293,7 @@ class AuthManager: ObservableObject {
     // MARK: - Sign In with Apple
 
     func signInWithApple() async throws {
-        print("🍎 [AuthManager] Starting Apple sign-in...")
+        AppLog.debug("🍎 [AuthManager] Starting Apple sign-in...")
         isLoading = true
         errorMessage = nil
 
@@ -301,9 +301,9 @@ class AuthManager: ObservableObject {
 
         do {
             // Get Apple credentials
-            print("🍎 [AuthManager] Requesting Apple credentials...")
+            AppLog.debug("🍎 [AuthManager] Requesting Apple credentials...")
             let appleResult = try await AppleSignInManager.shared.signIn()
-            print("🍎 [AuthManager] Got Apple credentials, sending to backend...")
+            AppLog.debug("🍎 [AuthManager] Got Apple credentials, sending to backend...")
 
             // Convert PersonNameComponents to String
             let fullNameString = appleResult.fullName.map {
@@ -340,11 +340,11 @@ class AuthManager: ObservableObject {
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
         } catch let error as APIError {
-            print("❌ [AuthManager] Apple sign-in failed: \(error.localizedDescription)")
+            AppLog.debug("❌ [AuthManager] Apple sign-in failed: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
-            print("❌ [AuthManager] Apple sign-in failed: \(error)")
+            AppLog.debug("❌ [AuthManager] Apple sign-in failed: \(error)")
             self.errorMessage = error.localizedDescription
             throw error
         }
@@ -353,7 +353,7 @@ class AuthManager: ObservableObject {
     // MARK: - Sign In with Google
 
     func signInWithGoogle() async throws {
-        print("🔵 [AuthManager] Starting Google sign-in...")
+        AppLog.debug("🔵 [AuthManager] Starting Google sign-in...")
         isLoading = true
         errorMessage = nil
 
@@ -361,9 +361,9 @@ class AuthManager: ObservableObject {
 
         do {
             // Get Google credentials
-            print("🔵 [AuthManager] Requesting Google credentials...")
+            AppLog.debug("🔵 [AuthManager] Requesting Google credentials...")
             let googleResult = try await GoogleSignInManager.shared.signIn()
-            print("🔵 [AuthManager] Got Google credentials, sending to backend...")
+            AppLog.debug("🔵 [AuthManager] Got Google credentials, sending to backend...")
 
             // Send to backend for validation and session creation
             let response: SessionResponse = try await apiClient.request(.signInWithGoogle(
@@ -391,11 +391,11 @@ class AuthManager: ObservableObject {
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
         } catch let error as APIError {
-            print("❌ [AuthManager] Google sign-in failed: \(error.localizedDescription)")
+            AppLog.debug("❌ [AuthManager] Google sign-in failed: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
-            print("❌ [AuthManager] Google sign-in failed: \(error)")
+            AppLog.debug("❌ [AuthManager] Google sign-in failed: \(error)")
             self.errorMessage = error.localizedDescription
             throw error
         }
@@ -407,7 +407,7 @@ class AuthManager: ObservableObject {
     ///   QR) and throws `PasskeyError.noLocalPasskey` when there are none; `.fullSheet` is the
     ///   complete system flow. See `PasskeySignInPlan` (AITD-298).
     func signInWithPasskey(email: String? = nil, presentation: PasskeyPresentation = .fullSheet) async throws {
-        print("🔑 [AuthManager] Starting Passkey sign-in...")
+        AppLog.debug("🔑 [AuthManager] Starting Passkey sign-in...")
         isLoading = true
         errorMessage = nil
 
@@ -448,20 +448,20 @@ class AuthManager: ObservableObject {
         } catch let error as PasskeyError {
             // Don't show error for user cancellation
             if case .userCancelled = error {
-                print("ℹ️ [AuthManager] Passkey sign-in cancelled by user")
+                AppLog.debug("ℹ️ [AuthManager] Passkey sign-in cancelled by user")
                 throw error
             }
             // Nothing local answered a local-only request: the caller offers the alternatives,
             // so this is not an error banner either (AITD-298).
             if case .noLocalPasskey = error {
-                print("ℹ️ [AuthManager] No local passkey for a local-only sign-in")
+                AppLog.debug("ℹ️ [AuthManager] No local passkey for a local-only sign-in")
                 throw error
             }
-            print("❌ [AuthManager] Passkey sign-in failed: \(error.localizedDescription)")
+            AppLog.debug("❌ [AuthManager] Passkey sign-in failed: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
-            print("❌ [AuthManager] Passkey sign-in failed: \(error)")
+            AppLog.debug("❌ [AuthManager] Passkey sign-in failed: \(error)")
             self.errorMessage = error.localizedDescription
             throw error
         }
@@ -515,14 +515,14 @@ class AuthManager: ObservableObject {
         } catch let error as PasskeyError {
             // Don't show error for user cancellation
             if case .userCancelled = error {
-                print("ℹ️ [AuthManager] Passkey sign-up cancelled by user")
+                AppLog.debug("ℹ️ [AuthManager] Passkey sign-up cancelled by user")
                 throw error
             }
-            print("❌ [AuthManager] Passkey sign-up failed: \(error.localizedDescription)")
+            AppLog.debug("❌ [AuthManager] Passkey sign-up failed: \(error.localizedDescription)")
             self.errorMessage = error.localizedDescription
             throw error
         } catch {
-            print("❌ [AuthManager] Passkey sign-up failed: \(error)")
+            AppLog.debug("❌ [AuthManager] Passkey sign-up failed: \(error)")
             self.errorMessage = error.localizedDescription
             throw error
         }
@@ -556,7 +556,7 @@ class AuthManager: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
-        print("🚪 [AuthManager] Starting sign-out - clearing ALL user data...")
+        AppLog.debug("🚪 [AuthManager] Starting sign-out - clearing ALL user data...")
 
         // Disconnect SSE first to stop receiving updates
         await SSEClient.shared.disconnect()
@@ -565,7 +565,7 @@ class AuthManager: ObservableObject {
             // Call sign out endpoint
             let _: EmptyResponse = try await apiClient.request(.signOut)
         } catch {
-            print("Sign out API call failed: \(error)")
+            AppLog.debug("Sign out API call failed: \(error)")
             // Continue with local cleanup even if API call fails
         }
 
@@ -581,7 +581,7 @@ class AuthManager: ObservableObject {
         // This is essential for user data isolation - cached cookies can leak between users
         if let apiURL = URL(string: Constants.API.baseURL) {
             if let cookies = HTTPCookieStorage.shared.cookies(for: apiURL) {
-                print("🍪 [AuthManager] Clearing \(cookies.count) cached cookies for \(apiURL.host ?? "unknown")...")
+                AppLog.debug("🍪 [AuthManager] Clearing \(cookies.count) cached cookies for \(apiURL.host ?? "unknown")...")
                 for cookie in cookies {
                     HTTPCookieStorage.shared.deleteCookie(cookie)
                 }
@@ -590,7 +590,7 @@ class AuthManager: ObservableObject {
         // Also clear all cookies for the domain (covers subdomains too)
         if let allCookies = HTTPCookieStorage.shared.cookies {
             let brandCookies = allCookies.filter { Brand.isBrandCookieDomain($0.domain) }
-            print("🍪 [AuthManager] Clearing \(brandCookies.count) \(Brand.appName) domain cookies...")
+            AppLog.debug("🍪 [AuthManager] Clearing \(brandCookies.count) \(Brand.appName) domain cookies...")
             for cookie in brandCookies {
                 HTTPCookieStorage.shared.deleteCookie(cookie)
             }
@@ -622,12 +622,12 @@ class AuthManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "oauth_token_expires_at")
 
         // ===== CORE DATA =====
-        print("🗑️ [AuthManager] Clearing Core Data...")
+        AppLog.debug("🗑️ [AuthManager] Clearing Core Data...")
         do {
             try CoreDataManager.shared.clearAll()
-            print("✅ [AuthManager] Core Data cleared successfully")
+            AppLog.debug("✅ [AuthManager] Core Data cleared successfully")
         } catch {
-            print("❌ [AuthManager] Failed to clear Core Data: \(error)")
+            AppLog.debug("❌ [AuthManager] Failed to clear Core Data: \(error)")
             // Continue with logout even if Core Data clear fails
         }
 
@@ -662,7 +662,7 @@ class AuthManager: ObservableObject {
         ImageCache.shared.clearCache()
         AIAgentCache.shared.clear()
 
-        print("✅ [AuthManager] All user data cleared successfully")
+        AppLog.debug("✅ [AuthManager] All user data cleared successfully")
 
         self.isAuthenticated = false
         self.currentUser = nil
@@ -671,7 +671,7 @@ class AuthManager: ObservableObject {
     // MARK: - Update Current User
 
     func updateCurrentUser(_ user: User) {
-        print("👤 [AuthManager] Updating current user")
+        AppLog.debug("👤 [AuthManager] Updating current user")
         self.currentUser = user
 
         // Update UserDefaults
@@ -688,7 +688,7 @@ class AuthManager: ObservableObject {
             UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userImage)
         }
 
-        print("✅ [AuthManager] Current user updated")
+        AppLog.debug("✅ [AuthManager] Current user updated")
     }
 
     // MARK: - Helpers

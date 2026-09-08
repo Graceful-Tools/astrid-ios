@@ -355,7 +355,7 @@ class PasskeyManager: NSObject, ObservableObject {
                 throw PasskeyError.serverError("Invalid response type")
             }
 
-            print("🔑 [Passkey] Auth options response: HTTP \(httpResponse.statusCode)")
+            AppLog.debug("🔑 [Passkey] Auth options response: HTTP \(httpResponse.statusCode)")
 
             guard (200...299).contains(httpResponse.statusCode) else {
                 PrivacyLogger.error("PasskeyManager", code: "options_http_error", status: httpResponse.statusCode)
@@ -476,7 +476,7 @@ class PasskeyManager: NSObject, ObservableObject {
     }
 
     private func saveCookies(from httpResponse: HTTPURLResponse, url: URL) {
-        print("🍪 [PasskeyManager] Extracting cookies from response...")
+        AppLog.debug("🍪 [PasskeyManager] Extracting cookies from response...")
 
         // Convert allHeaderFields to [String: String] - it's [AnyHashable: Any]
         var stringHeaders: [String: String] = [:]
@@ -488,10 +488,10 @@ class PasskeyManager: NSObject, ObservableObject {
 
         // Log Set-Cookie headers for debugging
         let setCookieHeaders = stringHeaders.filter { $0.key.lowercased() == "set-cookie" }
-        print("🍪 [PasskeyManager] Found \(setCookieHeaders.count) Set-Cookie header(s)")
+        AppLog.debug("🍪 [PasskeyManager] Found \(setCookieHeaders.count) Set-Cookie header(s)")
 
         let cookies = HTTPCookie.cookies(withResponseHeaderFields: stringHeaders, for: url)
-        print("🍪 [PasskeyManager] Parsed \(cookies.count) cookie(s) from headers")
+        AppLog.debug("🍪 [PasskeyManager] Parsed \(cookies.count) cookie(s) from headers")
 
         var authCookies: [String] = []
         for cookie in cookies {
@@ -506,24 +506,24 @@ class PasskeyManager: NSObject, ObservableObject {
             let allCookiesString = authCookies.joined(separator: "; ")
             do {
                 try KeychainService.shared.saveSessionCookie(allCookiesString)
-                print("✅ [PasskeyManager] Saved \(authCookies.count) auth cookie(s) to keychain")
+                AppLog.debug("✅ [PasskeyManager] Saved \(authCookies.count) auth cookie(s) to keychain")
 
                 // Verify the save was successful
                 if (try? KeychainService.shared.getSessionCookie()) != nil {
                     PrivacyLogger.debug("PasskeyManager", "cookie_persistence=verified")
                 } else {
-                    print("❌ [PasskeyManager] Cookie save verification failed - could not read back")
+                    AppLog.debug("❌ [PasskeyManager] Cookie save verification failed - could not read back")
                 }
             } catch {
-                print("❌ [PasskeyManager] Keychain save failed: \(error)")
+                AppLog.debug("❌ [PasskeyManager] Keychain save failed: \(error)")
             }
         } else {
-            print("⚠️ [PasskeyManager] No auth cookies found in response!")
+            AppLog.debug("⚠️ [PasskeyManager] No auth cookies found in response!")
             PrivacyLogger.debug("PasskeyManager", "auth_cookie=missing")
 
             // Check if cookies are being stored in HTTPCookieStorage instead
             if let storedCookies = HTTPCookieStorage.shared.cookies(for: url) {
-                print("🍪 [PasskeyManager] HTTPCookieStorage has \(storedCookies.count) cookies for this URL")
+                AppLog.debug("🍪 [PasskeyManager] HTTPCookieStorage has \(storedCookies.count) cookies for this URL")
                 for cookie in storedCookies {
                     let lowercaseName = cookie.name.lowercased()
                     if lowercaseName.contains("session") || lowercaseName.contains("auth") {
@@ -532,9 +532,9 @@ class PasskeyManager: NSObject, ObservableObject {
                         PrivacyLogger.debug("PasskeyManager", "stored_auth_cookie=found")
                         do {
                             try KeychainService.shared.saveSessionCookie(cookieValue)
-                            print("✅ [PasskeyManager] Saved cookie from HTTPCookieStorage to keychain")
+                            AppLog.debug("✅ [PasskeyManager] Saved cookie from HTTPCookieStorage to keychain")
                         } catch {
-                            print("❌ [PasskeyManager] Failed to save from storage: \(error)")
+                            AppLog.debug("❌ [PasskeyManager] Failed to save from storage: \(error)")
                         }
                         break
                     }

@@ -157,7 +157,7 @@ struct AttachmentThumbnail: View {
         isDownloading = true
         defer { isDownloading = false }
 
-        print("✏️ [AttachmentThumbnail] Loading full image for editing: \(file.id)")
+        AppLog.debug("✏️ [AttachmentThumbnail] Loading full image for editing: \(file.id)")
 
         // Check if we already have the full image from previous load
         if let fullImage = fullImage {
@@ -218,7 +218,7 @@ struct AttachmentThumbnail: View {
                 onEdit?(file, image)
             }
         } catch {
-            print("❌ [AttachmentThumbnail] Failed to load image for editing: \(error)")
+            AppLog.debug("❌ [AttachmentThumbnail] Failed to load image for editing: \(error)")
         }
     }
 
@@ -249,7 +249,7 @@ struct AttachmentThumbnail: View {
 
         // Check persistent disk cache (for offline viewing)
         if let cachedData = attachmentService.getCachedDownload(for: file.id) {
-            print("✅ [AttachmentThumbnail] Found in disk cache: \(file.id)")
+            AppLog.debug("✅ [AttachmentThumbnail] Found in disk cache: \(file.id)")
 
             if isImage {
                 // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
@@ -271,11 +271,11 @@ struct AttachmentThumbnail: View {
 
         isLoadingThumbnail = true
 
-        print("🖼️ [AttachmentThumbnail] Loading thumbnail for: \(file.name) (id: \(file.id))")
+        AppLog.debug("🖼️ [AttachmentThumbnail] Loading thumbnail for: \(file.name) (id: \(file.id))")
 
         // Check if this is a local temp file (not yet uploaded)
         if file.id.hasPrefix("temp_") {
-            print("🖼️ [AttachmentThumbnail] Loading from pending uploads cache...")
+            AppLog.debug("🖼️ [AttachmentThumbnail] Loading from pending uploads cache...")
             if let localData = attachmentService.getLocalFileData(for: file.id) {
                 if isImage {
                     // UIImage(data:) must run on main thread to avoid "visual style disabled" warnings
@@ -293,7 +293,7 @@ struct AttachmentThumbnail: View {
                 isLoadingThumbnail = false
                 return
             } else {
-                print("❌ [AttachmentThumbnail] Failed to load from pending cache")
+                AppLog.debug("❌ [AttachmentThumbnail] Failed to load from pending cache")
                 isLoadingThumbnail = false
                 return
             }
@@ -367,7 +367,7 @@ struct AttachmentThumbnail: View {
             isLoadingThumbnail = false
 
         } catch {
-            print("❌ [AttachmentThumbnail] Failed to load thumbnail: \(error)")
+            AppLog.debug("❌ [AttachmentThumbnail] Failed to load thumbnail: \(error)")
             isLoadingThumbnail = false
         }
     }
@@ -401,7 +401,7 @@ struct AttachmentThumbnail: View {
             let cgImage = try await imageGenerator.image(at: .zero).image
             return UIImage(cgImage: cgImage)
         } catch {
-            print("❌ [AttachmentThumbnail] Failed to generate video thumbnail: \(error)")
+            AppLog.debug("❌ [AttachmentThumbnail] Failed to generate video thumbnail: \(error)")
             return nil
         }
     }
@@ -410,31 +410,31 @@ struct AttachmentThumbnail: View {
         isDownloading = true
         defer { isDownloading = false }
 
-        print("📥 [AttachmentThumbnail] Opening file: \(file.name) (id: \(file.id))")
+        AppLog.debug("📥 [AttachmentThumbnail] Opening file: \(file.name) (id: \(file.id))")
 
         // Check if this is a local temp file (not yet uploaded)
         if file.id.hasPrefix("temp_") {
-            print("📥 [AttachmentThumbnail] Loading preview from pending uploads...")
+            AppLog.debug("📥 [AttachmentThumbnail] Loading preview from pending uploads...")
             if let localData = attachmentService.getLocalFileData(for: file.id) {
                 let tempDir = FileManager.default.temporaryDirectory
                 let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
 
                 do {
                     try localData.write(to: tempFileURL)
-                    print("✅ [AttachmentThumbnail] Local file ready for preview")
+                    AppLog.debug("✅ [AttachmentThumbnail] Local file ready for preview")
                     quickLookURL = tempFileURL
                 } catch {
-                    print("❌ [AttachmentThumbnail] Failed to write temp file: \(error)")
+                    AppLog.debug("❌ [AttachmentThumbnail] Failed to write temp file: \(error)")
                 }
             } else {
-                print("❌ [AttachmentThumbnail] Failed to load from pending cache")
+                AppLog.debug("❌ [AttachmentThumbnail] Failed to load from pending cache")
             }
             return
         }
 
         // Check disk cache first (for offline viewing)
         if let cachedURL = attachmentService.getCachedFileURL(for: file.id, fileName: file.name) {
-            print("✅ [AttachmentThumbnail] Opening from disk cache: \(file.id)")
+            AppLog.debug("✅ [AttachmentThumbnail] Opening from disk cache: \(file.id)")
             quickLookURL = cachedURL
             return
         }
@@ -444,7 +444,7 @@ struct AttachmentThumbnail: View {
             // Get the signed download URL from the API
             let infoURL = "\(Constants.API.baseURL)/api/v1/secure-files/\(file.id)?info=true"
             guard let url = URL(string: infoURL) else {
-                print("❌ [AttachmentThumbnail] Invalid URL")
+                AppLog.debug("❌ [AttachmentThumbnail] Invalid URL")
                 return
             }
 
@@ -461,7 +461,7 @@ struct AttachmentThumbnail: View {
 
             guard let httpResponse = infoResponse as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode) else {
-                print("❌ [AttachmentThumbnail] Failed to get file info: \(infoResponse)")
+                AppLog.debug("❌ [AttachmentThumbnail] Failed to get file info: \(infoResponse)")
                 return
             }
 
@@ -475,11 +475,11 @@ struct AttachmentThumbnail: View {
             let decoder = JSONDecoder()
             let fileInfo = try decoder.decode(FileInfo.self, from: infoData)
 
-            print("📥 [AttachmentThumbnail] Got signed URL, downloading...")
+            AppLog.debug("📥 [AttachmentThumbnail] Got signed URL, downloading...")
 
             // Download from the signed URL
             guard let downloadURL = URL(string: fileInfo.url) else {
-                print("❌ [AttachmentThumbnail] Invalid download URL")
+                AppLog.debug("❌ [AttachmentThumbnail] Invalid download URL")
                 return
             }
 
@@ -494,13 +494,13 @@ struct AttachmentThumbnail: View {
 
             try fileData.write(to: tempFileURL)
 
-            print("✅ [AttachmentThumbnail] File downloaded and cached: \(tempFileURL.path)")
+            AppLog.debug("✅ [AttachmentThumbnail] File downloaded and cached: \(tempFileURL.path)")
 
             // Show QuickLook preview
             quickLookURL = tempFileURL
 
         } catch {
-            print("❌ [AttachmentThumbnail] Failed to download file: \(error)")
+            AppLog.debug("❌ [AttachmentThumbnail] Failed to download file: \(error)")
         }
     }
 

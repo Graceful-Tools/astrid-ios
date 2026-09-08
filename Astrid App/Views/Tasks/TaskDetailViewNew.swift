@@ -911,7 +911,7 @@ struct TaskDetailViewNew: View {
                     for url in urls { await uploadDocument(url) }
                 }
             case .failure(let error):
-                print("❌ Document picker error: \(error)")
+                AppLog.debug("❌ Document picker error: \(error)")
                 uploadError = "Failed to select document: \(error.localizedDescription)"
             }
         }
@@ -1076,7 +1076,7 @@ struct TaskDetailViewNew: View {
                     authorId: AuthManager.shared.userId
                 )
             } catch {
-                print("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
+                AppLog.debug("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
             }
         }
 
@@ -1131,7 +1131,7 @@ struct TaskDetailViewNew: View {
                     authorId: AuthManager.shared.userId
                 )
             } catch {
-                print("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
+                AppLog.debug("❌ [TaskDetailViewNew] Failed to submit comment: \(error) — kept as pending")
             }
         }
 
@@ -1399,7 +1399,7 @@ struct TaskDetailViewNew: View {
     private func refreshTaskDetails() async {
         // First, sync any pending attachments and comments (if online)
         if NetworkMonitor.shared.isConnected {
-            print("🔄 [TaskDetailViewNew] Pull to refresh - draining outbox first...")
+            AppLog.debug("🔄 [TaskDetailViewNew] Pull to refresh - draining outbox first...")
             await OutboxManager.shared.drain()
         }
 
@@ -1442,7 +1442,7 @@ struct TaskDetailViewNew: View {
             _ = try? await CommentService.shared.fetchComments(taskId: task.id, useCache: false)
         } catch {
             // Silent failure - just fail gracefully if offline
-            print("⚠️ [TaskDetailViewNew] Failed to refresh task details: \(error)")
+            AppLog.debug("⚠️ [TaskDetailViewNew] Failed to refresh task details: \(error)")
         }
     }
 
@@ -1851,7 +1851,7 @@ struct TaskDetailViewNew: View {
         do {
             _ = try await taskService.updateTaskOnServer(taskId: task.id, updates: request)
         } catch {
-            print("⚠️ [TaskDetailViewNew] Server-first save failed: \(error)")
+            AppLog.debug("⚠️ [TaskDetailViewNew] Server-first save failed: \(error)")
             // Silent failure - data will sync on next refresh
         }
     }
@@ -2009,7 +2009,7 @@ struct TaskDetailViewNew: View {
             )
             _ = try await taskService.updateTaskOnServer(taskId: taskId, updates: request)
         } catch {
-            print("⚠️ [TaskDetailViewNew] Failed to save custom repeating: \(error)")
+            AppLog.debug("⚠️ [TaskDetailViewNew] Failed to save custom repeating: \(error)")
             // Silent failure - data will sync on next refresh
         }
     }

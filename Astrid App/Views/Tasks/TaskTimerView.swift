@@ -245,7 +245,7 @@ struct TaskTimerView: View {
                     onUpdate(savedTask)
                 }
             } catch {
-                print("Error updating task on timer start: \(error)")
+                AppLog.debug("Error updating task on timer start: \(error)")
             }
         }
     }
@@ -325,7 +325,7 @@ struct TaskTimerView: View {
                     onUpdate(savedTask)
                 }
             } catch {
-                print("Error completing timer: \(error)")
+                AppLog.debug("Error completing timer: \(error)")
             }
         }
     }
@@ -337,7 +337,7 @@ struct TaskTimerView: View {
             try session.setCategory(.playback, mode: .default, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
             try session.setActive(true)
         } catch {
-            print("Failed to set up audio session: \(error)")
+            AppLog.debug("Failed to set up audio session: \(error)")
         }
 
         // Try multiple paths for a pleasant repeating sound
@@ -361,7 +361,7 @@ struct TaskTimerView: View {
                     played = true
                     break
                 } catch {
-                    print("Failed to play sound at \(path): \(error)")
+                    AppLog.debug("Failed to play sound at \(path): \(error)")
                 }
             }
         }
@@ -415,7 +415,7 @@ struct TaskTimerView: View {
                     dismiss()
                 }
             } catch {
-                print("Error completing task: \(error)")
+                AppLog.debug("Error completing task: \(error)")
             }
         }
     }
@@ -426,7 +426,7 @@ struct TaskTimerView: View {
         // App going to background - pause the in-memory timer but keep tracking
         // The notification is already scheduled when timer starts
         if isActive && !isFinished {
-            print("📱 [TaskTimerView] App resigning active with \(timeLeft)s remaining")
+            AppLog.debug("📱 [TaskTimerView] App resigning active with \(timeLeft)s remaining")
             // Stop the in-memory timer (it won't run in background anyway)
             timer?.invalidate()
             timer = nil
@@ -448,14 +448,14 @@ struct TaskTimerView: View {
 
             if remaining <= 0 {
                 // Timer completed while in background
-                print("⏰ [TaskTimerView] Timer completed in background!")
+                AppLog.debug("⏰ [TaskTimerView] Timer completed in background!")
                 timeLeft = 0
                 isActive = false
                 timerEndTime = nil
                 handleCompletion()
             } else {
                 // Timer still has time - update display and restart
-                print("▶️ [TaskTimerView] Resuming timer with \(remaining)s remaining (was \(timeLeft)s)")
+                AppLog.debug("▶️ [TaskTimerView] Resuming timer with \(remaining)s remaining (was \(timeLeft)s)")
                 timeLeft = remaining
 
                 // Restart the in-memory timer
@@ -478,25 +478,25 @@ struct TaskTimerView: View {
     private func resumeFromSavedState() {
         _Concurrency.Task { @MainActor in
             guard let state = TimerBackgroundManager.shared.loadTimerState() else {
-                print("⚠️ [TaskTimerView] No timer state found")
+                AppLog.debug("⚠️ [TaskTimerView] No timer state found")
                 return
             }
 
             // Make sure this is the same task
             guard state.taskId == task.id else {
-                print("⚠️ [TaskTimerView] Timer state is for different task")
+                AppLog.debug("⚠️ [TaskTimerView] Timer state is for different task")
                 return
             }
 
             let remaining = state.remainingSeconds
 
             if state.isCompleted {
-                print("⏰ [TaskTimerView] Timer completed (from saved state)!")
+                AppLog.debug("⏰ [TaskTimerView] Timer completed (from saved state)!")
                 timeLeft = 0
                 isActive = false
                 handleCompletion()
             } else if !state.isPaused {
-                print("▶️ [TaskTimerView] Resuming timer with \(remaining)s remaining (from saved state)")
+                AppLog.debug("▶️ [TaskTimerView] Resuming timer with \(remaining)s remaining (from saved state)")
                 timeLeft = remaining
                 timerEndTime = Date().addingTimeInterval(TimeInterval(remaining))
 
@@ -529,18 +529,18 @@ struct TaskTimerView: View {
 
             if state.isCompleted {
                 // Timer completed while app was closed
-                print("⏰ [TaskTimerView] Timer completed while app was closed!")
+                AppLog.debug("⏰ [TaskTimerView] Timer completed while app was closed!")
                 timeLeft = 0
                 handleCompletion()
             } else if !state.isPaused {
                 // Timer was running - resume it
-                print("▶️ [TaskTimerView] Restoring timer with \(remaining)s remaining")
+                AppLog.debug("▶️ [TaskTimerView] Restoring timer with \(remaining)s remaining")
                 timeLeft = remaining
                 duration = state.durationSeconds / 60
                 startTimer()
             } else {
                 // Timer was paused - just restore the state
-                print("⏸️ [TaskTimerView] Restoring paused timer with \(remaining)s remaining")
+                AppLog.debug("⏸️ [TaskTimerView] Restoring paused timer with \(remaining)s remaining")
                 timeLeft = remaining
                 duration = state.durationSeconds / 60
                 isActive = false
@@ -565,7 +565,7 @@ struct TaskTimerView: View {
                     onUpdate(savedTask)
                 }
             } catch {
-                print("Error saving timer duration: \(error)")
+                AppLog.debug("Error saving timer duration: \(error)")
             }
         }
     }

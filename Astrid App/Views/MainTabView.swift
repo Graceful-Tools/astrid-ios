@@ -108,7 +108,7 @@ struct MainTabView: View {
         .onChange(of: listPresenter.listIdToShow) { _, newListId in
             // Handle programmatic list navigation from ListPresenter
             if let listId = newListId {
-                print("🔄 [MainTabView] ListPresenter requesting navigation to: \(listId)")
+                AppLog.debug("🔄 [MainTabView] ListPresenter requesting navigation to: \(listId)")
 
                 // Close sidebar if open
                 if showSidebar {

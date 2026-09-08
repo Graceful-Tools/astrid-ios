@@ -16,7 +16,7 @@ import Foundation
                 debugPreference: Foundation.UserDefaults.standard.string(forKey: "debug_server_url"),
                 defaultURL: environment.baseURL,
                 productionURL: Environment.production.baseURL)
-            print("🌐 [Constants.API.baseURL] Using: \(resolved)")
+            AppLog.debug("🌐 [Constants.API.baseURL] Using: \(resolved)")
             return resolved
             #else
             return environment.baseURL
