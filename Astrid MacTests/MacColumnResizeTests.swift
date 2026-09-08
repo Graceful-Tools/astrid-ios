@@ -76,12 +76,18 @@ final class MacColumnResizeTests: XCTestCase {
     /// edge by exactly `detailArrowRowGap`. That derivation assumed one fixed width. Making the
     /// column draggable would have left the arrow pointing at empty space where the rows used to
     /// end — unless the pop-out gives back exactly what the column gained, which is what this pins.
+    ///
+    /// WHERE it gives those points back changed in AITD-334: they were the pop-out's trailing
+    /// PADDING and are the card's WIDTH now, so the card fills the message pane instead of being
+    /// pushed left of a growing gutter. The clearance this test exists for is unaffected — that is
+    /// the point of taking the width at the trailing edge — so the invariant is unchanged and only
+    /// the expression of the card's leading edge moved.
     func testTheArrowKeepsTheSameClearanceAtEveryColumnWidth() {
         let contentRight: CGFloat = 1_000
 
         for width in [MacLayout.chatColumnMinWidth, 450, 520, 640] as [CGFloat] {
-            let trailing = MacLayout.detailPopoutTrailingPadding(chatColumnWidth: width)
-            let cardLeft = contentRight - trailing - MacLayout.detailPanelWidth
+            let panel = MacLayout.resolvedDetailPanelWidth(chatColumnWidth: width)
+            let cardLeft = contentRight - MacLayout.detailPopoutTrailingPadding - panel
             let arrowTip = cardLeft - (MacLayout.detailArrowWidth - MacLayout.arrowOverlap)
             let rowRight = contentRight - width - MacLayout.columnDividerWidth - MacLayout.rowTrailingGap
 
@@ -92,18 +98,18 @@ final class MacColumnResizeTests: XCTestCase {
 
     func testAtTheDefaultWidthThePopoutPaddingIsUnchanged() {
         // The resize must not move anything for a user who never drags.
-        XCTAssertEqual(MacLayout.detailPopoutTrailingPadding(chatColumnWidth: MacLayout.chatColumnMinWidth),
-                       MacLayout.detailPanelMargin)
+        XCTAssertEqual(MacLayout.detailPopoutTrailingPadding, MacLayout.detailPanelMargin)
     }
 
     func testTheRowsNeverGiveUpWidthTwice() {
-        // The padding grows by exactly what the column gained — no more, or the card would drift
-        // off the trailing edge and leave a gutter.
+        // The card takes back exactly what the column gained — no more, or it would drift off the
+        // trailing edge; no less, and the gutter AITD-334 removed comes back. It arrives as WIDTH
+        // now rather than as padding, so this is asserted on the width.
         let gained: CGFloat = 90
 
         XCTAssertEqual(
-            MacLayout.detailPopoutTrailingPadding(chatColumnWidth: MacLayout.chatColumnMinWidth + gained)
-                - MacLayout.detailPopoutTrailingPadding(chatColumnWidth: MacLayout.chatColumnMinWidth),
+            MacLayout.resolvedDetailPanelWidth(chatColumnWidth: MacLayout.chatColumnMinWidth + gained)
+                - MacLayout.resolvedDetailPanelWidth(chatColumnWidth: MacLayout.chatColumnMinWidth),
             gained, accuracy: 0.001)
     }
 }

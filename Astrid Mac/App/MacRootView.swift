@@ -500,7 +500,8 @@ struct MacRootView: View {
     private func taskDetailPopout(_ task: Task) -> some View {
         // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
         MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
-            .frame(width: MacLayout.detailPanelWidth, alignment: .top)
+            .frame(width: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
+                   alignment: .top)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(MacDetailChrome.background)
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -544,9 +545,10 @@ struct MacRootView: View {
                 }
             }
             .padding(.leading, MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
-            // Grows with the chat column so the arrow tip keeps the SAME clearance from the row
-            // edge at every width — the AITD-302 geometry has to survive a resize (AITD-329).
-            .padding(.trailing, MacLayout.detailPopoutTrailingPadding(chatColumnWidth: resolvedChatColumnWidth))
+            // One margin, always: the panel WIDTH grows with the chat column instead (AITD-334), so
+            // the card reaches the trailing margin while its leading edge — and the arrow's
+            // AITD-302 clearance from the row edge — stays exactly where it was.
+            .padding(.trailing, MacLayout.detailPopoutTrailingPadding)
         .padding(.vertical, 14)
         // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
         // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.

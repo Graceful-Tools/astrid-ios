@@ -109,16 +109,30 @@ enum MacLayout {
         return max(chatColumnMinWidth, min(requested, max(chatColumnMinWidth, available)))
     }
 
-    /// Trailing padding for the floating detail pop-out at a given chat column width.
+    /// The panel's width at a given chat column width — it FILLS the message pane (AITD-334).
+    ///
+    /// Jon: "should fill the message pane with reasonable margin… just scale to fill the message
+    /// pane, no drag of the task details window." So the panel is not draggable in its own right;
+    /// it simply takes the room the message pane has.
     ///
     /// The arrow-meets-the-rows geometry (AITD-302) is derived from `chatColumnWidth`, so a
-    /// dragged-wider chat column would leave the arrow pointing at empty space where the rows used
-    /// to end. Giving the pop-out back exactly the width the chat column gained keeps the tip the
-    /// same `detailArrowRowGap` from the row edge at every column width — the invariant survives
-    /// the resize instead of holding only at the default.
-    static func detailPopoutTrailingPadding(chatColumnWidth width: CGFloat) -> CGFloat {
-        detailPanelMargin + max(0, width - chatColumnMinWidth)
+    /// dragged-wider chat column must not move the panel's LEADING edge. AITD-329 kept it still by
+    /// giving the gained points to the pop-out's trailing PADDING — which held the arrow but parked
+    /// a fixed 380pt card against a growing gutter. The points go into the card's WIDTH now
+    /// instead: the leading edge is just as fixed, and the trailing edge reaches the margin.
+    ///
+    /// `detailPanelWidth` is the FLOOR, not the answer: it is the width every detail row is sized
+    /// against (`MacDetailRowFit`), so nothing may narrow the panel below it.
+    static func resolvedDetailPanelWidth(chatColumnWidth width: CGFloat) -> CGFloat {
+        detailPanelWidth + max(0, width - chatColumnMinWidth)
     }
+
+    /// Trailing padding for the floating detail pop-out: one margin, at every column width.
+    ///
+    /// It used to grow with the chat column (AITD-329). `resolvedDetailPanelWidth` absorbs that
+    /// growth now, so this is a constant again — and it has to be, or the panel would both widen
+    /// and be pushed left, sweeping the arrow off the rows.
+    static var detailPopoutTrailingPadding: CGFloat { detailPanelMargin }
 
     // MARK: - Board columns (AITD-330)
 
