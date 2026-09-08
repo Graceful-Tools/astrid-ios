@@ -28,7 +28,7 @@ class CommentService: ObservableObject {
     init() {
         // Load cached comments on initialization
         _Concurrency.Task { @MainActor in
-            await self.loadCachedComments()
+            await self.prepareCacheAtLaunch()
             await self.updatePendingOperationsCount()
         }
 
@@ -145,63 +145,23 @@ class CommentService: ObservableObject {
         }
     }
 
-    /// Load cached comments from CoreData on startup (async, non-blocking)
-    /// CRITICAL: Must convert to domain models INSIDE the context to avoid faulted objects
-    private func loadCachedComments() async {
-        let startTime = Date()
-
-        // CRITICAL: Wait for CoreData persistent store to be ready
+    /// Startup housekeeping for the comment cache.
+    ///
+    /// It used to hydrate the WHOLE cache here — `CDComment.fetchAll`, a domain model for every
+    /// row, then a sort per task, before the UI was usable. On Jon's Mac that was 284,340
+    /// comments in 4,451 ms of blocked launch (task AITD-335), long enough that a 5 s Timer armed
+    /// in `.onAppear` had already expired by the time the run loop serviced its first fire.
+    ///
+    /// None of it was needed. `fetchComments(taskId:)` already walks memory → CoreData → network,
+    /// and its CoreData step is `loadCommentsFromCoreData(taskId:)` — scoped to the one task. So
+    /// every bucket the eager pass built is one the lazy path would build anyway, the moment a
+    /// task is actually opened, and only for the task opened. Launch is no longer
+    /// O(all comments ever).
+    ///
+    /// The corrupted-row cleanup stays: that one does have to happen at startup.
+    private func prepareCacheAtLaunch() async {
         await coreDataManager.waitForStoreLoad()
-
-        // Clean up corrupted comments (empty IDs) from old data
         await cleanupCorruptedComments()
-
-        do {
-            // Load from CoreData in background and convert to domain models INSIDE context
-            let commentsByTask: [String: [Comment]] = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let cdComments = try CDComment.fetchAll(context: context)
-
-                        // CRITICAL: Convert to domain models INSIDE context block
-                        // Otherwise managed objects are faulted and return nil for properties
-                        var result: [String: [Comment]] = [:]
-                        for cdComment in cdComments {
-                            let comment = cdComment.toDomainModel()
-                            if result[comment.taskId] == nil {
-                                result[comment.taskId] = []
-                            }
-                            result[comment.taskId]?.append(comment)
-                        }
-
-                        // Sort comments within each task by createdAt
-                        for (taskId, comments) in result {
-                            result[taskId] = comments.sorted { c1, c2 in
-                                guard let date1 = c1.createdAt, let date2 = c2.createdAt else {
-                                    return false
-                                }
-                                return date1 < date2
-                            }
-                        }
-
-                        continuation.resume(returning: result)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-
-            self.cachedComments = commentsByTask
-
-            let totalComments = commentsByTask.values.reduce(0) { $0 + $1.count }
-            let duration = Date().timeIntervalSince(startTime)
-            if totalComments > 0 || duration > 1.0 {
-                // Only log if there's something interesting (comments loaded or slow startup)
-                logger.notice("Comments loaded: \(totalComments, privacy: .public) comments for \(commentsByTask.count, privacy: .public) tasks in \(String(format: "%.0f", duration * 1000), privacy: .public)ms")
-            }
-        } catch {
-            logger.error("Failed to load cached comments: \(error.localizedDescription, privacy: .public)")
-        }
     }
 
     /// Update the count of pending operations (for UI indicators)
