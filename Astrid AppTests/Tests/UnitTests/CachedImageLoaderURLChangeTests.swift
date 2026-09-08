@@ -49,6 +49,16 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
         try XCTUnwrap(image.pngDataCompat())
     }
 
+    /// Seed the cache the way the loader itself now does — with the bytes AND the decoded image.
+    ///
+    /// `ImageCache.set(_:for:)` used to take only an image and PNG-re-encode it onto disk; AITD-345
+    /// replaced it with `store(_:image:for:)` so the served bytes are what gets stored. These tests
+    /// only need a cache hit, so they encode once here and hand over both halves.
+    private func seed(_ color: PlatformColor, size: CGFloat = 4, at url: URL) throws {
+        let image = self.image(color, size: size)
+        ImageCache.shared.store(try bytes(image), image: image, for: url)
+    }
+
     override func setUp() async throws {
         try await super.setUp()
         ImageCache.shared.remove(url: urlA)
@@ -65,8 +75,8 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     /// get the different picture. Both are pre-seeded in the cache, so this needs no network and
     /// resolves synchronously.
     func testLoadingADifferentURLYieldsTheDifferentImage() throws {
-        ImageCache.shared.set(image(.red), for: urlA)
-        ImageCache.shared.set(image(.blue, size: 8), for: urlB)
+        try seed(.red, at: urlA)
+        try seed(.blue, size: 8, at: urlB)
 
         // Both must be cache hits, or this test would be measuring the network instead of the bug.
         XCTAssertNotNil(ImageCache.shared.get(url: urlA))
@@ -88,7 +98,7 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     /// one loads. Showing the previous list's image under the new list's name is worse than showing
     /// the placeholder for a moment.
     func testARepointToAnUncachedURLClearsTheStaleImage() throws {
-        ImageCache.shared.set(image(.red), for: urlA)
+        try seed(.red, at: urlA)
 
         let loader = CachedImageLoader(url: urlA)
         loader.load(url: urlA)
@@ -102,7 +112,7 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     /// Asking for the SAME url again must not throw away an image we already have — that would
     /// flicker every list row on each redraw.
     func testReloadingTheSameURLKeepsTheImage() throws {
-        ImageCache.shared.set(image(.red), for: urlA)
+        try seed(.red, at: urlA)
 
         let loader = CachedImageLoader(url: urlA)
         loader.load(url: urlA)

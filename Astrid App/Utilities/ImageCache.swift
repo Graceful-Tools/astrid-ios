@@ -43,6 +43,10 @@ class ImageCache {
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
 
+    /// How much disk the image cache may occupy (AITD-345). The memory cache has always been
+    /// bounded; the disk one only ever shrank on sign-out.
+    static let diskByteLimit = 100 * 1024 * 1024
+
     private init() {
         // Setup memory cache limits
         memoryCache.countLimit = 100 // Max 100 images in memory
@@ -56,9 +60,54 @@ class ImageCache {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
 
         AppLog.debug("📦 [ImageCache] Initialized with cache directory: \(cacheDirectory.path)")
+
+        // A cache that grew before the limit existed is the case to fix, so sweep at launch.
+        enforceDiskLimit()
     }
 
-    /// Get image from cache (memory first, then disk) - synchronous version for main thread
+    /// Memory only — no disk, no decode, safe to call during a SwiftUI body evaluation.
+    ///
+    /// The fast path `CachedImageLoader` uses. It used to call `get(url:)`, which reads and
+    /// decodes from disk synchronously, so every memory miss did file I/O and an image decode
+    /// inside a render pass (AITD-345).
+    func memoryImage(for url: URL) -> PlatformImage? {
+        memoryCache.object(forKey: url as NSURL)
+    }
+
+    /// Drop least-recently-used images until the disk cache is inside its budget.
+    ///
+    /// Same policy as the attachment cache — `FileCacheEviction`, written once and shared
+    /// (AITD-344 built it for exactly this).
+    func enforceDiskLimit(cap: Int = ImageCache.diskByteLimit) {
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
+        guard let files = try? fileManager.contentsOfDirectory(
+            at: cacheDirectory, includingPropertiesForKeys: keys
+        ) else { return }
+
+        let entries: [FileCacheEntry] = files.compactMap { url in
+            guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                  let size = values.fileSize else { return nil }
+            let accessed = values.contentAccessDate ?? values.contentModificationDate ?? Date()
+            return FileCacheEntry(id: url.lastPathComponent, size: size, lastAccess: accessed)
+        }
+
+        let doomed = FileCacheEviction.idsToEvict(entries, cap: cap)
+        guard !doomed.isEmpty else { return }
+        for id in doomed {
+            try? fileManager.removeItem(at: cacheDirectory.appendingPathComponent(id))
+        }
+        AppLog.debug("🧹 [ImageCache] Evicted \(doomed.count) images over the \(cap) byte cap")
+    }
+
+    /// Memory, then a SYNCHRONOUS disk read and decode.
+    ///
+    /// Deliberately kept for `UserImageCache.prepareForLaunch`, which warms exactly one avatar
+    /// before the first My Tasks frame so the row does not visibly flip from initials to a photo
+    /// (AITD-283). That is a considered trade of a single blocking read for a visual glitch.
+    ///
+    /// It is NOT the general path — `CachedImageLoader` uses `memoryImage(for:)` and then the
+    /// async disk read, because doing this per image inside a render is what AITD-345 was about.
+    /// `ImageCacheLoadPathTests` keeps it that way.
     /// WARNING: Only call from main thread to avoid "visual style disabled" warnings
     func get(url: URL) -> PlatformImage? {
         // Check memory cache first
@@ -104,38 +153,20 @@ class ImageCache {
         }
     }
 
-    /// Store image in both memory and disk cache - synchronous version
-    /// WARNING: Only call from main thread to avoid "visual style disabled" warnings
-    func set(_ image: PlatformImage, for url: URL) {
-        // Store in memory cache
+    /// Store an image and the bytes it was decoded from.
+    ///
+    /// The BYTES are what goes to disk (AITD-345). This used to write `image.pngDataCompat()` —
+    /// a lossless PNG re-encode of whatever came down, so a 200 KB JPEG avatar became a
+    /// multi-megabyte PNG, and the encode ran on the main actor. The original response bytes are
+    /// both smaller and free, and they are already in hand at the one call site.
+    func store(_ data: Data, image: PlatformImage, for url: URL) {
         memoryCache.setObject(image, forKey: url as NSURL)
-
-        // Store in disk cache
-        let fileURL = diskCacheURL(for: url)
-        if let data = image.pngDataCompat() {
-            try? data.write(to: fileURL)
-            AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
-        }
-    }
-
-    /// Store image in cache asynchronously - safe to call from background
-    /// Encodes image on main thread, writes to disk on background
-    func setAsync(_ image: PlatformImage, for url: URL) async {
-        // Store in memory cache (thread-safe)
-        memoryCache.setObject(image, forKey: url as NSURL)
-
-        // Encode image on main thread to avoid "visual style disabled" warning
-        let data = await MainActor.run {
-            image.pngDataCompat()
-        }
-
-        guard let data else { return }
-
-        // Write to disk on background thread
-        let fileURL = diskCacheURL(for: url)
-        try? data.write(to: fileURL)
+        try? data.write(to: diskCacheURL(for: url))
         AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
+        enforceDiskLimit()
     }
+
+
 
     /// Clear all caches
     func clearCache() {
@@ -227,8 +258,9 @@ class CachedImageLoader: ObservableObject {
     }
 
     func load() {
-        // Check cache first (on main thread since we're @MainActor)
-        if let cached = ImageCache.shared.get(url: url) {
+        // MEMORY only. Reading and decoding from disk here meant file I/O inside a SwiftUI
+        // render on every memory miss; the disk check moved into the async task below (AITD-345).
+        if let cached = ImageCache.shared.memoryImage(for: url) {
             self.image = cached
             return
         }
@@ -258,18 +290,18 @@ class CachedImageLoader: ObservableObject {
                         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
                         }
-                        let (responseData, _) = try await URLSession.shared.data(for: request)
+                        let (responseData, _) = try await AstridHTTP.session.data(for: request)
                         data = responseData
                     } else {
                         // Public URL, no auth needed
-                        let (responseData, _) = try await URLSession.shared.data(from: requested)
+                        let (responseData, _) = try await AstridHTTP.session.data(from: requested)
                         data = responseData
                     }
 
                     // Create PlatformImage on main thread to avoid "visual style disabled" warning
                     guard let image = PlatformImage(data: data) else { return nil }
-                    // Cache asynchronously (encodes on main thread, writes on background)
-                    await ImageCache.shared.setAsync(image, for: requested)
+                    // Store the bytes we were served, not a PNG re-encode of them (AITD-345).
+                    ImageCache.shared.store(data, image: image, for: requested)
                     return image
                 } catch {
                     AppLog.debug("❌ [CachedImageLoader] Failed to load image: \(error)")
