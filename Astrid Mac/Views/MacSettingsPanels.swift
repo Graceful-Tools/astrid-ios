@@ -123,9 +123,14 @@ struct MacSyncSettingsView: View {
             providerSection("GitHub Issues", connected: github.isConnected, account: github.accountLogin,
                             lastSync: github.lastSyncedAt, isConnecting: connecting == "GitHub Issues",
                             connect: {
-                                if let u = await github.authorizeURL() { PlatformApplication.open(u) }
-                                await pollConnection("GitHub Issues", refresh: { await github.refreshStatus() },
-                                                     isConnected: { github.isConnected })
+                                // In-app auth session, same as Google (AITD-362) — the default
+                                // browser need not be Safari, so the callback's sign-in hop could
+                                // land somewhere with no astrid.cc session at all.
+                                connecting = "GitHub Issues"
+                                defer { connecting = nil }
+                                do { try await github.connect() }
+                                catch is CancellationError {}
+                                catch { MacErrorCenter.shared.report("Connect GitHub Issues", error) }
                             },
                             disconnect: { await github.disconnect() },
                             refresh: { await github.refreshStatus() },
@@ -163,18 +168,6 @@ struct MacSyncSettingsView: View {
 
     /// After opening the OAuth browser, poll the provider's status until it connects (macOS has no
     /// in-app callback) so the UI updates automatically instead of needing a close/reopen.
-    private func pollConnection(_ title: String, refresh: @escaping () async -> Void,
-                                isConnected: @escaping () -> Bool) async {
-        connecting = title
-        defer { connecting = nil }
-        var attempt = 0
-        while MacConnectPoll.shouldContinue(attempt: attempt, connected: isConnected()) {
-            try? await _Concurrency.Task.sleep(nanoseconds: MacConnectPoll.intervalNanos)
-            await refresh()
-            attempt += 1
-        }
-    }
-
     @ViewBuilder
     private func providerSection(_ title: String, connected: Bool, account: String?, lastSync: Date?,
                                  isConnecting: Bool = false,

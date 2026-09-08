@@ -4,7 +4,6 @@ import SwiftUI
 /// repos, and trigger a manual sync. Mirrors the Apple Reminders settings shape.
 struct GitHubSyncSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
-    @Environment(\.openURL) private var openURL
     @StateObject private var sync = GitHubSyncService.shared
     @StateObject private var listService = ListService.shared
 
@@ -30,11 +29,13 @@ struct GitHubSyncSettingsView: View {
                 } else {
                     Button {
                         _Concurrency.Task {
-                            if let url = await sync.authorizeURL() {
-                                openURL(url)
-                            } else {
-                                loadError = NSLocalizedString("sync.github_not_configured", comment: "GitHub sync not configured")
-                            }
+                            loadError = nil
+                            // In-app auth session (AITD-362): the callback can now interrupt with an
+                            // astrid.cc sign-in page, and leaving for Safari meant returning to a
+                            // screen that still read "not connected".
+                            do { try await sync.connect() }
+                            catch is CancellationError {}
+                            catch { loadError = error.localizedDescription }
                         }
                     } label: {
                         Label(NSLocalizedString("sync.connect_github", comment: "Connect GitHub"), systemImage: "link")
