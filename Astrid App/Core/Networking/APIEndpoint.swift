@@ -27,7 +27,6 @@ enum APIEndpoint {
     case deleteList(id: String)
     case inviteToList(id: String, emails: [String])
     case leaveList(id: String)
-    case favoriteList(id: String, favorite: Bool)
     
     // MARK: - Comments
     case taskComments(taskId: String)
@@ -102,8 +101,6 @@ enum APIEndpoint {
             return "/api/v1/lists/\(id)/invite"
         case .leaveList(let id):
             return "/api/v1/lists/\(id)/leave"
-        case .favoriteList(let id, _):
-            return "/api/v1/lists/\(id)/favorite"
 
         case .taskComments(let taskId):
             return "/api/v1/tasks/\(taskId)/comments"
@@ -145,13 +142,10 @@ enum APIEndpoint {
     var method: HTTPMethod {
         switch self {
         // v1 uses POST (legacy used PUT) for: dismissReminder, snoozeReminder, inviteToList.
-        // v1 uses PATCH (legacy used PUT) for: favoriteList.
         case .signUpPasswordless, .signInWithApple, .signInWithGoogle, .mcpToken, .createTask, .createList, .createComment, .copyTask, .batchCopyTasks, .uploadFile, .verifyEmail, .deleteAccount, .leaveList, .inviteToList, .dismissReminder, .snoozeReminder:
             return .post
         case .updateTask, .updateList, .completeTask, .updateComment, .updateAccount:
             return .put
-        case .favoriteList:
-            return .patch
         case .deleteTask, .deleteList, .deleteComment, .signOut:
             return .delete
         default:
@@ -234,9 +228,6 @@ enum APIEndpoint {
             
         case .inviteToList(_, let emails):
             request.httpBody = try encoder.encode(["emails": emails])
-            
-        case .favoriteList(_, let favorite):
-            request.httpBody = try encoder.encode(["favorite": favorite])
             
         case .snoozeReminder(_, let minutes):
             request.httpBody = try encoder.encode(["minutes": minutes])

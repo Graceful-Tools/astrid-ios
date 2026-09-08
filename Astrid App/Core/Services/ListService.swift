@@ -711,8 +711,10 @@ class ListService: ObservableObject {
 
         // Make server call in background
         do {
-            // TODO: Implement favoriteList in API v1
-            // For now, use updateList with isFavorite parameter
+            // isFavorite is a field on the list, not a sub-resource: v1 has no
+            // /lists/{id}/favorite, and this PUT is the whole of favoriting (AITD-349). The
+            // comment that used to sit here said the opposite and sent readers looking for a
+            // dedicated endpoint that was never coming.
             let updates = UpdateListRequest(
                 name: nil,
                 description: nil,
@@ -745,7 +747,7 @@ class ListService: ObservableObject {
         }
     }
 
-    /// Wrapper for favoriteList to match ListServiceProtocol
+    /// Toggle, then hand back the updated list — the shape `ListRowView` wants.
     func favoriteList(listId: String, favorite: Bool) async throws -> TaskList {
         try await toggleFavorite(listId: listId, isFavorite: favorite)
 
@@ -778,13 +780,6 @@ class ListService: ObservableObject {
         }
         try? await saveListToCoreData(updatedList, syncStatus: "synced")
         return updatedList
-    }
-
-    func getListMembers(listId: String) async throws -> [User] {
-        // TODO: Implement getListMembers in API v1
-        // For now, return empty array
-        AppLog.debug("⚠️ [ListService] getListMembers not yet implemented in API v1")
-        return []
     }
 
     // MARK: - Helpers

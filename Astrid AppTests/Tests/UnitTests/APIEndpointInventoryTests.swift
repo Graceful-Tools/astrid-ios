@@ -89,7 +89,7 @@ final class APIEndpointInventoryTests: XCTestCase {
     func testTheLegacyClientIsNotGrowing() throws {
         let legacy = try paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift")
         XCTAssertLessThanOrEqual(
-            legacy.count, 27,
+            legacy.count, 26,
             "APIEndpoint gained a path. It is closed (ASTRID.md §2a) — add it to AstridAPIClient.")
     }
 

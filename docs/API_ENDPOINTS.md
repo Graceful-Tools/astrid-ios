@@ -119,7 +119,6 @@ five services still on this client are `AuthManager`, `AccountService`, `Attachm
 - `/api/v1/comments/{id}`
 - `/api/v1/lists`
 - `/api/v1/lists/{id}`
-- `/api/v1/lists/{id}/favorite`
 - `/api/v1/lists/{id}/invite`
 - `/api/v1/lists/{id}/leave`
 - `/api/v1/reminders`
