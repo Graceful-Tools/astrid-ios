@@ -835,6 +835,29 @@ extension CommentService {
             }
 
             logger.notice("💾 CoreData: updated \(updatedCount, privacy: .public), created \(createdCount, privacy: .public), skipped \(skippedCount, privacy: .public) unchanged comments")
+
+            // The server's list for this task is AUTHORITATIVE, so anything synced and missing
+            // from it was deleted server-side. Without this the cache could only grow: Jon's
+            // launch log showed 284,340 cached comments against a far smaller server, a 4.5s
+            // startup stall over a 221 MB store, because a GitHub-mirror loop's debris stayed
+            // cached long after it was cleaned up centrally.
+            //
+            // The pruning RULE lives in CommentCachePruner so the dangerous half — never taking
+            // an offline write that has not reached the server yet — is asserted, not assumed.
+            let taskRequest = CDComment.fetchRequest()
+            taskRequest.predicate = NSPredicate(format: "taskId == %@", taskId)
+            let cachedForTask = try context.fetch(taskRequest)
+            let stale = Set(CommentCachePruner.idsToPrune(
+                serverIds: Set(commentIds),
+                cached: cachedForTask.map {
+                    CommentCachePruner.CachedRow(id: $0.id, syncStatus: $0.syncStatus ?? "synced")
+                }))
+            if !stale.isEmpty {
+                for cdComment in cachedForTask where stale.contains(cdComment.id) {
+                    context.delete(cdComment)
+                }
+                logger.notice("🧹 Pruned \(stale.count, privacy: .public) cached comments the server no longer has")
+            }
         }
 
         let duration = Date().timeIntervalSince(startTime)
