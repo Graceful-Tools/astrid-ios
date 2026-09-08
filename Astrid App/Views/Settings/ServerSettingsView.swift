@@ -46,7 +46,7 @@ struct ServerSettingsView: View {
             }
 
             Section {
-                ForEach(Constants.API.ServerOption.allCases, id: \.rawValue) { option in
+                ForEach(Constants.API.ServerOption.available, id: \.rawValue) { option in
                     Button {
                         selectServer(option)
                     } label: {

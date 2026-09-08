@@ -27,13 +27,12 @@
 	</array>
 	<key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key><true/>
+	<key>AstridDevServerURL</key><string>$(ASTRID_DEV_SERVER_URL)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key><true/>
 		<key>NSExceptionDomains</key>
 		<dict>
-			<key>192.168.50.161</key>
-			<dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/><key>NSIncludesSubdomains</key><true/></dict>
 			<key>localhost</key>
 			<dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict>
 		</dict>
