@@ -39,10 +39,8 @@ final class GoogleTasksSyncService: ObservableObject {
     private var observers: [NSObjectProtocol] = []
     private var syncDebounce: _Concurrency.Task<Void, Never>?
     private let deletionLedger = SyncDeletionLedger(provider: "google")
-    private var taskLinkCache: [String: String] {
-        get { UserDefaults.standard.dictionary(forKey: "googleTaskLinkCache") as? [String: String] ?? [:] }
-        set { UserDefaults.standard.set(newValue, forKey: "googleTaskLinkCache") }
-    }
+    /// In memory, persisted through (AITD-342).
+    private let taskLinkCache = PersistedStringDictionary(key: "googleTaskLinkCache")
 
     /// RFC3339 date-only at UTC midnight (Google Tasks `due` convention —
     /// matches Astrid's all-day UTC-midnight convention).
@@ -195,9 +193,7 @@ final class GoogleTasksSyncService: ObservableObject {
         let remoteId = String(parts[0])
         guard !deletionLedger.tombstonedRemoteIds.contains(remoteId) else { return }
         deletionLedger.recordPending(remoteId: remoteId, containerId: String(parts[1]))
-        var cache = taskLinkCache
-        cache.removeValue(forKey: taskId)
-        taskLinkCache = cache
+        taskLinkCache[taskId] = nil
         scheduleSync()
     }
 
@@ -426,11 +422,12 @@ final class GoogleTasksSyncService: ObservableObject {
         let iso = ISO8601DateFormatter()
 
         // Refresh the delete-capture cache for this container's tasks.
-        var cache = taskLinkCache
-        for tl in taskLinks where tl.remoteContainerId == link.remoteContainerId {
-            cache[tl.astridTaskId] = "\(tl.remoteId)|\(tl.remoteContainerId)"
-        }
-        taskLinkCache = cache
+        // One persist for the whole pass, as before.
+        taskLinkCache.merge(Dictionary(
+            taskLinks
+                .filter { $0.remoteContainerId == link.remoteContainerId }
+                .map { ($0.astridTaskId, "\($0.remoteId)|\($0.remoteContainerId)") },
+            uniquingKeysWith: { a, _ in a }))
 
         // Execute pending remote deletions (tasks deleted in Astrid).
         for (remoteId, containerId) in deletionLedger.pending where containerId == link.remoteContainerId {
@@ -887,11 +884,12 @@ final class GoogleTasksSyncService: ObservableObject {
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
         let iso = ISO8601DateFormatter()
 
-        var cache = taskLinkCache
-        for tl in taskLinks where tl.remoteContainerId == tasklistId {
-            cache[tl.astridTaskId] = "\(tl.remoteId)|\(tl.remoteContainerId)"
-        }
-        taskLinkCache = cache
+        // One persist for the whole pass, as before.
+        taskLinkCache.merge(Dictionary(
+            taskLinks
+                .filter { $0.remoteContainerId == tasklistId }
+                .map { ($0.astridTaskId, "\($0.remoteId)|\($0.remoteContainerId)") },
+            uniquingKeysWith: { a, _ in a }))
 
         // Locally-deleted twins propagate in every active mode — same behavior
         // as linked lists.

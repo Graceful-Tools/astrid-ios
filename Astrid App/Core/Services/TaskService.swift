@@ -166,12 +166,15 @@ class TaskService: ObservableObject {
     /// returns the task briefly, there's nothing left to filter it → deleted tasks reappear.
     private static let recentlyDeletedIdsKey = "recentlyDeletedTaskIds"
     private static let recentlyDeletedCap = 500
-    /// Read-only view. Mutations go through recordRecentlyDeleted — ordered,
-    /// capped storage so eviction drops the OLDEST ids (a Set round-trip
-    /// evicts arbitrarily and could drop the id just recorded).
-    private var recentlyDeletedIds: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? [])
-    }
+    /// Ordered and capped so eviction drops the OLDEST ids — a Set round-trip evicts arbitrarily
+    /// and could drop the id just recorded.
+    ///
+    /// Held in memory and written through (AITD-342). It used to read and rebuild a 500-element
+    /// Set out of the defaults plist on every access, including the membership check in
+    /// `updateTask` that runs on every edit, completion and board move.
+    private let recentlyDeletedLedger = PersistedIdRing(key: TaskService.recentlyDeletedIdsKey,
+                                                        cap: TaskService.recentlyDeletedCap)
+    private var recentlyDeletedIds: Set<String> { recentlyDeletedLedger.ids }
 
     /// Ids we created ourselves and the server has confirmed, kept briefly (Task f07dff56).
     ///
@@ -204,19 +207,13 @@ class TaskService: ObservableObject {
     }
 
     private func recordRecentlyDeleted(_ ids: [String]) {
-        let arr = Self.appendingDeletedIds(
-            UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedIdsKey) ?? [],
-            ids, cap: Self.recentlyDeletedCap)
-        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedIdsKey)
+        recentlyDeletedLedger.record(ids)
     }
 
     /// Pure ledger append: idempotent, ordered, oldest-first eviction at cap —
     /// eviction must never drop the id just recorded (a Set round-trip would).
     nonisolated static func appendingDeletedIds(_ existing: [String], _ ids: [String], cap: Int) -> [String] {
-        var arr = existing
-        for id in ids where !arr.contains(id) { arr.append(id) }
-        if arr.count > cap { arr.removeFirst(arr.count - cap) }
-        return arr
+        PersistedIdRing.appending(existing, ids, cap: cap)
     }
 
     private init() {
@@ -695,7 +692,7 @@ class TaskService: ObservableObject {
         cachedTasks[resolvedId] = optimisticTask
         if let index = tasks.firstIndex(where: { $0.id == resolvedId }) {
             tasks[index] = optimisticTask
-        } else if !recentlyDeletedIds.contains(resolvedId) {
+        } else if !recentlyDeletedLedger.contains(resolvedId) {
             // Add to tasks array if not already there (e.g., featured list tasks) —
             // but never resurrect a deleted task (late queued updates / SSE echoes).
             tasks.append(optimisticTask)
@@ -1408,7 +1405,7 @@ class TaskService: ObservableObject {
     func clearCache() {
         tasks = []
         cachedTasks = [:]
-        UserDefaults.standard.removeObject(forKey: Self.recentlyDeletedIdsKey)
+        recentlyDeletedLedger.removeAll()
         pendingOperationsCount = 0
         AppLog.debug("🗑️ [TaskService] In-memory task cache cleared")
     }

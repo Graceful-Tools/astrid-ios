@@ -170,21 +170,17 @@ class ListService: ObservableObject {
     /// race as tasks — a fetch that started before the delete can deliver the
     /// list after it and resurrect it in the sidebar). Cleared on sign-out.
     private static let recentlyDeletedListIdsKey = "recentlyDeletedListIds"
-    private var recentlyDeletedListIds: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? [])
-    }
+    /// Held in memory and written through, same as the task ledger (AITD-342).
+    private let recentlyDeletedListLedger = PersistedIdRing(key: ListService.recentlyDeletedListIdsKey,
+                                                            cap: 200)
+    private var recentlyDeletedListIds: Set<String> { recentlyDeletedListLedger.ids }
 
     private func recordRecentlyDeletedList(_ id: String) {
-        let arr = TaskService.appendingDeletedIds(
-            UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? [],
-            [id], cap: 200)
-        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedListIdsKey)
+        recentlyDeletedListLedger.record([id])
     }
 
     private func unrecordRecentlyDeletedList(_ id: String) {
-        var arr = UserDefaults.standard.stringArray(forKey: Self.recentlyDeletedListIdsKey) ?? []
-        arr.removeAll { $0 == id }
-        UserDefaults.standard.set(arr, forKey: Self.recentlyDeletedListIdsKey)
+        recentlyDeletedListLedger.remove(id)
     }
 
     /// Write a freshly-fetched list collection into the local caches — the in-memory `listsById`

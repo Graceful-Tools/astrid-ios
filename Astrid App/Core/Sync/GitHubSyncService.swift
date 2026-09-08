@@ -30,10 +30,9 @@ final class GitHubSyncService: ObservableObject {
     private let deletionLedger = SyncDeletionLedger(provider: "github")
     /// taskId → "remoteId|containerId", persisted so a delete can capture its
     /// link even before the first sync pass after relaunch.
-    private var taskLinkCache: [String: String] {
-        get { UserDefaults.standard.dictionary(forKey: "githubTaskLinkCache") as? [String: String] ?? [:] }
-        set { UserDefaults.standard.set(newValue, forKey: "githubTaskLinkCache") }
-    }
+    /// In memory, persisted through (AITD-342). It used to BE the defaults key, so every read
+    /// deserialised the whole map out of the plist.
+    private let taskLinkCache = PersistedStringDictionary(key: "githubTaskLinkCache")
 
     private init() {
         // Nudge from the server (GitHub webhook → SSE external_sync_refresh)
@@ -109,9 +108,7 @@ final class GitHubSyncService: ObservableObject {
         let remoteId = String(parts[0])
         guard !deletionLedger.tombstonedRemoteIds.contains(remoteId) else { return }
         deletionLedger.recordPending(remoteId: remoteId, containerId: String(parts[1]))
-        var cache = taskLinkCache
-        cache.removeValue(forKey: taskId)
-        taskLinkCache = cache
+        taskLinkCache[taskId] = nil
         scheduleSync()
     }
 
@@ -194,11 +191,13 @@ final class GitHubSyncService: ObservableObject {
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
 
         // Refresh the delete-capture cache for this container's tasks.
-        var cache = taskLinkCache
-        for tl in taskLinks where tl.remoteContainerId == link.remoteContainerId {
-            cache[tl.astridTaskId] = "\(tl.remoteId)|\(tl.remoteContainerId)"
-        }
-        taskLinkCache = cache
+        // One persist for the whole pass, as before — `merge` is the explicit form of what the
+        // hoisted local copy was doing by hand.
+        taskLinkCache.merge(Dictionary(
+            taskLinks
+                .filter { $0.remoteContainerId == link.remoteContainerId }
+                .map { ($0.astridTaskId, "\($0.remoteId)|\($0.remoteContainerId)") },
+            uniquingKeysWith: { a, _ in a }))
 
         // Execute pending remote deletions (tasks deleted in Astrid): GitHub
         // can't delete issues via REST, so the twin is CLOSED; the tombstone
@@ -580,9 +579,7 @@ final class GitHubSyncService: ObservableObject {
                     deletionLedger.recordTombstone(del.remoteId)
                     byRemoteId.removeValue(forKey: del.remoteId)
                     byTaskId.removeValue(forKey: del.taskId)
-                    var cache = taskLinkCache
-                    cache.removeValue(forKey: del.taskId)
-                    taskLinkCache = cache
+                    taskLinkCache[del.taskId] = nil
                 } catch {
                     lastError = "\(link.remoteContainerId): failed to detach transferred issue"
                 }
