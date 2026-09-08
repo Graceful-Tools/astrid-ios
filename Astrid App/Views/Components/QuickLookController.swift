@@ -56,7 +56,7 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
         // Find the top view controller to present from
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first?.rootViewController else {
-            print("❌ [QuickLook] Could not find root view controller")
+            AppLog.debug("❌ [QuickLook] Could not find root view controller")
             return
         }
 
@@ -123,7 +123,7 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
         guard !fileId.starts(with: "unknown-") && !fileId.starts(with: "temp_") else { return }
 
         guard let editedData = try? Data(contentsOf: modifiedContentsURL) else {
-            print("❌ [QuickLook] Failed to read edited file")
+            AppLog.debug("❌ [QuickLook] Failed to read edited file")
             return
         }
 
@@ -162,7 +162,7 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
                     showSaveSuccessToast()
                 }
             } catch {
-                print("❌ [QuickLook] Failed to save: \(error)")
+                AppLog.debug("❌ [QuickLook] Failed to save: \(error)")
             }
         }
     }

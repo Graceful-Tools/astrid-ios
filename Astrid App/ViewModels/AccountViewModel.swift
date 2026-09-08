@@ -139,12 +139,12 @@ class AccountViewModel: ObservableObject {
             accountData = data
             editedName = data.name ?? ""
             editedEmail = data.email
-            print("✅ [AccountViewModel] Account loaded: \(data.email)")
+            AppLog.debug("✅ [AccountViewModel] Account loaded: \(AppLog.redact(email: data.email))")
 
             // Sync profile changes to AuthManager and clear ProfileCache
             syncProfileToApp(data)
         } catch {
-            print("❌ [AccountViewModel] Failed to load account: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to load account: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_load", comment: ""), error.localizedDescription)
             showError = true
         }
@@ -157,12 +157,12 @@ class AccountViewModel: ObservableObject {
             currentUser.name = data.name
             currentUser.image = data.image
             authManager.updateCurrentUser(currentUser)
-            print("✅ [AccountViewModel] Synced profile to AuthManager")
+            AppLog.debug("✅ [AccountViewModel] Synced profile to AuthManager")
         }
 
         // Clear ProfileCache for this user so UserProfileView reloads fresh data
         profileCache.clearCache(userId: data.id)
-        print("✅ [AccountViewModel] Cleared ProfileCache for user: \(data.id)")
+        AppLog.debug("✅ [AccountViewModel] Cleared ProfileCache for user: \(data.id)")
     }
 
     func saveChanges() async {
@@ -188,7 +188,7 @@ class AccountViewModel: ObservableObject {
                 image: imageToSend
             )
 
-            print("✅ [AccountViewModel] Account updated: \(response.message)")
+            AppLog.debug("✅ [AccountViewModel] Account updated: \(response.message)")
 
             // Reload account to get updated data
             await loadAccount()
@@ -205,7 +205,7 @@ class AccountViewModel: ObservableObject {
             showSuccess = true
 
         } catch {
-            print("❌ [AccountViewModel] Failed to save changes: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to save changes: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_save", comment: ""), error.localizedDescription)
             showError = true
         }
@@ -231,10 +231,10 @@ class AccountViewModel: ObservableObject {
             )
 
             uploadedImageUrl = response.url
-            print("✅ [AccountViewModel] Image uploaded: \(response.url)")
+            AppLog.debug("✅ [AccountViewModel] Image uploaded: \(response.url)")
 
         } catch {
-            print("❌ [AccountViewModel] Upload failed: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Upload failed: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_upload_image", comment: ""), error.localizedDescription)
             showError = true
             selectedImage = nil
@@ -249,11 +249,11 @@ class AccountViewModel: ObservableObject {
 
         do {
             let response = try await apiClient.verifyEmail(action: "resend")
-            print("✅ [AccountViewModel] Verification email sent: \(response.message)")
+            AppLog.debug("✅ [AccountViewModel] Verification email sent: \(response.message)")
             successMessage = response.message
             showSuccess = true
         } catch {
-            print("❌ [AccountViewModel] Failed to resend verification: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to resend verification: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), error.localizedDescription)
             showError = true
         }
@@ -265,12 +265,12 @@ class AccountViewModel: ObservableObject {
 
         do {
             let response = try await apiClient.verifyEmail(action: "cancel")
-            print("✅ [AccountViewModel] Email change cancelled: \(response.message)")
+            AppLog.debug("✅ [AccountViewModel] Email change cancelled: \(response.message)")
             await loadAccount()
             successMessage = NSLocalizedString("settings.account.email_change_cancelled", comment: "")
             showSuccess = true
         } catch {
-            print("❌ [AccountViewModel] Failed to cancel email change: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to cancel email change: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_cancel_email_change", comment: ""), error.localizedDescription)
             showError = true
         }
@@ -282,11 +282,11 @@ class AccountViewModel: ObservableObject {
 
         do {
             let response = try await apiClient.verifyEmail(action: "send")
-            print("✅ [AccountViewModel] Verification email sent: \(response.message)")
+            AppLog.debug("✅ [AccountViewModel] Verification email sent: \(response.message)")
             successMessage = response.message
             showSuccess = true
         } catch {
-            print("❌ [AccountViewModel] Failed to send verification: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to send verification: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), error.localizedDescription)
             showError = true
         }
@@ -306,11 +306,11 @@ class AccountViewModel: ObservableObject {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try data.write(to: tempURL)
 
-            print("✅ [AccountViewModel] Data exported to: \(tempURL)")
+            AppLog.debug("✅ [AccountViewModel] Data exported to: \(tempURL)")
             return tempURL
 
         } catch {
-            print("❌ [AccountViewModel] Failed to export data: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to export data: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_export", comment: ""), error.localizedDescription)
             showError = true
             return nil
@@ -330,11 +330,11 @@ class AccountViewModel: ObservableObject {
                 confirmationText: deleteConfirmationText
             )
 
-            print("✅ [AccountViewModel] Account deleted: \(response.message)")
+            AppLog.debug("✅ [AccountViewModel] Account deleted: \(response.message)")
             return true
 
         } catch {
-            print("❌ [AccountViewModel] Failed to delete account: \(error)")
+            AppLog.debug("❌ [AccountViewModel] Failed to delete account: \(error)")
             errorMessage = String(format: NSLocalizedString("settings.account.failed_delete", comment: ""), error.localizedDescription)
             showError = true
             return false

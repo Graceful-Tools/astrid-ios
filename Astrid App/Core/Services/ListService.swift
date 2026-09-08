@@ -62,7 +62,7 @@ class ListService: ObservableObject {
     func applyLiveListUpsert(_ list: TaskList) {
         let decision = LiveUpdatePolicy.listUpsert(incoming: list, cached: cachedLists[list.id])
         guard decision == .apply else {
-            print("📡 [ListService] Live list \(list.id) ignored: \(decision)")
+            AppLog.debug("📡 [ListService] Live list \(list.id) ignored: \(decision)")
             return
         }
 
@@ -82,7 +82,7 @@ class ListService: ObservableObject {
             lists.insert(list, at: ListOrdering.insertionIndex(for: list, in: lists))
         }
 
-        print("📡 [ListService] Applied live list update: \(list.name)")
+        AppLog.debug("📡 [ListService] Applied live list update: \(list.name)")
     }
 
     /// Remove a list that was deleted elsewhere.
@@ -92,7 +92,7 @@ class ListService: ObservableObject {
 
         cachedLists.removeValue(forKey: listId)
         lists.removeAll { $0.id == listId }
-        print("📡 [ListService] Applied live list delete: \(listId)")
+        AppLog.debug("📡 [ListService] Applied live list delete: \(listId)")
     }
 
     // MARK: - Initialization
@@ -122,9 +122,9 @@ class ListService: ObservableObject {
 
             updatePendingListsCount()
             hasCompletedInitialLoad = true
-            print("✅ [ListService] Loaded \(cdLists.count) lists from cache synchronously for offline support")
+            AppLog.debug("✅ [ListService] Loaded \(cdLists.count) lists from cache synchronously for offline support")
         } catch {
-            print("❌ [ListService] Failed to load cached lists: \(error)")
+            AppLog.debug("❌ [ListService] Failed to load cached lists: \(error)")
             hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
         }
     }
@@ -137,7 +137,7 @@ class ListService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in
-                print("🔄 [ListService] Network restored - syncing pending lists")
+                AppLog.debug("🔄 [ListService] Network restored - syncing pending lists")
                 try? await self?.syncPendingLists()
             }
         }
@@ -228,7 +228,7 @@ class ListService: ObservableObject {
                 do {
                     try await self.saveListToCoreData(list, syncStatus: "synced")
                 } catch {
-                    print("⚠️ [ListService] Failed to cache list to CoreData: \(error)")
+                    AppLog.debug("⚠️ [ListService] Failed to cache list to CoreData: \(error)")
                 }
             }
             // …and remove the rows it stopped returning. Without this half, deleting a list
@@ -237,7 +237,7 @@ class ListService: ObservableObject {
             do {
                 try await self.pruneListsMissingFromServer(serverIds: serverIds)
             } catch {
-                print("⚠️ [ListService] Failed to prune deleted lists from CoreData: \(error)")
+                AppLog.debug("⚠️ [ListService] Failed to prune deleted lists from CoreData: \(error)")
             }
         }
     }
@@ -271,25 +271,25 @@ class ListService: ObservableObject {
         defer { isLoading = false }
 
         do {
-            print("📡 [ListService] Calling apiClient.getLists()...")
+            AppLog.debug("📡 [ListService] Calling apiClient.getLists()...")
             let fetchedLists = try await apiClient.getLists()
-            print("📡 [ListService] Response received with \(fetchedLists.count) lists")
+            AppLog.debug("📡 [ListService] Response received with \(fetchedLists.count) lists")
 
             applyFetchedLists(fetchedLists)
 
             for list in self.lists {
-                print("  📋 List: \(list.name) (tasks: \(list.taskCount ?? 0))")
-                print("    👥 Owner: \(list.owner?.displayName ?? "nil")")
-                print("    👥 Members: \(list.listMembers?.count ?? 0)")
+                AppLog.debug("  📋 List: \(list.name) (tasks: \(list.taskCount ?? 0))")
+                AppLog.debug("    👥 Owner: \(list.owner?.displayName ?? "nil")")
+                AppLog.debug("    👥 Members: \(list.listMembers?.count ?? 0)")
             }
 
-            print("✅ [ListService] Synced \(self.lists.count) lists")
+            AppLog.debug("✅ [ListService] Synced \(self.lists.count) lists")
 
             return self.lists
 
         } catch {
             errorMessage = error.localizedDescription
-            print("⚠️ [ListService] Sync failed (offline mode), using cached data: \(error)")
+            AppLog.debug("⚠️ [ListService] Sync failed (offline mode), using cached data: \(error)")
             // Don't throw - use cached data instead
             // Lists are already loaded from cache in init()
             // Mark as loaded so UI doesn't block forever
@@ -368,7 +368,7 @@ class ListService: ObservableObject {
         // Update UI immediately
         cachedLists[tempId] = optimisticList
         lists.insert(optimisticList, at: 0)
-        print("⚡️ [ListService] Optimistically created list: \(name)")
+        AppLog.debug("⚡️ [ListService] Optimistically created list: \(name)")
 
         // Save to CoreData with pending status for offline support (fire-and-forget, non-blocking)
         _Concurrency.Task.detached { [weak self] in
@@ -376,7 +376,7 @@ class ListService: ObservableObject {
             do {
                 try await self.saveListToCoreData(optimisticList, syncStatus: "pending")
             } catch {
-                print("⚠️ [ListService] Failed to save to CoreData, but list is in memory: \(error)")
+                AppLog.debug("⚠️ [ListService] Failed to save to CoreData, but list is in memory: \(error)")
             }
         }
 
@@ -404,11 +404,11 @@ class ListService: ObservableObject {
                     try await self.deleteListFromCoreData(tempId)  // Remove temp list
                     try await self.saveListToCoreData(list, syncStatus: "synced")
                 } catch {
-                    print("⚠️ [ListService] Failed to update CoreData after list creation: \(error)")
+                    AppLog.debug("⚠️ [ListService] Failed to update CoreData after list creation: \(error)")
                 }
             }
 
-            print("✅ [ListService] Server confirmed list: \(list.name)")
+            AppLog.debug("✅ [ListService] Server confirmed list: \(list.name)")
 
             // CRITICAL: Notify TaskService to update any tasks created with the temp list ID
             // This handles the case where tasks were created on this list before server confirmed
@@ -419,7 +419,7 @@ class ListService: ObservableObject {
             return list
         } catch {
             // DON'T ROLLBACK: Keep list as "pending" for offline support
-            print("⚠️ [ListService] Failed to sync list to server, keeping as pending: \(error)")
+            AppLog.debug("⚠️ [ListService] Failed to sync list to server, keeping as pending: \(error)")
             updatePendingListsCount()
 
             // Return the optimistic list so UI shows it
@@ -479,7 +479,7 @@ class ListService: ObservableObject {
         if let index = lists.firstIndex(where: { $0.id == listId }) {
             lists[index] = optimisticList
         }
-        print("⚡️ [ListService] Optimistically updated list: \(optimisticList.name)")
+        AppLog.debug("⚡️ [ListService] Optimistically updated list: \(optimisticList.name)")
 
         // Make server call in background
         do {
@@ -505,7 +505,7 @@ class ListService: ObservableObject {
                 lists[index] = list
             }
 
-            print("✅ [ListService] Server confirmed list update: \(list.name)")
+            AppLog.debug("✅ [ListService] Server confirmed list update: \(list.name)")
 
             return list
         } catch {
@@ -514,7 +514,7 @@ class ListService: ObservableObject {
             if let index = lists.firstIndex(where: { $0.id == listId }) {
                 lists[index] = originalList
             }
-            print("❌ [ListService] Failed to update list, rolled back: \(error)")
+            AppLog.debug("❌ [ListService] Failed to update list, rolled back: \(error)")
             throw error
         }
     }
@@ -525,7 +525,7 @@ class ListService: ObservableObject {
             throw NSError(domain: "ListService", code: 404, userInfo: [NSLocalizedDescriptionKey: "List not found"])
         }
 
-        print("📡 [ListService] updateListAdvanced called with updates: \(updates)")
+        AppLog.debug("📡 [ListService] updateListAdvanced called with updates: \(updates)")
 
         // Create optimistic updated list by applying changes
         var optimisticList = originalList
@@ -573,21 +573,21 @@ class ListService: ObservableObject {
         if let index = lists.firstIndex(where: { $0.id == listId }) {
             lists[index] = optimisticList
         }
-        print("⚡️ [ListService] Optimistically updated list: \(optimisticList.name)")
+        AppLog.debug("⚡️ [ListService] Optimistically updated list: \(optimisticList.name)")
 
         // Save to CoreData immediately for offline support
         _Concurrency.Task.detached { [weak self] in
             do {
                 try await self?.coreDataManager.saveInBackground { context in
                     guard let cdList = try CDTaskList.fetchById(listId, context: context) else {
-                        print("⚠️ [ListService] List not found in CoreData: \(listId)")
+                        AppLog.debug("⚠️ [ListService] List not found in CoreData: \(listId)")
                         return
                     }
                     cdList.update(from: optimisticList)
-                    print("💾 [ListService] Saved list updates to CoreData")
+                    AppLog.debug("💾 [ListService] Saved list updates to CoreData")
                 }
             } catch {
-                print("⚠️ [ListService] Failed to save to CoreData: \(error)")
+                AppLog.debug("⚠️ [ListService] Failed to save to CoreData: \(error)")
             }
         }
 
@@ -597,9 +597,9 @@ class ListService: ObservableObject {
         do {
             let updatedList = try await apiClient.updateListWithDictionary(id: listId, updates: updates)
 
-            print("📥 [ListService] Server response for list update:")
-            print("  - defaultAssigneeId: \(updatedList.defaultAssigneeId ?? "nil")")
-            print("  - defaultPriority: \(updatedList.defaultPriority ?? -1)")
+            AppLog.debug("📥 [ListService] Server response for list update:")
+            AppLog.debug("  - defaultAssigneeId: \(updatedList.defaultAssigneeId ?? "nil")")
+            AppLog.debug("  - defaultPriority: \(updatedList.defaultPriority ?? -1)")
 
             // Replace with server response
             cachedLists[listId] = updatedList
@@ -615,18 +615,18 @@ class ListService: ObservableObject {
                         cdList.update(from: updatedList)
                     }
                 } catch {
-                    print("⚠️ [ListService] Failed to save server response to CoreData: \(error)")
+                    AppLog.debug("⚠️ [ListService] Failed to save server response to CoreData: \(error)")
                 }
             }
 
-            print("✅ [ListService] Server confirmed list update: \(updatedList.name)")
+            AppLog.debug("✅ [ListService] Server confirmed list update: \(updatedList.name)")
 
             return updatedList
         } catch {
             // DON'T ROLLBACK - Keep optimistic update for offline support
             // The update was already saved to CoreData and will persist across app restarts
-            print("⚠️ [ListService] Failed to sync list update to server (offline?): \(error)")
-            print("💾 [ListService] Keeping optimistic update - will sync when online")
+            AppLog.debug("⚠️ [ListService] Failed to sync list update to server (offline?): \(error)")
+            AppLog.debug("💾 [ListService] Keeping optimistic update - will sync when online")
 
             // Return the optimistic list instead of throwing
             return optimisticList
@@ -643,7 +643,7 @@ class ListService: ObservableObject {
         recordRecentlyDeletedList(listId)
         cachedLists.removeValue(forKey: listId)
         lists.removeAll { $0.id == listId }
-        print("⚡️ [ListService] Optimistically deleted list: \(deletedList.name)")
+        AppLog.debug("⚡️ [ListService] Optimistically deleted list: \(deletedList.name)")
 
         // Capture a Google sync link BEFORE the delete (the server cascades it
         // away) so the all-lists auto-link can record the opt-out.
@@ -652,7 +652,7 @@ class ListService: ObservableObject {
         // Make server call in background
         do {
             try await apiClient.deleteList(id: listId)
-            print("✅ [ListService] Server confirmed list deletion: \(listId)")
+            AppLog.debug("✅ [ListService] Server confirmed list deletion: \(listId)")
 
             // Remove from CoreData so the list doesn't resurrect from the
             // offline cache on next launch.
@@ -669,7 +669,7 @@ class ListService: ObservableObject {
             unrecordRecentlyDeletedList(listId)
             cachedLists[listId] = deletedList
             lists.insert(deletedList, at: 0)
-            print("❌ [ListService] Failed to delete list, rolled back: \(error)")
+            AppLog.debug("❌ [ListService] Failed to delete list, rolled back: \(error)")
             throw error
         }
     }
@@ -678,14 +678,14 @@ class ListService: ObservableObject {
         // NO OPTIMISTIC UPDATE - SwiftUI's .onMove() already handles visual reordering
         // Optimistic update here causes flicker when list updates trigger re-render
 
-        print("📡 [ListService] Updating manual order for list: \(listId)")
-        print("📡 [ListService] New order: \(order)")
+        AppLog.debug("📡 [ListService] Updating manual order for list: \(listId)")
+        AppLog.debug("📡 [ListService] New order: \(order)")
 
         // Update manualSortOrder field via API
         let updates: [String: Any] = ["manualSortOrder": order]
         _ = try await updateListAdvanced(listId: listId, updates: updates)
 
-        print("✅ [ListService] Manual order updated successfully")
+        AppLog.debug("✅ [ListService] Manual order updated successfully")
     }
 
     func toggleFavorite(listId: String, isFavorite: Bool) async throws {
@@ -711,7 +711,7 @@ class ListService: ObservableObject {
         // Re-sort lists (favorites first)
         lists = lists.sorted(by: ListOrdering.isOrderedBefore)
 
-        print("⚡️ [ListService] Optimistically toggled favorite: \(optimisticList.name)")
+        AppLog.debug("⚡️ [ListService] Optimistically toggled favorite: \(optimisticList.name)")
 
         // Make server call in background
         do {
@@ -733,7 +733,7 @@ class ListService: ObservableObject {
                 lists[index] = updatedList
             }
 
-            print("✅ [ListService] Server confirmed favorite toggle: \(updatedList.name)")
+            AppLog.debug("✅ [ListService] Server confirmed favorite toggle: \(updatedList.name)")
         } catch {
             // ROLLBACK: Restore original list and re-sort
             cachedLists[listId] = originalList
@@ -744,7 +744,7 @@ class ListService: ObservableObject {
             // Re-sort again to restore order
             lists = lists.sorted(by: ListOrdering.isOrderedBefore)
 
-            print("❌ [ListService] Failed to toggle favorite, rolled back: \(error)")
+            AppLog.debug("❌ [ListService] Failed to toggle favorite, rolled back: \(error)")
             throw error
         }
     }
@@ -787,7 +787,7 @@ class ListService: ObservableObject {
     func getListMembers(listId: String) async throws -> [User] {
         // TODO: Implement getListMembers in API v1
         // For now, return empty array
-        print("⚠️ [ListService] getListMembers not yet implemented in API v1")
+        AppLog.debug("⚠️ [ListService] getListMembers not yet implemented in API v1")
         return []
     }
 
@@ -818,7 +818,7 @@ class ListService: ObservableObject {
         lists = []
         cachedLists = [:]
         pendingListsCount = 0
-        print("🗑️ [ListService] In-memory list cache cleared")
+        AppLog.debug("🗑️ [ListService] In-memory list cache cleared")
     }
 
     // MARK: - CoreData Persistence
@@ -852,7 +852,7 @@ class ListService: ObservableObject {
             for cdList in cdLists where doomed.contains(cdList.id) {
                 context.delete(cdList)
             }
-            print("🧹 [ListService] Removed \(orphans.count) lists deleted elsewhere from CoreData")
+            AppLog.debug("🧹 [ListService] Removed \(orphans.count) lists deleted elsewhere from CoreData")
         }
     }
 
@@ -873,9 +873,9 @@ class ListService: ObservableObject {
             request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
             let count = try context.count(for: request)
             pendingListsCount = count
-            print("📊 [ListService] Pending lists: \(count)")
+            AppLog.debug("📊 [ListService] Pending lists: \(count)")
         } catch {
-            print("❌ [ListService] Failed to count pending lists: \(error)")
+            AppLog.debug("❌ [ListService] Failed to count pending lists: \(error)")
         }
     }
 
@@ -884,14 +884,14 @@ class ListService: ObservableObject {
     /// Sync all pending lists to server
     func syncPendingLists() async throws {
         guard !isSyncingPendingLists else {
-            print("⏳ [ListService] Sync already in progress")
+            AppLog.debug("⏳ [ListService] Sync already in progress")
             return
         }
 
         isSyncingPendingLists = true
         defer { isSyncingPendingLists = false }
 
-        print("🔄 [ListService] Starting sync of pending lists...")
+        AppLog.debug("🔄 [ListService] Starting sync of pending lists...")
 
         let context = coreDataManager.viewContext
 
@@ -900,7 +900,7 @@ class ListService: ObservableObject {
         request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
         let pendingLists = try context.fetch(request)
 
-        print("📤 [ListService] Found \(pendingLists.count) pending lists")
+        AppLog.debug("📤 [ListService] Found \(pendingLists.count) pending lists")
 
         var syncedCount = 0
         var failedCount = 0
@@ -931,7 +931,7 @@ class ListService: ObservableObject {
                         lists[index] = createdList
                     }
 
-                    print("✅ [ListService] Synced list creation: \(createdList.name)")
+                    AppLog.debug("✅ [ListService] Synced list creation: \(createdList.name)")
 
                     // CRITICAL: Notify TaskService to update any tasks with the temp list ID
                     // This allows tasks created on offline lists to be properly associated
@@ -940,7 +940,7 @@ class ListService: ObservableObject {
 
                 syncedCount += 1
             } catch {
-                print("❌ [ListService] Failed to sync list \(cdList.id): \(error)")
+                AppLog.debug("❌ [ListService] Failed to sync list \(cdList.id): \(error)")
                 failedCount += 1
                 // Mark as failed for retry later
                 cdList.syncStatus = "failed"
@@ -949,6 +949,6 @@ class ListService: ObservableObject {
         }
 
         updatePendingListsCount()
-        print("✅ [ListService] Sync complete: \(syncedCount) synced, \(failedCount) failed")
+        AppLog.debug("✅ [ListService] Sync complete: \(syncedCount) synced, \(failedCount) failed")
     }
 }

@@ -311,7 +311,7 @@ struct RichTextInput: View {
     private func handleTextChange(_ newValue: String) {
         insertedReferences.removeAll { ref in !newValue.contains(ref.displayText) }
         if let trigger = detectAutocompleteTrigger(in: newValue) {
-            print("🔍 [RichTextInput] Trigger detected: type=\(trigger.type), search='\(trigger.search)', text='\(newValue)'")
+            AppLog.debug("🔍 [RichTextInput] Trigger detected: type=\(trigger.type), search='\(trigger.search)', text='\(newValue)'")
             activeTrigger = trigger.type
             triggerPosition = trigger.position
             selectedIndex = 0
@@ -319,15 +319,15 @@ struct RichTextInput: View {
             switch trigger.type {
             case .mention:
                 var users = buildMentionableUsers(listId: listId)
-                print("🔍 [RichTextInput] @mention: listId=\(listId ?? "nil"), buildMentionable=\(users.count), agents=\(availableAgents.count), memberService=\(ListMemberService.shared.members.count)")
+                AppLog.debug("🔍 [RichTextInput] @mention: listId=\(listId ?? "nil"), buildMentionable=\(users.count), agents=\(availableAgents.count), memberService=\(ListMemberService.shared.members.count)")
                 for agent in availableAgents where !users.contains(where: { $0.id == agent.id }) {
                     users.append(agent)
                 }
                 results = filterMentionItems(users: users, search: trigger.search)
-                print("🔍 [RichTextInput] @mention results after filter: \(results.count) (users total: \(users.count))")
+                AppLog.debug("🔍 [RichTextInput] @mention results after filter: \(results.count) (users total: \(users.count))")
                 // If no users found, try fetching members in background for next trigger
                 if results.isEmpty, let listId = listId {
-                    print("🔍 [RichTextInput] @mention empty, fetching members for list \(listId)")
+                    AppLog.debug("🔍 [RichTextInput] @mention empty, fetching members for list \(listId)")
                     _Concurrency.Task {
                         try? await ListMemberService.shared.fetchMembers(listId: listId)
                     }

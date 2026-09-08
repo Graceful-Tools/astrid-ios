@@ -115,8 +115,8 @@ struct ServerSettingsView: View {
         pendingURL = option.url
         showingRestartAlert = true
 
-        print("🔧 [ServerSettings] Server changed to: \(option.url)")
-        print("⚠️ [ServerSettings] App restart required for changes to take effect")
+        AppLog.debug("🔧 [ServerSettings] Server changed to: \(option.url)")
+        AppLog.debug("⚠️ [ServerSettings] App restart required for changes to take effect")
     }
 
     private func resetToDefault() {
@@ -124,8 +124,8 @@ struct ServerSettingsView: View {
         pendingURL = Constants.API.environment.baseURL
         showingRestartAlert = true
 
-        print("🔧 [ServerSettings] Server reset to default: \(Constants.API.environment.baseURL)")
-        print("⚠️ [ServerSettings] App restart required for changes to take effect")
+        AppLog.debug("🔧 [ServerSettings] Server reset to default: \(Constants.API.environment.baseURL)")
+        AppLog.debug("⚠️ [ServerSettings] App restart required for changes to take effect")
     }
 }
 

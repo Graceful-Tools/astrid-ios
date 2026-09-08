@@ -195,7 +195,7 @@ struct ListDefaultsView: View {
         do {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
-            print("Failed to load members: \(error)")
+            AppLog.debug("Failed to load members: \(error)")
         }
     }
 
@@ -218,13 +218,13 @@ struct ListDefaultsView: View {
                 defaultDueTime: formatTime(defaultDueTime)
             )
 
-            print("[ListDefaults] Saving defaults for list '\(list.name)':")
-            print("  - defaultPriority: \(defaultPriority)")
-            print("  - defaultDueDate: \(defaultDueDate)")
-            print("  - defaultDueTime: \(formatTime(defaultDueTime) ?? "nil")")
-            print("  - defaultIsPrivate: \(defaultIsPrivate)")
-            print("  - defaultRepeating: \(defaultRepeating)")
-            print("  - defaultAssigneeId: \(defaultAssigneeId ?? "nil")")
+            AppLog.debug("[ListDefaults] Saving defaults for list '\(list.name)':")
+            AppLog.debug("  - defaultPriority: \(defaultPriority)")
+            AppLog.debug("  - defaultDueDate: \(defaultDueDate)")
+            AppLog.debug("  - defaultDueTime: \(formatTime(defaultDueTime) ?? "nil")")
+            AppLog.debug("  - defaultIsPrivate: \(defaultIsPrivate)")
+            AppLog.debug("  - defaultRepeating: \(defaultRepeating)")
+            AppLog.debug("  - defaultAssigneeId: \(defaultAssigneeId ?? "nil")")
 
             do {
                 // Sync to server in background (non-blocking)
@@ -232,11 +232,11 @@ struct ListDefaultsView: View {
                     listId: list.id,
                     updates: defaults.toDictionary()
                 )
-                print("[ListDefaults] List defaults synced to server")
-                print("[ListDefaults] Server returned updated list:")
-                print("  - defaultPriority: \(updatedList.defaultPriority ?? -1)")
-                print("  - defaultDueDate: \(updatedList.defaultDueDate ?? "nil")")
-                print("  - defaultDueTime: \(updatedList.defaultDueTime ?? "nil")")
+                AppLog.debug("[ListDefaults] List defaults synced to server")
+                AppLog.debug("[ListDefaults] Server returned updated list:")
+                AppLog.debug("  - defaultPriority: \(updatedList.defaultPriority ?? -1)")
+                AppLog.debug("  - defaultDueDate: \(updatedList.defaultDueDate ?? "nil")")
+                AppLog.debug("  - defaultDueTime: \(updatedList.defaultDueTime ?? "nil")")
 
                 await MainActor.run {
                     isSaving = false
@@ -249,7 +249,7 @@ struct ListDefaultsView: View {
                     }
                 }
             } catch {
-                print("[Optimistic] Failed to sync defaults to server: \(error)")
+                AppLog.debug("[Optimistic] Failed to sync defaults to server: \(error)")
 
                 await MainActor.run {
                     isSaving = false

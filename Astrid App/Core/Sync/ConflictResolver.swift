@@ -30,7 +30,7 @@ class ConflictResolver {
             return server
         }
 
-        print("⚔️ [ConflictResolver] Resolving conflict for task: \(local.id)")
+        AppLog.debug("⚔️ [ConflictResolver] Resolving conflict for task: \(local.id)")
 
         // Start with server version as base
         var resolved = server
@@ -52,7 +52,7 @@ class ConflictResolver {
         // Rule 5: Lists/Assignment - SERVER WINS (collaborative changes)
         // Already using server version for these
 
-        print("✅ [ConflictResolver] Conflict resolved for task: \(resolved.id)")
+        AppLog.debug("✅ [ConflictResolver] Conflict resolved for task: \(resolved.id)")
         return resolved
     }
 
@@ -62,7 +62,7 @@ class ConflictResolver {
     private func resolveCompletion(local: Task, server: Task, base: Task) -> Task {
         // If user completed the task locally, honor that
         if local.completed && !server.completed {
-            print("  → Completion: local (completed) wins")
+            AppLog.debug("  → Completion: local (completed) wins")
             return Task(
                 id: base.id,
                 title: base.title,
@@ -93,7 +93,7 @@ class ConflictResolver {
                 sourceListId: base.sourceListId
             )
         } else {
-            print("  → Completion: server wins")
+            AppLog.debug("  → Completion: server wins")
             return base
         }
     }
@@ -107,7 +107,7 @@ class ConflictResolver {
 
         // Check if title changed and local is newer
         if local.title != server.title && localUpdated > serverUpdated {
-            print("  → Title: local wins (more recent)")
+            AppLog.debug("  → Title: local wins (more recent)")
             result = Task(
                 id: result.id,
                 title: local.title,
@@ -141,7 +141,7 @@ class ConflictResolver {
 
         // Check if description changed and local is newer
         if local.description != server.description && localUpdated > serverUpdated {
-            print("  → Description: local wins (more recent)")
+            AppLog.debug("  → Description: local wins (more recent)")
             result = Task(
                 id: result.id,
                 title: result.title,
@@ -182,7 +182,7 @@ class ConflictResolver {
         let serverUpdated = server.updatedAt ?? .distantPast
 
         if (local.dueDateTime != server.dueDateTime || local.isAllDay != server.isAllDay) && localUpdated > serverUpdated {
-            print("  → Due date: local wins (more recent)")
+            AppLog.debug("  → Due date: local wins (more recent)")
             return Task(
                 id: base.id,
                 title: base.title,
@@ -223,7 +223,7 @@ class ConflictResolver {
         let serverUpdated = server.updatedAt ?? .distantPast
 
         if local.priority != server.priority && localUpdated > serverUpdated {
-            print("  → Priority: local wins (more recent)")
+            AppLog.debug("  → Priority: local wins (more recent)")
             return Task(
                 id: base.id,
                 title: base.title,

@@ -55,7 +55,7 @@ class ImageCache {
         // Create cache directory if needed
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
 
-        print("📦 [ImageCache] Initialized with cache directory: \(cacheDirectory.path)")
+        AppLog.debug("📦 [ImageCache] Initialized with cache directory: \(cacheDirectory.path)")
     }
 
     /// Get image from cache (memory first, then disk) - synchronous version for main thread
@@ -63,7 +63,7 @@ class ImageCache {
     func get(url: URL) -> PlatformImage? {
         // Check memory cache first
         if let cached = memoryCache.object(forKey: url as NSURL) {
-            print("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
+            AppLog.debug("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
             return cached
         }
 
@@ -73,7 +73,7 @@ class ImageCache {
            let image = PlatformImage(data: data) {
             // Store in memory cache for next time
             memoryCache.setObject(image, forKey: url as NSURL)
-            print("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
+            AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
             return image
         }
 
@@ -85,7 +85,7 @@ class ImageCache {
     func getAsync(url: URL) async -> PlatformImage? {
         // Check memory cache first (thread-safe)
         if let cached = memoryCache.object(forKey: url as NSURL) {
-            print("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
+            AppLog.debug("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
             return cached
         }
 
@@ -99,7 +99,7 @@ class ImageCache {
         return await MainActor.run {
             guard let image = PlatformImage(data: data) else { return nil as PlatformImage? }
             memoryCache.setObject(image, forKey: url as NSURL)
-            print("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
+            AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
             return image
         }
     }
@@ -114,7 +114,7 @@ class ImageCache {
         let fileURL = diskCacheURL(for: url)
         if let data = image.pngDataCompat() {
             try? data.write(to: fileURL)
-            print("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
+            AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
         }
     }
 
@@ -134,7 +134,7 @@ class ImageCache {
         // Write to disk on background thread
         let fileURL = diskCacheURL(for: url)
         try? data.write(to: fileURL)
-        print("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
+        AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
     }
 
     /// Clear all caches
@@ -142,14 +142,14 @@ class ImageCache {
         memoryCache.removeAllObjects()
         try? fileManager.removeItem(at: cacheDirectory)
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        print("🗑️ [ImageCache] Cache cleared")
+        AppLog.debug("🗑️ [ImageCache] Cache cleared")
     }
 
     /// Clear memory cache only (keeps disk cache for offline)
     /// Call this when app becomes active to refresh images from server
     func clearMemoryCache() {
         memoryCache.removeAllObjects()
-        print("🗑️ [ImageCache] Memory cache cleared")
+        AppLog.debug("🗑️ [ImageCache] Memory cache cleared")
     }
 
     /// Remove a specific URL from cache
@@ -157,7 +157,7 @@ class ImageCache {
         memoryCache.removeObject(forKey: url as NSURL)
         let fileURL = diskCacheURL(for: url)
         try? fileManager.removeItem(at: fileURL)
-        print("🗑️ [ImageCache] Removed: \(url.lastPathComponent)")
+        AppLog.debug("🗑️ [ImageCache] Removed: \(url.lastPathComponent)")
     }
 
     /// Clear all secure-files entries (user uploads that may have changed)
@@ -174,7 +174,7 @@ class ImageCache {
                 }
             }
         }
-        print("🗑️ [ImageCache] Secure files cache cleared")
+        AppLog.debug("🗑️ [ImageCache] Secure files cache cleared")
     }
 
     /// Get disk cache URL for a remote URL
@@ -272,7 +272,7 @@ class CachedImageLoader: ObservableObject {
                     await ImageCache.shared.setAsync(image, for: requested)
                     return image
                 } catch {
-                    print("❌ [CachedImageLoader] Failed to load image: \(error)")
+                    AppLog.debug("❌ [CachedImageLoader] Failed to load image: \(error)")
                     return nil
                 }
             }

@@ -13,7 +13,7 @@ class ReminderPresenter: ObservableObject {
     private let notificationManager = NotificationManager.shared
 
     private init() {
-        print("🎯 [ReminderPresenter] Initializing...")
+        AppLog.debug("🎯 [ReminderPresenter] Initializing...")
         // Listen for notification taps
         NotificationCenter.default.addObserver(
             self,
@@ -21,15 +21,15 @@ class ReminderPresenter: ObservableObject {
             name: NSNotification.Name("OpenTask"),
             object: nil
         )
-        print("✅ [ReminderPresenter] Registered observer for OpenTask notifications")
+        AppLog.debug("✅ [ReminderPresenter] Registered observer for OpenTask notifications")
     }
 
     @objc private func handleOpenTask(_ notification: Notification) {
-        print("🎯 [ReminderPresenter] handleOpenTask called!")
-        print("🎯 [ReminderPresenter] Notification userInfo: \(notification.userInfo ?? [:])")
+        AppLog.debug("🎯 [ReminderPresenter] handleOpenTask called!")
+        AppLog.debug("🎯 [ReminderPresenter] Notification userInfo: \(notification.userInfo ?? [:])")
 
         guard let taskId = notification.userInfo?["taskId"] as? String else {
-            print("⚠️ [ReminderPresenter] No taskId in notification")
+            AppLog.debug("⚠️ [ReminderPresenter] No taskId in notification")
             return
         }
 
@@ -37,35 +37,35 @@ class ReminderPresenter: ObservableObject {
         let isTestNotification = notification.userInfo?["isTestNotification"] as? Bool ?? false
 
         if isTestNotification {
-            print("🧪 [ReminderPresenter] Test notification detected - showing mock task")
+            AppLog.debug("🧪 [ReminderPresenter] Test notification detected - showing mock task")
             showTestReminder()
         } else {
-            print("📱 [ReminderPresenter] Opening reminder for task: \(taskId)")
+            AppLog.debug("📱 [ReminderPresenter] Opening reminder for task: \(taskId)")
             showReminder(for: taskId)
         }
     }
 
     /// Show reminder view for a task
     func showReminder(for taskId: String) {
-        print("🔄 [ReminderPresenter] Fetching task \(taskId)...")
+        AppLog.debug("🔄 [ReminderPresenter] Fetching task \(taskId)...")
         _Concurrency.Task {
             do {
                 let task = try await taskService.fetchTask(id: taskId)
-                print("✅ [ReminderPresenter] Task fetched: \(task.title)")
+                AppLog.debug("✅ [ReminderPresenter] Task fetched: \(task.title)")
                 await MainActor.run {
                     self.taskToShow = task
                     self.isShowingReminder = true
-                    print("🎉 [ReminderPresenter] isShowingReminder set to true - popup should show!")
+                    AppLog.debug("🎉 [ReminderPresenter] isShowingReminder set to true - popup should show!")
                 }
             } catch {
-                print("❌ [ReminderPresenter] Failed to fetch task for reminder: \(error)")
+                AppLog.debug("❌ [ReminderPresenter] Failed to fetch task for reminder: \(error)")
             }
         }
     }
 
     /// Show test reminder with mock task data
     func showTestReminder() {
-        print("🧪 [ReminderPresenter] Creating test task...")
+        AppLog.debug("🧪 [ReminderPresenter] Creating test task...")
 
         // Create a mock test task
         let testTask = Task(
@@ -107,10 +107,10 @@ class ReminderPresenter: ObservableObject {
             sourceListId: nil
         )
 
-        print("✅ [ReminderPresenter] Test task created: \(testTask.title)")
+        AppLog.debug("✅ [ReminderPresenter] Test task created: \(testTask.title)")
         self.taskToShow = testTask
         self.isShowingReminder = true
-        print("🎉 [ReminderPresenter] isShowingReminder set to true - test popup should show!")
+        AppLog.debug("🎉 [ReminderPresenter] isShowingReminder set to true - test popup should show!")
     }
 
     /// Complete the task
@@ -129,7 +129,7 @@ class ReminderPresenter: ObservableObject {
                     self.taskToShow = nil
                 }
             } catch {
-                print("❌ Failed to complete task: \(error)")
+                AppLog.debug("❌ Failed to complete task: \(error)")
             }
         }
     }
@@ -150,7 +150,7 @@ class ReminderPresenter: ObservableObject {
                     whenTime: snoozeDate
                 )
 
-                print("✅ Updated task '\(task.title)' when to \(snoozeDate)")
+                AppLog.debug("✅ Updated task '\(task.title)' when to \(snoozeDate)")
 
                 // Reschedule notification
                 try await notificationManager.snoozeNotification(for: task, minutes: minutes)
@@ -160,7 +160,7 @@ class ReminderPresenter: ObservableObject {
                     self.taskToShow = nil
                 }
             } catch {
-                print("❌ Failed to snooze task: \(error)")
+                AppLog.debug("❌ Failed to snooze task: \(error)")
             }
         }
     }

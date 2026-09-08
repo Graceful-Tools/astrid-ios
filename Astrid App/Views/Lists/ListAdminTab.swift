@@ -519,10 +519,10 @@ struct ListAdminTab: View {
         updated.defaultDueTime = defaultDueTime
         updated.defaultRepeating = defaultRepeating
 
-        print("💾 [ListAdminTab] saveDefaults called:")
-        print("  - list.defaultAssigneeId (original): \(list.defaultAssigneeId ?? "nil")")
-        print("  - defaultAssigneeId (@State): \(defaultAssigneeId ?? "nil")")
-        print("  - updated.defaultAssigneeId: \(updated.defaultAssigneeId ?? "nil")")
+        AppLog.debug("💾 [ListAdminTab] saveDefaults called:")
+        AppLog.debug("  - list.defaultAssigneeId (original): \(list.defaultAssigneeId ?? "nil")")
+        AppLog.debug("  - defaultAssigneeId (@State): \(defaultAssigneeId ?? "nil")")
+        AppLog.debug("  - updated.defaultAssigneeId: \(updated.defaultAssigneeId ?? "nil")")
 
         onUpdate(updated)
     }
@@ -531,7 +531,7 @@ struct ListAdminTab: View {
         do {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
-            print("❌ Failed to load members: \(error)")
+            AppLog.debug("❌ Failed to load members: \(error)")
         }
     }
 
@@ -552,14 +552,14 @@ struct ListAdminTab: View {
         loadingAIStatus = true
 
         do {
-            print("🤖 [ListAdminTab] Loading AI provider status")
+            AppLog.debug("🤖 [ListAdminTab] Loading AI provider status")
             let status = try await RemoteResourceService.shared.getGitHubStatus()
             hasAIProviders = !status.aiProviders.isEmpty || status.hasAIKeys
-            print("✅ [ListAdminTab] AI providers configured: \(hasAIProviders)")
-            print("  - AI providers: \(status.aiProviders)")
-            print("  - Has AI keys: \(status.hasAIKeys)")
+            AppLog.debug("✅ [ListAdminTab] AI providers configured: \(hasAIProviders)")
+            AppLog.debug("  - AI providers: \(status.aiProviders)")
+            AppLog.debug("  - Has AI keys: \(status.hasAIKeys)")
         } catch {
-            print("❌ [ListAdminTab] Failed to load AI provider status: \(error)")
+            AppLog.debug("❌ [ListAdminTab] Failed to load AI provider status: \(error)")
             hasAIProviders = false
         }
 
@@ -571,12 +571,12 @@ struct ListAdminTab: View {
         repositoriesError = nil
 
         do {
-            print("📦 [ListAdminTab] Loading GitHub repositories (refresh: \(refresh))")
+            AppLog.debug("📦 [ListAdminTab] Loading GitHub repositories (refresh: \(refresh))")
             let response = try await RemoteResourceService.shared.getGitHubRepositories(refresh: refresh)
             availableRepositories = response.repositories
-            print("✅ [ListAdminTab] Loaded \(availableRepositories.count) repositories")
+            AppLog.debug("✅ [ListAdminTab] Loaded \(availableRepositories.count) repositories")
         } catch {
-            print("❌ [ListAdminTab] Failed to load repositories: \(error)")
+            AppLog.debug("❌ [ListAdminTab] Failed to load repositories: \(error)")
             repositoriesError = "Failed to load repositories. Please check your GitHub connection."
         }
 
@@ -587,8 +587,8 @@ struct ListAdminTab: View {
         var updated = list
         updated.githubRepositoryId = githubRepositoryId
 
-        print("📋 [ListAdminTab] Saving GitHub settings:")
-        print("  - Repository ID: \(githubRepositoryId ?? "nil (none)")")
+        AppLog.debug("📋 [ListAdminTab] Saving GitHub settings:")
+        AppLog.debug("  - Repository ID: \(githubRepositoryId ?? "nil (none)")")
 
         onUpdate(updated)
     }
@@ -606,15 +606,15 @@ struct ListAdminTab: View {
         if let index = updatedLists.firstIndex(where: { $0.id == list.id }) {
             updatedLists[index].imageUrl = imageUrl
             ListService.shared.lists = updatedLists  // This triggers @Published
-            print("✅ [ListAdminTab] Optimistically updated sidebar image")
+            AppLog.debug("✅ [ListAdminTab] Optimistically updated sidebar image")
         }
 
         // Update list via onUpdate callback (persists to server in background)
         var updated = list
         updated.imageUrl = imageUrl
 
-        print("📋 [ListAdminTab] Saving list image:")
-        print("  - Image URL: \(imageUrl)")
+        AppLog.debug("📋 [ListAdminTab] Saving list image:")
+        AppLog.debug("  - Image URL: \(imageUrl)")
 
         onUpdate(updated)
     }

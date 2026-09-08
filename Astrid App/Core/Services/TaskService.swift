@@ -268,7 +268,7 @@ class TaskService: ObservableObject {
             locallyDeletedIds: recentlyDeletedIds
         )
         guard decision == .apply else {
-            print("📡 [TaskService] Live task \(task.id) ignored: \(decision)")
+            AppLog.debug("📡 [TaskService] Live task \(task.id) ignored: \(decision)")
             return
         }
 
@@ -289,7 +289,7 @@ class TaskService: ObservableObject {
             tasks.insert(task, at: TaskOrdering.insertionIndex(for: task, in: tasks))
         }
 
-        print("📡 [TaskService] Applied live task update: \(task.title)")
+        AppLog.debug("📡 [TaskService] Applied live task update: \(task.title)")
     }
 
     /// Remove a task that was deleted elsewhere.
@@ -299,7 +299,7 @@ class TaskService: ObservableObject {
 
         cachedTasks.removeValue(forKey: taskId)
         tasks.removeAll { $0.id == taskId }
-        print("📡 [TaskService] Applied live task delete: \(taskId)")
+        AppLog.debug("📡 [TaskService] Applied live task delete: \(taskId)")
     }
 
     // MARK: - Initialization
@@ -333,7 +333,7 @@ class TaskService: ObservableObject {
                 cachedTasks[task.id] = task
             }
             updatePendingOperationsCount()
-            print("✅ [TaskService] Loaded \(tasks.count) active tasks (first page) from cache synchronously (\(pendingOperationsCount) pending)")
+            AppLog.debug("✅ [TaskService] Loaded \(tasks.count) active tasks (first page) from cache synchronously (\(pendingOperationsCount) pending)")
             // Mark as loaded IMMEDIATELY so UI shows cached data right away
             // This is critical for offline mode - user sees data even before network sync
             self.hasCompletedInitialLoad = true
@@ -345,7 +345,7 @@ class TaskService: ObservableObject {
                 self?.hydrateCompletedTasksFromCache()
             }
         } catch {
-            print("❌ [TaskService] Failed to load cached tasks: \(Self.safeErrorSummary(error))")
+            AppLog.debug("❌ [TaskService] Failed to load cached tasks: \(Self.safeErrorSummary(error))")
             self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
         }
     }
@@ -383,7 +383,7 @@ class TaskService: ObservableObject {
         for task in fresh { cachedTasks[task.id] = task }
         self.tasks.append(contentsOf: fresh)
         updatePendingOperationsCount()
-        print("✅ [TaskService] Hydrated \(fresh.count) remaining active tasks from cache")
+        AppLog.debug("✅ [TaskService] Hydrated \(fresh.count) remaining active tasks from cache")
     }
 
     /// Pure dedup for remaining-active hydration: keep only tasks not already in
@@ -412,9 +412,9 @@ class TaskService: ObservableObject {
             guard !completed.isEmpty else { return }
             for task in completed { cachedTasks[task.id] = task }
             self.tasks.append(contentsOf: completed)
-            print("✅ [TaskService] Hydrated \(completed.count) completed tasks from cache")
+            AppLog.debug("✅ [TaskService] Hydrated \(completed.count) completed tasks from cache")
         } catch {
-            print("⚠️ [TaskService] Failed to hydrate completed tasks: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to hydrate completed tasks: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -426,7 +426,7 @@ class TaskService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in
-                print("🔄 [TaskService] Network restored - syncing pending operations")
+                AppLog.debug("🔄 [TaskService] Network restored - syncing pending operations")
                 try? await self?.syncPendingOperations()
             }
         }
@@ -551,16 +551,16 @@ class TaskService: ObservableObject {
         // Update UI immediately
         cachedTasks[tempId] = optimisticTask
         tasks.insert(optimisticTask, at: 0)
-        print("⚡️ [TaskService] Optimistically created task: \(title)")
+        AppLog.debug("⚡️ [TaskService] Optimistically created task: \(title)")
 
         // Save to CoreData with pending status for offline support (CRITICAL: await to ensure persistence)
         // This blocks until save completes, preventing data loss on force close
         // clientRequestId is persisted via CDTask.update(from:) since optimisticTask carries it
         do {
             try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
-            print("✅ [TaskService] Persisted new task to CoreData (clientRequestId: \(clientRequestId))")
+            AppLog.debug("✅ [TaskService] Persisted new task to CoreData (clientRequestId: \(clientRequestId))")
         } catch {
-            print("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(Self.safeErrorSummary(error))")
         }
 
         // CRITICAL: Filter out temp_ list IDs - server doesn't know about them.
@@ -699,17 +699,17 @@ class TaskService: ObservableObject {
             // Add to tasks array if not already there (e.g., featured list tasks) —
             // but never resurrect a deleted task (late queued updates / SSE echoes).
             tasks.append(optimisticTask)
-            print("➕ [TaskService] Added task to tasks array: \(optimisticTask.title)")
+            AppLog.debug("➕ [TaskService] Added task to tasks array: \(optimisticTask.title)")
         }
-        print("⚡️ [TaskService] Optimistically updated task: \(optimisticTask.title)")
+        AppLog.debug("⚡️ [TaskService] Optimistically updated task: \(optimisticTask.title)")
 
         // Save to CoreData with pending status for offline support (CRITICAL: await to ensure persistence)
         // This blocks until save completes, preventing data loss on force close
         do {
             try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
-            print("✅ [TaskService] Persisted update to CoreData")
+            AppLog.debug("✅ [TaskService] Persisted update to CoreData")
         } catch {
-            print("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(Self.safeErrorSummary(error))")
         }
 
         // Temp ids enqueue like any other update: UpdateTaskOutboxHandler
@@ -898,7 +898,7 @@ class TaskService: ObservableObject {
         do {
             try await saveTaskToCoreData(updatedTask, syncStatus: "synced")
         } catch {
-            print("⚠️ [TaskService] Failed to persist server-first update: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to persist server-first update: \(Self.safeErrorSummary(error))")
         }
 
         await badgeManager.updateBadge(with: self.tasks)
@@ -925,15 +925,15 @@ class TaskService: ObservableObject {
            let repeating = currentTask.repeating,
            repeating != .never {
 
-            print("🔄 [TaskService] Rolling forward repeating task: \(currentTask.title)")
-            print("  - Current dueDateTime: \(currentTask.dueDateTime?.description ?? "nil")")
-            print("  - repeatFrom: \(currentTask.repeatFrom?.rawValue ?? "nil")")
+            AppLog.debug("🔄 [TaskService] Rolling forward repeating task: \(currentTask.title)")
+            AppLog.debug("  - Current dueDateTime: \(currentTask.dueDateTime?.description ?? "nil")")
+            AppLog.debug("  - repeatFrom: \(currentTask.repeatFrom?.rawValue ?? "nil")")
 
             // Calculate next due date
             let (nextDueDate, shouldTerminate) = calculateNextOccurrence(for: currentTask)
 
             if shouldTerminate {
-                print("🏁 [TaskService] Repeating series terminated")
+                AppLog.debug("🏁 [TaskService] Repeating series terminated")
                 // Series ended - keep completed, clear repeating
                 return try await updateTask(
                     taskId: id,
@@ -946,7 +946,7 @@ class TaskService: ObservableObject {
                     source: source
                 )
             } else if let nextDue = nextDueDate {
-                print("📅 [TaskService] Next occurrence: \(nextDue)")
+                AppLog.debug("📅 [TaskService] Next occurrence: \(nextDue)")
                 return try await updateTask(
                     taskId: id,
                     completed: false,
@@ -1074,7 +1074,7 @@ class TaskService: ObservableObject {
         cachedTasks.removeValue(forKey: resolvedId)
         tasks.removeAll { $0.id == resolvedId }
         recordRecentlyDeleted([resolvedId])
-        print("⚡️ [TaskService] Optimistically deleted task: \(deletedTask.title)")
+        AppLog.debug("⚡️ [TaskService] Optimistically deleted task: \(deletedTask.title)")
 
         // Mark as deleted in CoreData for offline support (CRITICAL: await to ensure persistence)
         // This blocks until save completes, preventing data loss on force close
@@ -1082,9 +1082,9 @@ class TaskService: ObservableObject {
             var deletedTaskCopy = deletedTask
             deletedTaskCopy.completed = true  // Mark as completed for now
             try await saveTaskToCoreData(deletedTaskCopy, syncStatus: "pending_delete")
-            print("✅ [TaskService] Persisted deletion to CoreData")
+            AppLog.debug("✅ [TaskService] Persisted deletion to CoreData")
         } catch {
-            print("⚠️ [TaskService] Failed to save deletion to CoreData, but task is removed from memory: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to save deletion to CoreData, but task is removed from memory: \(Self.safeErrorSummary(error))")
         }
 
         // Cancel notification
@@ -1110,7 +1110,7 @@ class TaskService: ObservableObject {
         preserveAssignee: Bool = false
     ) async throws -> Task {
         // Fetch the original task
-        print("📋 [TaskService] Fetching original task to copy: \(id)")
+        AppLog.debug("📋 [TaskService] Fetching original task to copy: \(id)")
         let originalTask = try await fetchTask(id: id)
 
         // Determine target list IDs
@@ -1137,15 +1137,15 @@ class TaskService: ObservableObject {
         if listIds.isEmpty {
             // "My Tasks (only)" - always assign to current user so it appears in My Tasks
             copyAssigneeId = AuthManager.shared.userId
-            print("📋 [TaskService] Copying to My Tasks (only) - assigning to current user")
+            AppLog.debug("📋 [TaskService] Copying to My Tasks (only) - assigning to current user")
         } else {
             // Copying to a list - make task unassigned
             copyAssigneeId = nil
-            print("📋 [TaskService] Copying to list - making task unassigned")
+            AppLog.debug("📋 [TaskService] Copying to list - making task unassigned")
         }
 
         // Copy the task using createTask (no [copy] suffix, just copy as-is)
-        print("📋 [TaskService] Creating copy of task in list(s): \(listIds)")
+        AppLog.debug("📋 [TaskService] Creating copy of task in list(s): \(listIds)")
         let copiedTask = try await createTask(
             listIds: listIds,
             title: originalTask.title,
@@ -1158,13 +1158,13 @@ class TaskService: ObservableObject {
             repeating: originalTask.repeating?.rawValue
         )
 
-        print("✅ [TaskService] Task copied successfully: \(copiedTask.title)")
+        AppLog.debug("✅ [TaskService] Task copied successfully: \(copiedTask.title)")
 
         // Copy comments if requested
         if includeComments {
             do {
                 // Fetch comments from the original task
-                print("📋 [TaskService] Fetching comments for task: \(id)")
+                AppLog.debug("📋 [TaskService] Fetching comments for task: \(id)")
                 let comments = try await CommentService.shared.fetchComments(taskId: id)
 
                 if !comments.isEmpty {
@@ -1172,7 +1172,7 @@ class TaskService: ObservableObject {
                     let userComments = comments.filter { $0.authorId != nil }
 
                     if !userComments.isEmpty {
-                        print("📋 [TaskService] Copying \(userComments.count) user comments...")
+                        AppLog.debug("📋 [TaskService] Copying \(userComments.count) user comments...")
 
                         for comment in userComments {
                             do {
@@ -1184,20 +1184,20 @@ class TaskService: ObservableObject {
                                     authorId: comment.authorId
                                 )
                             } catch {
-                                print("⚠️ [TaskService] Failed to copy comment: \(Self.safeErrorSummary(error))")
+                                AppLog.debug("⚠️ [TaskService] Failed to copy comment: \(Self.safeErrorSummary(error))")
                                 // Continue copying other comments even if one fails
                             }
                         }
 
-                        print("✅ [TaskService] Comments copied")
+                        AppLog.debug("✅ [TaskService] Comments copied")
                     } else {
-                        print("ℹ️ [TaskService] No user comments to copy")
+                        AppLog.debug("ℹ️ [TaskService] No user comments to copy")
                     }
                 } else {
-                    print("ℹ️ [TaskService] No comments to copy")
+                    AppLog.debug("ℹ️ [TaskService] No comments to copy")
                 }
             } catch {
-                print("⚠️ [TaskService] Failed to fetch comments for copying: \(Self.safeErrorSummary(error))")
+                AppLog.debug("⚠️ [TaskService] Failed to fetch comments for copying: \(Self.safeErrorSummary(error))")
                 // Don't fail the entire copy operation if comment copying fails
             }
         }
@@ -1226,7 +1226,7 @@ class TaskService: ObservableObject {
 
     /// Save multiple tasks to CoreData with optimized batch operations
     private func saveTasksToCoreData(_ tasks: [Task]) async throws {
-        print("💾 [TaskService] Saving \(tasks.count) tasks to Core Data...")
+        AppLog.debug("💾 [TaskService] Saving \(tasks.count) tasks to Core Data...")
 
         try await coreDataManager.saveInBackground { context in
             // Fetch all existing tasks in ONE batch query instead of 394 individual queries
@@ -1241,7 +1241,7 @@ class TaskService: ObservableObject {
                 existingTasksDict[cdTask.id] = cdTask
             }
 
-            print("💾 [TaskService] Found \(existingTasks.count) existing tasks, creating \(tasks.count - existingTasks.count) new tasks")
+            AppLog.debug("💾 [TaskService] Found \(existingTasks.count) existing tasks, creating \(tasks.count - existingTasks.count) new tasks")
 
             // Update or create tasks
             for task in tasks {
@@ -1290,13 +1290,13 @@ class TaskService: ObservableObject {
                 for orphan in orphanedTasks {
                     context.delete(orphan)
                 }
-                print("🧹 [TaskService] Removed \(orphanedTasks.count) orphaned tasks from CoreData")
+                AppLog.debug("🧹 [TaskService] Removed \(orphanedTasks.count) orphaned tasks from CoreData")
             }
 
-            print("💾 [TaskService] Core Data save completed")
+            AppLog.debug("💾 [TaskService] Core Data save completed")
         }
 
-        print("✅ [TaskService] Successfully saved \(tasks.count) tasks to Core Data")
+        AppLog.debug("✅ [TaskService] Successfully saved \(tasks.count) tasks to Core Data")
     }
 
     /// Save single task to CoreData with sync status
@@ -1329,12 +1329,12 @@ class TaskService: ObservableObject {
             request.predicate = NSPredicate(format: "syncStatus == %@ OR syncStatus == %@", "pending", "pending_delete")
             let count = try context.count(for: request)
             pendingOperationsCount = count
-            print("📊 [TaskService] Pending operations: \(count)")
+            AppLog.debug("📊 [TaskService] Pending operations: \(count)")
 
             // Also update failed count
             updateFailedOperationsCount()
         } catch {
-            print("❌ [TaskService] Failed to count pending operations: \(Self.safeErrorSummary(error))")
+            AppLog.debug("❌ [TaskService] Failed to count pending operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1347,7 +1347,7 @@ class TaskService: ObservableObject {
             let count = try context.count(for: request)
             failedOperationsCount = count
         } catch {
-            print("❌ [TaskService] Failed to count failed operations: \(Self.safeErrorSummary(error))")
+            AppLog.debug("❌ [TaskService] Failed to count failed operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1359,7 +1359,7 @@ class TaskService: ObservableObject {
             let cdTasks = try coreDataManager.viewContext.fetch(request)
             return Set(cdTasks.map { $0.id })
         } catch {
-            print("⚠️ [TaskService] Failed to fetch pending delete IDs: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to fetch pending delete IDs: \(Self.safeErrorSummary(error))")
             return []
         }
     }
@@ -1375,14 +1375,14 @@ class TaskService: ObservableObject {
             let cdTasks = try coreDataManager.viewContext.fetch(request)
             return Set(cdTasks.map { $0.id })
         } catch {
-            print("⚠️ [TaskService] Failed to fetch pending edit IDs: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to fetch pending edit IDs: \(Self.safeErrorSummary(error))")
             return []
         }
     }
 
     /// Retry all failed operations
     func retryFailedOperations() async {
-        print("🔄 [TaskService] Retrying failed operations...")
+        AppLog.debug("🔄 [TaskService] Retrying failed operations...")
 
         do {
             try await coreDataManager.saveInBackground { context in
@@ -1392,13 +1392,13 @@ class TaskService: ObservableObject {
                     task.syncStatus = "pending"
                     task.lastSyncError = nil
                 }
-                print("📊 [TaskService] Reset \(failedTasks.count) failed tasks to pending")
+                AppLog.debug("📊 [TaskService] Reset \(failedTasks.count) failed tasks to pending")
             }
 
             // Trigger sync
             try await syncPendingOperations()
         } catch {
-            print("❌ [TaskService] Failed to retry operations: \(Self.safeErrorSummary(error))")
+            AppLog.debug("❌ [TaskService] Failed to retry operations: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1410,7 +1410,7 @@ class TaskService: ObservableObject {
         cachedTasks = [:]
         UserDefaults.standard.removeObject(forKey: Self.recentlyDeletedIdsKey)
         pendingOperationsCount = 0
-        print("🗑️ [TaskService] In-memory task cache cleared")
+        AppLog.debug("🗑️ [TaskService] In-memory task cache cleared")
     }
 
     /// Update a single task in the cache (used when bypassing normal update flow)
@@ -1419,7 +1419,7 @@ class TaskService: ObservableObject {
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = task
         }
-        print("📝 [TaskService] Updated task in cache: \(task.title)")
+        AppLog.debug("📝 [TaskService] Updated task in cache: \(task.title)")
     }
 
     /// Update tasks from sync manager (used by list-based sync)
@@ -1461,7 +1461,7 @@ class TaskService: ObservableObject {
         // Update UI on main actor
         self.tasks = sortedTasks
         self.cachedTasks = Dictionary(uniqueKeysWithValues: sortedTasks.map { ($0.id, $0) })
-        print("✅ [TaskService] Updated \(self.tasks.count) tasks from sync")
+        AppLog.debug("✅ [TaskService] Updated \(self.tasks.count) tasks from sync")
 
         // Update app badge
         await self.badgeManager.updateBadge(with: self.tasks)
@@ -1470,9 +1470,9 @@ class TaskService: ObservableObject {
         do {
             let tasksToSave = self.tasks.filter { !$0.id.hasPrefix("temp_") }
             try await self.saveTasksToCoreData(tasksToSave)
-            print("✅ [TaskService] Saved \(tasksToSave.count) synced tasks to CoreData for offline use")
+            AppLog.debug("✅ [TaskService] Saved \(tasksToSave.count) synced tasks to CoreData for offline use")
         } catch {
-            print("⚠️ [TaskService] Failed to save synced tasks to CoreData: \(Self.safeErrorSummary(error))")
+            AppLog.debug("⚠️ [TaskService] Failed to save synced tasks to CoreData: \(Self.safeErrorSummary(error))")
         }
     }
 
@@ -1619,7 +1619,7 @@ class TaskService: ObservableObject {
     /// Called by ListService when a temp list ID gets its real server ID
     /// Updates all tasks that reference the temp ID to use the real ID
     func onListSynced(tempListId: String, realListId: String) async {
-        print("🔄 [TaskService] List synced: \(tempListId) → \(realListId)")
+        AppLog.debug("🔄 [TaskService] List synced: \(tempListId) → \(realListId)")
 
         // Store the mapping for future reference
         tempListIdMapping[tempListId] = realListId
@@ -1633,11 +1633,11 @@ class TaskService: ObservableObject {
         }
 
         if tasksToUpdate.isEmpty {
-            print("ℹ️ [TaskService] No tasks found with temp list ID: \(tempListId)")
+            AppLog.debug("ℹ️ [TaskService] No tasks found with temp list ID: \(tempListId)")
             return
         }
 
-        print("📝 [TaskService] Found \(tasksToUpdate.count) tasks to update with new list ID")
+        AppLog.debug("📝 [TaskService] Found \(tasksToUpdate.count) tasks to update with new list ID")
 
         // Update each task
         for task in tasksToUpdate {
@@ -1651,9 +1651,9 @@ class TaskService: ObservableObject {
             do {
                 // Update task on server with new list ID
                 let updatedTask = try await updateTask(taskId: task.id, listIds: updatedListIds)
-                print("✅ [TaskService] Updated task '\(updatedTask.title)' with real list ID")
+                AppLog.debug("✅ [TaskService] Updated task '\(updatedTask.title)' with real list ID")
             } catch {
-                print("⚠️ [TaskService] Failed to update task '\(task.title)' with real list ID: \(Self.safeErrorSummary(error))")
+                AppLog.debug("⚠️ [TaskService] Failed to update task '\(task.title)' with real list ID: \(Self.safeErrorSummary(error))")
                 // Task stays with the updated local listIds, will retry on next sync
             }
         }

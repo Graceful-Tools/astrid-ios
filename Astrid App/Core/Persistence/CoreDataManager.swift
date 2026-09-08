@@ -27,23 +27,23 @@ class CoreDataManager {
         // data (lists/tasks) can never land in — or later sync out of — the user's real store.
         if UITestSession.isUITesting {
             description?.url = URL(fileURLWithPath: "/dev/null")
-            print("🧪 [CoreData] -uiTesting: using ephemeral store")
+            AppLog.debug("🧪 [CoreData] -uiTesting: using ephemeral store")
         }
 
-        print("🔄 [CoreData] Loading persistent store...")
+        AppLog.debug("🔄 [CoreData] Loading persistent store...")
         container.loadPersistentStores { [weak self] description, error in
             if let error = error {
                 // Don't crash - CoreData model may not be created yet
-                print("⚠️ Core Data model not available: \(error)")
-                print("ℹ️  App will work without CoreData persistence (memory only)")
-                print("ℹ️  To enable: Create AstridApp.xcdatamodeld in Xcode")
+                AppLog.debug("⚠️ Core Data model not available: \(error)")
+                AppLog.debug("ℹ️  App will work without CoreData persistence (memory only)")
+                AppLog.debug("ℹ️  To enable: Create AstridApp.xcdatamodeld in Xcode")
 
                 // Mark as loaded (even if failed) to unblock waiting tasks
                 self?.markStoreAsLoaded()
                 return
             }
 
-            print("✅ Core Data loaded from: \(description.url?.absoluteString ?? "unknown")")
+            AppLog.debug("✅ Core Data loaded from: \(description.url?.absoluteString ?? "unknown")")
             self?.markStoreAsLoaded()
         }
 
@@ -73,11 +73,11 @@ class CoreDataManager {
 
         // If already loaded, return immediately
         guard !isStoreLoaded else {
-            print("✅ [CoreData] Store already loaded")
+            AppLog.debug("✅ [CoreData] Store already loaded")
             return
         }
 
-        print("⏳ [CoreData] Waiting for store to load...")
+        AppLog.debug("⏳ [CoreData] Waiting for store to load...")
 
         // Wait for store to load
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -89,11 +89,11 @@ class CoreDataManager {
             }
         }
 
-        print("✅ [CoreData] Store load wait completed")
+        AppLog.debug("✅ [CoreData] Store load wait completed")
     }
 
     private func markStoreAsLoaded() {
-        print("🎉 [CoreData] Marking store as loaded, resuming \(storeLoadContinuations.count) waiting tasks")
+        AppLog.debug("🎉 [CoreData] Marking store as loaded, resuming \(storeLoadContinuations.count) waiting tasks")
         isStoreLoaded = true
 
         // Resume all waiting continuations
@@ -113,7 +113,7 @@ class CoreDataManager {
         do {
             try context.save()
         } catch {
-            print("❌ Failed to save Core Data context: \(error)")
+            AppLog.debug("❌ Failed to save Core Data context: \(error)")
             throw error
         }
     }
@@ -169,6 +169,6 @@ class CoreDataManager {
         // Reset the context to ensure no stale objects remain in memory
         viewContext.reset()
 
-        print("✅ [CoreDataManager] All data cleared and context reset")
+        AppLog.debug("✅ [CoreDataManager] All data cleared and context reset")
     }
 }

@@ -66,7 +66,7 @@ struct ListDetailView: View {
                                     do {
                                         try await listService.toggleFavorite(listId: list.id, isFavorite: newValue)
                                     } catch {
-                                        print("❌ Failed to toggle favorite: \(error)")
+                                        AppLog.debug("❌ Failed to toggle favorite: \(error)")
                                         isFavorite = !newValue // Revert on error
                                     }
                                 }
@@ -92,7 +92,7 @@ struct ListDetailView: View {
                                             updates: ["isVirtual": newValue]
                                         )
                                     } catch {
-                                        print("❌ Failed to toggle virtual: \(error)")
+                                        AppLog.debug("❌ Failed to toggle virtual: \(error)")
                                         isVirtual = !newValue // Revert on error
                                     }
                                 }
@@ -241,7 +241,7 @@ struct ListDetailView: View {
                                     isVirtual = updatedVirtual
                                 }
                             } catch {
-                                print("❌ Failed to update list: \(error)")
+                                AppLog.debug("❌ Failed to update list: \(error)")
                             }
                         }
                     }
@@ -260,7 +260,7 @@ struct ListDetailView: View {
                         try await listService.deleteList(listId: list.id)
                         dismiss()
                     } catch {
-                        print("❌ Failed to delete list: \(error)")
+                        AppLog.debug("❌ Failed to delete list: \(error)")
                     }
                 }
             }

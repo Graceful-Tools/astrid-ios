@@ -19,11 +19,11 @@ class DeepLinkManager {
 
     /// Opens a URL in an in-app browser (SFSafariViewController)
     func openInAppBrowser(url: URL) {
-        print("🌐 [DeepLinkManager] Opening in-app browser: \(url.absoluteString)")
+        AppLog.debug("🌐 [DeepLinkManager] Opening in-app browser: \(url.absoluteString)")
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootViewController = windowScene.windows.first?.rootViewController else {
-            print("⚠️ [DeepLinkManager] No root view controller found, falling back to external browser")
+            AppLog.debug("⚠️ [DeepLinkManager] No root view controller found, falling back to external browser")
             UIApplication.shared.open(url)
             return
         }
@@ -41,7 +41,7 @@ class DeepLinkManager {
     
     /// Entry point for handling incoming URLs
     func handleURL(_ url: URL) {
-        print("🔗 [DeepLinkManager] Handling URL: \(url.absoluteString)")
+        AppLog.debug("🔗 [DeepLinkManager] Handling URL: \(url.absoluteString)")
         
         // Handle custom scheme: astrid://...
         if url.scheme == "astrid" {
@@ -55,7 +55,7 @@ class DeepLinkManager {
             return
         }
         
-        print("⚠️ [DeepLinkManager] Unrecognized URL scheme or host")
+        AppLog.debug("⚠️ [DeepLinkManager] Unrecognized URL scheme or host")
     }
     
     private func handleCustomScheme(_ url: URL) {
@@ -95,7 +95,7 @@ class DeepLinkManager {
             }
         default:
             // Convert custom scheme to https URL and open in in-app browser
-            print("ℹ️ [DeepLinkManager] Unknown custom scheme host '\(host)' - opening in in-app browser")
+            AppLog.debug("ℹ️ [DeepLinkManager] Unknown custom scheme host '\(host)' - opening in in-app browser")
             if let httpsURL = URL(string: "\(Brand.productionBaseURL)/\(host)\(url.path)") {
                 openInAppBrowser(url: httpsURL)
             }
@@ -125,7 +125,7 @@ class DeepLinkManager {
                     SettingsPresenter.shared.navigateTo(page: settingsPage)
                 } else {
                     // Unknown settings page - open in-app browser
-                    print("ℹ️ [DeepLinkManager] Unknown settings page '\(pathComponents[1])' - opening in browser")
+                    AppLog.debug("ℹ️ [DeepLinkManager] Unknown settings page '\(pathComponents[1])' - opening in browser")
                     openInAppBrowser(url: url)
                 }
             } else {
@@ -138,7 +138,7 @@ class DeepLinkManager {
         default:
             // Unknown path - open in in-app browser
             // This handles pages like /help, /pricing, /blog, etc. that don't have native views
-            print("ℹ️ [DeepLinkManager] Unknown path '\(first)' - opening in in-app browser")
+            AppLog.debug("ℹ️ [DeepLinkManager] Unknown path '\(first)' - opening in in-app browser")
             openInAppBrowser(url: url)
         }
     }
@@ -147,7 +147,7 @@ class DeepLinkManager {
         _Concurrency.Task {
             do {
                 let resolution = try await api.resolveShortcode(code)
-                print("✅ [DeepLinkManager] Resolved shortcode \(code) to \(resolution.targetType) \(resolution.targetId)")
+                AppLog.debug("✅ [DeepLinkManager] Resolved shortcode \(code) to \(resolution.targetType) \(resolution.targetId)")
                 
                 await MainActor.run {
                     if resolution.targetType == "task" {
@@ -157,7 +157,7 @@ class DeepLinkManager {
                     }
                 }
             } catch {
-                print("❌ [DeepLinkManager] Failed to resolve shortcode \(code): \(error)")
+                AppLog.debug("❌ [DeepLinkManager] Failed to resolve shortcode \(code): \(error)")
                 // Fallback to web if resolution fails
                 if let url = URL(string: "\(Brand.productionBaseURL)/s/\(code)") {
                     await MainActor.run {

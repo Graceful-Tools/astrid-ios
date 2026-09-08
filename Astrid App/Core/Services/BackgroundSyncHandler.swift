@@ -18,7 +18,7 @@ class BackgroundSyncHandler {
     func registerBackgroundTasks() {
         // Skip in test environment to prevent crashes
         guard !isRunningTests else {
-            print("⚠️ [BackgroundSync] Skipping registration in test environment")
+            AppLog.debug("⚠️ [BackgroundSync] Skipping registration in test environment")
             return
         }
 
@@ -28,7 +28,7 @@ class BackgroundSyncHandler {
         ) { task in
             self.handleSyncTask(task as! BGProcessingTask)
         }
-        print("✅ [BackgroundSync] Background task registered: \(Self.syncTaskIdentifier)")
+        AppLog.debug("✅ [BackgroundSync] Background task registered: \(Self.syncTaskIdentifier)")
     }
 
     /// Schedule a background sync task
@@ -42,28 +42,28 @@ class BackgroundSyncHandler {
 
         do {
             try BGTaskScheduler.shared.submit(request)
-            print("✅ [BackgroundSync] Scheduled background sync")
+            AppLog.debug("✅ [BackgroundSync] Scheduled background sync")
         } catch {
-            print("⚠️ [BackgroundSync] Failed to schedule: \(error)")
+            AppLog.debug("⚠️ [BackgroundSync] Failed to schedule: \(error)")
         }
     }
 
     /// Handle the background sync task when it runs
     private func handleSyncTask(_ task: BGProcessingTask) {
-        print("🔄 [BackgroundSync] Starting background sync task...")
+        AppLog.debug("🔄 [BackgroundSync] Starting background sync task...")
 
         task.expirationHandler = {
-            print("⚠️ [BackgroundSync] Task expired before completion")
+            AppLog.debug("⚠️ [BackgroundSync] Task expired before completion")
             task.setTaskCompleted(success: false)
         }
 
         _Concurrency.Task { @MainActor in
             do {
                 try await SyncManager.shared.performQuickSync()
-                print("✅ [BackgroundSync] Background sync completed successfully")
+                AppLog.debug("✅ [BackgroundSync] Background sync completed successfully")
                 task.setTaskCompleted(success: true)
             } catch {
-                print("❌ [BackgroundSync] Background sync failed: \(error)")
+                AppLog.debug("❌ [BackgroundSync] Background sync failed: \(error)")
                 task.setTaskCompleted(success: false)
             }
         }

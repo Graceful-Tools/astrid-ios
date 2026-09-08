@@ -47,6 +47,6 @@ struct ScrollToTopButton: View {
 
 #Preview {
     ScrollToTopButton {
-        print("Scroll to top tapped")
+        AppLog.debug("Scroll to top tapped")
     }
 }

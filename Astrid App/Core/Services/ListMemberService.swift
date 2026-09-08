@@ -55,7 +55,7 @@ class ListMemberService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in
-                print("🌐 [ListMemberService] Network restored, triggering sync...")
+                AppLog.debug("🌐 [ListMemberService] Network restored, triggering sync...")
                 try? await self?.syncPendingOperations()
             }
         }
@@ -76,9 +76,9 @@ class ListMemberService: ObservableObject {
                 }
             }
             pendingOperationsCount = pending.count
-            print("📊 [ListMemberService] Pending operations: \(pendingOperationsCount)")
+            AppLog.debug("📊 [ListMemberService] Pending operations: \(pendingOperationsCount)")
         } catch {
-            print("❌ [ListMemberService] Failed to count pending operations: \(error)")
+            AppLog.debug("❌ [ListMemberService] Failed to count pending operations: \(error)")
         }
     }
 
@@ -92,7 +92,7 @@ class ListMemberService: ObservableObject {
         defer { isLoading = false }
 
         do {
-            print("📡 [ListMemberService] Fetching members for list: \(listId)")
+            AppLog.debug("📡 [ListMemberService] Fetching members for list: \(listId)")
             let response = try await apiClient.getListMembers(listId: listId)
             if let role = response.userRole { viewerRoleByList[listId] = role }
 
@@ -102,7 +102,7 @@ class ListMemberService: ObservableObject {
             membersReflectListId = listId
             members = activeMembers.compactMap { memberData -> User? in
                 guard seenIds.insert(memberData.id).inserted else {
-                    print("⚠️ [ListMemberService] Skipping duplicate member: \(memberData.name ?? "unknown") (id: \(memberData.id))")
+                    AppLog.debug("⚠️ [ListMemberService] Skipping duplicate member: \(memberData.name ?? "unknown") (id: \(memberData.id))")
                     return nil
                 }
                 return User(
@@ -112,10 +112,10 @@ class ListMemberService: ObservableObject {
                     image: memberData.image
                 )
             }
-            print("👥 [ListMemberService] Members: \(members.map { "\($0.displayName) (id: \($0.id), email: \($0.email ?? "nil"))" })")
+            AppLog.debug("👥 [ListMemberService] Members: \(members.map { "\($0.displayName) (id: \($0.id), email: \(AppLog.redact(email: $0.email)))" })")
             let inviteCount = response.members.filter { $0.type == "invite" }.count
             if inviteCount > 0 {
-                print("📨 [ListMemberService] Filtered out \(inviteCount) pending invitations")
+                AppLog.debug("📨 [ListMemberService] Filtered out \(inviteCount) pending invitations")
             }
 
             // Convert to ListMember objects (new format)
@@ -141,9 +141,9 @@ class ListMemberService: ObservableObject {
             // Save to Core Data cache
             try await saveToCache(listId: listId, members: listMembers)
 
-            print("✅ [ListMemberService] Fetched \(members.count) members")
+            AppLog.debug("✅ [ListMemberService] Fetched \(members.count) members")
         } catch {
-            print("❌ [ListMemberService] Failed to fetch members: \(error)")
+            AppLog.debug("❌ [ListMemberService] Failed to fetch members: \(error)")
             errorMessage = error.localizedDescription
 
             // Load from cache on error (offline support)
@@ -156,7 +156,7 @@ class ListMemberService: ObservableObject {
 
     /// Local-first fetch: Returns cached data immediately, syncs in background
     func fetchMembersLocalFirst(listId: String) async {
-        print("⚡️ [ListMemberService] Local-first fetch for list: \(listId)")
+        AppLog.debug("⚡️ [ListMemberService] Local-first fetch for list: \(listId)")
 
         // 1. Load from cache immediately
         await loadFromCache(listId: listId)
@@ -167,7 +167,7 @@ class ListMemberService: ObservableObject {
                 do {
                     try await self?.fetchMembers(listId: listId)
                 } catch {
-                    print("⚠️ [ListMemberService] Background fetch failed (non-critical): \(error)")
+                    AppLog.debug("⚠️ [ListMemberService] Background fetch failed (non-critical): \(error)")
                 }
             }
         }
@@ -197,9 +197,9 @@ class ListMemberService: ObservableObject {
             membersReflectListId = listId
             members = listMembers.compactMap { $0.user }
 
-            print("✅ [ListMemberService] Loaded \(listMembers.count) members from cache")
+            AppLog.debug("✅ [ListMemberService] Loaded \(listMembers.count) members from cache")
         } catch {
-            print("❌ [ListMemberService] Failed to load from cache: \(error)")
+            AppLog.debug("❌ [ListMemberService] Failed to load from cache: \(error)")
         }
     }
 
@@ -223,7 +223,7 @@ class ListMemberService: ObservableObject {
             }
         }
 
-        print("💾 [ListMemberService] Saved \(members.count) members to cache")
+        AppLog.debug("💾 [ListMemberService] Saved \(members.count) members to cache")
     }
 
     // MARK: - CRUD Operations (Optimistic)
@@ -273,7 +273,7 @@ class ListMemberService: ObservableObject {
     ///   2. If that reconciliation throw triggered the rollback, the
     ///      pending CDMember was deleted, masking a successful add.
     func addMember(listId: String, email: String, role: String = "member") async throws -> ListMember {
-        print("⚡️ [ListMemberService] Adding member: \(email) (online: \(networkMonitor.isConnected))")
+        AppLog.debug("⚡️ [ListMemberService] Adding member: \(AppLog.redact(email: email)) (online: \(networkMonitor.isConnected))")
 
         let placeholderId = ListMemberOptimistic.newPlaceholderId()
         let placeholder = ListMemberOptimistic.placeholder(
@@ -339,7 +339,7 @@ class ListMemberService: ObservableObject {
                 user: placeholder.user
             )
         } catch {
-            print("⚠️ [ListMemberService] Add failed, rolling back \(email): \(error)")
+            AppLog.debug("⚠️ [ListMemberService] Add failed, rolling back \(AppLog.redact(email: email)): \(error)")
             applyMemberChange(listId: listId) {
                 ListMemberOptimistic.applyingRemoval($0, memberId: placeholderId)
             }
@@ -356,7 +356,7 @@ class ListMemberService: ObservableObject {
     /// (task 33fc21fc). Offline writes a pending CDMember so `syncPendingOperations`
     /// can push the change on reconnect.
     func updateMemberRole(listId: String, userId: String, role: String) async throws {
-        print("✏️ [ListMemberService] Updating member role: \(userId) → \(role) (online: \(networkMonitor.isConnected))")
+        AppLog.debug("✏️ [ListMemberService] Updating member role: \(userId) → \(role) (online: \(networkMonitor.isConnected))")
 
         let previousRole = membersByList[listId]?
             .first { $0.userId == userId || $0.user?.id == userId }?.role
@@ -383,7 +383,7 @@ class ListMemberService: ObservableObject {
         do {
             _ = try await apiClient.updateListMember(listId: listId, userId: userId, role: role)
         } catch {
-            print("⚠️ [ListMemberService] Role change failed, reverting \(userId): \(error)")
+            AppLog.debug("⚠️ [ListMemberService] Role change failed, reverting \(userId): \(error)")
             if let previousRole {
                 applyMemberChange(listId: listId) {
                     ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: previousRole)
@@ -402,7 +402,7 @@ class ListMemberService: ObservableObject {
     /// (task 33fc21fc). Offline marks the CDMember `pending_delete` so the removal
     /// lands when the network returns.
     func removeMember(listId: String, userId: String) async throws {
-        print("🗑️ [ListMemberService] Removing member: \(userId) (online: \(networkMonitor.isConnected))")
+        AppLog.debug("🗑️ [ListMemberService] Removing member: \(userId) (online: \(networkMonitor.isConnected))")
 
         let removed = membersByList[listId]?
             .first { $0.userId == userId || $0.user?.id == userId || $0.id == userId }
@@ -429,7 +429,7 @@ class ListMemberService: ObservableObject {
         do {
             _ = try await apiClient.removeListMember(listId: listId, userId: userId)
         } catch {
-            print("⚠️ [ListMemberService] Remove failed, restoring \(userId): \(error)")
+            AppLog.debug("⚠️ [ListMemberService] Remove failed, restoring \(userId): \(error)")
             if let removed {
                 applyMemberChange(listId: listId) {
                     ListMemberOptimistic.applyingAdd($0, member: removed)
@@ -451,7 +451,7 @@ class ListMemberService: ObservableObject {
     /// Returns immediately so the view can hide the invitation row without
     /// waiting on the server.
     func cancelInvitation(listId: String, invitationId: String, email: String) async throws {
-        print("🗑️ [ListMemberService] Cancelling invitation (optimistic): \(email)")
+        AppLog.debug("🗑️ [ListMemberService] Cancelling invitation (optimistic): \(AppLog.redact(email: email))")
 
         // 1. Capture the list snapshot for rollback.
         guard let index = ListService.shared.lists.firstIndex(where: { $0.id == listId }) else {
@@ -469,9 +469,9 @@ class ListMemberService: ObservableObject {
         // 3. API call in background; restore on failure.
         do {
             _ = try await apiClient.cancelInvitation(listId: listId, email: email)
-            print("✅ [ListMemberService] Invitation cancelled for \(email)")
+            AppLog.debug("✅ [ListMemberService] Invitation cancelled for \(AppLog.redact(email: email))")
         } catch {
-            print("⚠️ [ListMemberService] Cancel failed, restoring invitation: \(error)")
+            AppLog.debug("⚠️ [ListMemberService] Cancel failed, restoring invitation: \(error)")
             if let idx = ListService.shared.lists.firstIndex(where: { $0.id == listId }) {
                 ListService.shared.lists[idx] = originalList
             }
@@ -484,11 +484,11 @@ class ListMemberService: ObservableObject {
     /// Sync all pending member operations with the server
     func syncPendingOperations() async throws {
         guard networkMonitor.isConnected else {
-            print("📵 [ListMemberService] Cannot sync - no network")
+            AppLog.debug("📵 [ListMemberService] Cannot sync - no network")
             return
         }
 
-        print("🔄 [ListMemberService] Starting pending operations sync...")
+        AppLog.debug("🔄 [ListMemberService] Starting pending operations sync...")
 
         // Fetch pending operations
         let pending: [CDMember] = try await withCheckedThrowingContinuation { continuation in
@@ -502,7 +502,7 @@ class ListMemberService: ObservableObject {
             }
         }
 
-        print("📊 [ListMemberService] Found \(pending.count) pending operations")
+        AppLog.debug("📊 [ListMemberService] Found \(pending.count) pending operations")
 
         // Process each pending operation
         for cdMember in pending {
@@ -520,17 +520,17 @@ class ListMemberService: ObservableObject {
                     try await markAsFailed(cdMember, error: "Unknown operation: \(operation)")
                 }
             } catch {
-                print("❌ [ListMemberService] Failed to sync \(operation): \(error)")
+                AppLog.debug("❌ [ListMemberService] Failed to sync \(operation): \(error)")
                 try await markAsFailed(cdMember, error: error.localizedDescription)
             }
         }
 
         await updatePendingOperationsCount()
-        print("✅ [ListMemberService] Sync completed")
+        AppLog.debug("✅ [ListMemberService] Sync completed")
     }
 
     private func syncPendingCreate(_ cdMember: CDMember) async throws {
-        print("⚡️ [ListMemberService] Syncing pending create: \(cdMember.id)")
+        AppLog.debug("⚡️ [ListMemberService] Syncing pending create: \(cdMember.id)")
 
         guard let email = cdMember.pendingRole else {
             throw ListMemberError.missingEmail
@@ -569,11 +569,11 @@ class ListMemberService: ObservableObject {
             }
         }
 
-        print("✅ [ListMemberService] Marked as synced")
+        AppLog.debug("✅ [ListMemberService] Marked as synced")
     }
 
     private func syncPendingUpdate(_ cdMember: CDMember) async throws {
-        print("⚡️ [ListMemberService] Syncing pending update: \(cdMember.id)")
+        AppLog.debug("⚡️ [ListMemberService] Syncing pending update: \(cdMember.id)")
 
         guard let newRole = cdMember.pendingRole else {
             throw ListMemberError.missingRole
@@ -601,11 +601,11 @@ class ListMemberService: ObservableObject {
             member.syncError = nil
         }
 
-        print("✅ [ListMemberService] Update synced")
+        AppLog.debug("✅ [ListMemberService] Update synced")
     }
 
     private func syncPendingDelete(_ cdMember: CDMember) async throws {
-        print("⚡️ [ListMemberService] Syncing pending delete: \(cdMember.id)")
+        AppLog.debug("⚡️ [ListMemberService] Syncing pending delete: \(cdMember.id)")
 
         // Call API
         _ = try await apiClient.removeListMember(
@@ -622,7 +622,7 @@ class ListMemberService: ObservableObject {
             context.delete(member)
         }
 
-        print("✅ [ListMemberService] Delete synced and removed from cache")
+        AppLog.debug("✅ [ListMemberService] Delete synced and removed from cache")
     }
 
     private func markAsFailed(_ cdMember: CDMember, error: String) async throws {
@@ -637,7 +637,7 @@ class ListMemberService: ObservableObject {
 
             // Give up after 3 attempts
             if member.syncAttempts >= 3 {
-                print("🛑 [ListMemberService] Giving up after 3 attempts: \(cdMember.id)")
+                AppLog.debug("🛑 [ListMemberService] Giving up after 3 attempts: \(cdMember.id)")
             }
         }
     }
@@ -650,7 +650,7 @@ class ListMemberService: ObservableObject {
 
     /// Retry all failed operations
     func retryFailedOperations() async {
-        print("🔄 [ListMemberService] Retrying failed operations...")
+        AppLog.debug("🔄 [ListMemberService] Retrying failed operations...")
 
         do {
             try await coreDataManager.saveInBackground { context in
@@ -662,13 +662,13 @@ class ListMemberService: ObservableObject {
                     member.syncStatus = "pending"
                     member.syncError = nil
                 }
-                print("📊 [ListMemberService] Reset \(failedMembers.count) failed members to pending")
+                AppLog.debug("📊 [ListMemberService] Reset \(failedMembers.count) failed members to pending")
             }
 
             // Trigger sync
             try await syncPendingOperations()
         } catch {
-            print("❌ [ListMemberService] Failed to retry operations: \(error)")
+            AppLog.debug("❌ [ListMemberService] Failed to retry operations: \(error)")
         }
     }
 }

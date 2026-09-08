@@ -89,7 +89,7 @@ struct SmartTaskParser {
         _ = highPriorityRegex
         _ = mediumPriorityRegex
         _ = lowPriorityRegex
-        print("⚡️ [SmartTaskParser] Regex patterns pre-compiled")
+        AppLog.debug("⚡️ [SmartTaskParser] Regex patterns pre-compiled")
     }
 
     /// Parse task input string to extract structured task data

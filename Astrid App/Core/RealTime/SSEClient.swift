@@ -49,7 +49,7 @@ actor SSEClient {
         let urlString = baseURL + sseEndpoint
 
         guard let url = URL(string: urlString) else {
-            print("❌ [SSE] Invalid URL")
+            AppLog.debug("❌ [SSE] Invalid URL")
             throw SSEError.invalidURL
         }
 
@@ -67,7 +67,7 @@ actor SSEClient {
         }
 
         guard let cookie = sessionCookie else {
-            print("⚠️ [SSE] No session cookie in Keychain")
+            AppLog.debug("⚠️ [SSE] No session cookie in Keychain")
             throw SSEError.noSessionCookie
         }
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
@@ -87,17 +87,17 @@ actor SSEClient {
         do {
             request = try await buildSSERequest()
         } catch {
-            print("❌ [SSE] Failed to build request: \(error)")
+            AppLog.debug("❌ [SSE] Failed to build request: \(error)")
             return
         }
 
         // Verify the request has a Cookie header (no cookie = no point connecting)
         guard request.value(forHTTPHeaderField: "Cookie") != nil else {
-            print("⚠️ [SSE] No session cookie - skipping connection")
+            AppLog.debug("⚠️ [SSE] No session cookie - skipping connection")
             return
         }
 
-        print("📡 [SSE] Connecting...")
+        AppLog.debug("📡 [SSE] Connecting...")
         isConnected = true
 
         // Create streaming task
@@ -107,7 +107,7 @@ actor SSEClient {
     }
 
     func disconnect() {
-        print("📡 [SSE] Disconnecting...")
+        AppLog.debug("📡 [SSE] Disconnecting...")
         streamTask?.cancel()
         streamTask = nil
         isConnected = false
@@ -118,18 +118,18 @@ actor SSEClient {
             let (bytes, response) = try await session.bytes(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("❌ [SSE] Invalid response type")
+                AppLog.debug("❌ [SSE] Invalid response type")
                 await handleConnectionError(NSError(domain: "SSE", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]))
                 return
             }
 
             guard httpResponse.statusCode == 200 else {
-                print("❌ [SSE] Connection failed - status: \(httpResponse.statusCode)")
+                AppLog.debug("❌ [SSE] Connection failed - status: \(httpResponse.statusCode)")
                 await handleConnectionError(NSError(domain: "SSE", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"]))
                 return
             }
 
-            print("✅ [SSE] Connected and streaming")
+            AppLog.debug("✅ [SSE] Connected and streaming")
             resetReconnectAttempts()
 
             // Process bytes as they stream in.
@@ -143,19 +143,19 @@ actor SSEClient {
             for try await byte in bytes {
                 // Check if task was cancelled
                 if _Concurrency.Task.isCancelled {
-                    print("📡 [SSE] Stream cancelled")
+                    AppLog.debug("📡 [SSE] Stream cancelled")
                     break
                 }
 
                 bytesReceived += 1
 
                 for frame in frames.append(byte) {
-                    print("📦 [SSE] Received complete event, bytes so far: \(bytesReceived)")
+                    AppLog.debug("📦 [SSE] Received complete event, bytes so far: \(bytesReceived)")
                     await processSSEBuffer(frame)
                 }
             }
 
-            print("📡 [SSE] Stream ended — will reconnect")
+            AppLog.debug("📡 [SSE] Stream ended — will reconnect")
             // Stream ended normally (server closed connection) — reconnect
             isConnected = false
             resetReconnectAttempts()
@@ -165,7 +165,7 @@ actor SSEClient {
             }
 
         } catch {
-            print("❌ [SSE] Stream error: \(error.localizedDescription)")
+            AppLog.debug("❌ [SSE] Stream error: \(error.localizedDescription)")
             await handleConnectionError(error)
         }
     }
@@ -185,7 +185,7 @@ actor SSEClient {
         // Don't reconnect on auth errors (401) — no point retrying without valid session
         let nsError = error as NSError
         if nsError.code == 401 {
-            print("🔒 [SSE] Auth failed (401) - stopping reconnection")
+            AppLog.debug("🔒 [SSE] Auth failed (401) - stopping reconnection")
             return
         }
 
@@ -194,7 +194,7 @@ actor SSEClient {
             reconnectAttempts += 1
             let delay = SSEReconnectPolicy.delay(attempt: reconnectAttempts)
 
-            print("⏳ [SSE] Reconnecting in \(Int(delay))s... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
+            AppLog.debug("⏳ [SSE] Reconnecting in \(Int(delay))s... (attempt \(reconnectAttempts)/\(maxReconnectAttempts))")
 
             do {
                 try await _Concurrency.Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -203,7 +203,7 @@ actor SSEClient {
                 // Sleep interrupted, likely app backgrounded
             }
         } else {
-            print("❌ [SSE] Max reconnect attempts reached")
+            AppLog.debug("❌ [SSE] Max reconnect attempts reached")
         }
     }
 
@@ -410,10 +410,10 @@ actor SSEClient {
                     break
 
                 default:
-                    print("⚠️ Unknown SSE event type: \(type)")
+                    AppLog.debug("⚠️ Unknown SSE event type: \(type)")
                 }
             } catch {
-                print("❌ Failed to decode SSE event \(type): \(error)")
+                AppLog.debug("❌ Failed to decode SSE event \(type): \(error)")
             }
         }
     }
@@ -447,7 +447,7 @@ actor SSEClient {
     func onCommentAdded(_ handler: @escaping @Sendable (Comment, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         commentAddedHandlers[handlerId] = handler
-        print("📝 [SSE] Registered comment_added handler \(handlerId). Total: \(commentAddedHandlers.count)")
+        AppLog.debug("📝 [SSE] Registered comment_added handler \(handlerId). Total: \(commentAddedHandlers.count)")
 
         // Return unsubscribe closure
         return { @Sendable [weak self] in
@@ -460,7 +460,7 @@ actor SSEClient {
     func onCommentUpdated(_ handler: @escaping @Sendable (Comment, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         commentUpdatedHandlers[handlerId] = handler
-        print("📝 [SSE] Registered comment_updated handler \(handlerId). Total: \(commentUpdatedHandlers.count)")
+        AppLog.debug("📝 [SSE] Registered comment_updated handler \(handlerId). Total: \(commentUpdatedHandlers.count)")
 
         // Return unsubscribe closure
         return { @Sendable [weak self] in
@@ -473,7 +473,7 @@ actor SSEClient {
     func onCommentDeleted(_ handler: @escaping @Sendable (String, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         commentDeletedHandlers[handlerId] = handler
-        print("📝 [SSE] Registered comment_deleted handler \(handlerId). Total: \(commentDeletedHandlers.count)")
+        AppLog.debug("📝 [SSE] Registered comment_deleted handler \(handlerId). Total: \(commentDeletedHandlers.count)")
 
         // Return unsubscribe closure
         return { @Sendable [weak self] in
@@ -484,21 +484,21 @@ actor SSEClient {
     }
 
     func onMyTasksPreferencesUpdated(_ handler: @escaping @Sendable (MyTasksPreferences) -> Void) {
-        print("🔧 [SSE] Registering My Tasks preferences handler (total will be: \(myTasksPreferencesUpdatedHandlers.count + 1))")
+        AppLog.debug("🔧 [SSE] Registering My Tasks preferences handler (total will be: \(myTasksPreferencesUpdatedHandlers.count + 1))")
         myTasksPreferencesUpdatedHandlers.append(handler)
-        print("✅ [SSE] Handler registered. Total handlers: \(myTasksPreferencesUpdatedHandlers.count)")
+        AppLog.debug("✅ [SSE] Handler registered. Total handlers: \(myTasksPreferencesUpdatedHandlers.count)")
     }
 
     func onUserSettingsUpdated(_ handler: @escaping @Sendable (UserSettings) -> Void) {
-        print("🔧 [SSE] Registering User Settings handler (total will be: \(userSettingsUpdatedHandlers.count + 1))")
+        AppLog.debug("🔧 [SSE] Registering User Settings handler (total will be: \(userSettingsUpdatedHandlers.count + 1))")
         userSettingsUpdatedHandlers.append(handler)
-        print("✅ [SSE] User Settings handler registered. Total handlers: \(userSettingsUpdatedHandlers.count)")
+        AppLog.debug("✅ [SSE] User Settings handler registered. Total handlers: \(userSettingsUpdatedHandlers.count)")
     }
 
     func onChatMessageCreated(_ handler: @escaping @Sendable (ChatMessage, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         chatMessageCreatedHandlers[handlerId] = handler
-        print("💬 [SSE] Registered chat_message_created handler \(handlerId). Total: \(chatMessageCreatedHandlers.count)")
+        AppLog.debug("💬 [SSE] Registered chat_message_created handler \(handlerId). Total: \(chatMessageCreatedHandlers.count)")
         return { @Sendable [weak self] in
             _Concurrency.Task { [weak self] in
                 await self?.removeChatMessageCreatedHandler(id: handlerId)
@@ -509,7 +509,7 @@ actor SSEClient {
     func onChatMessageUpdated(_ handler: @escaping @Sendable (ChatMessage, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         chatMessageUpdatedHandlers[handlerId] = handler
-        print("💬 [SSE] Registered chat_message_updated handler \(handlerId). Total: \(chatMessageUpdatedHandlers.count)")
+        AppLog.debug("💬 [SSE] Registered chat_message_updated handler \(handlerId). Total: \(chatMessageUpdatedHandlers.count)")
         return { @Sendable [weak self] in
             _Concurrency.Task { [weak self] in
                 await self?.removeChatMessageUpdatedHandler(id: handlerId)
@@ -520,7 +520,7 @@ actor SSEClient {
     func onChatMessageDeleted(_ handler: @escaping @Sendable (String, String) -> Void) -> @Sendable () -> Void {
         let handlerId = UUID()
         chatMessageDeletedHandlers[handlerId] = handler
-        print("💬 [SSE] Registered chat_message_deleted handler \(handlerId). Total: \(chatMessageDeletedHandlers.count)")
+        AppLog.debug("💬 [SSE] Registered chat_message_deleted handler \(handlerId). Total: \(chatMessageDeletedHandlers.count)")
         return { @Sendable [weak self] in
             _Concurrency.Task { [weak self] in
                 await self?.removeChatMessageDeletedHandler(id: handlerId)
@@ -556,32 +556,32 @@ actor SSEClient {
 
     private func removeCommentAddedHandler(id: UUID) {
         commentAddedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed comment_added handler \(id). Remaining: \(commentAddedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed comment_added handler \(id). Remaining: \(commentAddedHandlers.count)")
     }
 
     private func removeCommentUpdatedHandler(id: UUID) {
         commentUpdatedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed comment_updated handler \(id). Remaining: \(commentUpdatedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed comment_updated handler \(id). Remaining: \(commentUpdatedHandlers.count)")
     }
 
     private func removeCommentDeletedHandler(id: UUID) {
         commentDeletedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed comment_deleted handler \(id). Remaining: \(commentDeletedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed comment_deleted handler \(id). Remaining: \(commentDeletedHandlers.count)")
     }
 
     private func removeChatMessageCreatedHandler(id: UUID) {
         chatMessageCreatedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed chat_message_created handler \(id). Remaining: \(chatMessageCreatedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed chat_message_created handler \(id). Remaining: \(chatMessageCreatedHandlers.count)")
     }
 
     private func removeChatMessageUpdatedHandler(id: UUID) {
         chatMessageUpdatedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed chat_message_updated handler \(id). Remaining: \(chatMessageUpdatedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed chat_message_updated handler \(id). Remaining: \(chatMessageUpdatedHandlers.count)")
     }
 
     private func removeChatMessageDeletedHandler(id: UUID) {
         chatMessageDeletedHandlers.removeValue(forKey: id)
-        print("🗑️ [SSE] Removed chat_message_deleted handler \(id). Remaining: \(chatMessageDeletedHandlers.count)")
+        AppLog.debug("🗑️ [SSE] Removed chat_message_deleted handler \(id). Remaining: \(chatMessageDeletedHandlers.count)")
     }
 
     // MARK: - Notifications
@@ -623,7 +623,7 @@ actor SSEClient {
     }
 
     private func notifyCommentAdded(_ comment: Comment, taskId: String) {
-        print("🔔 [SSE] Notifying \(commentAddedHandlers.count) comment_added handlers for task \(taskId)")
+        AppLog.debug("🔔 [SSE] Notifying \(commentAddedHandlers.count) comment_added handlers for task \(taskId)")
         for (_, handler) in commentAddedHandlers {
             handler(comment, taskId)
         }
@@ -662,53 +662,53 @@ actor SSEClient {
     }
 
     private func notifyCommentUpdated(_ comment: Comment, taskId: String) {
-        print("🔔 [SSE] Notifying \(commentUpdatedHandlers.count) comment_updated handlers for task \(taskId)")
+        AppLog.debug("🔔 [SSE] Notifying \(commentUpdatedHandlers.count) comment_updated handlers for task \(taskId)")
         for (_, handler) in commentUpdatedHandlers {
             handler(comment, taskId)
         }
     }
 
     private func notifyCommentDeleted(_ commentId: String, taskId: String) {
-        print("🔔 [SSE] Notifying \(commentDeletedHandlers.count) comment_deleted handlers for task \(taskId)")
+        AppLog.debug("🔔 [SSE] Notifying \(commentDeletedHandlers.count) comment_deleted handlers for task \(taskId)")
         for (_, handler) in commentDeletedHandlers {
             handler(commentId, taskId)
         }
     }
 
     private func notifyMyTasksPreferencesUpdated(_ preferences: MyTasksPreferences) {
-        print("🔔 [SSE] notifyMyTasksPreferencesUpdated called with \(myTasksPreferencesUpdatedHandlers.count) handlers")
+        AppLog.debug("🔔 [SSE] notifyMyTasksPreferencesUpdated called with \(myTasksPreferencesUpdatedHandlers.count) handlers")
         for handler in myTasksPreferencesUpdatedHandlers {
-            print("🔔 [SSE] Calling My Tasks preferences handler...")
+            AppLog.debug("🔔 [SSE] Calling My Tasks preferences handler...")
             handler(preferences)
-            print("🔔 [SSE] Handler called successfully")
+            AppLog.debug("🔔 [SSE] Handler called successfully")
         }
     }
 
     private func notifyUserSettingsUpdated(_ settings: UserSettings) {
-        print("🔔 [SSE] notifyUserSettingsUpdated called with \(userSettingsUpdatedHandlers.count) handlers")
+        AppLog.debug("🔔 [SSE] notifyUserSettingsUpdated called with \(userSettingsUpdatedHandlers.count) handlers")
         for handler in userSettingsUpdatedHandlers {
-            print("🔔 [SSE] Calling User Settings handler...")
+            AppLog.debug("🔔 [SSE] Calling User Settings handler...")
             handler(settings)
-            print("🔔 [SSE] User Settings handler called successfully")
+            AppLog.debug("🔔 [SSE] User Settings handler called successfully")
         }
     }
 
     private func notifyChatMessageCreated(_ message: ChatMessage, channelId: String) {
-        print("🔔 [SSE] Notifying \(chatMessageCreatedHandlers.count) chat_message_created handlers for channel \(channelId)")
+        AppLog.debug("🔔 [SSE] Notifying \(chatMessageCreatedHandlers.count) chat_message_created handlers for channel \(channelId)")
         for (_, handler) in chatMessageCreatedHandlers {
             handler(message, channelId)
         }
     }
 
     private func notifyChatMessageUpdated(_ message: ChatMessage, channelId: String) {
-        print("🔔 [SSE] Notifying \(chatMessageUpdatedHandlers.count) chat_message_updated handlers for channel \(channelId)")
+        AppLog.debug("🔔 [SSE] Notifying \(chatMessageUpdatedHandlers.count) chat_message_updated handlers for channel \(channelId)")
         for (_, handler) in chatMessageUpdatedHandlers {
             handler(message, channelId)
         }
     }
 
     private func notifyChatMessageDeleted(_ messageId: String, channelId: String) {
-        print("🔔 [SSE] Notifying \(chatMessageDeletedHandlers.count) chat_message_deleted handlers for channel \(channelId)")
+        AppLog.debug("🔔 [SSE] Notifying \(chatMessageDeletedHandlers.count) chat_message_deleted handlers for channel \(channelId)")
         for (_, handler) in chatMessageDeletedHandlers {
             handler(messageId, channelId)
         }

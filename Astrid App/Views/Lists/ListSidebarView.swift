@@ -321,7 +321,7 @@ struct ListSidebarView: View {
                         taskCount: getTaskCount(for: list),
                         isSelected: selectedListId == list.id,
                         onTap: {
-                            print("🎯 [Collaborative] Tapped: \(list.name)")
+                            AppLog.debug("🎯 [Collaborative] Tapped: \(list.name)")
                             selectedListId = list.id
                             isViewingFromFeatured = true
                             featuredList = list
@@ -362,7 +362,7 @@ struct ListSidebarView: View {
                         taskCount: getTaskCount(for: list),
                         isSelected: selectedListId == list.id,
                         onTap: {
-                            print("🎯 [Suggested] Tapped: \(list.name)")
+                            AppLog.debug("🎯 [Suggested] Tapped: \(list.name)")
                             selectedListId = list.id
                             isViewingFromFeatured = true
                             featuredList = list
@@ -629,7 +629,7 @@ struct ListSidebarView: View {
             _ = try await listService.fetchLists()
             await fetchPublicLists()
         } catch {
-            print("❌ Failed to load data: \(error.localizedDescription)")
+            AppLog.debug("❌ Failed to load data: \(error.localizedDescription)")
         }
     }
 
@@ -641,7 +641,7 @@ struct ListSidebarView: View {
 
     private func fetchPublicLists() async {
         do {
-            print("📡 [ListSidebarView] Fetching public lists...")
+            AppLog.debug("📡 [ListSidebarView] Fetching public lists...")
             let response = try await apiClient.getPublicLists(limit: 10, sortBy: "popular") // Fetch more to show 2 of each type
 
             // One shared mapper (AITD-319) — this was written out verbatim here and in
@@ -654,11 +654,11 @@ struct ListSidebarView: View {
             updateCachedPublicLists()
 
             #if DEBUG
-            print("✅ [ListSidebarView] Fetched \(publicLists.count) public lists: \(_cachedCollaborativeLists.count) collaborative, \(_cachedSuggestedLists.count) suggested")
+            AppLog.debug("✅ [ListSidebarView] Fetched \(publicLists.count) public lists: \(_cachedCollaborativeLists.count) collaborative, \(_cachedSuggestedLists.count) suggested")
             #endif
         } catch {
-            print("❌ [ListSidebarView] Failed to fetch public lists: \(error)")
-            print("❌ Error details: \(error.localizedDescription)")
+            AppLog.debug("❌ [ListSidebarView] Failed to fetch public lists: \(error)")
+            AppLog.debug("❌ Error details: \(error.localizedDescription)")
             publicLists = []
         }
     }

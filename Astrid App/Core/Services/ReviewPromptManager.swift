@@ -102,7 +102,7 @@ class ReviewPromptManager: ObservableObject {
 
     /// Opens the Bugs and Feedback list so user can report an issue
     func openFeedbackForm() {
-        print("🎯 [ReviewPrompt] Opening Bugs and Feedback list")
+        AppLog.debug("🎯 [ReviewPrompt] Opening Bugs and Feedback list")
         ListPresenter.shared.showPublicList(
             listId: Constants.Lists.bugsAndRequestsListId,
             name: "Bugs & Feedback"

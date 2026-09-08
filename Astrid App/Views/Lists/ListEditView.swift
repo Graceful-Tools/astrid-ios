@@ -226,9 +226,9 @@ struct ListEditView: View {
                                 email: member.email,
                                 role: member.role
                             )
-                            print("✅ Added member \(member.email)")
+                            AppLog.debug("✅ Added member \(AppLog.redact(email: member.email))")
                         } catch {
-                            print("⚠️ Failed to add member \(member.email): \(error)")
+                            AppLog.debug("⚠️ Failed to add member \(AppLog.redact(email: member.email)): \(error)")
                             failedMembers.append(member.email)
                         }
                     }

@@ -61,7 +61,7 @@ class ConnectionModeManager: ObservableObject {
         // Determine initial mode
         currentMode = determineMode()
         setupNetworkObserver()
-        print("🔌 [ConnectionModeManager] Initialized in \(currentMode.displayName) mode")
+        AppLog.debug("🔌 [ConnectionModeManager] Initialized in \(currentMode.displayName) mode")
     }
 
     deinit {
@@ -98,7 +98,7 @@ class ConnectionModeManager: ObservableObject {
     func refreshMode() {
         let newMode = determineMode()
         if newMode != currentMode {
-            print("🔄 [ConnectionModeManager] Mode changed: \(currentMode.displayName) -> \(newMode.displayName)")
+            AppLog.debug("🔄 [ConnectionModeManager] Mode changed: \(currentMode.displayName) -> \(newMode.displayName)")
             currentMode = newMode
         }
     }
@@ -134,7 +134,7 @@ class ConnectionModeManager: ObservableObject {
         // Only transition if we're in temporary offline mode
         guard currentMode == .offline else { return }
 
-        print("🌐 [ConnectionModeManager] Network restored - transitioning to online")
+        AppLog.debug("🌐 [ConnectionModeManager] Network restored - transitioning to online")
         currentMode = .online
 
         // Trigger sync of pending operations AND revive the live stream. Syncing alone left the
@@ -150,7 +150,7 @@ class ConnectionModeManager: ObservableObject {
         // Only transition if we're currently online
         guard currentMode == .online else { return }
 
-        print("📵 [ConnectionModeManager] Network lost - transitioning to offline")
+        AppLog.debug("📵 [ConnectionModeManager] Network lost - transitioning to offline")
         currentMode = .offline
     }
 
@@ -191,7 +191,7 @@ class ConnectionModeManager: ObservableObject {
         AuthManager.shared.isCheckingAuth = false
         currentMode = .offlineOnly
 
-        print("✅ [ConnectionModeManager] Created local user: \(localUserId)")
+        AppLog.debug("✅ [ConnectionModeManager] Created local user: \(localUserId)")
 
         // Post notification so UI can update
         NotificationCenter.default.post(name: .localUserCreated, object: nil)
@@ -218,7 +218,7 @@ class ConnectionModeManager: ObservableObject {
         AuthManager.shared.isCheckingAuth = false
         currentMode = .offlineOnly
 
-        print("✅ [ConnectionModeManager] Restored local user: \(localUserId)")
+        AppLog.debug("✅ [ConnectionModeManager] Restored local user: \(localUserId)")
         return true
     }
 
@@ -228,14 +228,14 @@ class ConnectionModeManager: ObservableObject {
     /// Uploads all local data to the server.
     func transitionToOnline(userId: String) async throws {
         guard currentMode == .offlineOnly else {
-            print("⚠️ [ConnectionModeManager] Not in offline-only mode, skipping transition")
+            AppLog.debug("⚠️ [ConnectionModeManager] Not in offline-only mode, skipping transition")
             return
         }
 
         isTransitioning = true
         defer { isTransitioning = false }
 
-        print("🔄 [ConnectionModeManager] Transitioning from offline-only to online...")
+        AppLog.debug("🔄 [ConnectionModeManager] Transitioning from offline-only to online...")
 
         // 1. Get all local tasks and lists (those with local_ or temp_ prefixes)
         let localTasks = TaskService.shared.tasks.filter {
@@ -245,7 +245,7 @@ class ConnectionModeManager: ObservableObject {
             $0.id.hasPrefix("temp_") || $0.id.hasPrefix("local_")
         }
 
-        print("📤 [ConnectionModeManager] Uploading \(localTasks.count) tasks and \(localLists.count) lists...")
+        AppLog.debug("📤 [ConnectionModeManager] Uploading \(localTasks.count) tasks and \(localLists.count) lists...")
 
         // 2. Upload lists first (tasks may depend on list IDs)
         var listIdMapping: [String: String] = [:]
@@ -258,9 +258,9 @@ class ConnectionModeManager: ObservableObject {
                     privacy: list.privacy?.rawValue ?? "PRIVATE"
                 )
                 listIdMapping[list.id] = serverList.id
-                print("  ✅ Uploaded list: \(list.name) -> \(serverList.id)")
+                AppLog.debug("  ✅ Uploaded list: \(list.name) -> \(serverList.id)")
             } catch {
-                print("  ⚠️ Failed to upload list \(list.name): \(error)")
+                AppLog.debug("  ⚠️ Failed to upload list \(list.name): \(error)")
                 // Continue with other lists
             }
         }
@@ -291,9 +291,9 @@ class ConnectionModeManager: ObservableObject {
                     isPrivate: task.isPrivate,
                     repeating: task.repeating?.rawValue
                 )
-                print("  ✅ Uploaded task: \(task.title)")
+                AppLog.debug("  ✅ Uploaded task: \(task.title)")
             } catch {
-                print("  ⚠️ Failed to upload task \(task.title): \(error)")
+                AppLog.debug("  ⚠️ Failed to upload task \(task.title): \(error)")
                 // Continue with other tasks
             }
         }
@@ -308,7 +308,7 @@ class ConnectionModeManager: ObservableObject {
         // 6. Perform full sync to get clean state from server
         try await SyncManager.shared.performFullSync()
 
-        print("✅ [ConnectionModeManager] Transition to online complete")
+        AppLog.debug("✅ [ConnectionModeManager] Transition to online complete")
 
         // Post notification
         NotificationCenter.default.post(name: .transitionedToOnline, object: nil)
@@ -323,7 +323,7 @@ class ConnectionModeManager: ObservableObject {
             do {
                 try await transitionToOnline(userId: userId)
             } catch {
-                print("⚠️ [ConnectionModeManager] Failed to upload local data after sign-in: \(error)")
+                AppLog.debug("⚠️ [ConnectionModeManager] Failed to upload local data after sign-in: \(error)")
                 // User is still signed in, just local data wasn't uploaded
             }
         }
@@ -336,7 +336,7 @@ class ConnectionModeManager: ObservableObject {
         UserDefaults.standard.set(false, forKey: Self.offlineOnlyModeKey)
         UserDefaults.standard.removeObject(forKey: Self.localUserIdKey)
         currentMode = .online
-        print("🧹 [ConnectionModeManager] Cleared local mode data")
+        AppLog.debug("🧹 [ConnectionModeManager] Cleared local mode data")
     }
 }
 

@@ -310,7 +310,7 @@ struct TasksResponse: Codable {
         let total = failable.count
         let kept = failable.compactMap { $0.value }
         if kept.count < total {
-            print("⚠️ [TasksResponse] Dropped \(total - kept.count) un-decodable task(s) out of \(total)")
+            AppLog.debug("⚠️ [TasksResponse] Dropped \(total - kept.count) un-decodable task(s) out of \(total)")
         }
         self.tasks = kept
     }

@@ -13,7 +13,7 @@ class BadgeManager {
     private let center = UNUserNotificationCenter.current()
 
     private init() {
-        print("📛 [BadgeManager] Initialized")
+        AppLog.debug("📛 [BadgeManager] Initialized")
     }
 
     // MARK: - Badge Update
@@ -24,7 +24,7 @@ class BadgeManager {
     func updateBadge(with tasks: [Task]) async {
         // Get current user ID
         guard let currentUserId = AuthManager.shared.userId else {
-            print("⚠️ [BadgeManager] No current user ID, clearing badge")
+            AppLog.debug("⚠️ [BadgeManager] No current user ID, clearing badge")
             await setBadgeCount(0)
             return
         }
@@ -58,7 +58,7 @@ class BadgeManager {
 
             // Badge updated silently - logging only on errors
         } catch {
-            print("❌ [BadgeManager] Failed to set badge count: \(error)")
+            AppLog.debug("❌ [BadgeManager] Failed to set badge count: \(error)")
         }
     }
 

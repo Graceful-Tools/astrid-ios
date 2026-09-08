@@ -508,7 +508,7 @@ struct Triangle: Shape {
 
     List {
         TaskRowView(task: task) {
-            print("Toggled")
+            AppLog.debug("Toggled")
         }
     }
 }

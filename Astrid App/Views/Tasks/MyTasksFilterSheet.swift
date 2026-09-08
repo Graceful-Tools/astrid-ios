@@ -43,7 +43,7 @@ struct MyTasksFilterSheet: View {
                         Text(NSLocalizedString("tasks.incomplete", comment: "")).tag("incomplete")
                     }
                     .onChange(of: filterCompletion) { _, newValue in
-                        print("🔧 [MyTasksFilterSheet] filterCompletion changed to: \(newValue)")
+                        AppLog.debug("🔧 [MyTasksFilterSheet] filterCompletion changed to: \(newValue)")
                         updatePreferences()
                     }
 
@@ -117,11 +117,11 @@ struct MyTasksFilterSheet: View {
             filterPriority = "all"
         }
 
-        print("📥 [MyTasksFilterSheet] Loaded preferences:")
-        print("  - sortBy: \(sortBy)")
-        print("  - filterCompletion: \(filterCompletion)")
-        print("  - filterDueDate: \(filterDueDate)")
-        print("  - filterPriority: \(filterPriority)")
+        AppLog.debug("📥 [MyTasksFilterSheet] Loaded preferences:")
+        AppLog.debug("  - sortBy: \(sortBy)")
+        AppLog.debug("  - filterCompletion: \(filterCompletion)")
+        AppLog.debug("  - filterDueDate: \(filterDueDate)")
+        AppLog.debug("  - filterPriority: \(filterPriority)")
     }
 
     private func updatePreferences() {
@@ -144,11 +144,11 @@ struct MyTasksFilterSheet: View {
             sortBy: sortBy
         )
 
-        print("📤 [MyTasksFilterSheet] Updating preferences:")
-        print("  - sortBy: \(sortBy)")
-        print("  - filterCompletion: \(filterCompletion)")
-        print("  - filterDueDate: \(filterDueDate)")
-        print("  - filterPriority: \(filterPriority) -> \(priorityArray)")
+        AppLog.debug("📤 [MyTasksFilterSheet] Updating preferences:")
+        AppLog.debug("  - sortBy: \(sortBy)")
+        AppLog.debug("  - filterCompletion: \(filterCompletion)")
+        AppLog.debug("  - filterDueDate: \(filterDueDate)")
+        AppLog.debug("  - filterPriority: \(filterPriority) -> \(priorityArray)")
 
         _Concurrency.Task {
             await preferencesService.updatePreferences(updated)

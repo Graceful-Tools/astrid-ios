@@ -110,8 +110,8 @@ class AttachmentService: ObservableObject {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         try? fileManager.createDirectory(at: downloadCacheDirectory, withIntermediateDirectories: true)
 
-        print("📦 [AttachmentService] Pending cache: \(cacheDirectory.path)")
-        print("📦 [AttachmentService] Download cache: \(downloadCacheDirectory.path)")
+        AppLog.debug("📦 [AttachmentService] Pending cache: \(cacheDirectory.path)")
+        AppLog.debug("📦 [AttachmentService] Download cache: \(downloadCacheDirectory.path)")
 
         // Load any pending uploads from previous session
         loadPendingUploads()
@@ -135,7 +135,7 @@ class AttachmentService: ObservableObject {
             queue: .main
         ) { _ in
             _Concurrency.Task { @MainActor in
-                print("🔄 [AttachmentService] Network restored - draining outbox")
+                AppLog.debug("🔄 [AttachmentService] Network restored - draining outbox")
                 await OutboxManager.shared.drain()
             }
         }
@@ -158,9 +158,9 @@ class AttachmentService: ObservableObject {
         // Save file locally
         do {
             try fileData.write(to: URL(fileURLWithPath: localPath))
-            print("💾 [AttachmentService] Saved file locally: \(tempFileId) (\(fileData.count) bytes)")
+            AppLog.debug("💾 [AttachmentService] Saved file locally: \(tempFileId) (\(fileData.count) bytes)")
         } catch {
-            print("❌ [AttachmentService] Failed to save file locally: \(error)")
+            AppLog.debug("❌ [AttachmentService] Failed to save file locally: \(error)")
             return tempFileId
         }
 
@@ -266,9 +266,9 @@ class AttachmentService: ObservableObject {
         let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
         do {
             try data.write(to: cachedPath)
-            print("💾 [AttachmentService] Cached download: \(fileId) (\(data.count) bytes)")
+            AppLog.debug("💾 [AttachmentService] Cached download: \(fileId) (\(data.count) bytes)")
         } catch {
-            print("⚠️ [AttachmentService] Failed to cache download: \(error)")
+            AppLog.debug("⚠️ [AttachmentService] Failed to cache download: \(error)")
         }
     }
 
@@ -296,7 +296,7 @@ class AttachmentService: ObservableObject {
             try fileManager.copyItem(at: cachedPath, to: tempFile)
             return tempFile
         } catch {
-            print("⚠️ [AttachmentService] Failed to prepare cached file for preview: \(error)")
+            AppLog.debug("⚠️ [AttachmentService] Failed to prepare cached file for preview: \(error)")
             return nil
         }
     }
@@ -346,7 +346,7 @@ class AttachmentService: ObservableObject {
             cacheDownload(fileId: fileId, data: data)
             return data
         } catch {
-            print("❌ [AttachmentService] Failed to load file data for \(fileId): \(error)")
+            AppLog.debug("❌ [AttachmentService] Failed to load file data for \(fileId): \(error)")
             return nil
         }
     }
@@ -400,7 +400,7 @@ class AttachmentService: ObservableObject {
                 try? fileData.write(to: tempFileURL)
                 results.append((fileId: file.id, url: tempFileURL))
             } catch {
-                print("❌ [AttachmentService] Failed to download file for multi-preview: \(error)")
+                AppLog.debug("❌ [AttachmentService] Failed to download file for multi-preview: \(error)")
             }
         }
         
@@ -410,11 +410,11 @@ class AttachmentService: ObservableObject {
     /// Cancel a pending upload and clean up local file
     func cancelUpload(tempFileId: String) {
         guard let pending = pendingUploads[tempFileId] else {
-            print("⚠️ [AttachmentService] No pending upload to cancel: \(tempFileId)")
+            AppLog.debug("⚠️ [AttachmentService] No pending upload to cancel: \(tempFileId)")
             return
         }
 
-        print("🗑️ [AttachmentService] Cancelling upload: \(tempFileId)")
+        AppLog.debug("🗑️ [AttachmentService] Cancelling upload: \(tempFileId)")
 
         // Delete local file
         try? fileManager.removeItem(atPath: pending.localPath)
@@ -424,7 +424,7 @@ class AttachmentService: ObservableObject {
         fileIdMapping.removeValue(forKey: tempFileId)
         savePendingUploads()
 
-        print("✅ [AttachmentService] Upload cancelled and cleaned up: \(tempFileId)")
+        AppLog.debug("✅ [AttachmentService] Upload cancelled and cleaned up: \(tempFileId)")
     }
 
     // MARK: - Persistence
@@ -452,7 +452,7 @@ class AttachmentService: ObservableObject {
             // No launch auto-retry: the Outbox journal owns upload retries, and a
             // side-channel upload here would steal the file out from under the
             // upload→comment chain.
-            print("📦 [AttachmentService] Loaded \(loaded.count) pending uploads")
+            AppLog.debug("📦 [AttachmentService] Loaded \(loaded.count) pending uploads")
         }
     }
     
@@ -526,7 +526,7 @@ class AttachmentService: ObservableObject {
         // For files larger than 4MB, use direct upload to bypass serverless limits
         let fileSizeMB = Double(fileData.count) / (1024 * 1024)
         if fileSizeMB > 4.0 {
-            print("📦 [AttachmentService] Large file detected (\(String(format: "%.1f", fileSizeMB)) MB), using direct upload")
+            AppLog.debug("📦 [AttachmentService] Large file detected (\(String(format: "%.1f", fileSizeMB)) MB), using direct upload")
             return try await uploadDirectToBlob(fileData: fileData, fileName: fileName, mimeType: mimeType, context: context)
         }
 
@@ -542,7 +542,7 @@ class AttachmentService: ObservableObject {
     /// Upload directly to Vercel Blob using a client token (for large files)
     private func uploadDirectToBlob(fileData: Data, fileName: String, mimeType: String, context: [String: String]) async throws -> String {
         // Step 1: Get upload URL and token from server
-        print("📡 [AttachmentService] Step 1: Requesting upload URL...")
+        AppLog.debug("📡 [AttachmentService] Step 1: Requesting upload URL...")
 
         let getUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-upload/get-upload-url")!
         var getUrlRequest = URLRequest(url: getUrlEndpoint)
@@ -554,7 +554,7 @@ class AttachmentService: ObservableObject {
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
             getUrlRequest.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
-            print("⚠️ [AttachmentService] WARNING: No session cookie found!")
+            AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
             throw AttachmentError.uploadFailed
         }
 
@@ -590,7 +590,7 @@ class AttachmentService: ObservableObject {
         uploadProgress = 0.1
 
         // Step 2: Upload file directly to Vercel Blob
-        print("📡 [AttachmentService] Step 2: Uploading to Vercel Blob...")
+        AppLog.debug("📡 [AttachmentService] Step 2: Uploading to Vercel Blob...")
 
         // No platform header: Vercel Blob is a third party, and our analytics contract is
         // with our own server only (AITD-301).
@@ -613,18 +613,18 @@ class AttachmentService: ObservableObject {
         let (_, blobResponse) = try await session.upload(for: blobRequest, from: fileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
-            print("❌ [AttachmentService] Invalid blob response type")
+            AppLog.debug("❌ [AttachmentService] Invalid blob response type")
             throw AttachmentError.uploadFailed
         }
 
-        print("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
+        AppLog.debug("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
 
         guard (200...299).contains(blobHttpResponse.statusCode) else {
             PrivacyLogger.error("AttachmentService", code: "blob_upload_failed", status: blobHttpResponse.statusCode)
             throw AttachmentError.uploadFailed
         }
 
-        print("✅ [AttachmentService] File uploaded directly to Vercel Blob")
+        AppLog.debug("✅ [AttachmentService] File uploaded directly to Vercel Blob")
         uploadProgress = 1.0
 
         return uploadUrlResponse.fileId
@@ -664,7 +664,7 @@ class AttachmentService: ObservableObject {
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
-            print("⚠️ [AttachmentService] WARNING: No session cookie found!")
+            AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
         }
 
         PrivacyLogger.request("AttachmentService", method: "POST", url: url)
@@ -673,11 +673,11 @@ class AttachmentService: ObservableObject {
         let (data, response) = try await URLSession.shared.upload(for: request, from: body)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ [AttachmentService] Invalid response type")
+            AppLog.debug("❌ [AttachmentService] Invalid response type")
             throw AttachmentError.uploadFailed
         }
 
-        print("📡 [AttachmentService] Upload response status: \(httpResponse.statusCode)")
+        AppLog.debug("📡 [AttachmentService] Upload response status: \(httpResponse.statusCode)")
 
         guard (200...299).contains(httpResponse.statusCode) else {
             PrivacyLogger.error("AttachmentService", code: "server_upload_failed", status: httpResponse.statusCode)
@@ -740,12 +740,12 @@ class AttachmentService: ObservableObject {
 
         // Get session cookie
         guard let sessionCookie = try? KeychainService.shared.getSessionCookie() else {
-            print("⚠️ [AttachmentService] WARNING: No session cookie found!")
+            AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
             throw AttachmentError.uploadFailed
         }
 
         // Step 1: Request upload URL from server
-        print("📤 [AttachmentService] Step 1: Getting upload URL...")
+        AppLog.debug("📤 [AttachmentService] Step 1: Getting upload URL...")
         let uploadUrlEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/upload-url")!
         var uploadUrlRequest = URLRequest(url: uploadUrlEndpoint)
         AnalyticsPlatformHeader.apply(to: &uploadUrlRequest)
@@ -760,7 +760,7 @@ class AttachmentService: ObservableObject {
         let (uploadUrlData, uploadUrlResponse) = try await URLSession.shared.data(for: uploadUrlRequest)
 
         guard let httpResponse = uploadUrlResponse as? HTTPURLResponse else {
-            print("❌ [AttachmentService] Invalid response type")
+            AppLog.debug("❌ [AttachmentService] Invalid response type")
             throw AttachmentError.uploadFailed
         }
 
@@ -784,9 +784,9 @@ class AttachmentService: ObservableObject {
         uploadProgress = 0.2
 
         // Step 2: Upload directly to Vercel Blob
-        print("📤 [AttachmentService] Step 2: Uploading to Vercel Blob...")
+        AppLog.debug("📤 [AttachmentService] Step 2: Uploading to Vercel Blob...")
         guard let blobUrl = URL(string: uploadUrlInfo.uploadUrl) else {
-            print("❌ [AttachmentService] Invalid blob URL")
+            AppLog.debug("❌ [AttachmentService] Invalid blob URL")
             throw AttachmentError.uploadFailed
         }
 
@@ -799,11 +799,11 @@ class AttachmentService: ObservableObject {
         let (blobData, blobResponse) = try await URLSession.shared.upload(for: blobRequest, from: newFileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
-            print("❌ [AttachmentService] Invalid blob response type")
+            AppLog.debug("❌ [AttachmentService] Invalid blob response type")
             throw AttachmentError.uploadFailed
         }
 
-        print("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
+        AppLog.debug("📡 [AttachmentService] Blob upload status: \(blobHttpResponse.statusCode)")
 
         guard (200...299).contains(blobHttpResponse.statusCode) else {
             PrivacyLogger.error("AttachmentService", code: "replacement_blob_failed", status: blobHttpResponse.statusCode)
@@ -821,7 +821,7 @@ class AttachmentService: ObservableObject {
         uploadProgress = 0.8
 
         // Step 3: Confirm upload with our server
-        print("📤 [AttachmentService] Step 3: Confirming upload...")
+        AppLog.debug("📤 [AttachmentService] Step 3: Confirming upload...")
         let confirmEndpoint = URL(string: Constants.API.baseURL + "/api/v1/secure-files/\(fileId)/confirm-upload")!
         var confirmRequest = URLRequest(url: confirmEndpoint)
         AnalyticsPlatformHeader.apply(to: &confirmRequest)
@@ -838,7 +838,7 @@ class AttachmentService: ObservableObject {
         let (confirmData, confirmResponse) = try await URLSession.shared.data(for: confirmRequest)
 
         guard let confirmHttpResponse = confirmResponse as? HTTPURLResponse else {
-            print("❌ [AttachmentService] Invalid confirm response type")
+            AppLog.debug("❌ [AttachmentService] Invalid confirm response type")
             throw AttachmentError.uploadFailed
         }
 
@@ -884,7 +884,7 @@ class AttachmentService: ObservableObject {
     func invalidateCache(for fileId: String) {
         let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
         try? fileManager.removeItem(at: cachedPath)
-        print("🗑️ [AttachmentService] Invalidated cache for: \(fileId)")
+        AppLog.debug("🗑️ [AttachmentService] Invalidated cache for: \(fileId)")
     }
 
     // MARK: - Delete
@@ -928,7 +928,7 @@ class AttachmentService: ObservableObject {
 
         // Clean up shared file after successful upload
         try? ShareDataManager.shared.deleteSharedFile(at: fileURL)
-        print("✅ [AttachmentService] Shared file uploaded and cleaned up")
+        AppLog.debug("✅ [AttachmentService] Shared file uploaded and cleaned up")
 
         return attachment
     }

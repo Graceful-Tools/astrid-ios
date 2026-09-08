@@ -96,7 +96,7 @@ struct PriorityButtonPicker: View {
                 await MainActor.run {
                     priority = oldPriority
                 }
-                print("❌ Failed to update priority: \(error)")
+                AppLog.debug("❌ Failed to update priority: \(error)")
             }
         }
     }

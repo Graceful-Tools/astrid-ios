@@ -87,7 +87,7 @@ struct InlineAssigneePicker: View {
                 AIAgentCache.shared.save(agents)
             }
         } catch {
-            print("❌ [InlineAssigneePicker] Failed to fetch AI agents: \(error)")
+            AppLog.debug("❌ [InlineAssigneePicker] Failed to fetch AI agents: \(error)")
             await MainActor.run {
                 self.isLoadingAgents = false
             }

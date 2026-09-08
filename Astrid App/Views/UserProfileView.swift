@@ -70,7 +70,7 @@ struct UserProfileView: View {
                 accountDataForEdit = response.user
                 showEditProfile = true
             } catch {
-                print("❌ [UserProfileView] Failed to load account data: \(error)")
+                AppLog.debug("❌ [UserProfileView] Failed to load account data: \(error)")
             }
         }
     }
@@ -405,11 +405,11 @@ class UserProfileViewModel: ObservableObject {
     func loadProfile() async {
         // Prevent multiple simultaneous loads
         guard !hasLoaded && !isLoading else {
-            print("[UserProfileViewModel] Skipping load - already loaded or loading")
+            AppLog.debug("[UserProfileViewModel] Skipping load - already loaded or loading")
             return
         }
 
-        print("[UserProfileViewModel] Starting profile load for user: \(userId)")
+        AppLog.debug("[UserProfileViewModel] Starting profile load for user: \(userId)")
         hasLoaded = true
         isLoading = true
         error = nil
@@ -418,12 +418,12 @@ class UserProfileViewModel: ObservableObject {
             // Use ProfileCache which checks cache first, then loads from API if needed
             let response = try await profileCache.loadProfile(userId: userId)
             profile = response
-            print("[UserProfileViewModel] Profile loaded successfully")
+            AppLog.debug("[UserProfileViewModel] Profile loaded successfully")
         } catch {
             // For the current user, fall back to locally cached auth data
             if let localProfile = buildOfflineProfile() {
                 profile = localProfile
-                print("[UserProfileViewModel] Using offline profile from local auth data")
+                AppLog.debug("[UserProfileViewModel] Using offline profile from local auth data")
             } else {
                 hasLoaded = false // Allow retry on error
                 if let apiError = error as? APIError {
@@ -443,7 +443,7 @@ class UserProfileViewModel: ObservableObject {
                 } else {
                     self.error = "Failed to load user profile"
                 }
-                print("[UserProfileViewModel] Load failed: \(self.error ?? "unknown")")
+                AppLog.debug("[UserProfileViewModel] Load failed: \(self.error ?? "unknown")")
             }
         }
 

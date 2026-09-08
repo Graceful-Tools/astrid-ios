@@ -55,7 +55,7 @@ struct PublicListBrowserView: View {
         defer { isLoading = false }
 
         do {
-            print("📡 [PublicListBrowserView] Fetching public lists...")
+            AppLog.debug("📡 [PublicListBrowserView] Fetching public lists...")
             let response = try await apiClient.getPublicLists(limit: 50, sortBy: "popular")
 
             // One shared mapper (AITD-319).
@@ -63,9 +63,9 @@ struct PublicListBrowserView: View {
                 TaskList(publicList: listData)
             }
 
-            print("✅ [PublicListBrowserView] Fetched \(publicLists.count) public lists")
+            AppLog.debug("✅ [PublicListBrowserView] Fetched \(publicLists.count) public lists")
         } catch {
-            print("❌ [PublicListBrowserView] Failed to fetch public lists: \(error)")
+            AppLog.debug("❌ [PublicListBrowserView] Failed to fetch public lists: \(error)")
             // Fallback to local public lists
             publicLists = listService.lists.filter { $0.privacy == .PUBLIC }
         }
@@ -170,15 +170,15 @@ struct PublicListRow: View {
         defer { isCopying = false }
 
         do {
-            print("📡 [PublicListBrowserView] Copying list: \(list.name)")
+            AppLog.debug("📡 [PublicListBrowserView] Copying list: \(list.name)")
             let response = try await apiClient.copyList(listId: list.id, includeTasks: true)
-            print("✅ List copied successfully: \(response.list.name)")
-            print("✅ Copied \(response.copiedTasksCount) tasks")
+            AppLog.debug("✅ List copied successfully: \(response.list.name)")
+            AppLog.debug("✅ Copied \(response.copiedTasksCount) tasks")
 
             // Refresh lists to show the new copied list
             _ = try? await listService.fetchLists()
         } catch {
-            print("❌ Failed to copy list: \(error.localizedDescription)")
+            AppLog.debug("❌ Failed to copy list: \(error.localizedDescription)")
         }
     }
 }

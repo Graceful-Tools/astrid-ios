@@ -51,9 +51,9 @@ final class AIAgentCache {
             memo = agents
             memoTimestamp = now
             lock.unlock()
-            print("✅ [AIAgentCache] Saved \(agents.count) AI agents to cache")
+            AppLog.debug("✅ [AIAgentCache] Saved \(agents.count) AI agents to cache")
         } catch {
-            print("❌ [AIAgentCache] Failed to save agents: \(error)")
+            AppLog.debug("❌ [AIAgentCache] Failed to save agents: \(error)")
         }
     }
 
@@ -93,7 +93,7 @@ final class AIAgentCache {
             lock.unlock()
             return agents
         } catch {
-            print("❌ [AIAgentCache] Failed to load agents: \(error)")
+            AppLog.debug("❌ [AIAgentCache] Failed to load agents: \(error)")
             clear()
             return nil
         }

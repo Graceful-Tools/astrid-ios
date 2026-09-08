@@ -86,7 +86,7 @@ class ReminderSettings: ObservableObject {
     func fetch(force: Bool = false) async {
         // Throttle: Don't fetch if we fetched in the last 30 seconds (unless forced)
         if !force, let lastFetch = lastFetchTime, Date().timeIntervalSince(lastFetch) < 30 {
-            print("⏭️ [ReminderSettings] Skipping fetch - too recent")
+            AppLog.debug("⏭️ [ReminderSettings] Skipping fetch - too recent")
             return
         }
 
@@ -94,7 +94,7 @@ class ReminderSettings: ObservableObject {
         lastSyncError = nil
 
         do {
-            print("📡 [ReminderSettings] Fetching settings from server...")
+            AppLog.debug("📡 [ReminderSettings] Fetching settings from server...")
             let response = try await apiClient.getUserSettings()
             let settings = response.settings.reminderSettings
 
@@ -126,9 +126,9 @@ class ReminderSettings: ObservableObject {
             saveToUserDefaults()
 
             lastFetchTime = Date()
-            print("✅ [ReminderSettings] Fetched settings from server")
+            AppLog.debug("✅ [ReminderSettings] Fetched settings from server")
         } catch {
-            print("❌ [ReminderSettings] Failed to fetch settings: \(error)")
+            AppLog.debug("❌ [ReminderSettings] Failed to fetch settings: \(error)")
             lastSyncError = error.localizedDescription
 
             // Fallback to UserDefaults
@@ -141,16 +141,16 @@ class ReminderSettings: ObservableObject {
     /// Sync pending changes to server (called by SyncManager or network observer)
     func syncPendingChanges() async {
         guard hasPendingChanges else {
-            print("⏭️ [ReminderSettings] No pending changes to sync")
+            AppLog.debug("⏭️ [ReminderSettings] No pending changes to sync")
             return
         }
 
         guard networkMonitor.isConnected else {
-            print("📵 [ReminderSettings] Cannot sync - no network")
+            AppLog.debug("📵 [ReminderSettings] Cannot sync - no network")
             return
         }
 
-        print("🔄 [ReminderSettings] Syncing pending settings changes...")
+        AppLog.debug("🔄 [ReminderSettings] Syncing pending settings changes...")
 
         do {
             let update = ReminderSettingsUpdate(
@@ -172,9 +172,9 @@ class ReminderSettings: ObservableObject {
                 UserDefaults.standard.set(false, forKey: "reminderSettingsPending")
             }
 
-            print("✅ [ReminderSettings] Settings synced successfully")
+            AppLog.debug("✅ [ReminderSettings] Settings synced successfully")
         } catch {
-            print("❌ [ReminderSettings] Failed to sync settings: \(error)")
+            AppLog.debug("❌ [ReminderSettings] Failed to sync settings: \(error)")
             await MainActor.run {
                 lastSyncError = error.localizedDescription
             }
@@ -227,7 +227,7 @@ class ReminderSettings: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             _Concurrency.Task { @MainActor in
-                print("🌐 [ReminderSettings] Network restored, syncing pending changes...")
+                AppLog.debug("🌐 [ReminderSettings] Network restored, syncing pending changes...")
                 await self?.syncPendingChanges()
             }
         }

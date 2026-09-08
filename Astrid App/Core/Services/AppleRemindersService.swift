@@ -108,9 +108,9 @@ class AppleRemindersService: ObservableObject {
             guard !_Concurrency.Task.isCancelled, let self, !self.isSyncing else { return }
             do {
                 try await self.syncAllLinkedLists()
-                print("🔄 [AppleRemindersService] Auto-sync completed")
+                AppLog.debug("🔄 [AppleRemindersService] Auto-sync completed")
             } catch {
-                print("⚠️ [AppleRemindersService] Auto-sync failed: \(error)")
+                AppLog.debug("⚠️ [AppleRemindersService] Auto-sync failed: \(error)")
             }
         }
     }
@@ -150,7 +150,7 @@ class AppleRemindersService: ObservableObject {
         syncedTaskCount = 0
         isSyncing = false
 
-        print("🗑️ [AppleRemindersService] All data cleared for logout")
+        AppLog.debug("🗑️ [AppleRemindersService] All data cleared for logout")
     }
 
     // MARK: - Authorization
@@ -178,7 +178,7 @@ class AppleRemindersService: ObservableObject {
             checkAuthorizationStatus()
             return granted
         } catch {
-            print("❌ [AppleRemindersService] Error requesting access: \(error)")
+            AppLog.debug("❌ [AppleRemindersService] Error requesting access: \(error)")
             return false
         }
     }
@@ -227,7 +227,7 @@ class AppleRemindersService: ObservableObject {
         }
 
         try eventStore.saveCalendar(calendar, commit: true)
-        print("✅ [AppleRemindersService] Created calendar '\(astridList.name)' with ID: \(calendar.calendarIdentifier)")
+        AppLog.debug("✅ [AppleRemindersService] Created calendar '\(astridList.name)' with ID: \(calendar.calendarIdentifier)")
 
         return calendar
     }
@@ -287,7 +287,7 @@ class AppleRemindersService: ObservableObject {
         linkedLists[astridListId] = link
         persistLinkedLists()
 
-        print("🔗 [AppleRemindersService] Linked '\(astridList.name)' to '\(targetCalendar.title)' with direction: \(direction.rawValue)")
+        AppLog.debug("🔗 [AppleRemindersService] Linked '\(astridList.name)' to '\(targetCalendar.title)' with direction: \(direction.rawValue)")
 
         // Perform initial sync
         try await syncList(astridListId)
@@ -301,7 +301,7 @@ class AppleRemindersService: ObservableObject {
         // Clean up mappings for this list
         clearMappingsForList(astridListId)
 
-        print("🔗 [AppleRemindersService] Unlinked list: \(astridListId)")
+        AppLog.debug("🔗 [AppleRemindersService] Unlinked list: \(astridListId)")
     }
 
     /// Check if an Astrid list is linked to Reminders
@@ -441,7 +441,7 @@ class AppleRemindersService: ObservableObject {
                 }
                 syncedCount += 1
             } catch {
-                print("❌ [AppleRemindersService] Failed to sync task '\(task.title)': \(error)")
+                AppLog.debug("❌ [AppleRemindersService] Failed to sync task '\(task.title)': \(error)")
             }
         }
 
@@ -449,7 +449,7 @@ class AppleRemindersService: ObservableObject {
             try eventStore.commit()
         }
         syncedTaskCount = syncedCount
-        print("✅ [AppleRemindersService] Exported \(syncedCount) tasks to Reminders (\(wroteAny ? "wrote changes" : "no changes"))")
+        AppLog.debug("✅ [AppleRemindersService] Exported \(syncedCount) tasks to Reminders (\(wroteAny ? "wrote changes" : "no changes"))")
     }
 
     // MARK: - Import (Reminders -> Astrid)
@@ -497,7 +497,7 @@ class AppleRemindersService: ObservableObject {
                     if reminderUpdatedAt > astridUpdatedAt && existingTask.completed != reminder.isCompleted {
                         do {
                             _ = try await taskService.completeTask(id: astridTaskId, completed: reminder.isCompleted, task: existingTask, source: .apple, completedAt: reminder.completionDate)
-                            print("🔄 [AppleRemindersService] Updated completion state for '\(existingTask.title)' to \(reminder.isCompleted)")
+                            AppLog.debug("🔄 [AppleRemindersService] Updated completion state for '\(existingTask.title)' to \(reminder.isCompleted)")
                             updatedCount += 1
 
                             // Update mapping timestamps
@@ -507,7 +507,7 @@ class AppleRemindersService: ObservableObject {
                                 reminderUpdatedAt: reminderUpdatedAt
                             )
                         } catch {
-                            print("❌ [AppleRemindersService] Failed to update completion state: \(error)")
+                            AppLog.debug("❌ [AppleRemindersService] Failed to update completion state: \(error)")
                         }
                     }
 
@@ -584,7 +584,7 @@ class AppleRemindersService: ObservableObject {
                 )
                 importedCount += 1
             } catch {
-                print("❌ [AppleRemindersService] Failed to import reminder '\(title)': \(error)")
+                AppLog.debug("❌ [AppleRemindersService] Failed to import reminder '\(title)': \(error)")
             }
         }
 
@@ -608,7 +608,7 @@ class AppleRemindersService: ObservableObject {
         }
 
         syncedTaskCount = importedCount + updatedCount
-        print("✅ [AppleRemindersService] Imported \(importedCount) new reminders, updated \(updatedCount) existing tasks")
+        AppLog.debug("✅ [AppleRemindersService] Imported \(importedCount) new reminders, updated \(updatedCount) existing tasks")
     }
 
     // MARK: - Bidirectional Sync
@@ -644,7 +644,7 @@ class AppleRemindersService: ObservableObject {
             } catch {
                 // Keep the mapping: a live-but-unmapped reminder would be
                 // re-imported as a brand-new task on the next pass.
-                print("⚠️ [AppleRemindersService] Failed to remove reminder for deleted task: \(error)")
+                AppLog.debug("⚠️ [AppleRemindersService] Failed to remove reminder for deleted task: \(error)")
                 return
             }
         }
@@ -942,7 +942,7 @@ class AppleRemindersService: ObservableObject {
 
             try context.save()
         } catch {
-            print("❌ [AppleRemindersService] Failed to save mapping: \(error)")
+            AppLog.debug("❌ [AppleRemindersService] Failed to save mapping: \(error)")
         }
     }
 
@@ -960,7 +960,7 @@ class AppleRemindersService: ObservableObject {
                 try context.save()
             }
         } catch {
-            print("❌ [AppleRemindersService] Failed to update mapping timestamps: \(error)")
+            AppLog.debug("❌ [AppleRemindersService] Failed to update mapping timestamps: \(error)")
         }
     }
 
@@ -971,7 +971,7 @@ class AppleRemindersService: ObservableObject {
         do {
             return try coreDataManager.viewContext.fetch(request)
         } catch {
-            print("❌ [AppleRemindersService] Failed to fetch mappings: \(error)")
+            AppLog.debug("❌ [AppleRemindersService] Failed to fetch mappings: \(error)")
             return []
         }
     }
@@ -988,7 +988,7 @@ class AppleRemindersService: ObservableObject {
             }
             try context.save()
         } catch {
-            print("❌ [AppleRemindersService] Failed to clear mappings: \(error)")
+            AppLog.debug("❌ [AppleRemindersService] Failed to clear mappings: \(error)")
         }
     }
 }

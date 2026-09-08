@@ -24,7 +24,7 @@ final class ThumbnailCache {
     func alias(from tempId: String, to realId: String) {
         if let image = cache[tempId] {
             cache[realId] = image
-            print("🖼️ [ThumbnailCache] Aliased \(tempId) -> \(realId)")
+            AppLog.debug("🖼️ [ThumbnailCache] Aliased \(tempId) -> \(realId)")
         }
     }
 }

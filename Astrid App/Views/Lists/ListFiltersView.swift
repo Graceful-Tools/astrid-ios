@@ -210,7 +210,7 @@ struct ListFiltersView: View {
         do {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
-            print("Failed to load members: \(error)")
+            AppLog.debug("Failed to load members: \(error)")
         }
     }
 
@@ -225,7 +225,7 @@ struct ListFiltersView: View {
                 _ = try await listService.updateListAdvanced(listId: list.id,
                                                              updates: ["showSubtasks": value])
             } catch {
-                print("❌ [ListFiltersView] Failed to save showSubtasks: \(error)")
+                AppLog.debug("❌ [ListFiltersView] Failed to save showSubtasks: \(error)")
                 showSubtasks = !newValue
             }
         }
@@ -253,9 +253,9 @@ struct ListFiltersView: View {
                     listId: list.id,
                     updates: updates
                 )
-                print("Saved filters")
+                AppLog.debug("Saved filters")
             } catch {
-                print("Failed to save filters: \(error)")
+                AppLog.debug("Failed to save filters: \(error)")
             }
         }
     }

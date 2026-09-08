@@ -82,7 +82,7 @@ class TimerBackgroundManager {
             defaults.removeObject(forKey: kActiveTimerRemainingAtPause)
         }
 
-        print("⏱️ [TimerBackgroundManager] Saved timer state: taskId=\(taskId), duration=\(durationSeconds)s, remaining=\(remainingSeconds)s, isPaused=\(isPaused)")
+        AppLog.debug("⏱️ [TimerBackgroundManager] Saved timer state: taskId=\(taskId), duration=\(durationSeconds)s, remaining=\(remainingSeconds)s, isPaused=\(isPaused)")
     }
 
     /// Load timer state if exists
@@ -116,7 +116,7 @@ class TimerBackgroundManager {
         defaults.removeObject(forKey: kActiveTimerRemainingAtPause)
         defaults.removeObject(forKey: kActiveTimerIsPaused)
 
-        print("⏱️ [TimerBackgroundManager] Cleared timer state")
+        AppLog.debug("⏱️ [TimerBackgroundManager] Cleared timer state")
     }
 
     // MARK: - Timer Notification
@@ -124,14 +124,14 @@ class TimerBackgroundManager {
     /// Schedule a local notification for timer completion
     func scheduleTimerNotification(taskId: String, taskTitle: String, remainingSeconds: Int) async {
         guard remainingSeconds > 0 else {
-            print("⚠️ [TimerBackgroundManager] Cannot schedule notification for completed timer")
+            AppLog.debug("⚠️ [TimerBackgroundManager] Cannot schedule notification for completed timer")
             return
         }
 
         // Check notification permission
         let settings = await notificationCenter.notificationSettings()
         guard settings.authorizationStatus == .authorized else {
-            print("⚠️ [TimerBackgroundManager] Notification permission not granted")
+            AppLog.debug("⚠️ [TimerBackgroundManager] Notification permission not granted")
             return
         }
 
@@ -164,9 +164,9 @@ class TimerBackgroundManager {
 
         do {
             try await notificationCenter.add(request)
-            print("✅ [TimerBackgroundManager] Scheduled timer notification for '\(taskTitle)' in \(remainingSeconds)s")
+            AppLog.debug("✅ [TimerBackgroundManager] Scheduled timer notification for '\(taskTitle)' in \(remainingSeconds)s")
         } catch {
-            print("❌ [TimerBackgroundManager] Failed to schedule timer notification: \(error)")
+            AppLog.debug("❌ [TimerBackgroundManager] Failed to schedule timer notification: \(error)")
         }
     }
 
@@ -178,7 +178,7 @@ class TimerBackgroundManager {
 
         if !timerIds.isEmpty {
             notificationCenter.removePendingNotificationRequests(withIdentifiers: timerIds)
-            print("🗑️ [TimerBackgroundManager] Cancelled \(timerIds.count) timer notification(s)")
+            AppLog.debug("🗑️ [TimerBackgroundManager] Cancelled \(timerIds.count) timer notification(s)")
         }
     }
 
@@ -187,7 +187,7 @@ class TimerBackgroundManager {
     /// Called when app goes to background - schedules notification if timer is running
     func handleAppDidEnterBackground() async {
         guard let state = loadTimerState(), !state.isPaused else {
-            print("ℹ️ [TimerBackgroundManager] No running timer to track in background")
+            AppLog.debug("ℹ️ [TimerBackgroundManager] No running timer to track in background")
             return
         }
 
@@ -198,9 +198,9 @@ class TimerBackgroundManager {
                 taskTitle: state.taskTitle,
                 remainingSeconds: remaining
             )
-            print("📱 [TimerBackgroundManager] App backgrounded with \(remaining)s remaining on timer")
+            AppLog.debug("📱 [TimerBackgroundManager] App backgrounded with \(remaining)s remaining on timer")
         } else {
-            print("⏰ [TimerBackgroundManager] Timer already completed while calculating background state")
+            AppLog.debug("⏰ [TimerBackgroundManager] Timer already completed while calculating background state")
         }
     }
 
@@ -213,7 +213,7 @@ class TimerBackgroundManager {
             return nil
         }
 
-        print("📱 [TimerBackgroundManager] App foregrounded, timer remaining: \(state.remainingSeconds)s, completed: \(state.isCompleted)")
+        AppLog.debug("📱 [TimerBackgroundManager] App foregrounded, timer remaining: \(state.remainingSeconds)s, completed: \(state.isCompleted)")
         return state
     }
 
@@ -250,7 +250,7 @@ class TimerBackgroundManager {
             categories = categories.filter { $0.identifier != "TIMER_COMPLETE" }
             categories.insert(category)
             center.setNotificationCategories(categories)
-            print("✅ [TimerBackgroundManager] Registered TIMER_COMPLETE notification category")
+            AppLog.debug("✅ [TimerBackgroundManager] Registered TIMER_COMPLETE notification category")
         }
     }
 }

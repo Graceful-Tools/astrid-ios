@@ -56,7 +56,7 @@ struct ListSortFiltersTab: View {
                     Text(NSLocalizedString("lists.recently_completed", comment: "")).tag("completedAt")
                 }
                 .onChange(of: sortBy) { oldValue, newValue in
-                    print("🔄 [ListSortFiltersTab] sortBy changed: \(oldValue) → \(newValue)")
+                    AppLog.debug("🔄 [ListSortFiltersTab] sortBy changed: \(oldValue) → \(newValue)")
                     saveSettings()
                 }
             }
@@ -71,7 +71,7 @@ struct ListSortFiltersTab: View {
                     Text(NSLocalizedString("tasks.incomplete", comment: "")).tag("incomplete")
                 }
                 .onChange(of: filterCompletion) { oldValue, newValue in
-                    print("🔄 [ListSortFiltersTab] filterCompletion changed: \(oldValue) → \(newValue)")
+                    AppLog.debug("🔄 [ListSortFiltersTab] filterCompletion changed: \(oldValue) → \(newValue)")
                     saveSettings()
                 }
 
@@ -201,9 +201,9 @@ struct ListSortFiltersTab: View {
                     _Concurrency.Task {
                         do {
                             try await listService.toggleFavorite(listId: list.id, isFavorite: newValue)
-                            print("✅ [ListSortFiltersTab] Toggled favorite for list: \(list.name) to \(newValue)")
+                            AppLog.debug("✅ [ListSortFiltersTab] Toggled favorite for list: \(list.name) to \(newValue)")
                         } catch {
-                            print("❌ [ListSortFiltersTab] Failed to toggle favorite: \(error)")
+                            AppLog.debug("❌ [ListSortFiltersTab] Failed to toggle favorite: \(error)")
                             // Revert on error
                             isFavorite = !newValue
                         }
@@ -235,9 +235,9 @@ struct ListSortFiltersTab: View {
                                 listId: list.id,
                                 updates: ["isVirtual": newValue]
                             )
-                            print("✅ [ListSortFiltersTab] Toggled saved filter for list: \(list.name) to \(newValue)")
+                            AppLog.debug("✅ [ListSortFiltersTab] Toggled saved filter for list: \(list.name) to \(newValue)")
                         } catch {
-                            print("❌ [ListSortFiltersTab] Failed to toggle saved filter: \(error)")
+                            AppLog.debug("❌ [ListSortFiltersTab] Failed to toggle saved filter: \(error)")
                             // Revert on error
                             isVirtual = !newValue
                         }
@@ -273,7 +273,7 @@ struct ListSortFiltersTab: View {
         do {
             try await memberService.fetchMembers(listId: list.id)
         } catch {
-            print("❌ Failed to load members: \(error)")
+            AppLog.debug("❌ Failed to load members: \(error)")
         }
     }
 
@@ -290,23 +290,23 @@ struct ListSortFiltersTab: View {
                                                                        updates: ["showSubtasks": value])
                 onUpdate(updated)
             } catch {
-                print("❌ [ListSortFiltersTab] Failed to save showSubtasks: \(error)")
+                AppLog.debug("❌ [ListSortFiltersTab] Failed to save showSubtasks: \(error)")
                 showSubtasks = !newValue   // revert, as the favorite toggle does
             }
         }
     }
 
     private func saveSettings() {
-        print("🔧🔧🔧 [ListSortFiltersTab] saveSettings() CALLED")
-        print("  - list.id: \(list.id)")
-        print("  - list.name: \(list.name)")
-        print("  - filterCompletion: \(filterCompletion)")
-        print("  - sortBy: \(sortBy)")
-        print("  - isSaving: \(isSaving)")
+        AppLog.debug("🔧🔧🔧 [ListSortFiltersTab] saveSettings() CALLED")
+        AppLog.debug("  - list.id: \(list.id)")
+        AppLog.debug("  - list.name: \(list.name)")
+        AppLog.debug("  - filterCompletion: \(filterCompletion)")
+        AppLog.debug("  - sortBy: \(sortBy)")
+        AppLog.debug("  - isSaving: \(isSaving)")
 
         // Debounce: Skip if already saving
         guard !isSaving else {
-            print("  ⚠️ SKIPPED - already saving")
+            AppLog.debug("  ⚠️ SKIPPED - already saving")
             return
         }
 
@@ -324,12 +324,12 @@ struct ListSortFiltersTab: View {
             "filterInLists": filterInLists
         ]
 
-        print("📤 [ListSortFiltersTab] Calling listService.updateListAdvanced...")
+        AppLog.debug("📤 [ListSortFiltersTab] Calling listService.updateListAdvanced...")
 
         _Concurrency.Task {
             defer {
                 isSaving = false
-                print("🔓 [ListSortFiltersTab] isSaving reset to false")
+                AppLog.debug("🔓 [ListSortFiltersTab] isSaving reset to false")
             }
 
             do {
@@ -337,13 +337,13 @@ struct ListSortFiltersTab: View {
                     listId: list.id,
                     updates: updates
                 )
-                print("✅✅✅ [ListSortFiltersTab] API SAVE SUCCEEDED")
-                print("  - Returned filterCompletion: \(result.filterCompletion ?? "nil")")
-                print("  - Returned sortBy: \(result.sortBy ?? "nil")")
+                AppLog.debug("✅✅✅ [ListSortFiltersTab] API SAVE SUCCEEDED")
+                AppLog.debug("  - Returned filterCompletion: \(result.filterCompletion ?? "nil")")
+                AppLog.debug("  - Returned sortBy: \(result.sortBy ?? "nil")")
 
                 // Also verify local listService state
                 if let localList = listService.lists.first(where: { $0.id == list.id }) {
-                    print("  - Local list filterCompletion: \(localList.filterCompletion ?? "nil")")
+                    AppLog.debug("  - Local list filterCompletion: \(localList.filterCompletion ?? "nil")")
                 }
 
                 // Notify parent of the update for UI refresh
@@ -360,8 +360,8 @@ struct ListSortFiltersTab: View {
                 updated.isVirtual = isVirtual
                 onUpdate(updated)
             } catch {
-                print("❌❌❌ [ListSortFiltersTab] API SAVE FAILED: \(error)")
-                print("  - Error type: \(type(of: error))")
+                AppLog.debug("❌❌❌ [ListSortFiltersTab] API SAVE FAILED: \(error)")
+                AppLog.debug("  - Error type: \(type(of: error))")
             }
         }
     }

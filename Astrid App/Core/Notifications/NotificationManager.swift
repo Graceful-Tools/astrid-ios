@@ -41,13 +41,13 @@ class NotificationManager {
         // Check permission
         let status = await checkPermissionStatus()
         guard status == .authorized else {
-            print("⚠️ Notification permission not granted, skipping notification for task \(task.id)")
+            AppLog.debug("⚠️ Notification permission not granted, skipping notification for task \(task.id)")
             return
         }
 
         // Get the due date/time
         guard let dueDate = task.dueDateTime else {
-            print("ℹ️ Task \(task.id) has no due date, skipping notification")
+            AppLog.debug("ℹ️ Task \(task.id) has no due date, skipping notification")
             return
         }
 
@@ -57,7 +57,7 @@ class NotificationManager {
 
         // Don't schedule notifications in the past
         guard reminderDate > Date() else {
-            print("⚠️ Reminder date is in the past for task \(task.id), skipping")
+            AppLog.debug("⚠️ Reminder date is in the past for task \(task.id), skipping")
             return
         }
 
@@ -95,7 +95,7 @@ class NotificationManager {
         // Schedule notification
         try await center.add(request)
 
-        print("✅ Scheduled notification for task '\(task.title)' at \(reminderDate)")
+        AppLog.debug("✅ Scheduled notification for task '\(task.title)' at \(reminderDate)")
     }
 
     /// Schedule notifications for multiple tasks.
@@ -129,7 +129,7 @@ class NotificationManager {
             do {
                 try await scheduleNotification(for: task)
             } catch {
-                print("❌ Failed to schedule notification for task \(task.id): \(error)")
+                AppLog.debug("❌ Failed to schedule notification for task \(task.id): \(error)")
             }
         }
     }
@@ -139,20 +139,20 @@ class NotificationManager {
     /// Cancel notification for a specific task
     func cancelNotification(for taskId: String) async {
         center.removePendingNotificationRequests(withIdentifiers: ["task_\(taskId)"])
-        print("🗑️ Cancelled notification for task \(taskId)")
+        AppLog.debug("🗑️ Cancelled notification for task \(taskId)")
     }
 
     /// Cancel notifications for multiple tasks
     func cancelNotifications(for taskIds: [String]) async {
         let identifiers = taskIds.map { "task_\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
-        print("🗑️ Cancelled \(taskIds.count) notifications")
+        AppLog.debug("🗑️ Cancelled \(taskIds.count) notifications")
     }
 
     /// Cancel all pending notifications
     func cancelAllNotifications() async {
         center.removeAllPendingNotificationRequests()
-        print("🗑️ Cancelled all pending notifications")
+        AppLog.debug("🗑️ Cancelled all pending notifications")
     }
 
     // MARK: - Snooze
@@ -173,7 +173,7 @@ class NotificationManager {
         // Schedule new notification
         try await scheduleNotification(for: snoozedTask)
 
-        print("⏰ Snoozed task '\(task.title)' for \(minutes) minutes (until \(snoozeDate))")
+        AppLog.debug("⏰ Snoozed task '\(task.title)' for \(minutes) minutes (until \(snoozeDate))")
     }
 
     // MARK: - Query Notifications
@@ -239,7 +239,7 @@ class NotificationManager {
         // Schedule notification
         try await center.add(request)
 
-        print("✅ Scheduled test notification (will fire in 5 seconds)")
+        AppLog.debug("✅ Scheduled test notification (will fire in 5 seconds)")
     }
 }
 
@@ -270,11 +270,11 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        print("🔔 [NotificationDelegate] Notification tapped!")
-        print("🔔 [NotificationDelegate] Action identifier: \(response.actionIdentifier)")
+        AppLog.debug("🔔 [NotificationDelegate] Notification tapped!")
+        AppLog.debug("🔔 [NotificationDelegate] Action identifier: \(response.actionIdentifier)")
 
         let userInfo = response.notification.request.content.userInfo
-        print("🔔 [NotificationDelegate] UserInfo: \(userInfo)")
+        AppLog.debug("🔔 [NotificationDelegate] UserInfo: \(userInfo)")
 
         // Handle the Complete / Snooze notification actions (previously ignored — the reminder's
         // action buttons did nothing on iOS OR Mac). Task 32c6f756. Falls through to open on tap.
@@ -300,8 +300,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
         // Extract task ID for deep linking
         if let taskId = userInfo["taskId"] as? String {
-            print("📱 [NotificationDelegate] User tapped notification for task: \(taskId)")
-            print("📱 [NotificationDelegate] Posting OpenTask notification to NotificationCenter")
+            AppLog.debug("📱 [NotificationDelegate] User tapped notification for task: \(taskId)")
+            AppLog.debug("📱 [NotificationDelegate] Posting OpenTask notification to NotificationCenter")
 
             // Post notification for ReminderPresenter to catch
             NotificationCenter.default.post(
@@ -309,19 +309,19 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 object: nil,
                 userInfo: ["taskId": taskId]
             )
-            print("✅ [NotificationDelegate] OpenTask notification posted")
+            AppLog.debug("✅ [NotificationDelegate] OpenTask notification posted")
         } else if let type = userInfo["type"] as? String, type == "test_reminder" {
             // Handle test notifications - create a test task for demonstration
-            print("🧪 [NotificationDelegate] Test notification detected - showing test reminder")
+            AppLog.debug("🧪 [NotificationDelegate] Test notification detected - showing test reminder")
             NotificationCenter.default.post(
                 name: NSNotification.Name("OpenTask"),
                 object: nil,
                 userInfo: ["taskId": "test", "isTestNotification": true]
             )
-            print("✅ [NotificationDelegate] Test OpenTask notification posted")
+            AppLog.debug("✅ [NotificationDelegate] Test OpenTask notification posted")
         } else {
-            print("⚠️ [NotificationDelegate] No taskId found in notification userInfo")
-            print("⚠️ [NotificationDelegate] Cannot show reminder without taskId")
+            AppLog.debug("⚠️ [NotificationDelegate] No taskId found in notification userInfo")
+            AppLog.debug("⚠️ [NotificationDelegate] Cannot show reminder without taskId")
         }
     }
 
@@ -378,6 +378,6 @@ extension NotificationManager {
         )
 
         center.setNotificationCategories([taskReminderCategory])
-        print("✅ Registered notification categories")
+        AppLog.debug("✅ Registered notification categories")
     }
 }

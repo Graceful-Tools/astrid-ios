@@ -76,11 +76,11 @@ class UserSettingsService: ObservableObject {
         if let savedData = UserDefaults.standard.data(forKey: userDefaultsKey),
            let savedSettings = try? JSONDecoder().decode(UserSettings.self, from: savedData) {
             self.settings = savedSettings
-            print("✅ [UserSettings] Loaded from UserDefaults")
+            AppLog.debug("✅ [UserSettings] Loaded from UserDefaults")
         } else {
             // Start with default settings
             self.settings = UserSettings()
-            print("ℹ️ [UserSettings] Using default settings")
+            AppLog.debug("ℹ️ [UserSettings] Using default settings")
         }
 
         // Load from server in background
@@ -116,10 +116,10 @@ class UserSettingsService: ObservableObject {
 
             if let encoded = try? JSONEncoder().encode(fetchedSettings) {
                 UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-                print("✅ [UserSettings] Loaded from server and saved to UserDefaults")
+                AppLog.debug("✅ [UserSettings] Loaded from server and saved to UserDefaults")
             }
         } catch {
-            print("❌ [UserSettings] Error fetching settings: \(error)")
+            AppLog.debug("❌ [UserSettings] Error fetching settings: \(error)")
         }
     }
 
@@ -138,7 +138,7 @@ class UserSettingsService: ObservableObject {
         // Save to UserDefaults immediately for offline support
         if let encoded = try? JSONEncoder().encode(merged) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            print("💾 [UserSettings] Saved to UserDefaults")
+            AppLog.debug("💾 [UserSettings] Saved to UserDefaults")
         }
 
         // Debounced server push via AstridAPIClient so cookies/auth/retry
@@ -149,22 +149,22 @@ class UserSettingsService: ObservableObject {
 
             do {
                 try await AstridAPIClient.shared.updateSmartTaskSettings(merged)
-                print("✅ Updated user settings on server")
+                AppLog.debug("✅ Updated user settings on server")
             } catch {
-                print("❌ Error updating user settings: \(error)")
+                AppLog.debug("❌ Error updating user settings: \(error)")
             }
         }
     }
 
     /// Handle SSE update from another device
     func handleSSEUpdate(_ newSettings: UserSettings) {
-        print("🔔 [SSE] User settings updated from another device")
+        AppLog.debug("🔔 [SSE] User settings updated from another device")
         self.settings = newSettings
 
         // Save to UserDefaults for offline support
         if let encoded = try? JSONEncoder().encode(newSettings) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            print("💾 [UserSettings] Saved SSE update to UserDefaults")
+            AppLog.debug("💾 [UserSettings] Saved SSE update to UserDefaults")
         }
     }
 
@@ -181,6 +181,6 @@ class UserSettingsService: ObservableObject {
         // Clear persisted data
         UserDefaults.standard.removeObject(forKey: userDefaultsKey)
 
-        print("🗑️ [UserSettings] Data cleared for logout")
+        AppLog.debug("🗑️ [UserSettings] Data cleared for logout")
     }
 }

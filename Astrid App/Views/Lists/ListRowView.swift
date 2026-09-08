@@ -114,9 +114,9 @@ struct ListRowView: View {
             do {
                 let newFavoriteStatus = !(list.isFavorite ?? false)
                 _ = try await listService.favoriteList(listId: list.id, favorite: newFavoriteStatus)
-                print("✅ [ListRowView] Toggled favorite for list: \(list.name) to \(newFavoriteStatus)")
+                AppLog.debug("✅ [ListRowView] Toggled favorite for list: \(list.name) to \(newFavoriteStatus)")
             } catch {
-                print("❌ [ListRowView] Failed to toggle favorite: \(error)")
+                AppLog.debug("❌ [ListRowView] Failed to toggle favorite: \(error)")
             }
         }
     }

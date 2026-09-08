@@ -115,11 +115,11 @@ struct ListMembershipTab: View {
             Section(NSLocalizedString("lists.members", comment: "")) {
                 // Debug: log member data sources
                 let _ = {
-                    print("👥 [ListMembershipTab] Rendering members for list: \(list.id)")
-                    print("  Owner: \(list.owner?.displayName ?? "nil") (id: \(list.owner?.id ?? "nil"))")
-                    print("  listMembers: \(list.listMembers?.map { "userId: \($0.userId), role: \($0.role), user: \($0.user?.displayName ?? "nil")" } ?? ["nil"])")
-                    print("  removedEmails: \(removedMemberEmails)")
-                    print("  canEditSettings: \(canEditSettings)")
+                    AppLog.debug("👥 [ListMembershipTab] Rendering members for list: \(list.id)")
+                    AppLog.debug("  Owner: \(list.owner?.displayName ?? "nil") (id: \(list.owner?.id ?? "nil"))")
+                    AppLog.debug("  listMembers: \(list.listMembers?.map { "userId: \($0.userId), role: \($0.role), user: \($0.user?.displayName ?? "nil")" } ?? ["nil"])")
+                    AppLog.debug("  removedEmails: \(removedMemberEmails.map { AppLog.redact(email: $0) })")
+                    AppLog.debug("  canEditSettings: \(canEditSettings)")
                 }()
                 // Owner
                 if let owner = list.owner {
@@ -596,7 +596,7 @@ struct ListMembershipTab: View {
     }
 
     private func removeMember(userId: String, email: String) {
-        print("🗑️ [ListMembershipTab] Removing member: userId=\(userId), email=\(email)")
+        AppLog.debug("🗑️ [ListMembershipTab] Removing member: userId=\(userId), email=\(AppLog.redact(email: email))")
         // Track removal so UI stays correct even if stale data flows in.
         if !email.isEmpty {
             removedMemberEmails.insert(email)
@@ -613,7 +613,7 @@ struct ListMembershipTab: View {
         _Concurrency.Task {
             do {
                 try await memberService.removeMember(listId: list.id, userId: userId)
-                print("✅ [ListMembershipTab] Removed member from list")
+                AppLog.debug("✅ [ListMembershipTab] Removed member from list")
             } catch {
                 // Revert on failure.
                 if !email.isEmpty {
@@ -627,7 +627,7 @@ struct ListMembershipTab: View {
     }
 
     private func removeInvitation(invitationId: String, email: String) {
-        print("🗑️ [ListMembershipTab] Removing invitation: id=\(invitationId), email=\(email)")
+        AppLog.debug("🗑️ [ListMembershipTab] Removing invitation: id=\(invitationId), email=\(AppLog.redact(email: email))")
 
         // Track removal so invitation doesn't reappear from stale data.
         removedMemberEmails.insert(email)
@@ -646,7 +646,7 @@ struct ListMembershipTab: View {
                     email: email
                 )
             } catch {
-                print("⚠️ [ListMembershipTab] Cancel invitation failed: \(error.localizedDescription)")
+                AppLog.debug("⚠️ [ListMembershipTab] Cancel invitation failed: \(error.localizedDescription)")
                 // Service has already restored its cache; the view-level
                 // optimistic removal stays (matches prior behavior — user
                 // doesn't need to see the error).
@@ -660,7 +660,7 @@ struct ListMembershipTab: View {
         loadingAiProviders = true
 
         do {
-            print("🤖 [ListMembershipTab] Loading AI agents with profile photos")
+            AppLog.debug("🤖 [ListMembershipTab] Loading AI agents with profile photos")
 
             // First check GitHub status for UI context
             let status = try await apiClient.getGitHubStatus()
@@ -680,14 +680,14 @@ struct ListMembershipTab: View {
             // Cache agents for offline support
             AIAgentCache.shared.save(agents)
 
-            print("✅ [ListMembershipTab] Found \(agents.count) AI agents with photos, GitHub connected: \(status.isGitHubConnected)")
+            AppLog.debug("✅ [ListMembershipTab] Found \(agents.count) AI agents with photos, GitHub connected: \(status.isGitHubConnected)")
         } catch {
-            print("❌ [ListMembershipTab] Failed to load AI agents: \(error)")
+            AppLog.debug("❌ [ListMembershipTab] Failed to load AI agents: \(error)")
 
             // Try to load from cache as fallback
             if let cachedAgents = AIAgentCache.shared.load() {
                 availableAiAgents = cachedAgents
-                print("📦 [ListMembershipTab] Using \(cachedAgents.count) cached AI agents")
+                AppLog.debug("📦 [ListMembershipTab] Using \(cachedAgents.count) cached AI agents")
             } else {
                 availableAiAgents = []
             }
@@ -718,17 +718,17 @@ struct ListMembershipTab: View {
 
         _Concurrency.Task {
             do {
-                print("🤖 [ListMembershipTab] Adding \(email) to list")
+                AppLog.debug("🤖 [ListMembershipTab] Adding \(AppLog.redact(email: email)) to list")
 
                 // Route through ListMemberService so offline queue applies.
                 _ = try await memberService.addMember(listId: list.id, email: email, role: "member")
 
-                print("✅ [ListMembershipTab] Added \(email) to list")
+                AppLog.debug("✅ [ListMembershipTab] Added \(AppLog.redact(email: email)) to list")
 
                 // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
             } catch {
-                print("❌ [ListMembershipTab] Failed to add agent: \(error)")
+                AppLog.debug("❌ [ListMembershipTab] Failed to add agent: \(error)")
                 errorMessage = "Failed to add AI agent: \(error.localizedDescription)"
             }
         }
@@ -739,7 +739,7 @@ struct ListMembershipTab: View {
         removingAgents.insert(agent.id)
 
         guard let email = agent.email else { return }
-        print("🤖 [ListMembershipTab] Removing \(email) from list")
+        AppLog.debug("🤖 [ListMembershipTab] Removing \(AppLog.redact(email: email)) from list")
 
         // Track removal so UI stays correct even if stale data flows in
         removedMemberEmails.insert(email)
@@ -754,7 +754,7 @@ struct ListMembershipTab: View {
         }
 
         guard let userId = agentUserId else {
-            print("⚠️ [ListMembershipTab] Agent \(email) not found in list members")
+            AppLog.debug("⚠️ [ListMembershipTab] Agent \(AppLog.redact(email: email)) not found in list members")
             removingAgents.remove(agent.id)
             return
         }
@@ -777,10 +777,10 @@ struct ListMembershipTab: View {
 
             do {
                 try await memberService.removeMember(listId: list.id, userId: userId)
-                print("✅ [ListMembershipTab] Removed \(email) from list")
+                AppLog.debug("✅ [ListMembershipTab] Removed \(AppLog.redact(email: email)) from list")
             } catch {
                 // Revert on failure
-                print("❌ [ListMembershipTab] Failed to remove agent: \(error)")
+                AppLog.debug("❌ [ListMembershipTab] Failed to remove agent: \(error)")
                 removedMemberEmails.remove(email)
                 onUpdate(list)
                 ListService.shared.restoreCachedList(listId: list.id, from: originalList)

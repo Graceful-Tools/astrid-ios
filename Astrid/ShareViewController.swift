@@ -14,7 +14,7 @@ class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        print("📤 [ShareExtension] Share Extension loaded")
+        AppLog.debug("📤 [ShareExtension] Share Extension loaded")
 
         // Extract shared content
         extractSharedContent { [weak self] result in
@@ -25,7 +25,7 @@ class ShareViewController: UIViewController {
                 self.sharedFileData = fileData
                 self.setupUI(with: fileData)
             case .failure(let error):
-                print("❌ [ShareExtension] Failed to extract content: \(error)")
+                AppLog.debug("❌ [ShareExtension] Failed to extract content: \(error)")
                 self.showError(error)
             }
         }
@@ -34,7 +34,7 @@ class ShareViewController: UIViewController {
     // MARK: - UI Setup
 
     private func setupUI(with fileData: SharedFileData?) {
-        print("🎨 [ShareExtension] Setting up UI")
+        AppLog.debug("🎨 [ShareExtension] Setting up UI")
 
         let quickCreateView = TaskQuickCreateView(
             fileData: fileData,
@@ -67,12 +67,12 @@ class ShareViewController: UIViewController {
     private func extractSharedContent(completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
         guard let extensionItem = extensionContext?.inputItems.first as? NSExtensionItem,
               let itemProvider = extensionItem.attachments?.first else {
-            print("⚠️ [ShareExtension] No attachments found")
+            AppLog.debug("⚠️ [ShareExtension] No attachments found")
             completion(.success(nil))
             return
         }
 
-        print("📎 [ShareExtension] Found attachment")
+        AppLog.debug("📎 [ShareExtension] Found attachment")
 
         // Try to load as image first
         if itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
@@ -87,7 +87,7 @@ class ShareViewController: UIViewController {
             loadFileURL(from: itemProvider, completion: completion)
         }
         else {
-            print("⚠️ [ShareExtension] Unsupported content type")
+            AppLog.debug("⚠️ [ShareExtension] Unsupported content type")
             completion(.success(nil))
         }
     }
@@ -95,7 +95,7 @@ class ShareViewController: UIViewController {
     private func loadImage(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
         itemProvider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] (item, error) in
             if let error = error {
-                print("❌ [ShareExtension] Error loading image: \(error)")
+                AppLog.debug("❌ [ShareExtension] Error loading image: \(error)")
                 completion(.failure(error))
                 return
             }
@@ -110,7 +110,7 @@ class ShareViewController: UIViewController {
             } else if let image = item as? UIImage {
                 self.processUIImage(image, completion: completion)
             } else {
-                print("⚠️ [ShareExtension] Unknown image format")
+                AppLog.debug("⚠️ [ShareExtension] Unknown image format")
                 completion(.success(nil))
             }
         }
@@ -119,7 +119,7 @@ class ShareViewController: UIViewController {
     private func loadFile(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
         itemProvider.loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { [weak self] (item, error) in
             if let error = error {
-                print("❌ [ShareExtension] Error loading file: \(error)")
+                AppLog.debug("❌ [ShareExtension] Error loading file: \(error)")
                 completion(.failure(error))
                 return
             }
@@ -131,7 +131,7 @@ class ShareViewController: UIViewController {
             } else if let data = item as? Data {
                 self.processFileData(data, suggestedName: "file", completion: completion)
             } else {
-                print("⚠️ [ShareExtension] Unknown file format")
+                AppLog.debug("⚠️ [ShareExtension] Unknown file format")
                 completion(.success(nil))
             }
         }
@@ -140,7 +140,7 @@ class ShareViewController: UIViewController {
     private func loadFileURL(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
         itemProvider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { [weak self] (item, error) in
             if let error = error {
-                print("❌ [ShareExtension] Error loading file URL: \(error)")
+                AppLog.debug("❌ [ShareExtension] Error loading file URL: \(error)")
                 completion(.failure(error))
                 return
             }
@@ -157,7 +157,7 @@ class ShareViewController: UIViewController {
     // MARK: - Process Content
 
     private func processFileURL(_ url: URL, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        print("📁 [ShareExtension] Processing file URL: \(url.lastPathComponent)")
+        AppLog.debug("📁 [ShareExtension] Processing file URL: \(url.lastPathComponent)")
 
         do {
             // Copy file to shared container
@@ -175,26 +175,26 @@ class ShareViewController: UIViewController {
                 fileSize: fileSize
             )
 
-            print("✅ [ShareExtension] File processed: \(url.lastPathComponent) (\(fileSize) bytes)")
+            AppLog.debug("✅ [ShareExtension] File processed: \(url.lastPathComponent) (\(fileSize) bytes)")
             completion(.success(fileData))
         } catch {
-            print("❌ [ShareExtension] Failed to process file: \(error)")
+            AppLog.debug("❌ [ShareExtension] Failed to process file: \(error)")
             completion(.failure(error))
         }
     }
 
     private func processImageData(_ data: Data, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        print("🖼️ [ShareExtension] Processing image data (\(data.count) bytes)")
+        AppLog.debug("🖼️ [ShareExtension] Processing image data (\(data.count) bytes)")
 
         let fileName = "image_\(Int(Date().timeIntervalSince1970)).jpg"
         processFileData(data, suggestedName: fileName, completion: completion)
     }
 
     private func processUIImage(_ image: UIImage, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        print("🖼️ [ShareExtension] Processing UIImage")
+        AppLog.debug("🖼️ [ShareExtension] Processing UIImage")
 
         guard let data = image.jpegData(compressionQuality: 0.8) else {
-            print("❌ [ShareExtension] Failed to convert image to JPEG")
+            AppLog.debug("❌ [ShareExtension] Failed to convert image to JPEG")
             completion(.success(nil))
             return
         }
@@ -224,10 +224,10 @@ class ShareViewController: UIViewController {
                 fileSize: Int64(data.count)
             )
 
-            print("✅ [ShareExtension] File data processed: \(suggestedName) (\(data.count) bytes)")
+            AppLog.debug("✅ [ShareExtension] File data processed: \(suggestedName) (\(data.count) bytes)")
             completion(.success(fileData))
         } catch {
-            print("❌ [ShareExtension] Failed to process file data: \(error)")
+            AppLog.debug("❌ [ShareExtension] Failed to process file data: \(error)")
             completion(.failure(error))
         }
     }
@@ -235,22 +235,22 @@ class ShareViewController: UIViewController {
     // MARK: - Save and Close
 
     private func saveAndClose(taskData: SharedTaskData) {
-        print("💾 [ShareExtension] Saving shared task: \(taskData.title)")
+        AppLog.debug("💾 [ShareExtension] Saving shared task: \(taskData.title)")
 
         do {
             try ShareDataManager.shared.saveSharedTask(taskData)
-            print("✅ [ShareExtension] Task saved successfully")
+            AppLog.debug("✅ [ShareExtension] Task saved successfully")
 
             // Close extension with success
             extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
         } catch {
-            print("❌ [ShareExtension] Failed to save task: \(error)")
+            AppLog.debug("❌ [ShareExtension] Failed to save task: \(error)")
             showError(error)
         }
     }
 
     private func cancel() {
-        print("❌ [ShareExtension] User cancelled")
+        AppLog.debug("❌ [ShareExtension] User cancelled")
 
         // Clean up any shared file
         if let fileURL = sharedFileData?.fileURL {

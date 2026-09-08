@@ -98,7 +98,7 @@ class APIClient: APIClientProtocol {
                 do {
                     try KeychainService.shared.saveSessionCookie(allCookiesString)
                 } catch {
-                    print("❌ [APIClient] Keychain save failed: \(error)")
+                    AppLog.debug("❌ [APIClient] Keychain save failed: \(error)")
                 }
             }
         }

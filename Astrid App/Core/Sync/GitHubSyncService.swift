@@ -493,7 +493,7 @@ final class GitHubSyncService: ObservableObject {
             // One task's push failing (e.g. its issue was deleted remotely)
             // must not abort the rest of the pass.
             pushErrors += 1
-            print("⚠️ [GitHubSync] push failed for \(task.id): \(error)")
+            AppLog.debug("⚠️ [GitHubSync] push failed for \(task.id): \(error)")
           }
         }
         if unlinkedSelection.hasMore,

@@ -94,10 +94,10 @@ class AstridAPIClient {
 
         // Use session cookie authentication (same as existing APIClient)
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            print("🍪 [AstridAPI] Using session cookie authentication")
+            AppLog.debug("🍪 [AstridAPI] Using session cookie authentication")
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
-            print("⚠️ [AstridAPI] No session cookie available - API calls may fail")
+            AppLog.debug("⚠️ [AstridAPI] No session cookie available - API calls may fail")
         }
 
         // Add body if present
@@ -105,7 +105,7 @@ class AstridAPIClient {
             request.httpBody = try encoder.encode(body)
         }
 
-        print("🔄 [AstridAPI] Waiting for response...")
+        AppLog.debug("🔄 [AstridAPI] Waiting for response...")
         let (data, response): (Data, URLResponse)
         do {
             let result = try await session.data(for: request)
@@ -120,7 +120,7 @@ class AstridAPIClient {
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ [AstridAPI] Invalid response (not HTTP)")
+            AppLog.debug("❌ [AstridAPI] Invalid response (not HTTP)")
             throw AstridAPIError.invalidResponse
         }
 
@@ -128,7 +128,7 @@ class AstridAPIClient {
 
         // Handle error responses
         if httpResponse.statusCode == 401 {
-            print("❌ [AstridAPI] Unauthorized (401)")
+            AppLog.debug("❌ [AstridAPI] Unauthorized (401)")
             throw AstridAPIError.unauthorized
         }
 
@@ -186,16 +186,16 @@ class AstridAPIClient {
 
         // Use session cookie authentication
         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            print("🍪 [AstridAPI] Using session cookie authentication")
+            AppLog.debug("🍪 [AstridAPI] Using session cookie authentication")
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
-            print("⚠️ [AstridAPI] No session cookie available - API calls may fail")
+            AppLog.debug("⚠️ [AstridAPI] No session cookie available - API calls may fail")
         }
 
         // Encode body using JSONSerialization (properly handles NSNull as null)
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
 
-        print("🔄 [AstridAPI] Waiting for response...")
+        AppLog.debug("🔄 [AstridAPI] Waiting for response...")
         let (data, response): (Data, URLResponse)
         do {
             let result = try await session.data(for: request)
@@ -296,10 +296,10 @@ class AstridAPIClient {
                 limit: pageLimit,
                 offset: pageOffset
             )
-            print("📥 [AstridAPI] Fetched \(tasks.count) tasks (offset: \(pageOffset), serverTotal: \(total))")
+            AppLog.debug("📥 [AstridAPI] Fetched \(tasks.count) tasks (offset: \(pageOffset), serverTotal: \(total))")
             return PaginatedPage(items: tasks, total: total)
         }
-        print("📥 [AstridAPI] Total tasks fetched: \(allTasks.count)")
+        AppLog.debug("📥 [AstridAPI] Total tasks fetched: \(allTasks.count)")
         return allTasks
     }
 
