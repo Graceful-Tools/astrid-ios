@@ -91,7 +91,8 @@ class AttachmentService: ObservableObject {
     private let apiClient: APIClientProtocol
     private let fileManager = FileManager.default
     private let cacheDirectory: URL  // For pending uploads
-    private let downloadCacheDirectory: URL  // For downloaded/viewed attachments
+    /// Downloaded/viewed attachments: bounded, LRU-evicted (AITD-344).
+    private let downloadCache: DownloadedAttachmentCache
     private let networkMonitor = NetworkMonitor.shared
     private var networkObserver: NSObjectProtocol?
 
@@ -104,11 +105,14 @@ class AttachmentService: ObservableObject {
         // Setup local cache directory for pending attachments
         let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDirectory.appendingPathComponent("PendingAttachments", isDirectory: true)
-        downloadCacheDirectory = cachesDirectory.appendingPathComponent("DownloadedAttachments", isDirectory: true)
+        let downloadCacheDirectory = cachesDirectory.appendingPathComponent("DownloadedAttachments", isDirectory: true)
+        downloadCache = DownloadedAttachmentCache(
+            directory: downloadCacheDirectory,
+            previewRoot: FileManager.default.temporaryDirectory
+                .appendingPathComponent("AstridPreview", isDirectory: true))
 
         // Create cache directories if needed
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        try? fileManager.createDirectory(at: downloadCacheDirectory, withIntermediateDirectories: true)
 
         AppLog.debug("📦 [AttachmentService] Pending cache: \(cacheDirectory.path)")
         AppLog.debug("📦 [AttachmentService] Download cache: \(downloadCacheDirectory.path)")
@@ -253,52 +257,20 @@ class AttachmentService: ObservableObject {
     }
 
     // MARK: - Downloaded Attachments Cache (for offline viewing)
+    //
+    // The cache itself is `DownloadedAttachmentCache` — a directory, a budget and an eviction
+    // rule, lifted out of this file in AITD-344. These stay as the names the rest of the app
+    // already calls.
 
-    /// Get cached download data for a fileId
-    func getCachedDownload(for fileId: String) -> Data? {
-        let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
-        guard fileManager.fileExists(atPath: cachedPath.path) else { return nil }
-        return try? Data(contentsOf: cachedPath)
-    }
+    func getCachedDownload(for fileId: String) -> Data? { downloadCache.data(for: fileId) }
 
-    /// Save downloaded data to cache
-    func cacheDownload(fileId: String, data: Data) {
-        let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
-        do {
-            try data.write(to: cachedPath)
-            AppLog.debug("💾 [AttachmentService] Cached download: \(fileId) (\(data.count) bytes)")
-        } catch {
-            AppLog.debug("⚠️ [AttachmentService] Failed to cache download: \(error)")
-        }
-    }
+    func cacheDownload(fileId: String, data: Data) { downloadCache.store(data, for: fileId) }
 
-    /// Check if a download is cached
-    func hasDownloadCached(for fileId: String) -> Bool {
-        let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
-        return fileManager.fileExists(atPath: cachedPath.path)
-    }
+    func hasDownloadCached(for fileId: String) -> Bool { downloadCache.contains(fileId) }
 
     /// Get cached file URL for QuickLook preview
     func getCachedFileURL(for fileId: String, fileName: String) -> URL? {
-        let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
-        guard fileManager.fileExists(atPath: cachedPath.path) else { return nil }
-
-        // Create a temp file with the proper extension for QuickLook
-        // AITD-312: the name is server-supplied, and this method removes the target before
-        // copying onto it — join it through the sanitiser, never directly.
-        let tempDir = fileManager.temporaryDirectory
-        let tempFile = AttachmentFileName.temporaryURL(in: tempDir, for: fileName)
-
-        do {
-            // Remove existing temp file if any
-            try? fileManager.removeItem(at: tempFile)
-            // Copy cached file to temp with proper name
-            try fileManager.copyItem(at: cachedPath, to: tempFile)
-            return tempFile
-        } catch {
-            AppLog.debug("⚠️ [AttachmentService] Failed to prepare cached file for preview: \(error)")
-            return nil
-        }
+        downloadCache.previewCopy(fileId: fileId, fileName: fileName)
     }
 
     /// Get the signed download URL for a secure file
@@ -352,61 +324,77 @@ class AttachmentService: ObservableObject {
         }
     }
 
-    /// Prepare multiple files for preview
+    /// Prepare multiple files for preview.
+    ///
+    /// The downloads run CONCURRENTLY (AITD-344). This was a `for` loop of sequential `await`s,
+    /// so a task with several attachments opened its preview one file at a time. Results are
+    /// re-ordered to match `files` afterwards: callers index into this to pick which page of the
+    /// QuickLook preview to show, so completion order is not an acceptable order.
     func prepareFilesForPreview(files: [SecureFile]) async -> [(fileId: String, url: URL)] {
-        var results: [(fileId: String, url: URL)] = []
-        
-        for file in files {
-            // 1. Check if it's a temp file
-            if file.id.hasPrefix("temp_") {
-                if let localData = getLocalFileData(for: file.id) {
-                    let tempDir = fileManager.temporaryDirectory
-                    let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
-                    try? localData.write(to: tempFileURL)
-                    results.append((fileId: file.id, url: tempFileURL))
+        let prepared = await withTaskGroup(
+            of: (offset: Int, result: (fileId: String, url: URL)?).self
+        ) { group in
+            for (offset, file) in files.enumerated() {
+                group.addTask { @MainActor in
+                    (offset, await self.prepareFileForPreview(file))
                 }
-                continue
             }
-            
-            // 2. Check disk cache
-            if let cachedURL = getCachedFileURL(for: file.id, fileName: file.name) {
-                results.append((fileId: file.id, url: cachedURL))
-                continue
-            }
-            
-            // 3. Download if not cached
-            do {
-                guard let url = try? AstridHTTP.apiURL("/api/v1/secure-files/\(file.id)",
-                                                       query: [URLQueryItem(name: "info", value: "true")])
-                else { continue }
-                
-                var request = URLRequest(url: url)
-                AnalyticsPlatformHeader.apply(to: &request)
-                if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-                    request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-                }
-                
-                let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
-                guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else { continue }
-                
-                struct FileInfo: Codable { let url: String }
-                let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
-                
-                guard let downloadURL = URL(string: fileInfo.url) else { continue }
-                let (fileData, _) = try await AstridHTTP.session.data(from: downloadURL)
-                
-                cacheDownload(fileId: file.id, data: fileData)
-                
-                let tempDir = fileManager.temporaryDirectory
-                let tempFileURL = AttachmentFileName.temporaryURL(in: tempDir, for: file.name)
-                try? fileData.write(to: tempFileURL)
-                results.append((fileId: file.id, url: tempFileURL))
-            } catch {
-                AppLog.debug("❌ [AttachmentService] Failed to download file for multi-preview: \(error)")
-            }
+            var collected: [(offset: Int, result: (fileId: String, url: URL)?)] = []
+            for await outcome in group { collected.append(outcome) }
+            return collected
         }
-        
-        return results
+
+        return prepared
+            .sorted { $0.offset < $1.offset }
+            .compactMap(\.result)
+    }
+
+    /// One file's route to a previewable URL: staged local copy, then disk cache, then the server.
+    private func prepareFileForPreview(_ file: SecureFile) async -> (fileId: String, url: URL)? {
+        // 1. Staged locally and not uploaded yet — the bytes are already on this machine.
+        if file.id.hasPrefix("temp_") {
+            guard let localData = getLocalFileData(for: file.id) else { return nil }
+            let tempFileURL = downloadCache.previewURL(fileId: file.id, fileName: file.name)
+            try? localData.write(to: tempFileURL)
+            return (fileId: file.id, url: tempFileURL)
+        }
+
+        // 2. Already downloaded once.
+        if let cachedURL = getCachedFileURL(for: file.id, fileName: file.name) {
+            return (fileId: file.id, url: cachedURL)
+        }
+
+        // 3. Ask the server for a signed URL, fetch it, and cache the result.
+        do {
+            guard let url = try? AstridHTTP.apiURL("/api/v1/secure-files/\(file.id)",
+                                                   query: [URLQueryItem(name: "info", value: "true")])
+            else { return nil }
+
+            var request = URLRequest(url: url)
+            AnalyticsPlatformHeader.apply(to: &request)
+            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+                request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
+            }
+
+            let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
+            guard let httpResponse = infoResponse as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else { return nil }
+
+            struct FileInfo: Codable { let url: String }
+            let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
+
+            guard let downloadURL = try? AstridHTTP.remoteURL(fileInfo.url) else { return nil }
+            let (fileData, _) = try await AstridHTTP.session.data(from: downloadURL)
+
+            cacheDownload(fileId: file.id, data: fileData)
+
+            let tempFileURL = downloadCache.previewURL(fileId: file.id, fileName: file.name)
+            try? fileData.write(to: tempFileURL)
+            return (fileId: file.id, url: tempFileURL)
+        } catch {
+            AppLog.debug("❌ [AttachmentService] Failed to download file for multi-preview: \(error)")
+            return nil
+        }
     }
 
     /// Cancel a pending upload and clean up local file
@@ -884,8 +872,7 @@ class AttachmentService: ObservableObject {
 
     /// Invalidate cached data for a file (used after updates)
     func invalidateCache(for fileId: String) {
-        let cachedPath = downloadCacheDirectory.appendingPathComponent(fileId)
-        try? fileManager.removeItem(at: cachedPath)
+        downloadCache.remove(fileId)
         AppLog.debug("🗑️ [AttachmentService] Invalidated cache for: \(fileId)")
     }
 
