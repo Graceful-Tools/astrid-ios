@@ -49,12 +49,16 @@ import Foundation
             var baseURL: String {
                 switch self {
                 case .development:
-                    // Use your local machine's IP address for testing on real device
-                    // Simulator can use "localhost", real device needs IP address
+                    // The simulator shares the Mac's loopback, so localhost just works.
                     #if targetEnvironment(simulator)
                     return "http://localhost:3000"
                     #else
-                    return "http://192.168.50.254:3000"
+                    // A physical device needs a routable address, and this used to be one
+                    // developer's home LAN IP baked into tracked source (AITD-351). Anyone else —
+                    // or the same person on another network — got an unreachable host with no
+                    // hint why. Point at production unless this build was actually given a dev
+                    // server, which is the same reasoning the macOS branch above already uses.
+                    return API.devServerURL ?? Brand.productionBaseURL
                     #endif
                 case .production:
                     return Brand.productionBaseURL
@@ -62,26 +66,54 @@ import Foundation
             }
         }
 
+        /// This build's own dev-server URL, if it was given one.
+        ///
+        /// Comes from the `AstridDevServerURL` Info.plist key, which `Info-Debug.plist` fills
+        /// from the `ASTRID_DEV_SERVER_URL` build setting — typically defined in an untracked
+        /// `Debug.xcconfig`. See `docs/XCODE_SETUP.md`.
+        ///
+        /// Nil when unset, which is the default and the point: no machine's address lives in the
+        /// repository, so a Debug build on someone else's device falls back to production rather
+        /// than silently pointing at a host that does not answer (AITD-351).
+        static var devServerURL: String? {
+            guard let value = Bundle.main.object(forInfoDictionaryKey: "AstridDevServerURL") as? String else {
+                return nil
+            }
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            // An undefined build setting expands to the empty string rather than disappearing.
+            guard !trimmed.isEmpty, trimmed != "$(ASTRID_DEV_SERVER_URL)" else { return nil }
+            return trimmed
+        }
+
         // Available server options for DEBUG builds
         #if DEBUG
         enum ServerOption: String, CaseIterable {
-            case localhost = "http://localhost:3000"
-            case localNetwork = "http://192.168.50.254:3000"
+            case localhost = "localhost"
+            /// The developer's own dev server. Offered only when this build has one — see
+            /// `available`.
+            case devServer = "dev-server"
             case production = "production"
 
             /// The URL this option selects. `production` resolves through Brand, so a
-            /// rebranded build points at its own host; the others are developer-local.
+            /// rebranded build points at its own host.
             var url: String {
                 switch self {
-                case .localhost, .localNetwork: return rawValue
+                case .localhost: return "http://localhost:3000"
+                case .devServer: return API.devServerURL ?? Brand.productionBaseURL
                 case .production: return Brand.productionBaseURL
                 }
+            }
+
+            /// The options worth showing. The dev-server row is hidden unless one is configured,
+            /// because an entry that silently means "production" is worse than no entry.
+            static var available: [ServerOption] {
+                allCases.filter { $0 != .devServer || API.devServerURL != nil }
             }
 
             var displayName: String {
                 switch self {
                 case .localhost: return "Localhost (Simulator)"
-                case .localNetwork: return "Local Network (Device)"
+                case .devServer: return "Dev Server (Device)"
                 case .production: return "Production (\(Brand.host))"
                 }
             }

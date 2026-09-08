@@ -38,7 +38,7 @@ final class UITestBaseURLTests: XCTestCase {
     func testTheDebugServerPreferenceDoesNotLeakIntoATestRun() {
         XCTAssertEqual(
             UITestSession.resolvedBaseURL(isUITesting: true,
-                                          debugPreference: "http://192.168.50.254:3000",
+                                          debugPreference: "http://192.0.2.10:3000",
                                           defaultURL: localhost,
                                           productionURL: production),
             production,
@@ -51,10 +51,10 @@ final class UITestBaseURLTests: XCTestCase {
     func testANormalRunStillHonoursTheDebugPreference() {
         XCTAssertEqual(
             UITestSession.resolvedBaseURL(isUITesting: false,
-                                          debugPreference: "http://192.168.50.254:3000",
+                                          debugPreference: "http://192.0.2.10:3000",
                                           defaultURL: localhost,
                                           productionURL: production),
-            "http://192.168.50.254:3000")
+            "http://192.0.2.10:3000")
     }
 
     /// And falls back to the build's default when they did not.
