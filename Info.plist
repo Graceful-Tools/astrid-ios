@@ -84,6 +84,10 @@
 	<array>
 		<string>cc.astrid.app.sync</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
