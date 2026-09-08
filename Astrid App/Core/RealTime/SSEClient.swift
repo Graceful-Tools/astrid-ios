@@ -111,6 +111,20 @@ actor SSEClient {
         streamTask?.cancel()
         streamTask = nil
         isConnected = false
+        publishStreamState(live: false)
+    }
+
+    /// Mirror the stream's real state to the main actor so views can stop doing the stream's job
+    /// for it. Note this follows the CONFIRMED transitions, not `isConnected` — that flag is set
+    /// optimistically in `connect()`, before there is any evidence the stream works.
+    private func publishStreamState(live: Bool) {
+        _Concurrency.Task { @MainActor in
+            if live {
+                SSEConnectionState.shared.streamDidBecomeLive()
+            } else {
+                SSEConnectionState.shared.streamDidStop()
+            }
+        }
     }
 
     private func startStreaming(request: URLRequest) async {
@@ -130,6 +144,7 @@ actor SSEClient {
             }
 
             AppLog.debug("✅ [SSE] Connected and streaming")
+            publishStreamState(live: true)
             resetReconnectAttempts()
 
             // Process bytes as they stream in.
@@ -158,6 +173,7 @@ actor SSEClient {
             AppLog.debug("📡 [SSE] Stream ended — will reconnect")
             // Stream ended normally (server closed connection) — reconnect
             isConnected = false
+            publishStreamState(live: false)
             resetReconnectAttempts()
             try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)  // 2s delay
             if !_Concurrency.Task.isCancelled {
@@ -176,6 +192,7 @@ actor SSEClient {
 
     private func handleConnectionError(_ error: Error) async {
         isConnected = false
+        publishStreamState(live: false)
 
         // Don't reconnect if task was cancelled (intentional disconnect)
         guard !_Concurrency.Task.isCancelled else {
