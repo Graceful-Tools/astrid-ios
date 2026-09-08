@@ -87,6 +87,41 @@ final class GitHubSyncService: ObservableObject {
         (try? await apiClient.getGitHubAuthorizeURL().url).flatMap { URL(string: $0) }
     }
 
+    enum ConnectError: LocalizedError {
+        case notConfigured
+        var errorDescription: String? {
+            NSLocalizedString("sync.github_not_configured", comment: "GitHub sync not configured")
+        }
+    }
+
+    /// Connect GitHub Issues in an in-app auth session (AITD-362), mirroring
+    /// `GoogleTasksSyncService.connect()`. This used to hand the authorize URL to the system
+    /// browser, which backgrounded the app and left the settings screen showing "not connected"
+    /// on return — `scheduleSync()` guards on `isConnected`, so nothing re-read the status.
+    ///
+    /// Unlike Google, the server callback ends on a plain "return to the app" page with no
+    /// app-scheme redirect, so the session closes when the user taps Done. Done can land before
+    /// the callback has filed the token, which is why the status is polled and not read once.
+    /// A cancel is therefore indistinguishable from a finished flow and is not an error: the
+    /// poll simply finds nothing connected.
+    func connect() async throws {
+        guard let url = await authorizeURL() else { throw ConnectError.notConfigured }
+        _ = try? await OAuthWebConnector.shared.present(url: url, callbackScheme: "astrid")
+        await pollConnection()
+    }
+
+    /// Re-check the connection until it reads connected or the attempts run out.
+    private func pollConnection(maxAttempts: Int = 10) async {
+        var attempt = 0
+        await refreshStatus()
+        while ConnectionPoll.shouldContinue(attempt: attempt, connected: isConnected,
+                                            maxAttempts: maxAttempts) {
+            try? await _Concurrency.Task.sleep(nanoseconds: ConnectionPoll.intervalNanos)
+            await refreshStatus()
+            attempt += 1
+        }
+    }
+
     func disconnect() async {
         try? await apiClient.disconnectGitHub()
         await refreshStatus()

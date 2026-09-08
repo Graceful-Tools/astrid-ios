@@ -1,17 +1,18 @@
 //  MacConnectPoll.swift
-//  Astrid for Mac — pure poll-loop rule for OAuth connect (no in-app callback on macOS, so we poll
-//  the connection status after opening the browser instead of forcing a close/reopen).
-
+//  Thin alias for the shared `ConnectionPoll` in Core (AITD-362). The predicate used to live
+//  here, which is how iOS ended up without one at all — keep the Mac call sites working while
+//  the single copy lives next to the services that poll.
 #if os(macOS)
 import Foundation
 
 enum MacConnectPoll {
-    static let maxAttempts = 20      // ~40s at 2s intervals
-    static let intervalNanos: UInt64 = 2_000_000_000
+    static let maxAttempts = ConnectionPoll.maxAttempts
+    static let intervalNanos = ConnectionPoll.intervalNanos
 
     /// Keep polling while not yet connected and under the attempt cap.
-    static func shouldContinue(attempt: Int, connected: Bool, maxAttempts: Int = maxAttempts) -> Bool {
-        !connected && attempt < maxAttempts
+    static func shouldContinue(attempt: Int, connected: Bool,
+                               maxAttempts: Int = ConnectionPoll.maxAttempts) -> Bool {
+        ConnectionPoll.shouldContinue(attempt: attempt, connected: connected, maxAttempts: maxAttempts)
     }
 }
 #endif
