@@ -216,25 +216,22 @@ struct MacProjectStateSection: View {
     private func move(to column: ProjectBoardColumn) {
         onMoved()
         guard column.id != currentColumnId else { return }
-        let plan = MacBoardMove.plan(task: task, column: column, lists: listService.lists)
+        let plan = planProjectColumnMove(task: task, column: column, lists: listService.lists)
         MacActions.perform("Move task") {
-            switch plan {
-            case .none:
-                break
-            case .setLists(let ids, let role):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
+            // Same sequencer as the iOS picker (AITD-352), including ASTRID.md rule 2 —
+            // completion only ever through `completeTask`. The Mac discards the returned task:
+            // its detail view is handed one derived from the observed `TaskService` and redraws
+            // on its own, which is exactly why this bug was iOS-only.
+            _ = try await ProjectStateMove.apply(
+                plan: plan,
+                update: { ids, role in
+                    try await taskService.updateTask(taskId: task.id, listIds: ids,
                                                      task: task, statusRole: role)
-            case .complete(let ids, let role):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                     task: task, statusRole: role)
-                // Completion goes through `completeTask`, never `updateTask(completed:)`:
-                // that is the only path that rolls a repeating task forward (ASTRID.md rule 2).
-                _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
-            case .uncomplete(let ids, let role):
-                _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                     task: task, statusRole: role)
-            }
+                },
+                complete: { flag in
+                    try await taskService.completeTask(id: task.id, completed: flag, task: task)
+                }
+            )
         }
     }
 }
