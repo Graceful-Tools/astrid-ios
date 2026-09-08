@@ -780,7 +780,16 @@ struct MacRootView: View {
                 // bound here and set by nothing, which is "add task didn't always have a cursor
                 // prompt" (b71850e6). Focus follows the bar becoming usable, and the rule for
                 // WHEN lives in MacAddTaskBar so it can be asserted.
-                .onAppear { focusAddFieldIfAppropriate() }
+                // Focus on appear, exactly as b71850e6 set it up — the caret is not delayed and no
+                // keystroke is lost. Focusing is what summons macOS's empty AutoFill popover, so
+                // the watch that closes it starts alongside (AITD-333). The watch owns its own
+                // state and is idempotent: SwiftUI rebuilds this field during launch, and hanging
+                // the timer off the view's lifecycle meant `onDisappear` killed it before it ever
+                // ticked once.
+                .onAppear {
+                    focusAddFieldIfAppropriate()
+                    MacStrayAutoFillPanel.beginLaunchWatch()
+                }
                 .onChange(of: selectedListId) { focusAddFieldIfAppropriate() }
                 .onChange(of: taskSearchQuery.isEmpty) { focusAddFieldIfAppropriate() }
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))

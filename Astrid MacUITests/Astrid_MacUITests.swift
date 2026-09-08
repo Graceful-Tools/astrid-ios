@@ -72,6 +72,44 @@ final class Astrid_MacUITests: XCTestCase {
         return app
     }
 
+    /// The caret still lands in quick-add on its own — you can type straight into a selected list
+    /// without clicking the field first (task b71850e6).
+    ///
+    /// This guards the OTHER half of AITD-333. That task made the auto-focus wait for the user's
+    /// first interaction with the window, because focusing a text field before anyone has touched
+    /// the app summons macOS's Password AutoFill popover and leaves it stranded on screen with
+    /// nothing in it. The risk in that change is over-correcting into the b71850e6 bug — "add task
+    /// didn't always have a cursor prompt" — so this types WITHOUT clicking the field: the text can
+    /// only land if the caret got there by itself, after the clicks that selected the list.
+    @MainActor
+    func testQuickAddTakesTheCaretWithoutBeingClicked() {
+        let app = enterOfflineShell()
+        let listName = "UITest Focus \(Int.random(in: 1000...9999))"
+        let taskTitle = "UITest autofocus \(Int.random(in: 1000...9999))"
+
+        app.descendants(matching: .any).matching(identifier: "sidebar.newList").firstMatch.click()
+        let nameField = app.descendants(matching: .any).matching(identifier: "listEdit.name").firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 10))
+        nameField.click()
+        nameField.typeText(listName)
+        app.buttons["Create"].firstMatch.click()
+
+        let listRow = app.staticTexts[listName].firstMatch
+        XCTAssertTrue(listRow.waitForExistence(timeout: 10))
+        listRow.click()
+
+        app.activate()
+        let quickAdd = app.descendants(matching: .any).matching(identifier: "tasks.quickAdd").firstMatch
+        XCTAssertTrue(quickAdd.waitForExistence(timeout: 10))
+
+        // NOT quickAdd.click() — that is the whole point. Type at the window and let the caret
+        // prove where it is.
+        app.typeText(taskTitle + "\n")
+
+        XCTAssertTrue(app.staticTexts[taskTitle].firstMatch.waitForExistence(timeout: 10),
+                      "Typing without clicking produced no task — the quick-add caret never arrived")
+    }
+
     /// My Tasks shows the branded empty state (not a blank pane) in a fresh offline account.
     @MainActor
     func testMyTasksShowsBrandedEmptyState() {
