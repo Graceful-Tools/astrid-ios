@@ -1499,6 +1499,12 @@ struct MacRootView: View {
                     .help(NSLocalizedString("mac.refresh", comment: ""))
                     .accessibilityIdentifier("tasks.refresh")
                 }
+                // Undo, beside Refresh — a window control, not a row control, which is what
+                // earns it a place here while sort and filter were shown the door
+                // (`MacListChrome.toolbarOffersUndo`, AITD-374).
+                if MacListChrome.toolbarOffersUndo {
+                    ToolbarItem(placement: .primaryAction) { MacUndoToolbarButton() }
+                }
                 // Sort, filter and the task "+" are NOT toolbar items (9998d83a, 10d2cd34): the
                 // window toolbar's trailing edge is the chat column in 3-column mode, so they
                 // looked like the message list's controls. Sort/filter moved to `listChrome`

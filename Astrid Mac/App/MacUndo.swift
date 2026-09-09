@@ -108,6 +108,15 @@ enum MacUndoMenu {
         return "\(base) \(name)"
     }
 
+    /// The toolbar's Undo button is live exactly when the task stack has something in it.
+    ///
+    /// Deliberately NOT the same question as the Edit menu item's, which stays enabled always:
+    /// ⌘Z falls through to a focused text field when the stack is empty (see `target` below), and
+    /// a menu item greyed out on `stackCanUndo` alone would take ⌘Z away from typing. The button
+    /// is a TASK-undo affordance and never routes to a field editor, so it can be honest about
+    /// having nothing to do.
+    static func toolbarButtonIsEnabled(stackCanUndo: Bool) -> Bool { stackCanUndo }
+
     /// The task stack wins whenever it has something in it, and a focused text field's editor
     /// picks up the rest. The other order — field editor first — reads better on paper but cannot
     /// be shown honestly in the menu: the title is built while SwiftUI assembles the menu bar,
