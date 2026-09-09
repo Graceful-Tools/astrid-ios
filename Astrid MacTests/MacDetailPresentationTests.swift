@@ -86,25 +86,54 @@ final class MacDetailPresentationTests: XCTestCase {
     /// editor's bottom row, which is the wrong end: the thing that closes the card is the caret at
     /// the top, so the thing that expands it belongs next to it — close or expand, one place, not
     /// one at each end of a card whose height changes with its content.
-    func testTheBoardCardOffersTheFullScreenControlUnderTheCaret() throws {
+    /// AITD-377 rehomes what 7017c3c1 placed. The card's full-screen control was a second button
+    /// stacked under the collapse caret in a 20px gutter; it is now the first item of the card's
+    /// right-click menu, matching web's AWTD-872. What has to stay true is unchanged in substance:
+    /// the action is still reachable, still turns full screen on rather than merely opening the
+    /// panel, and still exists in exactly ONE place on the card.
+    func testTheBoardCardOffersFullScreenFromItsMenuAndNotTheGutter_AITD377() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
         let board = try String(contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardView.swift"),
                                encoding: .utf8)
-        XCTAssertTrue(board.contains("MacDetailPresentation.fullScreenSymbol"),
-                      "the board card must use the SHARED glyph, not its own")
-        XCTAssertTrue(board.contains("MacDetailPresentation.fullScreenTooltipKey"),
-                      "…and the shared tooltip, rather than repeating the key literal")
         XCTAssertTrue(board.contains("detailFullScreen = true"),
-                      "the control has to actually turn full screen on, not just open the panel")
+                      "the action has to actually turn full screen on, not just open the panel")
+        XCTAssertFalse(board.contains("MacDetailPresentation.fullScreenSymbol"),
+                       "the gutter button is gone — a menu item carries a label, not a glyph")
+
+        // Reachable, and named by the shared tooltip key rather than a repeated literal.
+        let menu = try String(contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacTaskRowMenu.swift"),
+                              encoding: .utf8)
+        XCTAssertTrue(menu.contains("MacDetailPresentation.fullScreenTooltipKey"),
+                      "the menu item must take its name from the shared key")
+        XCTAssertEqual(MacTaskRowMenu.items(for: .boardCard).first, .fullScreen,
+                       "and lead the card's menu, the position web gave it")
 
         let editor = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardCardEditor.swift"),
             encoding: .utf8)
         XCTAssertFalse(editor.contains("MacDetailPresentation.fullScreenSymbol"),
-                       "it must MOVE to the header, not exist at both ends of the card")
+                       "it must live in ONE place on the card, not at both ends of it")
         XCTAssertFalse(editor.contains("mac.open_full_detail"),
                        "the bottom 'Open full detail…' link goes with it")
+    }
+
+    /// The roomy header keeps its BUTTON — web left its side pane alone for the same reason, and
+    /// an earlier task was specifically about that control being reachable. It must ask the shared
+    /// helper for both the glyph and the tooltip, which is the whole reason that helper exists:
+    /// it claimed to match the board while restating both literals.
+    func testTheDetailHeaderKeepsItsButtonAndAsksTheSharedHelper() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let detail = try String(
+            contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift"),
+            encoding: .utf8)
+        XCTAssertTrue(detail.contains("MacDetailPresentation.fullScreenSymbol"),
+                      "the detail header must use the SHARED glyph, not its own")
+        XCTAssertTrue(detail.contains("MacDetailPresentation.fullScreenTooltipKey"),
+                      "…and the shared tooltip, rather than repeating the key literal")
+        XCTAssertFalse(detail.contains("\"arrow.down.right.and.arrow.up.left\""),
+                       "no restated icon literal — that is the drift the helper prevents")
     }
 
     /// The icon pair is the one already in use for full screen, and it changes with the state.
