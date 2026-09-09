@@ -88,15 +88,17 @@ final class MacBoardStatusPickerTests: XCTestCase {
 
     // MARK: - The detail panel is untouched
 
-    /// Its extra condition survives: someone else's photo is not a checkbox, so clicking it
-    /// opens the picker rather than finishing their task (task 729a190e).
+    /// Its extra condition survives, in the form AITD-363 gave it: someone else's photo is not
+    /// a checkbox, so clicking it never finishes their task outright (task 729a190e) — it asks
+    /// first. The Mac panel and the phone's detail read the same rule, so the confirmation
+    /// reaches both or the two platforms disagree about one task.
     func testDetailKeepsItsOwnRule() {
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
             .complete)
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list),
-            .openPicker)
+            .confirmCompletion)
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project),
             .openPicker)

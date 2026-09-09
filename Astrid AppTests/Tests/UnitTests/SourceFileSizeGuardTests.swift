@@ -31,7 +31,12 @@ final class SourceFileSizeGuardTests: XCTestCase {
     /// Lowering an entry is always welcome. RAISING one should be a conscious decision with a
     /// reason, not a reflex to make the suite green — that reflex is how six became nine.
     private static let ceilings: [String: Int] = [
-        "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 2090,
+        // Was 2090. AITD-363 extracted the leading control into its own
+        // `TaskDetailLeadingControl.swift` — the shape the Mac has had since
+        // `MacLeadingControlButton` — rather than raising this to fit a confirmation
+        // dialog into the largest file in the repo. The ratchet asked the question and
+        // the answer was an extraction; the new number is what stops the lines coming back.
+        "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 1914,
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
         "Astrid App/Views/Tasks/TaskListView.swift": 1766,
         "Astrid App/Core/Services/TaskService.swift": 1675,

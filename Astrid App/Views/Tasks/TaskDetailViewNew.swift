@@ -43,8 +43,6 @@ struct TaskDetailViewNew: View {
     @State private var editedAssigneeId: String?
     @State private var isCompleted: Bool
     @State private var showingCompleteSubtasksPrompt = false
-    /// Priority / assignee / Complete, presented from the leading checkbox (42013da7).
-    @State private var showingLeadingPicker = false
     @State private var isAllDay: Bool  // Track all-day state independently
     @State private var showTimer: Bool = false // New state for timer
     // Comment bar visibility: the bar lives in a bottom safeAreaInset, so it
@@ -321,26 +319,26 @@ struct TaskDetailViewNew: View {
                     // photo in a priority-coloured square when it belongs to someone else — and
                     // it now holds priority, assignee and Complete behind it (42013da7).
                     if !isReadOnly {
-                        Button {
-                            // Dismiss the keyboard first — otherwise the popover opens above it
-                            // and the picker is squeezed into whatever is left (42013da7).
-                            isTitleFocused = false
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                            to: nil, from: nil, for: nil)
-                            // LIST mode: a checkbox completes the task, which is what a
-                            // checkbox means (task 729a190e). Opening the picker was
-                            // unconditional, so in list mode the most familiar gesture in the
-                            // app did the one thing it does not normally do.
-                            if leadingControlCompletes { toggleCompletion() }
-                            else { showingLeadingPicker = true }
-                        } label: {
-                            detailLeadingControl
-                        }
-                        .buttonStyle(.plain)
-                        .popover(isPresented: $showingLeadingPicker) {
-                            leadingPickerContent
-                                .presentationCompactAdaptation(.popover)
-                        }
+                        TaskDetailLeadingControl(
+                            task: task,
+                            isCompleted: isCompleted,
+                            priority: $editedPriority,
+                            assigneeId: $editedAssigneeId,
+                            listIds: editedListIds,
+                            repeating: editedRepeating,
+                            onWillPresent: {
+                                // The popover would otherwise open above the keyboard and be
+                                // squeezed into whatever is left (42013da7). Focus is the
+                                // parent's, so dismissing it stays here.
+                                isTitleFocused = false
+                                UIApplication.shared.sendAction(
+                                    #selector(UIResponder.resignFirstResponder),
+                                    to: nil, from: nil, for: nil)
+                            },
+                            onSaveAssignee: { await saveAssignee($0) },
+                            onToggleCompletion: { toggleCompletion() },
+                            onTaskUpdated: { self.task = $0 }
+                        )
                         .confirmationDialog(
                             NSLocalizedString("task_detail.complete_subtasks_title", comment: "Complete sub-tasks?"),
                             isPresented: $showingCompleteSubtasksPrompt,
@@ -1447,57 +1445,6 @@ struct TaskDetailViewNew: View {
         }
     }
 
-    private var priorityColor: Color {
-        switch editedPriority {
-        case .none: return Theme.priorityNone
-        case .low: return Theme.priorityLow
-        case .medium: return Theme.priorityMedium
-        case .high: return Theme.priorityHigh
-        }
-    }
-
-    /// Custom checkbox image matching task row design
-    /// Mirrors TaskRowView's leading control: the assignee's photo in a priority-coloured square
-    /// when the task belongs to someone else, the completion checkbox otherwise (42013da7).
-    @ViewBuilder private var detailLeadingControl: some View {
-        // Asks the SHARED helper rather than spelling "not mine" here, so project mode's
-        // "your own task shows your photo too" (task 132d7b3f) reaches the detail as well as
-        // the rows, without this view knowing what the modes are.
-        if let assignee = effectiveAssignee, showsAssigneeFace {
-            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8).fill(Theme.accent)
-                    Text(assignee.initials)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-            }
-            .frame(width: 34, height: 34)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8)
-                .stroke(priorityColor(editedPriority), lineWidth: 2))
-            // Keyed on the assignee: SwiftUI reuses a view whose identity has not changed, which
-            // is the other half of "the photo didn't change" (42013da7).
-            .id(AssigneeResolver.avatarIdentity(for: editedAssigneeId))
-            .accessibilityLabel(Text(assignee.displayName))
-        } else if TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                          currentUserId: AuthManager.shared.currentUser?.id,
-                                          displayMode: displayMode) == .unassigned {
-            // Nobody assigned gets "U", the same mark the assignee list uses (42013da7).
-            Text(TaskLeadingControl.unassignedGlyph)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(priorityColor(editedPriority))
-                .frame(width: 34, height: 34)
-                .overlay(RoundedRectangle(cornerRadius: 8)
-                    .stroke(priorityColor(editedPriority), lineWidth: 2))
-                .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
-        } else {
-            checkboxImage
-        }
-    }
-
     /// Priority, assignee and Complete — everything that used to be its own row, behind the
     /// control that already depicts all three (42013da7).
     /// One control of the "When" row. Which controls appear, and on which line,
@@ -1536,66 +1483,6 @@ struct TaskDetailViewNew: View {
         }
     }
 
-    @ViewBuilder private var leadingPickerContent: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing16) {
-            // Each choice dismisses the popover straight away — you came here to set ONE thing,
-            // and leaving it open makes you tap outside to confirm nothing happened (42013da7).
-            PriorityButtonPicker(priority: $editedPriority, onSave: { newPriority in
-                _ = try await taskService.updateTask(taskId: task.id, priority: newPriority.rawValue, task: task)
-                await MainActor.run { showingLeadingPicker = false }
-            })
-
-            InlineAssigneePicker(
-                label: NSLocalizedString("tasks.assignee", comment: ""),
-                assigneeId: $editedAssigneeId,
-                taskListIds: editedListIds,
-                taskId: task.id,
-                availableLists: listService.lists,
-                onSave: { newAssigneeId in
-                    await saveAssignee(newAssigneeId)
-                    await MainActor.run { showingLeadingPicker = false }
-                },
-                showLabel: false
-            )
-
-            // Board state, in PROJECT mode only (task 729a190e) — the third thing the quick
-            // changer holds. List mode does not offer it: priority and assignee are rows of
-            // their own there, and a board column is a project idea. Offering it in both
-            // would rebuild the hybrid layout this setting exists to end.
-            if displayMode.usesCompactTaskDetail {
-                Divider()
-                VStack(alignment: .leading, spacing: Theme.spacing8) {
-                    Text(NSLocalizedString("board.project_state", comment: ""))
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(Theme.textMuted)
-                    ProjectStateQuickPicker(task: task,
-                                            onMoved: { showingLeadingPicker = false },
-                                            onTaskUpdated: { self.task = $0 })
-                }
-            }
-
-            Divider()
-
-            Button {
-                showingLeadingPicker = false
-                toggleCompletion()
-            } label: {
-                Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                                  : NSLocalizedString("tasks.complete_task", comment: ""),
-                      systemImage: isCompleted ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                    .font(Theme.Typography.body())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.spacing12)
-                    .background(Theme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(Theme.spacing16)
-        .frame(width: 320)
-    }
-
     /// The assignee to depict — the full object when we have it, otherwise a minimal User built
     /// from the id so UserImageCache can still resolve a photo (same as TaskRowView).
     /// Resolved rather than string-compared, so null and an unknown value from a newer build
@@ -1614,56 +1501,6 @@ struct TaskDetailViewNew: View {
         TaskDetailProjectStateRow.isVisible(displayMode: displayMode,
                                             isInProject: isTaskInProject(task, lists: listService.lists),
                                             isReadOnly: isReadOnly)
-    }
-
-    /// Whether the leading control is a face rather than a checkbox or the unassigned mark.
-    private var showsAssigneeFace: Bool {
-        if case .avatar = TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                                  currentUserId: AuthManager.shared.currentUser?.id,
-                                                  displayMode: displayMode) { return true }
-        return false
-    }
-
-    /// Whether tapping the leading control completes the task instead of opening the picker.
-    ///
-    /// Only when the control IS a checkbox. Someone else's avatar is not a checkbox, and
-    /// completing their task by tapping their photo is not what that tap means — those keep
-    /// the picker in both modes. Mirrors the Mac's `tapCompletes`.
-    private var leadingControlCompletes: Bool {
-        TaskLeadingControl.action(
-            surface: .detail,
-            kind: TaskLeadingControl.kind(assigneeId: editedAssigneeId,
-                                          currentUserId: AuthManager.shared.currentUser?.id,
-                                          displayMode: displayMode),
-            displayMode: displayMode) == .complete
-    }
-
-    private var effectiveAssignee: User? {
-        // No member list here — the picker fetches its own — so the resolver falls through to the
-        // task's assignee, then to a minimal User that UserImageCache can still supply a photo for.
-        AssigneeResolver.resolve(id: editedAssigneeId, members: [], taskAssignee: task.assignee,
-                                 agents: AIAgentCache.shared.load() ?? [])
-    }
-
-    private var checkboxImage: some View {
-        let priorityValue = editedPriority.rawValue
-        let isRepeating = editedRepeating != nil && editedRepeating != .never
-        let isChecked = isCompleted
-
-        // Build image name: check_box[_repeat][_checked]_<priority>
-        var imageName = "check_box"
-        if isRepeating {
-            imageName += "_repeat"
-        }
-        if isChecked {
-            imageName += "_checked"
-        }
-        imageName += "_\(priorityValue)"
-
-        return Image(imageName)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 34, height: 34)
     }
 
     private func toggleCompletion() {
@@ -2044,19 +1881,6 @@ struct TaskDetailViewNew: View {
         }
 
         return formatter.string(from: date)
-    }
-
-    private func priorityColor(_ priority: Task.Priority) -> Color {
-        switch priority {
-        case .none:
-            return .gray
-        case .low:
-            return .blue
-        case .medium:
-            return .orange
-        case .high:
-            return .red
-        }
     }
 
     private func priorityText(_ priority: Task.Priority) -> String {

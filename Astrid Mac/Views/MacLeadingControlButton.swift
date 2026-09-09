@@ -27,6 +27,8 @@ struct MacLeadingControlButton: View {
     let onToggleComplete: () -> Void
 
     @State private var isPresented = false
+    /// Confirming completion of a task assigned to someone else (AITD-363).
+    @State private var isConfirmingCompletion = false
     @StateObject private var userSettings = UserSettingsService.shared
 
     private var kind: TaskLeadingControl {
@@ -42,28 +44,64 @@ struct MacLeadingControlButton: View {
     /// Asked of the SHARED rule rather than spelled here, so the board card, the list row and
     /// this panel cannot answer it three different ways (task f9d7ed42). What that rule says
     /// for this surface, and why, lives with the rule.
-    private var tapCompletes: Bool {
-        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode) == .complete
+    ///
+    /// The whole action rather than a `tapCompletes` boolean (AITD-363): someone else's photo
+    /// in the panel now asks before completing, and a boolean carrying two answers would have
+    /// folded that third one silently back into "open the picker" — the Mac quietly doing
+    /// something else than the phone for the same task, which is what sharing the rule prevents.
+    private var tapAction: TaskLeadingControlAction {
+        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode)
     }
 
     var body: some View {
-        Button { if tapCompletes { onToggleComplete() } else { isPresented = true } } label: { face }
+        Button {
+            switch tapAction {
+            case .complete:          onToggleComplete()
+            case .openPicker:        isPresented = true
+            case .confirmCompletion: isConfirmingCompletion = true
+            }
+        } label: { face }
             .buttonStyle(.plain)
             .macPointingHand()
             .help(helpText)
             .accessibilityLabel(helpText)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) { picker }
+            // "Complete this task?" / "Assigned to {name}" — it NAMES the assignee, because a
+            // dialog asking about "this task" over an unlabelled photo is the blind confirm
+            // that teaches people to accept without reading.
+            .confirmationDialog(NSLocalizedString("tasks.confirm_complete_title", comment: ""),
+                                isPresented: $isConfirmingCompletion) {
+                Button(NSLocalizedString("tasks.complete_task", comment: "")) { onToggleComplete() }
+                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+            } message: {
+                Text(String(format: NSLocalizedString("tasks.confirm_complete_assigned", comment: ""),
+                            assigneeDisplayName))
+            }
+    }
+
+    /// Who the confirmation names. Resolved through the SHARED resolver — the same one the face
+    /// above uses — so the dialog names the person whose photo was actually tapped.
+    private var assigneeDisplayName: String {
+        guard case .avatar(let userId) = kind,
+              let user = AssigneeResolver.resolve(id: userId,
+                                                  members: members.compactMap(\.user),
+                                                  taskAssignee: task.assignee,
+                                                  agents: AIAgentCache.shared.load() ?? [])
+        else { return NSLocalizedString("assignee.unassigned", comment: "") }
+        return user.displayName
     }
 
     /// Say what the click does. It used to always read "Priority", which was already only
     /// a third of the truth and is simply wrong when the click completes the task.
     private var helpText: String {
-        if tapCompletes {
+        switch tapAction {
+        case .complete, .confirmCompletion:
             return task.completed
                 ? NSLocalizedString("mac.mark_incomplete", comment: "")
                 : NSLocalizedString("tasks.complete_task", comment: "")
+        case .openPicker:
+            return NSLocalizedString("tasks.priority", comment: "")
         }
-        return NSLocalizedString("tasks.priority", comment: "")
     }
 
     /// Checkbox, someone else's photo, or the unassigned mark — the same three

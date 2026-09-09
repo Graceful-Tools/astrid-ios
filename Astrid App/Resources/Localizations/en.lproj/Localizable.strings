@@ -100,6 +100,8 @@
 "tasks.edit_task" = "Edit task";
 "tasks.delete_task" = "Delete task";
 "tasks.complete_task" = "Complete / Done!";
+"tasks.confirm_complete_title" = "Complete this task?";
+"tasks.confirm_complete_assigned" = "Assigned to %@";
 "tasks.task_name" = "Task name";
 "tasks.description" = "Description";
 "tasks.no_description" = "No description";
