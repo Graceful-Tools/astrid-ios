@@ -550,6 +550,44 @@ final class TaskListModelTests: XCTestCase {
         XCTAssertNil(list.recentlyCompletedWindow)
     }
 
+    /// AITD-376 / AWTD-853: web is deprecating the four vestigial
+    /// `TaskList.status*` columns off the v1 contract, so a list response will
+    /// stop carrying the keys AT ALL — not send them as null.
+    ///
+    /// That is a different decode path from `testDecode_legacyListHasNilBoardFields`
+    /// above, which pins explicit nulls. `decodeIfPresent` tolerates both, but
+    /// nothing tested the absent case, and the answer this repo gave web ("drop
+    /// them, no deprecation window needed, no minimum app version") is only true
+    /// while it stays that way. A non-optional or plain `decode(_:forKey:)` on any
+    /// of the four would break every list response the day web stops emitting them.
+    ///
+    /// `statusRole` here is the LIST's, not `Task.statusRole` — that one is the
+    /// live board column and is untouched by the deprecation.
+    func testDecode_boardFieldsAbsentEntirely_AITD376() throws {
+        let json = """
+        {
+          "id": "post-deprecation",
+          "name": "Work",
+          "privacy": "SHARED",
+          "ownerId": "u1",
+          "projectId": "p1",
+          "listType": "regular"
+        }
+        """.data(using: .utf8)!
+
+        let list = try JSONDecoder().decode(TaskList.self, from: json)
+
+        XCTAssertNil(list.statusRole)
+        XCTAssertNil(list.statusOrder)
+        XCTAssertNil(list.statusDescription)
+        XCTAssertNil(list.statusCompleted)
+
+        // The fields the same response still carries must survive the omission.
+        XCTAssertEqual(list.id, "post-deprecation")
+        XCTAssertEqual(list.projectId, "p1")
+        XCTAssertEqual(list.listType, "regular")
+    }
+
     /// `recentlyCompletedWindow` is a discriminated union; iOS must decode
     /// every shape the web emits. Spot-check each kind.
     func testDecode_recentlyCompletedWindow_eachKind() throws {
