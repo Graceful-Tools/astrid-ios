@@ -978,40 +978,31 @@ struct MacRootView: View {
         .overlay(alignment: .leading) {
             if draggingTaskId != nil { outdentBand(for: task) }
         }
+        // The SHARED menu (AITD-372) — a board card renders the same items from the same model.
+        // Only the targets differ: right-clicking inside a multi-selection acts on all of it,
+        // which a card, having no selection, cannot do.
         .contextMenu {
             let targets = actionTargets(task)
-            Button(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                     : NSLocalizedString("reminders.complete", comment: "")) {
-                targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task)
-            }
-            Button(NSLocalizedString("mac.rename", comment: "")) { beginInlineEdit(task) }
-            Menu(NSLocalizedString("mac.set_priority", comment: "")) {
-                ForEach(MacTaskVisuals.allPriorities.reversed(), id: \.self) { p in
-                    Button(MacTaskVisuals.priorityLabel(p)) { bulkSetPriority(targets, p) }
-                }
-            }
-            Menu(NSLocalizedString("mac.move_to_list", comment: "")) {
-                ForEach(listService.lists.filter { $0.id != selectedListId }) { list in
-                    Button(list.name) { move(targets, to: list.id) }
-                }
-            }
-            // Share / copy straight from the row — iOS offers these on a task without opening it
-            // first, and on Mac they were detail-only (task ea0527ef). Same shared services.
-            Menu(NSLocalizedString("lists.copy_to_list", comment: "")) {
-                ForEach(MacTaskCopy.targets(lists: listService.lists)) { t in
-                    Button(t.label) { copyTask(task, to: t.listId) }
-                }
-            }
-            Button(NSLocalizedString("actions.share", comment: "")) { shareTaskFromRow(task) }
-            Button(NSLocalizedString("actions.copy", comment: "")) {
-                MacTaskActions.copyToPasteboard(
-                    MacTaskActions.clipboardText(title: task.title, shareURL: nil))
-            }
-            Button(NSLocalizedString("mac.open_new_window", comment: "")) {
-                openWindow(id: "task", value: task.id)
-            }
-            Divider()
-            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { bulkDelete(targets) }
+            MacTaskRowMenuContent(
+                task: task,
+                surface: .listRow,
+                lists: listService.lists,
+                currentListId: selectedListId,
+                actions: MacTaskRowMenuActions(
+                    toggleComplete: { targets.count > 1 ? bulkComplete(targets) : toggleCompleted(task) },
+                    rename: { beginInlineEdit(task) },
+                    setPriority: { bulkSetPriority(targets, $0) },
+                    move: { move(targets, to: $0) },
+                    copyToList: { copyTask(task, to: $0) },
+                    share: { shareTaskFromRow(task) },
+                    copyToPasteboard: {
+                        MacTaskActions.copyToPasteboard(
+                            MacTaskActions.clipboardText(title: task.title, shareURL: nil))
+                    },
+                    openInNewWindow: { openWindow(id: "task", value: task.id) },
+                    delete: { bulkDelete(targets) }
+                )
+            )
         }
         .listRowBackground(Color.clear)              // card is drawn by MacTaskRow; show theme bg between
         .listRowSeparator(.hidden)
