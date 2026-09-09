@@ -41,6 +41,22 @@ enum MacListChrome {
         isRealList && isListMode
     }
 
+    /// The list's own settings menu — Edit, Sharing, Enable board, Delete (AITD-373).
+    ///
+    /// Sort and filter act on ROWS, so they ride with the rows and a board has neither. The
+    /// settings menu is not a rows control: it configures the list itself, which a board is just
+    /// as much a view of. Suppressing the whole strip in board mode therefore took the settings
+    /// with it, and a board offered no route to them at all — the sidebar's right-click was the
+    /// only way in, and the sidebar row is not what you are looking at while working a board.
+    ///
+    /// List mode is deliberately excluded rather than overlooked. Its strip already carries the
+    /// filter button, the sidebar right-click is unchanged and still there, and Jon asked for the
+    /// board. A third control beside sort and filter is the clutter AITD-305 just finished
+    /// removing.
+    static func showsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
+        isRealList && !isListMode
+    }
+
     /// Pinned so the controls cannot drift back into the window toolbar, where the trailing edge
     /// is the chat column rather than the list.
     static let toolbarOffersSortOrFilter = false
