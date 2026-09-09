@@ -64,11 +64,14 @@ enum TaskLeadingControlSurface: Equatable {
 }
 
 /// What clicking or tapping the leading control does.
+///
+/// Two answers, not three. AITD-363 briefly added a `confirmCompletion` tap for someone else's
+/// task in task details; AITD-375 replaced it with the options popover on every surface, and the
+/// confirmation moved INSIDE that popover, onto the Complete button — see
+/// `completionNeedsConfirmation`. A tap either finishes the task or offers you the choices.
 enum TaskLeadingControlAction: Equatable {
     case complete
     case openPicker
-    /// Ask first, then complete (AITD-363). Someone else's task, from its own detail screen.
-    case confirmCompletion
 }
 
 extension TaskLeadingControl {
@@ -83,37 +86,81 @@ extension TaskLeadingControl {
     /// board — unless project mode has turned the control into the quick changer everywhere
     /// (task 132d7b3f).
     ///
-    /// The DETAIL screen is where the three answers are needed rather than two (AITD-363).
-    /// Someone else's photo is not a checkbox and must not finish their task on a tap
-    /// (task 729a190e) — but details is also the ONLY completion affordance a task has there,
-    /// so treating the photo as inert made a task assigned to anyone but you uncompletable from
-    /// its own screen. It CONFIRMS instead: the objection the row encodes is still real, and the
-    /// confirmation is what lets details offer the action without becoming that hazard.
+    /// SOMEONE ELSE'S TASK OPENS THE POPOVER, EVERYWHERE (AITD-375). Jon: "when not yours ...
+    /// it should give the popover to show assignment, complete, priority and status options just
+    /// like in project mode."
     ///
-    /// The confirmation YIELDS to the options sheet, which is why `checkboxCompletesTask` is
-    /// asked FIRST and separately. Project mode already routes the tap to the quick changer, and
-    /// that sheet carries complete/reopen itself; two popovers competing for one tap would be a
-    /// new bug rather than a fix. That guard is web's `opensOptions`, which wins there for the
-    /// same reason.
+    /// This is checked before the surface, because it holds on all of them, and it settles two
+    /// things that used to disagree. A list ROW completed another person's task outright on a
+    /// tap — one stray touch on a small photo in a dense list, no confirmation and no obvious way
+    /// back. Task DETAILS did the opposite and offered no way to complete it at all, then briefly
+    /// (AITD-363) a bespoke confirm-on-tap. Neither is right, and they were not even the same
+    /// wrong: one screen finished the task, another would not.
+    ///
+    /// The popover answers both. It cannot be triggered by accident the way an outright
+    /// completion can, it carries assignment and priority and board state — which are usually
+    /// what you actually wanted when you reached for someone else's task — and completion is
+    /// still there, behind `completionNeedsConfirmation`.
     ///
     /// One function for both platforms, so a card cannot mean one thing on the Mac and another
     /// on the phone — the same reason `kind` is shared.
     static func action(surface: TaskLeadingControlSurface,
                        kind: TaskLeadingControl,
-                       displayMode: TaskDisplayMode) -> TaskLeadingControlAction {
+                       displayMode: TaskDisplayMode,
+                       currentUserId: String?) -> TaskLeadingControlAction {
+        if kind.isSomeoneElses(currentUserId: currentUserId) { return .openPicker }
+
         switch surface {
         case .boardCard:
+            // A board is where a task has a status, so the control is how you set it — and
+            // completing outright from a card is the trapdoor tasks 9be8cb1b / f9d7ed42 removed.
             return .openPicker
         case .listRow:
             return displayMode.checkboxCompletesTask ? .complete : .openPicker
         case .detail:
-            // Project mode's sheet wins outright — see above.
-            guard displayMode.checkboxCompletesTask else { return .openPicker }
-            switch kind {
-            case .checkbox:            return .complete
-            case .avatar:              return .confirmCompletion
-            case .unassigned:          return .openPicker
-            }
+            return displayMode.checkboxCompletesTask && kind == .checkbox ? .complete : .openPicker
         }
+    }
+
+    /// Is this control showing a task that belongs to somebody else?
+    ///
+    /// Asked of the KIND, so it cannot disagree with the mark on screen — `.avatar` already
+    /// carries whose face it is. Your own task in project mode is an avatar too (task 132d7b3f),
+    /// which is exactly why "is it an avatar" is not the same question as "is it theirs".
+    ///
+    /// An unknown current user counts as someone else's: we cannot show it is yours, and the
+    /// safe answer is the one that asks first.
+    func isSomeoneElses(currentUserId: String?) -> Bool {
+        guard case .avatar(let assigneeId) = self else { return false }
+        return assigneeId != currentUserId
+    }
+
+    /// Does completing this task need confirming first?
+    ///
+    /// Jon, on AITD-375: "when not yours, always confirm before completing". Finishing another
+    /// person's work is not something to do by accident, and the popover's Complete button is one
+    /// tap from the control you opened it with.
+    ///
+    /// Takes the raw ids rather than a `kind`, because the popover's Complete button is not a
+    /// leading control and has no mark to ask about — and because in project mode your own task
+    /// IS an avatar, so a kind-shaped question would make you confirm your own completions.
+    static func completionNeedsConfirmation(assigneeId: String?, currentUserId: String?) -> Bool {
+        guard let assigneeId, !assigneeId.isEmpty else { return false }  // nobody's: no one to ask about
+        return assigneeId != currentUserId
+    }
+
+    /// Does the options popover carry the board-state section?
+    ///
+    /// Someone else's task gets the full set — "just like in project mode" (AITD-375). The list
+    /// mode omission it overrides is an argument about the DETAIL panel's own layout, where
+    /// priority and assignee are already rows of their own; it was never an argument about what
+    /// the popover should offer when the popover is the only thing you get.
+    ///
+    /// Shared so the Mac's `MacLeadingPicker` and the phone's popovers cannot offer different
+    /// choices for the same task.
+    static func pickerShowsProjectState(displayMode: TaskDisplayMode,
+                                        surface: TaskLeadingControlSurface,
+                                        isSomeoneElses: Bool) -> Bool {
+        displayMode.usesCompactTaskDetail || surface == .boardCard || isSomeoneElses
     }
 }

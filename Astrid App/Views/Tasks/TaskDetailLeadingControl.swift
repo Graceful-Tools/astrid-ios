@@ -44,13 +44,13 @@ struct TaskDetailLeadingControl: View {
             // (task 729a190e). Opening the picker was once unconditional, so in list mode the
             // most familiar gesture in the app did the one thing it does not normally do.
             //
-            // Someone else's photo is the third answer (AITD-363): it asks first. The shared
-            // rule decides which of the three this is — spelling the conditions here is what let
-            // the row and the detail disagree about one task in the first place.
+            // Someone else's task opens the popover instead (AITD-375) — the confirmation now
+            // sits on the popover's Complete button, not on this tap. The shared rule decides
+            // which of the two this is; spelling the conditions here is what let the row and the
+            // detail disagree about one task in the first place.
             switch leadingControlAction {
-            case .complete:          onToggleCompletion()
-            case .openPicker:        showingPicker = true
-            case .confirmCompletion: showingCompleteForAssigneePrompt = true
+            case .complete:   onToggleCompletion()
+            case .openPicker: showingPicker = true
             }
         } label: {
             face
@@ -163,7 +163,9 @@ struct TaskDetailLeadingControl: View {
             // changer holds. List mode does not offer it: priority and assignee are rows of
             // their own there, and a board column is a project idea. Offering it in both would
             // rebuild the hybrid layout this setting exists to end.
-            if displayMode.usesCompactTaskDetail {
+            if TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
+                                                          surface: .detail,
+                                                          isSomeoneElses: needsCompletionConfirmation) {
                 Divider()
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("board.project_state", comment: ""))
@@ -179,7 +181,10 @@ struct TaskDetailLeadingControl: View {
 
             Button {
                 showingPicker = false
-                onToggleCompletion()
+                // Not yours? Ask first (AITD-375). Finishing another person's work is one tap
+                // from the control you opened this with, and it is not undoable in place.
+                if needsCompletionConfirmation { showingCompleteForAssigneePrompt = true }
+                else { onToggleCompletion() }
             } label: {
                 Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
                                   : NSLocalizedString("tasks.complete_task", comment: ""),
@@ -211,12 +216,24 @@ struct TaskDetailLeadingControl: View {
 
     /// What tapping does here: complete, open the picker, or ask first.
     ///
-    /// The whole action rather than a `completes` boolean (AITD-363). There are three answers
-    /// now — someone else's avatar asks before completing — and a boolean can only carry two, so
-    /// a third case would have collapsed silently into "not complete, so open the picker".
-    /// Mirrors the Mac's `MacLeadingControlButton`.
+    /// The whole action rather than a `completes` boolean, so a new case cannot collapse
+    /// silently into "not complete, so open the picker". Mirrors the Mac's
+    /// `MacLeadingControlButton`.
     private var leadingControlAction: TaskLeadingControlAction {
-        TaskLeadingControl.action(surface: .detail, kind: leadingKind, displayMode: displayMode)
+        TaskLeadingControl.action(surface: .detail,
+                                  kind: leadingKind,
+                                  displayMode: displayMode,
+                                  currentUserId: AuthManager.shared.currentUser?.id)
+    }
+
+    /// Whether finishing this task should ask first — i.e. it belongs to someone else.
+    ///
+    /// Also decides whether the popover carries board state, because "not yours" is what turns
+    /// this into the full project-mode set of choices (AITD-375).
+    private var needsCompletionConfirmation: Bool {
+        TaskLeadingControl.completionNeedsConfirmation(
+            assigneeId: assigneeId,
+            currentUserId: AuthManager.shared.currentUser?.id)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.

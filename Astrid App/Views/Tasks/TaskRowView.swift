@@ -35,7 +35,8 @@ struct TaskRowView: View {
     private var opensQuickChanger: Bool {
         TaskLeadingControl.action(surface: surface,
                                   kind: leadingKind,
-                                  displayMode: displayMode) == .openPicker
+                                  displayMode: displayMode,
+                                  currentUserId: authManager.currentUser?.id) == .openPicker
     }
 
     @State private var showingQuickChanger = false

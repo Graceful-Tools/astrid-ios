@@ -112,7 +112,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
 
     func testBoardCardOpensThePickerInListMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .list),
+            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .list, currentUserId: "me"),
             .openPicker,
             "A board card's checkbox must open the picker, not complete the task outright")
     }
@@ -122,7 +122,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
         for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
             for mode in TaskDisplayMode.allCases {
                 XCTAssertEqual(
-                    TaskLeadingControl.action(surface: .boardCard, kind: kind, displayMode: mode),
+                    TaskLeadingControl.action(surface: .boardCard, kind: kind, displayMode: mode, currentUserId: "me"),
                     .openPicker,
                     "\(kind) in \(mode) must open the picker on a board card")
             }
@@ -133,7 +133,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
 
     func testListRowCheckboxCompletesInListMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .list),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .list, currentUserId: "me"),
             .complete,
             "In list mode a row's checkbox completes the task — that is what a checkbox means")
     }
@@ -142,7 +142,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
     /// 132d7b3f asked for. This change narrows the board, not the row.
     func testListRowOpensTheQuickChangerInProjectMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .project),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .project, currentUserId: "me"),
             .openPicker)
     }
 
@@ -150,18 +150,18 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
 
     func testDetailCompletesOnlyWhenTheFaceIsACheckbox() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list, currentUserId: "me"),
             .complete)
-        // Someone else's photo is not a checkbox, and it still must not finish their task on a
-        // tap — but "must not complete" turned out to mean "must not complete SILENTLY", not
-        // "must do nothing". Details is the only completion affordance a task has, so inertness
-        // there left the task uncompletable from its own screen; it asks first instead (AITD-363).
+        // Someone else's photo is not a checkbox and must never finish their task on a tap.
+        // AITD-363 read that as "confirm on the tap"; AITD-375 settled it as the options
+        // popover on every surface, with the confirmation on its Complete button — so the
+        // detail screen stopped being the one place with a bespoke gesture.
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list),
-            .confirmCompletion,
-            "Someone else's photo must ask before completing — never complete on the tap alone")
+            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list, currentUserId: "me"),
+            .openPicker,
+            "Someone else's photo offers the choices; completing from there asks first")
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project),
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project, currentUserId: "me"),
             .openPicker)
     }
 
@@ -183,121 +183,147 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
     }
 }
 
-/// "Complete someone else's task from task details in list mode" (AITD-363).
+/// Someone else's task: the popover, everywhere — and a confirmation on Complete (AITD-375).
 ///
-/// The mark for someone else's task is their photo, and on a ROW that photo deliberately
-/// carries no completion — finishing another person's work with a stray tap on their face is
-/// not an affordance anyone asked for (task 2bb1b196). In TASK DETAILS the leading control is
-/// the ONLY completion affordance, so the same rule left the task uncompletable from its own
-/// detail view — on web outright, and here by routing the tap into a popover whose other two
-/// sections are already rows of their own in list mode.
+/// Jon: "when not yours, always confirm before completing ... on web and iOS it should give the
+/// popover to show assignment, complete, priority and status options just like in project mode."
 ///
-/// Details therefore CONFIRM rather than complete. The row's objection is still real; the
-/// confirmation is what lets details offer the action without becoming that hazard.
-///
-/// Mirrors `astrid-web`'s `leadingControlConfirmsCompletion({ kind, opensOptions, surface })`,
-/// where `opensOptions` wins — which here is `checkboxCompletesTask` being false.
-final class TaskLeadingControlConfirmationTests: XCTestCase {
+/// This settles two surfaces that had drifted apart and were BOTH wrong. A list ROW completed
+/// another person's task outright on a tap — one stray touch on a small photo in a dense list.
+/// Task DETAILS offered no way to complete it at all, then briefly (AITD-363) a bespoke
+/// confirm-on-tap that existed nowhere else. Now both open the same popover, and the
+/// confirmation lives on its Complete button.
+final class TaskLeadingControlOthersTaskTests: XCTestCase {
 
-    // MARK: - The bug
+    private let me = "me"
+    private let them = "them"
 
-    func testDetailAsksToConfirmBeforeCompletingSomeoneElsesTask() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail,
-                                      kind: .avatar("someone-else"),
-                                      displayMode: .list),
-            .confirmCompletion,
-            "In list mode, task details must offer to complete someone else's task — behind a confirmation")
-    }
+    private func theirs() -> TaskLeadingControl { .avatar("them") }
 
-    // MARK: - It YIELDS to the options sheet
+    // MARK: - The popover, on every surface
 
-    /// Project mode already routes the tap to the quick changer, which carries complete/reopen
-    /// itself. Two popovers competing for one tap is a new bug, not a fix.
-    func testProjectModeKeepsTheOptionsSheetAndNeverConfirms() {
-        for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
-            XCTAssertEqual(
-                TaskLeadingControl.action(surface: .detail, kind: kind, displayMode: .project),
-                .openPicker,
-                "\(kind) in project mode must still open the options sheet")
-        }
-    }
-
-    /// A board card opens the status picker in both modes (task f9d7ed42). The confirmation is
-    /// a DETAIL affordance and must not leak onto the board.
-    func testNoSurfaceButDetailEverConfirms() {
-        for surface: TaskLeadingControlSurface in [.boardCard, .listRow] {
-            for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
-                for mode in TaskDisplayMode.allCases {
-                    XCTAssertNotEqual(
-                        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: mode),
-                        .confirmCompletion,
-                        "\(kind) on \(surface) in \(mode) must not raise a completion confirmation")
-                }
+    func testSomeoneElsesTaskOpensThePopoverOnEverySurface() {
+        for surface in [TaskLeadingControlSurface.listRow, .detail, .boardCard] {
+            for mode in TaskDisplayMode.allCases {
+                XCTAssertEqual(
+                    TaskLeadingControl.action(surface: surface, kind: theirs(),
+                                              displayMode: mode, currentUserId: me),
+                    .openPicker,
+                    "\(surface) in \(mode) must offer the choices, never finish someone else's task on a tap")
             }
         }
     }
 
-    // MARK: - What the confirmation must NOT change
+    /// The row is the case AITD-375 was filed for: it used to complete outright in list mode.
+    func testAListRowNoLongerCompletesSomeoneElsesTaskOutright() {
+        XCTAssertNotEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: theirs(),
+                                      displayMode: .list, currentUserId: me),
+            .complete,
+            "a stray tap on a small photo in a dense list must not finish that person's work")
+    }
 
-    /// Your own task is the checkbox, and a checkbox completes on tap. Making people confirm
-    /// their own completions would be a tax on the most common gesture in the app.
-    func testYourOwnTaskStillCompletesWithoutConfirming() {
+    // MARK: - Your own task is untouched
+
+    func testYourOwnCheckboxStillCompletesOnTap() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox,
+                                      displayMode: .list, currentUserId: me),
+            .complete)
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox,
+                                      displayMode: .list, currentUserId: me),
             .complete)
     }
 
-    /// The row is untouched by this task: someone else's avatar in a list row keeps whatever it
-    /// did before, decided by the mode alone.
-    func testTheListRowIsUnchanged() {
+    /// In PROJECT mode your own task wears your photo too (task 132d7b3f). "Is it an avatar" and
+    /// "is it theirs" are different questions, and conflating them would make you confirm your
+    /// own completions.
+    func testYourOwnAvatarInProjectModeIsNotSomeoneElses() {
+        XCTAssertFalse(TaskLeadingControl.avatar(me).isSomeoneElses(currentUserId: me))
+        XCTAssertTrue(TaskLeadingControl.avatar(them).isSomeoneElses(currentUserId: me))
+        XCTAssertFalse(TaskLeadingControl.checkbox.isSomeoneElses(currentUserId: me))
+        XCTAssertFalse(TaskLeadingControl.unassigned.isSomeoneElses(currentUserId: me))
+    }
+
+    /// An unknown current user cannot be shown to own anything, so the safe answer is "ask".
+    func testAnUnknownViewerIsTreatedAsNotTheOwner() {
+        XCTAssertTrue(TaskLeadingControl.avatar(them).isSomeoneElses(currentUserId: nil))
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .avatar("someone-else"), displayMode: .list),
-            .complete)
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .avatar("someone-else"), displayMode: .project),
+            TaskLeadingControl.action(surface: .listRow, kind: theirs(),
+                                      displayMode: .list, currentUserId: nil),
             .openPicker)
+    }
+
+    // MARK: - "Always confirm before completing"
+
+    func testCompletingSomeoneElsesTaskAsksFirst() {
+        XCTAssertTrue(TaskLeadingControl.completionNeedsConfirmation(assigneeId: them,
+                                                                     currentUserId: me))
+    }
+
+    func testCompletingYourOwnTaskNeverAsks() {
+        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: me,
+                                                                      currentUserId: me))
+    }
+
+    /// Nobody is assigned, so there is no one whose work this would be finishing. A confirmation
+    /// here would be a prompt with no subject — and the dialog names the assignee.
+    func testAnUnassignedTaskNeverAsks() {
+        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: nil,
+                                                                      currentUserId: me))
+        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: "",
+                                                                      currentUserId: me),
+                       "empty string is how the API says unassigned")
+    }
+
+    // MARK: - "...priority and status options just like in project mode"
+
+    func testSomeoneElsesTaskGetsTheBoardStateSectionEvenInListMode() {
+        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
+                                                                 surface: .detail,
+                                                                 isSomeoneElses: true),
+                      "when the popover is the only thing a tap gives you, it carries the full set")
+    }
+
+    /// List mode's omission still stands for your OWN task in the detail panel — there, priority
+    /// and assignee are rows of their own and a board column is a project idea.
+    func testYourOwnTaskInListModeDetailStillOmitsBoardState() {
+        XCTAssertFalse(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
+                                                                  surface: .detail,
+                                                                  isSomeoneElses: false))
+    }
+
+    func testProjectModeAndBoardCardsAreUnchanged() {
+        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .project,
+                                                                 surface: .detail,
+                                                                 isSomeoneElses: false))
+        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
+                                                                 surface: .boardCard,
+                                                                 isSomeoneElses: false))
     }
 
     // MARK: - The call sites must actually ASK
 
-    /// The rule is only as good as its call sites. Both detail surfaces — the phone's
-    /// `TaskDetailLeadingControl` and the Mac's `MacLeadingControlButton` — used to decide with a
-    /// comparison against ONE action, so a new third action they never mention would be a rule
-    /// that changed with nothing changing on screen. Same guard, and same reason, as
-    /// `testTheBoardCardDeclaresItsSurface`.
-    func testBothDetailSurfacesHandleTheConfirmation() throws {
+    /// A rule is only as good as the screens that read it. Every surface that can complete a task
+    /// from the leading control has to consult `completionNeedsConfirmation`, or "always confirm"
+    /// holds on whichever platform was looked at last.
+    func testEverySurfaceThatCompletesAsksWhetherToConfirm() throws {
         let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
         for path in ["Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
+                     "Astrid App/Views/Components/TaskQuickChanger.swift",
                      "Astrid Mac/Views/MacLeadingControlButton.swift"] {
             let source = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-            XCTAssertTrue(source.contains(".confirmCompletion"),
-                          "\(path) must branch on .confirmCompletion, or the shared rule says confirm and the screen does not")
-        }
-    }
-
-    /// The confirmation names the assignee. A dialog asking about "this task" over an unlabelled
-    /// photo is the blind confirm that teaches people to accept without reading.
-    func testTheConfirmationCopyIsRegisteredInEveryLanguage() throws {
-        let localizations = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Astrid App/Resources/Localizations")
-        let languages = try FileManager.default
-            .contentsOfDirectory(atPath: localizations.path)
-            .filter { $0.hasSuffix(".lproj") }
-        XCTAssertFalse(languages.isEmpty, "no .lproj directories found")
-        for language in languages {
-            let strings = try String(
-                contentsOf: localizations.appendingPathComponent(language)
-                    .appendingPathComponent("Localizable.strings"), encoding: .utf8)
-            for key in ["tasks.confirm_complete_title", "tasks.confirm_complete_assigned"] {
-                XCTAssertTrue(strings.contains("\"\(key)\""), "\(language) is missing \(key)")
-            }
+            // The BRANCH, not merely the symbol. Checking that the file mentions the predicate
+            // passes even when the Complete button has stopped consulting it — verified by
+            // deleting exactly that branch and watching this test stay green, which is why it
+            // now matches the `if`.
+            XCTAssertTrue(source.contains("if needsCompletionConfirmation"),
+                          "\(path) completes tasks and must branch on whether to confirm first")
+            XCTAssertTrue(source.contains("tasks.confirm_complete_title"),
+                          "\(path) must present the confirmation, not just compute it")
         }
     }
 }
