@@ -7,6 +7,55 @@ it takes them in the order the queue returns them and keeps going until nothing 
 stops on its own when the queue is clear, so a scheduled re-run that finds an empty queue is a
 no-op, not busywork.
 
+## One session per working tree — take the lock first
+
+**Before anything else, including reading the queue:**
+
+```bash
+# FROM THE astrid-ios ROOT. Do NOT `cd ../astrid-web` first — see below.
+../astrid-web/node_modules/.bin/tsx ../astrid-web/scripts/fixall-session.ts \
+  acquire --pid $PPID --harness claude-code
+```
+
+Exit `0` means this checkout is yours. **Exit `2` means another live session is already running
+`/fixall` here — stop, and do not read the queue.** Start again in your own worktree
+(`npm run work:start <task-slug>` in astrid-web), which is what this steers toward rather than
+away from: parallel runs are good, sharing one checkout is not.
+
+Release when the run ends — the same command with `release --pid $PPID` — and `status` says who
+holds the tree and whether they are still alive.
+
+**Why not `cd ../astrid-web` like every other script here.** The lock is keyed to
+`git rev-parse --absolute-git-dir` **of the current directory**, so running it from astrid-web
+would lock the *web* checkout and leave this one unguarded — the exact failure the lock exists
+to prevent, with a `0` exit that looks like success. Verified 2026-09-09: from astrid-ios the
+git dir resolves to `astrid-ios/.git`; after `cd ../astrid-web` it resolves to
+`astrid-web/.git`. astrid-ios has no `tsx` of its own, hence invoking astrid-web's binary by
+path while staying put.
+
+The OAuth scripts are the opposite case and **do** need `cd ../astrid-web`: `loadScriptEnv()`
+looks for `.env.local` in `process.cwd()`, and that file lives in astrid-web. So the lock runs
+from here and the claim runs from there — not a style difference, and swapping them breaks
+both.
+
+Three details that are easy to get wrong:
+
+- **Pass `$PPID`, not the script's own pid.** In an agent's shell `$PPID` is the harness
+  session itself, so the lock lives exactly as long as the run and clears itself if the
+  session is killed. `process.pid` would be the `tsx` process, which exits in milliseconds, so
+  every lock would read as stale to the next caller.
+- **Staleness is process liveness, never an age limit.** A run can legitimately sit on one hard
+  task for a long time, and a lock that expires under a working session is worse than no lock.
+
+- **The lock is per working TREE, not per repository.** Two iOS sessions in two worktrees never
+  see each other; two in one tree collide immediately. That is the arrangement to aim for.
+
+**Why the board lanes do not already cover this.** `Ready` → `Doing` claims a **task**. It says
+nothing about which **checkout** is being edited, and two sessions working two *different* tasks
+in one tree corrupt each other just as thoroughly — on 2026-09-09 one moved `HEAD` while the
+other had six files uncommitted. The lanes and the lock answer different questions; neither
+substitutes for the other.
+
 ## Talk to Astrid through the MCP server — never the database
 
 The `astrid` MCP server (`https://www.astrid.cc/mcp`, configured for this project) is the
@@ -30,14 +79,47 @@ Prisma) is for deep repair only** — Jon, 2026-08-29 — and never part of this
 visibility, the assignee handshake and the due-date gate, and a queue read that way hands back
 work that was deliberately scoped out.
 
-**What the MCP cannot do yet:** move a task to `Doing` / `Waiting`, or reassign it. For those
-two board-etiquette steps only, use the OAuth scripts (not the DB):
+**What the MCP cannot do yet:** claim a task, move one to `Waiting`, or reassign it. For those
+board-etiquette steps only, use the OAuth scripts in astrid-web (not the DB):
+
 ```bash
-cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Doing      # or Waiting
+# CLAIMING — atomic. Requires Ready and writes Doing in one conditional update.
+cd ../astrid-web && npx tsx scripts/claim-fixall-task.ts <taskId> ready --agent claude
+
+# Everything else — still set-task-status.ts, which is correct for these.
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Waiting
 cd ../astrid-web && npx tsx scripts/assign-task.ts <taskId> jonparis@gmail.com
 ```
+
+**Exit `2` from the claim (`CLAIM_CONFLICT`) is not a failure — move to the next task
+silently.** It means a peer session claimed it first, which is the ordinary outcome of two
+loops sharing a board. Exit `0` is yours.
+
+**Pass `--agent claude`.** Omitted, the claim assigns to **Copilot** — the GitHub Actions
+worker calls the script positionally and that default has to keep meaning what it always did.
+A Claude Code loop that omits it hands its own work to another harness.
+
+Reading the queue and then writing `Doing` as two steps is what this replaces: the window
+between them is how two sessions came to work AWTD-865 at the same time on 2026-09-09.
+`set-task-status.ts` is still exactly right for `Waiting` and for handing a task back — only
+the *claim* has to be atomic.
+
 If those fail (OAuth flakiness), say so on the task with `add_comment` and carry on — a
 missing status change is a cosmetic gap; a task worked through the DB is not.
+
+### Until the web branch lands, degrade knowingly
+
+The claim's `--agent` support and `scripts/fixall-session.ts` arrived on astrid-web's
+`fix/fixall-collision-safety`, **which is not merged to astrid-web `main` as of 2026-09-09**.
+Check before concluding either is broken:
+
+- **`fixall-session.ts` missing** → the branch is not merged. Skip the lock, say so in the run
+  summary, and make certain by hand that no second session is in this checkout.
+- **The claim assigns to Copilot despite `--agent claude`** → the branch is merged but astrid-web
+  is not **deployed** (its deploys are manual). Fall back to `set-task-status.ts <taskId> Doing`
+  for that task. Do not work a task the board now says belongs to Copilot.
+
+Both halves ship independently and in either order, so neither of these blocks a run.
 
 ## The workflow itself is shared
 

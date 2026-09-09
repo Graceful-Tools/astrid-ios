@@ -174,7 +174,7 @@ implement. Run `npm run predeploy` **after** implementation, not before.
 `ios-tasks-direct.ts`) unless doing deep repair Jon has asked for. The MCP tools
 (`get_agent_queue`, `get_task`, `get_task_comments`, `add_comment`, `update_task`,
 `create_task`) are the interface; if only `mcp__astrid__authenticate` is available, run it and
-hand the user the URL. Details and the two OAuth-script exceptions (status / assign) are in
+hand the user the URL. Details and the OAuth-script exceptions (claim / status / assign) are in
 `.claude/commands/fixall.md`.
 
 **Per-task process** (canonical, cross-repo — see `astrid-web/docs/FIXALL_WORKFLOW.md`):
