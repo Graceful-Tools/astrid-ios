@@ -34,6 +34,9 @@ struct MacBoardView: View {
     /// The board's own width, measured — the columns divide it (AITD-330).
     @State private var boardWidth: CGFloat = 0
 
+    /// For the card menu's "Open in new window" — the same action the list row offers (AITD-372).
+    @Environment(\.openWindow) private var openWindow
+
     /// What each column gets: an equal share of the room, never below the floor.
     private var columnWidth: CGFloat {
         MacLayout.boardColumnWidth(columnCount: columns.count, availableWidth: boardWidth)
@@ -267,6 +270,36 @@ struct MacBoardView: View {
             .stroke(MacSelectionStyle.borderColor(isSelected: expanded, hovering: hoveredCardId == t.id),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: expanded)))
         .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hoveredCardId = h ? t.id : (hoveredCardId == t.id ? nil : hoveredCardId) } }
+        // Right-click gets the SAME actions as a list row (AITD-372). Rendered from the shared
+        // model rather than restated here, so the board cannot fall behind the row: a card had no
+        // context menu at all while the row had nine actions.
+        //
+        // Before `.draggable`, so the menu wins the right-click. A card is a drag source, and a
+        // drag gesture attached first swallows the secondary click on the way past.
+        .contextMenu {
+            MacTaskRowMenuContent(
+                task: t,
+                surface: .boardCard,
+                lists: listService.lists,
+                currentListId: listId,
+                actions: MacTaskRowMenuActions(
+                    toggleComplete: { toggleComplete(t) },
+                    // A card has no inline title field; its expanded editor does. Same intent,
+                    // one layer down — better than dropping Rename from the card's menu.
+                    rename: { if expandedCardId != t.id { toggleExpanded(t) } },
+                    setPriority: { setPriority(t, $0) },
+                    move: { moveToList(t, $0) },
+                    copyToList: { copyTask(t, to: $0) },
+                    share: { shareTask(t) },
+                    copyToPasteboard: {
+                        MacTaskActions.copyToPasteboard(
+                            MacTaskActions.clipboardText(title: t.title, shareURL: nil))
+                    },
+                    openInNewWindow: { openWindow(id: "task", value: t.id) },
+                    delete: { deleteTask(t) }
+                )
+            )
+        }
         .draggable(t.id)
     }
 
@@ -300,8 +333,54 @@ struct MacBoardView: View {
     }
 
     private func toggleComplete(_ t: Task) {
+        // Recorded for ⌘Z, as the list row has always done. A card that completes a task without
+        // an undo step is the same click with less of a way back (AITD-372).
+        MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed],
+                                                             to: !t.completed))
         MacActions.perform("Complete task") {
             _ = try await taskService.completeTask(id: t.id, completed: !t.completed, task: t)
+        }
+    }
+
+    // MARK: - The card menu's remaining actions (AITD-372)
+    //
+    // Each is the SAME service call the list row's menu makes, undo step included, so the two
+    // menus cannot mean different things by the same word.
+
+    /// Move to another LIST — distinct from `move(taskId:to:)` above, which moves between the
+    /// board's own columns.
+    private func moveToList(_ t: Task, _ targetListId: String) {
+        MacUndoCoordinator.shared.record(
+            MacUndo.moveStep(previous: [t.id: t.listIds ?? []], to: targetListId))
+        MacActions.perform("Move task") {
+            _ = try await taskService.updateTask(taskId: t.id, listIds: [targetListId], task: t)
+        }
+    }
+
+    private func copyTask(_ t: Task, to targetListId: String?) {
+        MacActions.perform("Copy task") {
+            _ = try await taskService.copyTask(id: t.id, targetListId: targetListId,
+                                               includeComments: true)
+        }
+    }
+
+    private func shareTask(_ t: Task) {
+        MacActions.perform("Share task") {
+            if let url = try await MacTaskActions.makeShareURL(taskId: t.id) {
+                MacTaskActions.presentShareSheet(url: url, relativeTo: nil)
+            }
+        }
+    }
+
+    private func deleteTask(_ t: Task) {
+        // Collapse first: leaving the editor open over a card that is on its way out renders an
+        // editor for a task that no longer exists.
+        if expandedCardId == t.id { expandedCardId = nil }
+        MacUndoCoordinator.shared.record(MacUndo.deleteStep(
+            snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: [t],
+                                                                   allTasks: taskService.tasks)))
+        MacActions.perform("Delete task") {
+            try await taskService.deleteTask(id: t.id, task: t)
         }
     }
 
