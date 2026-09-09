@@ -219,34 +219,24 @@ struct MacRootView: View {
             }
             return true
         }
+        // The SHARED list menu (AITD-373) — a board's strip renders the same items from the same
+        // model, gated on the same `ListPermissions` rule. It used to be written out here and
+        // only here, which was fine while the sidebar was the only way in.
         .contextMenu {
-            // Gated on the SHARED permission rule (task da56d096). This menu used to offer Edit,
-            // Sharing and Delete to every member — Delete would have been refused server-side, but
-            // offering it at all is its own bug.
-            let canEdit = ListPermissions.canEditSettings(list, userId: auth.userId)
-
-            // "Edit", not "Rename": the sheet edits image, task defaults, due time and the
-            // recently-completed window too, so "Rename" undersold it.
-            if canEdit {
-                Button(NSLocalizedString("mac.edit_list", comment: "")) { editingList = list }
-            }
-            // Favouriting is a personal view preference, not a change to the list, so it stays
-            // available to anyone who can see the list at all.
-            Button((list.isFavorite ?? false) ? NSLocalizedString("mac.remove_favorite", comment: "")
-                                  : NSLocalizedString("lists.favorite", comment: "")) { toggleFavorite(list) }
-            if canEdit {
-                Button(NSLocalizedString("mac.sharing", comment: "")) { sharingList = list }
-                if MacViewMode.offersEnableBoard(projectId: list.projectId) {
-                    Button(NSLocalizedString("mac.enable_board", comment: "")) { enableBoard(list) }
-                }
-            }
-            // Deleting is stricter than editing — it destroys other people's work, so it stays
-            // with the owner even though an admin may change everything else.
-            if ListPermissions.canDelete(list, userId: auth.userId) {
-                Divider()
-                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { listToDelete = list }
-            }
+            MacListMenuContent(list: list, userId: auth.userId, actions: listMenuActions(list))
         }
+    }
+
+    /// What the list menu's items DO here — the sheets and confirmations this view owns. Which
+    /// items exist is `MacListMenu`'s business, and both surfaces that show it use this.
+    private func listMenuActions(_ list: TaskList) -> MacListMenuActions {
+        MacListMenuActions(
+            edit: { editingList = list },
+            toggleFavorite: { toggleFavorite(list) },
+            sharing: { sharingList = list },
+            enableBoard: { enableBoard(list) },
+            delete: { listToDelete = list }
+        )
     }
 
     // MARK: inline task-title editing (67c5e54c)
@@ -668,7 +658,12 @@ struct MacRootView: View {
             hasSelection: selectedListId != nil,
             isListMode: contentMode == .list,
             filterSheetOffersSort: showsFilter && MacListChrome.filterSheetOffersSort)
-        if showsSort || showsFilter {
+        // A board suppressed this strip entirely, which took list settings with it — the sidebar
+        // right-click was the only way in, and that row is not what you are looking at while
+        // working the columns (AITD-373).
+        let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil,
+                                                        isListMode: contentMode == .list)
+        if showsSort || showsFilter || showsListMenu {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 if showsSort { sortMenu.fixedSize() }
@@ -676,6 +671,10 @@ struct MacRootView: View {
                 // My Tasks is virtual, so it has no TaskList to edit — but it does have saved,
                 // synced filters, and until now nothing on Mac could reach them (ebdf94a1).
                 if selectedListId == Self.myTasksId, contentMode == .list { myTasksFilterButton }
+                if showsListMenu, let list = currentRealList {
+                    MacListSettingsButton(list: list, userId: auth.userId,
+                                          actions: listMenuActions(list))
+                }
             }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
