@@ -83,8 +83,10 @@ final class TempTaskUpdateOutboxTests: XCTestCase {
             "backfill 'completed tasks arrive open' bug). \(diagnosis)")
         XCTAssertEqual(payload.updates.completed, true)
         XCTAssertEqual(payload.source, "google")
-        XCTAssertEqual(payload.updates.completedAt, ISO8601DateFormatter().string(from: backdated),
-                       "backdated completedAt must survive onto the wire payload")
+        // WireDate, not a bare formatter: the payload carries milliseconds now, because a
+        // whole-second stamp collided any two completions made inside one second (AITD-369).
+        XCTAssertEqual(payload.updates.completedAt, WireDate.string(from: backdated),
+                       "backdated completedAt must survive onto the wire payload, to the millisecond")
         XCTAssertEqual(payload.updates.completedSource, "google")
     }
 

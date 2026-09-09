@@ -800,8 +800,10 @@ class TaskService: ObservableObject {
                 assigneeId: assigneeId,
                 timerDuration: timerDuration,
                 lastTimerValue: lastTimerValue,
+                // Through WireDate so the milliseconds survive: a bare formatter truncated every
+                // completion to the whole second, colliding any two made inside one (AITD-369).
                 completedAt: (completed == true)
-                    ? ISO8601DateFormatter().string(from: completedAt ?? Date()) : nil,
+                    ? WireDate.string(from: completedAt ?? Date()) : nil,
                 completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil,
                 parentTaskId: parentTaskId,
                 statusRole: statusRole
