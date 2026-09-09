@@ -67,6 +67,8 @@ enum TaskLeadingControlSurface: Equatable {
 enum TaskLeadingControlAction: Equatable {
     case complete
     case openPicker
+    /// Ask first, then complete (AITD-363). Someone else's task, from its own detail screen.
+    case confirmCompletion
 }
 
 extension TaskLeadingControl {
@@ -81,9 +83,18 @@ extension TaskLeadingControl {
     /// board — unless project mode has turned the control into the quick changer everywhere
     /// (task 132d7b3f).
     ///
-    /// The DETAIL screen adds one condition: only when the face IS a checkbox. Someone else's
-    /// photo is not a checkbox, and finishing their task by tapping their face is not what that
-    /// tap means (task 729a190e).
+    /// The DETAIL screen is where the three answers are needed rather than two (AITD-363).
+    /// Someone else's photo is not a checkbox and must not finish their task on a tap
+    /// (task 729a190e) — but details is also the ONLY completion affordance a task has there,
+    /// so treating the photo as inert made a task assigned to anyone but you uncompletable from
+    /// its own screen. It CONFIRMS instead: the objection the row encodes is still real, and the
+    /// confirmation is what lets details offer the action without becoming that hazard.
+    ///
+    /// The confirmation YIELDS to the options sheet, which is why `checkboxCompletesTask` is
+    /// asked FIRST and separately. Project mode already routes the tap to the quick changer, and
+    /// that sheet carries complete/reopen itself; two popovers competing for one tap would be a
+    /// new bug rather than a fix. That guard is web's `opensOptions`, which wins there for the
+    /// same reason.
     ///
     /// One function for both platforms, so a card cannot mean one thing on the Mac and another
     /// on the phone — the same reason `kind` is shared.
@@ -96,7 +107,13 @@ extension TaskLeadingControl {
         case .listRow:
             return displayMode.checkboxCompletesTask ? .complete : .openPicker
         case .detail:
-            return displayMode.checkboxCompletesTask && kind == .checkbox ? .complete : .openPicker
+            // Project mode's sheet wins outright — see above.
+            guard displayMode.checkboxCompletesTask else { return .openPicker }
+            switch kind {
+            case .checkbox:            return .complete
+            case .avatar:              return .confirmCompletion
+            case .unassigned:          return .openPicker
+            }
         }
     }
 }

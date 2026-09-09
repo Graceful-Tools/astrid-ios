@@ -77,6 +77,8 @@
 "tasks.edit_task" = "タスクを編集";
 "tasks.delete_task" = "タスクを削除";
 "tasks.complete_task" = "完了する / 完了済み！";
+"tasks.confirm_complete_title" = "このタスクを完了しますか？";
+"tasks.confirm_complete_assigned" = "担当: %@";
 "tasks.task_name" = "タスク名";
 "tasks.description" = "説明";
 "tasks.no_description" = "説明なし";

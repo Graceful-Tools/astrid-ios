@@ -193,6 +193,7 @@
 				Views/Tasks/SubtasksSectionView.swift,
 				Views/Tasks/TaskActionsView.swift,
 				Views/Tasks/TaskAttachmentSectionView.swift,
+				Views/Tasks/TaskDetailLeadingControl.swift,
 				Views/Tasks/TaskDetailViewNew.swift,
 				Views/Tasks/TaskDetailViewOnly.swift,
 				Views/Tasks/TaskEditView.swift,

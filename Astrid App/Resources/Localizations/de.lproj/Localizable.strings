@@ -86,6 +86,8 @@
 "tasks.edit_task" = "Aufgabe bearbeiten";
 "tasks.delete_task" = "Aufgabe löschen";
 "tasks.complete_task" = "Abschließen / Fertig!";
+"tasks.confirm_complete_title" = "Diese Aufgabe abschließen?";
+"tasks.confirm_complete_assigned" = "Zugewiesen an %@";
 "tasks.task_name" = "Aufgabenname";
 "tasks.description" = "Beschreibung";
 "tasks.no_description" = "Keine Beschreibung";

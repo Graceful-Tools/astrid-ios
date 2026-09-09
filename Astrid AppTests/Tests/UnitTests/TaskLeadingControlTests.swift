@@ -152,10 +152,14 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
             .complete)
+        // Someone else's photo is not a checkbox, and it still must not finish their task on a
+        // tap — but "must not complete" turned out to mean "must not complete SILENTLY", not
+        // "must do nothing". Details is the only completion affordance a task has, so inertness
+        // there left the task uncompletable from its own screen; it asks first instead (AITD-363).
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list),
-            .openPicker,
-            "Someone else's photo is not a checkbox — tapping it must not finish their task")
+            .confirmCompletion,
+            "Someone else's photo must ask before completing — never complete on the tap alone")
         XCTAssertEqual(
             TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project),
             .openPicker)
@@ -176,5 +180,124 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(source.contains("surface: .boardCard"),
                       "The board card must tell TaskRowView it is a card, or it behaves like a row")
+    }
+}
+
+/// "Complete someone else's task from task details in list mode" (AITD-363).
+///
+/// The mark for someone else's task is their photo, and on a ROW that photo deliberately
+/// carries no completion — finishing another person's work with a stray tap on their face is
+/// not an affordance anyone asked for (task 2bb1b196). In TASK DETAILS the leading control is
+/// the ONLY completion affordance, so the same rule left the task uncompletable from its own
+/// detail view — on web outright, and here by routing the tap into a popover whose other two
+/// sections are already rows of their own in list mode.
+///
+/// Details therefore CONFIRM rather than complete. The row's objection is still real; the
+/// confirmation is what lets details offer the action without becoming that hazard.
+///
+/// Mirrors `astrid-web`'s `leadingControlConfirmsCompletion({ kind, opensOptions, surface })`,
+/// where `opensOptions` wins — which here is `checkboxCompletesTask` being false.
+final class TaskLeadingControlConfirmationTests: XCTestCase {
+
+    // MARK: - The bug
+
+    func testDetailAsksToConfirmBeforeCompletingSomeoneElsesTask() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail,
+                                      kind: .avatar("someone-else"),
+                                      displayMode: .list),
+            .confirmCompletion,
+            "In list mode, task details must offer to complete someone else's task — behind a confirmation")
+    }
+
+    // MARK: - It YIELDS to the options sheet
+
+    /// Project mode already routes the tap to the quick changer, which carries complete/reopen
+    /// itself. Two popovers competing for one tap is a new bug, not a fix.
+    func testProjectModeKeepsTheOptionsSheetAndNeverConfirms() {
+        for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
+            XCTAssertEqual(
+                TaskLeadingControl.action(surface: .detail, kind: kind, displayMode: .project),
+                .openPicker,
+                "\(kind) in project mode must still open the options sheet")
+        }
+    }
+
+    /// A board card opens the status picker in both modes (task f9d7ed42). The confirmation is
+    /// a DETAIL affordance and must not leak onto the board.
+    func testNoSurfaceButDetailEverConfirms() {
+        for surface: TaskLeadingControlSurface in [.boardCard, .listRow] {
+            for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
+                for mode in TaskDisplayMode.allCases {
+                    XCTAssertNotEqual(
+                        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: mode),
+                        .confirmCompletion,
+                        "\(kind) on \(surface) in \(mode) must not raise a completion confirmation")
+                }
+            }
+        }
+    }
+
+    // MARK: - What the confirmation must NOT change
+
+    /// Your own task is the checkbox, and a checkbox completes on tap. Making people confirm
+    /// their own completions would be a tax on the most common gesture in the app.
+    func testYourOwnTaskStillCompletesWithoutConfirming() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list),
+            .complete)
+    }
+
+    /// The row is untouched by this task: someone else's avatar in a list row keeps whatever it
+    /// did before, decided by the mode alone.
+    func testTheListRowIsUnchanged() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .avatar("someone-else"), displayMode: .list),
+            .complete)
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .avatar("someone-else"), displayMode: .project),
+            .openPicker)
+    }
+
+    // MARK: - The call sites must actually ASK
+
+    /// The rule is only as good as its call sites. Both detail surfaces — the phone's
+    /// `TaskDetailLeadingControl` and the Mac's `MacLeadingControlButton` — used to decide with a
+    /// comparison against ONE action, so a new third action they never mention would be a rule
+    /// that changed with nothing changing on screen. Same guard, and same reason, as
+    /// `testTheBoardCardDeclaresItsSurface`.
+    func testBothDetailSurfacesHandleTheConfirmation() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // UnitTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // Astrid AppTests
+            .deletingLastPathComponent()   // repo root
+        for path in ["Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
+                     "Astrid Mac/Views/MacLeadingControlButton.swift"] {
+            let source = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
+            XCTAssertTrue(source.contains(".confirmCompletion"),
+                          "\(path) must branch on .confirmCompletion, or the shared rule says confirm and the screen does not")
+        }
+    }
+
+    /// The confirmation names the assignee. A dialog asking about "this task" over an unlabelled
+    /// photo is the blind confirm that teaches people to accept without reading.
+    func testTheConfirmationCopyIsRegisteredInEveryLanguage() throws {
+        let localizations = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Astrid App/Resources/Localizations")
+        let languages = try FileManager.default
+            .contentsOfDirectory(atPath: localizations.path)
+            .filter { $0.hasSuffix(".lproj") }
+        XCTAssertFalse(languages.isEmpty, "no .lproj directories found")
+        for language in languages {
+            let strings = try String(
+                contentsOf: localizations.appendingPathComponent(language)
+                    .appendingPathComponent("Localizable.strings"), encoding: .utf8)
+            for key in ["tasks.confirm_complete_title", "tasks.confirm_complete_assigned"] {
+                XCTAssertTrue(strings.contains("\"\(key)\""), "\(language) is missing \(key)")
+            }
+        }
     }
 }
