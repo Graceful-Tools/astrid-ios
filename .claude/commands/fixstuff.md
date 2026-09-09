@@ -2,7 +2,7 @@ Pull tasks from the Astrid iOS to-do list and work through them until the list i
 
 Everything here goes through the `astrid` MCP server — **never the database**. The DB is for
 deep repair only (Jon, 2026-08-29). The tool table, the auth fallback, and the two steps the
-MCP cannot do (status / assign) are in `/fixall`; the rules below are the interactive version.
+MCP cannot do (claim / status / assign) are in `/fixall`; the rules below are the interactive version.
 
 ## Steps
 
@@ -24,8 +24,10 @@ MCP cannot do (status / assign) are in `/fixall`; the rules below are the intera
 3. **For each task**, follow the coding workflow:
    - `get_task` + `get_task_comments` — read the description AND its comments/attachments. A
      screenshot attached to the task is usually the fastest route to the real cause.
-   - Move it to `Doing` (`set-task-status.ts`, OAuth — see `/fixall`) and post a strategy
-     comment with `add_comment`.
+   - Claim it (`claim-fixall-task.ts <taskId> ready --agent claude`, OAuth — see `/fixall`),
+     which takes the task and moves it to `Doing` in one step, then post a strategy comment
+     with `add_comment`. Exit `2` means someone else claimed it first: pick another.
+     `set-task-status.ts` is still the script for `Waiting` and for handing a task back.
    - RED regression test naming the task id → implement → green
    - Run `npm run predeploy` (plus the Mac suites for Mac tasks)
    - Fix any regressions
