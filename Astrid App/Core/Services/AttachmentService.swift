@@ -253,6 +253,41 @@ class AttachmentService: ObservableObject {
         }
     }
 
+    /// The bytes of a file we hold the whole record for.
+    ///
+    /// `fileData(for fileId:)` can only take an id, and an id is not enough for a legacy MCP
+    /// attachment — those have no secure-files record, so the id resolves to a 404 (AITD-355).
+    /// Callers that have the `SecureFile` should come through here.
+    func fileData(for file: SecureFile) async -> Data? {
+        if case .directURL(let direct) = file.source {
+            if let cached = getCachedDownload(for: file.id) { return cached }
+            guard let data = await bytes(atDirectURL: direct) else { return nil }
+            cacheDownload(fileId: file.id, data: data)
+            return data
+        }
+        return await fileData(for: file.id)
+    }
+
+    /// Fetch a stored attachment URL directly.
+    ///
+    /// Carries the session cookie, because a stored `/api/...` URL is an authenticated endpoint
+    /// even though it is not the secure-files route — the same reason `ImageCache` attaches it
+    /// for both path shapes.
+    private func bytes(atDirectURL url: URL) async -> Data? {
+        var request = URLRequest(url: url)
+        AnalyticsPlatformHeader.apply(to: &request)
+        if url.path.hasPrefix("/api/"), let cookie = try? KeychainService.shared.getSessionCookie() {
+            request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        }
+        guard let (data, response) = try? await AstridHTTP.session.data(for: request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode)
+        else {
+            AppLog.debug("❌ [AttachmentService] Direct attachment fetch failed: \(url)")
+            return nil
+        }
+        return data
+    }
+
     /// Prepare multiple files for preview.
     ///
     /// The downloads run CONCURRENTLY (AITD-344). This was a `for` loop of sequential `await`s,
@@ -293,7 +328,17 @@ class AttachmentService: ObservableObject {
             return (fileId: file.id, url: cachedURL)
         }
 
-        // 3. Ask the server for a signed URL, fetch it, and cache the result.
+        // 3. A legacy MCP attachment carries its own URL and has NO secure-files record, so the
+        //    signed-URL route below would 404 on it (AITD-355). Fetch what it points at.
+        if case .directURL(let direct) = file.source {
+            guard let data = await bytes(atDirectURL: direct) else { return nil }
+            cacheDownload(fileId: file.id, data: data)
+            let fileURL = downloadCache.previewURL(fileId: file.id, fileName: file.name)
+            try? data.write(to: fileURL)
+            return (fileId: file.id, url: fileURL)
+        }
+
+        // 4. Ask the server for a signed URL, fetch it, and cache the result.
         do {
             guard let url = try? AstridHTTP.apiURL("/api/v1/secure-files/\(file.id)",
                                                    query: [URLQueryItem(name: "info", value: "true")])

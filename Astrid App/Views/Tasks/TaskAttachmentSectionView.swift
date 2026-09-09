@@ -12,46 +12,15 @@ struct TaskAttachmentSectionView: View {
     @State private var isPreparingPreview = false
     @State private var showQuickLook = false
 
+    /// The SHARED union (AITD-355), not a copy of it. This view used to spell the rule out
+    /// itself, which is how the model's version came to be dead code while the copy here quietly
+    /// dropped every legacy attachment's url.
+    ///
+    /// Comments come from `CommentService`'s cache rather than `task.comments`, because the cache
+    /// is what this screen keeps current — that difference is exactly why the union takes them
+    /// as a parameter.
     private var allFiles: [SecureFile] {
-        var files: [SecureFile] = []
-
-        // 1. Add direct task attachments
-        if let directFiles = task.secureFiles {
-            files.append(contentsOf: directFiles)
-        }
-
-        // 2. Add legacy attachments (if any, converted to SecureFile)
-        if let legacyAttachments = task.attachments {
-            for att in legacyAttachments {
-                files.append(SecureFile(
-                    id: att.id,
-                    name: att.name,
-                    size: att.size,
-                    mimeType: att.type
-                ))
-            }
-        }
-
-        // 3. Add files from comments (using CommentService cache)
-        if let comments = commentService.cachedComments[task.id] {
-            for comment in comments {
-                if let commentFiles = comment.secureFiles {
-                    files.append(contentsOf: commentFiles)
-                }
-            }
-        }
-
-        // Remove duplicates by ID
-        var uniqueFiles: [SecureFile] = []
-        var seenIds = Set<String>()
-        for file in files {
-            if !seenIds.contains(file.id) {
-                uniqueFiles.append(file)
-                seenIds.insert(file.id)
-            }
-        }
-
-        return uniqueFiles
+        task.allSecureFiles(comments: commentService.cachedComments[task.id])
     }
 
     var body: some View {
