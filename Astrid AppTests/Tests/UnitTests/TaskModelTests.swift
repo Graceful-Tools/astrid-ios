@@ -343,7 +343,7 @@ final class TaskModelTests: XCTestCase {
             comments: [comment1, comment2]
         )
         
-        let allFiles = task.allSecureFiles
+        let allFiles = task.allSecureFiles()
         XCTAssertEqual(allFiles.count, 3)
         XCTAssertTrue(allFiles.contains(where: { $0.id == "file-1" }))
         XCTAssertTrue(allFiles.contains(where: { $0.id == "file-2" }))
@@ -361,7 +361,7 @@ final class TaskModelTests: XCTestCase {
             secureFiles: [file1]
         )
         
-        let allFiles = task.allSecureFiles
+        let allFiles = task.allSecureFiles()
         XCTAssertEqual(allFiles.count, 2)
         XCTAssertTrue(allFiles.contains(where: { $0.id == "att-1" }))
         XCTAssertTrue(allFiles.contains(where: { $0.id == "file-1" }))

@@ -298,12 +298,76 @@ struct SecureFile: Codable, Equatable, Hashable {
     var size: Int
     var mimeType: String
 
+    /// A URL that already points at the bytes, for a file that has NO secure-files record
+    /// (AITD-355).
+    ///
+    /// The v1 task response carries two attachment relations. `secureFiles` are real secure-file
+    /// records, fetched by id. `attachments` is the legacy table, whose only writers are the two
+    /// MCP handlers, and whose rows carry a plain fetchable `url` and nothing in secure-files at
+    /// all — so resolving one of those ids through `/api/v1/secure-files/{id}` 404s.
+    ///
+    /// Deliberately absent from `CodingKeys`: the API's secure-file shape has no such field, and
+    /// this must decode exactly as it did before. It is set only when a legacy `Attachment` is
+    /// converted into this type.
+    var directURL: String?
+
     // Map API field names to iOS property names
     enum CodingKeys: String, CodingKey {
         case id
         case name = "originalName"  // API returns "originalName"
         case size = "fileSize"      // API returns "fileSize"
         case mimeType
+    }
+}
+
+/// Where a file's bytes actually live.
+///
+/// Three answers, and `AttachmentService` had the first and third written out as an `if` ladder
+/// in two places — `fileData(for:)` and `prepareFileForPreview` — which is why adding the second
+/// had to become a value rather than a third copy. It is also the only way to test the routing
+/// decision without a network.
+enum SecureFileSource: Equatable {
+    /// Staged on this device and not uploaded yet; the bytes are already here.
+    case localStaging
+    /// A legacy MCP attachment, which carries its own fetchable URL.
+    case directURL(URL)
+    /// A real secure-file record: ask `/api/v1/secure-files/{id}` for a signed URL.
+    case secureFilesRoute
+}
+
+extension SecureFile {
+
+    /// Which of the three routes gets this file's bytes.
+    ///
+    /// Order matters: a `temp_` id is checked first because a staged file has no server record of
+    /// any kind yet, and `directURL` before the secure-files route because a legacy row would
+    /// 404 there.
+    var source: SecureFileSource {
+        if id.hasPrefix("temp_") { return .localStaging }
+        if let directURL, let resolved = SecureFile.absoluteURL(from: directURL) {
+            return .directURL(resolved)
+        }
+        return .secureFilesRoute
+    }
+
+    /// Stored attachment URLs come in both shapes — absolute, and server-relative like
+    /// `/api/secure-files/<id>` — because they were persisted by different generations of the
+    /// product. Both have to resolve, for the same reason `ImageCache` accepts both.
+    static func absoluteURL(from stored: String) -> URL? {
+        if stored.hasPrefix("http://") || stored.hasPrefix("https://") {
+            return URL(string: stored)
+        }
+        guard stored.hasPrefix("/") else { return nil }
+        return URL(string: Constants.API.baseURL + stored)
+    }
+
+    /// The legacy `Attachment` seen as a `SecureFile`, keeping the URL that makes it fetchable.
+    init(legacy attachment: Attachment) {
+        self.init(id: attachment.id,
+                  name: attachment.name,
+                  size: attachment.size,
+                  mimeType: attachment.type,
+                  directURL: attachment.url)
     }
 }
 
@@ -320,50 +384,47 @@ extension Task {
         return effectiveCreatorId == userId
     }
 
-    /// Returns all unique secure files from this task (direct and from comments)
-    var allSecureFiles: [SecureFile] {
+    /// Every file this task shows, in one place (AITD-355).
+    ///
+    /// There were two copies of this — here, and hand-transcribed inside
+    /// `TaskAttachmentSectionView` — and only the view's ran, because nothing in production
+    /// called this one. They had already drifted: the view reads comments from
+    /// `CommentService`'s cache, this read `task.comments`. That is the whole reason the
+    /// comment source is a PARAMETER rather than two functions.
+    ///
+    /// Order is the cross-platform contract: task secure files, then MCP attachments, then the
+    /// files comments carry.
+    ///
+    /// - Parameter comments: where to take comment files from. Defaults to the task's own, which
+    ///   is what a Task decoded straight from the API carries.
+    func allSecureFiles(comments overrideComments: [Comment]? = nil) -> [SecureFile] {
+        var files: [SecureFile] = []
+
+        // 1. Real secure-file records hanging off the task.
+        files.append(contentsOf: secureFiles ?? [])
+
+        // 2. Legacy MCP attachments, converted — KEEPING their url. Dropping it was AITD-355:
+        //    these rows have no secure-files record, so an id is not enough to fetch them.
+        files.append(contentsOf: (attachments ?? []).map(SecureFile.init(legacy:)))
+
+        // 3. Whatever the comments carry.
+        for comment in (overrideComments ?? comments ?? []) {
+            files.append(contentsOf: comment.secureFiles ?? [])
+        }
+
+        // Dedupe by id AND by url: the two relations are different tables, so ids from one say
+        // nothing about ids from the other, and the same file can legitimately arrive twice.
         var seenIds = Set<String>()
-        var uniqueFiles: [SecureFile] = []
-        
-        // 1. Add direct task attachments
-        if let directFiles = secureFiles {
-            for file in directFiles {
-                if !seenIds.contains(file.id) {
-                    seenIds.insert(file.id)
-                    uniqueFiles.append(file)
-                }
-            }
+        var seenURLs = Set<String>()
+        var unique: [SecureFile] = []
+        for file in files {
+            if seenIds.contains(file.id) { continue }
+            if let url = file.directURL, seenURLs.contains(url) { continue }
+            seenIds.insert(file.id)
+            if let url = file.directURL { seenURLs.insert(url) }
+            unique.append(file)
         }
-        
-        // 2. Add legacy attachments (if any, converted to SecureFile)
-        if let legacyAttachments = attachments {
-            for att in legacyAttachments {
-                if !seenIds.contains(att.id) {
-                    seenIds.insert(att.id)
-                    uniqueFiles.append(SecureFile(
-                        id: att.id,
-                        name: att.name,
-                        size: att.size,
-                        mimeType: att.type
-                    ))
-                }
-            }
-        }
-        
-        // 3. Add files from comments
-        if let comments = comments {
-            for comment in comments {
-                if let files = comment.secureFiles {
-                    for file in files {
-                        if !seenIds.contains(file.id) {
-                            seenIds.insert(file.id)
-                            uniqueFiles.append(file)
-                        }
-                    }
-                }
-            }
-        }
-        
-        return uniqueFiles
+        return unique
     }
+
 }
