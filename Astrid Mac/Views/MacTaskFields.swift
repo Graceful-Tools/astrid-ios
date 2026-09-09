@@ -175,10 +175,18 @@ enum MacLeadingPicker {
     /// the list layout rebuilds the hybrid. On a board that argument does not apply: the card is
     /// already in a board, its column is the one thing on screen that is about to change, and
     /// without this section the control offers no way to change it.
+    ///
+    /// SOMEONE ELSE'S TASK gets the full set too (AITD-375) — "just like in project mode". When
+    /// the popover is the only thing a tap gives you, list mode's omission stops applying: that
+    /// omission is an argument about the detail panel's own layout, not about what to offer when
+    /// the panel is not what you are looking at.
     static func sections(for displayMode: TaskDisplayMode,
-                         surface: TaskLeadingControlSurface = .detail) -> [MacLeadingPickerSection] {
-        let showsProjectState = displayMode.usesCompactTaskDetail || surface == .boardCard
-        return showsProjectState
+                         surface: TaskLeadingControlSurface = .detail,
+                         isSomeoneElses: Bool = false) -> [MacLeadingPickerSection] {
+        // The SHARED rule, so the Mac and the phone cannot offer different choices for one task.
+        return TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
+                                                          surface: surface,
+                                                          isSomeoneElses: isSomeoneElses)
             ? [.priority, .assignee, .projectState, .complete]
             : [.priority, .assignee, .complete]
     }

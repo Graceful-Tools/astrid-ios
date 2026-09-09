@@ -50,15 +50,22 @@ struct MacLeadingControlButton: View {
     /// folded that third one silently back into "open the picker" — the Mac quietly doing
     /// something else than the phone for the same task, which is what sharing the rule prevents.
     private var tapAction: TaskLeadingControlAction {
-        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode)
+        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode,
+                                  currentUserId: AuthManager.shared.userId)
+    }
+
+    /// Does finishing this task need asking first? Yes when it is not yours (AITD-375) — the
+    /// same rule the phone uses, from the same place.
+    private var needsCompletionConfirmation: Bool {
+        TaskLeadingControl.completionNeedsConfirmation(assigneeId: task.assigneeId,
+                                                       currentUserId: AuthManager.shared.userId)
     }
 
     var body: some View {
         Button {
             switch tapAction {
-            case .complete:          onToggleComplete()
-            case .openPicker:        isPresented = true
-            case .confirmCompletion: isConfirmingCompletion = true
+            case .complete:   onToggleComplete()
+            case .openPicker: isPresented = true
             }
         } label: { face }
             .buttonStyle(.plain)
@@ -95,7 +102,7 @@ struct MacLeadingControlButton: View {
     /// a third of the truth and is simply wrong when the click completes the task.
     private var helpText: String {
         switch tapAction {
-        case .complete, .confirmCompletion:
+        case .complete:
             return task.completed
                 ? NSLocalizedString("mac.mark_incomplete", comment: "")
                 : NSLocalizedString("tasks.complete_task", comment: "")
@@ -141,7 +148,9 @@ struct MacLeadingControlButton: View {
 
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface).enumerated()), id: \.offset) { _, section in
+            ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface,
+                                                    isSomeoneElses: needsCompletionConfirmation)
+                            .enumerated()), id: \.offset) { _, section in
                 switch section {
                 case .priority:
                     VStack(alignment: .leading, spacing: 5) {
@@ -183,7 +192,9 @@ struct MacLeadingControlButton: View {
                     Divider()
                     Button {
                         isPresented = false
-                        onToggleComplete()
+                        // Not yours? Ask first (AITD-375).
+                        if needsCompletionConfirmation { isConfirmingCompletion = true }
+                        else { onToggleComplete() }
                     } label: {
                         Label(task.completed
                               ? NSLocalizedString("mac.mark_incomplete", comment: "")

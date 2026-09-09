@@ -58,7 +58,8 @@ struct MacTaskRow: View {
                                  kind: TaskLeadingControl.kind(assigneeId: task.assigneeId,
                                                                currentUserId: auth.userId,
                                                                displayMode: displayMode),
-                                 displayMode: displayMode) == .openPicker
+                                 displayMode: displayMode,
+                                 currentUserId: auth.userId) == .openPicker
     }
 
     /// One decision for all three faces, so the rule is not written once per branch.
