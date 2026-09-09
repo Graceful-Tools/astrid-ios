@@ -87,17 +87,24 @@ struct MacTaskDetailView: View {
             Spacer()
             // Full screen (42013da7) — the point of the redesign is room for the description, and
             // the widest the pop-out can ever be is the detail column. This takes the window.
-            // Same affordance and icons as the board's full screen (a34d0163).
+            //
+            // This header is the ROOMY surface, so it keeps its button: it lays its controls out
+            // with space to spare, and web made the same call about its side pane (AWTD-872). Only
+            // the cramped board card moved its copy into a menu (AITD-377).
+            //
+            // Asks MacDetailPresentation for the glyph and the tooltip, which is what that helper
+            // is for — "so the board card and the detail header cannot drift into two different
+            // icons". This header claimed to match the board while restating both literals, which
+            // is the drift the helper was written to prevent, one edit away from happening.
             Button {
                 withAnimation(MacMotion.fast) { detailFullScreen.toggle() }
             } label: {
-                Image(systemName: detailFullScreen
-                      ? "arrow.down.right.and.arrow.up.left"
-                      : "arrow.up.left.and.arrow.down.right")
+                Image(systemName: MacDetailPresentation.fullScreenSymbol(isFullScreen: detailFullScreen))
             }
             .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
-            .help(NSLocalizedString(detailFullScreen ? "board.exit_full_screen" : "board.full_screen",
-                                    comment: ""))
+            .help(NSLocalizedString(
+                MacDetailPresentation.fullScreenTooltipKey(isFullScreen: detailFullScreen),
+                comment: ""))
             .accessibilityIdentifier("taskDetail.fullScreen")
             Menu {
                 Menu(NSLocalizedString("lists.copy_to_list", comment: "")) {

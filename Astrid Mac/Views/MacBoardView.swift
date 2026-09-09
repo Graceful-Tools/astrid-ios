@@ -223,32 +223,18 @@ struct MacBoardView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { toggleExpanded(t) }
 
-                // Close or expand, in one place (7017c3c1). The caret collapses the card, and
-                // directly beneath it — only while open, which is when it means anything — the
-                // full-screen control. These were at opposite ends of a card whose height changes
-                // with its content, so the way out and the way further in were nowhere near
-                // each other.
-                VStack(alignment: .trailing, spacing: 6) {
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2).foregroundStyle(Theme.textMuted)
-                        .contentShape(Rectangle())
-                        .onTapGesture { toggleExpanded(t) }
-                    if expanded {
-                        Button {
-                            withAnimation(MacMotion.fast) { detailFullScreen = true }
-                            MacAppModel.shared.openTask(listId: listId, taskId: t.id)
-                        } label: {
-                            Image(systemName: MacDetailPresentation.fullScreenSymbol(isFullScreen: false))
-                                .font(.caption2)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Theme.textMuted)
-                        .macPointingHand()
-                        .help(NSLocalizedString(
-                            MacDetailPresentation.fullScreenTooltipKey(isFullScreen: false), comment: ""))
-                        .accessibilityIdentifier("boardCard.fullScreen")
-                    }
-                }
+                // The caret, alone (AITD-377, matching web's AWTD-872). Full screen used to sit
+                // directly beneath it whenever the card was open — two controls stacked in a
+                // gutter this narrow, which is the clutter Jon asked about. It moved into the
+                // card's right-click menu, where every other secondary action already lives.
+                //
+                // Collapse stayed a button on purpose: it undoes the click that expanded the
+                // card, so burying it would make expanding feel like a trap. Web kept it for the
+                // same reason.
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2).foregroundStyle(Theme.textMuted)
+                    .contentShape(Rectangle())
+                    .onTapGesture { toggleExpanded(t) }
             }
 
             if expanded {
@@ -296,7 +282,8 @@ struct MacBoardView: View {
                             MacTaskActions.clipboardText(title: t.title, shareURL: nil))
                     },
                     openInNewWindow: { openWindow(id: "task", value: t.id) },
-                    delete: { deleteTask(t) }
+                    delete: { deleteTask(t) },
+                    fullScreen: { openFullScreen(t) }
                 )
             )
         }
@@ -362,6 +349,14 @@ struct MacBoardView: View {
             _ = try await taskService.copyTask(id: t.id, targetListId: targetListId,
                                                includeComments: true)
         }
+    }
+
+    /// Open this task filling the content area — the action that used to be the second button in
+    /// the card's gutter (AITD-377). Unchanged in what it does: set the app-wide full-screen flag
+    /// and select the task, so `MacDetailPresentation` renders the pane over the board.
+    private func openFullScreen(_ t: Task) {
+        withAnimation(MacMotion.fast) { detailFullScreen = true }
+        MacAppModel.shared.openTask(listId: listId, taskId: t.id)
     }
 
     private func shareTask(_ t: Task) {
