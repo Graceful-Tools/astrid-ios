@@ -61,6 +61,21 @@ enum MacListChrome {
     /// is the chat column rather than the list.
     static let toolbarOffersSortOrFilter = false
 
+    /// Undo DOES belong in the window toolbar (AITD-374), and this constant is here beside the
+    /// two below so the exception is recorded rather than looking like the row controls creeping
+    /// back in.
+    ///
+    /// What sent sort, filter and "+" away was that they act on ROWS, while the toolbar's
+    /// trailing edge is the chat column in 3-column mode — so they read as chat's controls. Undo
+    /// reverses your last action wherever it happened; it is not about these rows. That is the
+    /// same test the comment on Refresh applies to Refresh, calling it "the one control that DOES
+    /// belong to the window rather than to the task list". Undo is the second.
+    ///
+    /// It is also the answer to the discoverability half of the task: ⌘Z and Edit ▸ Undo already
+    /// worked, but nothing on screen said so, and a task deleted by clicking a menu item gave no
+    /// visible way back.
+    static let toolbarOffersUndo = true
+
     /// The window toolbar offers no task "+". Adding lives with the list: the quick-add bar's ⊕,
     /// or ⌘N. `MacAddTaskBar.isVisible` covers every state the removed button did.
     static let toolbarOffersNewTask = false
