@@ -11,6 +11,8 @@ struct MacBoardView: View {
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Observed so the board redraws when a project's custom columns arrive (AITD-379).
+    @StateObject private var projectService = ProjectService.shared
     @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
     @State private var draftByColumn: [String: String] = [:]
@@ -44,16 +46,23 @@ struct MacBoardView: View {
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
-    private var columns: [ProjectBoardColumn] { getProjectBoardColumns(listService.lists) }
+    /// This board's own custom columns (AITD-379) — keyed off the selected
+    /// list's project, since that is what makes this a board at all.
+    private var customStates: [ProjectCustomState]? {
+        projectService.customStates(projectId: list?.projectId)
+    }
+    private var columns: [ProjectBoardColumn] {
+        getProjectBoardColumns(listService.lists, customStates: customStates)
+    }
     private var tasks: [Task] { taskService.getTasksForList(listId) }
 
-    /// One-pass column grouping (6042bde0): hoists getProjectStatusLists out of the per-task path.
+    /// One-pass column grouping (6042bde0): builds the columns once, out of the per-task path.
     /// Was O(columns × tasks × lists) — tasks(in:) per column, each task rescanning all lists.
     private func groupTasksByColumn() -> [String: [Task]] {
-        let statusLists = getProjectStatusLists(listService.lists)
+        let columns = self.columns
         var buckets: [String: [Task]] = [:]
         for t in tasks {
-            buckets[getTaskProjectColumnId(t, statusLists: statusLists), default: []].append(t)
+            buckets[getTaskProjectColumnId(t, columns: columns), default: []].append(t)
         }
         return buckets
     }
@@ -294,7 +303,8 @@ struct MacBoardView: View {
 
     private func move(taskId: String, to col: ProjectBoardColumn) {
         guard let task = tasks.first(where: { $0.id == taskId }) else { return }
-        let plan = MacBoardMove.plan(task: task, column: col, lists: listService.lists)
+        let plan = MacBoardMove.plan(task: task, column: col,
+                                     lists: listService.lists, customStates: customStates)
         MacActions.perform("Move task") {
             switch plan {
             case .none:

@@ -24,6 +24,87 @@ let DEFAULT_PROJECT_STATUSES: [ProjectStatusDefinition] = [
     .init(role: .waiting, name: "Waiting", description: "Paused until the circumstances are right.",  order: 2),
 ]
 
+/// A board's own custom column, as stored on `Project.customStates`.
+///
+/// Swift mirror of web's `StatusState` (`lib/task-status.ts`). The three
+/// defaults are NOT stored here — they are `DEFAULT_PROJECT_STATUSES` config,
+/// shared by every board. A DEFAULT role appearing in this array is a NAME
+/// OVERRIDE for that built-in, not a sixth column; `getProjectBoardColumns`
+/// tells the two apart, exactly as web's `isDefaultStatusRole` does.
+///
+/// Decoding is deliberately lenient: the server column is a free-form `Json?`
+/// that nothing validates on read, so a single malformed entry must not fail
+/// the whole `Project` — one bad row would otherwise empty the board. Junk
+/// decodes to blank fields that `parseProjectCustomStates` then drops, which is
+/// how web behaves entry-by-entry.
+struct ProjectCustomState: Codable, Equatable, Hashable {
+    let role: String
+    let name: String
+    let description: String?
+    /// Absent means "wherever it landed" — the parser fills in the insertion
+    /// index, matching web's `byRole.size` fallback.
+    let order: Int?
+
+    init(role: String, name: String, description: String? = nil, order: Int? = nil) {
+        self.role = role
+        self.name = name
+        self.description = description
+        self.order = order
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // `try?` twice over: the key may be missing, and the value may be the
+        // wrong JSON type. Neither is worth failing a project for.
+        role = ((try? c.decodeIfPresent(String.self, forKey: .role)) ?? nil) ?? ""
+        name = ((try? c.decodeIfPresent(String.self, forKey: .name)) ?? nil) ?? ""
+        description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? nil
+        order = (try? c.decodeIfPresent(Int.self, forKey: .order)) ?? nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case role, name, description, order
+    }
+}
+
+/// Port of web's `parseCustomStates` (`lib/task-status.ts`). Same rules, in
+/// the same order, because the two platforms must agree about which columns a
+/// board has and what they are called:
+///
+///   * `role` and `name` are trimmed; an entry missing either is dropped.
+///   * The FIRST entry for a role wins — a later duplicate is ignored.
+///   * An absent `order` becomes the entry's insertion index.
+///   * The result is sorted by `order`, ties broken by insertion order.
+func parseProjectCustomStates(_ raw: [ProjectCustomState]?) -> [ProjectCustomState] {
+    guard let raw else { return [] }
+
+    var seen: Set<String> = []
+    var kept: [ProjectCustomState] = []
+    for entry in raw {
+        let role = entry.role.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = entry.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !role.isEmpty, !name.isEmpty else { continue }
+        guard seen.insert(role).inserted else { continue }
+        kept.append(ProjectCustomState(
+            role: role,
+            name: name,
+            description: entry.description,
+            order: entry.order ?? kept.count
+        ))
+    }
+
+    // Sort is not guaranteed stable in Swift, so tie-break on the insertion
+    // index explicitly rather than trusting it.
+    return kept.enumerated()
+        .sorted { a, b in
+            let aOrder = a.element.order ?? a.offset
+            let bOrder = b.element.order ?? b.offset
+            if aOrder != bOrder { return aOrder < bOrder }
+            return a.offset < b.offset
+        }
+        .map(\.element)
+}
+
 let VIRTUAL_INBOX_COLUMN_ID = "__virtual_inbox__"
 let VIRTUAL_DONE_COLUMN_ID  = "__virtual_done__"
 
@@ -91,31 +172,47 @@ func getProjectStatusLists(_ lists: [TaskList]) -> [TaskList] {
 /// The roles that always have a column, whether a list backs them or not.
 let DEFAULT_STATUS_ROLES: Set<String> = Set(DEFAULT_PROJECT_STATUSES.map { $0.role.rawValue })
 
-/// Build the ordered board columns: [virtual Inbox, ...statuses, virtual Done].
+/// Build the ordered board columns: [virtual Inbox, ...defaults, ...customs, virtual Done].
 ///
-/// The three defaults come from CONFIG, backed by a status list when one
-/// exists (task 2e41c645, mirroring web's a1722040 step 4). Deriving the whole
-/// board from the rows meant the day they are deleted the board would render
-/// Inbox and Done and nothing else — so those rows could not be deleted at all
-/// while iOS depended on them. Now the deletion is a no-op here.
+/// The three defaults come from CONFIG (task 2e41c645, mirroring web's
+/// a1722040 step 4). Deriving the whole board from `listType: "status"` rows
+/// meant the day they were deleted the board would render Inbox and Done and
+/// nothing else — so those rows could not be deleted at all while iOS depended
+/// on them. Now the deletion is a no-op here.
 ///
 /// **The column id is the ROLE, always** (task e5c74b5e). It used to be the LIST
 /// id whenever a row happened to be cached, which handed the shape of the board
 /// to whatever a client had lying around from before the migration: two clients
 /// disagreed about the same card, and the id leaked onto the wire as a membership
-/// in a list that no longer exists. A cached row may still supply a renamed
-/// default's NAME while any survive; it may not supply an id.
+/// in a list that no longer exists.
 ///
-/// Custom states are per-project (task 109d8a91): a custom column belongs to
-/// one board and must not leak onto another, so `projectId` filters them.
+/// **Custom columns come from `Project.customStates`** (task AITD-379, porting
+/// web's b346e377 / 9ddf4a6f). They used to come from project-scoped status
+/// rows, which `20260821000000_drop_status_lists` deleted — so that scan found
+/// nothing and iOS silently rendered no custom column at all. A custom state
+/// still belongs to exactly one board, but now because it is stored ON that
+/// board rather than because a `projectId` filtered the rows.
 ///
-/// Web has since moved its equivalent to read `Project.customStates` instead of
-/// rows (b346e377 / 9ddf4a6f). iOS's `Project` has no such field yet, so custom
-/// states still come from project-scoped rows here — a separate port.
-func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [ProjectBoardColumn] {
-    let statuses = getProjectStatusLists(lists)
+/// A cached row may still supply a renamed default's NAME, below an override
+/// stored in `customStates` and above the config default. It may never supply
+/// an id, and it can no longer contribute a column of its own.
+func getProjectBoardColumns(_ lists: [TaskList],
+                            customStates: [ProjectCustomState]? = nil) -> [ProjectBoardColumn] {
+    let parsed = parseProjectCustomStates(customStates)
+    // A default role in the array is a rename of that built-in, not a new
+    // column — the same split web makes with `isDefaultStatusRole`.
+    var renames: [String: ProjectCustomState] = [:]
+    var customs: [ProjectCustomState] = []
+    for state in parsed {
+        if DEFAULT_STATUS_ROLES.contains(state.role) {
+            renames[state.role] = state
+        } else {
+            customs.append(state)
+        }
+    }
+
     var byRole: [String: TaskList] = [:]
-    for status in statuses {
+    for status in getProjectStatusLists(lists) {
         if let role = status.statusRole { byRole[role] = status }
     }
 
@@ -129,28 +226,25 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
     ]
 
     for state in DEFAULT_PROJECT_STATUSES {
-        let backing = byRole[state.role.rawValue]
+        let role = state.role.rawValue
+        let backing = byRole[role]
         result.append(ProjectBoardColumn(
-            id: state.role.rawValue,
-            // A renamed default was a PUT on the list, so its name still wins
-            // while any of those rows survive in a cache. Only the NAME — the id
-            // is the role either way, so the board's shape does not depend on
-            // whether this client has the row.
-            name: backing?.name ?? state.name,
+            id: role,
+            // A rename is durable in `customStates`; a renamed default was also
+            // once a PUT on the list, so a surviving cached row still answers
+            // for clients that have one. Only the NAME either way — the id is
+            // the role, so the board's shape never depends on the cache.
+            name: renames[role]?.name ?? backing?.name ?? state.name,
             description: backing?.statusDescription ?? backing?.description ?? state.description,
             kind: .status
         ))
     }
 
-    // Custom states have no config entry, so they still come from the rows —
-    // and only this board's.
-    for status in statuses {
-        guard let role = status.statusRole, !DEFAULT_STATUS_ROLES.contains(role) else { continue }
-        guard let projectId, status.projectId == projectId else { continue }
+    for state in customs {
         result.append(ProjectBoardColumn(
-            id: role,
-            name: status.name,
-            description: status.statusDescription ?? status.description ?? "",
+            id: state.role,
+            name: state.name,
+            description: state.description ?? "",
             kind: .status
         ))
     }
@@ -173,34 +267,64 @@ func getProjectBoardColumns(_ lists: [TaskList], projectId: String? = nil) -> [P
 ///
 /// Column resolution is statusRole-only. Status-list membership is transitional
 /// state that can outlive its backing rows and must not drive columning.
-func getTaskProjectColumnId(_ task: Task, lists: [TaskList]) -> String {
-    getTaskProjectColumnId(task, statusLists: getProjectStatusLists(lists))
+///
+/// Convenience over the `columns:` variant for callers holding lists rather
+/// than a built board. `customStates` is the board's own — omit it and a custom
+/// role resolves to Inbox, which is the safe answer for a caller that does not
+/// know which board it is looking at.
+func getTaskProjectColumnId(_ task: Task,
+                            lists: [TaskList],
+                            customStates: [ProjectCustomState]? = nil) -> String {
+    getTaskProjectColumnId(task, columns: getProjectBoardColumns(lists, customStates: customStates))
 }
 
-/// Fast variant taking the PRECOMPUTED status lists — callers grouping many tasks (the Mac board's
-/// one-pass column grouping, Task 6042bde0) hoist `getProjectStatusLists` out of the per-task loop
-/// instead of rescanning all lists for every task. Same contract, shared by both platforms.
-func getTaskProjectColumnId(_ task: Task, statusLists: [TaskList]) -> String {
+/// Resolved against the board's COLUMNS, not against the user's lists — the
+/// same signature web uses, and the reason the "resolved id is always a column
+/// the board renders" invariant holds by construction rather than by agreement
+/// between two separate derivations.
+///
+/// Also the fast variant: callers grouping many tasks (the Mac board's one-pass
+/// column grouping, Task 6042bde0) build the columns once and hoist them out of
+/// the per-task loop instead of rescanning for every task.
+func getTaskProjectColumnId(_ task: Task, columns: [ProjectBoardColumn]) -> String {
     if task.completed { return VIRTUAL_DONE_COLUMN_ID }
 
     // Status is a STATE on the task (AWTD-562). Prefer the field: it lives on
     // the shared task, so two members of a board cannot resolve different
     // columns — the failure that status-as-list-membership could not fix
     // without duplicating a Ready/Doing/Waiting set per project.
-    if let role = task.statusRole, !role.isEmpty {
-        // A default role always has a column, backed or not, so a card does not
-        // fall to Inbox merely because the rows are gone or have not loaded.
-        if DEFAULT_STATUS_ROLES.contains(role) { return role }
-        // A custom role has a column only while this board declares it. The id
-        // is the ROLE, not the row's id (task e5c74b5e) — returning the row id
-        // resolved the card to a column the board does not render, and a card
-        // matching NO column is gone from the board while still in the list view.
-        if statusLists.contains(where: { $0.statusRole == role }) { return role }
-        // Showing a card in the wrong column is recoverable; losing it is not.
-        return VIRTUAL_INBOX_COLUMN_ID
-    }
+    guard let role = task.statusRole, !role.isEmpty else { return VIRTUAL_INBOX_COLUMN_ID }
 
+    // A role has a column only while this board declares one. The defaults
+    // always do, from config, so a card does not fall to Inbox merely because
+    // the rows are gone. A custom role does only while `customStates` says so —
+    // and a card matching NO column is gone from the board while still in the
+    // list view, so an unmatched role falls to Inbox instead of being returned
+    // bare. Showing a card in the wrong column is recoverable; losing it is not.
+    if columns.contains(where: { $0.kind == .status && $0.id == role }) { return role }
     return VIRTUAL_INBOX_COLUMN_ID
+}
+
+/// The board a selected list belongs to, if any. Mirrors web's
+/// `getProjectIdForBoard` (`lib/project-status.ts`).
+///
+/// Needed now that columns depend on the board's own `customStates` (AITD-379):
+/// a caller holding only a list id has to resolve WHICH board before it can ask
+/// what columns that board has.
+func getProjectIdForBoard(_ lists: [TaskList], selectedListId: String?) -> String? {
+    guard let selectedListId else { return nil }
+    return lists.first { $0.id == selectedListId }?.projectId
+}
+
+/// The board a task is on, if any — the same question `isTaskInProject` answers
+/// as a Bool, for callers that need to know which one.
+///
+/// Only the list memberships can answer it. A bare `statusRole` proves the task
+/// is on SOME board (which is what `isTaskInProject` uses it for) but not which,
+/// so it cannot name the board whose custom states apply.
+func getProjectIdForTask(_ task: Task, lists: [TaskList]) -> String? {
+    let membership = taskListMembershipIds(task)
+    return lists.first { membership.contains($0.id) && $0.projectId != nil }?.projectId
 }
 
 /// Is this task part of a project — i.e. does it have a board column at all? (AITD-327)
@@ -338,13 +462,19 @@ func boardColumnTasksSorted(
     projectId: String,
     column: ProjectBoardColumn,
     lists: [TaskList],
+    /// The board's own custom states, so a card in a custom column is found
+    /// here too (AITD-379). Omitted, such a card resolves to Inbox.
+    customStates: [ProjectCustomState]? = nil,
     manualOrder: [String]?,
     recentlyCompletedWindow: RecentlyCompletedWindow? = nil,
     completionFilter: String? = nil,
     now: Date = Date()
 ) -> [Task] {
+    // Built once, not per task: the filter below is the hot path on a board
+    // with many cards.
+    let columns = getProjectBoardColumns(lists, customStates: customStates)
     let inColumn = allTasks.filter { task in
-        getTaskProjectColumnId(task, lists: lists) == column.id
+        getTaskProjectColumnId(task, columns: columns) == column.id
     }
     // The Done column honors the list's recently-completed window so the board
     // matches the web (project-status-board.tsx) — otherwise iOS shows every
@@ -477,8 +607,9 @@ func resolveBoardReorder(
 /// because the optimistic update re-rendered.
 func isTaskAlreadyInColumn(_ task: Task,
                            targetColumn: ProjectBoardColumn,
-                           lists: [TaskList]) -> Bool {
-    getTaskProjectColumnId(task, lists: lists) == targetColumn.id
+                           lists: [TaskList],
+                           customStates: [ProjectCustomState]? = nil) -> Bool {
+    getTaskProjectColumnId(task, lists: lists, customStates: customStates) == targetColumn.id
 }
 
 /// Decide how many board columns to fit side-by-side based on the
@@ -635,8 +766,9 @@ enum ProjectColumnMovePlan: Equatable {
 
 func planProjectColumnMove(task: Task,
                            column: ProjectBoardColumn,
-                           lists: [TaskList]) -> ProjectColumnMovePlan {
-    if getTaskProjectColumnId(task, lists: lists) == column.id { return .none }
+                           lists: [TaskList],
+                           customStates: [ProjectCustomState]? = nil) -> ProjectColumnMovePlan {
+    if getTaskProjectColumnId(task, lists: lists, customStates: customStates) == column.id { return .none }
     let move = resolveProjectColumnMove(task, targetColumn: column, lists: lists)
     let role = move.statusRole ?? ""
     switch column.kind {

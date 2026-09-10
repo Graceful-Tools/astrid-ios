@@ -18,6 +18,11 @@ struct Project: Identifiable, Codable, Equatable, Hashable {
     var owner: User?
     var members: [ProjectMember]?
     var lists: [TaskList]?
+    /// The board's own custom columns (AITD-379). The three defaults are config
+    /// shared by every board and are NOT stored here; a DEFAULT role appearing
+    /// in this array is a name override for that built-in. Mirrors web's
+    /// `Project.customStates` (`prisma/schema.prisma`).
+    var customStates: [ProjectCustomState]?
     var createdAt: Date?
     var updatedAt: Date?
 
@@ -31,6 +36,7 @@ struct Project: Identifiable, Codable, Equatable, Hashable {
         owner: User? = nil,
         members: [ProjectMember]? = nil,
         lists: [TaskList]? = nil,
+        customStates: [ProjectCustomState]? = nil,
         createdAt: Date? = nil,
         updatedAt: Date? = nil
     ) {
@@ -43,8 +49,36 @@ struct Project: Identifiable, Codable, Equatable, Hashable {
         self.owner = owner
         self.members = members
         self.lists = lists
+        self.customStates = customStates
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    /// Hand-rolled only for `customStates` — the same reason `TaskList` hand-rolls
+    /// its own decoding. That field is a free-form `Json?` on the server, so it can
+    /// arrive as something other than an array (or not at all). Web answers `[]` for
+    /// anything that is not an array; throwing here instead would fail the WHOLE
+    /// project, and the board would render nothing rather than render without its
+    /// custom columns.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        ownerId = try c.decodeIfPresent(String.self, forKey: .ownerId)
+        owner = try c.decodeIfPresent(User.self, forKey: .owner)
+        members = try c.decodeIfPresent([ProjectMember].self, forKey: .members)
+        lists = try c.decodeIfPresent([TaskList].self, forKey: .lists)
+        customStates = (try? c.decodeIfPresent([ProjectCustomState].self, forKey: .customStates)) ?? nil
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, description, color, imageUrl, ownerId, owner, members, lists
+        case customStates, createdAt, updatedAt
     }
 
     var displayColor: String {

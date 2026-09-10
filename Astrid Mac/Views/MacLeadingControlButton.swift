@@ -229,15 +229,25 @@ struct MacProjectStateSection: View {
 
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
+    /// Observed so the chips redraw when the projects finish loading — see the
+    /// same field on iOS's ProjectStateQuickPicker.
+    @StateObject private var projectService = ProjectService.shared
+
+    /// The custom columns of the board THIS task is on (AITD-379), so the
+    /// picker and the board cannot disagree about what states exist.
+    private var customStates: [ProjectCustomState]? {
+        projectService.customStates(forTask: task, lists: listService.lists)
+    }
 
     /// Every state EXCEPT Done (task 7574067b) — the same filter iOS uses, so the two
     /// pickers cannot come to disagree about what a state is.
     private var columns: [ProjectBoardColumn] {
-        ProjectStatePicker.columns(from: getProjectBoardColumns(listService.lists))
+        ProjectStatePicker.columns(
+            from: getProjectBoardColumns(listService.lists, customStates: customStates))
     }
 
     private var currentColumnId: String {
-        getTaskProjectColumnId(task, lists: listService.lists)
+        getTaskProjectColumnId(task, lists: listService.lists, customStates: customStates)
     }
 
     var body: some View {
@@ -265,7 +275,8 @@ struct MacProjectStateSection: View {
     private func move(to column: ProjectBoardColumn) {
         onMoved()
         guard column.id != currentColumnId else { return }
-        let plan = planProjectColumnMove(task: task, column: column, lists: listService.lists)
+        let plan = planProjectColumnMove(task: task, column: column,
+                                         lists: listService.lists, customStates: customStates)
         MacActions.perform("Move task") {
             // Same sequencer as the iOS picker (AITD-352), including ASTRID.md rule 2 —
             // completion only ever through `completeTask`. The Mac discards the returned task:
