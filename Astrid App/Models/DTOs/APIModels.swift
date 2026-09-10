@@ -235,6 +235,14 @@ struct UpdateListRequest: Codable {
     // is sent by the list admin Recently-completed-window picker.
     var projectId: String?
     var recentlyCompletedWindow: RecentlyCompletedWindow?
+    /// Per-list AI agent config (AITD-380). The server prefers this over the
+    /// legacy `aiAgentsEnabled` array precisely because the array has nowhere to
+    /// put the default agent, so it is the only field that can express one.
+    ///
+    /// It REPLACES the stored config rather than patching it — build the value
+    /// with `ListAgentSettings`, never inline, or a change to one key clears the
+    /// others.
+    var aiAgentConfig: ListAgentConfig?
 }
 
 // MARK: - Projects (status boards)

@@ -782,6 +782,28 @@ class ListService: ObservableObject {
         return updatedList
     }
 
+    /// Choose the AI agent that answers in this list's chat and comments, or nil
+    /// for the account default (AITD-380).
+    ///
+    /// The Canonical Control Point for the setting: views ask for this, never
+    /// `AstridAPIClient` (ASTRID.md §0 rule 1). Both platforms' pickers call it,
+    /// which is what keeps them writing the same thing.
+    ///
+    /// The body comes from `ListAgentSettings` because `aiAgentConfig` replaces
+    /// the stored config wholesale — the list's enabled types have to be carried
+    /// through or the write erases them.
+    @discardableResult
+    func setListDefaultAgent(listId: String, agentId: String?) async throws -> TaskList {
+        guard let list = getList(id: listId) else {
+            throw NSError(domain: "ListService", code: 404,
+                          userInfo: [NSLocalizedDescriptionKey: "List not found"])
+        }
+        return try await updateListOnServer(
+            listId: listId,
+            updates: ListAgentSettings.updateRequest(settingDefaultAgent: agentId, on: list)
+        )
+    }
+
     // MARK: - Helpers
 
     func getList(id: String) -> TaskList? {
