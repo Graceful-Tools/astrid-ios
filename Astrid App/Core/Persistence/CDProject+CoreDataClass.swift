@@ -9,6 +9,13 @@ import Foundation
 /// project-to-list association lives on `CDTaskList.projectId` as a plain
 /// string foreign key, matching how `CDTask.listIds` references
 /// CDTaskList. Keeping the navigation pattern uniform avoids a one-off.
+///
+/// `customStates` (AITD-379) is likewise not cached, for the same reason
+/// `lists` and `members` are not: this cache holds a project's own scalars so
+/// the sidebar can name a board offline, and the board UI is online-first. A
+/// cold launch therefore renders the config defaults until the first sync
+/// fills the custom columns in — the same window that already exists for a
+/// board's lists, and a strictly better failure than a stale column set.
 @objc(CDProject)
 public class CDProject: NSManagedObject {
     @NSManaged public var id: String

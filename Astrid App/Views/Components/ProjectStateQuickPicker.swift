@@ -26,16 +26,28 @@ struct ProjectStateQuickPicker: View {
 
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
+    /// Observed, not just read: the chips have to redraw when the projects
+    /// finish loading, or a board's custom states arrive after the picker is
+    /// already on screen and it keeps offering only the defaults.
+    @StateObject private var projectService = ProjectService.shared
 
     /// Every state EXCEPT Done (task 7574067b). Done is what the Complete button below is
     /// for; offering it as a chip too gave the same action twice, and the chip was the one
     /// that never said it would finish the task.
+    /// The custom columns of the board THIS task is on (AITD-379). Without
+    /// them the picker offers only the three defaults while the board shows
+    /// more — the two surfaces disagreeing about one board's columns.
+    private var customStates: [ProjectCustomState]? {
+        projectService.customStates(forTask: task, lists: listService.lists)
+    }
+
     private var columns: [ProjectBoardColumn] {
-        ProjectStatePicker.columns(from: getProjectBoardColumns(listService.lists))
+        ProjectStatePicker.columns(
+            from: getProjectBoardColumns(listService.lists, customStates: customStates))
     }
 
     private var currentColumnId: String {
-        getTaskProjectColumnId(task, lists: listService.lists)
+        getTaskProjectColumnId(task, lists: listService.lists, customStates: customStates)
     }
 
     var body: some View {
@@ -63,7 +75,8 @@ struct ProjectStateQuickPicker: View {
 
     private func move(to column: ProjectBoardColumn) {
         onMoved()
-        let plan = planProjectColumnMove(task: task, column: column, lists: listService.lists)
+        let plan = planProjectColumnMove(task: task, column: column,
+                                         lists: listService.lists, customStates: customStates)
         _Concurrency.Task {
             do {
                 // The sequencing (and ASTRID.md rule 2 — completion only ever through

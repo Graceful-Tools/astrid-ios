@@ -53,14 +53,19 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
                      staleStatusRow("ready", "l-ready", "Ready"),
                      staleStatusRow("doing", "l-doing", "Doing"),
                      staleStatusRow("waiting", "l-waiting", "Waiting")]
-        let columns = getProjectBoardColumns(lists, projectId: project)
+        let columns = getProjectBoardColumns(lists)
 
         XCTAssertEqual(columns.filter { $0.kind == .status }.map(\.id), ["ready", "doing", "waiting"])
     }
 
     func testACustomColumnIdIsItsRoleNotItsListId() {
-        let blocked = staleStatusRow("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: project)
-        let columns = getProjectBoardColumns([domainList(), blocked], projectId: project)
+        // Since AITD-379 the custom column comes from `Project.customStates`
+        // rather than the row — but the rule it was written for is unchanged,
+        // and it is the reason `customStates` stores a role and not an id.
+        let columns = getProjectBoardColumns(
+            [domainList()],
+            customStates: [ProjectCustomState(role: "custom-blocked", name: "Blocked", order: 5)]
+        )
 
         XCTAssertEqual(columns.first { $0.name == "Blocked" }?.id, "custom-blocked")
     }
@@ -68,10 +73,13 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
     func testNoColumnIdIsEverAListId() {
         let lists = [domainList(),
                      staleStatusRow("ready", "l-ready", "Ready"),
-                     staleStatusRow("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: project)]
+                     staleStatusRow("custom-blocked", "l-blocked", "Blocked", order: 5)]
         let listIds = Set(lists.map(\.id))
 
-        for column in getProjectBoardColumns(lists, projectId: project) {
+        for column in getProjectBoardColumns(
+            lists,
+            customStates: [ProjectCustomState(role: "custom-blocked", name: "Blocked", order: 5)]
+        ) {
             XCTAssertFalse(listIds.contains(column.id),
                            "Column \"\(column.name)\" is keyed by a list id — the rows are deleted")
         }
@@ -81,10 +89,9 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
         // The deletion has to be a no-op. Two clients, one with a cache from
         // before the deploy and one without, must render the same board.
         let withRows = getProjectBoardColumns(
-            [domainList(), staleStatusRow("ready", "l-ready", "Ready"), staleStatusRow("doing", "l-doing", "Doing")],
-            projectId: project
+            [domainList(), staleStatusRow("ready", "l-ready", "Ready"), staleStatusRow("doing", "l-doing", "Doing")]
         )
-        let withoutRows = getProjectBoardColumns([domainList()], projectId: project)
+        let withoutRows = getProjectBoardColumns([domainList()])
 
         XCTAssertEqual(withRows.map(\.id), withoutRows.map(\.id))
         XCTAssertEqual(withRows.map(\.name), withoutRows.map(\.name))
@@ -105,7 +112,7 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
         let fresh = [domainList()]
 
         for lists in [stale, fresh] {
-            let columns = getProjectBoardColumns(lists, projectId: project)
+            let columns = getProjectBoardColumns(lists)
             let resolved = getTaskProjectColumnId(task(statusRole: "doing"), lists: lists)
             XCTAssertTrue(columns.contains { $0.id == resolved },
                           "Card resolved to \"\(resolved)\", which is not a rendered column")
@@ -113,10 +120,14 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
     }
 
     func testACustomRoleResolvesToItsRole() {
-        let blocked = staleStatusRow("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: project)
-        let lists = [domainList(), blocked]
-
-        XCTAssertEqual(getTaskProjectColumnId(task(statusRole: "custom-blocked"), lists: lists), "custom-blocked")
+        XCTAssertEqual(
+            getTaskProjectColumnId(
+                task(statusRole: "custom-blocked"),
+                lists: [domainList()],
+                customStates: [ProjectCustomState(role: "custom-blocked", name: "Blocked", order: 5)]
+            ),
+            "custom-blocked"
+        )
     }
 
     func testAnUnknownCustomRoleStillFallsToInbox() {
@@ -133,7 +144,7 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
     func testAMoveOntoABackedColumnWritesTheRoleAndNoMembership() {
         let ready = staleStatusRow("ready", "l-ready", "Ready")
         let lists = [domainList(), ready]
-        let columns = getProjectBoardColumns(lists, projectId: project)
+        let columns = getProjectBoardColumns(lists)
         let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
 
         let move = resolveProjectColumnMove(task(statusRole: nil), targetColumn: readyColumn, lists: lists)
@@ -147,7 +158,7 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
         // membership keeps rendering in its old column for anything that reads it.
         let ready = staleStatusRow("ready", "l-ready", "Ready")
         let lists = [domainList(), ready]
-        let columns = getProjectBoardColumns(lists, projectId: project)
+        let columns = getProjectBoardColumns(lists)
         let doingColumn = try! XCTUnwrap(columns.first { $0.name == "Doing" })
         let carrying = task(statusRole: "ready", listIds: ["domain-1", "l-ready"])
 
@@ -159,7 +170,7 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
 
     func testEveryColumnRoundTripsThroughAMove() {
         let lists = [domainList(), staleStatusRow("ready", "l-ready", "Ready")]
-        let columns = getProjectBoardColumns(lists, projectId: project)
+        let columns = getProjectBoardColumns(lists)
         let start = task(statusRole: "ready", listIds: ["domain-1", "l-ready"])
 
         for column in columns {

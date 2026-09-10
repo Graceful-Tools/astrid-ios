@@ -27,8 +27,10 @@ enum MacBoardMove {
     /// Delegates to the SHARED planner. The rule moved to `planProjectColumnMove` when the
     /// quick changer gave iOS a second way to change a column (task 729a190e); this stays as
     /// the Mac's name for it so the board's call sites and tests are untouched.
-    static func plan(task: Task, column: ProjectBoardColumn, lists: [TaskList]) -> Plan {
-        switch planProjectColumnMove(task: task, column: column, lists: lists) {
+    static func plan(task: Task, column: ProjectBoardColumn, lists: [TaskList],
+                     customStates: [ProjectCustomState]? = nil) -> Plan {
+        switch planProjectColumnMove(task: task, column: column,
+                                     lists: lists, customStates: customStates) {
         case .none: return .none
         case .setLists(let ids, let role): return .setLists(ids, statusRole: role)
         case .complete(let ids, let role): return .complete(ids, statusRole: role)

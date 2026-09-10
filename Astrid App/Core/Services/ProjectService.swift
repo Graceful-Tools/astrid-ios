@@ -187,4 +187,23 @@ class ProjectService: ObservableObject {
     func project(id: String) -> Project? {
         projects.first { $0.id == id }
     }
+
+    /// The custom board columns a project declares (AITD-379), or nil when the
+    /// project is not in the cache yet.
+    ///
+    /// Nil and "no custom states" are deliberately the same answer here: both
+    /// mean the board renders its defaults, which is the safe thing to show
+    /// while the projects are still loading.
+    func customStates(projectId: String?) -> [ProjectCustomState]? {
+        guard let projectId else { return nil }
+        return project(id: projectId)?.customStates
+    }
+
+    /// The custom board columns that apply to a task — those of the board it
+    /// is on. Used by the state pickers, which are handed a task rather than a
+    /// board; without this they would offer only the three defaults and
+    /// disagree with the board about the same card (web's task 9ddf4a6f).
+    func customStates(forTask task: Task, lists: [TaskList]) -> [ProjectCustomState]? {
+        customStates(projectId: getProjectIdForTask(task, lists: lists))
+    }
 }

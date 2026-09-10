@@ -55,6 +55,8 @@ struct ProjectStatusBoardView: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    /// Observed so the board redraws when a project's custom columns arrive (AITD-379).
+    @StateObject private var projectService = ProjectService.shared
     @State private var dropError: String? = nil
     /// Tracks the currently-snapped column for haptic feedback on change.
     @State private var visibleColumnId: String?
@@ -76,8 +78,15 @@ struct ProjectStatusBoardView: View {
     /// One advance per entry; the drag must leave and re-enter for another.
     @State private var hasAdvancedForThisEntry = false
 
+    /// The board's own custom columns (AITD-379). They live on the project, so
+    /// this board renders only its own — a custom column cannot leak onto
+    /// another board because it was never in a shared pool to begin with.
+    private var customStates: [ProjectCustomState]? {
+        projectService.customStates(projectId: projectId)
+    }
+
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists, projectId: projectId)
+        getProjectBoardColumns(listService.lists, customStates: customStates)
     }
 
     /// The project's regular (domain) list. Cached lookup so the per-
@@ -100,6 +109,7 @@ struct ProjectStatusBoardView: View {
             projectId: projectId,
             column: column,
             lists: listService.lists,
+            customStates: customStates,
             manualOrder: projectDomainList?.manualSortOrder,
             recentlyCompletedWindow: projectDomainList?.recentlyCompletedWindow,
             completionFilter: projectDomainList?.filterCompletion
