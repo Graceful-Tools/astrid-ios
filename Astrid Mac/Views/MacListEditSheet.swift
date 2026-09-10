@@ -83,7 +83,7 @@ struct MacListEditSheet: View {
             }
 
             // Default task settings — applied to new tasks in this list (edit mode). Task c82173ff.
-            if existing != nil {
+            if let existingList = existing {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("mac.new_task_defaults", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
@@ -118,6 +118,11 @@ struct MacListEditSheet: View {
                             .onChange(of: recentlyCompletedDate) { saveRecentlyCompleted() }
                     }
                 }
+
+                // Which AI model answers in THIS list (AITD-380). Its own view: it saves itself
+                // through ListService rather than riding this sheet's Save, exactly as the
+                // pickers above do, and Mac had no way to set it at all before.
+                MacListAgentSection(list: existingList)
             }
 
             HStack {

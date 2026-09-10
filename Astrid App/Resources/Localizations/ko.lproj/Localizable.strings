@@ -1336,3 +1336,10 @@
 "sync.connecting" = "연결 중…";
 "sync.not_connected" = "연결되지 않음";
 "sync.linked" = "연결됨";
+
+/* Per-list AI agent: which model answers in THIS list (AITD-380). Mirrors web's
+   ListAiAgentSection so the two platforms describe one setting the same way. */
+"lists.ai_agent.section" = "AI 에이전트";
+"lists.ai_agent.model" = "이 목록의 %@ 모델";
+"lists.ai_agent.account_default" = "계정 기본값 사용";
+"lists.ai_agent.footer" = "이 목록의 채팅과 댓글에서 %@를 구동합니다. 작업에 할당된 코딩 에이전트는 자체 런타임을 사용합니다.";

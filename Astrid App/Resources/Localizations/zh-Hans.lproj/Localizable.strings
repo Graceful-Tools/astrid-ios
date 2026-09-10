@@ -1334,3 +1334,10 @@
 "sync.connecting" = "连接中…";
 "sync.not_connected" = "未连接";
 "sync.linked" = "已关联";
+
+/* Per-list AI agent: which model answers in THIS list (AITD-380). Mirrors web's
+   ListAiAgentSection so the two platforms describe one setting the same way. */
+"lists.ai_agent.section" = "AI 代理";
+"lists.ai_agent.model" = "此列表的 %@ 模型";
+"lists.ai_agent.account_default" = "使用账户默认设置";
+"lists.ai_agent.footer" = "为此列表的聊天和评论提供 %@ 支持。分配给任务的编程代理使用各自的运行时。";

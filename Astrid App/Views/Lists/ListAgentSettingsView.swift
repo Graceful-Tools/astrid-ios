@@ -152,17 +152,21 @@ struct ListAgentSettingsView: View {
         isLoading = false
     }
 
+    /// Writes through the SHARED control point (AITD-380).
+    ///
+    /// This used to build an EMPTY `UpdateListRequest` — the DTO carried no agent field, so the
+    /// PUT said nothing and the checkmark above was the only thing that moved. The comment that
+    /// stood here ("when API supports it") had gone stale: `PUT /api/v1/lists/[id]` has accepted
+    /// `aiAgentConfig` for a while, and web's picker has been writing it.
+    ///
+    /// Note the "No Agent" row sends the id `"none"`, which is NOT the same as the account
+    /// default — `ListAgentSettings` treats only nil/empty as "use the account default".
     private func saveListAgentSetting(_ agentId: String?) {
         isSaving = true
 
         _Concurrency.Task {
             do {
-                // Update list with agent setting
-                // This would use the list update API with aiAgentsEnabled field
-                let request = UpdateListRequest(
-                    // Pass agent config through list update when API supports it
-                )
-                _ = try await ListService.shared.updateListOnServer(listId: listId, updates: request)
+                _ = try await ListService.shared.setListDefaultAgent(listId: listId, agentId: agentId)
                 logger.notice("Updated list agent to: \(agentId ?? "default", privacy: .public)")
             } catch {
                 logger.error("Failed to update list agent: \(error.localizedDescription, privacy: .public)")
