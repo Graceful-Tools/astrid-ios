@@ -1339,3 +1339,10 @@
 "lists.ai_agent.model" = "Модель %@ для этого списка";
 "lists.ai_agent.account_default" = "Использовать значение по умолчанию для аккаунта";
 "lists.ai_agent.footer" = "Обеспечивает работу %@ в чате и комментариях этого списка. Агенты программирования, назначенные задачам, используют собственную среду выполнения.";
+
+
+/* Update available card (AITD-383). %@ is the new version number. */
+"update.available_title" = "Новый Astrid готов";
+"update.available_body" = "Доступна версия %@. Обновление займёт мгновение и принесёт последние исправления.";
+"update.action" = "Обновить";
+"update.later" = "Не сейчас";

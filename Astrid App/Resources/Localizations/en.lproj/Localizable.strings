@@ -1347,3 +1347,10 @@
 "lists.ai_agent.model" = "%@ model for this list";
 "lists.ai_agent.account_default" = "Use account default";
 "lists.ai_agent.footer" = "Powers %@ in this list's chat and comments. Coding agents assigned to tasks keep their own runtime.";
+
+
+/* Update available card (AITD-383). %@ is the new version number. */
+"update.available_title" = "A new Astrid is ready";
+"update.available_body" = "Version %@ is available. Updating takes a moment and brings the latest fixes.";
+"update.action" = "Update";
+"update.later" = "Not now";

@@ -42,6 +42,9 @@ struct AstridMacApp: App {
                 Color.clear.frame(width: 1, height: 1)
             } else {
                 MacAuthGateView()
+                    // The same card as iOS, from the same file (AITD-383) — so an update cannot
+                    // be described one way on the phone and another on the desktop.
+                    .appUpdateReminder()
                     .onAppear { Self.normalizeWindowForUITestingIfNeeded() }
                     // Capture `openWindow` while a window exists — at reopen time there is no
                     // view left to read it from, which is exactly the bug (task 39470057).

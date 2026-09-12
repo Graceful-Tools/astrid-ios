@@ -87,6 +87,9 @@ struct AstridApp: App {
         WindowGroup {
             contentView
                 .preferredColorScheme(themeMode.colorScheme)
+                // "A new Astrid is ready" (AITD-383). Silent unless the backend says otherwise,
+                // and silent entirely until astrid-web serves /api/v1/app-version.
+                .appUpdateReminder()
                 .onAppear {
                     AppLog.debug("👁️ [AstridApp] Root view appeared")
                     AppLog.debug("🎨 [AstridApp] Theme mode: \(themeMode.displayName)")

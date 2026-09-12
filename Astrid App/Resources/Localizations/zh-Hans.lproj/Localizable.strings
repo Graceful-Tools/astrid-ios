@@ -1339,3 +1339,10 @@
 "lists.ai_agent.model" = "此列表的 %@ 模型";
 "lists.ai_agent.account_default" = "使用账户默认设置";
 "lists.ai_agent.footer" = "为此列表的聊天和评论提供 %@ 支持。分配给任务的编程代理使用各自的运行时。";
+
+
+/* Update available card (AITD-383). %@ is the new version number. */
+"update.available_title" = "新版 Astrid 已就绪";
+"update.available_body" = "版本 %@ 已发布。更新只需片刻，并包含最新修复。";
+"update.action" = "更新";
+"update.later" = "以后再说";

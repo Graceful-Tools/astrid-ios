@@ -31,6 +31,12 @@ final class RemoteResourceService {
         try await apiClient.updateUserSettings(reminderSettings: reminderSettings)
     }
 
+    // MARK: - App version (AITD-383)
+
+    func getAppVersion(platform: String) async throws -> AppVersionResponse {
+        try await apiClient.getAppVersion(platform: platform)
+    }
+
     // MARK: - AI agents and API keys
 
     func getAgentModes() async throws -> AgentModesResponse {

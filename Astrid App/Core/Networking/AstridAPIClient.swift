@@ -246,6 +246,20 @@ class AstridAPIClient {
         )
     }
 
+    // MARK: - App Version (AITD-383)
+
+    /// The latest shipped version for a platform.
+    ///
+    /// `/api/v1/...` per ASTRID.md rule 5. Callers must treat every failure as "unknown" rather
+    /// than as an error worth showing: this endpoint post-dates the clients that call it.
+    func getAppVersion(platform: String) async throws -> AppVersionResponse {
+        return try await request(
+            method: "GET",
+            path: "/api/v1/app-version",
+            queryItems: [URLQueryItem(name: "platform", value: platform)]
+        )
+    }
+
     // MARK: - Task Operations
 
     /// Get tasks with pagination support

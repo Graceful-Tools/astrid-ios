@@ -1355,3 +1355,10 @@
 "lists.ai_agent.model" = "Modelo de %@ para esta lista";
 "lists.ai_agent.account_default" = "Usar el valor predeterminado de la cuenta";
 "lists.ai_agent.footer" = "Impulsa a %@ en el chat y los comentarios de esta lista. Los agentes de programación asignados a tareas conservan su propio entorno de ejecución.";
+
+
+/* Update available card (AITD-383). %@ is the new version number. */
+"update.available_title" = "Hay un nuevo Astrid listo";
+"update.available_body" = "La versión %@ ya está disponible. Actualizar lleva un momento e incluye las últimas mejoras.";
+"update.action" = "Actualizar";
+"update.later" = "Ahora no";

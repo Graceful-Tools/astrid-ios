@@ -465,3 +465,19 @@ struct UserProfileData: Codable {
     let isAIAgent: Bool?
     let aiAgentType: String?
 }
+
+/// Latest shipped app version, from /api/v1/app-version?platform=ios|mac (AITD-383).
+///
+/// EVERY FIELD IS OPTIONAL, including the one that matters. The endpoint is served by astrid-web,
+/// which deploys by hand, so the app has to survive it being absent, half-built or older than this
+/// struct. A missing `latestVersion` means "we could not find out", which `AppVersionCheck`
+/// treats as "no update" — silence rather than a banner.
+struct AppVersionResponse: Codable {
+    let latestVersion: String?
+    /// Below this, the build is considered unsupported. Reserved for a later "you must update"
+    /// variant; decoded now so adding it server-side is not a breaking change.
+    let minimumVersion: String?
+    /// Where the Update button goes. Absent falls back to the platform's store page.
+    let updateUrl: String?
+    let releaseNotes: String?
+}

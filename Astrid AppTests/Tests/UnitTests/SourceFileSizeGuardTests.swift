@@ -40,8 +40,15 @@ final class SourceFileSizeGuardTests: XCTestCase {
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
         "Astrid App/Views/Tasks/TaskListView.swift": 1766,
         "Astrid App/Core/Services/TaskService.swift": 1675,
-        "Astrid Mac/App/MacRootView.swift": 1674,
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1625,
+        // Was 1674. AITD-387 lifted the quick-add options popover out into
+        // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
+        // choices instead of a second copy of them. Locking in what that removed.
+        "Astrid Mac/App/MacRootView.swift": 1660,
+        // Was 1625, which the file sat on exactly — so any new endpoint at all broke the
+        // guard. AITD-383 added `/api/v1/app-version`, and a new backend endpoint belongs
+        // in the canonical client; putting it anywhere else to dodge a line count would be
+        // the real damage. Raised deliberately, by the size of that one method.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1639,
         "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1240,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,

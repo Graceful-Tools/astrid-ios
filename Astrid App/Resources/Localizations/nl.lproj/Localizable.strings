@@ -1339,3 +1339,10 @@
 "lists.ai_agent.model" = "%@-model voor deze lijst";
 "lists.ai_agent.account_default" = "Accountstandaard gebruiken";
 "lists.ai_agent.footer" = "Voedt %@ in de chat en reacties van deze lijst. Programmeeragenten die aan taken zijn toegewezen, behouden hun eigen runtime.";
+
+
+/* Update available card (AITD-383). %@ is the new version number. */
+"update.available_title" = "Een nieuwe Astrid staat klaar";
+"update.available_body" = "Versie %@ is beschikbaar. Bijwerken duurt even en bevat de nieuwste verbeteringen.";
+"update.action" = "Bijwerken";
+"update.later" = "Niet nu";
