@@ -27,8 +27,6 @@ struct MacLeadingControlButton: View {
     let onToggleComplete: () -> Void
 
     @State private var isPresented = false
-    /// Confirming completion of a task assigned to someone else (AITD-363).
-    @State private var isConfirmingCompletion = false
     @StateObject private var userSettings = UserSettingsService.shared
 
     private var kind: TaskLeadingControl {
@@ -54,11 +52,11 @@ struct MacLeadingControlButton: View {
                                   currentUserId: AuthManager.shared.userId)
     }
 
-    /// Does finishing this task need asking first? Yes when it is not yours (AITD-375) — the
-    /// same rule the phone uses, from the same place.
-    private var needsCompletionConfirmation: Bool {
-        TaskLeadingControl.completionNeedsConfirmation(assigneeId: task.assigneeId,
-                                                       currentUserId: AuthManager.shared.userId)
+    /// Is this somebody else's task? Decides what the popover carries (AITD-375) — the same
+    /// rule the phone uses, from the same place.
+    private var isSomeoneElsesTask: Bool {
+        TaskLeadingControl.isSomeoneElsesTask(assigneeId: task.assigneeId,
+                                              currentUserId: AuthManager.shared.userId)
     }
 
     var body: some View {
@@ -73,29 +71,6 @@ struct MacLeadingControlButton: View {
             .help(helpText)
             .accessibilityLabel(helpText)
             .popover(isPresented: $isPresented, arrowEdge: .bottom) { picker }
-            // "Complete this task?" / "Assigned to {name}" — it NAMES the assignee, because a
-            // dialog asking about "this task" over an unlabelled photo is the blind confirm
-            // that teaches people to accept without reading.
-            .confirmationDialog(NSLocalizedString("tasks.confirm_complete_title", comment: ""),
-                                isPresented: $isConfirmingCompletion) {
-                Button(NSLocalizedString("tasks.complete_task", comment: "")) { onToggleComplete() }
-                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-            } message: {
-                Text(String(format: NSLocalizedString("tasks.confirm_complete_assigned", comment: ""),
-                            assigneeDisplayName))
-            }
-    }
-
-    /// Who the confirmation names. Resolved through the SHARED resolver — the same one the face
-    /// above uses — so the dialog names the person whose photo was actually tapped.
-    private var assigneeDisplayName: String {
-        guard case .avatar(let userId) = kind,
-              let user = AssigneeResolver.resolve(id: userId,
-                                                  members: members.compactMap(\.user),
-                                                  taskAssignee: task.assignee,
-                                                  agents: AIAgentCache.shared.load() ?? [])
-        else { return NSLocalizedString("assignee.unassigned", comment: "") }
-        return user.displayName
     }
 
     /// Say what the click does. It used to always read "Priority", which was already only
@@ -149,7 +124,7 @@ struct MacLeadingControlButton: View {
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface,
-                                                    isSomeoneElses: needsCompletionConfirmation)
+                                                    isSomeoneElses: isSomeoneElsesTask)
                             .enumerated()), id: \.offset) { _, section in
                 switch section {
                 case .priority:
@@ -192,9 +167,11 @@ struct MacLeadingControlButton: View {
                     Divider()
                     Button {
                         isPresented = false
-                        // Not yours? Ask first (AITD-375).
-                        if needsCompletionConfirmation { isConfirmingCompletion = true }
-                        else { onToggleComplete() }
+                        // Completes, whoever it belongs to (AITD-381). The click that opened this
+                        // popover is the one that would otherwise have completed the task, so the
+                        // popover is already the deliberate step and a sheet on top of its one
+                        // button asked a question that had been answered twice.
+                        onToggleComplete()
                     } label: {
                         Label(task.completed
                               ? NSLocalizedString("mac.mark_incomplete", comment: "")

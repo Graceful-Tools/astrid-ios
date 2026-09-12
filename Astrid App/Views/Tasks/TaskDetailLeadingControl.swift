@@ -34,8 +34,6 @@ struct TaskDetailLeadingControl: View {
     @StateObject private var userSettings = UserSettingsService.shared
 
     @State private var showingPicker = false
-    /// Confirming completion of a task assigned to someone else (AITD-363).
-    @State private var showingCompleteForAssigneePrompt = false
 
     var body: some View {
         Button {
@@ -44,10 +42,10 @@ struct TaskDetailLeadingControl: View {
             // (task 729a190e). Opening the picker was once unconditional, so in list mode the
             // most familiar gesture in the app did the one thing it does not normally do.
             //
-            // Someone else's task opens the popover instead (AITD-375) — the confirmation now
-            // sits on the popover's Complete button, not on this tap. The shared rule decides
-            // which of the two this is; spelling the conditions here is what let the row and the
-            // detail disagree about one task in the first place.
+            // Someone else's task opens the popover instead (AITD-375) — that popover IS the
+            // deliberate step, which is why completing from it needs nothing further (AITD-381).
+            // The shared rule decides which of the two this is; spelling the conditions here is
+            // what let the row and the detail disagree about one task in the first place.
             switch leadingControlAction {
             case .complete:   onToggleCompletion()
             case .openPicker: showingPicker = true
@@ -58,27 +56,6 @@ struct TaskDetailLeadingControl: View {
         .buttonStyle(.plain)
         .popover(isPresented: $showingPicker) {
             pickerContent.presentationCompactAdaptation(.popover)
-        }
-        // "Complete this task?" / "Assigned to {name}" (AITD-363).
-        //
-        // It NAMES the assignee. A dialog asking about "this task" over an unlabelled photo is
-        // the blind confirmation that teaches people to accept without reading, which would hand
-        // back the hazard the confirmation exists to remove.
-        .confirmationDialog(
-            NSLocalizedString("tasks.confirm_complete_title", comment: "Complete this task?"),
-            isPresented: $showingCompleteForAssigneePrompt,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("tasks.complete_task", comment: "Complete the task")) {
-                onToggleCompletion()
-            }
-            Button(NSLocalizedString("actions.cancel", comment: "Cancel"), role: .cancel) {}
-        } message: {
-            if let assignee = effectiveAssignee {
-                Text(String(format: NSLocalizedString("tasks.confirm_complete_assigned",
-                                                      comment: "Assigned to {name}"),
-                            assignee.displayName))
-            }
         }
     }
 
@@ -165,7 +142,7 @@ struct TaskDetailLeadingControl: View {
             // rebuild the hybrid layout this setting exists to end.
             if TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
                                                           surface: .detail,
-                                                          isSomeoneElses: needsCompletionConfirmation) {
+                                                          isSomeoneElses: isSomeoneElsesTask) {
                 Divider()
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("board.project_state", comment: ""))
@@ -181,10 +158,11 @@ struct TaskDetailLeadingControl: View {
 
             Button {
                 showingPicker = false
-                // Not yours? Ask first (AITD-375). Finishing another person's work is one tap
-                // from the control you opened this with, and it is not undoable in place.
-                if needsCompletionConfirmation { showingCompleteForAssigneePrompt = true }
-                else { onToggleCompletion() }
+                // Completes, whoever it belongs to (AITD-381). Someone else's task cannot reach
+                // this button by accident — the tap that opened this popover is the one that used
+                // to complete it — so a sheet repeating the question was a step that only ever
+                // got tapped through.
+                onToggleCompletion()
             } label: {
                 Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
                                   : NSLocalizedString("tasks.complete_task", comment: ""),
@@ -226,12 +204,10 @@ struct TaskDetailLeadingControl: View {
                                   currentUserId: AuthManager.shared.currentUser?.id)
     }
 
-    /// Whether finishing this task should ask first — i.e. it belongs to someone else.
-    ///
-    /// Also decides whether the popover carries board state, because "not yours" is what turns
-    /// this into the full project-mode set of choices (AITD-375).
-    private var needsCompletionConfirmation: Bool {
-        TaskLeadingControl.completionNeedsConfirmation(
+    /// Whether this task belongs to someone else, which is what turns the popover into the full
+    /// project-mode set of choices (AITD-375).
+    private var isSomeoneElsesTask: Bool {
+        TaskLeadingControl.isSomeoneElsesTask(
             assigneeId: assigneeId,
             currentUserId: AuthManager.shared.currentUser?.id)
     }

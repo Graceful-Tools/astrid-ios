@@ -90,8 +90,6 @@
 "tasks.edit_task" = "Editar tarea";
 "tasks.delete_task" = "Eliminar tarea";
 "tasks.complete_task" = "Completar / ¡Listo!";
-"tasks.confirm_complete_title" = "¿Completar esta tarea?";
-"tasks.confirm_complete_assigned" = "Asignada a %@";
 "tasks.task_name" = "Nombre de tarea";
 "tasks.description" = "Descripción";
 "tasks.no_description" = "Sin descripción";

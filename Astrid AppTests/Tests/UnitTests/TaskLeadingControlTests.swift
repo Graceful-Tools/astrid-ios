@@ -255,25 +255,23 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
             .openPicker)
     }
 
-    // MARK: - "Always confirm before completing"
+    // MARK: - "Is this somebody else's?" — the raw-id question
 
-    func testCompletingSomeoneElsesTaskAsksFirst() {
-        XCTAssertTrue(TaskLeadingControl.completionNeedsConfirmation(assigneeId: them,
-                                                                     currentUserId: me))
+    /// The predicate the popover asks about its own contents. It was
+    /// `completionNeedsConfirmation` until AITD-381 removed the confirmation; the ANSWERS are
+    /// unchanged, only what reads them.
+    func testSomeoneElsesTaskIsRecognisedFromTheRawIds() {
+        XCTAssertTrue(TaskLeadingControl.isSomeoneElsesTask(assigneeId: them, currentUserId: me))
     }
 
-    func testCompletingYourOwnTaskNeverAsks() {
-        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: me,
-                                                                      currentUserId: me))
+    func testYourOwnTaskIsNotSomeoneElses() {
+        XCTAssertFalse(TaskLeadingControl.isSomeoneElsesTask(assigneeId: me, currentUserId: me))
     }
 
-    /// Nobody is assigned, so there is no one whose work this would be finishing. A confirmation
-    /// here would be a prompt with no subject — and the dialog names the assignee.
-    func testAnUnassignedTaskNeverAsks() {
-        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: nil,
-                                                                      currentUserId: me))
-        XCTAssertFalse(TaskLeadingControl.completionNeedsConfirmation(assigneeId: "",
-                                                                      currentUserId: me),
+    /// Nobody is assigned, so there is nobody else whose task this could be.
+    func testAnUnassignedTaskBelongsToNobodyElse() {
+        XCTAssertFalse(TaskLeadingControl.isSomeoneElsesTask(assigneeId: nil, currentUserId: me))
+        XCTAssertFalse(TaskLeadingControl.isSomeoneElsesTask(assigneeId: "", currentUserId: me),
                        "empty string is how the API says unassigned")
     }
 
@@ -303,27 +301,69 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
                                                                  isSomeoneElses: false))
     }
 
-    // MARK: - The call sites must actually ASK
+    // MARK: - The popover IS the confirmation (AITD-381)
 
-    /// A rule is only as good as the screens that read it. Every surface that can complete a task
-    /// from the leading control has to consult `completionNeedsConfirmation`, or "always confirm"
-    /// holds on whichever platform was looked at last.
-    func testEverySurfaceThatCompletesAsksWhetherToConfirm() throws {
+    /// Jon, AITD-381: "Remove second confirm bubble when completing other users tasks."
+    ///
+    /// Someone else's task opens the popover on every surface — `action()` above returns
+    /// `.openPicker` for it — so its Complete button can only ever be reached deliberately:
+    /// open the popover, then press the one blue button in it. AITD-375 kept the AITD-363
+    /// confirmation anyway and moved it onto that button, which put a second sheet asking the
+    /// same question on top of an answer already given twice. The popover is the protection;
+    /// the bubble behind it was spending a tap to repeat it.
+    ///
+    /// A source guard, because this is a fact about three view files and nothing a pure
+    /// function can hold: the previous guard here asserted the OPPOSITE, and a guard is exactly
+    /// what would put the bubble back on whichever platform was edited last.
+    func testNoSurfacePresentsASecondConfirmationOverThePopover() throws {
+        for path in Self.surfacesThatCompleteFromTheLeadingControl {
+            let source = try Self.source(of: path)
+            XCTAssertFalse(source.contains("tasks.confirm_complete_title"),
+                           "\(path): the popover's Complete button completes (AITD-381) — "
+                           + "a confirmation sheet on top of it is the second bubble")
+            XCTAssertFalse(source.contains("confirmationDialog"),
+                           "\(path): no confirmation sheet between the Complete button and "
+                           + "completing the task (AITD-381)")
+        }
+    }
+
+    /// The protection that REPLACED the bubble, asserted where the bubble's guard used to be:
+    /// a tap on someone else's control opens the popover rather than completing outright, on
+    /// every surface and in both modes. Removing the sheet is only safe while this holds.
+    func testSomeoneElsesTaskStillNeverCompletesOnASingleTap() {
+        for surface in [TaskLeadingControlSurface.listRow, .boardCard, .detail] {
+            for mode in [TaskDisplayMode.list, .project] {
+                XCTAssertEqual(
+                    TaskLeadingControl.action(surface: surface, kind: theirs(),
+                                              displayMode: mode, currentUserId: me),
+                    .openPicker,
+                    "\(surface)/\(mode): one tap must not finish another person's task")
+            }
+        }
+    }
+
+    /// The predicate outlived the confirmation it was named for: it now only decides whether the
+    /// popover carries the board-state section. No screen may still read it as "ask first".
+    ///
+    /// The rule's own file is exempt — the old name belongs in its history, which is where a
+    /// reader goes to find out why the sheet is gone.
+    func testNoScreenStillReadsThePredicateAsAskFirst() throws {
+        for path in Self.surfacesThatCompleteFromTheLeadingControl {
+            XCTAssertFalse(try Self.source(of: path).contains("NeedsConfirmation"),
+                           "\(path): renamed to isSomeoneElsesTask (AITD-381)")
+        }
+    }
+
+    private static let surfacesThatCompleteFromTheLeadingControl = [
+        "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
+        "Astrid App/Views/Components/TaskQuickChanger.swift",
+        "Astrid Mac/Views/MacLeadingControlButton.swift",
+    ]
+
+    private static func source(of path: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        for path in ["Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
-                     "Astrid App/Views/Components/TaskQuickChanger.swift",
-                     "Astrid Mac/Views/MacLeadingControlButton.swift"] {
-            let source = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-            // The BRANCH, not merely the symbol. Checking that the file mentions the predicate
-            // passes even when the Complete button has stopped consulting it — verified by
-            // deleting exactly that branch and watching this test stay green, which is why it
-            // now matches the `if`.
-            XCTAssertTrue(source.contains("if needsCompletionConfirmation"),
-                          "\(path) completes tasks and must branch on whether to confirm first")
-            XCTAssertTrue(source.contains("tasks.confirm_complete_title"),
-                          "\(path) must present the confirmation, not just compute it")
-        }
+        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 }

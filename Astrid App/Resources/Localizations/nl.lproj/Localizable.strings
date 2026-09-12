@@ -77,8 +77,6 @@
 "tasks.edit_task" = "Taak bewerken";
 "tasks.delete_task" = "Taak verwijderen";
 "tasks.complete_task" = "Voltooien / Klaar!";
-"tasks.confirm_complete_title" = "Deze taak voltooien?";
-"tasks.confirm_complete_assigned" = "Toegewezen aan %@";
 "tasks.task_name" = "Taaknaam";
 "tasks.description" = "Beschrijving";
 "tasks.no_description" = "Geen beschrijving";

@@ -36,16 +36,6 @@ struct TaskQuickChanger: View {
     /// The assignee this popover has picked. Seeded from the task; the picker needs somewhere
     /// real to write, or its selection cannot move (task 1484ea4a).
     @State private var pickedAssigneeId: String?
-    /// Confirming completion of a task that belongs to someone else (AITD-375).
-    @State private var showingCompleteForAssigneePrompt = false
-
-    /// Does finishing this one need asking first? Yes when it is not yours — the same rule the
-    /// detail panel and the Mac use, so one task cannot answer it three ways.
-    private var needsCompletionConfirmation: Bool {
-        TaskLeadingControl.completionNeedsConfirmation(
-            assigneeId: task.assigneeId,
-            currentUserId: AuthManager.shared.currentUser?.id)
-    }
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -93,13 +83,11 @@ struct TaskQuickChanger: View {
             Divider()
 
             Button {
-                // Not yours? Ask first (AITD-375). This popover is what a row now offers instead
-                // of completing another person's task outright, so the confirmation is the whole
-                // point of routing through it.
-                if needsCompletionConfirmation {
-                    showingCompleteForAssigneePrompt = true
-                    return
-                }
+                // Completes, including someone else's task (AITD-381). THIS POPOVER is what a row
+                // offers instead of completing another person's task outright, so reaching this
+                // button already took a deliberate tap and then a second one on the only blue
+                // thing in it. A sheet asking "Complete this task?" on top of that was a third
+                // tap for a question answered twice — the blind confirm it was written to avoid.
                 onDismiss()
                 complete()
             } label: {
@@ -113,28 +101,6 @@ struct TaskQuickChanger: View {
         }
         .padding(Theme.spacing16)
         .frame(width: 280)
-        // Names the assignee: a dialog asking about "this task" over an unlabelled photo is the
-        // blind confirm that teaches people to accept without reading.
-        .confirmationDialog(NSLocalizedString("tasks.confirm_complete_title", comment: ""),
-                            isPresented: $showingCompleteForAssigneePrompt,
-                            titleVisibility: .visible) {
-            Button(NSLocalizedString("tasks.complete_task", comment: "")) {
-                onDismiss()
-                complete()
-            }
-            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-        } message: {
-            Text(String(format: NSLocalizedString("tasks.confirm_complete_assigned", comment: ""),
-                        assigneeDisplayName))
-        }
-    }
-
-    /// Who the confirmation names. Resolved through the SHARED resolver, so the dialog names the
-    /// person whose photo was actually tapped.
-    private var assigneeDisplayName: String {
-        AssigneeResolver.resolve(id: task.assigneeId, members: [], taskAssignee: task.assignee,
-                                 agents: AIAgentCache.shared.load() ?? [])?.displayName
-            ?? NSLocalizedString("assignee.unassigned", comment: "")
     }
 
     /// Completion goes through `completeTask`, never `updateTask(completed:)` — that is the only

@@ -75,8 +75,6 @@
 "tasks.edit_task" = "Modifier la tâche";
 "tasks.delete_task" = "Supprimer la tâche";
 "tasks.complete_task" = "Terminer / Terminé !";
-"tasks.confirm_complete_title" = "Terminer cette tâche ?";
-"tasks.confirm_complete_assigned" = "Attribuée à %@";
 "tasks.task_name" = "Nom de la tâche";
 "tasks.description" = "Description";
 "tasks.no_description" = "Pas de description";

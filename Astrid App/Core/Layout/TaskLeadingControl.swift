@@ -66,9 +66,10 @@ enum TaskLeadingControlSurface: Equatable {
 /// What clicking or tapping the leading control does.
 ///
 /// Two answers, not three. AITD-363 briefly added a `confirmCompletion` tap for someone else's
-/// task in task details; AITD-375 replaced it with the options popover on every surface, and the
-/// confirmation moved INSIDE that popover, onto the Complete button — see
-/// `completionNeedsConfirmation`. A tap either finishes the task or offers you the choices.
+/// task in task details; AITD-375 replaced it with the options popover on every surface, moving
+/// the confirmation onto that popover's Complete button, and AITD-381 dropped the confirmation
+/// entirely — the popover was already the deliberate step it was asking for. A tap either
+/// finishes the task or offers you the choices.
 enum TaskLeadingControlAction: Equatable {
     case complete
     case openPicker
@@ -100,7 +101,7 @@ extension TaskLeadingControl {
     /// The popover answers both. It cannot be triggered by accident the way an outright
     /// completion can, it carries assignment and priority and board state — which are usually
     /// what you actually wanted when you reached for someone else's task — and completion is
-    /// still there, behind `completionNeedsConfirmation`.
+    /// still there, on the popover's own Complete button.
     ///
     /// One function for both platforms, so a card cannot mean one thing on the Mac and another
     /// on the phone — the same reason `kind` is shared.
@@ -135,17 +136,20 @@ extension TaskLeadingControl {
         return assigneeId != currentUserId
     }
 
-    /// Does completing this task need confirming first?
+    /// Does this task belong to somebody else, asked of the raw ids?
     ///
-    /// Jon, on AITD-375: "when not yours, always confirm before completing". Finishing another
-    /// person's work is not something to do by accident, and the popover's Complete button is one
-    /// tap from the control you opened it with.
+    /// Was `completionNeedsConfirmation` until AITD-381. It once gated a confirmation sheet on
+    /// the popover's Complete button — Jon, AITD-375: "when not yours, always confirm before
+    /// completing" — and that sheet is gone: the popover IS the deliberate step now, because
+    /// `action` above sends someone else's task there on every surface instead of completing on a
+    /// tap. Asking again on the one button inside it was asking a question already answered
+    /// twice. What survives is the question itself, which still decides what the popover carries.
     ///
-    /// Takes the raw ids rather than a `kind`, because the popover's Complete button is not a
-    /// leading control and has no mark to ask about — and because in project mode your own task
-    /// IS an avatar, so a kind-shaped question would make you confirm your own completions.
-    static func completionNeedsConfirmation(assigneeId: String?, currentUserId: String?) -> Bool {
-        guard let assigneeId, !assigneeId.isEmpty else { return false }  // nobody's: no one to ask about
+    /// Takes the raw ids rather than a `kind`, because the thing asking is not a leading control
+    /// and has no mark to ask about — and because in project mode your own task IS an avatar, so
+    /// a kind-shaped question would answer "someone else's" about your own work.
+    static func isSomeoneElsesTask(assigneeId: String?, currentUserId: String?) -> Bool {
+        guard let assigneeId, !assigneeId.isEmpty else { return false }  // nobody's
         return assigneeId != currentUserId
     }
 
