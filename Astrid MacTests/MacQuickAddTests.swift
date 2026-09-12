@@ -43,17 +43,24 @@ final class MacQuickAddTests: XCTestCase {
 
     // MARK: - Global quick-add (⌥Space window + menu-bar) — Task fa267754
 
-    func testGlobalEmptyOrNoListCreatesNothing() {
+    /// Empty input creates nothing — an abandoned draft is not a task.
+    ///
+    /// "No lists → nothing to add to" USED to be asserted here as well. It stopped being true in
+    /// AITD-387: the global path now adds to My Tasks when the text names no list, and My Tasks is
+    /// not a real list, so there is nothing left for an empty `lists` to deny. The destination
+    /// rule itself is covered in MacGlobalQuickAddDestinationTests.
+    func testGlobalEmptyTextCreatesNothing() {
         XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "", lists: []))
         XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "   ", lists: []))
-        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk", lists: []),
-                     "No lists → nothing to add to.")
+        XCTAssertNotNil(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk", lists: []),
+                        "AITD-387: with no lists the destination is My Tasks, not a refusal")
     }
 
     // Note: makeGlobalArgs routes through the SAME shared SmartTaskParser as makeArgs (locked by
     // testSmartParsingExtractsPriority above), so priority/date/repeat extraction is covered there.
-    // The global-specific behavior — empty/no-list guarding and NOT force-adding a current list —
-    // is what these tests lock.
+    // The global-specific behavior — empty-input guarding and NOT force-adding a current list —
+    // is what these tests lock. Where a task with no named list GOES is AITD-387's question, and
+    // lives in MacGlobalQuickAddDestinationTests.
 
     // MARK: - Smart Task Creation toggle (Task a840511d)
 
@@ -68,8 +75,12 @@ final class MacQuickAddTests: XCTestCase {
     }
 
     func testGlobalSmartDisabledKeepsRawTitle() {
-        // No lists → still nil regardless of the flag.
-        XCTAssertNil(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk urgent", lists: [], smartEnabled: false))
+        // With the parser off the tokens stay in the title, and the task goes to My Tasks —
+        // it was `nil` here until AITD-387 removed the `lists[0]` fallback that needed a list.
+        let args = MacQuickAdd.makeGlobalArgs(rawText: "Buy milk urgent", lists: [], smartEnabled: false)
+        XCTAssertEqual(args?.title, "Buy milk urgent")
+        XCTAssertNil(args?.priority)
+        XCTAssertEqual(args?.listIds, [])
     }
 
     // MARK: - SmartTaskParser edge cases through MacQuickAdd (Task 1c21489d)

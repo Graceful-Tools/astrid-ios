@@ -1183,11 +1183,11 @@ struct MacRootView: View {
     /// What "list default" resolves to for the Who row, so the picker states the real outcome
     /// rather than an abstract label.
     private var listDefaultAssigneeLabel: String {
-        let id = NewTaskDefaults.assignee(currentRealList?.defaultAssigneeId, currentUserId: auth.userId)
-        guard let id, !id.isEmpty else { return NSLocalizedString("assignee.unassigned", comment: "") }
-        if id == auth.userId { return NSLocalizedString("lists.me", comment: "") }
-        return listMembers.first { $0.userId == id }?.user?.displayName
-            ?? NSLocalizedString("lists.me", comment: "")
+        // The shared rule (AITD-387), so the add bar and the ⌥Space window cannot describe the
+        // same default with two different words.
+        MacDraftDefaults.defaultAssigneeLabel(defaultAssigneeId: currentRealList?.defaultAssigneeId,
+                                              currentUserId: auth.userId,
+                                              members: listMemberChoices)
     }
 
     /// Members of the current list, for the assignee picker.
@@ -1196,38 +1196,24 @@ struct MacRootView: View {
     }
 
     /// Override the defaults for the NEXT task only — the same idea as iOS's quick-add picker.
+    ///
+    /// The picker itself moved to `MacDraftDefaultsPicker` (AITD-387) so the global ⌥Space window
+    /// can offer the same options instead of a second copy of them. What stays here is the part
+    /// that is genuinely about THIS screen: the choices come from the current list's members.
     @ViewBuilder private var draftDefaultsPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(NSLocalizedString("tasks.priority", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
-            // The SAME styled picker the task detail uses — ○ ! !! !!! in their priority colours,
-            // not plain text buttons.
-            MacPriorityPicker(selection: Binding(
-                get: { draftPriority },
-                set: { draftPriorityOverride = $0.rawValue }
-            ))
-            Text(NSLocalizedString("tasks.assignee", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
-            Picker("", selection: Binding(
-                get: { draftAssigneeOverride ?? "" },
-                set: { draftAssigneeOverride = $0.isEmpty ? nil : $0 }
-            )) {
-                // Say what the default actually resolves to (Me / Unassigned / a name) instead of
-                // an abstract "List default" the user then has to guess at.
-                Text(String(format: NSLocalizedString("mac.list_default_is", comment: ""),
-                            listDefaultAssigneeLabel)).tag("")
-                Text(NSLocalizedString("assignee.unassigned", comment: "")).tag("unassigned")
-                ForEach(listMembers) { m in Text(m.user?.displayName ?? m.userId).tag(m.userId) }
-            }
-            .labelsHidden()
-            Divider()
-            Button(NSLocalizedString("mac.list_default", comment: "")) {
-                draftPriorityOverride = nil
-                draftAssigneeOverride = nil
-            }
-        }
-        .padding(14)
-        .frame(width: 260)
+        MacDraftDefaultsPicker(
+            priorityOverride: $draftPriorityOverride,
+            assigneeOverride: $draftAssigneeOverride,
+            resolvedPriority: draftPriority,
+            defaultAssigneeLabel: listDefaultAssigneeLabel,
+            assigneeChoices: MacDraftDefaults.assigneeChoices(
+                members: listMemberChoices, currentUserId: auth.userId, hasList: true))
+    }
+
+    /// The current list's members, as picker choices.
+    private var listMemberChoices: [MacAssigneeChoice] {
+        listMembers.map { MacAssigneeChoice(id: $0.userId,
+                                            label: $0.user?.displayName ?? $0.userId) }
     }
 
     /// The priority the quick-add checkbox displays: the user's override if they picked one,

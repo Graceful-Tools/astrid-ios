@@ -82,7 +82,20 @@ enum MacQuickAdd {
                              repeatingData: out.repeatingData,
                              assigneeId: out.assigneeId, isPrivate: out.isPrivate)
         }
-        guard let list else { return out }
+        guard let list else {
+            // NO DESTINATION LIST — My Tasks (AITD-387). There are no list defaults to apply, but
+            // the CREATOR default is not a list default: `NewTaskDefaults.assignee(nil, …)` is
+            // "task_creator", which is the same answer a real list gives when it names no default
+            // assignee of its own. So a task typed into the quick-add window starts as yours,
+            // exactly as the same text typed into the add bar of an unopinionated list does.
+            //
+            // Leaving it nil would make every quick-added task nobody's — which since AITD-382 is
+            // also a task you cannot tick off in one tap, because an unassigned task draws the "U"
+            // glyph and opens the options popover instead of completing. Capturing a thought and
+            // then needing two taps to finish it is not what that window is for.
+            out.assigneeId = NewTaskDefaults.assignee(nil, currentUserId: currentUserId)
+            return out
+        }
         if out.whenDate == nil {
             out = CreateArgs(title: out.title, listIds: out.listIds, priority: out.priority,
                              whenDate: NewTaskDefaults.dueDate(from: list.defaultDueDate,
@@ -103,13 +116,35 @@ enum MacQuickAdd {
     }
 
     /// Build create args for a GLOBAL quick-add (the ⌥Space window and the menu-bar), which has no
-    /// "current list" context. Uses the parser's #list(s) when present, otherwise falls back to the
-    /// first available list — unlike `makeArgs`, it does NOT force-add a selected list (Task fa267754).
-    /// Returns nil for empty input or when there is no list to add to.
+    /// "current list" context. Uses the parser's #list(s) when present, and otherwise adds to MY
+    /// TASKS — unlike `makeArgs`, it does NOT force-add a selected list (Task fa267754).
+    /// Returns nil only for empty input: an abandoned draft creates nothing.
+    ///
+    /// IT USED TO FALL BACK TO `lists[0]` (AITD-387). That is not a destination anyone chose — it
+    /// is whichever list the service happened to hand over first, so for this account every task
+    /// typed into the ⌥Space window landed in "Astrid iOS To-do". Jon: "for some reason it always
+    /// adds it to AStrid iOS-To. it should be to my tasks by default." The rule was invisible and
+    /// the result looked arbitrary, which is the worst combination for a capture box you are
+    /// supposed to type into without thinking.
+    ///
+    /// MY TASKS IS NOT A REAL LIST, so the task is created with NO list ids — the same thing
+    /// `makeArgs` does for a virtual selection, and the same thing iOS does. It appears in My
+    /// Tasks because that view is "mine or unassigned" (`MacMyTasks.filter`), not because it was
+    /// filed anywhere. It is also where the Mac already lands at launch
+    /// (`MacLaunchSelection.landingListId`), so the default destination is now the view you are
+    /// most likely looking at rather than an alphabetical accident.
+    ///
+    /// A consequence worth stating: with no list there are no list defaults to apply — no default
+    /// assignee, repeat, privacy or due date. That is not an omission. Inheriting them from a list
+    /// the user never named is the bug.
     static func makeGlobalArgs(rawText: String, lists: [TaskList], smartEnabled: Bool = true,
+                               priorityOverride: Int? = nil,
                                currentUserId: String? = nil) -> CreateArgs? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !lists.isEmpty else { return nil }
+        // No `!lists.isEmpty` any more: that guard existed only because the fallback needed
+        // `lists[0]` to exist. My Tasks needs nothing, and a new account with no lists yet must
+        // still be able to capture a thought (AITD-387).
+        guard !trimmed.isEmpty else { return nil }
 
         // The list's defaults apply here too (Task 3d47cb62). This path used to create the task
         // raw, so a task added from the menu bar started differently from the identical task added
@@ -120,16 +155,18 @@ enum MacQuickAdd {
         }
 
         guard smartEnabled else {
-            let listIds = [lists[0].id]
+            let listIds: [String] = []   // My Tasks — see above (AITD-387)
             return applyingDefaults(
                 CreateArgs(title: trimmed, listIds: listIds,
                            priority: nil, whenDate: nil, repeating: nil, repeatingData: nil),
-                from: defaults(for: listIds), priorityOverride: nil, currentUserId: currentUserId)
+                from: defaults(for: listIds), priorityOverride: priorityOverride,
+                currentUserId: currentUserId)
         }
 
         let parsed = SmartTaskParser.parse(trimmed, lists: lists)
         let title = parsed.title.isEmpty ? trimmed : parsed.title
-        let listIds = parsed.listIds.isEmpty ? [lists[0].id] : parsed.listIds
+        // Whatever the text named, and nothing if it named nothing (AITD-387).
+        let listIds = parsed.listIds
 
         return applyingDefaults(
             CreateArgs(
@@ -140,7 +177,8 @@ enum MacQuickAdd {
                 repeating: parsed.repeating?.rawValue,
                 repeatingData: parsed.customRepeatingData
             ),
-            from: defaults(for: listIds), priorityOverride: nil, currentUserId: currentUserId)
+            from: defaults(for: listIds), priorityOverride: priorityOverride,
+            currentUserId: currentUserId)
     }
 }
 #endif

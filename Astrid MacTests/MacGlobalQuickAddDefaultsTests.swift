@@ -36,9 +36,15 @@ final class MacGlobalQuickAddDefaultsTests: XCTestCase {
     // MARK: - Applied: the global quick-add is not a second set of rules
 
     /// The bug: the menu-bar / ⌥Space path created a bare task.
+    ///
+    /// The text now NAMES the list. It used to say just "Buy milk" and rely on the fallback to
+    /// `lists[0]` to get there — and AITD-387 removed that fallback, because landing in the first
+    /// list was itself the bug ("it always adds it to AStrid iOS-To"). Naming Work keeps this test
+    /// asking its own question — do the destination's defaults follow the task? — instead of
+    /// quietly also asserting the destination rule it was never about.
     func testTheGlobalQuickAddAppliesTheListDefaults() throws {
         let list = opinionatedList()
-        let args = try XCTUnwrap(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk", lists: [list],
+        let args = try XCTUnwrap(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk #Work", lists: [list],
                                                             currentUserId: "u-me"))
         XCTAssertEqual(args.listIds, [list.id])
         XCTAssertEqual(args.priority, 3, "the list's default priority must survive")
@@ -74,11 +80,15 @@ final class MacGlobalQuickAddDefaultsTests: XCTestCase {
 
     /// With smart parsing off there is no parsed text to respect — but the list's defaults still
     /// apply, exactly as they do in the add bar.
+    ///
+    /// With smart parsing off nothing can name a list, so the global path has no destination but
+    /// My Tasks — and My Tasks has no defaults to apply (AITD-387). What this still pins is the
+    /// IN-LIST bar, which is where a switched-off parser and a list's defaults actually meet.
     func testDefaultsApplyEvenWithSmartParsingOff() throws {
-        let args = try XCTUnwrap(MacQuickAdd.makeGlobalArgs(rawText: "Buy milk",
-                                                            lists: [opinionatedList()],
-                                                            smartEnabled: false,
-                                                            currentUserId: "u-me"))
+        let list = opinionatedList()
+        let args = try XCTUnwrap(MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: list.id,
+                                                       lists: [list], smartEnabled: false,
+                                                       currentUserId: "u-me"))
         XCTAssertEqual(args.priority, 3)
         XCTAssertEqual(args.repeating, "weekly")
         XCTAssertNotNil(args.whenDate)
