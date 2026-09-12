@@ -367,3 +367,95 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 }
+
+/// Regression tests for AITD-382 — "tapping on unassigned checkbox, agents, and tasks assigned
+/// to others should all behave the same in iOS. Currently unassigned is wrong (it
+/// completes/uncompletes) ... List view is where we see this bug".
+///
+/// Three kinds of task that are all "not yours to tick off in one tap", and only two of them
+/// behaved that way. Someone else's task and an agent's task are both `.avatar(id)` with an id
+/// that is not yours, so `action`'s opening `isSomeoneElses` guard sent them to the popover.
+/// Nobody's task is `.unassigned` — deliberately NOT someone else's — so it fell past that guard
+/// into the surface switch, where the list row completed it.
+///
+/// The row was also disagreeing with the detail screen about the very same task: `.detail` had
+/// always required `kind == .checkbox` before completing, while `.listRow` asked only about the
+/// display mode and never looked at the mark it was drawing. So an unassigned task opened the
+/// popover on one screen and was finished outright on the other.
+///
+/// What makes the row's old answer indefensible rather than merely inconsistent: since task
+/// 42013da7 an unassigned task does not draw a checkbox at all — it draws the "U" glyph, because
+/// a task nobody owns was being depicted exactly like a task you own. Completing on a tap is what
+/// a checkbox means. It is not what an unassigned mark means.
+final class TaskLeadingControlUnassignedTapTests: XCTestCase {
+
+    private let me = "me"
+
+    // MARK: - The bug as reported: the list row
+
+    func testUnassignedListRowOpensThePickerInListMode() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .unassigned,
+                                      displayMode: .list, currentUserId: me),
+            .openPicker,
+            "AITD-382: nobody's task must offer the choices, not complete on one tap")
+    }
+
+    // MARK: - The property the task actually asks for
+
+    /// "unassigned ... agents, and tasks assigned to others should all behave the same".
+    ///
+    /// Asserted as one loop rather than three separate expectations, because the thing being
+    /// fixed is that they AGREE — three tests that happen to expect the same value would still
+    /// pass if only two of them moved.
+    func testUnassignedAgentsAndOtherPeopleAllBehaveTheSameOnAListRow() {
+        let notYours: [(TaskLeadingControl, String)] = [
+            (.unassigned, "nobody's"),
+            (.avatar("ai-agent-claude"), "an agent's"),
+            (.avatar("someone-else"), "another person's"),
+        ]
+
+        for mode in TaskDisplayMode.allCases {
+            for (kind, label) in notYours {
+                XCTAssertEqual(
+                    TaskLeadingControl.action(surface: .listRow, kind: kind,
+                                              displayMode: mode, currentUserId: me),
+                    .openPicker,
+                    "AITD-382: \(label) task in \(mode) must open the picker from a list row")
+            }
+        }
+    }
+
+    /// The same three, on the screen that was already right — so the fix to the row is checked
+    /// against the answer it is being brought into line with, not just against itself.
+    func testTheDetailScreenGivesTheSameAnswerForAllThree() {
+        for kind: TaskLeadingControl in [.unassigned, .avatar("ai-agent-claude"), .avatar("someone-else")] {
+            XCTAssertEqual(
+                TaskLeadingControl.action(surface: .detail, kind: kind,
+                                          displayMode: .list, currentUserId: me),
+                TaskLeadingControl.action(surface: .listRow, kind: kind,
+                                          displayMode: .list, currentUserId: me),
+                "AITD-382: \(kind) must mean the same thing on a row as in task details")
+        }
+    }
+
+    // MARK: - What must NOT change
+
+    /// The narrow fix, pinned. A checkbox is still a checkbox: this task is about the marks that
+    /// are not one, and a fix that also stopped your own tasks completing would take the
+    /// list's whole point with it.
+    func testYourOwnCheckboxStillCompletesOnAListRow() {
+        XCTAssertEqual(
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox,
+                                      displayMode: .list, currentUserId: me),
+            .complete,
+            "AITD-382 must not disturb the one tap that is supposed to finish a task")
+    }
+
+    /// `.unassigned` is still not "someone else's" — the predicate keeps its meaning, and the
+    /// fix does not smuggle nobody's task into the avatar case to get the answer it wanted.
+    func testNobodysTaskIsStillNotSomebodyElses() {
+        XCTAssertFalse(TaskLeadingControl.unassigned.isSomeoneElses(currentUserId: me))
+        XCTAssertFalse(TaskLeadingControl.isSomeoneElsesTask(assigneeId: nil, currentUserId: me))
+    }
+}

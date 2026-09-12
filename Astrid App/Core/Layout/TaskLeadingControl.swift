@@ -103,6 +103,16 @@ extension TaskLeadingControl {
     /// what you actually wanted when you reached for someone else's task — and completion is
     /// still there, on the popover's own Complete button.
     ///
+    /// NOBODY'S TASK OPENS IT TOO (AITD-382), but it arrives there by a different road. The
+    /// guard above is about tasks that belong to someone — another person or an agent, both of
+    /// them `.avatar(id)` with an id that is not yours. An unassigned task is deliberately NOT
+    /// "someone else's", so it falls past that guard, and what catches it is the surface switch
+    /// asking whether the mark is a checkbox at all. Since task 42013da7 it is not: a task
+    /// nobody owns draws the "U" glyph, precisely because drawing it as a checkbox made it look
+    /// like a task you own. Completing on a tap is what a checkbox means; it is not what that
+    /// glyph means. Jon, AITD-382: "unassigned ... agents, and tasks assigned to others should
+    /// all behave the same".
+    ///
     /// One function for both platforms, so a card cannot mean one thing on the Mac and another
     /// on the phone — the same reason `kind` is shared.
     static func action(surface: TaskLeadingControlSurface,
@@ -116,9 +126,12 @@ extension TaskLeadingControl {
             // A board is where a task has a status, so the control is how you set it — and
             // completing outright from a card is the trapdoor tasks 9be8cb1b / f9d7ed42 removed.
             return .openPicker
-        case .listRow:
-            return displayMode.checkboxCompletesTask ? .complete : .openPicker
-        case .detail:
+        case .listRow, .detail:
+            // ONLY A CHECKBOX FINISHES A TASK ON A TAP (AITD-382). One case, not two, because
+            // the row and the detail screen have no business disagreeing about the same task —
+            // and they did: the row asked about the display mode alone and never looked at the
+            // mark it had just drawn, so an UNASSIGNED task was completed by a tap on a row
+            // while the detail screen already offered the popover for it.
             return displayMode.checkboxCompletesTask && kind == .checkbox ? .complete : .openPicker
         }
     }
