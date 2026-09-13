@@ -50,6 +50,19 @@ enum iPadPaneLayout {
         viewMode == .board
     }
 
+    /// Is the list picker a sliding drawer right now — the thing the hamburger opens?
+    ///
+    /// It is whenever the picker has no pane of its own: always in 2-column, where the drawer IS
+    /// the picker, and under a full-screen board in 3-column, where full screen takes the pane
+    /// away (AITD-388). That second case shipped with the hamburger wired to nothing, on the
+    /// reasoning that "the sidebar is always visible in landscape" — which stopped being true the
+    /// moment a board could fill the window, leaving no way back to the lists at all.
+    ///
+    /// The invariant, pinned by the tests: `widths(...).sidebar == 0` implies this is true.
+    static func showsSlidingPicker(columns: Int, boardFullScreen: Bool) -> Bool {
+        columns < 3 || boardFullScreen
+    }
+
     static func widths(total: CGFloat, columns: Int,
                        showsMessages: Bool, boardFullScreen: Bool) -> Panes {
         if boardFullScreen {
