@@ -117,21 +117,9 @@ struct TaskRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.spacing12) {
-            // The quick picker hangs off THIS control, not off the row (AITD-391). Attached to
-            // the row, the popover's source rect was the whole card body, so the system chose
-            // above or below from the space around a board card — of which a board column has
-            // almost none. The Mac has always anchored on its checkbox column.
-            //
-            // The SAME quick changer the task detail shows, so "same behavior" is one view rather
-            // than a promise three surfaces keep separately (task 132d7b3f).
+            // The quick picker used to hang off THIS control (AITD-391) — see
+            // `trailingPickerAnchor` for why it no longer does.
             leadingControl
-                .popover(isPresented: $showingQuickChanger,
-                         arrowEdge: QuickPickerGeometry.arrowEdge) {
-                    TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
-                        // Without this it stops being a popover on iPhone and becomes a sheet,
-                        // which has no anchor at all.
-                        .presentationCompactAdaptation(.popover)
-                }
 
             // Task content
             VStack(alignment: .leading, spacing: 6) {
@@ -238,6 +226,31 @@ struct TaskRowView: View {
         .padding(.vertical, embeddedInCard ? 12 : 14)
         .padding(.horizontal, embeddedInCard ? 10 : Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
+        // Where the quick picker opens (AITD-393: "should be on the right of the task box on
+        // board view. You put it on left!").
+        //
+        // AITD-391 attached this popover to `leadingControl` because the report asked for it "to
+        // the right of the checkbox". The arrow did leave that control's trailing edge — but the
+        // checkbox is at the HEAD of the row, so the picker opened a few points inside the card's
+        // LEFT edge and covered the card. Measured from the far side instead, the same
+        // `.trailing` edge puts it beside the task box.
+        //
+        // Still a tight anchor rather than the row itself: attached to the whole card body the
+        // source rect is the card, and UIKit picks the direction from the room around it — which
+        // on a board column is above or below. That was the other half of AITD-391 and it stays
+        // fixed. An overlay rather than a member of the `HStack` because after the `Spacer()`
+        // this would be real layout, and the stack's 12pt spacing would take that much off the
+        // card's content width for something nobody can see.
+        .overlay(alignment: .trailing) {
+            trailingPickerAnchor
+                .popover(isPresented: $showingQuickChanger,
+                         arrowEdge: QuickPickerGeometry.arrowEdge) {
+                    TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
+                        // Without this it stops being a popover on iPhone and becomes a sheet,
+                        // which has no anchor at all.
+                        .presentationCompactAdaptation(.popover)
+                }
+        }
         .background(
             // Main card background + selection arrow for iPad.
             // Suppressed when embedded in a board card — the host
@@ -306,11 +319,24 @@ struct TaskRowView: View {
         }
     }
 
+    /// An invisible pin at the row's trailing edge: the view the quick picker hangs off, so it
+    /// opens to the right of the task box rather than on top of it (AITD-393).
+    ///
+    /// Non-interactive and hidden from accessibility — it exists only to give the popover a
+    /// source rect, and a 1pt sliver that swallowed taps at the edge of every row would be a
+    /// worse bug than the one it fixes.
+    @ViewBuilder private var trailingPickerAnchor: some View {
+        Color.clear
+            .frame(width: QuickPickerGeometry.trailingAnchorWidth, height: 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     /// The 34pt control at the head of the row: a copy button on a public list, the
     /// assignee's face, the unassigned mark, or the completion checkbox.
     ///
-    /// A view of its own because the quick picker has to be anchored to it (AITD-391) —
-    /// inline in the row's HStack there was nothing for the popover to point at.
+    /// A view of its own because the quick picker was once anchored to it (AITD-391); it stays
+    /// one because the row's leading slot has four shapes and inline they crowded the body.
     @ViewBuilder private var leadingControl: some View {
         // For public list tasks, show copy button instead of checkbox
         if isPublicListTask {
