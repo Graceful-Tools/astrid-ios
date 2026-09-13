@@ -767,6 +767,35 @@ class ListService: ObservableObject {
         try? await deleteListFromCoreData(listId)
     }
 
+    /// Who this list may be handed to, as the state the leave control should show (AITD-392).
+    ///
+    /// The Canonical Control Point for the probe: views ask for this, never `AstridAPIClient`
+    /// (ASTRID.md §0 rule 1). It does not throw — every outcome, including "the route is not
+    /// deployed yet", is one of `ListOwnershipTransfer.Availability`, because each of them is a
+    /// different thing to put on screen rather than an error to swallow.
+    func ownershipTransferAvailability(listId: String) async -> ListOwnershipTransfer.Availability {
+        do {
+            let owners = try await apiClient.eligibleNewOwners(listId: listId)
+            return ListOwnershipTransfer.availability(from: .success(owners))
+        } catch {
+            return ListOwnershipTransfer.availability(from: .failure(error))
+        }
+    }
+
+    /// Hand this list to someone else and stop being a member of it (AITD-392).
+    ///
+    /// ONE server call, not two: the transfer and the leave are a single transaction, so this
+    /// must NOT be followed by `leaveList` — the caller has no membership left for a leave to
+    /// act on. The local teardown is `leaveList`'s, because a transferred list is just as gone
+    /// from this device's point of view; without it the list lingers until the next full sync
+    /// and every tap on it answers 403.
+    func transferOwnership(listId: String, to newOwnerId: String) async throws {
+        try await apiClient.transferListOwnership(listId: listId, newOwnerId: newOwnerId)
+        cachedLists.removeValue(forKey: listId)
+        lists.removeAll { $0.id == listId }
+        try? await deleteListFromCoreData(listId)
+    }
+
     /// Server-first list update for settings screens that do not need the
     /// optimistic local-first flow.
     @discardableResult

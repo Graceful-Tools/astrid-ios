@@ -91,9 +91,14 @@ struct ListSettingsModal: View {
                     ListSortFiltersTab(list: currentList, onUpdate: handleUpdate)
                         .tag(0)
 
-                    ListMembershipTab(list: currentList, onUpdate: handleLocalUpdate, removedMemberEmails: $removedMemberEmails, onLeave: !isOwner ? {
-                        showingLeaveConfirmation = true
-                    } : nil)
+                    // `onLeave` is no longer gated on `!isOwner`: the tab asks
+                    // `ListMembershipRoster` which control to show, and for an owner that is
+                    // Transfer Ownership rather than nothing at all (AITD-392).
+                    ListMembershipTab(list: currentList,
+                                      onUpdate: handleLocalUpdate,
+                                      removedMemberEmails: $removedMemberEmails,
+                                      onLeave: { showingLeaveConfirmation = true },
+                                      onListRelinquished: { onLeave?() })
                         .tag(1)
 
                     if canEditSettings {
