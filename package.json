@@ -13,6 +13,8 @@
     "test:mac": "./scripts/run-mac-tests.sh",
     "simulator:prepare": "./scripts/prepare-ios-simulator.sh",
     "check:localizations": "./scripts/check-localizations.sh",
+    "check:version": "./scripts/check-version.sh all",
+    "test:scripts": "./scripts/test-check-version.sh",
     "check:brand": "./scripts/check-brand.sh",
     "check:brands": "./scripts/check-brands.sh",
     "apply:brand": "./scripts/apply-brand.sh",

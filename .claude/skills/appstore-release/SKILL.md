@@ -89,8 +89,15 @@ detail, and the archive, both exports and the test suite all recorded as SUCCEED
 is nothing in the log bundle to find. **Check the version first:**
 
 ```bash
-node scripts/asc-appstore.mjs versions mac    # top row READY_FOR_SALE → that's your answer
+npm run check:version                          # both targets; ✗ names the released one
+node scripts/asc-appstore.mjs versions mac     # the raw states (third column is createdDate, not the release date)
 ```
+
+Since AITD-396 (2026-09-13) `npm run predeploy` runs that same check as its first step, in every
+mode, so a released version is caught before the push rather than after a nine-minute cloud run.
+The check is `scripts/check-version.sh`, and this skill's upload preflight calls the same script.
+It fails only when App Store Connect positively reports the version as released; with no key or
+no network it prints one "skipped" line and lets the gate pass.
 
 Measured 2026-09-12: Mac run 1013 uploaded fine at 1.1.1, 1.1.1 then went `READY_FOR_SALE`, and
 run 1015 failed this way. Bumping the `Astrid Mac` target to 1.1.2 was the whole fix.
@@ -104,6 +111,7 @@ train, and iOS keeps building so nothing looks wrong until the next `macdev` pus
 ```bash
 node scripts/asc-appstore.mjs builds ios      # recent uploads and their state (or: mac)
 node scripts/asc-appstore.mjs versions ios    # App Store version states
+node scripts/asc-appstore.mjs version-state ios 1.9.3   # one version's state, or NOT_FOUND
 node scripts/asc-appstore.mjs status ios 912  # one build
 ```
 

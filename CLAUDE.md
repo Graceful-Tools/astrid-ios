@@ -53,9 +53,11 @@ npm run predeploy             # Run standard checks before pushing
 
 | Command | What it runs |
 |---------|--------------|
-| `npm run predeploy:quick` | Localizations + build (no tests) |
-| `npm run predeploy` | Localizations + build + unit tests — **the standard gate before pushing** |
-| `npm run predeploy:full` | Localizations + build + unit + UI tests |
+| `npm run predeploy:quick` | Version check + localizations + build (no tests) |
+| `npm run predeploy` | Version check + localizations + build + unit tests — **the standard gate before pushing** |
+| `npm run predeploy:full` | Version check + localizations + build + unit + UI tests |
+| `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
+| `npm run test:scripts` | Self-test for `scripts/check-version.sh` |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:all` | Unit + UI tests |
