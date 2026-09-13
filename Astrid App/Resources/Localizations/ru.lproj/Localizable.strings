@@ -1365,3 +1365,13 @@
 "lists.remove_ai_agent" = "Убрать агента";
 "lists.no_ai_agents_hint" = "Добавьте свои API-ключи в настройках, чтобы приглашать ИИ-агентов в этот список.";
 "lists.owner_cannot_leave_yet" = "Вы владелец этого списка. Передать его другому человеку здесь пока нельзя — сделайте это в веб-приложении.";
+
+
+// Transfer Ownership & Leave (AITD-392). Wording mirrors astrid-web's
+// lists.transferOwnership / lists.transferAndLeave so both platforms say the same thing.
+"lists.transfer_ownership" = "Передать владение";
+"lists.transfer_and_leave" = "Передать и выйти";
+"lists.transfer_ownership_prompt" = "Список “%@” принадлежит вам. Чтобы выйти, сначала передайте его другому человеку.";
+"lists.transfer_ownership_select" = "Выбрать нового владельца";
+"lists.transfer_ownership_none" = "Пока некому передать этот список — сначала пригласите кого-нибудь.";
+"lists.transfer_ownership_confirm" = "“%@” теперь принадлежит ему, а вы покинули список. Это нельзя отменить.";

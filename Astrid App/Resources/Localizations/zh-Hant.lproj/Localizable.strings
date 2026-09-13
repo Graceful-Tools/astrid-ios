@@ -1367,3 +1367,13 @@
 "lists.remove_ai_agent" = "移除代理";
 "lists.no_ai_agents_hint" = "在設定中加入你的 API 金鑰，即可邀請 AI 代理加入這個列表。";
 "lists.owner_cannot_leave_yet" = "你是這個列表的擁有者。這裡暫時還不能轉讓給其他人 — 請在網頁版操作。";
+
+
+// Transfer Ownership & Leave (AITD-392). Wording mirrors astrid-web's
+// lists.transferOwnership / lists.transferAndLeave so both platforms say the same thing.
+"lists.transfer_ownership" = "轉移擁有權";
+"lists.transfer_and_leave" = "轉移並離開";
+"lists.transfer_ownership_prompt" = "「%@」是你的列表。要離開，請先轉移給其他人。";
+"lists.transfer_ownership_select" = "選擇新的擁有者";
+"lists.transfer_ownership_none" = "目前還沒有可以接手這個列表的人 — 請先邀請某人。";
+"lists.transfer_ownership_confirm" = "「%@」現在屬於對方，你已離開該列表。此操作無法復原。";

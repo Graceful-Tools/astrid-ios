@@ -8,7 +8,12 @@ struct ListMembershipTab: View {
     let list: TaskList
     let onUpdate: (TaskList) -> Void
     @Binding var removedMemberEmails: Set<String>
+    /// Start the ordinary leave flow — the parent confirms, then calls the service.
     var onLeave: (() -> Void)?
+    /// The list is ALREADY gone: ownership was handed over and the membership went with it
+    /// (AITD-392). Distinct from `onLeave`, which only opens a confirmation — by the time this
+    /// fires the server call has happened and there is nothing left to confirm.
+    var onListRelinquished: (() -> Void)?
 
     @State private var showingAddMember = false
     @State private var isProcessing = false
@@ -20,6 +25,14 @@ struct ListMembershipTab: View {
     @State private var removingAgents = Set<String>()
     @State private var showingShareList = false
     @State private var isGitHubConnected = false
+
+    // Transfer Ownership & Leave (AITD-392). `.unavailable` is the starting state on purpose:
+    // astrid-web deploys by hand, so a build can meet a server with no such route, and the
+    // honest "do it on the web app" line is better than a control that cannot work.
+    @State private var transferAvailability: ListOwnershipTransfer.Availability = .unavailable
+    @State private var successorId = ""
+    @State private var confirmingTransfer = false
+    @State private var isTransferring = false
 
     private let listService = ListService.shared
     private let memberService = ListMemberService.shared
@@ -488,22 +501,42 @@ struct ListMembershipTab: View {
             }
             }
 
-            // Leave List - shown for non-owner members
-            if let onLeave = onLeave {
+            // What the leave control offers, from the SHARED rule rather than from whether the
+            // parent happened to pass a closure (ASTRID.md §0 rule 8). This tab used to be handed
+            // `onLeave` only for non-owners, so an owner saw nothing at all and there was nowhere
+            // for Transfer Ownership to live.
+            switch ListMembershipRoster.leaveOption(for: list,
+                                                    userId: AuthManager.shared.userId) {
+            case .none:
+                EmptyView()
+
+            case .leave:
                 Section {
-                    Button(role: .destructive, action: onLeave) {
+                    Button(role: .destructive, action: { onLeave?() }) {
                         HStack {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                             Text(NSLocalizedString("lists.leave_list", comment: "Leave List"))
                         }
                     }
                 }
+
+            case .transferOwnership:
+                transferOwnershipSection
             }
         }
         .scrollContentBackground(.hidden)
         .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
         .task {
             await loadAiProviders()
+        }
+        .task(id: list.id) {
+            // Only an OWNER is ever offered a transfer, and the endpoint answers 403 to anyone
+            // else — probing for every member would buy a guaranteed rejection on every visit to
+            // this tab. The roster already knows, so ask it first.
+            guard ListMembershipRoster.leaveOption(for: list,
+                                                   userId: AuthManager.shared.userId)
+                    == .transferOwnership else { return }
+            transferAvailability = await listService.ownershipTransferAvailability(listId: list.id)
         }
         .sheet(isPresented: $showingShareList) {
             ShareListView(list: list)
@@ -517,6 +550,97 @@ struct ListMembershipTab: View {
                 showRolePicker: true,
                 autoDismiss: true
             )
+        }
+    }
+
+    // MARK: - Transfer Ownership & Leave (AITD-392)
+
+    /// The owner's leave control. An owner cannot simply vanish — ownership is what `canDelete`
+    /// keys on — so the list has to be handed to someone by name.
+    ///
+    /// Which of the four states shows is the server's answer to the eligibility probe, mapped by
+    /// the shared `ListOwnershipTransfer`. The `.unavailable` branch is the one that matters for
+    /// shipping: astrid-web deploys by hand, so this build can meet a server with no such route,
+    /// and it then says exactly what it said before instead of offering a broken button.
+    @ViewBuilder
+    private var transferOwnershipSection: some View {
+        switch transferAvailability {
+        case .unavailable:
+            Section {
+                Text(NSLocalizedString("lists.owner_cannot_leave_yet", comment: ""))
+                    .font(Theme.Typography.caption2())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            }
+
+        case .notPermitted:
+            // The server says this caller is not the owner, which outranks the local roster.
+            EmptyView()
+
+        case .noEligibleOwners:
+            Section {
+                Text(NSLocalizedString("lists.transfer_ownership_none", comment: ""))
+                    .font(Theme.Typography.caption2())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            }
+
+        case .available(let successors):
+            Section {
+                Picker(NSLocalizedString("lists.transfer_ownership_select", comment: ""),
+                       selection: $successorId) {
+                    ForEach(successors) { successor in
+                        Text(successor.displayName).tag(successor.id)
+                    }
+                }
+
+                Button(role: .destructive, action: { confirmingTransfer = true }) {
+                    HStack {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                        Text(NSLocalizedString("lists.transfer_and_leave", comment: ""))
+                    }
+                }
+                .disabled(successorId.isEmpty || isTransferring)
+            } header: {
+                Text(NSLocalizedString("lists.transfer_ownership", comment: ""))
+            } footer: {
+                Text(String(format: NSLocalizedString("lists.transfer_ownership_prompt",
+                                                      comment: ""), list.name))
+            }
+            .onAppear {
+                // Pre-select so the button is not disabled for no visible reason when there is
+                // exactly one person it could go to.
+                if successorId.isEmpty { successorId = successors[0].id }
+            }
+            .confirmationDialog(NSLocalizedString("lists.transfer_ownership", comment: ""),
+                                isPresented: $confirmingTransfer, titleVisibility: .visible) {
+                Button(NSLocalizedString("lists.transfer_and_leave", comment: ""),
+                       role: .destructive, action: transferOwnership)
+                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+            } message: {
+                Text(String(format: NSLocalizedString("lists.transfer_ownership_confirm",
+                                                      comment: ""), list.name))
+            }
+        }
+    }
+
+    /// Hand the list over and leave it, in ONE call.
+    ///
+    /// Through `ListService` (ASTRID.md §0 rule 1), and deliberately NOT followed by a leave:
+    /// the server moves ownership and drops the caller's membership in a single transaction, so
+    /// a second call would act on a list this user is no longer a member of.
+    ///
+    /// `onLeave` is the same closure the ordinary Leave button uses — from here the outcome is
+    /// identical, the list is gone.
+    private func transferOwnership() {
+        guard !successorId.isEmpty else { return }
+        isTransferring = true
+        _Concurrency.Task {
+            do {
+                try await listService.transferOwnership(listId: list.id, to: successorId)
+                onListRelinquished?()
+            } catch {
+                isTransferring = false
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

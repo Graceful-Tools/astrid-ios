@@ -1381,3 +1381,13 @@
 "lists.remove_ai_agent" = "Quitar agente";
 "lists.no_ai_agents_hint" = "Añade tus claves de API en Ajustes para invitar agentes de IA a esta lista.";
 "lists.owner_cannot_leave_yet" = "Esta lista es tuya. Transferirla a otra persona aún no está disponible aquí: hazlo en la aplicación web.";
+
+
+// Transfer Ownership & Leave (AITD-392). Wording mirrors astrid-web's
+// lists.transferOwnership / lists.transferAndLeave so both platforms say the same thing.
+"lists.transfer_ownership" = "Transferir propiedad";
+"lists.transfer_and_leave" = "Transferir y salir";
+"lists.transfer_ownership_prompt" = "Esta lista, “%@”, es tuya. Para salir, primero tránsfierela a otra persona.";
+"lists.transfer_ownership_select" = "Elegir nueva persona propietaria";
+"lists.transfer_ownership_none" = "Todavía no hay nadie a quien transferir esta lista: invita a alguien primero.";
+"lists.transfer_ownership_confirm" = "“%@” ya es suya y has salido de la lista. Esto no se puede deshacer.";

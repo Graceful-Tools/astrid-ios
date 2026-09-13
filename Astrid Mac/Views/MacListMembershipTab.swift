@@ -14,11 +14,13 @@
 //  There was NO WAY TO LEAVE A LIST, no way to add or remove an AI agent, and the privacy pickers
 //  named three options without saying what any of them did.
 //
-//  What is still missing, and why: TRANSFER OWNERSHIP. Web does it by POSTing to
-//  `/api/lists/{id}/transfer-ownership` — a legacy path with no `/api/v1` equivalent, and
-//  ASTRID.md rule 5 says the apps call v1 only. Filed for the web side rather than reaching for
-//  the legacy route; until it exists an owner is offered no leave control, which is what Mac did
-//  before anyway.
+//  TRANSFER OWNERSHIP used to be the gap here: web POSTed to a legacy `/api/lists/...` path with
+//  no `/api/v1` equivalent, and ASTRID.md rule 5 says the apps call v1 only, so an owner got an
+//  explanation instead of a control. The v1 routes exist now and it is a real control (AITD-392).
+//
+//  It still degrades to that explanation when the server does not answer the probe: astrid-web
+//  deploys by hand, so a shipped build can meet a server that has never heard of the route. See
+//  `ListOwnershipTransfer` — the state is `.unavailable`, not an error.
 
 #if os(macOS)
 import SwiftUI
@@ -38,6 +40,11 @@ struct MacListMembershipTab: View {
     @State private var availableAgents: [User] = []
     @State private var loadingAgents = false
     @State private var confirmingLeave = false
+    /// Starts `.unavailable` so a server that never answers shows the honest explanation
+    /// rather than a control that cannot work (AITD-392).
+    @State private var transferAvailability: ListOwnershipTransfer.Availability = .unavailable
+    @State private var successorId = ""
+    @State private var confirmingTransfer = false
 
     private static let roles = ["member", "admin"]
 
@@ -323,14 +330,65 @@ struct MacListMembershipTab: View {
                 Text(NSLocalizedString("lists.leave_confirm", comment: ""))
             }
         case .transferOwnership:
-            // See the file header: the transfer route has no /api/v1 equivalent yet, and rule 5
-            // says the apps call v1 only. Saying so beats a button that cannot work.
+            // An owner cannot simply leave — ownership is what `canDelete` keys on, so it has to
+            // be handed over explicitly. Which of these four the server says decides what shows;
+            // `.unavailable` is the pre-deploy state and keeps the old explanation (AITD-392).
             VStack(alignment: .leading, spacing: 6) {
                 Divider()
-                Text(NSLocalizedString("lists.owner_cannot_leave_yet", comment: ""))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
+                switch transferAvailability {
+                case .unavailable:
+                    Text(NSLocalizedString("lists.owner_cannot_leave_yet", comment: ""))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                case .notPermitted:
+                    // The server says this caller is not the owner after all. It outranks the
+                    // local roster, so offer nothing.
+                    EmptyView()
+
+                case .noEligibleOwners:
+                    Text(NSLocalizedString("lists.transfer_ownership_none", comment: ""))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                case .available(let successors):
+                    Text(String(format: NSLocalizedString("lists.transfer_ownership_prompt",
+                                                          comment: ""), currentList.name))
+                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Picker(NSLocalizedString("lists.transfer_ownership_select", comment: ""),
+                           selection: $successorId) {
+                        ForEach(successors) { successor in
+                            Text(successor.displayName).tag(successor.id)
+                        }
+                    }
+                    .labelsHidden()
+
+                    Button(NSLocalizedString("lists.transfer_and_leave", comment: ""),
+                           role: .destructive) {
+                        confirmingTransfer = true
+                    }
+                    .disabled(successorId.isEmpty)
+                    .confirmationDialog(
+                        NSLocalizedString("lists.transfer_ownership", comment: ""),
+                        isPresented: $confirmingTransfer
+                    ) {
+                        Button(NSLocalizedString("lists.transfer_and_leave", comment: ""),
+                               role: .destructive, action: transferOwnership)
+                        Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+                    } message: {
+                        Text(String(format: NSLocalizedString("lists.transfer_ownership_confirm",
+                                                              comment: ""), currentList.name))
+                    }
+                    .onAppear {
+                        // Pre-select, so the button is live rather than disabled for no visible
+                        // reason on a list with exactly one eligible successor.
+                        if successorId.isEmpty { successorId = successors[0].id }
+                    }
+                }
             }
+            .task(id: currentList.id) { await loadTransferAvailability() }
         case .none:
             EmptyView()
         }
@@ -428,6 +486,24 @@ struct MacListMembershipTab: View {
     private func leave() {
         MacActions.perform("Leave list") {
             try await ListService.shared.leaveList(listId: list.id)
+        }
+    }
+
+    /// Ask the server who this list may be handed to (AITD-392).
+    ///
+    /// Through `ListService`, never `AstridAPIClient` — ASTRID.md §0 rule 1. It cannot throw:
+    /// every outcome is a state to render, including the server not knowing the route.
+    private func loadTransferAvailability() async {
+        transferAvailability = await ListService.shared
+            .ownershipTransferAvailability(listId: list.id)
+    }
+
+    /// Hand it over and leave, in ONE call — the server does both in a single transaction, so
+    /// there is deliberately no `leaveList` after this.
+    private func transferOwnership() {
+        guard !successorId.isEmpty else { return }
+        MacActions.perform("Transfer list ownership") {
+            try await ListService.shared.transferOwnership(listId: list.id, to: successorId)
         }
     }
 }

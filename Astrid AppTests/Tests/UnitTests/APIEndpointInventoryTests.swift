@@ -61,12 +61,16 @@ final class APIEndpointInventoryTests: XCTestCase {
     /// Every file the current client is spread across.
     ///
     /// `AstridAPIClient+ListMembers.swift` joined it in AITD-388, when the members and
-    /// invitations endpoints moved into an extension to get the client off its size ceiling. A
-    /// path that moves between these files has not left the app, and the inventory must not read
-    /// the move as a deletion.
+    /// invitations endpoints moved into an extension to get the client off its size ceiling, and
+    /// `AstridAPIClient+ListOwnership.swift` in AITD-392 for the same reason. A path that moves
+    /// between these files has not left the app, and the inventory must not read the move as a
+    /// deletion.
+    ///
+    /// Every new extension of the client has to be added here, or its endpoints read as deleted.
     private static let currentClientFiles = [
         "Astrid App/Core/Networking/AstridAPIClient.swift",
         "Astrid App/Core/Networking/AstridAPIClient+ListMembers.swift",
+        "Astrid App/Core/Networking/AstridAPIClient+ListOwnership.swift",
     ]
 
     private static func currentClientPaths(_ test: APIEndpointInventoryTests) throws -> Set<String> {

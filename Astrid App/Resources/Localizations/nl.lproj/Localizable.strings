@@ -1365,3 +1365,13 @@
 "lists.remove_ai_agent" = "Agent verwijderen";
 "lists.no_ai_agents_hint" = "Voeg je API-sleutels toe in Instellingen om AI-agents voor deze lijst uit te nodigen.";
 "lists.owner_cannot_leave_yet" = "Deze lijst is van jou. Overdragen aan iemand anders kan hier nog niet — doe dat in de webapp.";
+
+
+// Transfer Ownership & Leave (AITD-392). Wording mirrors astrid-web's
+// lists.transferOwnership / lists.transferAndLeave so both platforms say the same thing.
+"lists.transfer_ownership" = "Eigendom overdragen";
+"lists.transfer_and_leave" = "Overdragen en verlaten";
+"lists.transfer_ownership_prompt" = "“%@” is van jou. Draag de lijst eerst over aan iemand anders om te kunnen vertrekken.";
+"lists.transfer_ownership_select" = "Nieuwe eigenaar kiezen";
+"lists.transfer_ownership_none" = "Er is nog niemand aan wie je deze lijst kunt overdragen — nodig eerst iemand uit.";
+"lists.transfer_ownership_confirm" = "“%@” is nu van die persoon en jij hebt de lijst verlaten. Dit kan niet ongedaan worden gemaakt.";

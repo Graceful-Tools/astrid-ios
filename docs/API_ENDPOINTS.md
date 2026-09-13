@@ -67,6 +67,7 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/lists/{id}/leave`
 - `/api/v1/lists/{id}/members`
 - `/api/v1/lists/{id}/members/{id}`
+- `/api/v1/lists/{id}/transfer-ownership`
 
 ### `/api/v1/projects`
 
