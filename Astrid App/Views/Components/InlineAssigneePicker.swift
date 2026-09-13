@@ -14,6 +14,14 @@ struct InlineAssigneePicker: View {
     var showLabel: Bool = true
     /// Avatar only, no name and no chevron — tap to change (Task 42013da7).
     var compact: Bool = false
+    /// Clamp the member list to a scrolling window instead of sizing it to its content
+    /// (AITD-391).
+    ///
+    /// Only a popover asks for this. Left to grow, the list makes the popover as tall as every
+    /// member and agent, the system squeezes that into whatever room it has, and you end up with
+    /// fewer rows than if it had never asked — the reported "sometimes isn't big enough". A sheet
+    /// or a detail pane has its own height and must NOT be clamped.
+    var boundsListHeight: Bool = false
 
     @State private var isEditing = false
     // "Someone else": assign to a person who is not on the list yet (42013da7).
@@ -298,6 +306,11 @@ struct InlineAssigneePicker: View {
             }
             .padding(compact ? 0 : Theme.spacing12)
         }
+        // At least three people visible, and scrolling past that (AITD-391). `compact` puts this
+        // same editor in a sheet with its own detents, where a clamp would be a new bug — hence
+        // the `&& !compact` rather than trusting the caller not to combine them.
+        .frame(minHeight: boundsListHeight && !compact ? QuickPickerGeometry.assigneeListMinHeight : nil,
+               maxHeight: boundsListHeight && !compact ? QuickPickerGeometry.assigneeListMaxHeight : nil)
         .background(compact ? Color.clear
                             : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))

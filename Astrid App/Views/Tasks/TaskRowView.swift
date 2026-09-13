@@ -117,93 +117,21 @@ struct TaskRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.spacing12) {
-            // For public list tasks, show copy button instead of checkbox
-            if isPublicListTask {
-                Button(action: {
-                    // Haptic feedback
-                    let impact = UIImpactFeedbackGenerator(style: .medium)
-                    impact.impactOccurred()
-                    onCopy?()
-                }) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.4), lineWidth: 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.clear)
-                            )
-                            .frame(width: 34, height: 34)
-
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Color.gray)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-            // Show a face whenever the SHARED helper says this control is an avatar.
+            // The quick picker hangs off THIS control, not off the row (AITD-391). Attached to
+            // the row, the popover's source rect was the whole card body, so the system chose
+            // above or below from the space around a board card — of which a board column has
+            // almost none. The Mac has always anchored on its checkbox column.
             //
-            // This used to spell the rule itself — "assigned to someone other than the current
-            // user" — which is why project mode did not reach it: in project mode YOUR OWN
-            // task shows your photo too (task 132d7b3f), and a condition written out here
-            // could not know that. Asking `TaskLeadingControl` instead means the row follows
-            // the mode without the row knowing what the modes are.
-            else if let assignee = effectiveAssignee,
-               showsAssigneeFace {
-                // Show assignee avatar instead of checkbox for shared list tasks
-                // Use cachedImageURL to leverage UserImageCache from list member data
-                CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    // Show initials placeholder for loading or failed states
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Theme.accent)
-                        Text(assignee.initials)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
+            // The SAME quick changer the task detail shows, so "same behavior" is one view rather
+            // than a promise three surfaces keep separately (task 132d7b3f).
+            leadingControl
+                .popover(isPresented: $showingQuickChanger,
+                         arrowEdge: QuickPickerGeometry.arrowEdge) {
+                    TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
+                        // Without this it stops being a popover on iPhone and becomes a sheet,
+                        // which has no anchor at all.
+                        .presentationCompactAdaptation(.popover)
                 }
-                .frame(width: 34, height: 34)
-                // Rounded rectangle with a priority-colored border — matches the
-                // web's assigned-task avatar (rounded-lg square, border-2).
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(priorityColor, lineWidth: 2)
-                )
-                // The avatar had NO gesture, which was harmless while a face only ever meant
-                // someone else's task. In project mode your own task is a face too, so without
-                // this the control you are told to tap does nothing (task 132d7b3f).
-                .contentShape(Rectangle())
-                .onTapGesture { handleLeadingTap() }
-            }
-            // Nobody assigned: "U", not the checkbox (42013da7). Unassigned had been folded in
-            // with "mine", so a task nobody owns looked exactly like a task you own. Tapping it
-            // still completes the task — the mark changes, the action does not.
-            else if leadingKind == .unassigned {
-                Button(action: { handleLeadingTap() }) {
-                    Text(TaskLeadingControl.unassignedGlyph)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(priorityColor)
-                        .frame(width: 34, height: 34)
-                        .overlay(RoundedRectangle(cornerRadius: 8)
-                            .stroke(priorityColor, lineWidth: 2))
-                        .strikethrough(task.completed)
-                        .opacity(task.completed ? 0.5 : 1)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
-            } else {
-                // Show completion checkbox for own tasks
-                // Using custom checkbox images matching mobile web
-                Button(action: { handleLeadingTap() }) {
-                    checkboxImage
-                }
-                .buttonStyle(.plain)
-            }
 
             // Task content
             VStack(alignment: .leading, spacing: 6) {
@@ -303,12 +231,6 @@ struct TaskRowView: View {
 
             Spacer()
         }
-        // The SAME quick changer the task detail shows, so "same behavior" is one view rather
-        // than a promise three surfaces keep separately (task 132d7b3f).
-        .popover(isPresented: $showingQuickChanger) {
-            TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
-                .presentationCompactAdaptation(.popover)
-        }
         // Board cards: 12pt vertical, 10pt horizontal. The horizontal
         // inset is cut by the same amount the card's outer margin grew
         // (LazyVStack padding in BoardColumnView) so the checkbox stays
@@ -381,6 +303,101 @@ struct TaskRowView: View {
         } else {
             // Other themes: solid backgrounds
             getCardBackground()
+        }
+    }
+
+    /// The 34pt control at the head of the row: a copy button on a public list, the
+    /// assignee's face, the unassigned mark, or the completion checkbox.
+    ///
+    /// A view of its own because the quick picker has to be anchored to it (AITD-391) —
+    /// inline in the row's HStack there was nothing for the popover to point at.
+    @ViewBuilder private var leadingControl: some View {
+        // For public list tasks, show copy button instead of checkbox
+        if isPublicListTask {
+            Button(action: {
+                // Haptic feedback
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+                onCopy?()
+            }) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.clear)
+                        )
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color.gray)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        // Show a face whenever the SHARED helper says this control is an avatar.
+        //
+        // This used to spell the rule itself — "assigned to someone other than the current
+        // user" — which is why project mode did not reach it: in project mode YOUR OWN
+        // task shows your photo too (task 132d7b3f), and a condition written out here
+        // could not know that. Asking `TaskLeadingControl` instead means the row follows
+        // the mode without the row knowing what the modes are.
+        else if let assignee = effectiveAssignee,
+           showsAssigneeFace {
+            // Show assignee avatar instead of checkbox for shared list tasks
+            // Use cachedImageURL to leverage UserImageCache from list member data
+            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                // Show initials placeholder for loading or failed states
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Theme.accent)
+                    Text(assignee.initials)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(width: 34, height: 34)
+            // Rounded rectangle with a priority-colored border — matches the
+            // web's assigned-task avatar (rounded-lg square, border-2).
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(priorityColor, lineWidth: 2)
+            )
+            // The avatar had NO gesture, which was harmless while a face only ever meant
+            // someone else's task. In project mode your own task is a face too, so without
+            // this the control you are told to tap does nothing (task 132d7b3f).
+            .contentShape(Rectangle())
+            .onTapGesture { handleLeadingTap() }
+        }
+        // Nobody assigned: "U", not the checkbox (42013da7). Unassigned had been folded in
+        // with "mine", so a task nobody owns looked exactly like a task you own. Tapping it
+        // still completes the task — the mark changes, the action does not.
+        else if leadingKind == .unassigned {
+            Button(action: { handleLeadingTap() }) {
+                Text(TaskLeadingControl.unassignedGlyph)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(priorityColor)
+                    .frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .stroke(priorityColor, lineWidth: 2))
+                    .strikethrough(task.completed)
+                    .opacity(task.completed ? 0.5 : 1)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
+        } else {
+            // Show completion checkbox for own tasks
+            // Using custom checkbox images matching mobile web
+            Button(action: { handleLeadingTap() }) {
+                checkboxImage
+            }
+            .buttonStyle(.plain)
         }
     }
 
