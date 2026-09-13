@@ -68,7 +68,10 @@ struct TaskQuickChanger: View {
                                                           assigneeId: newAssigneeId ?? "", task: task)
                     await MainActor.run { onDismiss() }
                 },
-                showLabel: false
+                showLabel: false,
+                // This is a popover, so the member list scrolls inside a fixed window rather
+                // than sizing the popover to the whole membership (AITD-391).
+                boundsListHeight: true
             )
 
             Divider()
