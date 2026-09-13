@@ -42,8 +42,11 @@ final class SourceFileSizeGuardTests: XCTestCase {
         "Astrid App/Core/Services/TaskService.swift": 1675,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
-        // choices instead of a second copy of them. Locking in what that removed.
-        "Astrid Mac/App/MacRootView.swift": 1660,
+        // choices instead of a second copy of them, and this was set to 1660 to lock that
+        // in. AITD-389 then needed three lines of it back to explain why a real list's sort
+        // outranks the window override — 1660 was a tighter number than the extraction had
+        // actually earned. Still well below where the day started.
+        "Astrid Mac/App/MacRootView.swift": 1663,
         // Was 1625, then 1639, and the second raise in one day is what this ratchet exists to
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to

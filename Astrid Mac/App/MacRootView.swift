@@ -1017,10 +1017,12 @@ struct MacRootView: View {
         })
     }
 
-    /// The sort key actually in effect for the current selection (override wins over the list's own).
+    /// The sort key actually in effect for the current selection.
+    ///
+    /// Asked of the SHARED rule rather than restated here (AITD-389) — this private copy is how
+    /// the view came to disagree with the pipeline about which sort was in force.
     private var effectiveSortKey: String {
-        if !taskSortOverride.isEmpty { return taskSortOverride }
-        return currentRealList?.sortBy ?? "auto"
+        MacRowPipeline.effectiveSortKey(override: taskSortOverride, list: currentRealList)
     }
     private var isManualSort: Bool { effectiveSortKey == "manual" }
 
@@ -1038,13 +1040,14 @@ struct MacRootView: View {
     /// service, so it persists and syncs to iOS/web — iOS behaves the same way. Previously every
     /// pick was a window-local override that never left the Mac (task 2b886104). Virtual/saved
     /// selections own no list, so those keep the local override.
+    /// The two no longer touch each other (AITD-389): clearing the override on a list pick was
+    /// only needed while it outranked the list, and it threw away your My Tasks sort.
     private var sortMenu: some View {
         Menu {
             if let list = currentRealList {
                 Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
                     get: { list.sortBy ?? "auto" },
                     set: { newValue in
-                        taskSortOverride = ""          // the list's own sort is authoritative again
                         MacActions.perform("Update sort") {
                             _ = try await ListService.shared.updateListAdvanced(
                                 listId: list.id, updates: ["sortBy": newValue])

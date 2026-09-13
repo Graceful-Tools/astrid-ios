@@ -20,11 +20,46 @@ final class MacRowPipelineTests: XCTestCase {
 
     // MARK: sort-override fallback (G1)
 
+    /// A REAL LIST'S OWN SORT ALWAYS WINS (AITD-389).
+    ///
+    /// This used to assert the opposite — "a per-window override must win over the list's saved
+    /// sort" — which was true before task 2b886104 made a real list's sort persist and sync, and
+    /// was never revisited afterwards. The result: pick a sort on My Tasks, walk to a real list,
+    /// and your device-local override silently reordered a list whose sort every member shares.
+    /// The toolbar menu made it worse by reading `list.sortBy` — so the control showed one sort
+    /// while the rows were in another.
+    ///
+    /// The override exists for selections that own no list row to write to. That is the whole of
+    /// its job.
+    func testARealListsOwnSortBeatsTheLocalOverride() {
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "priority", list: list(sortBy: "when")),
+                       "when",
+                       "AITD-389: the list's shared sort is authoritative, not a per-window override")
+    }
+
+    /// The ambiguity that made the bug hard to see: a real list with NO sort set and no list at
+    /// all both used to arrive as `listSortBy: nil`, so the rule could not tell them apart.
+    func testAListWithNoSortIsStillAListNotAnAbsentOne() {
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "priority", list: list(sortBy: nil)),
+                       "auto",
+                       "AITD-389: a list that has never set a sort still outranks the override")
+    }
+
+    /// What the override is actually for.
+    func testTheOverrideAppliesWhenThereIsNoList() {
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "priority", list: nil), "priority")
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "", list: nil), "auto")
+    }
+
     func testEffectiveSortKeyFallbackChain() {
-        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "priority", listSortBy: "when"), "priority",
-                       "A per-window override must win over the list's saved sort")
-        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "", listSortBy: "when"), "when")
-        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "", listSortBy: nil), "auto")
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "", list: list(sortBy: "when")), "when")
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "", list: nil), "auto")
+    }
+
+    private func list(sortBy: String?) -> TaskList {
+        var l = TaskList(id: "l1", name: "Work", privacy: .PRIVATE)
+        l.sortBy = sortBy
+        return l
     }
 
     func testVirtualSelectionSortsWithOverride() {
