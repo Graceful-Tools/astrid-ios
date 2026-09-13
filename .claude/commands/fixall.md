@@ -58,8 +58,10 @@ substitutes for the other.
 
 ## Talk to Astrid through the MCP server — never the database
 
-The `astrid` MCP server (`https://www.astrid.cc/mcp`, configured for this project) is the
-**only** way this loop reads or writes tasks. Its tools:
+The `astrid` MCP server is the **only** way this loop reads or writes tasks. It runs
+**locally over stdio** — `node ../astrid-web/mcp/astrid-mcp-launch.js`, the same entry
+astrid-web uses — so it authenticates from the client-credentials pair in
+`astrid-web/.env.local` and needs no browser. Its tools:
 
 | Need | Tool |
 |------|------|
@@ -71,8 +73,24 @@ The `astrid` MCP server (`https://www.astrid.cc/mcp`, configured for this projec
 
 If the MCP tools are not loaded, they are deferred — load them with
 `ToolSearch "select:mcp__astrid__get_agent_queue,mcp__astrid__get_task,mcp__astrid__get_task_comments,mcp__astrid__add_comment,mcp__astrid__update_task,mcp__astrid__create_task"`.
-If only `mcp__astrid__authenticate` exists, the server needs OAuth: call it, give Jon the URL,
-and stop until he has authorised — do not fall back to scripts.
+
+**If the session reports `astrid` failed to connect,** it is one of two local causes — MCP
+servers only attach at startup, so neither is fixable mid-run:
+
+- **`dist/mcp/mcp-server-oauth.js` missing** (build output is gitignored) → in astrid-web,
+  `npm run build:mcp:oauth`, then start a new session.
+- **`ASTRID_OAUTH_CLIENT_ID` / `_SECRET` missing from `astrid-web/.env.local`** → see
+  astrid-web `docs/setup/MCP_OAUTH_SETUP.md`.
+
+The launcher prints which one it is on stderr; reproduce it with
+`node ../astrid-web/mcp/astrid-mcp-launch.js < /dev/null`. Say what is broken and stop —
+do not fall back to scripts, and never to the database.
+
+**This used to be the hosted endpoint `https://www.astrid.cc/mcp`, which is why it kept
+failing here.** That transport is OAuth-authorization-code: it answers `401` with a
+`www-authenticate` challenge until a browser flow has run, and a scheduled `/fixall` has no
+browser, so every unattended run reported `ConnectionRefused` (2026-09-13). stdio carries its
+own credentials, which is the property this loop actually needs.
 
 **Direct database access (`DATABASE_URL_PROD`, `ios-tasks-direct.ts`, `create-ios-tasks.ts`,
 Prisma) is for deep repair only** — Jon, 2026-08-29 — and never part of this loop. It bypasses

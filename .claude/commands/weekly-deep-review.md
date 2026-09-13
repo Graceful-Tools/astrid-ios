@@ -6,9 +6,8 @@ execute it. This file holds only what is different about running it from here.
 
 ## Why the driver lives here
 
-The `astrid` MCP server is configured for this project and not for astrid-web, so an agent
-working from this repo is the only one that can read and write **both** boards over MCP —
-and it can still `cd ../astrid-web` for the OAuth scripts. The paired guard task on the web
+The `astrid` MCP server reaches **both** boards, and an agent working from this repo can also
+`cd ../astrid-web` for the OAuth scripts — so one session here covers the whole review. The paired guard task on the web
 board is not a second review; it only checks that this one ran.
 
 ## What is different here

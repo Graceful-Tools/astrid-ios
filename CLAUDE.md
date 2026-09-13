@@ -173,8 +173,10 @@ implement. Run `npm run predeploy` **after** implementation, not before.
 **Never read or write Astrid tasks through the database** (`DATABASE_URL_PROD`, Prisma,
 `ios-tasks-direct.ts`) unless doing deep repair Jon has asked for. The MCP tools
 (`get_agent_queue`, `get_task`, `get_task_comments`, `add_comment`, `update_task`,
-`create_task`) are the interface; if only `mcp__astrid__authenticate` is available, run it and
-hand the user the URL. Details and the OAuth-script exceptions (claim / status / assign) are in
+`create_task`) are the interface. It runs locally over stdio
+(`node ../astrid-web/mcp/astrid-mcp-launch.js`) and needs no browser; if it fails to connect,
+that is a local build or credentials problem, not an outage. Details, the connection
+troubleshooting and the OAuth-script exceptions (claim / status / assign) are in
 `.claude/commands/fixall.md`.
 
 **Per-task process** (canonical, cross-repo — see `astrid-web/docs/FIXALL_WORKFLOW.md`):

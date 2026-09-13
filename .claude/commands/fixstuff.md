@@ -1,15 +1,16 @@
 Pull tasks from the Astrid iOS to-do list and work through them until the list is empty.
 
 Everything here goes through the `astrid` MCP server — **never the database**. The DB is for
-deep repair only (Jon, 2026-08-29). The tool table, the auth fallback, and the two steps the
-MCP cannot do (claim / status / assign) are in `/fixall`; the rules below are the interactive version.
+deep repair only (Jon, 2026-08-29). The tool table, what to do when the server fails to connect,
+and the two steps the MCP cannot do (claim / status / assign) are in `/fixall`; the rules below
+are the interactive version.
 
 ## Steps
 
 1. **Pull the queue** with the MCP tool:
    `get_agent_queue { agent: "claude", listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }`
-   (Astrid iOS To-do). Load the tools first if they are deferred; if only
-   `mcp__astrid__authenticate` is available, run it, hand Jon the URL, and wait.
+   (Astrid iOS To-do). Load the tools first if they are deferred; if the server failed to
+   connect, it is a local stdio problem — see `/fixall` for the two causes and fix it there.
 
    The queue is Ready ∩ assigned-to-`claude` ∩ due-now. **An assignee is a claim** — a task
    assigned to a person, or to nobody, is not in the queue. If you think something is yours,
