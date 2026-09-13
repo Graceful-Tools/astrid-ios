@@ -28,6 +28,32 @@ private struct iPadTaskListView: View {
     }
 }
 
+/// How the content sits while the picker drawer is behind it: slid aside, dimmed, and inert once
+/// the drawer is most of the way open.
+///
+/// A modifier rather than an `if` around the content, because the layout that offers the drawer
+/// and the one that does not must be the SAME view — a 3-column board toggling full screen would
+/// otherwise be rebuilt, and `TaskListView.taskViewMode` is `@State`, so it would snap back to
+/// list view and drop straight out of full screen. `isAvailable: false` just zeroes the effects.
+private struct SlidingPickerChrome: ViewModifier {
+    let isAvailable: Bool
+    let isOpen: Bool
+    let drawerWidth: CGFloat
+    let dragOffset: CGFloat
+    let progress: CGFloat
+
+    func body(content: Content) -> some View {
+        let progress = isAvailable ? progress : 0
+        let offset = isAvailable ? (isOpen ? drawerWidth + dragOffset : dragOffset) : 0
+        content
+            .offset(x: offset)
+            .shadow(color: .black.opacity(0.3 * progress), radius: 10, x: -5, y: 0)
+            .opacity(1.0 - (0.3 * progress))
+            .saturation(1.0 - (0.5 * progress))
+            .allowsHitTesting(progress < 0.95)
+    }
+}
+
 /// iPad-specific task manager view with adaptive column layout
 /// Landscape: sidebar | task list | task details (always 3-column, details ~50% width)
 /// Portrait: task list | task details (sidebar hidden, accessible via hamburger menu)
@@ -67,9 +93,16 @@ struct iPadTaskManagerView: View {
     /// (tap-again, swipe, close button, list switch) feels identical and smooth.
     private static let panelAnimation: Animation = .spring(response: 0.36, dampingFraction: 0.92)
 
+    /// One canonical curve for the picker drawer, shared by every open and close path.
+    private static let drawerAnimation: Animation = .spring(response: 0.25, dampingFraction: 0.85)
+
+    /// The picker drawer's share of the window. It is the same drawer wherever it appears —
+    /// 2-column, and a full-screen board in 3-column (AITD-388).
+    private static let drawerShare: CGFloat = 0.40
+
     // Calculate animation progress for sidebar slide (portrait mode)
     private var sidebarProgress: CGFloat {
-        let targetOffset = UIScreen.main.bounds.width * 0.40  // 40% width for iPad sidebar
+        let targetOffset = UIScreen.main.bounds.width * Self.drawerShare
         if showingSidebar {
             let currentOffset = targetOffset + dragOffset
             return max(0, min(1, currentOffset / targetOffset))
@@ -156,79 +189,105 @@ struct iPadTaskManagerView: View {
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
                                                      showsMessages: showsMessages,
                                                      isFullScreen: detailFullScreen)
+        // A full-screen board takes the picker's pane away, so the hamburger opens the picker
+        // as a sliding drawer instead — exactly what it does in 2-column (AITD-388).
+        let showsDrawer = iPadPaneLayout.showsSlidingPicker(columns: 3,
+                                                            boardFullScreen: isBoardFullScreen)
+        let drawerWidth = width * Self.drawerShare
 
-        ZStack {
+        ZStack(alignment: .leading) {
             // Full-screen background (fills safe areas — fixes black in dark mode)
             themeBackground
                 .ignoresSafeArea()
 
-        HStack(spacing: 0) {
-            // Left: list picker — permanently visible, except under a full-screen board.
-            if panes.sidebar > 0 {
-                NavigationStack {
-                    ListSidebarView(
-                        selectedListId: $selectedListId,
-                        isViewingFromFeatured: $isViewingFromFeatured,
-                        featuredList: $featuredList,
-                        searchText: $searchText,
-                        shouldScrollToTop: $shouldScrollSidebarToTop
-                    )
-                    .environmentObject(authManager)
-                }
-                .frame(width: panes.sidebar)
-                .background(themeBackground)
-
-                Divider()
+            // The drawer waits underneath; the board slides off it when it opens.
+            if showsDrawer {
+                pickerDrawer(width: drawerWidth)
             }
 
-            // Centre: task list (or board). Right: list messages. The task detail is a
-            // trailing OVERLAY sized to the messages pane, so opening a task covers the
-            // messages and never the list you are working in (a34d0163).
-            ZStack(alignment: .trailing) {
-                HStack(spacing: 0) {
-                    Group {
-                        if selectedListId == "settings" {
-                            NavigationStack {
-                                SettingsView()
-                                    .environmentObject(authManager)
+            HStack(spacing: 0) {
+                // Left: list picker — permanently visible, except under a full-screen board.
+                if panes.sidebar > 0 {
+                    NavigationStack {
+                        ListSidebarView(
+                            selectedListId: $selectedListId,
+                            isViewingFromFeatured: $isViewingFromFeatured,
+                            featuredList: $featuredList,
+                            searchText: $searchText,
+                            shouldScrollToTop: $shouldScrollSidebarToTop
+                        )
+                        .environmentObject(authManager)
+                    }
+                    .frame(width: panes.sidebar)
+                    .background(themeBackground)
+
+                    Divider()
+                }
+
+                // Centre: task list (or board). Right: list messages. The task detail is a
+                // trailing OVERLAY sized to the messages pane, so opening a task covers the
+                // messages and never the list you are working in (a34d0163).
+                ZStack(alignment: .trailing) {
+                    HStack(spacing: 0) {
+                        Group {
+                            if selectedListId == "settings" {
+                                NavigationStack {
+                                    SettingsView()
+                                        .environmentObject(authManager)
+                                }
+                            } else if selectedListId == "profile", let userId = authManager.userId {
+                                NavigationStack {
+                                    UserProfileView(userId: userId, isRootDestination: true)
+                                        .environmentObject(authManager)
+                                }
+                            } else {
+                                // The hamburger opens the drawer only when the picker has no pane of
+                                // its own; with the pane on screen there is nothing for it to open.
+                                iPadTaskListView(
+                                    selectedListId: $selectedListId,
+                                    isViewingFromFeatured: $isViewingFromFeatured,
+                                    featuredList: $featuredList,
+                                    searchText: $searchText,
+                                    selectedTask: $selectedTask,
+                                    onMenuTap: showsDrawer ? { openSidebar() } : nil,
+                                    onViewModeChange: { listViewMode = $0 }
+                                )
                             }
-                        } else if selectedListId == "profile", let userId = authManager.userId {
-                            NavigationStack {
-                                UserProfileView(userId: userId, isRootDestination: true)
-                                    .environmentObject(authManager)
-                            }
-                        } else {
-                            // No onMenuTap - hamburger does nothing in landscape since sidebar is always visible
-                            iPadTaskListView(
-                                selectedListId: $selectedListId,
-                                isViewingFromFeatured: $isViewingFromFeatured,
-                                featuredList: $featuredList,
-                                searchText: $searchText,
-                                selectedTask: $selectedTask,
-                                onMenuTap: nil,
-                                onViewModeChange: { listViewMode = $0 }
-                            )
+                        }
+                        .frame(width: panes.list)
+
+                        if showsMessages, let listId = selectedListId {
+                            messagesPane(listId: listId, width: panes.messages)
                         }
                     }
-                    .frame(width: panes.list)
+                    .frame(width: width - panes.sidebar)
 
-                    if showsMessages, let listId = selectedListId {
-                        messagesPane(listId: listId, width: panes.messages)
+                    if let task = selectedTask {
+                        taskDetailPanel(for: task)
+                            .frame(width: detailWidth)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
                 .frame(width: width - panes.sidebar)
-
-                if let task = selectedTask {
-                    taskDetailPanel(for: task)
-                        .frame(width: detailWidth)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
+                // Slide the detail overlay + board scroll room in/out on selection.
+                .animation(Self.panelAnimation, value: selectedTask?.id)
             }
-            .frame(width: width - panes.sidebar)
-            // Slide the detail overlay + board scroll room in/out on selection.
-            .animation(Self.panelAnimation, value: selectedTask?.id)
-        }
+            .modifier(SlidingPickerChrome(isAvailable: showsDrawer, isOpen: showingSidebar,
+                                          drawerWidth: drawerWidth, dragOffset: dragOffset,
+                                          progress: sidebarProgress))
+
+            if showsDrawer && showingSidebar {
+                sidebarDismissOverlay(total: width, drawerWidth: drawerWidth)
+            }
         } // ZStack
+        .task(id: showsDrawer) {
+            // Leaving full screen hands the picker back its pane. Don't leave the drawer
+            // "open" behind it, waiting to reappear the next time a board fills the window.
+            if !showsDrawer {
+                showingSidebar = false
+                dragOffset = 0
+            }
+        }
     }
 
     // MARK: - Panes (Task a34d0163)
@@ -274,38 +333,7 @@ struct iPadTaskManagerView: View {
                 .ignoresSafeArea()
 
             // Sidebar - always rendered underneath, visible when content slides right
-            ZStack {
-                themeBackground
-                    .ignoresSafeArea()
-
-                NavigationStack {
-                    ListSidebarView(
-                        selectedListId: $selectedListId,
-                        isViewingFromFeatured: $isViewingFromFeatured,
-                        featuredList: $featuredList,
-                        searchText: $searchText,
-                        shouldScrollToTop: $shouldScrollSidebarToTop,
-                        onListTap: {
-                            // Scroll sidebar to top first, then close
-                            shouldScrollSidebarToTop = true
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                shouldScrollSidebarToTop = false
-                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                impact.impactOccurred()
-                            }
-                        }
-                    )
-                    .environmentObject(authManager)
-                }
-            }
-            .frame(width: sidebarWidth)
-            // Subtle rise animation synced with drag progress
-            .scaleEffect(0.95 + (0.05 * sidebarProgress))
-            .offset(y: 20 - (20 * sidebarProgress))
-            .opacity(0.8 + (0.2 * sidebarProgress))
+            pickerDrawer(width: sidebarWidth)
 
             // Main content - slides right to reveal sidebar. The task detail is a
             // trailing OVERLAY so the list/board keeps its full width (and doesn't
@@ -314,16 +342,7 @@ struct iPadTaskManagerView: View {
                 // Task List, Settings, or Profile
                 if selectedListId == "settings" {
                     NavigationStack {
-                        SettingsView(onMenuTap: {
-                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                impact.impactOccurred()
-                            }
-                        })
+                        SettingsView(onMenuTap: { openSidebar() })
                             .environmentObject(authManager)
                     }
                     .frame(width: width)
@@ -339,13 +358,7 @@ struct iPadTaskManagerView: View {
                                         let meetsThreshold = value.translation.width > 80
                                             || value.predictedEndTranslation.width > 200
                                         if isHorizontal && isRight && meetsThreshold {
-                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                                showingSidebar = true
-                                            }
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                                impact.impactOccurred()
-                                            }
+                                            openSidebar()
                                         }
                                     }
                             )
@@ -361,18 +374,7 @@ struct iPadTaskManagerView: View {
                             featuredList: $featuredList,
                             searchText: $searchText,
                             selectedTask: $selectedTask,
-                            onMenuTap: {
-                                // Dismiss keyboard first
-                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                // Open sidebar
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                    showingSidebar = true
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    let impact = UIImpactFeedbackGenerator(style: .light)
-                                    impact.impactOccurred()
-                                }
-                            },
+                            onMenuTap: { openSidebar() },
                             onViewModeChange: { listViewMode = $0 }
                         )
                         .frame(width: panes.list)
@@ -399,11 +401,9 @@ struct iPadTaskManagerView: View {
             // the selected task changes. The flat list opts out so its selected
             // row highlights instantly.
             .animation(Self.panelAnimation, value: selectedTask?.id)
-            .offset(x: showingSidebar ? sidebarWidth + dragOffset : dragOffset)
-            .shadow(color: .black.opacity(0.3 * sidebarProgress), radius: 10, x: -5, y: 0)
-            .opacity(1.0 - (0.3 * sidebarProgress))
-            .saturation(1.0 - (0.5 * sidebarProgress))
-            .allowsHitTesting(sidebarProgress < 0.95)
+            .modifier(SlidingPickerChrome(isAvailable: true, isOpen: showingSidebar,
+                                          drawerWidth: sidebarWidth, dragOffset: dragOffset,
+                                          progress: sidebarProgress))
             // Swipe left-to-right on the LIST. In PORTRAIT it reveals the sliding
             // sidebar (matches iPhone), closing any open task on the way. In
             // LANDSCAPE there's room for everything, so it only closes the open
@@ -434,74 +434,114 @@ struct iPadTaskManagerView: View {
                             // panel slide is driven by the container; only the sidebar
                             // drawer is animated here.
                             selectedTask = nil
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
+                            openSidebar()
                         }
                     }
             )
 
             // Overlay to capture taps/drags when sidebar is open
             if showingSidebar {
-                HStack(spacing: 0) {
-                    // Left side - sidebar area, taps pass through
-                    Color.clear
-                        .frame(width: sidebarWidth)
-                        .allowsHitTesting(false)
-
-                    // Right side - main content area, captures drags and taps to close
-                    Color.clear
-                        .frame(width: width - sidebarWidth)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 10)
-                                .onChanged { value in
-                                    if !hasScrolledDuringDrag && value.translation.width < 0 {
-                                        shouldScrollSidebarToTop = true
-                                        hasScrolledDuringDrag = true
-                                    }
-                                    if value.translation.width < 0 {
-                                        dragOffset = value.translation.width
-                                    }
-                                }
-                                .onEnded { value in
-                                    hasScrolledDuringDrag = false
-                                    if value.translation.width < -100 || value.predictedEndTranslation.width < -200 {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                            showingSidebar = false
-                                            dragOffset = 0
-                                        }
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                            shouldScrollSidebarToTop = false
-                                            let impact = UIImpactFeedbackGenerator(style: .light)
-                                            impact.impactOccurred()
-                                        }
-                                    } else {
-                                        withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
-                                            dragOffset = 0
-                                        }
-                                        shouldScrollSidebarToTop = false
-                                    }
-                                }
-                        )
-                        .onTapGesture {
-                            shouldScrollSidebarToTop = true
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-                                showingSidebar = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                shouldScrollSidebarToTop = false
-                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                impact.impactOccurred()
-                            }
-                        }
-                }
-                .ignoresSafeArea()
+                sidebarDismissOverlay(total: width, drawerWidth: sidebarWidth)
             }
         }
+    }
+
+    // MARK: - The sliding list picker (shared by both layouts)
+
+    /// Open the picker drawer — the hamburger's action, and the reveal swipe's.
+    private func openSidebar() {
+        // Dismiss the keyboard first; a drawer sliding out from under one looks broken.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+        withAnimation(Self.drawerAnimation) { showingSidebar = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    /// Close it, scrolling it back to the top on the way out so it reopens where it started.
+    private func closeSidebar() {
+        shouldScrollSidebarToTop = true
+        withAnimation(Self.drawerAnimation) { showingSidebar = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            shouldScrollSidebarToTop = false
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    /// The drawer itself, sitting underneath the content that slides off it. One copy: it is the
+    /// picker in 2-column and under a full-screen board in 3-column, and the two drifting apart
+    /// is how the hamburger came to do nothing on a full-screen board (AITD-388).
+    private func pickerDrawer(width: CGFloat) -> some View {
+        ZStack {
+            themeBackground
+                .ignoresSafeArea()
+
+            NavigationStack {
+                ListSidebarView(
+                    selectedListId: $selectedListId,
+                    isViewingFromFeatured: $isViewingFromFeatured,
+                    featuredList: $featuredList,
+                    searchText: $searchText,
+                    shouldScrollToTop: $shouldScrollSidebarToTop,
+                    onListTap: { closeSidebar() }
+                )
+                .environmentObject(authManager)
+            }
+        }
+        .frame(width: width)
+        // Subtle rise animation synced with drag progress
+        .scaleEffect(0.95 + (0.05 * sidebarProgress))
+        .offset(y: 20 - (20 * sidebarProgress))
+        .opacity(0.8 + (0.2 * sidebarProgress))
+    }
+
+    /// While the drawer is open, taps and drags over the content close it instead of reaching
+    /// the list — or the board — underneath.
+    private func sidebarDismissOverlay(total: CGFloat, drawerWidth: CGFloat) -> some View {
+        HStack(spacing: 0) {
+            // Left side - sidebar area, taps pass through
+            Color.clear
+                .frame(width: drawerWidth)
+                .allowsHitTesting(false)
+
+            // Right side - main content area, captures drags and taps to close
+            Color.clear
+                .frame(width: total - drawerWidth)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            if !hasScrolledDuringDrag && value.translation.width < 0 {
+                                shouldScrollSidebarToTop = true
+                                hasScrolledDuringDrag = true
+                            }
+                            if value.translation.width < 0 {
+                                dragOffset = value.translation.width
+                            }
+                        }
+                        .onEnded { value in
+                            hasScrolledDuringDrag = false
+                            if value.translation.width < -100 || value.predictedEndTranslation.width < -200 {
+                                withAnimation(Self.drawerAnimation) {
+                                    showingSidebar = false
+                                    dragOffset = 0
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                    shouldScrollSidebarToTop = false
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                            } else {
+                                withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+                                    dragOffset = 0
+                                }
+                                shouldScrollSidebarToTop = false
+                            }
+                        }
+                )
+                .onTapGesture { closeSidebar() }
+        }
+        .ignoresSafeArea()
     }
 
     // MARK: - Task Detail Panel

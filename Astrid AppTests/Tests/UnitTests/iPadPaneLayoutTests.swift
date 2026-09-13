@@ -128,6 +128,48 @@ final class iPadPaneLayoutTests: XCTestCase {
                                                     listId: "list-1", boardFullScreen: true))
     }
 
+    // MARK: the picker is reachable from a full-screen board (AITD-388)
+
+    /// The bug: on 3-column, full screen takes the picker's pane away, and the hamburger in the
+    /// header was wired to nothing there ("the sidebar is always visible" — it no longer is), so
+    /// a full-screen board had no way back to the lists at all.
+    func testFullScreenBoardFallsBackToTheSlidingPicker() {
+        XCTAssertTrue(iPadPaneLayout.showsSlidingPicker(columns: 3, boardFullScreen: true),
+                      "a full-screen board has no picker pane, so the hamburger must open the drawer")
+    }
+
+    /// With the picker pane on screen there is nothing for the hamburger to open — the drawer
+    /// would just cover a list of lists with the same list of lists.
+    func testThreeColumnWithItsPickerPaneHasNoDrawer() {
+        XCTAssertFalse(iPadPaneLayout.showsSlidingPicker(columns: 3, boardFullScreen: false))
+    }
+
+    /// 2-column is the behaviour being matched: the drawer IS the picker there, full screen or not.
+    func testTwoColumnAlwaysUsesTheSlidingPicker() {
+        for fullScreen in [true, false] {
+            XCTAssertTrue(iPadPaneLayout.showsSlidingPicker(columns: 2, boardFullScreen: fullScreen),
+                          "2-column has no picker pane, so the drawer is the only picker")
+        }
+    }
+
+    /// The rule that makes the bug impossible to reintroduce: a layout that spends no width on
+    /// the picker must offer the drawer. Lists are never unreachable.
+    func testWhereverThePickerHasNoPaneTheDrawerStandsIn() {
+        for columns in [2, 3] {
+            for fullScreen in [true, false] {
+                let panes = iPadPaneLayout.widths(total: width, columns: columns,
+                                                  showsMessages: false, boardFullScreen: fullScreen)
+                if panes.sidebar == 0 {
+                    XCTAssertTrue(
+                        iPadPaneLayout.showsSlidingPicker(columns: columns,
+                                                          boardFullScreen: fullScreen),
+                        "\(columns)-column, fullScreen=\(fullScreen): no picker pane and no drawer"
+                    )
+                }
+            }
+        }
+    }
+
     // MARK: the rotator must not fight the pane
 
     /// Where messages are a pane, rotating into "messages" would replace the task list with a
