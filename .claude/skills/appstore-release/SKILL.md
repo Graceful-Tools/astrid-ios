@@ -77,9 +77,27 @@ that version is on sale, no build of 1.8.3 can be uploaded ever again.
 The run stops in preflight when this is the case, in about twenty seconds, and says so. The fix is
 to raise `MARKETING_VERSION` for that target in `Astrid App.xcodeproj/project.pbxproj` (every build
 config). **Ask the user which version number to use — do not pick one yourself.** The two targets
-version independently: iOS is on a `1.8.x` train, Mac on a `1.0.x` train.
+version independently: iOS is on a `1.9.x` train, Mac on a `1.1.x` train.
 
 Building (`npm run release:ios`) is unaffected and works at any version.
+
+### The same closed train kills Xcode Cloud, with a useless error
+
+A push to `iosdev` / `macdev` hits the identical rule, but Xcode Cloud reports it as a bare
+`PrepareBuildForAppStoreConnect — Preparing build for App Store Connect failed`: no file, no
+detail, and the archive, both exports and the test suite all recorded as SUCCEEDED above it. There
+is nothing in the log bundle to find. **Check the version first:**
+
+```bash
+node scripts/asc-appstore.mjs versions mac    # top row READY_FOR_SALE → that's your answer
+```
+
+Measured 2026-09-12: Mac run 1013 uploaded fine at 1.1.1, 1.1.1 then went `READY_FOR_SALE`, and
+run 1015 failed this way. Bumping the `Astrid Mac` target to 1.1.2 was the whole fix.
+
+It lands on Mac far more often than iOS because the two targets version independently while
+sharing one app record — releasing both and bumping only iOS leaves Mac pointing at a closed
+train, and iOS keeps building so nothing looks wrong until the next `macdev` push.
 
 ## Useful checks (read-only, instant)
 
