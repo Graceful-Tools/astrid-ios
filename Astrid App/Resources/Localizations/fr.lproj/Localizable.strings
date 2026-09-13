@@ -1364,9 +1364,9 @@
 "update.later" = "Plus tard";
 
 
-/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+/* List Settings window: membership, privacy copy, per-user sort/filters note (AITD-388, AITD-394). */
 "mac.list_settings_title" = "%@ — Réglages de la liste";
-"lists.sort_filters_shared_note" = "Le tri et les filtres sont enregistrés sur la liste : ils s'appliquent donc à toutes les personnes qui peuvent la voir, pas seulement à vous.";
+"lists.sort_filters_personal_note" = "Le tri et les filtres sont les vôtres : les autres personnes de cette liste voient les leurs. Seule exception, l’ordre manuel des tâches, qui est partagé par tout le monde.";
 "lists.privacy_private" = "Privée";
 "lists.privacy_shared" = "Partagée";
 "lists.privacy_public" = "Publique";

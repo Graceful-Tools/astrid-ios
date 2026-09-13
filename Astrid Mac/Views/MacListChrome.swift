@@ -16,9 +16,9 @@ import Foundation
 
 enum MacListChrome {
 
-    /// `MacFilterSheet` opens with a Sort section of its own — sort is saved on the list next to
-    /// the filters, exactly as iOS and web store it. That is what makes a separate sort menu a
-    /// second control for the same setting (AITD-305).
+    /// `MacFilterSheet` opens with a Sort section of its own — sort is saved next to the filters
+    /// (per-user against the list since AITD-394), exactly as iOS and web store it. That is what
+    /// makes a separate sort menu a second control for the same setting (AITD-305).
     static let filterSheetOffersSort = true
 
     /// Sort rides with the rows it sorts. Board and chat are not a sorted row list.

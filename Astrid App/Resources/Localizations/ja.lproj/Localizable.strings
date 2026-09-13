@@ -1348,9 +1348,9 @@
 "update.later" = "後で";
 
 
-/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+/* List Settings window: membership, privacy copy, per-user sort/filters note (AITD-388, AITD-394). */
 "mac.list_settings_title" = "%@ — リスト設定";
-"lists.sort_filters_shared_note" = "並び替えとフィルタはリストに保存されるため、あなただけでなく、そのリストを見られるすべての人に適用されます。";
+"lists.sort_filters_personal_note" = "並び替えとフィルタはあなた専用です。このリストの他の人には、それぞれ自分の設定が表示されます。唯一の例外は手動の並び順で、これは全員で共有されます。";
 "lists.privacy_private" = "非公開";
 "lists.privacy_shared" = "共有";
 "lists.privacy_public" = "公開";
