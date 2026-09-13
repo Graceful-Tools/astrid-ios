@@ -2,9 +2,15 @@
 //  Astrid for Mac — native filter editor for a list (Task a2bf6ccb).
 //
 //  Previously Mac filters were READ-ONLY (the empty state told users to "adjust filters on iOS or
-//  the web"). This writes the list's saved filter fields through the canonical service
+//  the web"). This writes the saved sort/filter fields through the canonical service
 //  (ListService.updateListAdvanced → optimistic + offline + server), and the SHARED
 //  filterTasksForList immediately reflects them in the task list — same result as iOS/web.
+//
+//  Those fields are the VIEWER's since AITD-394: the server keys them (userId, listId) and
+//  overlays them onto the list payload on read. The wire contract is unchanged, so nothing here
+//  had to move — but this sheet writes only view fields, and that is now load-bearing rather
+//  than tidy. Adding a list-level field to its payload would make every filter change also
+//  write that field for everybody.
 
 #if os(macOS)
 import SwiftUI
@@ -13,7 +19,7 @@ import SwiftUI
 ///
 /// Thin on purpose (AITD-388). The controls themselves moved to `MacListSortFiltersContent` so
 /// the "Sort & Filters" tab of `MacListSettingsWindow` offers exactly the same ones — two
-/// renderers of one editor is how they drift, and this editor writes to the LIST.
+/// renderers of one editor is how they drift, and this editor writes your own view of it.
 struct MacFilterSheet: View {
     let list: TaskList
     @Environment(\.dismiss) private var dismiss
@@ -74,8 +80,9 @@ struct MacListSortFiltersContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Form {
-                // Sort lives WITH the filters and is saved on the list, exactly like iOS — the old
-                // Mac sort was a window-local override that never persisted or synced (2b886104).
+                // Sort lives WITH the filters and persists, exactly like iOS — the old Mac sort
+                // was a window-local override that never persisted or synced (2b886104). It is
+                // saved per-user against the list, not as a column of it (AITD-394).
                 Section(NSLocalizedString("actions.sort", comment: "")) {
                     filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
                 }

@@ -1350,9 +1350,9 @@
 "update.later" = "나중에";
 
 
-/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+/* List Settings window: membership, privacy copy, per-user sort/filters note (AITD-388, AITD-394). */
 "mac.list_settings_title" = "%@ — 목록 설정";
-"lists.sort_filters_shared_note" = "정렬과 필터는 목록에 저장되므로 나뿐 아니라 목록을 볼 수 있는 모든 사람에게 적용됩니다.";
+"lists.sort_filters_personal_note" = "정렬과 필터는 나에게만 적용됩니다. 이 목록의 다른 사람은 각자의 설정을 봅니다. 유일한 예외는 수동 정렬 순서로, 이것은 모두가 함께 사용합니다.";
 "lists.privacy_private" = "비공개";
 "lists.privacy_shared" = "공유";
 "lists.privacy_public" = "공개";

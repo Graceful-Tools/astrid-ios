@@ -1348,9 +1348,9 @@
 "update.later" = "以后再说";
 
 
-/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+/* List Settings window: membership, privacy copy, per-user sort/filters note (AITD-388, AITD-394). */
 "mac.list_settings_title" = "%@ — 列表设置";
-"lists.sort_filters_shared_note" = "排序和筛选保存在列表上，因此会对所有能看到该列表的人生效，而不只是你。";
+"lists.sort_filters_personal_note" = "排序和筛选只对你生效，列表中的其他人看到的是他们自己的设置。唯一的例外是手动排列的顺序，那是所有人共享的。";
 "lists.privacy_private" = "私密";
 "lists.privacy_shared" = "共享";
 "lists.privacy_public" = "公开";

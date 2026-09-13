@@ -56,8 +56,12 @@ struct MacListSettingsWindow: View {
                 switch tab {
                 case .sortFilters:
                     VStack(alignment: .leading, spacing: 8) {
-                        // Said out loud, because the tab's name suggests otherwise.
-                        Text(NSLocalizedString("lists.sort_filters_shared_note", comment: ""))
+                        // Said out loud, because a window called List Settings suggests
+                        // otherwise: since AITD-394 these are the VIEWER's, stored per-user on
+                        // the server, so changing them disturbs nobody else. The exception the
+                        // copy names is manualSortOrder — choosing manual sort is yours, the
+                        // arrangement it orders by is everyone's.
+                        Text(NSLocalizedString("lists.sort_filters_personal_note", comment: ""))
                             .font(.caption).foregroundStyle(Theme.textMuted)
                             .fixedSize(horizontal: false, vertical: true)
                         MacListSortFiltersContent(list: currentList)
