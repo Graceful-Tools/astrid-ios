@@ -184,8 +184,8 @@ struct MacChatPanelView: View {
     }
 
     /// Web/iOS-style bubble row (eb1b7da6): mine right-aligned in accent, agents purple with a
-    /// sparkles badge + avatar, others left with an initials avatar; @/#/! references colored via
-    /// the SHARED attributedWithReferences.
+    /// sparkles badge + avatar, others left with an initials avatar; markdown and @/#/! references
+    /// both drawn by the SHARED MacMarkdownText, the same renderer a comment uses (AITD-390).
     private func row(_ m: ChatMessage) -> some View {
         let mine = MacChatBubbleStyle.isMine(authorId: m.authorId, currentUserId: auth.userId)
         let agent = m.isFromAgent
@@ -210,7 +210,12 @@ struct MacChatPanelView: View {
                             .font(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
-                Text(m.content.attributedWithReferences(defaultColor: Theme.textPrimary))
+                // One composed renderer for both Mac bubbles (AITD-390): blocks from the shared
+                // parser, inline marks and references from the shared extension. A message is
+                // markdown on web and in a comment, so it is markdown here too — and a
+                // single-paragraph message, which is nearly all of them, parses to one block and
+                // draws exactly as it did. `fillsWidth: false` is the bubble's hug-your-text mode.
+                MacMarkdownText(source: m.content, fillsWidth: false)
                     .padding(.horizontal, 10).padding(.vertical, 7)
                     .background(MacChatBubbleStyle.fill(isMine: mine, isAgent: agent))
                     .clipShape(RoundedRectangle(cornerRadius: 10))

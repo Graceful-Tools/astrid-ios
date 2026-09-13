@@ -16,7 +16,14 @@ extension String {
 
     /// Convert content with @[Name](id), #[Name](id), ![Name](id) references into colored, tappable AttributedString
     /// @mentions → blue (links to profile), #lists → green (links to list), !tasks → orange (links to task). Also renders markdown.
-    func attributedWithReferences(defaultColor: Color = .primary) -> AttributedString {
+    ///
+    /// - Parameter referenceFont: the font to stamp on a reference run, or `nil` to leave the run
+    ///   unstyled so the surrounding view's `.font(...)` reaches it. A flat bubble wants `.body`
+    ///   — that is the default, and every iOS caller keeps it. A BLOCK renderer must pass `nil`
+    ///   (AITD-390): stamping `.body` inside an `##` heading draws the reference at body size
+    ///   while the words either side of it stay heading-sized.
+    func attributedWithReferences(defaultColor: Color = .primary,
+                                  referenceFont: Font? = .body) -> AttributedString {
         let pattern = try! NSRegularExpression(pattern: #"([@#!])\[([^\]]+)\]\(([^)]+)\)"#)
         let nsText = self as NSString
         let fullRange = NSRange(location: 0, length: nsText.length)
@@ -69,7 +76,7 @@ extension String {
             }
             var ref = AttributedString("\(trigger)\(name)")
             ref.foregroundColor = color
-            ref.font = .body
+            ref.font = referenceFont
             if let url = URL(string: urlScheme) {
                 ref.link = url
             }

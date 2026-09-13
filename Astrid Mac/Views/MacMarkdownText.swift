@@ -74,12 +74,24 @@ struct MacMarkdownText: View {
     /// Inline marks only. Falls back to the raw text when the fragment will not parse —
     /// showing the characters someone typed always beats showing nothing.
     private func inline(_ text: String) -> Text {
-        if let attributed = try? AttributedString(
-            markdown: text,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return Text(attributed)
-        }
-        return Text(text)
+        Text(Self.attributed(text))
+    }
+
+    /// One block's worth of inline text, as an attributed string: markdown marks AND
+    /// `@`/`#`/`!` references, from the one shared pass (AITD-390).
+    ///
+    /// `attributedWithReferences` splits at each reference and markdown-parses the gaps, so the
+    /// two have never actually collided — what was missing is that this renderer called
+    /// `AttributedString(markdown:)` directly and stepped around the reference pass, leaving a
+    /// comment showing `![Name](id)` as characters while chat two panes over drew it as a link.
+    ///
+    /// `referenceFont: nil` because the BLOCK sets the font here: a heading's reference has to be
+    /// heading-sized. A flat bubble keeps the extension's `.body` default.
+    ///
+    /// Pure and static so it can be asserted on without building a view — the same seam
+    /// `maxWidth(fillsWidth:)` opens for the layout half.
+    static func attributed(_ text: String) -> AttributedString {
+        text.attributedWithReferences(defaultColor: Theme.textPrimary, referenceFont: nil)
     }
 
     /// Headings stop shrinking at level 3 — below that the difference is invisible and the
