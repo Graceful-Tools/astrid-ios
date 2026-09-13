@@ -2,12 +2,19 @@
 //  Regression guard for Task AITD-393 — "Quick picker should be on the right of the task box on
 //  board view. You put it on left!" — and, underneath it, for Task AITD-391.
 //
-//  AITD-393 is the correction of AITD-391's anchor. AITD-391 took "to the right of the checkbox"
-//  at its word and hung the popover off the 34pt leading control; since that control is at the
-//  HEAD of the row, the picker opened just inside the card's LEFT edge, covering the card. The
-//  anchor moved to a 1pt pin at the row's trailing edge — right of the task box — while the
-//  arrow edge stayed `.trailing`, which is what keeps a short board card from flipping it above
-//  or below. The height half of AITD-391 was right and is unchanged.
+//  Rewritten for Task AITD-395 — "arrow on quick set popover should be on the left of the
+//  popover pointing at the checkbox".
+//
+//  Three reports on one popover. AITD-391 hung it off the 34pt leading control; AITD-393 moved
+//  it to a 1pt pin at the row's trailing edge to stop it covering the card. Neither the pin nor
+//  the complaint survived contact with the numbers: `TaskQuickChanger` is a FIXED 280pt and a
+//  full-width phone row leaves ~16pt to its right, so UIKit could not honour `.trailing` at all.
+//  It put the popover to the LEFT of the pin — still over the card — with the arrow on its right
+//  edge, which is what AITD-395 is reporting.
+//
+//  The popover covers the card from either anchor. What the checkbox anchor buys is an arrow
+//  that points at the control you tapped. Clearing the card is not reachable at 280pt on a phone
+//  and would be its own decision. The height half of AITD-391 was right and is unchanged.
 //
 //  The original report, for the record — Task AITD-391 — "[ios] quick picker on boards should open to the right of
 //  the checkbox with the height of the select box big enough to show at least 3 rows of assignees
@@ -98,18 +105,19 @@ final class QuickPickerGeometryTests: XCTestCase {
 
     // MARK: - …and the views actually ask for it
 
-    /// A helper nobody calls changes nothing — and hanging it off the WRONG view is task
-    /// AITD-393: "Quick picker should be on the right of the task box on board view. You put it
-    /// on left!".
+    /// A helper nobody calls changes nothing — and hanging it off the wrong view is what these
+    /// three reports have been circling.
     ///
-    /// AITD-391 hung the popover off `leadingControl`. The arrow does leave that control's
-    /// trailing edge, but the control is at the HEAD of the row, so the picker opened a few
-    /// points in from the card's left edge, on top of the card. The anchor has to be at the
-    /// row's trailing edge for the picker to clear the task box.
+    /// AITD-395: "arrow on quick set popover should be on the left of the popover pointing at
+    /// the checkbox". The arrow lands opposite whichever side UIKit finds room on, so the anchor
+    /// IS the arrow's position — which is why this reads the attached view rather than the edge.
     ///
-    /// Asserted by reading what the `.popover` is actually attached to, because that — not the
-    /// edge constant — is what was wrong.
-    func testThePopoverHangsOffTheRowsTrailingEdgeAndNotTheLeadingControl() throws {
+    /// AITD-393 moved it to a 1pt pin at the row's trailing edge to clear the task box. On a
+    /// phone that space does not exist: the changer is a fixed 280pt and a full-width row leaves
+    /// about 16pt to its right, so UIKit dropped the requested direction, put the popover to the
+    /// LEFT of the pin over the card, and hung the arrow off its right edge. It covers the card
+    /// from either anchor; only the checkbox anchor also points the arrow at something.
+    func testThePopoverHangsOffTheCheckboxSoItsArrowPointsAtIt() throws {
         let source = try appSource("Astrid App/Views/Tasks/TaskRowView.swift")
 
         XCTAssertTrue(source.contains("QuickPickerGeometry.arrowEdge"),
@@ -128,28 +136,19 @@ final class QuickPickerGeometryTests: XCTestCase {
             .last
             .map(String.init) ?? ""
 
-        XCTAssertEqual(anchor, "trailingPickerAnchor",
-                       "AITD-393: anchored to \(anchor), so the picker opens there — it has to "
-                       + "hang off the row's trailing edge to land right of the task box")
-        XCTAssertNotEqual(anchor, "leadingControl",
-                          "that is the AITD-391 regression: the head of the row is the LEFT edge")
+        XCTAssertEqual(anchor, "leadingControl",
+                       "AITD-395: anchored to \(anchor). The arrow sits on the popover's leading "
+                       + "edge only when the popover opens off the checkbox")
     }
 
-    /// The anchor's width is a value for the same reason the heights are: a literal inside a
-    /// view is a number no test can reach. It only has to be non-zero — a zero-width view has no
-    /// source rect for UIKit to point an arrow at.
-    func testTheTrailingAnchorIsNarrowButNotZero() {
-        XCTAssertGreaterThan(QuickPickerGeometry.trailingAnchorWidth, 0,
-                             "a zero-width anchor gives the popover no source rect")
-        XCTAssertLessThanOrEqual(QuickPickerGeometry.trailingAnchorWidth, 2,
-                                 "it is a pin, not a layout element — it must not push the row")
-    }
-
-    /// …and the row has to take it from the helper rather than writing its own.
-    func testTheRowTakesTheAnchorWidthFromTheHelper() throws {
+    /// The trailing pin AITD-393 added is gone, not merely unused. Left in the file it reads as
+    /// a second, live anchor, which is how the next person re-attaches the popover to it.
+    func testTheTrailingPinIsGoneRatherThanLeftLyingAround() throws {
         let source = try appSource("Astrid App/Views/Tasks/TaskRowView.swift")
-        XCTAssertTrue(source.contains("QuickPickerGeometry.trailingAnchorWidth"),
-                      "the anchor's width belongs to the helper, next to the edge it pairs with")
+        XCTAssertFalse(source.contains("trailingPickerAnchor"),
+                       "the row's trailing pin has no remaining purpose — remove it with its anchor")
+        XCTAssertFalse(source.contains("trailingAnchorWidth"),
+                       "…and the width constant that only that pin used")
     }
 
     /// The bound list, likewise — and only for the popover. The compact path puts the same editor

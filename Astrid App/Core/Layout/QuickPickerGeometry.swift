@@ -8,6 +8,10 @@
 //  the popover asked for the height of every member and then got squeezed into the little room
 //  the anchor had left. Each fault made the other worse.
 //
+//  The anchor took two more passes: AITD-393 moved it to the row's trailing edge, AITD-395 put
+//  it back on the checkbox. See `arrowEdge` for why 280pt of popover never fitted in the ~16pt
+//  that trailing anchor actually had.
+//
 //  Both answers live here as values rather than as literals inside a view, for the reason
 //  `TaskLeadingControl` next door exists: a number written into a view is a number no test can
 //  reach, and there was no coverage of this picker's anchor or height on either platform.
@@ -20,25 +24,23 @@ enum QuickPickerGeometry {
 
     // MARK: - Where it opens
 
-    /// The edge of the ANCHOR the popover's arrow leaves from, so the picker lands to the
-    /// anchor's RIGHT.
+    /// The edge of the ANCHOR the popover leaves from — so the picker lands to the anchor's
+    /// RIGHT and its arrow sits on the popover's LEADING edge, aimed back at what was tapped.
     ///
     /// A board card is short and its column is tall: there is a full height of room beside a
     /// card and almost none above or below it, so an unpinned popover flips above or below.
     ///
-    /// Pinning the edge is only half of it — what the popover attaches to decides where "right"
-    /// begins. AITD-391 attached it to the 34pt leading control and so opened the picker just
-    /// inside the card's LEFT edge, on top of the card (AITD-393). It hangs off
-    /// `trailingPickerAnchor` instead: the same edge, measured from the far side of the row, so
-    /// the picker clears the task box.
-    static let arrowEdge: Edge = .trailing
-
-    /// The width of that trailing pin.
+    /// The anchor is `TaskRowView.leadingControl` — the checkbox. AITD-393 moved it to a 1pt pin
+    /// at the row's trailing edge to keep the picker off the card, and the numbers do not allow
+    /// that: `TaskQuickChanger` is a fixed 280pt, a full-width phone row leaves ~16pt to its
+    /// right, and UIKit answers an impossible direction by choosing its own. It put the popover
+    /// to the LEFT of the pin, over the card, arrow on its right edge — the AITD-395 report.
     ///
-    /// Wide enough to have a source rect — a zero-width view gives UIKit nothing to point an
-    /// arrow at — and narrow enough that it is not layout: it sits after the row's `Spacer()`,
-    /// so anything more would push the card's content off its right edge.
-    static let trailingAnchorWidth: CGFloat = 1
+    /// So the picker covers the card whichever anchor it uses, and the checkbox is the one that
+    /// also gives the arrow something to point at. Making it clear the card is a different
+    /// question: it needs either above/below (what AITD-391 objected to) or a much narrower
+    /// popover, and neither is a thing to change while fixing an arrow.
+    static let arrowEdge: Edge = .trailing
 
     // MARK: - How tall the member list is
 
