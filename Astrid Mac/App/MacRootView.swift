@@ -161,7 +161,8 @@ struct MacRootView: View {
     }
     @State private var showNewList = false
     @State private var editingList: TaskList?
-    @State private var sharingList: TaskList?
+    /// The list whose Settings window is open — Sort & Filters, Membership, Admin (AITD-388).
+    @State private var settingsList: TaskList?
     @State private var listToDelete: TaskList?
     @State private var showPublicLists = false
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
@@ -235,9 +236,8 @@ struct MacRootView: View {
     /// items exist is `MacListMenu`'s business, and both surfaces that show it use this.
     private func listMenuActions(_ list: TaskList) -> MacListMenuActions {
         MacListMenuActions(
-            edit: { editingList = list },
+            listSettings: { settingsList = list },
             toggleFavorite: { toggleFavorite(list) },
-            sharing: { sharingList = list },
             enableBoard: { enableBoard(list) },
             delete: { listToDelete = list }
         )
@@ -1129,7 +1129,7 @@ struct MacRootView: View {
             hasSelection: !selectedTaskIds.isEmpty,
             isTextFieldFocused: false,
             isModalPresented: appModel.showPalette || appModel.showShortcutsHelp
-                || showNewList || showPublicLists || editingList != nil || sharingList != nil || listToDelete != nil)
+                || showNewList || showPublicLists || editingList != nil || settingsList != nil || listToDelete != nil)
         guard let action = KeyboardShortcutHandler.action(for: key, context: ctx),
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
@@ -1626,7 +1626,7 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
-        .sheet(item: $sharingList) { MacListMembersView(list: $0) }
+        .sheet(item: $settingsList) { MacListSettingsWindow(list: $0) }
         .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
         .sheet(isPresented: $showFilterSheet) {
             if let list = currentRealList { MacFilterSheet(list: list) }

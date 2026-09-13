@@ -1346,3 +1346,22 @@
 "update.available_body" = "Versie %@ is beschikbaar. Bijwerken duurt even en bevat de nieuwste verbeteringen.";
 "update.action" = "Bijwerken";
 "update.later" = "Niet nu";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — Lijstinstellingen";
+"lists.sort_filters_shared_note" = "Sortering en filters worden op de lijst bewaard en gelden dus voor iedereen die de lijst kan zien, niet alleen voor jou.";
+"lists.privacy_private" = "Privé";
+"lists.privacy_shared" = "Gedeeld";
+"lists.privacy_public" = "Openbaar";
+"lists.privacy_private_description" = "Alleen jij kunt deze lijst zien.";
+"lists.privacy_shared_description" = "Alleen uitgenodigde leden hebben toegang tot deze lijst.";
+"lists.privacy_public_description" = "Iedereen kan deze lijst vinden en eraan deelnemen.";
+"lists.public_type" = "Type openbare lijst";
+"lists.public_collaborative" = "Samenwerken";
+"lists.public_copy_only" = "Alleen kopiëren";
+"lists.public_collaborative_description" = "Iedereen kan taken bekijken en toevoegen. Lijstbeheerders en makers van taken kunnen ze bewerken. Iedereen kan reageren.";
+"lists.public_copy_only_description" = "Openbare leden kunnen taken bekijken en kopiëren, maar alleen beheerders kunnen taken toevoegen.";
+"lists.remove_ai_agent" = "Agent verwijderen";
+"lists.no_ai_agents_hint" = "Voeg je API-sleutels toe in Instellingen om AI-agents voor deze lijst uit te nodigen.";
+"lists.owner_cannot_leave_yet" = "Deze lijst is van jou. Overdragen aan iemand anders kan hier nog niet — doe dat in de webapp.";

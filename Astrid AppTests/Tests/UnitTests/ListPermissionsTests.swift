@@ -80,6 +80,11 @@ final class ListPermissionsTests: XCTestCase {
         "Astrid App/Views/Lists/ListMembershipTab.swift",
         "Astrid App/Views/Lists/ListSettingsModal.swift",
         "Astrid Mac/Views/MacListMembersView.swift",
+        // The Mac's membership UI moved here in AITD-388. The old file is dead but still on this
+        // list: the contract is about every surface that decides, and a file nobody has deleted
+        // yet is a file someone can still reach for.
+        "Astrid Mac/Views/MacListMembershipTab.swift",
+        "Astrid Mac/Views/MacListSettingsWindow.swift",
         "Astrid Mac/Views/MacListMenu.swift",
     ]
 

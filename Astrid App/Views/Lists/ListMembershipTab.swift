@@ -33,22 +33,12 @@ struct ListMembershipTab: View {
         ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)
     }
 
-    /// Filter invitations to only show truly pending ones (exclude users who have already accepted)
+    /// Invitations nobody has accepted yet.
+    ///
+    /// The SHARED rule (AITD-388). It lived here as a private copy, which is why the Mac — having
+    /// no copy — showed pending invitations as though they were full members.
     private var pendingInvitations: [ListInvite] {
-        guard let invitations = list.invitations else { return [] }
-
-        // Collect member emails from the canonical `listMembers` source +
-        // the owner. The legacy `members` array is no longer populated by
-        // server endpoints iOS consumes.
-        var memberEmails = Set<String>()
-        if let listMembers = list.listMembers {
-            memberEmails.formUnion(listMembers.compactMap { $0.user?.email })
-        }
-        if let ownerEmail = list.owner?.email {
-            memberEmails.insert(ownerEmail)
-        }
-
-        return invitations.filter { !memberEmails.contains($0.email) }
+        ListMembershipRoster.pendingInvitations(in: list)
     }
 
     @State private var showingLoginSheet = false

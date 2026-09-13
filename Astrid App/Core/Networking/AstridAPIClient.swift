@@ -804,67 +804,6 @@ class AstridAPIClient {
         return response.users
     }
 
-    // MARK: - List Members
-
-    /// Get all members of a list
-    func getListMembers(listId: String) async throws -> ListMembersResponse {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/lists/\(listId)/members"
-        )
-    }
-
-    /// Add a member to a list
-    func addListMember(listId: String, email: String, role: String = "member") async throws -> AddMemberResponse {
-        struct AddMemberRequest: Codable {
-            let email: String
-            let role: String
-        }
-
-        let body = AddMemberRequest(email: email, role: role)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/lists/\(listId)/members",
-            body: body
-        )
-    }
-
-    /// Update a member's role
-    func updateListMember(listId: String, userId: String, role: String) async throws -> UpdateMemberResponse {
-        struct UpdateMemberRoleRequest: Codable {
-            let role: String
-        }
-
-        let body = UpdateMemberRoleRequest(role: role)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/lists/\(listId)/members/\(userId)",
-            body: body
-        )
-    }
-
-    /// Remove a member from a list
-    func removeListMember(listId: String, userId: String) async throws -> DeleteResponse {
-        return try await request(
-            method: "DELETE",
-            path: "/api/v1/lists/\(listId)/members/\(userId)"
-        )
-    }
-
-    /// Cancel a pending invitation
-    func cancelInvitation(listId: String, email: String) async throws -> DeleteResponse {
-        struct CancelInvitationRequest: Codable {
-            let email: String
-        }
-        return try await request(
-            method: "DELETE",
-            path: "/api/v1/lists/\(listId)/invitations",
-            body: CancelInvitationRequest(email: email)
-        )
-    }
-
     // MARK: - Public Lists
 
     /// Get public lists

@@ -10,6 +10,11 @@ import UniformTypeIdentifiers
 
 struct MacListEditSheet: View {
     let existing: TaskList?          // nil = create
+    /// Rendered inside the List Settings window's Admin tab rather than as its own sheet
+    /// (AITD-388). It drops the title and Cancel — the window supplies both — and keeps Save,
+    /// because name, description and colour are still an explicit commit here. One editor, two
+    /// hosts: a second copy of these fields is exactly what ASTRID.md rule 8 is about.
+    var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var listDescription = ""
@@ -32,8 +37,10 @@ struct MacListEditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(existing == nil ? NSLocalizedString("lists.new_list", comment: "") : NSLocalizedString("lists.edit_list", comment: ""))
-                .font(.headline).foregroundStyle(Theme.textPrimary)
+            if !embedded {
+                Text(existing == nil ? NSLocalizedString("lists.new_list", comment: "") : NSLocalizedString("lists.edit_list", comment: ""))
+                    .font(.headline).foregroundStyle(Theme.textPrimary)
+            }
 
             TextField(NSLocalizedString("lists.list_name", comment: ""), text: $name)
                 .textFieldStyle(.roundedBorder)
@@ -127,16 +134,15 @@ struct MacListEditSheet: View {
 
             HStack {
                 Spacer()
-                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
-                Button(existing == nil ? NSLocalizedString("actions.create", comment: "") : NSLocalizedString("actions.save", comment: ""), action: save)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.return, modifiers: [])
-                    .disabled(!isValid)
+                if !embedded {
+                    Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
+                }
+                saveButton
             }
         }
-        .padding(20)
-        .frame(width: 340)
-        .background(Theme.bgPrimary)
+        .padding(embedded ? 0 : 20)
+        .frame(width: embedded ? nil : 340)
+        .background(embedded ? Color.clear : Theme.bgPrimary)
         .onAppear {
             name = existing?.name ?? ""
             listDescription = existing?.description ?? ""
@@ -151,6 +157,20 @@ struct MacListEditSheet: View {
                 let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
                 recentlyCompletedDate = f.date(from: day) ?? Date()
             }
+        }
+    }
+
+    /// Return belongs to the WINDOW's Done when embedded; two controls claiming one keystroke is
+    /// how it starts doing the wrong one.
+    @ViewBuilder private var saveButton: some View {
+        let label = existing == nil ? NSLocalizedString("actions.create", comment: "")
+                                    : NSLocalizedString("actions.save", comment: "")
+        if embedded {
+            Button(label, action: save).buttonStyle(.borderedProminent).disabled(!isValid)
+        } else {
+            Button(label, action: save).buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return, modifiers: [])
+                .disabled(!isValid)
         }
     }
 

@@ -1362,3 +1362,22 @@
 "update.available_body" = "La versión %@ ya está disponible. Actualizar lleva un momento e incluye las últimas mejoras.";
 "update.action" = "Actualizar";
 "update.later" = "Ahora no";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@: ajustes de la lista";
+"lists.sort_filters_shared_note" = "El orden y los filtros se guardan en la lista, así que se aplican a todas las personas que pueden verla, no solo a ti.";
+"lists.privacy_private" = "Privada";
+"lists.privacy_shared" = "Compartida";
+"lists.privacy_public" = "Pública";
+"lists.privacy_private_description" = "Solo tú puedes ver esta lista.";
+"lists.privacy_shared_description" = "Solo los miembros invitados pueden acceder a esta lista.";
+"lists.privacy_public_description" = "Cualquiera puede encontrar esta lista y unirse a ella.";
+"lists.public_type" = "Tipo de lista pública";
+"lists.public_collaborative" = "Colaborativa";
+"lists.public_copy_only" = "Solo copiar";
+"lists.public_collaborative_description" = "Cualquiera puede ver y añadir tareas. Los administradores y quienes crean las tareas pueden editarlas. Cualquiera puede comentar.";
+"lists.public_copy_only_description" = "Los miembros públicos pueden ver y copiar tareas, pero solo los administradores pueden añadirlas.";
+"lists.remove_ai_agent" = "Quitar agente";
+"lists.no_ai_agents_hint" = "Añade tus claves de API en Ajustes para invitar agentes de IA a esta lista.";
+"lists.owner_cannot_leave_yet" = "Esta lista es tuya. Transferirla a otra persona aún no está disponible aquí: hazlo en la aplicación web.";

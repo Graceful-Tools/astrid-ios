@@ -1346,3 +1346,22 @@
 "update.available_body" = "La versione %@ è disponibile. L'aggiornamento richiede un attimo e include le ultime correzioni.";
 "update.action" = "Aggiorna";
 "update.later" = "Non ora";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — Impostazioni elenco";
+"lists.sort_filters_shared_note" = "Ordinamento e filtri sono salvati sull'elenco, quindi valgono per tutte le persone che possono vederlo, non solo per te.";
+"lists.privacy_private" = "Privato";
+"lists.privacy_shared" = "Condiviso";
+"lists.privacy_public" = "Pubblico";
+"lists.privacy_private_description" = "Solo tu puoi vedere questo elenco.";
+"lists.privacy_shared_description" = "Solo i membri invitati possono accedere a questo elenco.";
+"lists.privacy_public_description" = "Chiunque può trovare questo elenco e unirsi.";
+"lists.public_type" = "Tipo di elenco pubblico";
+"lists.public_collaborative" = "Collaborativo";
+"lists.public_copy_only" = "Solo copia";
+"lists.public_collaborative_description" = "Chiunque può vedere e aggiungere attività. Gli amministratori e chi ha creato l'attività possono modificarla. Chiunque può commentare.";
+"lists.public_copy_only_description" = "I membri pubblici possono vedere e copiare le attività, ma solo gli amministratori possono aggiungerne.";
+"lists.remove_ai_agent" = "Rimuovi agente";
+"lists.no_ai_agents_hint" = "Aggiungi le tue chiavi API nelle Impostazioni per invitare agenti IA in questo elenco.";
+"lists.owner_cannot_leave_yet" = "Questo elenco è tuo. Il trasferimento a un'altra persona non è ancora disponibile qui: fallo dall'app web.";

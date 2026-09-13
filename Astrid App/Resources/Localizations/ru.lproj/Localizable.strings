@@ -1346,3 +1346,22 @@
 "update.available_body" = "Доступна версия %@. Обновление займёт мгновение и принесёт последние исправления.";
 "update.action" = "Обновить";
 "update.later" = "Не сейчас";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — настройки списка";
+"lists.sort_filters_shared_note" = "Сортировка и фильтры сохраняются в списке, поэтому действуют для всех, кто его видит, а не только для вас.";
+"lists.privacy_private" = "Личный";
+"lists.privacy_shared" = "Общий";
+"lists.privacy_public" = "Публичный";
+"lists.privacy_private_description" = "Этот список видите только вы.";
+"lists.privacy_shared_description" = "Доступ к списку есть только у приглашённых участников.";
+"lists.privacy_public_description" = "Любой может найти этот список и присоединиться к нему.";
+"lists.public_type" = "Тип публичного списка";
+"lists.public_collaborative" = "Совместный";
+"lists.public_copy_only" = "Только копирование";
+"lists.public_collaborative_description" = "Любой может смотреть и добавлять задачи. Администраторы и авторы задач могут их редактировать. Комментировать может любой.";
+"lists.public_copy_only_description" = "Публичные участники могут смотреть и копировать задачи, но добавлять их могут только администраторы.";
+"lists.remove_ai_agent" = "Убрать агента";
+"lists.no_ai_agents_hint" = "Добавьте свои API-ключи в настройках, чтобы приглашать ИИ-агентов в этот список.";
+"lists.owner_cannot_leave_yet" = "Вы владелец этого списка. Передать его другому человеку здесь пока нельзя — сделайте это в веб-приложении.";

@@ -479,6 +479,45 @@ class ListMemberService: ObservableObject {
         }
     }
 
+    /// Change a pending invitation's role (optimistic).
+    ///
+    /// The invitation twin of `updateMemberRole`. It cannot reuse that one: a member is addressed
+    /// by `userId` at `/members/{userId}`, and an unaccepted invitation has no userId to address
+    /// — which is exactly the confusion that made the Mac's role picker call the wrong endpoint
+    /// for pending rows (AITD-388).
+    ///
+    /// Like `cancelInvitation`, the optimistic write is a cached-list edit rather than a CDMember
+    /// pending-op, because invitations live on `List.invitations`.
+    func updateInvitationRole(listId: String, invitationId: String, email: String, role: String) async throws {
+        AppLog.debug("✉️ [ListMemberService] Updating invitation role (optimistic): \(AppLog.redact(email: email)) → \(role)")
+
+        guard let index = ListService.shared.lists.firstIndex(where: { $0.id == listId }) else {
+            _ = try await apiClient.updateInvitationRole(listId: listId, email: email, role: role)
+            return
+        }
+        let originalList = ListService.shared.lists[index]
+
+        var updatedList = originalList
+        if let inviteIndex = updatedList.invitations?.firstIndex(where: { $0.id == invitationId }) {
+            let existing = updatedList.invitations![inviteIndex]
+            updatedList.invitations![inviteIndex] = ListInvite(
+                id: existing.id, listId: existing.listId, email: existing.email,
+                role: role, token: existing.token,
+                createdAt: existing.createdAt, createdBy: existing.createdBy)
+        }
+        ListService.shared.lists[index] = updatedList
+
+        do {
+            _ = try await apiClient.updateInvitationRole(listId: listId, email: email, role: role)
+        } catch {
+            AppLog.debug("⚠️ [ListMemberService] Invitation role change failed, restoring: \(error)")
+            if let idx = ListService.shared.lists.firstIndex(where: { $0.id == listId }) {
+                ListService.shared.lists[idx] = originalList
+            }
+            throw error
+        }
+    }
+
     // MARK: - Background Sync
 
     /// Sync all pending member operations with the server

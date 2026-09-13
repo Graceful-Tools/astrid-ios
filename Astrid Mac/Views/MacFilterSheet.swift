@@ -9,9 +9,40 @@
 #if os(macOS)
 import SwiftUI
 
+/// The sheet the toolbar's filter button opens: the shared controls plus Done.
+///
+/// Thin on purpose (AITD-388). The controls themselves moved to `MacListSortFiltersContent` so
+/// the "Sort & Filters" tab of `MacListSettingsWindow` offers exactly the same ones — two
+/// renderers of one editor is how they drift, and this editor writes to the LIST.
 struct MacFilterSheet: View {
     let list: TaskList
     @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name))
+                .font(.headline).foregroundStyle(Theme.textPrimary)
+            MacListSortFiltersContent(list: list)
+            HStack {
+                Spacer()
+                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.return)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
+        .background(Theme.bgPrimary)
+    }
+}
+
+/// The sort and filter controls for one list.
+///
+/// THESE ARE NOT PERSONAL SETTINGS, however much they read like them: sort, the six filters,
+/// "saved filter" and "show subtasks" are all columns on the shared list row, so changing one
+/// changes it for every member — on Mac, iOS and Web alike. The tab that hosts this says so out
+/// loud rather than implying a private view that does not exist (AITD-388).
+struct MacListSortFiltersContent: View {
+    let list: TaskList
 
     @State private var completion: String
     @State private var priority: String
@@ -42,8 +73,6 @@ struct MacFilterSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name)).font(.headline).foregroundStyle(Theme.textPrimary)
-
             Form {
                 // Sort lives WITH the filters and is saved on the list, exactly like iOS — the old
                 // Mac sort was a window-local override that never persisted or synced (2b886104).
@@ -93,12 +122,8 @@ struct MacFilterSheet: View {
                 }
                 .disabled(activeFilters == 0)
                 Spacer()
-                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.buttonStyle(.borderedProminent).keyboardShortcut(.return)
             }
         }
-        .padding(20)
-        .frame(width: 340)
-        .background(Theme.bgPrimary)
     }
 
     /// How many of the SIX controls this sheet offers are set. Gates the save link and Clear,

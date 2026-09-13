@@ -20,9 +20,12 @@ enum MacListMenu {
     /// One entry. `divider` is an item rather than an implicit gap so the order — including
     /// whether a separator is even warranted — is a single testable value.
     enum Item: Equatable, Hashable {
-        case edit
+        /// One window with Sort & Filters, Membership and (for admins) Admin — AITD-388.
+        /// It replaces the separate `edit` and `sharing` items, which opened two unrelated
+        /// sheets and between them still left a plain member no way to see who else was on the
+        /// list, or to leave it.
+        case listSettings
         case toggleFavorite
-        case sharing
         case enableBoard
         case divider
         case delete
@@ -30,9 +33,15 @@ enum MacListMenu {
 
     /// What this user may do to this list, in order.
     ///
-    /// Favourite comes to everyone: it is a personal view preference, not a change to the list,
-    /// so it survives where Edit and Sharing do not. Delete is stricter than Edit — it destroys
-    /// other people's work — so an admin who may change everything else still does not see it.
+    /// LIST SETTINGS COMES TO EVERYONE (AITD-388), because the window decides for itself which
+    /// tabs to show: a plain member gets Sort & Filters and Membership, an admin also gets Admin.
+    /// It used to be two admin-only items, `edit` and `sharing`, which meant a member had no
+    /// route to the roster at all — they could not see who else was on a list they were on, and
+    /// could not leave it. Web has always opened its modal for them.
+    ///
+    /// Favourite is a personal view preference rather than a change to the list. Delete is
+    /// stricter than everything else — it destroys other people's work — so an admin who may
+    /// change every setting still does not see it.
     ///
     /// The divider is emitted only when Delete follows it. A separator with nothing behind it is
     /// a menu that looks truncated.
@@ -40,12 +49,9 @@ enum MacListMenu {
         let canEdit = ListPermissions.canEditSettings(list, userId: userId)
         var items: [Item] = []
 
-        // "Edit", not "Rename": the sheet edits image, task defaults, due time and the
-        // recently-completed window too, so "Rename" undersold it.
-        if canEdit { items.append(.edit) }
+        items.append(.listSettings)
         items.append(.toggleFavorite)
         if canEdit {
-            items.append(.sharing)
             if MacViewMode.offersEnableBoard(projectId: list.projectId) {
                 items.append(.enableBoard)
             }
@@ -66,9 +72,8 @@ enum MacListMenu {
 /// The closures a surface supplies. Which items exist is not among them — that is
 /// `MacListMenu.items(for:userId:)`, and it is the point of this type.
 struct MacListMenuActions {
-    var edit: () -> Void
+    var listSettings: () -> Void
     var toggleFavorite: () -> Void
-    var sharing: () -> Void
     var enableBoard: () -> Void
     var delete: () -> Void
 }
@@ -112,15 +117,12 @@ struct MacListMenuContent: View {
     @ViewBuilder
     private func entry(_ item: MacListMenu.Item) -> some View {
         switch item {
-        case .edit:
-            Button(NSLocalizedString("mac.edit_list", comment: ""), action: actions.edit)
+        case .listSettings:
+            Button(NSLocalizedString("lists.list_settings", comment: ""), action: actions.listSettings)
 
         case .toggleFavorite:
             Button(NSLocalizedString(MacListMenu.favoriteLabelKey(isFavorite: list.isFavorite ?? false),
                                      comment: ""), action: actions.toggleFavorite)
-
-        case .sharing:
-            Button(NSLocalizedString("mac.sharing", comment: ""), action: actions.sharing)
 
         case .enableBoard:
             Button(NSLocalizedString("mac.enable_board", comment: ""), action: actions.enableBoard)

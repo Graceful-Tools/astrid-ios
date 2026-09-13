@@ -1346,3 +1346,22 @@
 "update.available_body" = "版本 %@ 已发布。更新只需片刻，并包含最新修复。";
 "update.action" = "更新";
 "update.later" = "以后再说";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — 列表设置";
+"lists.sort_filters_shared_note" = "排序和筛选保存在列表上，因此会对所有能看到该列表的人生效，而不只是你。";
+"lists.privacy_private" = "私密";
+"lists.privacy_shared" = "共享";
+"lists.privacy_public" = "公开";
+"lists.privacy_private_description" = "只有你能看到此列表。";
+"lists.privacy_shared_description" = "只有受邀成员才能访问此列表。";
+"lists.privacy_public_description" = "任何人都可以找到并加入此列表。";
+"lists.public_type" = "公开列表类型";
+"lists.public_collaborative" = "协作";
+"lists.public_copy_only" = "仅复制";
+"lists.public_collaborative_description" = "任何人都可以查看和添加任务。列表管理员和任务创建者可以编辑任务。任何人都可以评论。";
+"lists.public_copy_only_description" = "公开成员可以查看和复制任务，但只有管理员可以添加任务。";
+"lists.remove_ai_agent" = "移除代理";
+"lists.no_ai_agents_hint" = "在设置中添加你的 API 密钥，即可邀请 AI 代理加入此列表。";
+"lists.owner_cannot_leave_yet" = "你是此列表的拥有者。这里暂时还不能转让给他人 — 请在网页版中操作。";

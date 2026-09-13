@@ -1346,3 +1346,22 @@
 "update.available_body" = "バージョン %@ が利用可能です。アップデートはすぐに完了し、最新の修正が適用されます。";
 "update.action" = "アップデート";
 "update.later" = "後で";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — リスト設定";
+"lists.sort_filters_shared_note" = "並び替えとフィルタはリストに保存されるため、あなただけでなく、そのリストを見られるすべての人に適用されます。";
+"lists.privacy_private" = "非公開";
+"lists.privacy_shared" = "共有";
+"lists.privacy_public" = "公開";
+"lists.privacy_private_description" = "このリストはあなただけが見られます。";
+"lists.privacy_shared_description" = "招待されたメンバーだけがこのリストにアクセスできます。";
+"lists.privacy_public_description" = "誰でもこのリストを見つけて参加できます。";
+"lists.public_type" = "公開リストの種類";
+"lists.public_collaborative" = "共同編集";
+"lists.public_copy_only" = "コピーのみ";
+"lists.public_collaborative_description" = "誰でもタスクを閲覧・追加できます。リスト管理者とタスクの作成者は編集できます。コメントは誰でもできます。";
+"lists.public_copy_only_description" = "公開メンバーはタスクの閲覧とコピーができますが、追加できるのは管理者だけです。";
+"lists.remove_ai_agent" = "エージェントを削除";
+"lists.no_ai_agents_hint" = "設定で API キーを追加すると、AI エージェントをこのリストに招待できます。";
+"lists.owner_cannot_leave_yet" = "あなたはこのリストの所有者です。他の人への移管はここではまだできません。Web アプリで行ってください。";

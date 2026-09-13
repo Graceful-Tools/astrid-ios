@@ -44,11 +44,11 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them. Locking in what that removed.
         "Astrid Mac/App/MacRootView.swift": 1660,
-        // Was 1625, which the file sat on exactly — so any new endpoint at all broke the
-        // guard. AITD-383 added `/api/v1/app-version`, and a new backend endpoint belongs
-        // in the canonical client; putting it anywhere else to dodge a line count would be
-        // the real damage. Raised deliberately, by the size of that one method.
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1639,
+        // Was 1625, then 1639, and the second raise in one day is what this ratchet exists to
+        // catch — the question it asks is "should this still be one file?", and for a coherent
+        // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
+        // `AstridAPIClient+ListMembers.swift`, so the number goes DOWN rather than up again.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1578,
         "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1240,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,

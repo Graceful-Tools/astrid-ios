@@ -28,7 +28,7 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     /// Every `/api/v1` literal in a source file, with interpolations flattened to `{id}` so the
     /// list is stable across renamed local variables.
-    private func paths(inSourceAt relativePath: String) throws -> Set<String> {
+    fileprivate func paths(inSourceAt relativePath: String) throws -> Set<String> {
         let url = repoRoot().appendingPathComponent(relativePath)
         let source = try String(contentsOf: url, encoding: .utf8)
         var found: Set<String> = []
@@ -58,8 +58,25 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     // MARK: - The doc matches the code
 
+    /// Every file the current client is spread across.
+    ///
+    /// `AstridAPIClient+ListMembers.swift` joined it in AITD-388, when the members and
+    /// invitations endpoints moved into an extension to get the client off its size ceiling. A
+    /// path that moves between these files has not left the app, and the inventory must not read
+    /// the move as a deletion.
+    private static let currentClientFiles = [
+        "Astrid App/Core/Networking/AstridAPIClient.swift",
+        "Astrid App/Core/Networking/AstridAPIClient+ListMembers.swift",
+    ]
+
+    private static func currentClientPaths(_ test: APIEndpointInventoryTests) throws -> Set<String> {
+        try currentClientFiles.reduce(into: Set<String>()) { acc, file in
+            acc.formUnion(try test.paths(inSourceAt: file))
+        }
+    }
+
     func testEveryEndpointInTheCodeIsDocumented() throws {
-        let inCode = try paths(inSourceAt: "Astrid App/Core/Networking/AstridAPIClient.swift")
+        let inCode = try Self.currentClientPaths(self)
             .union(paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift"))
         let documented = try documentedPaths()
 
@@ -72,7 +89,7 @@ final class APIEndpointInventoryTests: XCTestCase {
     /// The other direction. A path that lingers after the call site is deleted is how a list
     /// stops describing the app while still looking authoritative.
     func testNothingIsDocumentedThatTheCodeNoLongerCalls() throws {
-        let inCode = try paths(inSourceAt: "Astrid App/Core/Networking/AstridAPIClient.swift")
+        let inCode = try Self.currentClientPaths(self)
             .union(paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift"))
         let documented = try documentedPaths()
 

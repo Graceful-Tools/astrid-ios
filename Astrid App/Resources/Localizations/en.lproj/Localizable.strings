@@ -1354,3 +1354,22 @@
 "update.available_body" = "Version %@ is available. Updating takes a moment and brings the latest fixes.";
 "update.action" = "Update";
 "update.later" = "Not now";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — List Settings";
+"lists.sort_filters_shared_note" = "Sort and filters are saved on the list, so they apply to everyone who can see it — not just you.";
+"lists.privacy_private" = "Private";
+"lists.privacy_shared" = "Shared";
+"lists.privacy_public" = "Public";
+"lists.privacy_private_description" = "Only you can see this list.";
+"lists.privacy_shared_description" = "Only invited members can access this list.";
+"lists.privacy_public_description" = "Anyone can find and join this list.";
+"lists.public_type" = "Public List Type";
+"lists.public_collaborative" = "Collaborative";
+"lists.public_copy_only" = "Copy only";
+"lists.public_collaborative_description" = "Anyone can view and add tasks. List admins and task creators can edit tasks. Anyone can comment.";
+"lists.public_copy_only_description" = "Public members can view and copy tasks, but only admins can add tasks.";
+"lists.remove_ai_agent" = "Remove Agent";
+"lists.no_ai_agents_hint" = "Add your API keys in Settings to invite AI agents to this list.";
+"lists.owner_cannot_leave_yet" = "You own this list. Transferring it to someone else isn't available here yet — do it on the web app.";

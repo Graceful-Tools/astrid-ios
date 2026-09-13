@@ -28,30 +28,37 @@ final class MacListMenuTests: XCTestCase {
     // MARK: - Who sees what
 
     /// The owner sees everything, Delete included.
+    ///
+    /// `edit` and `sharing` became one `listSettings` item in AITD-388 — two sheets for one
+    /// list's settings, with the roster hidden behind whichever you happened to pick.
     func testOwnerSeesEveryItem_AITD373() {
         let items = MacListMenu.items(for: list(), userId: owner)
-        XCTAssertEqual(items, [.edit, .toggleFavorite, .sharing, .enableBoard, .divider, .delete])
+        XCTAssertEqual(items, [.listSettings, .toggleFavorite, .enableBoard, .divider, .delete])
     }
 
     /// An admin may reconfigure the list but not destroy it — deleting a shared list destroys
     /// other people's work, so it stays with the owner. Same split ListPermissions draws.
     func testAdminSeesEverythingButDelete_AITD373() {
         let items = MacListMenu.items(for: list(), userId: admin)
-        XCTAssertTrue(items.contains(.edit))
-        XCTAssertTrue(items.contains(.sharing))
+        XCTAssertTrue(items.contains(.listSettings))
         XCTAssertFalse(items.contains(.delete))
         XCTAssertFalse(items.contains(.divider), "no divider with nothing behind it")
     }
 
-    /// A plain member gets Favourite and nothing else. Favouriting is a personal view preference,
-    /// not a change to the list, so it survives where Edit and Sharing do not.
-    func testAPlainMemberSeesOnlyFavourite_AITD373() {
-        XCTAssertEqual(MacListMenu.items(for: list(), userId: member), [.toggleFavorite])
+    /// A plain member now gets List Settings too (AITD-388). The WINDOW decides which tabs they
+    /// see — Sort & Filters and Membership, not Admin — and before this they had no route to the
+    /// roster at all: they could not see who else was on a list they were on, or leave it.
+    func testAPlainMemberSeesListSettingsAndFavourite_AITD388() {
+        XCTAssertEqual(MacListMenu.items(for: list(), userId: member),
+                       [.listSettings, .toggleFavorite])
     }
 
-    /// Signed out, or looking at someone else's public list: nothing but the personal preference.
-    func testAStrangerSeesOnlyFavourite_AITD373() {
-        XCTAssertEqual(MacListMenu.items(for: list(), userId: nil), [.toggleFavorite])
+    /// Signed out, or looking at someone else's public list. Still no admin items: the window
+    /// asks `ListPermissions` for itself, so offering the entry gives nothing away.
+    func testAStrangerSeesNoAdminItems_AITD373() {
+        let items = MacListMenu.items(for: list(), userId: nil)
+        XCTAssertFalse(items.contains(.delete))
+        XCTAssertFalse(items.contains(.enableBoard))
     }
 
     // MARK: - Enable board
@@ -60,7 +67,7 @@ final class MacListMenuTests: XCTestCase {
     func testEnableBoardIsHiddenOnceTheListIsABoard_AITD373() {
         let items = MacListMenu.items(for: list(projectId: "p1"), userId: owner)
         XCTAssertFalse(items.contains(.enableBoard))
-        XCTAssertTrue(items.contains(.edit), "the rest of the menu is unaffected")
+        XCTAssertTrue(items.contains(.listSettings), "the rest of the menu is unaffected")
     }
 
     // MARK: - Labels

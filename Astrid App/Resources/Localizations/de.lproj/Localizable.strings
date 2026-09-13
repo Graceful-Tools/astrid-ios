@@ -1346,3 +1346,22 @@
 "update.available_body" = "Version %@ ist verfügbar. Die Aktualisierung dauert nur einen Moment und bringt die neuesten Verbesserungen.";
 "update.action" = "Aktualisieren";
 "update.later" = "Jetzt nicht";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — Listeneinstellungen";
+"lists.sort_filters_shared_note" = "Sortierung und Filter werden in der Liste gespeichert und gelten daher für alle, die sie sehen können — nicht nur für dich.";
+"lists.privacy_private" = "Privat";
+"lists.privacy_shared" = "Geteilt";
+"lists.privacy_public" = "Öffentlich";
+"lists.privacy_private_description" = "Nur du kannst diese Liste sehen.";
+"lists.privacy_shared_description" = "Nur eingeladene Mitglieder haben Zugriff auf diese Liste.";
+"lists.privacy_public_description" = "Jede Person kann diese Liste finden und ihr beitreten.";
+"lists.public_type" = "Typ der öffentlichen Liste";
+"lists.public_collaborative" = "Gemeinsam";
+"lists.public_copy_only" = "Nur kopieren";
+"lists.public_collaborative_description" = "Alle können Aufgaben sehen und hinzufügen. Listen-Admins und Ersteller können Aufgaben bearbeiten. Alle können kommentieren.";
+"lists.public_copy_only_description" = "Öffentliche Mitglieder können Aufgaben ansehen und kopieren, aber nur Admins können Aufgaben hinzufügen.";
+"lists.remove_ai_agent" = "Agent entfernen";
+"lists.no_ai_agents_hint" = "Füge in den Einstellungen deine API-Schlüssel hinzu, um KI-Agenten in diese Liste einzuladen.";
+"lists.owner_cannot_leave_yet" = "Dir gehört diese Liste. Die Übertragung an eine andere Person ist hier noch nicht möglich — nutze dafür die Web-App.";

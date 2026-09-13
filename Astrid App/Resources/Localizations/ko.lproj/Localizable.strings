@@ -1348,3 +1348,22 @@
 "update.available_body" = "버전 %@을(를) 사용할 수 있습니다. 업데이트는 잠시면 끝나며 최신 수정 사항이 적용됩니다.";
 "update.action" = "업데이트";
 "update.later" = "나중에";
+
+
+/* List Settings window: membership, privacy copy, shared-filters note (AITD-388). */
+"mac.list_settings_title" = "%@ — 목록 설정";
+"lists.sort_filters_shared_note" = "정렬과 필터는 목록에 저장되므로 나뿐 아니라 목록을 볼 수 있는 모든 사람에게 적용됩니다.";
+"lists.privacy_private" = "비공개";
+"lists.privacy_shared" = "공유";
+"lists.privacy_public" = "공개";
+"lists.privacy_private_description" = "이 목록은 나만 볼 수 있습니다.";
+"lists.privacy_shared_description" = "초대된 멤버만 이 목록에 접근할 수 있습니다.";
+"lists.privacy_public_description" = "누구나 이 목록을 찾아 참여할 수 있습니다.";
+"lists.public_type" = "공개 목록 유형";
+"lists.public_collaborative" = "공동 작업";
+"lists.public_copy_only" = "복사 전용";
+"lists.public_collaborative_description" = "누구나 작업을 보고 추가할 수 있습니다. 목록 관리자와 작업 작성자는 수정할 수 있습니다. 누구나 댓글을 달 수 있습니다.";
+"lists.public_copy_only_description" = "공개 멤버는 작업을 보고 복사할 수 있지만, 추가는 관리자만 할 수 있습니다.";
+"lists.remove_ai_agent" = "에이전트 제거";
+"lists.no_ai_agents_hint" = "설정에서 API 키를 추가하면 이 목록에 AI 에이전트를 초대할 수 있습니다.";
+"lists.owner_cannot_leave_yet" = "이 목록의 소유자입니다. 다른 사람에게 넘기는 기능은 아직 여기에 없습니다 — 웹 앱에서 진행하세요.";
