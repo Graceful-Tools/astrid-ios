@@ -117,16 +117,15 @@ if [ "$UPLOAD" = "1" ]; then echo "  Mode: UPLOAD (this build will be sent to Ap
 # upload under it, TestFlight included ("Invalid Pre-Release Train. The train version 'x.y.z' is
 # closed for new build submissions"). Measured 2026-08-23 on both apps. So this is a hard stop for
 # an upload, caught here rather than after twenty minutes of tests and archiving.
-VERSION_STATE=$(node scripts/asc-appstore.mjs versions "$TARGET" | awk -v v="$VERSION" '$1 == v { print $2; exit }')
-case "$VERSION_STATE" in
-  READY_FOR_SALE|REMOVED_FROM_SALE|REPLACED_WITH_NEW_INFO)
-    if [ "$UPLOAD" = "1" ]; then
-      fail "$SCHEME $VERSION has already been released ($VERSION_STATE), and Apple closes a released version to new builds — this upload would be rejected. Fix: raise MARKETING_VERSION for the $TARGET target in Astrid App.xcodeproj/project.pbxproj (every build config), then run this again. Ask the user which version number to use; do not pick one yourself."
-    fi
-    echo "  Note: $VERSION is already released, so Apple will not accept new builds under it."
-    echo "        Uploading needs a higher MARKETING_VERSION. Building is fine."
-    ;;
-esac
+#
+# The question itself lives in scripts/check-version.sh, which predeploy asks too (AITD-396) —
+# one copy, so the local and the Xcode Cloud paths cannot drift apart again.
+if ! ./scripts/check-version.sh "$TARGET" --version "$VERSION"; then
+  if [ "$UPLOAD" = "1" ]; then
+    fail "$SCHEME $VERSION has already been released and this upload would be rejected — see above for the fix."
+  fi
+  echo "  Note: building is fine. Uploading needs a higher MARKETING_VERSION."
+fi
 
 # --- Quality gate -----------------------------------------------------------------
 # An upload can never be taken back, so it does not happen on untested code. Build-only runs skip

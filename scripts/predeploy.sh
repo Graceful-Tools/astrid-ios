@@ -48,6 +48,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help        Show this help"
             echo ""
             echo "Default behavior:"
+            echo "  - Check neither target's MARKETING_VERSION is already released (skips offline)"
             echo "  - Check localizations"
             echo "  - Check brand literals"
             echo "  - Audit partner brand profiles"
@@ -71,15 +72,34 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=5
+TOTAL_STEPS=6
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=7
+    TOTAL_STEPS=8
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
-    TOTAL_STEPS=3
+    TOTAL_STEPS=4
 fi
 
-# Step 1: Localization checks
+# Step 1: App Store version state (AITD-396)
+# First, in every mode, because it is the cheapest check and the one that used to cost the most
+# to miss: a MARKETING_VERSION that App Store Connect has already released makes Xcode Cloud fail
+# nine minutes in with a bare "PrepareBuildForAppStoreConnect failed" and nothing in the logs.
+# Both targets — they version independently under one app record, and the failure mode is one
+# of them drifting. Fails ONLY on a positive collision: no key or no network prints a "skipped"
+# line and passes, so the gate still runs offline. In quick mode too: that is the mode people
+# reach for in a hurry, which is exactly when this gets missed.
+STEP=$((STEP + 1))
+echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking App Store version state...${NC}"
+echo ""
+if "$SCRIPT_DIR/check-version.sh" all; then
+    echo -e "${GREEN}✓ Version check passed${NC}"
+else
+    echo -e "${RED}✗ Version check failed — a released MARKETING_VERSION cannot take new builds${NC}"
+    exit 1
+fi
+echo ""
+
+# Step 2: Localization checks
 STEP=$((STEP + 1))
 echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking localizations...${NC}"
 echo ""
@@ -91,7 +111,7 @@ else
 fi
 echo ""
 
-# Step 2: Brand-literal checks (whitelabel — task 97208a72)
+# Step 3: Brand-literal checks (whitelabel — task 97208a72)
 # Its own gate, not folded into the unit tests, so a whitelabel regression is reported
 # as itself rather than as one failure among 1200. A brand literal is invisible on an
 # Astrid build and only surfaces on a partner's, where nobody is watching.
@@ -106,7 +126,7 @@ else
 fi
 echo ""
 
-# Step 3: Build verification (unless skipped or quick mode)
+# Step 4: Build verification (unless skipped or quick mode)
 if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Verifying build compiles...${NC}"
@@ -130,7 +150,7 @@ if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 4: Partner brand audit (unless quick mode)
+# Step 5: Partner brand audit (unless quick mode)
 # Its own gate for the same reason as the web's brand matrix: a whitelabel regression
 # should be reported as itself. This is the ONLY gate that can see one — on an Astrid
 # build every brand assertion is vacuous, because a reverted literal still compares
@@ -148,7 +168,7 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     echo ""
 fi
 
-# Step 5: Unit tests (unless quick mode)
+# Step 6: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running unit tests...${NC}"
@@ -159,10 +179,18 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         echo -e "${RED}✗ Unit tests failed${NC}"
         exit 1
     fi
+    # The version check above is a shell script; this is its test (AITD-396). Here rather than
+    # in run-tests.sh because it is not an Xcode test, and it takes well under a second.
+    if "$SCRIPT_DIR/test-check-version.sh"; then
+        echo -e "${GREEN}✓ Script tests passed${NC}"
+    else
+        echo -e "${RED}✗ Script tests failed${NC}"
+        exit 1
+    fi
     echo ""
 fi
 
-# Step 6: UI tests (only with --full)
+# Step 7: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running UI tests...${NC}"
@@ -176,7 +204,7 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     echo ""
 fi
 
-# Step 7: Mac tests (only with --full)
+# Step 8: Mac tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     STEP=$((STEP + 1))
     echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running Mac tests...${NC}"

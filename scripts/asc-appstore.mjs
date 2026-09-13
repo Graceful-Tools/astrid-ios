@@ -11,11 +11,13 @@
 //   node scripts/asc-appstore.mjs wait    <ios|mac> <buildNumber> [--timeout-min N]
 //   node scripts/asc-appstore.mjs testflight <ios|mac> <buildNumber> → is it live for testers?
 //   node scripts/asc-appstore.mjs versions <ios|mac>              → App Store version states
+//   node scripts/asc-appstore.mjs version-state <ios|mac> <x.y.z> → one version's state, or NOT_FOUND
 import crypto from 'crypto';
 import fs from 'fs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const env = fs.readFileSync(ROOT + '.env.local', 'utf8');
+// ASC_ENV_FILE lets check-version.sh and its test point both halves at the same file.
+const env = fs.readFileSync(process.env.ASC_ENV_FILE || ROOT + '.env.local', 'utf8');
 const pick = k => (env.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.replace(/^["']|["']$/g, '');
 
 // Match on the APPLE_ASC_PRIVATE_KEY= prefix, not the first PEM block in the file — .env.local
@@ -140,8 +142,19 @@ if (cmd === 'next') {
   if (!tf.found) { console.log('NOT_FOUND'); }
   else console.log(`processing=${tf.processing}\tinternal=${tf.internal}\texternal=${tf.external}\tcompliance=${tf.complianceAnswered ? 'answered' : 'UNANSWERED'}`);
 } else if (cmd === 'versions') {
+  // The third column is createdDate — when the version RECORD was made, not when it went live.
+  // It misled the 2026-09-13 diagnosis (AITD-396): 1.9.2 looked a day old while builds still
+  // uploaded under it. Judge a version by its state, never by this date.
   const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&limit=5`);
   for (const v of res.data) console.log(`${v.attributes.versionString}\t${v.attributes.appStoreState}\t${v.attributes.createdDate}`);
+} else if (cmd === 'version-state') {
+  // Asked by name, so a version older than the five `versions` lists is still found. Prints the
+  // bare state (READY_FOR_SALE, PREPARE_FOR_SUBMISSION, …) or NOT_FOUND when App Store Connect
+  // has no record for it — which is the normal answer for a freshly bumped MARKETING_VERSION.
+  const want = process.argv[4] || die('version-state needs a version, e.g. 1.9.3');
+  const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&filter[versionString]=${encodeURIComponent(want)}&limit=5`);
+  const hit = res.data.find(v => v.attributes.versionString === want);
+  console.log(hit ? hit.attributes.appStoreState : 'NOT_FOUND');
 } else {
   die(`Unknown command "${cmd}"`);
 }
