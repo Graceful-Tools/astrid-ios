@@ -117,19 +117,19 @@ struct TaskRowView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.spacing12) {
-            // Where the quick picker opens (AITD-395: "arrow on quick set popover should be on
-            // the left of the popover pointing at the checkbox").
+            // Where the quick picker opens (AITD-397: "Arrow on Right of popover, pointing Left
+            // at the checkbox" — the third report on this arrow).
             //
-            // `arrowEdge: .trailing` asks for the space to this control's right, so the arrow
-            // sits on the popover's LEADING edge, aimed back at the control that was tapped.
+            // Anchored to the checkbox, `arrowEdge: .leading`: on iOS that is the edge of the
+            // POPOVER the arrow sits on, so the picker opens to the checkbox's right with its
+            // arrow on its own left edge, aimed at the control that was tapped. AITD-393 and
+            // AITD-395 both read the value as the edge of the ANCHOR (the Mac meaning) and asked
+            // for `.trailing`, which put the arrow on the popover's right and the popover off the
+            // left of the screen. `QuickPickerGeometry.arrowEdge` has the measurement.
             //
-            // AITD-393 had this on a 1pt pin at the row's trailing edge, to keep the picker off
-            // the card. That space is not there on a phone: the changer is a fixed 280pt and a
-            // full-width row leaves ~16pt to its right, so UIKit dropped the requested direction
-            // and placed the popover to the LEFT of the pin — over the card anyway, arrow on its
-            // right edge. It covers the card from either anchor; only this one also points the
-            // arrow at something. Clearing the card would mean going above/below (the AITD-391
-            // complaint) or a much narrower popover, which is a design call, not a fix.
+            // The picker is a fixed 280pt and covers the card from any anchor; clearing the card
+            // would mean going above/below (the AITD-391 complaint) or a much narrower popover,
+            // which is a design call, not a fix.
             leadingControl
                 .popover(isPresented: $showingQuickChanger,
                          arrowEdge: QuickPickerGeometry.arrowEdge) {

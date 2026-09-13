@@ -9,8 +9,9 @@
 //  the anchor had left. Each fault made the other worse.
 //
 //  The anchor took two more passes: AITD-393 moved it to the row's trailing edge, AITD-395 put
-//  it back on the checkbox. See `arrowEdge` for why 280pt of popover never fitted in the ~16pt
-//  that trailing anchor actually had.
+//  it back on the checkbox. The EDGE took a fourth (AITD-397): both earlier passes read
+//  `arrowEdge` as the side of the anchor the popover leaves from, and on iOS it is the side of
+//  the POPOVER the arrow sits on. See `arrowEdge`.
 //
 //  Both answers live here as values rather than as literals inside a view, for the reason
 //  `TaskLeadingControl` next door exists: a number written into a view is a number no test can
@@ -24,23 +25,34 @@ enum QuickPickerGeometry {
 
     // MARK: - Where it opens
 
-    /// The edge of the ANCHOR the popover leaves from — so the picker lands to the anchor's
-    /// RIGHT and its arrow sits on the popover's LEADING edge, aimed back at what was tapped.
+    /// The edge of the POPOVER its arrow sits on. `.leading` puts the arrow on the popover's
+    /// left edge, so the picker opens to the RIGHT of the checkbox with the arrow aimed back at
+    /// the control that was tapped.
+    ///
+    /// That is the definition on iOS, and it is the opposite of how AITD-393 and AITD-395 read
+    /// it. Both took `arrowEdge` for the edge of the ANCHOR the popover leaves from — which is
+    /// what NSPopover's `preferredEdge` means on the Mac, and why `MacTaskRow`'s `.bottom` opens
+    /// BELOW its checkbox. On iOS SwiftUI hands the value to UIKit as the popover's arrow
+    /// direction: `.trailing` became "arrow on the right", the popover was placed to the LEFT
+    /// of its anchor, and with the checkbox at the head of the row there was no left to place
+    /// it in. UIKit squashed it against the screen edge, arrow on its right, pointing at the
+    /// checkbox — the AITD-397 report, and the same shape AITD-395 saw off the trailing pin and
+    /// misread as UIKit "discarding" the direction. It was honouring it.
+    ///
+    /// Measured 2026-09-13 with a throwaway app on the iPhone 17 simulator: two buttons at the
+    /// left edge, one popover per edge. `.trailing` — a sliver at the screen edge, arrow right.
+    /// `.leading` — popover to the button's right, arrow on its left edge. This is the latter.
     ///
     /// A board card is short and its column is tall: there is a full height of room beside a
-    /// card and almost none above or below it, so an unpinned popover flips above or below.
+    /// card and almost none above or below it, so an unpinned popover flips above or below —
+    /// the AITD-391 complaint, and why the edge is pinned at all.
     ///
-    /// The anchor is `TaskRowView.leadingControl` — the checkbox. AITD-393 moved it to a 1pt pin
-    /// at the row's trailing edge to keep the picker off the card, and the numbers do not allow
-    /// that: `TaskQuickChanger` is a fixed 280pt, a full-width phone row leaves ~16pt to its
-    /// right, and UIKit answers an impossible direction by choosing its own. It put the popover
-    /// to the LEFT of the pin, over the card, arrow on its right edge — the AITD-395 report.
-    ///
-    /// So the picker covers the card whichever anchor it uses, and the checkbox is the one that
-    /// also gives the arrow something to point at. Making it clear the card is a different
-    /// question: it needs either above/below (what AITD-391 objected to) or a much narrower
-    /// popover, and neither is a thing to change while fixing an arrow.
-    static let arrowEdge: Edge = .trailing
+    /// The anchor is `TaskRowView.leadingControl` — the checkbox. AITD-393's trailing pin had
+    /// nothing to do with the arrow and is gone: the picker is a fixed 280pt and covers the
+    /// card from either anchor, so the checkbox is the one that gives the arrow something to
+    /// point at. Clearing the card would need above/below or a much narrower popover, and
+    /// neither is a thing to change while fixing an arrow.
+    static let arrowEdge: Edge = .leading
 
     // MARK: - How tall the member list is
 
