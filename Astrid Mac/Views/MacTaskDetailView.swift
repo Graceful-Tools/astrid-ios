@@ -443,9 +443,10 @@ struct MacTaskDetailView: View {
                     }
                     // No text, no text bubble — an empty pill under a photo reads as a failure.
                     if MacCommentBubble.showsText(c.content) {
-                        Text(c.content)
-                            .foregroundStyle(Theme.textPrimary)
-                            .textSelection(.enabled)
+                        // A comment is markdown, like a description and like the web bubble these
+                        // are usually read in (AITD-389) — same renderer, hugging its text so the
+                        // bubble stays the size of what was said.
+                        MacMarkdownText(source: c.content, fillsWidth: false)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)

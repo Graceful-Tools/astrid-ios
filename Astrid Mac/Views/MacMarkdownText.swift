@@ -15,6 +15,13 @@ import SwiftUI
 
 struct MacMarkdownText: View {
     let source: String
+    /// Does this fill the width it is given, or hug its text?
+    ///
+    /// A description owns its column, so it fills — that is what keeps a heading's underline and a
+    /// list's markers aligned down the pane. A comment sits in a bubble sized to its content
+    /// (AITD-389): filling there would stretch every bubble across the whole thread and undo the
+    /// right-aligned "mine" layout that says at a glance whose comment it is.
+    var fillsWidth: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -38,7 +45,12 @@ struct MacMarkdownText: View {
         }
         .multilineTextAlignment(.leading)
         .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
+    }
+
+    /// `nil` is SwiftUI's "no constraint" — the view ends up as wide as its text.
+    static func maxWidth(fillsWidth: Bool) -> CGFloat? {
+        fillsWidth ? .infinity : nil
     }
 
     /// A list row: the marker keeps its own column so wrapped text lines up under itself
@@ -52,7 +64,10 @@ struct MacMarkdownText: View {
             inline(text)
                 .font(MacTypography.detailBody)
                 .foregroundStyle(Theme.textPrimary)
-            Spacer(minLength: 0)
+            // The spacer is what pins the marker column to the left edge of a pane that is wider
+            // than the text. In a bubble there is no spare width to take up, and asking for it
+            // would be another way of demanding the whole thread's width.
+            if fillsWidth { Spacer(minLength: 0) }
         }
     }
 
