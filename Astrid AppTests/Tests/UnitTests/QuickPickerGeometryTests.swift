@@ -3,14 +3,18 @@
 //  board view. You put it on left!" — and, underneath it, for Task AITD-391.
 //
 //  Rewritten for Task AITD-395 — "arrow on quick set popover should be on the left of the
-//  popover pointing at the checkbox".
+//  popover pointing at the checkbox" — and again for Task AITD-397 — "Arrow on Right of
+//  popover, pointing Left at the checkbox. You did it wrong again."
 //
-//  Three reports on one popover. AITD-391 hung it off the 34pt leading control; AITD-393 moved
-//  it to a 1pt pin at the row's trailing edge to stop it covering the card. Neither the pin nor
-//  the complaint survived contact with the numbers: `TaskQuickChanger` is a FIXED 280pt and a
-//  full-width phone row leaves ~16pt to its right, so UIKit could not honour `.trailing` at all.
-//  It put the popover to the LEFT of the pin — still over the card — with the arrow on its right
-//  edge, which is what AITD-395 is reporting.
+//  Four reports on one popover. AITD-391 hung it off the 34pt leading control; AITD-393 moved
+//  it to a 1pt pin at the row's trailing edge; AITD-395 put it back on the checkbox. All three
+//  kept `arrowEdge: .trailing`, reading it as the edge of the ANCHOR the popover leaves from.
+//  On iOS it is the edge of the POPOVER the arrow sits on — UIKit's arrow direction — so
+//  `.trailing` asked for the arrow on the popover's RIGHT and the popover to the LEFT of the
+//  checkbox, where a phone has no room. That is the squashed popover with a right-hand arrow in
+//  every one of these reports; AITD-395 saw it off the trailing pin and misread it as UIKit
+//  discarding the direction. Measured 2026-09-13 in a throwaway app: `.leading` opens to the
+//  right with the arrow on the left. `QuickPickerGeometry.arrowEdge` has the write-up.
 //
 //  The popover covers the card from either anchor. What the checkbox anchor buys is an arrow
 //  that points at the control you tapped. Clearing the card is not reachable at 280pt on a phone
@@ -57,15 +61,20 @@ final class QuickPickerGeometryTests: XCTestCase {
 
     // MARK: - To the right, not above or below
 
-    /// The edge, as a value. `.trailing` is the edge of the ANCHOR the arrow leaves from, so the
-    /// popover lands to its right — a board column has a full height of room beside a card and
-    /// almost none above or below it.
+    /// The edge, as a value. On iOS `arrowEdge` is the edge of the POPOVER the arrow sits on,
+    /// so `.leading` is "arrow on the left, popover to the right of the checkbox". A board
+    /// column has a full height of room beside a card and almost none above or below it, which
+    /// is why the edge is pinned rather than left to UIKit.
     ///
-    /// This constant was never the AITD-393 bug; which view it was measured from was. The two
-    /// tests below cover that.
-    func testThePickerOpensToTheRightOfItsAnchor() {
-        XCTAssertEqual(QuickPickerGeometry.arrowEdge, .trailing,
-                       "above/below is the bug — a board column has room to the side, not vertically")
+    /// This constant WAS the AITD-397 bug — `.trailing`, read the Mac way — after two passes that
+    /// only moved the anchor. The UI test in `QuickPickerPopoverUITests` measures the real
+    /// popover's frame against the checkbox; this test keeps the value from drifting back.
+    func testThePickerOpensToTheRightOfItsAnchor_AITD397() {
+        XCTAssertEqual(QuickPickerGeometry.arrowEdge, .leading,
+                       "AITD-397: on iOS `arrowEdge` is the edge of the POPOVER the arrow sits on. "
+                       + "`.leading` puts the arrow on the popover's left edge, so the popover opens to "
+                       + "the RIGHT of the checkbox. `.trailing` is the bug: arrow on the right, popover "
+                       + "shoved off the left of the screen.")
     }
 
     // MARK: - At least three assignees, then scroll
@@ -109,14 +118,13 @@ final class QuickPickerGeometryTests: XCTestCase {
     /// three reports have been circling.
     ///
     /// AITD-395: "arrow on quick set popover should be on the left of the popover pointing at
-    /// the checkbox". The arrow lands opposite whichever side UIKit finds room on, so the anchor
-    /// IS the arrow's position — which is why this reads the attached view rather than the edge.
+    /// the checkbox". The arrow points at whatever the popover is attached to, so the anchor
+    /// decides what it points AT and `arrowEdge` decides which side of the popover it is ON.
+    /// This test covers the first; `testThePickerOpensToTheRightOfItsAnchor_AITD397` the second.
     ///
-    /// AITD-393 moved it to a 1pt pin at the row's trailing edge to clear the task box. On a
-    /// phone that space does not exist: the changer is a fixed 280pt and a full-width row leaves
-    /// about 16pt to its right, so UIKit dropped the requested direction, put the popover to the
-    /// LEFT of the pin over the card, and hung the arrow off its right edge. It covers the card
-    /// from either anchor; only the checkbox anchor also points the arrow at something.
+    /// AITD-393 moved the anchor to a 1pt pin at the row's trailing edge to clear the task box.
+    /// The changer is a fixed 280pt, so it covers the card from either anchor; only the checkbox
+    /// anchor also points the arrow at something.
     func testThePopoverHangsOffTheCheckboxSoItsArrowPointsAtIt() throws {
         let source = try appSource("Astrid App/Views/Tasks/TaskRowView.swift")
 
