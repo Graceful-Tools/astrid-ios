@@ -20,14 +20,25 @@ enum QuickPickerGeometry {
 
     // MARK: - Where it opens
 
-    /// The edge of the leading control the popover's arrow leaves from, so the picker lands to
-    /// the control's RIGHT.
+    /// The edge of the ANCHOR the popover's arrow leaves from, so the picker lands to the
+    /// anchor's RIGHT.
     ///
     /// A board card is short and its column is tall: there is a full height of room beside a
-    /// card and almost none above or below it. Pinning the edge is only half of it — the popover
-    /// must also be attached to the 34pt control rather than to the row, or this points out of
-    /// the side of the whole card. The Mac has always done both (`MacTaskRow`).
+    /// card and almost none above or below it, so an unpinned popover flips above or below.
+    ///
+    /// Pinning the edge is only half of it — what the popover attaches to decides where "right"
+    /// begins. AITD-391 attached it to the 34pt leading control and so opened the picker just
+    /// inside the card's LEFT edge, on top of the card (AITD-393). It hangs off
+    /// `trailingPickerAnchor` instead: the same edge, measured from the far side of the row, so
+    /// the picker clears the task box.
     static let arrowEdge: Edge = .trailing
+
+    /// The width of that trailing pin.
+    ///
+    /// Wide enough to have a source rect — a zero-width view gives UIKit nothing to point an
+    /// arrow at — and narrow enough that it is not layout: it sits after the row's `Spacer()`,
+    /// so anything more would push the card's content off its right edge.
+    static let trailingAnchorWidth: CGFloat = 1
 
     // MARK: - How tall the member list is
 
