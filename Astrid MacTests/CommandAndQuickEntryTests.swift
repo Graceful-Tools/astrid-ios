@@ -43,24 +43,32 @@ final class CommandAndQuickEntryTests: XCTestCase {
         XCTAssertTrue(ran)
     }
 
-    // MARK: QuickEntryParser
-    func testParsesListTokensAndDueHint() {
-        let r = QuickEntryParser.parse("Buy milk #groceries #home tomorrow")
-        XCTAssertEqual(r.title, "Buy milk")
-        XCTAssertEqual(r.listNames, ["groceries", "home"])
-        XCTAssertEqual(r.due, .tomorrow)
-    }
+    // MARK: - AITD-402: quick entry asks the SHARED parser
 
-    func testParsesPlainTitle() {
-        let r = QuickEntryParser.parse("  Call the dentist  ")
-        XCTAssertEqual(r.title, "Call the dentist")
-        XCTAssertTrue(r.listNames.isEmpty)
-        XCTAssertNil(r.due)
-    }
+    /// `QuickEntryParser` used to live in `Astrid Mac/Support/`: 43 lines that understood
+    /// `#list` plus the words "today" and "tomorrow", and nothing else. Task fa267754 moved every
+    /// caller to `SmartTaskParser` — which already compiled for this target — but left the old
+    /// struct and three tests behind, so a dead parser stayed green and looked maintained.
+    ///
+    /// The guard is not "that file is gone". It is that Mac quick-add keeps asking the one
+    /// engine, so the hotkey window can never quietly grow a weaker parse than the sidebar.
+    func testAITD402_MacQuickAddParsesThroughTheSharedSmartTaskParser() throws {
+        let root = RepositoryLocator.root.appendingPathComponent("Astrid Mac")
+        let files = try XCTUnwrap(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
 
-    func testTodayHintStripped() {
-        let r = QuickEntryParser.parse("Standup today")
-        XCTAssertEqual(r.title, "Standup")
-        XCTAssertEqual(r.due, .today)
+        var sawSharedParser = false
+        for case let url as URL in files where url.pathExtension == "swift" {
+            let source = try String(contentsOf: url, encoding: .utf8)
+            if source.contains("SmartTaskParser.parse(") { sawSharedParser = true }
+
+            for line in source.components(separatedBy: .newlines) {
+                let code = line.trimmingCharacters(in: .whitespaces)
+                // The surviving comment in QuickEntryView records why it went — not a call site.
+                guard !code.hasPrefix("//") else { continue }
+                XCTAssertFalse(code.contains("QuickEntryParser"),
+                               "\(url.lastPathComponent): quick entry parses with SmartTaskParser now")
+            }
+        }
+        XCTAssertTrue(sawSharedParser, "AITD-402: the Mac must still reach the shared parser")
     }
 }
