@@ -29,7 +29,7 @@ enum NewTaskDefaults {
         case "next_week":   components.day? += 7
         case "next_month":  components.month? += 1
         default:
-            guard let parsed = ISO8601DateFormatter().date(from: value) else { return nil }
+            guard let parsed = WireDate.date(from: value) else { return nil }
             components = calendar.dateComponents([.year, .month, .day], from: parsed)
         }
 

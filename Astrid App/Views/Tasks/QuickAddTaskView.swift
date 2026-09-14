@@ -694,7 +694,7 @@ struct QuickAddTaskView: View {
                 components.day? += (daysUntilSunday == 0 ? 7 : daysUntilSunday)
             default:
                 // Try to parse as ISO date string
-                if let parsedDate = ISO8601DateFormatter().date(from: dueDateValue) {
+                if let parsedDate = WireDate.date(from: dueDateValue) {
                     components = calendar.dateComponents([.year, .month, .day], from: parsedDate)
                 } else {
                     return nil // Invalid date format

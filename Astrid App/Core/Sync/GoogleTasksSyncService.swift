@@ -414,7 +414,6 @@ final class GoogleTasksSyncService: ObservableObject {
         var taskLinks = try await apiClient.getGoogleTaskLinks(listId: link.astridListId).links
         var byRemoteId = Dictionary(taskLinks.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
-        let iso = ISO8601DateFormatter()
 
         // Refresh the delete-capture cache for this container's tasks.
         // One persist for the whole pass, as before.
@@ -635,7 +634,7 @@ final class GoogleTasksSyncService: ObservableObject {
                     try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: existing.remoteId,
                         remoteContainerId: link.remoteContainerId,
-                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { iso.string(from: $0) },
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { WireDate.string(from: $0) },
                         metadata: nil))
                     continue
                 }
@@ -877,7 +876,6 @@ final class GoogleTasksSyncService: ObservableObject {
         var taskLinks = try await apiClient.getGoogleTaskLinksByContainer(containerId: tasklistId).links
         var byRemoteId = Dictionary(taskLinks.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
         var byTaskId = Dictionary(taskLinks.map { ($0.astridTaskId, $0) }, uniquingKeysWith: { a, _ in a })
-        let iso = ISO8601DateFormatter()
 
         // One persist for the whole pass, as before.
         taskLinkCache.merge(Dictionary(
@@ -1028,7 +1026,7 @@ final class GoogleTasksSyncService: ObservableObject {
                         try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                             astridTaskId: task.id, remoteId: existing.remoteId,
                             remoteContainerId: tasklistId,
-                            astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { iso.string(from: $0) },
+                            astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { WireDate.string(from: $0) },
                             metadata: nil))
                         continue
                     }

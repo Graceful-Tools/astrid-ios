@@ -261,7 +261,6 @@ final class GitHubSyncService: ObservableObject {
         let pulled = try await apiClient.pullGitHubIssues(linkId: link.id, deferCursor: true)
         var pullAcknowledgement = SyncPassAcknowledgement()
         let pulledByRemoteId = Dictionary(pulled.items.map { ($0.remoteId, $0) }, uniquingKeysWith: { a, _ in a })
-        let iso = ISO8601DateFormatter()
         // Parents before children so a sub-issue created in the same pass can
         // resolve its parent's fresh link. metadata.parent = parent issue number.
         let orderedItems = SyncPullOrdering.parentsFirst(
@@ -448,7 +447,7 @@ final class GitHubSyncService: ObservableObject {
                     try? await apiClient.upsertGitHubTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: existing.remoteId,
                         remoteContainerId: link.remoteContainerId,
-                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { iso.string(from: $0) },
+                        astridUpdatedAt: task.updatedAt, remoteUpdatedAt: existing.remoteUpdatedAt.map { WireDate.string(from: $0) },
                         metadata: nil))
                     continue
                 }

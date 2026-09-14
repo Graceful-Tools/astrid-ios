@@ -239,10 +239,8 @@ struct CustomAgentsSettingsView: View {
     }
 
     private func formatDateString(_ iso: String) -> String {
-        let parser = ISO8601DateFormatter()
-        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let date = parser.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
-        guard let date else { return iso }
+        // Fractional-then-plain was hand-rolled here; it is WireDate's job now (AITD-404).
+        guard let date = WireDate.date(from: iso) else { return iso }
         return date.formatted(date: .abbreviated, time: .shortened)
     }
 

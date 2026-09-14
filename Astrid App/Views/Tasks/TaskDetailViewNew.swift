@@ -1672,14 +1672,14 @@ struct TaskDetailViewNew: View {
             var utcCalendar = Calendar(identifier: .gregorian)
             utcCalendar.timeZone = TimeZone(identifier: "UTC")!
             let startOfDay = utcCalendar.startOfDay(for: dueDate)
-            dueDateTimeString = ISO8601DateFormatter().string(from: startOfDay)
+            dueDateTimeString = WireDate.dueDateString(from: startOfDay)
         } else if let time = editedDueTime {
-            dueDateTimeString = ISO8601DateFormatter().string(from: time)
+            dueDateTimeString = WireDate.dueDateString(from: time)
         } else {
             var utcCalendar = Calendar(identifier: .gregorian)
             utcCalendar.timeZone = TimeZone(identifier: "UTC")!
             let startOfDay = utcCalendar.startOfDay(for: dueDate)
-            dueDateTimeString = ISO8601DateFormatter().string(from: startOfDay)
+            dueDateTimeString = WireDate.dueDateString(from: startOfDay)
         }
 
         let request = UpdateTaskRequest(
