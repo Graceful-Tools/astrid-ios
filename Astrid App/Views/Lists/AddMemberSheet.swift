@@ -180,7 +180,7 @@ struct AddMemberSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("actions.cancel", comment: "")) {
                         dismiss()
                     }
                     .disabled(isProcessing)

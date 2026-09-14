@@ -11,9 +11,14 @@ enum MacListDefaults {
         init(_ value: String, _ label: String) { self.value = value; self.label = label }
     }
 
+    /// LABELS ARE LOCALIZED, VALUES ARE NOT (AITD-403). The `value` is the wire string
+    /// `updateListAdvanced` stores and iOS reads back, so it stays English forever; the `label` is
+    /// what a person reads, and it was English here while iOS's ListDefaultsView already used
+    /// `time.today`. Same list, two languages, depending on which app you opened it in.
     static let dueDate: [Option] = [
-        .init("none", "None"), .init("today", "Today"), .init("tomorrow", "Tomorrow"),
-        .init("next_week", "Next week"), .init("next_month", "Next month"),
+        .init("none", NSLocalizedString("priority.none", comment: "")), .init("today", NSLocalizedString("time.today", comment: "")),
+        .init("tomorrow", NSLocalizedString("time.tomorrow", comment: "")), .init("next_week", NSLocalizedString("time.next_week", comment: "")),
+        .init("next_month", NSLocalizedString("time.next_month", comment: "")),
     ]
     /// The same six the iOS admin tab offers (task 545812e6). nil = all day, which is why the
     /// value is a String? rather than a sentinel string.
@@ -27,8 +32,9 @@ enum MacListDefaults {
     ]
 
     static let repeating: [Option] = [
-        .init("never", "Never"), .init("daily", "Daily"), .init("weekly", "Weekly"),
-        .init("monthly", "Monthly"), .init("yearly", "Yearly"),
+        .init("never", NSLocalizedString("repeating.never", comment: "")), .init("daily", NSLocalizedString("repeating.daily", comment: "")),
+        .init("weekly", NSLocalizedString("repeating.weekly", comment: "")), .init("monthly", NSLocalizedString("repeating.monthly", comment: "")),
+        .init("yearly", NSLocalizedString("repeating.yearly", comment: "")),
     ]
 
     /// The updateListAdvanced payload for the default-task settings.

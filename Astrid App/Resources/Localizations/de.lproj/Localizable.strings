@@ -1381,3 +1381,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "Dieser KI-Agent hat keine E-Mail-Adresse und kann deshalb keiner Liste hinzugefügt werden.";
 "lists.agent_not_a_member" = "%@ ist nicht auf dieser Liste.";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "Name";
+"filters.active_filters" = "Aktive Filter";
+"filters.sort_completed_first" = "Erledigte zuerst";
+"filters.sort_incomplete_first" = "Offene zuerst";
+"filters.save_failed" = "Speichern fehlgeschlagen: %@";
+"share.link_failed" = "Freigabelink konnte nicht erstellt werden. Bitte erneut versuchen.";

@@ -163,7 +163,7 @@ struct ImagePickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(NSLocalizedString("actions.cancel", comment: "")) {
                         if showingCropView {
                             selectedImage = nil
                             showingCropView = false

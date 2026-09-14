@@ -82,7 +82,7 @@ struct TaskTimerView: View {
                             // Save the duration to this task when user taps Done
                             saveDuration()
                         }) {
-                            Text("Done")
+                            Text(NSLocalizedString("actions.done", comment: ""))
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.vertical, 8)

@@ -1381,3 +1381,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "У этого ИИ-агента нет адреса электронной почты, поэтому его нельзя добавить в список.";
 "lists.agent_not_a_member" = "%@ нет в этом списке.";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "Название";
+"filters.active_filters" = "Активные фильтры";
+"filters.sort_completed_first" = "Сначала выполненные";
+"filters.sort_incomplete_first" = "Сначала невыполненные";
+"filters.save_failed" = "Не удалось сохранить: %@";
+"share.link_failed" = "Не удалось создать ссылку для общего доступа. Попробуйте ещё раз.";

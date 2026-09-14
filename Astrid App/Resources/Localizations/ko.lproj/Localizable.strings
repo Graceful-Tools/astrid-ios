@@ -1383,3 +1383,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "이 AI 에이전트에는 이메일 주소가 없어 목록에 추가할 수 없습니다.";
 "lists.agent_not_a_member" = "%@ 님은 이 목록에 없습니다.";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "이름";
+"filters.active_filters" = "적용된 필터";
+"filters.sort_completed_first" = "완료된 항목 먼저";
+"filters.sort_incomplete_first" = "미완료 항목 먼저";
+"filters.save_failed" = "저장하지 못했습니다: %@";
+"share.link_failed" = "공유 링크를 만들지 못했습니다. 다시 시도해 주세요.";

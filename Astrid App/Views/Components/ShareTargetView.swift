@@ -261,7 +261,7 @@ struct ShareTargetView: View {
             shareUrl = response.url
             AppLog.debug("✅ [ShareTargetView] Generated share URL: \(response.url)")
         } catch {
-            errorMessage = "Failed to generate share link. Please try again."
+            errorMessage = NSLocalizedString("share.link_failed", comment: "")
             AppLog.debug("❌ [ShareTargetView] Failed to generate share link: \(error)")
         }
 

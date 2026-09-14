@@ -1381,3 +1381,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "Deze AI-agent heeft geen e-mailadres en kan daarom niet aan een lijst worden toegevoegd.";
 "lists.agent_not_a_member" = "%@ staat niet op deze lijst.";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "Naam";
+"filters.active_filters" = "Actieve filters";
+"filters.sort_completed_first" = "Voltooide eerst";
+"filters.sort_incomplete_first" = "Niet-voltooide eerst";
+"filters.save_failed" = "Opslaan mislukt: %@";
+"share.link_failed" = "Kan geen deellink maken. Probeer het opnieuw.";
