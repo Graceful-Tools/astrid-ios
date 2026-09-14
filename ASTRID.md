@@ -57,7 +57,7 @@ Distilled from recurring friction. Applies to every agent.
   long builds/multi-file work — overlong turns have truncated sessions.
 - **Per-task process** (canonical, cross-repo): post a strategy comment → RED-GREEN-refactor
   TDD with a task-id-linked regression test → run quality gates → post a completion
-  report → then mark complete. Full flow: `astrid-web/ASTRID_WORKFLOW.md`.
+  report → then mark complete. Full flow: `astrid-web/docs/FIXALL_WORKFLOW.md`.
 
 ---
 
@@ -134,9 +134,8 @@ Until then both clients exist, but only one of them grows.
 ## 3. Unified Outbox (the only write path)
 
 All backend writes for **tasks, comments, chat sends, and attachment uploads** journal
-through `Astrid App/Core/Outbox/` (journal + runner + per-kind handlers). Eight kinds:
-`createTask`, `updateTask`, `deleteTask`, `createComment`, `updateComment`,
-`deleteComment`, `sendChatMessage`, `uploadAttachment`.
+through `Astrid App/Core/Outbox/` (journal + runner + per-kind handlers; eight kinds, listed
+in `docs/LOCAL_FIRST_PATTERN.md`).
 
 - Entries carry a `clientRequestId` (server-side idempotency), retry with backoff, and
   dead-letter on permanent errors (surfaced in Settings → Outbox).
@@ -219,16 +218,9 @@ weekly M/W/F rollover.
 and GitHub Issues** (client-side workers; server stores links/tokens and proxies via
 `astrid-web /api/v1/sync/*`; GitHub webhook → SSE `external_sync_refresh` nudge).
 
-All decision logic is pure and unit-tested: `SyncSuppression` (dual watermarks +
-`remoteWins` last-write-wins), `GoogleDueMapping`, `SyncPullOrdering` (sub-issue/subtask
-parents first), `GoogleAutoLink` (modes: manual / all-Google→Astrid with suffix /
-all-Astrid→Google / bidirectional; server-side `Integration.metadata`),
-`CommentSyncPlanner` (GitHub comments create/edit/delete, directional canonicality),
-`SyncDeletionPolicy` + `SyncDeletionLedger` (tombstone-driven remote deletes;
-complete-listing-guarded local deletes), `CompletionDriftPolicy`, `CompletedBackfill`
-(completed history 20/pass, backdated, never delays live sync), `RFC3339`.
-
-Sign-out resets all provider state (`SyncStateReset`, tested).
+All decision logic lives in pure, unit-tested planners (the list is in
+`docs/SYNC_ARCHITECTURE.md` §Pure, tested planners). Sign-out resets all provider state
+(`SyncStateReset`, tested); any new persisted sync key must be added there.
 
 Details: `docs/SYNC_ARCHITECTURE.md`.
 
@@ -316,7 +308,8 @@ contract (§4). Mac adds **no** business logic — Mac-only code is the app shel
   contract, not Mac ⌘-defaults. ⌘-menu items are additive only.
 - **Build/verify:** `xcodebuild -scheme "Astrid Mac" -destination "platform=macOS"` (builds on
   My Mac; no simulator). iOS still gates via `npm run predeploy`.
-- **Full design + roadmap:** `docs/MAC_APP_SPEC.md`; integration notes: `docs/MAC_M0_NOTES.md`.
+- **Signing, Sign in with Apple, passkeys:** `docs/MAC_SIGNING.md`; release channels: `docs/MAC_DISTRIBUTION.md`.
+  The original plan and M0 notes are in `docs/archive/`.
 - **Known debt:** the exclusion list is brittle (a new iOS View breaks the Mac build until
   excluded) — the planned fix is extracting shared code into an `AstridCore` Swift package.
 
@@ -325,16 +318,17 @@ contract (§4). Mac adds **no** business logic — Mac-only code is the app shel
 ## References
 
 - [CLAUDE.md](./CLAUDE.md) — Claude Code operational adapter (commands, deploy, approvals)
-- [AGENTS.md](./AGENTS.md) — Codex operational adapter (same content, Codex-branded)
+- [AGENTS.md](./AGENTS.md) — Codex entry point; a pointer to CLAUDE.md
 - [README.md](./README.md) — project overview and setup
-- `docs/API_CONTRACT.md` — backend API specification
+- `docs/API_ENDPOINTS.md` — every API path the app calls (test-gated)
+- `docs/API_CONTRACT.md` — wire shapes, SSE events, errors
 - `docs/LOCAL_FIRST_PATTERN.md` — offline-first / Outbox architecture
 - `docs/SYNC_ARCHITECTURE.md` — external sync providers
 - `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md`
-- `astrid-web/ASTRID_WORKFLOW.md` — canonical cross-repo per-task process
+- `astrid-web/docs/FIXALL_WORKFLOW.md` — canonical cross-repo per-task process
 - `astrid-web/ASTRID.md` — web-side project context
 
 ---
 
-*Architecture lives here. The adapters ([CLAUDE.md](./CLAUDE.md), [AGENTS.md](./AGENTS.md))
-hold only commands and workflow. Keep it that way.*
+*Architecture lives here. The adapter ([CLAUDE.md](./CLAUDE.md); [AGENTS.md](./AGENTS.md) points
+to it) holds only commands and workflow. Keep it that way.*

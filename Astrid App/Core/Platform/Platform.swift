@@ -7,7 +7,7 @@
 //  for now only so it doesn't auto-join the iOS synchronized group before it's reviewed.
 //
 //  Rule: shared code must NEVER write raw `UIKit`/`AppKit`. Route platform differences
-//  through this file so the 14 UIKit-coupled files (see docs/MAC_M0_NOTES.md) compile on
+//  through this file so the 14 UIKit-coupled files (see docs/archive/MAC_M0_NOTES.md) compile on
 //  both platforms. No business logic here — presentation/platform glue only.
 
 import Foundation

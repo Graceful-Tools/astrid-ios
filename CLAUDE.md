@@ -53,13 +53,14 @@ npm run predeploy             # Run standard checks before pushing
 
 | Command | What it runs |
 |---------|--------------|
-| `npm run predeploy:quick` | Version check + localizations + build (no tests) |
-| `npm run predeploy` | Version check + localizations + build + unit tests — **the standard gate before pushing** |
-| `npm run predeploy:full` | Version check + localizations + build + unit + UI tests |
+| `npm run predeploy:quick` | Version check + localizations + brand literals + build (no tests) |
+| `npm run predeploy` | Quick + partner-brand audit + unit tests + script self-test — **the standard gate before pushing** |
+| `npm run predeploy:full` | Standard + iOS UI tests (needs a minted test-account session) + Mac unit tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
 | `npm run test:scripts` | Self-test for `scripts/check-version.sh` |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
+| `npm run test:mac` | Mac unit tests (`Astrid MacTests`); never alongside `predeploy`, whose brand audit rewrites the Info.plists |
 | `npm run test:all` | Unit + UI tests |
 | `npm run check:localizations` | Validate translations (12 languages) |
 | `npm run build` | Build app (quiet) |
@@ -71,8 +72,10 @@ npm run predeploy             # Run standard checks before pushing
 |------|------|
 | Unit tests | `Astrid AppTests/Tests/UnitTests/` |
 | Integration tests | `Astrid AppTests/Tests/IntegrationTests/` |
-| Test mocks | `Astrid AppTests/Tests/Mocks/` |
+| Fixtures (`TestHelpers`) | `Astrid AppTests/Tests/Mocks/` |
+| Shared test support (`RepositoryLocator`, base classes; both test targets) | `TestSupport/` |
 | UI tests | `Astrid AppUITests/` |
+| Mac tests | `Astrid MacTests/`, `Astrid MacUITests/` |
 
 ### Raw xcodebuild (alternative)
 
@@ -165,25 +168,14 @@ Deployment) — not by waiting to be told.
 
 ---
 
-## "Let's fix stuff" (or `/fixstuff`)
+## "Let's fix stuff" (`/fixstuff`) and `/fixall`
 
-When the user says "let's fix stuff" / "just fix stuff" / similar, pull the iOS queue
-**through the `astrid` MCP server** — `get_agent_queue { agent: "claude", listId:
-"aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` — present the tasks, ask which to work on, then
-implement. Run `npm run predeploy` **after** implementation, not before.
-
-**Never read or write Astrid tasks through the database** (`DATABASE_URL_PROD`, Prisma,
-`ios-tasks-direct.ts`) unless doing deep repair Jon has asked for. The MCP tools
-(`get_agent_queue`, `get_task`, `get_task_comments`, `add_comment`, `update_task`,
-`create_task`) are the interface. It runs locally over stdio
-(`node ../astrid-web/mcp/astrid-mcp-launch.js`) and needs no browser; if it fails to connect,
-that is a local build or credentials problem, not an outage. Details, the connection
-troubleshooting and the OAuth-script exceptions (claim / status / assign) are in
-`.claude/commands/fixall.md`.
-
-**Per-task process** (canonical, cross-repo — see `astrid-web/docs/FIXALL_WORKFLOW.md`):
-post a strategy comment → RED-GREEN-refactor TDD with a task-id-linked regression
-test → run quality gates → post a completion report → then mark the task complete.
+When the user says "let's fix stuff" / "just fix stuff" / similar, follow
+`.claude/commands/fixall.md` §Interactive mode: pull the iOS queue through the `astrid` MCP
+server, present the tasks, ask which to work on, then implement. That file owns the tool
+table, the never-the-database rule, the connection troubleshooting, the OAuth-script
+exceptions (claim / status / assign), and the per-task process (strategy comment → RED-GREEN
+TDD with a task-id-linked test → gates → completion report → mark complete).
 
 ## Documentation map
 
@@ -192,13 +184,20 @@ test → run quality gates → post a completion report → then mark the task c
 | **[ASTRID.md](./ASTRID.md)** | **Architecture + all AI-agent contracts (read first)** |
 | [README.md](./README.md) | Project overview and setup |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
-| `docs/API_CONTRACT.md` | Backend API specification |
-| `docs/LOCAL_FIRST_PATTERN.md` | Offline-first / Outbox architecture |
+| `docs/API_ENDPOINTS.md` | Every API path the app calls (test-gated) |
+| `docs/API_CONTRACT.md` | Wire shapes, SSE events, errors, versioning policy |
+| `docs/LOCAL_FIRST_PATTERN.md` | Outbox mechanism + cache invalidation |
 | `docs/SYNC_ARCHITECTURE.md` | External sync providers |
+| `docs/MAC_SIGNING.md`, `docs/MAC_DISTRIBUTION.md` | Mac signing / passkeys; release channels |
+| `docs/archive/` | Point-in-time reviews and the original Mac plan; history only |
 | [`../astrid-web/docs/WEEKLY_DEEP_REVIEW.md`](../astrid-web/docs/WEEKLY_DEEP_REVIEW.md) | Weekly cross-repo deep review — driven from this board by a repeating Astrid task (`/weekly-deep-review`) |
 | `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md` | Setup guides |
 
+Each fact has one home: gate commands, test locations, branches and approvals live here;
+architecture in ASTRID.md; API paths in API_ENDPOINTS.md; the queue workflow in
+`.claude/commands/fixall.md`. Other files point, they do not repeat.
+
 ---
 
-*This file is for Claude Code. Codex reads [AGENTS.md](./AGENTS.md) (same content).
+*This file is for every CLI agent; [AGENTS.md](./AGENTS.md) points Codex here.
 All architecture lives in [ASTRID.md](./ASTRID.md) — do not duplicate it here.*

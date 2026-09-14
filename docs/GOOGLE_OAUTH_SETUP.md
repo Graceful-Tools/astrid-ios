@@ -106,7 +106,7 @@ These are already configured in `GoogleSignInManager.swift`.
 
 1. **Verify ID tokens on the backend** - Currently using Google's tokeninfo endpoint, but consider using a JWT library for offline verification
 2. **Implement proper session management** - The current implementation creates simple session tokens; consider using JWT or NextAuth sessions
-3. **Add rate limiting** - Protect the `/api/auth/google` endpoint from abuse
+3. **Add rate limiting** - Protect the `/api/v1/auth/google` endpoint from abuse
 
 ### Apple Sign In Requirement
 

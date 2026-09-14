@@ -7,8 +7,7 @@
 //  binding, this test fails until BOTH the Mac table AND the `expectedFromWeb` literal
 //  below are updated in the same PR — same discipline as CanonicalControlPointsTests.
 //
-//  This is authored to run in the macOS test target once it exists (see MAC_M0_NOTES.md).
-//  Until then it is un-targeted; it does not compile into the iOS build.
+//  Runs in the `Astrid MacTests` target only; it does not compile into the iOS build.
 
 import XCTest
 @testable import Astrid_Mac   // adjust to the macOS target's module name when created

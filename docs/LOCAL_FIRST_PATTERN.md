@@ -1,6 +1,6 @@
 # Local-First Architecture
 
-*Last updated: July 4, 2026 — reflects the unified Outbox (legacy per-service sync removed) and the external sync providers.*
+*Owns the Outbox mechanism and the cache-invalidation rules. Rules and control points are in `ASTRID.md`; external sync is in `SYNC_ARCHITECTURE.md`.*
 
 ## The model in one paragraph
 
@@ -48,35 +48,13 @@ Key behaviors:
 
 ## External sync providers (`Astrid App/Core/Sync/`)
 
-Client-side sync workers mirror content between Astrid (source of truth) and Apple Reminders / Google Tasks / GitHub Issues. Server stores links + tokens and proxies provider APIs (`astrid-web /api/v1/sync/*`); a GitHub webhook emits an SSE `external_sync_refresh` nudge.
-
-Pure, unit-tested planners drive every decision:
-
-| Planner | Rule |
-|---|---|
-| `SyncSuppression` | Dual watermarks (echo suppression both directions), `pullWatermark` (task's own stamp, never wall-clock), `remoteWins` (last-write-wins on pull-apply) |
-| `GoogleDueMapping` | Date-only due mapping: never clobber a timed local due; all-day = UTC day, timed = local day |
-| `SyncPullOrdering` | Parents before children (sub-issues/subtasks) with cycle safety |
-| `GoogleAutoLink` | Auto-link modes: manual / all-Google→Astrid (suffix) / all-Astrid→Google / bidirectional; adopt-by-name, never duplicate |
-| `CommentSyncPlanner` | GitHub comment create/edit/delete both ways; directional entries decide which side is canonical |
-| `SyncDeletionPolicy` | Remote deletes are **tombstone-driven** (captured at delete time — link rows cascade away); local deletes require a **complete remote listing** (failed/truncated fetch never mass-deletes) |
-| `CompletionDriftPolicy` | Completion disagreement repair: remote-completed adopts when local never completed or is untouched; un-complete only when untouched |
-| `CompletedBackfill` | Completed history imports last, newest-first, budgeted (20/pass) — never delays live items; backdated via `completedAt` |
-| `RFC3339` | Fractional-second-tolerant timestamp parsing (Google emits `.000Z`) |
-
-Sync triggers: app foreground, SSE nudge, Outbox mutation nudge, pull-to-refresh, Sync now. Google sync mode + exclusions + tombstones persist server-side in `Integration.metadata` (cross-device); per-device ledgers (`SyncDeletionLedger`) are wiped on sign-out via `SyncStateReset`.
-
-### External sync orchestration checklist
-
-- **SSE vs mutation nudges**: `.externalSyncRefresh` is the server/webhook nudge; `OutboxManager.didEnqueueMutation` is the local write nudge. Both wake the provider workers, but neither replaces planner checks or echo suppression.
-- **Name collision**: `Core/Sync/SyncManager` coordinates external providers. It is unrelated to the Astrid backend's polling service.
-- **Google My Tasks phase**: `GoogleTasksSyncService` uses `tasklistsResponse.defaultId` and `GoogleAutoLink.myTasksPhaseActive`. The default tasklist syncs through `syncMyTasks` in all-lists modes unless a legacy list link already owns that default id.
-- **Deletion ledgers**: provider ledgers persist `syncPendingRemoteDeletes.<provider>` and `syncDeletedRemoteIds.<provider>` in `UserDefaults`. Tombstones are capped at 500 and evict oldest-first; sign-out must clear them through `SyncStateReset`.
-- **Born-completed imports**: completed-history backfill creates rows with `presumeCompletedAt`, then routes through completion reconciliation so imported history never flashes as an open task.
-
-## Completion metadata
-
-Tasks carry `completedAt` (real completion time — backdatable by sync to the provider's timestamp) and `completedSource` (`astrid|google|github|apple`). The recently-completed window prefers `completedAt` over `updatedAt`, so imported history ages correctly.
+Apple Reminders, Google Tasks and GitHub Issues mirror content through the same canonical
+service layer. Every write goes in via `TaskService` (`completeTask` for completions, with
+`completedAt` / `completedSource` so imported history is backdated rather than flashing as
+open). Provider workers wake on `.externalSyncRefresh` (server SSE nudge) and
+`OutboxManager.didEnqueueMutation` (local write nudge), plus foreground, pull-to-refresh and
+"Sync now". Planners, ledgers, cursors and the sign-out reset contract are in
+[SYNC_ARCHITECTURE.md](./SYNC_ARCHITECTURE.md).
 
 ## Caching: what fills each cache, and what clears it
 

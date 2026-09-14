@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 
-## Current client — `AstridAPIClient` (48 paths)
+## Current client — `AstridAPIClient` (49 paths)
 
 
 ### `/api/v1/app-version`

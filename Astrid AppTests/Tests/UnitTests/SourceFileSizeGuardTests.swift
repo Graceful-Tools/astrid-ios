@@ -2,7 +2,7 @@
 //  Task AITD-346 — nine production files are over 1,000 lines; in August it was six.
 //
 //  This is a RATCHET, not a refactor. The August hygiene review
-//  (`docs/HYGIENE_REVIEW_2026-08.md`, finding 3) listed six files over 1,000 lines and concluded
+//  (`docs/archive/HYGIENE_REVIEW_2026-08.md`, finding 3) listed six files over 1,000 lines and concluded
 //  "small extractions, one per change, not a restructure". Three weeks later all four of the
 //  biggest had grown and three more had crossed — because nothing was watching. Every individual
 //  addition was reasonable; the drift was the sum of them, and nobody was in a position to see

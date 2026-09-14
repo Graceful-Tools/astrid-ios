@@ -12,7 +12,7 @@ board is not a second review; it only checks that this one ran.
 
 ## What is different here
 
-- **Never `git push`.** A push starts four Xcode Cloud runs and has exhausted the monthly
+- **Never `git push`.** A push starts two Xcode Cloud runs (four before 2026-08-27) and has exhausted the monthly
   compute allotment before. A review never pushes.
 - **Never run `xcodebuild`, `npm test`, `npm run test:mac`, `npm run predeploy`, or
   `monkey:*`.** Static analysis only — a review has no budget for a simulator run, and

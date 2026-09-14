@@ -1,6 +1,6 @@
 # Astrid for Mac — Distribution (M3)
 
-Two channels from one `Astrid Mac` target (see `docs/MAC_APP_SPEC.md` §8).
+Two channels from one `Astrid Mac` target (see `docs/archive/MAC_APP_SPEC.md` §8).
 
 ## Done (in-repo, verified)
 - **App Sandbox entitlements** — `Astrid Mac/Astrid Mac.entitlements`: `app-sandbox`,

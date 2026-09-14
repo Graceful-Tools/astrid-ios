@@ -1,5 +1,7 @@
 # Security Audit — pre-release, Astrid for Mac (2026-07-25)
 
+> **Archived 2026-09-13.** Historical record: 4 found, 4 fixed, 0 open. Current policy: `SECURITY.md`.
+
 Conducted before the first public, directly-downloadable Mac build. Scope: everything an
 attacker could reach in a shipped, notarized, sandboxed Mac app — plus the shared `Astrid App`
 core it links against, so iOS inherits the same fixes.

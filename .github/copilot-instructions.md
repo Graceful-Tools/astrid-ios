@@ -1,8 +1,8 @@
 # Copilot bootstrap
 
 Keep this file thin. Read [ASTRID.md](../ASTRID.md) first for architecture, API,
-release, and TDD rules, then [AGENTS.md](../AGENTS.md) for current operational
-workflow. Verify commands and behavior against `package.json`, `scripts/`, and
+release, and TDD rules, then [CLAUDE.md](../CLAUDE.md) for the operational
+workflow (AGENTS.md is a pointer to it). Verify commands and behavior against `package.json`, `scripts/`, and
 `.github/workflows/`. If those sources disagree with README, CONTRIBUTING,
 `.claude/`, or each other, stop and surface the drift rather than guessing.
 
@@ -23,10 +23,8 @@ workflow. Verify commands and behavior against `package.json`, `scripts/`, and
 
 ## Validation
 
-- `npm run predeploy:quick`: localization and brand checks plus iOS build.
-- `npm run predeploy`: quick coverage plus partner-brand audit and iOS unit tests.
-- `npm run predeploy:full`: standard coverage plus authenticated iOS UI tests and
-  the Mac test suite.
+The gate commands and what each runs are in CLAUDE.md §Quality Gates; `npm run predeploy`
+is the standard gate and `predeploy:full` adds the authenticated iOS UI tests and the Mac suite.
 
 Prepare and reuse the exact iPhone 17 simulator with
 `npm run simulator:prepare`. Serialize simulator-sensitive work on the single

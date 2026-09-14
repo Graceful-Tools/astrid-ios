@@ -1,5 +1,7 @@
 # Astrid for Mac — Native App Specification
 
+> **Archived 2026-09-13.** Historical: the M0–M3 plan below shipped. The `AstridCore` package it proposes was not built; the Mac target shares `Astrid App/Core` through pbxproj membership exceptions instead (ASTRID.md §9). Keyboard contract: ASTRID.md §8 + `KeyboardShortcutsParityTests`.
+
 *Status: Draft v1 · Owner: TBD · Last updated: 2026-07-12*
 
 Build a **native Mac app** for Astrid that feels **performant and powerful**, while staying
@@ -362,7 +364,7 @@ Because Mac adds **no** business logic, the only Mac work for a shared change is
 ---
 
 ## See also
-- [ASTRID.md](../ASTRID.md) — architecture + Canonical Control Points (apply verbatim to Mac)
-- [docs/LOCAL_FIRST_PATTERN.md](./LOCAL_FIRST_PATTERN.md) — Outbox / offline model the Mac app reuses
-- [docs/SYNC_ARCHITECTURE.md](./SYNC_ARCHITECTURE.md) — external sync (shared, unchanged on Mac)
-- [CLAUDE.md](../CLAUDE.md) — build/test/deploy adapter (add a macOS lane)
+- [ASTRID.md](../../ASTRID.md) — architecture + Canonical Control Points (apply verbatim to Mac)
+- [docs/LOCAL_FIRST_PATTERN.md](../LOCAL_FIRST_PATTERN.md) — Outbox / offline model the Mac app reuses
+- [docs/SYNC_ARCHITECTURE.md](../SYNC_ARCHITECTURE.md) — external sync (shared, unchanged on Mac)
+- [CLAUDE.md](../../CLAUDE.md) — build/test/deploy adapter (add a macOS lane)

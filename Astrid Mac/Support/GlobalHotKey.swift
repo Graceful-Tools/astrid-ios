@@ -5,7 +5,7 @@
 //  *sandboxed* build. `RegisterEventHotKey` (Carbon) registers a single dedicated hotkey
 //  and does NOT require the Accessibility permission (that's only needed to *monitor*
 //  arbitrary global keystrokes, which we do not do). Validated on BOTH the sandboxed
-//  App Store build and the direct build — see docs/MAC_M0_NOTES.md §"Hotkey de-risk".
+//  App Store build and the direct build — see docs/archive/MAC_M0_NOTES.md §"Hotkey de-risk".
 
 #if os(macOS)
 import AppKit

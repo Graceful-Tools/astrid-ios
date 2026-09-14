@@ -7,7 +7,7 @@
 //  the same way AstridApp.swift injects them on iOS (see the TODOs).
 //
 //  Guarded by `#if os(macOS)` so it is inert if ever compiled for iOS (avoids a second @main).
-//  Not yet a member of any target — the macOS target is created in Xcode (see docs/MAC_M0_NOTES.md).
+//  Compiled only into the `Astrid Mac` target.
 
 #if os(macOS)
 import SwiftUI

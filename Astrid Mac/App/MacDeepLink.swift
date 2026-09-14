@@ -4,7 +4,7 @@
 //
 //  NOTE: receiving astrid:// requires the scheme to be registered (CFBundleURLTypes) and
 //  https://astrid.cc requires the associated-domains entitlement — both are added in Xcode
-//  (see docs/MAC_LOGIN.md), same constraint as passkey. The routing below is ready for that.
+//  (see docs/MAC_SIGNING.md), same constraint as passkey. The routing below is ready for that.
 
 #if os(macOS)
 import Foundation
