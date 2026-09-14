@@ -72,7 +72,7 @@ struct AgentHubView: View {
         .themedBackgroundPrimary()
         .navigationTitle(NSLocalizedString("settings.agents.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $showCustomAgents) { CustomAgentsSettingsView() }
+        .navigationDestination(isPresented: $showCustomAgents) { CustomAgentsScreen() }
         .task { await model.load() }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, !model.isLoading else { return }
@@ -191,7 +191,7 @@ struct AgentHubView: View {
             if row.usesOAuth && capabilities.capabilities.integrations.mcp {
                 // The Copilot app / GitHub.com cloud agent is one of Copilot's harnesses, so its
                 // token + repository MCP setup lives inside this row, not at page level.
-                NavigationLink(destination: CopilotCloudAgentSetupView()) {
+                NavigationLink(destination: CopilotCloudAgentScreen()) {
                     Label(NSLocalizedString("settings.agents.copilot_cloud.title", comment: ""),
                           systemImage: "cloud.fill")
                 }
@@ -201,7 +201,7 @@ struct AgentHubView: View {
             Text(NSLocalizedString("settings.agents.webhook_description", comment: ""))
                 .font(Theme.Typography.caption1())
                 .foregroundStyle(.secondary)
-            NavigationLink(destination: WebhookSettingsView()) {
+            NavigationLink(destination: WebhookSettingsScreen()) {
                 Label(NSLocalizedString("settings.agents.webhook.configure", comment: ""),
                       systemImage: "point.3.connected.trianglepath.dotted")
             }
@@ -215,7 +215,7 @@ struct AgentHubView: View {
 
     private var customAgentsSection: some View {
         Section {
-            NavigationLink(destination: CustomAgentsSettingsView()) {
+            NavigationLink(destination: CustomAgentsScreen()) {
                 HStack(spacing: Theme.spacing12) {
                     Image("ai-openclaw")
                         .resizable()
@@ -403,69 +403,6 @@ struct AgentHubView: View {
         .foregroundStyle(.secondary)
     }
 }
-
-// MARK: - Copilot cloud agent (GitHub.com) setup
-
-struct CopilotCloudAgentSetupView: View {
-    @Environment(\.openURL) private var openURL
-    @StateObject private var model = CopilotCloudAgentModel()
-
-    var body: some View {
-        Form {
-            Section {
-                Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.description", comment: ""), Brand.appName))
-                    .font(Theme.Typography.caption1())
-                    .foregroundStyle(.secondary)
-                Label(NSLocalizedString("settings.agents.copilot_cloud.oauth_warning", comment: ""), systemImage: "exclamationmark.triangle")
-                    .font(Theme.Typography.caption1())
-                    .foregroundStyle(.orange)
-            }
-
-            if let token = model.token {
-                Section(NSLocalizedString("settings.agents.copilot_cloud.token", comment: "")) {
-                    Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.secret_step", comment: ""), model.secretName))
-                        .font(Theme.Typography.caption1())
-                    CopyableCodeBlock(code: token)
-                }
-                Section(NSLocalizedString("settings.agents.copilot_cloud.config", comment: "")) {
-                    Text(NSLocalizedString("settings.agents.copilot_cloud.config_step", comment: ""))
-                        .font(Theme.Typography.caption1())
-                    CopyableCodeBlock(code: model.config)
-                    Button {
-                        openURL(AgentHubLinks.githubCopilotMCPDocs)
-                    } label: {
-                        Label(NSLocalizedString("settings.agents.copilot_cloud.open_docs", comment: ""), systemImage: "safari")
-                    }
-                }
-            } else {
-                Section {
-                    if let errorMessage = model.errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(Theme.Typography.caption1())
-                            .foregroundStyle(.red)
-                    }
-                    if model.requiresWebSession {
-                        WebSessionRequiredRow()
-                    }
-                    Button {
-                        _Concurrency.Task { await model.createToken() }
-                    } label: {
-                        HStack {
-                            Label(NSLocalizedString("settings.agents.copilot_cloud.create", comment: ""), systemImage: "key.fill")
-                            if model.isCreating { Spacer(); ProgressView() }
-                        }
-                    }
-                    .disabled(model.isCreating)
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .themedBackgroundPrimary()
-        .navigationTitle(NSLocalizedString("settings.agents.copilot_cloud.title", comment: ""))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 
 #Preview {
     NavigationStack {

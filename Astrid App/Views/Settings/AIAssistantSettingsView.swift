@@ -52,7 +52,7 @@ struct AIAssistantSettingsView: View {
                     }
                 }
 
-                NavigationLink(destination: CustomAgentsSettingsView()) {
+                NavigationLink(destination: CustomAgentsScreen()) {
                     HStack {
                         Image("ai-openclaw")
                             .resizable()

@@ -130,7 +130,7 @@ final class WireDatePrecisionTests: XCTestCase {
         let root = RepositoryLocator.root
         for path in ["Astrid App/Core/Tasks/NewTaskDefaults.swift",
                      "Astrid App/Views/Tasks/QuickAddTaskView.swift",
-                     "Astrid App/Views/Settings/CustomAgentsSettingsView.swift",
+                     "Astrid App/Core/Platform/AgentHubScreens.swift",  // was Views/Settings/CustomAgentsSettingsView.swift until AITD-405
                      "Astrid App/Views/Settings/AccountSettingsView.swift"] {
             let src = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
             XCTAssertTrue(src.contains("WireDate.date(from:"),
