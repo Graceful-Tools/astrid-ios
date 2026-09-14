@@ -360,8 +360,10 @@ struct ListSortFiltersTab: View {
                 updated.isVirtual = isVirtual
                 onUpdate(updated)
             } catch {
-                AppLog.debug("❌❌❌ [ListSortFiltersTab] API SAVE FAILED: \(error)")
                 AppLog.debug("  - Error type: \(type(of: error))")
+                // The sort and filters stay on screen looking saved, and nothing reverts them,
+                // so the log was the only trace this ever failed (AITD-406).
+                AppErrorCenter.shared.report("Save list filters", error)
             }
         }
     }

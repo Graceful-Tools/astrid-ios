@@ -1530,7 +1530,9 @@ struct TaskListView: View {
                     _ = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
                     // Note: Not calling fetchLists() - updateListAdvanced already updates local lists with server response
                 } catch {
-                    // Advanced-update errors are non-fatal; local state already applied.
+                    // "Non-fatal" was only true locally: no Outbox backs this write, so the
+                    // server never hears and the change reverts later, unsaid (AITD-406).
+                    AppErrorCenter.shared.report("Save list settings", error)
                 }
             }
         }
@@ -1538,7 +1540,13 @@ struct TaskListView: View {
 
     private func handleListDelete(listId: String) {
         _Concurrency.Task {
-            try? await listService.deleteList(listId: listId)
+            do {
+                try await listService.deleteList(listId: listId)
+            } catch {
+                // Straight to the API, no Outbox row to retry it: a refused delete used to
+                // vanish, then the list reappeared at the next fetch unexplained (AITD-406).
+                AppErrorCenter.shared.report("Delete list", error)
+            }
             selectedListId = "my-tasks"  // Redirect to My Tasks instead of All Tasks
         }
         showingListSettings = false
