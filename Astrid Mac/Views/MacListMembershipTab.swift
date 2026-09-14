@@ -273,10 +273,10 @@ struct MacListMembershipTab: View {
         }
     }
 
+    /// The SHARED rule (AITD-399). The Mac's roster is `ListMemberService.membersByList`, which
+    /// iOS does not read — hence `roster:`.
     private func isAgentMember(_ agent: User) -> Bool {
-        guard let email = agent.email else { return false }
-        if currentList.owner?.email == email { return true }
-        return members.contains { $0.user?.email == email }
+        ListMembershipRoster.isMember(email: agent.email, of: currentList, roster: members)
     }
 
     // MARK: - Privacy
@@ -406,12 +406,12 @@ struct MacListMembershipTab: View {
         }
     }
 
+    /// Shared with iOS (AITD-399). The cache WRITE came with it: this side only ever read
+    /// `AIAgentCache`, so the offline fallback was empty unless the phone had filled it.
     private func loadAgents() async {
         loadingAgents = true
         defer { loadingAgents = false }
-        let users = (try? await RemoteResourceService.shared.searchUsersWithAIAgents(
-            query: "", taskId: nil, listIds: nil)) ?? AIAgentCache.shared.load() ?? []
-        availableAgents = users.filter { $0.isAIAgent == true }
+        availableAgents = await ListMembershipActions.availableAgents()
     }
 
     private func savePrivacy() {
@@ -428,7 +428,7 @@ struct MacListMembershipTab: View {
         let e = email.trimmingCharacters(in: .whitespaces)
         let role = inviteRole
         MacActions.perform("Invite \(e)") {
-            _ = try await svc.addMember(listId: list.id, email: e, role: role)
+            _ = try await ListMembershipActions.addMember(listId: list.id, email: e, role: role)
             email = ""
             try? await svc.fetchMembers(listId: list.id)
             _ = try? await ListService.shared.fetchLists()   // picks up the new invitation row
@@ -438,14 +438,14 @@ struct MacListMembershipTab: View {
     private func setRole(_ m: ListMember, _ role: String) {
         guard role != m.role else { return }
         MacActions.perform("Change role") {
-            try await svc.updateMemberRole(listId: list.id, userId: m.userId, role: role)
+            try await ListMembershipActions.changeRole(listId: list.id, userId: m.userId, to: role)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
     private func remove(_ m: ListMember) {
         MacActions.perform("Remove member") {
-            try await svc.removeMember(listId: list.id, userId: m.userId)
+            try await ListMembershipActions.removeMember(listId: list.id, userId: m.userId)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
@@ -453,32 +453,31 @@ struct MacListMembershipTab: View {
     /// An invitation is addressed by EMAIL on its own resource — it has no userId to remove.
     private func cancelInvite(_ invite: ListInvite) {
         MacActions.perform("Cancel invitation") {
-            try await svc.cancelInvitation(listId: list.id, invitationId: invite.id,
-                                           email: invite.email)
+            try await ListMembershipActions.cancelInvitation(listId: list.id, invitationId: invite.id,
+                                                            email: invite.email)
         }
     }
 
     private func setInviteRole(_ invite: ListInvite, _ role: String) {
         guard role != invite.role else { return }
         MacActions.perform("Change invitation role") {
-            try await svc.updateInvitationRole(listId: list.id, invitationId: invite.id,
-                                               email: invite.email, role: role)
+            try await ListMembershipActions.changeInvitationRole(listId: list.id, invitationId: invite.id,
+                                                                 email: invite.email, to: role)
         }
     }
 
     private func addAgent(_ agent: User) {
-        guard let agentEmail = agent.email else { return }
         MacActions.perform("Add \(agent.displayName)") {
-            _ = try await svc.addMember(listId: list.id, email: agentEmail, role: "member")
+            try await ListMembershipActions.addAgent(agent, toList: list.id)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
+    /// Resolving the agent's user id from its email is shared (AITD-399) — this used to be a
+    /// bare `guard ... else { return }`, so an agent that was not on the list failed silently.
     private func removeAgent(_ agent: User) {
-        guard let agentEmail = agent.email,
-              let member = members.first(where: { $0.user?.email == agentEmail }) else { return }
         MacActions.perform("Remove \(agent.displayName)") {
-            try await svc.removeMember(listId: list.id, userId: member.userId)
+            try await ListMembershipActions.removeAgent(agent, fromList: currentList, roster: members)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
@@ -503,7 +502,7 @@ struct MacListMembershipTab: View {
     private func transferOwnership() {
         guard !successorId.isEmpty else { return }
         MacActions.perform("Transfer list ownership") {
-            try await ListService.shared.transferOwnership(listId: list.id, to: successorId)
+            try await ListMembershipActions.transferOwnership(listId: list.id, to: successorId)
         }
     }
 }

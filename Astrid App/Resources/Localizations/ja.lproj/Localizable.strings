@@ -1375,3 +1375,9 @@
 "lists.transfer_ownership_select" = "新しい所有者を選択";
 "lists.transfer_ownership_none" = "このリストを渡せる相手がまだいません — まず誰かを招待してください。";
 "lists.transfer_ownership_confirm" = "「%@」はその人のものになり、あなたはリストから退出しました。この操作は取り消せません。";
+
+
+// Agent membership errors (AITD-399). Adding an agent needs its email; removing one
+// needs a user id resolved from that email — neither used to say anything when missing.
+"lists.agent_missing_email" = "このAIエージェントにはメールアドレスがないため、リストに追加できません。";
+"lists.agent_not_a_member" = "%@ はこのリストのメンバーではありません。";
