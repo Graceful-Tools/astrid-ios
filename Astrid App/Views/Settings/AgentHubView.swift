@@ -404,65 +404,11 @@ struct AgentHubView: View {
     }
 }
 
-// MARK: - GitHub App connection (account-level, server-run only)
-
-/// Only "Astrid runs it" needs this: server-run agents create branches and PRs through the
-/// GitHub App. The install/manage flow is web-only (`/api/github/*`), so this shows status and
-/// deep-links out rather than reimplementing it.
-struct GitHubConnectionSection: View {
-    @Environment(\.openURL) private var openURL
-    @State private var status: GitHubStatusResponse?
-    @State private var failed = false
-
-    var body: some View {
-        Section {
-            HStack {
-                Image(systemName: status?.isGitHubConnected == true ? "checkmark.seal.fill" : "seal")
-                    .foregroundStyle(status?.isGitHubConnected == true ? .green : .secondary)
-                if let status {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(NSLocalizedString(
-                            status.isGitHubConnected ? "settings.agents.github.connected" : "settings.agents.github.not_connected",
-                            comment: ""
-                        ))
-                        if status.isGitHubConnected {
-                            Text(String(format: NSLocalizedString("settings.agents.github.repositories", comment: ""), status.repositoryCount))
-                                .font(Theme.Typography.caption2())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } else if failed {
-                    Text(NSLocalizedString("settings.agents.github.not_connected", comment: ""))
-                } else {
-                    ProgressView().controlSize(.small)
-                }
-                Spacer()
-                if let url = AgentHubLinks.webAgentSettings(origin: Constants.API.baseURL) {
-                    Button(NSLocalizedString("settings.agents.github.manage", comment: "")) { openURL(url) }
-                        .font(Theme.Typography.caption1())
-                }
-            }
-        } header: {
-            Label(NSLocalizedString("settings.agents.github.title", comment: ""), systemImage: "chevron.left.forwardslash.chevron.right")
-        } footer: {
-            Text(String(format: NSLocalizedString("settings.agents.github.description", comment: ""), Brand.appName))
-        }
-        .task {
-            do {
-                status = try await RemoteResourceService.shared.getGitHubStatus()
-            } catch {
-                failed = true
-            }
-        }
-    }
-}
-
 // MARK: - Copilot cloud agent (GitHub.com) setup
 
 struct CopilotCloudAgentSetupView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var model = CopilotCloudAgentModel()
-    @State private var copiedField: String?
 
     var body: some View {
         Form {
@@ -479,12 +425,12 @@ struct CopilotCloudAgentSetupView: View {
                 Section(NSLocalizedString("settings.agents.copilot_cloud.token", comment: "")) {
                     Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.secret_step", comment: ""), model.secretName))
                         .font(Theme.Typography.caption1())
-                    CopyableCodeBlock(code: token, id: "token", copiedField: $copiedField)
+                    CopyableCodeBlock(code: token)
                 }
                 Section(NSLocalizedString("settings.agents.copilot_cloud.config", comment: "")) {
                     Text(NSLocalizedString("settings.agents.copilot_cloud.config_step", comment: ""))
                         .font(Theme.Typography.caption1())
-                    CopyableCodeBlock(code: model.config, id: "config", copiedField: $copiedField)
+                    CopyableCodeBlock(code: model.config)
                     Button {
                         openURL(AgentHubLinks.githubCopilotMCPDocs)
                     } label: {
@@ -520,61 +466,6 @@ struct CopilotCloudAgentSetupView: View {
     }
 }
 
-/// "Do this on the web" — for the writes the server only accepts from an interactive session.
-struct WebSessionRequiredRow: View {
-    @Environment(\.openURL) private var openURL
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing8) {
-            Text(NSLocalizedString("settings.agents.session_required", comment: ""))
-                .font(Theme.Typography.caption1())
-                .foregroundStyle(.orange)
-            if let url = AgentHubLinks.webAgentSettings(origin: Constants.API.baseURL) {
-                Button {
-                    openURL(url)
-                } label: {
-                    Label(NSLocalizedString("settings.agents.open_web", comment: ""), systemImage: "safari")
-                }
-            }
-        }
-    }
-}
-
-/// Monospaced, selectable code with a copy button and a two-second "Copied" acknowledgement.
-struct CopyableCodeBlock: View {
-    let code: String
-    let id: String
-    @Binding var copiedField: String?
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: Theme.spacing8) {
-            ScrollView(.horizontal, showsIndicators: true) {
-                Text(code)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Button {
-                PlatformPasteboard.copy(code)
-                copiedField = id
-                _Concurrency.Task {
-                    try? await _Concurrency.Task.sleep(for: .seconds(2))
-                    if copiedField == id { copiedField = nil }
-                }
-            } label: {
-                Label(
-                    NSLocalizedString(copiedField == id ? "settings.agents.copied" : "actions.copy", comment: ""),
-                    systemImage: copiedField == id ? "checkmark" : "doc.on.doc"
-                )
-            }
-            .font(Theme.Typography.caption2())
-            .buttonStyle(.borderless)
-        }
-        .padding(Theme.spacing8)
-        .background(Color.secondary.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
 
 #Preview {
     NavigationStack {

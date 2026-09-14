@@ -8,7 +8,6 @@ struct WebhookSettingsView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var model = WebhookSettingsModel()
     @State private var confirmRemove = false
-    @State private var copiedField: String?
 
     var body: some View {
         Form {
@@ -33,8 +32,8 @@ struct WebhookSettingsView: View {
                         Label(NSLocalizedString("settings.agents.webhook.secret_warning", comment: ""), systemImage: "exclamationmark.triangle.fill")
                             .font(Theme.Typography.caption1())
                             .foregroundStyle(.orange)
-                        CopyableCodeBlock(code: secret, id: "secret", copiedField: $copiedField)
-                        CopyableCodeBlock(code: "ASTRID_WEBHOOK_SECRET=\(secret)", id: "env", copiedField: $copiedField)
+                        CopyableCodeBlock(code: secret)
+                        CopyableCodeBlock(code: "ASTRID_WEBHOOK_SECRET=\(secret)")
                     } header: {
                         Text(NSLocalizedString("settings.agents.webhook.secret_title", comment: ""))
                     }
@@ -87,7 +86,7 @@ struct WebhookSettingsView: View {
                         get: { model.selectedAgents.contains(agent) },
                         set: { _ in model.toggleAgent(agent) }
                     )) {
-                        Text(Self.label(for: agent))
+                        Text(WebhookAgentLabel.label(for: agent))
                     }
                 }
                 if model.selectedAgents.isEmpty {
@@ -187,17 +186,6 @@ struct WebhookSettingsView: View {
                 }
                 .font(Theme.Typography.caption1())
             }
-        }
-    }
-
-    /// The same labels the web's agent chips use; the mailbox is the fallback.
-    static func label(for agent: String) -> String {
-        switch agent {
-        case "claude": return "Claude"
-        case "openai": return "OpenAI"
-        case "gemini": return "Gemini"
-        case "copilot": return "GitHub Copilot"
-        default: return agent
         }
     }
 }
