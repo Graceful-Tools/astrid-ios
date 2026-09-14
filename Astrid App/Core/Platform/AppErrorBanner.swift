@@ -1,8 +1,8 @@
 //  AppErrorBanner.swift
 //  Astrid — the transient error banner driven by `AppErrorCenter` (task 8a5f3066, AITD-400).
 //
-//  Shared so adopting it is a one-line change rather than a second implementation. Only the Mac
-//  window currently places it; see AppActions.swift for why iOS is not wired up yet.
+//  Shared so adopting it is a one-line change rather than a second implementation. Both roots
+//  place it now: `MacAuthGateView` and `AstridApp` (AITD-406).
 
 import SwiftUI
 

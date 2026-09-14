@@ -6,14 +6,17 @@
 //  task/list/member/comment/chat write vanished silently while the input or sheet cleared anyway,
 //  leaving the user sure it had saved.
 //
-//  Promoted here (AITD-400) because that guarantee is not a Mac idea. iOS has no global error
-//  surface today, so the only way for it to adopt the same rule was to write a second copy of
+//  Promoted here (AITD-400) because that guarantee is not a Mac idea. iOS had no global error
+//  surface then, so the only way for it to adopt the same rule was to write a second copy of
 //  this — which is the drift this file now prevents rather than creates. Nothing about the Mac's
 //  behaviour changed in the move: same banner, same auto-dismiss, same verb-to-copy mapping.
 //
-//  iOS is NOT wired to the banner yet. Whether it should grow a transient global banner, and
-//  which of its currently-silent catches should start speaking, is a product decision — several
-//  of those silences are deliberate and commented as such.
+//  iOS is wired to the banner as of AITD-406, but to FAR fewer call sites than the Mac, and the
+//  asymmetry is deliberate. Most iOS writes go through the Outbox: they write optimistically,
+//  enqueue, and drain on reconnect, so a network failure is a queued row rather than an error.
+//  Reporting those would tell someone editing offline that their edit was lost when it was not.
+//  Only the writes with no Outbox behind them — list and member writes, which hit the API
+//  directly — reach this banner on iOS. `IOSSilentWriteGuardTests` pins both halves of that.
 
 import Foundation
 import Combine

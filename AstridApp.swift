@@ -269,6 +269,10 @@ struct AstridApp: App {
                     .environmentObject(authManager)
             }
         }
+        // App-wide write-failure surface, as MacAuthGateView has had since task 8a5f3066.
+        // Only writes with no Outbox behind them reach it — see IOSSilentWriteGuardTests
+        // for why the Outbox-backed ones deliberately stay quiet (AITD-406).
+        .overlay { AppErrorBanner() }
         .onOpenURL { url in
             DeepLinkManager.shared.handleURL(url)
         }
