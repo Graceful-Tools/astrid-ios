@@ -70,9 +70,15 @@ struct MacAgentHubView: View {
         }
         .formStyle(.grouped).macThemedSurface()
         .task { await model.load() }
-        .sheet(isPresented: $showWebhook) { MacWebhookSettingsView() }
-        .sheet(isPresented: $showCustomAgents) { MacCustomAgentsView() }
-        .sheet(isPresented: $showCopilotCloud) { MacCopilotCloudAgentView() }
+        .sheet(isPresented: $showWebhook) {
+            MacAgentHubSheet(title: WebhookSettingsScreen.title) { WebhookSettingsScreen() }
+        }
+        .sheet(isPresented: $showCustomAgents) {
+            MacAgentHubSheet(title: CustomAgentsScreen.title, height: 520) { CustomAgentsScreen() }
+        }
+        .sheet(isPresented: $showCopilotCloud) {
+            MacAgentHubSheet(title: CopilotCloudAgentScreen.title, height: 480) { CopilotCloudAgentScreen() }
+        }
         // OAuth completes in the browser; re-poll on focus so a new Copilot grant shows up.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             guard !model.isLoading else { return }
@@ -305,274 +311,32 @@ struct MacAssistantModelSection: View {
     }
 }
 
-// MARK: - Webhook transport sheet
+// MARK: - One sheet chrome for every hub sub-screen (AITD-405)
 
-struct MacWebhookSettingsView: View {
+/// The Mac presents the hub's sub-screens as sheets while iOS pushes them, so the Mac supplies a
+/// header row, a `Done` button on ⏎ and a fixed size. That chrome used to be copy-pasted into each
+/// of `MacWebhookSettingsView`, `MacCustomAgentsView` and `MacCopilotCloudAgentView`, which is what
+/// made them twins of the iOS screens in the first place: the chrome was the only part that
+/// differed, and it was written three times. Now it is written once, and the body inside it is the
+/// shared screen from `Core/Platform/AgentHubScreens.swift`.
+struct MacAgentHubSheet<Content: View>: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var model = WebhookSettingsModel()
-    @State private var confirmRemove = false
+
+    let title: String
+    var height: CGFloat = 560
+    @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(NSLocalizedString("settings.agents.transport.webhook", comment: "")).font(.headline)
+                Text(title).font(.headline)
                 Spacer()
                 Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
-            Form {
-                if let errorMessage = model.errorMessage {
-                    Section {
-                        Text(errorMessage).font(.caption).foregroundStyle(Theme.error)
-                        if model.requiresWebSession { WebSessionRequiredRow() }
-                    }
-                }
-                if let secret = model.newSecret {
-                    Section(NSLocalizedString("settings.agents.webhook.secret_title", comment: "")) {
-                        Text(NSLocalizedString("settings.agents.webhook.secret_warning", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.warning)
-                        CopyableCodeBlock(code: secret)
-                    }
-                }
-                Section {
-                    TextField(NSLocalizedString("settings.agents.webhook.url", comment: ""), text: $model.webhookUrl,
-                              prompt: Text(verbatim: "https://your-server.com/webhook"))
-                        .textFieldStyle(.roundedBorder)
-                    Toggle(NSLocalizedString("settings.agents.webhook.enabled", comment: ""), isOn: $model.enabled)
-                    Text(NSLocalizedString("settings.agents.webhook.agents", comment: ""))
-                    ForEach(model.availableAgents, id: \.self) { agent in
-                        Toggle(WebhookAgentLabel.label(for: agent), isOn: Binding(
-                            get: { model.selectedAgents.contains(agent) },
-                            set: { _ in model.toggleAgent(agent) }
-                        ))
-                    }
-                    if model.selectedAgents.isEmpty {
-                        Text(NSLocalizedString("settings.agents.webhook.no_agents", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.warning)
-                    }
-                    if model.settings.configured, model.settings.hasSecret == true {
-                        Toggle(NSLocalizedString("settings.agents.webhook.regenerate", comment: ""), isOn: $model.regenerateSecret)
-                    }
-                    HStack {
-                        Button(NSLocalizedString(
-                            model.settings.configured ? "settings.agents.webhook.update" : "settings.agents.webhook.save",
-                            comment: ""
-                        )) { _Concurrency.Task { await model.save() } }
-                        .disabled(!model.canSave)
-                        if model.settings.configured {
-                            Button(NSLocalizedString("settings.agents.webhook.remove", comment: ""), role: .destructive) { confirmRemove = true }
-                                .disabled(model.isSaving)
-                            Button(NSLocalizedString("settings.agents.webhook.test", comment: "")) { _Concurrency.Task { await model.test() } }
-                                .disabled(model.isTesting || model.settings.enabled != true)
-                        }
-                        if model.isSaving || model.isTesting { ProgressView().controlSize(.small) }
-                    }
-                    Text(String(format: NSLocalizedString("settings.agents.webhook.url_hint", comment: ""), Brand.appName))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
-                }
-                if model.settings.configured {
-                    Section(NSLocalizedString("settings.agents.webhook.status", comment: "")) {
-                        let failures = model.settings.failureCount ?? 0
-                        LabeledContent(NSLocalizedString("settings.agents.webhook.status", comment: ""),
-                                       value: NSLocalizedString(model.settings.enabled == true ? "settings.agents.webhook.active" : "settings.agents.webhook.disabled", comment: ""))
-                        LabeledContent(NSLocalizedString("settings.agents.webhook.no_failures", comment: ""),
-                                       value: failures > 0 ? String(format: NSLocalizedString("settings.agents.webhook.failures", comment: ""), failures) : "✓")
-                        if let lastFired = model.settings.lastFiredAt {
-                            Text(String(format: NSLocalizedString("settings.agents.webhook.last_fired", comment: ""), lastFired))
-                                .font(.caption).foregroundStyle(Theme.textMuted)
-                        }
-                        if let result = model.testResult {
-                            Text(result.message ?? result.error ?? "")
-                                .font(.caption).foregroundStyle(result.success ? Theme.success : Theme.error)
-                        }
-                    }
-                }
-            }
-            .formStyle(.grouped).macThemedSurface()
+            content()
         }
-        .frame(width: 520, height: 560)
-        .task { await model.load() }
-        .confirmationDialog(NSLocalizedString("settings.agents.webhook.remove_confirm", comment: ""), isPresented: $confirmRemove) {
-            Button(NSLocalizedString("settings.agents.webhook.remove", comment: ""), role: .destructive) {
-                _Concurrency.Task { await model.delete() }
-            }
-        }
-    }
-}
-
-// MARK: - Custom Agents sheet
-
-struct MacCustomAgentsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var model = CustomAgentsModel()
-    @State private var newAgentName = ""
-    @State private var agentToDelete: CustomAgent?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(NSLocalizedString("settings.agents.custom.title", comment: "")).font(.headline)
-                Spacer()
-                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
-            }
-            .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
-            Form {
-                Section {
-                    Text(NSLocalizedString("settings.openclaw.description", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
-                    if let message = model.errorMessage { Text(message).font(.caption).foregroundStyle(Theme.error) }
-                    if let message = model.successMessage { Text(message).font(.caption).foregroundStyle(Theme.success) }
-                }
-                Section(NSLocalizedString("settings.openclaw.section", comment: "")) {
-                    if model.isLoading {
-                        ProgressView().controlSize(.small)
-                    } else if model.agents.isEmpty {
-                        Text(NSLocalizedString("settings.openclaw.no_agents", comment: "")).foregroundStyle(Theme.textMuted)
-                    }
-                    ForEach(model.agents) { agent in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(agent.email).font(.system(.body, design: .monospaced))
-                                Text(agent.status == "active"
-                                     ? NSLocalizedString("settings.openclaw.status.active", comment: "")
-                                     : NSLocalizedString("settings.openclaw.status.idle", comment: ""))
-                                    .font(.caption).foregroundStyle(Theme.textMuted)
-                            }
-                            Spacer()
-                            if model.deletingId == agent.id || model.updatingPhotoId == agent.id {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Button(NSLocalizedString("mac.change_photo", comment: "")) { pickPhoto(for: agent) }
-                                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { agentToDelete = agent }
-                            }
-                        }
-                    }
-                }
-                Section(NSLocalizedString("settings.openclaw.register_title", comment: "")) {
-                    HStack {
-                        TextField(NSLocalizedString("settings.openclaw.agent_name_placeholder", comment: ""), text: $newAgentName)
-                            .textFieldStyle(.roundedBorder)
-                            .onChange(of: newAgentName) { newAgentName = newAgentName.lowercased() }
-                        Button(NSLocalizedString("settings.openclaw.create_agent", comment: "")) {
-                            _Concurrency.Task {
-                                if await model.register(name: newAgentName) { newAgentName = "" }
-                            }
-                        }
-                        .disabled(!CustomAgentNaming.isValid(newAgentName) || model.isRegistering)
-                        if model.isRegistering { ProgressView().controlSize(.small) }
-                    }
-                    if !newAgentName.isEmpty && !CustomAgentNaming.isValid(newAgentName) {
-                        Text(NSLocalizedString(
-                            CustomAgentNaming.isReserved(newAgentName) ? "settings.openclaw.agent_name_reserved" : "settings.openclaw.agent_name_invalid",
-                            comment: ""
-                        )).font(.caption).foregroundStyle(Theme.error)
-                    }
-                    if let message = model.registerErrorMessage { Text(message).font(.caption).foregroundStyle(Theme.error) }
-                    Text(NSLocalizedString("settings.openclaw.agent_name_hint", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
-                }
-                if let result = model.registrationResult {
-                    Section(NSLocalizedString("settings.openclaw.credentials_title", comment: "")) {
-                        Text(NSLocalizedString("settings.openclaw.credentials_warning", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.warning)
-                        CopyableCodeBlock(code: MacCustomAgentCredentials.text(result))
-                        Button(NSLocalizedString("actions.done", comment: "")) { model.registrationResult = nil }
-                    }
-                }
-            }
-            .formStyle(.grouped).macThemedSurface()
-        }
-        .frame(width: 520, height: 520)
-        .task { await model.load() }
-        .confirmationDialog(
-            NSLocalizedString("settings.openclaw.delete_agent", comment: ""),
-            isPresented: Binding(get: { agentToDelete != nil }, set: { if !$0 { agentToDelete = nil } }),
-            presenting: agentToDelete
-        ) { agent in
-            Button(NSLocalizedString("settings.openclaw.delete_agent", comment: ""), role: .destructive) {
-                _Concurrency.Task { await model.delete(agent) }
-            }
-        } message: { agent in
-            Text(String(format: NSLocalizedString("settings.openclaw.delete_confirm", comment: ""), agent.email))
-        }
-    }
-
-    private func pickPhoto(for agent: CustomAgent) {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.image]
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url,
-              let image = NSImage(contentsOf: url),
-              let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) else { return }
-        _Concurrency.Task { await model.updatePhoto(agent, imageData: jpeg) }
-    }
-}
-
-/// The one-time credentials as a single copyable block.
-enum MacCustomAgentCredentials {
-    static func text(_ result: CustomAgentRegistrationResult) -> String {
-        """
-        \(NSLocalizedString("settings.openclaw.credential.email", comment: "")): \(result.agent.email)
-        \(NSLocalizedString("settings.openclaw.credential.client_id", comment: "")): \(result.oauth.clientId)
-        \(NSLocalizedString("settings.openclaw.credential.client_secret", comment: "")): \(result.oauth.clientSecret)
-        \(NSLocalizedString("settings.openclaw.credential.token_endpoint", comment: "")): \(result.config.tokenEndpoint)
-        \(NSLocalizedString("settings.openclaw.credential.api_base", comment: "")): \(result.config.apiBase)
-        \(NSLocalizedString("settings.openclaw.credential.sse_endpoint", comment: "")): \(result.config.sseEndpoint)
-        """
-    }
-}
-
-// MARK: - Copilot cloud agent (GitHub.com) sheet
-
-struct MacCopilotCloudAgentView: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var model = CopilotCloudAgentModel()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(NSLocalizedString("settings.agents.copilot_cloud.title", comment: "")).font(.headline)
-                Spacer()
-                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
-            }
-            .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 8)
-            Form {
-                Section {
-                    Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.description", comment: ""), Brand.appName))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
-                    Text(NSLocalizedString("settings.agents.copilot_cloud.oauth_warning", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.warning)
-                }
-                if let token = model.token {
-                    Section(NSLocalizedString("settings.agents.copilot_cloud.token", comment: "")) {
-                        Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.secret_step", comment: ""), model.secretName)).font(.caption)
-                        CopyableCodeBlock(code: token)
-                    }
-                    Section(NSLocalizedString("settings.agents.copilot_cloud.config", comment: "")) {
-                        Text(NSLocalizedString("settings.agents.copilot_cloud.config_step", comment: "")).font(.caption)
-                        CopyableCodeBlock(code: model.config)
-                        Button(NSLocalizedString("settings.agents.copilot_cloud.open_docs", comment: "")) {
-                            PlatformApplication.open(AgentHubLinks.githubCopilotMCPDocs)
-                        }
-                    }
-                } else {
-                    Section {
-                        if let message = model.errorMessage { Text(message).font(.caption).foregroundStyle(Theme.error) }
-                        if model.requiresWebSession { WebSessionRequiredRow() }
-                        HStack {
-                            Button(NSLocalizedString("settings.agents.copilot_cloud.create", comment: "")) {
-                                _Concurrency.Task { await model.createToken() }
-                            }.disabled(model.isCreating)
-                            if model.isCreating { ProgressView().controlSize(.small) }
-                        }
-                    }
-                }
-            }
-            .formStyle(.grouped).macThemedSurface()
-        }
-        .frame(width: 520, height: 480)
+        .frame(width: 520, height: height)
     }
 }
 

@@ -358,9 +358,72 @@ final class AgentHubTests: XCTestCase {
                       "struct GitHubConnectionSection"] {
             XCTAssertFalse(iosHub.contains(moved), "\(moved) moved to Core/Platform/AgentHubRows.swift")
         }
-        XCTAssertFalse(try source("Astrid App/Views/Settings/WebhookSettingsView.swift")
+        XCTAssertFalse(try source("Astrid App/Core/Platform/AgentHubScreens.swift")
                         .contains("static func label(for agent: String)"),
                        "the agent-label map lives in WebhookAgentLabel now")
+    }
+
+    // MARK: - AITD-405: the three Agent Hub sub-SCREENS are written once, from the iOS layout
+
+    /// AITD-398 shared the four Agent Hub ROWS. The three sub-screens above them stayed twinned —
+    /// `WebhookSettingsView`/`MacWebhookSettingsView`, `CustomAgentsSettingsView`/`MacCustomAgentsView`,
+    /// `CopilotCloudAgentSetupView`/`MacCopilotCloudAgentView` — because each lived on a file the
+    /// other target excludes. Jon's call (2026-09-14): share the iOS layout, keep the Mac's sheet
+    /// chrome. So the bodies move to `Core/Platform/`, which both targets compile.
+    func testAITD405_TheSubScreensLiveWhereBothTargetsCompileThem() throws {
+        let shared = "Astrid App/Core/Platform/AgentHubScreens.swift"
+        let screens = try source(shared)
+        for type in ["struct WebhookSettingsScreen", "struct CustomAgentsScreen",
+                     "struct CopilotCloudAgentScreen"] {
+            XCTAssertTrue(screens.contains(type), "\(type) should live in \(shared)")
+        }
+
+        // Same trap as AgentHubRows: membership is by synchronized group, so the Mac target
+        // compiles everything under "Astrid App" that is NOT an exception. Listing this file
+        // would take the screens straight back off the Mac.
+        let project = try source("Astrid App.xcodeproj/project.pbxproj")
+        XCTAssertFalse(project.contains("Core/Platform/AgentHubScreens.swift,"),
+                       "AgentHubScreens.swift must stay OFF the Mac exception list")
+    }
+
+    /// The twins are gone on BOTH sides, not merely unused: the iOS files that held them are
+    /// deleted, and no `Mac`-prefixed copy remains in the Mac hub.
+    func testAITD405_NoTwinOfAnySubScreenRemains() throws {
+        let macHub = try source("Astrid Mac/Views/MacAgentHubView.swift")
+        for twin in ["struct MacWebhookSettingsView", "struct MacCustomAgentsView",
+                     "struct MacCopilotCloudAgentView", "enum MacCustomAgentCredentials"] {
+            XCTAssertFalse(macHub.contains(twin), "\(twin) duplicates a shared screen in AgentHubScreens.swift")
+        }
+
+        let root = RepositoryLocator.root
+        for gone in ["Astrid App/Views/Settings/WebhookSettingsView.swift",
+                     "Astrid App/Views/Settings/CustomAgentsSettingsView.swift"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(gone).path),
+                           "\(gone) moved to Core/Platform/AgentHubScreens.swift")
+        }
+        XCTAssertFalse(try source("Astrid App/Views/Settings/AgentHubView.swift")
+                        .contains("struct CopilotCloudAgentSetupView"),
+                       "CopilotCloudAgentSetupView moved to Core/Platform/AgentHubScreens.swift")
+    }
+
+    /// The Mac sheet chrome — header, Done on ⏎, fixed frame — is written ONCE, wrapping whichever
+    /// shared screen is being shown. Three copies of that chrome is what the twins really were.
+    func testAITD405_TheMacSheetChromeIsWrittenOnce() throws {
+        let macHub = try source("Astrid Mac/Views/MacAgentHubView.swift")
+        XCTAssertTrue(macHub.contains("struct MacAgentHubSheet"), "one sheet container, not one per screen")
+        for screen in ["WebhookSettingsScreen()", "CustomAgentsScreen()", "CopilotCloudAgentScreen()"] {
+            XCTAssertTrue(macHub.contains(screen), "the Mac hub should present the shared \(screen)")
+        }
+    }
+
+    /// The shared Custom Agents screen shows the agent artwork. The iOS asset catalog is itself on
+    /// the Mac exception list, so without its own copy the Mac renders a blank avatar — the same
+    /// reason `ai-copilot` already sits in the Mac catalog.
+    func testAITD405_TheMacCatalogCarriesTheAgentArtworkTheSharedScreenUses() throws {
+        let macAsset = RepositoryLocator.root
+            .appendingPathComponent("Astrid Mac/Assets.xcassets/ai-openclaw.imageset/Contents.json")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: macAsset.path),
+                      "CustomAgentsScreen draws Image(\"ai-openclaw\"); the Mac catalog needs it too")
     }
 }
 
