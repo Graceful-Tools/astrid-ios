@@ -108,4 +108,60 @@ final class AssigneeOptionsTests: XCTestCase {
             taskListIds: ["a", "b"], aiAgents: [], currentUser: me)
         XCTAssertEqual(options.filter { $0.id == "dana" }.count, 1)
     }
+
+    // MARK: - AITD-401: the order is a contract with the web, not a preference
+
+    /// astrid-web `components/priority-assignee-picker.tsx` says it outright:
+    /// "Sort users: AI agents first, then current user, then alphabetically".
+    /// This is the whole rule in one assertion, so a change here is a change to three platforms.
+    func testAITD401_TheOrderIsAgentsThenYouThenEveryoneAlphabetically() {
+        let me = user("me", "Zoe")
+        let options = AssigneeOptions.build(
+            roster: [user("u-adam", "Adam"), me, user("u-bea", "Bea")],
+            aiAgents: [user("agent-codex", "Codex", agent: true),
+                       user("agent-claude", "Claude", agent: true)],
+            currentUser: me)
+
+        XCTAssertEqual(options.map(\.id),
+                       ["agent-claude", "agent-codex", "me", "u-adam", "u-bea"],
+                       "AITD-401: agents (alphabetical) → you → everyone else (alphabetical)")
+    }
+
+    /// Two people with the same display name must not swap places between launches — the option
+    /// list is built from a dictionary, whose iteration order is not stable.
+    func testAITD401_TheOrderIsStableWhenTwoPeopleShareAName() {
+        let options = AssigneeOptions.build(
+            roster: [user("u-zzz", "Sam"), user("u-aaa", "Sam")],
+            aiAgents: [], currentUser: nil)
+        XCTAssertEqual(options.map(\.id), ["u-aaa", "u-zzz"], "id breaks the tie")
+    }
+
+    /// The same person can arrive twice — a member row the server never hydrated, and the same
+    /// id again with a real name. Taking whichever came last would put a bare id where a name
+    /// belongs.
+    func testAITD401_AHydratedRecordBeatsABareOneWhicheverArrivesFirst() {
+        let bare = User(id: "u1", email: nil, name: nil, image: nil)
+        let full = user("u1", "Henry Tsai")
+
+        for roster in [[bare, full], [full, bare]] {
+            let options = AssigneeOptions.build(roster: roster, aiAgents: [], currentUser: nil)
+            XCTAssertEqual(options.count, 1)
+            XCTAssertEqual(options.first?.name, "Henry Tsai",
+                           "AITD-401: the record with a name wins regardless of arrival order")
+        }
+    }
+
+    /// The list-deriving overload must produce exactly what the core does — it is a convenience
+    /// over the same rule, not a second rule.
+    func testAITD401_TheListOverloadAgreesWithTheCore() {
+        let me = user("me", "Zoe")
+        let adam = user("u-adam", "Adam")
+        let agent = user("agent-claude", "Claude", agent: true)
+        let l = list("l1", owner: adam, members: [me])
+
+        let viaLists = AssigneeOptions.build(availableLists: [l], taskListIds: ["l1"],
+                                             aiAgents: [agent], currentUser: me)
+        let viaCore = AssigneeOptions.build(roster: [adam, me], aiAgents: [agent], currentUser: me)
+        XCTAssertEqual(viaLists.map(\.id), viaCore.map(\.id))
+    }
 }
