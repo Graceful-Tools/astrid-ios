@@ -297,7 +297,7 @@ struct AIAPIKeyManagerView: View {
                                         showKeyInput = false
                                         apiKeyInput = ""
                                     }) {
-                                        Text("Cancel")
+                                        Text(NSLocalizedString("actions.cancel", comment: ""))
                                             .font(Theme.Typography.caption1())
                                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                                     }

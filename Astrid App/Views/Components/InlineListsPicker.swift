@@ -94,7 +94,7 @@ struct InlineListsPicker: View {
 
                     // Actions
                     HStack(spacing: Theme.spacing12) {
-                        Button("Cancel") {
+                        Button(NSLocalizedString("actions.cancel", comment: "")) {
                             wasCancelled = true
                             isEditing = false
                         }

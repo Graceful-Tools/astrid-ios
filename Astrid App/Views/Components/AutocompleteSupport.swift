@@ -299,7 +299,7 @@ struct AutocompletePopupView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                                 if item.type == .task && item.completed {
-                                    Text("Done")
+                                    Text(NSLocalizedString("tasks.completed", comment: ""))
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(.green)
                                 }

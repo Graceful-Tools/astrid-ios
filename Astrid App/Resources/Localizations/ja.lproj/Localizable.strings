@@ -1381,3 +1381,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "このAIエージェントにはメールアドレスがないため、リストに追加できません。";
 "lists.agent_not_a_member" = "%@ はこのリストのメンバーではありません。";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "名前";
+"filters.active_filters" = "適用中のフィルタ";
+"filters.sort_completed_first" = "完了したものを先に";
+"filters.sort_incomplete_first" = "未完了のものを先に";
+"filters.save_failed" = "保存できませんでした: %@";
+"share.link_failed" = "共有リンクを作成できませんでした。もう一度お試しください。";

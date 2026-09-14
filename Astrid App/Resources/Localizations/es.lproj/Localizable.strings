@@ -1397,3 +1397,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "Ese agente de IA no tiene dirección de correo, así que no se puede añadir a una lista.";
 "lists.agent_not_a_member" = "%@ no está en esta lista.";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "Nombre";
+"filters.active_filters" = "Filtros activos";
+"filters.sort_completed_first" = "Completadas primero";
+"filters.sort_incomplete_first" = "Sin completar primero";
+"filters.save_failed" = "No se pudo guardar: %@";
+"share.link_failed" = "No se pudo generar el enlace para compartir. Inténtalo de nuevo.";

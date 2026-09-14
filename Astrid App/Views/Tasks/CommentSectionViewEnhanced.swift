@@ -440,7 +440,7 @@ struct CommentSectionViewEnhanced: View {
 
                         Spacer()
 
-                        Button("Cancel") {
+                        Button(NSLocalizedString("actions.cancel", comment: "")) {
                             self.replyingTo = nil
                         }
                         .font(Theme.Typography.caption1())
@@ -1492,8 +1492,8 @@ struct CommentRowViewEnhanced: View {
                 }
             }
             .alert(NSLocalizedString("comments.delete_comment", comment: "Delete Comment"), isPresented: $showingDeleteAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
                     _Concurrency.Task {
                         do {
                             onDelete()

@@ -33,7 +33,7 @@ struct ListAgentSettingsView: View {
                 }
                 .listRowBackground(Color.clear)
             } else {
-                Section(footer: Text("When set, this agent will automatically respond to messages in this list's chat.")) {
+                Section(footer: Text(NSLocalizedString("settings.list_agent.footer", comment: ""))) {
                     // Use default option
                     Button {
                         useDefault = true
@@ -42,10 +42,10 @@ struct ListAgentSettingsView: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text("Use Default Agent")
+                                Text(NSLocalizedString("settings.list_agent.use_default", comment: ""))
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Text("Uses your global default agent setting")
+                                Text(NSLocalizedString("settings.list_agent.use_default_description", comment: ""))
                                     .font(Theme.Typography.caption2())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
@@ -65,10 +65,10 @@ struct ListAgentSettingsView: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text("No Agent")
+                                Text(NSLocalizedString("settings.list_agent.no_agent", comment: ""))
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                Text("Disable automatic agent responses for this list")
+                                Text(NSLocalizedString("settings.list_agent.no_agent_description", comment: ""))
                                     .font(Theme.Typography.caption2())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
@@ -83,7 +83,7 @@ struct ListAgentSettingsView: View {
 
                 // Specific agent options
                 if !agents.isEmpty {
-                    Section(header: Text("Choose Agent")) {
+                    Section(header: Text(NSLocalizedString("settings.list_agent.choose", comment: ""))) {
                         ForEach(agents) { agent in
                             Button {
                                 useDefault = false
@@ -130,7 +130,7 @@ struct ListAgentSettingsView: View {
                 }
             }
         }
-        .navigationTitle("List AI Agent")
+        .navigationTitle(NSLocalizedString("settings.list_agent.title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadData() }
     }

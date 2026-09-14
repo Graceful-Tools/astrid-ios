@@ -187,7 +187,7 @@ struct InlineRepeatPicker: View {
                     }
 
                     // Cancel button to dismiss without changes
-                    Button("Cancel") {
+                    Button(NSLocalizedString("actions.cancel", comment: "")) {
                         wasCancelled = true
                         isEditing = false
                     }

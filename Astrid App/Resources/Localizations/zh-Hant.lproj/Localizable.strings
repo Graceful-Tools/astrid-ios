@@ -1383,3 +1383,13 @@
 // needs a user id resolved from that email — neither used to say anything when missing.
 "lists.agent_missing_email" = "該 AI 代理沒有電子郵件地址，因此無法加入清單。";
 "lists.agent_not_a_member" = "%@ 不在此清單中。";
+
+
+// AITD-403 — copy that was hardcoded English in SaveFilterDialog and ShareTargetView.
+// Everything else those screens say now reuses the existing filters.* / time.* keys.
+"filters.name" = "名稱";
+"filters.active_filters" = "已啟用的篩選條件";
+"filters.sort_completed_first" = "已完成的優先";
+"filters.sort_incomplete_first" = "未完成的優先";
+"filters.save_failed" = "儲存失敗：%@";
+"share.link_failed" = "無法產生分享連結，請重試。";
