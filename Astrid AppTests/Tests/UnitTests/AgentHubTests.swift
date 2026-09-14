@@ -311,6 +311,57 @@ final class AgentHubTests: XCTestCase {
         let missing = files.filter { !project.contains("Views/Settings/\($0),") }
         XCTAssertEqual(missing, [], "add these to the \"Astrid Mac\" exceptions in project.pbxproj")
     }
+
+    // MARK: - AITD-398: the rows both platforms show live in ONE file
+
+    /// The label a webhook shows for each agent mailbox is a cross-platform contract — the web's
+    /// agent chips use these exact strings. It was written twice (iOS `WebhookSettingsView`, Mac
+    /// `MacWebhookAgentLabel`) because each view is on the other target's exception list, so the
+    /// two copies could drift without either build noticing.
+    func testAITD398_AgentLabelsComeFromOneSharedMap() {
+        XCTAssertEqual(WebhookAgentLabel.label(for: "claude"), "Claude")
+        XCTAssertEqual(WebhookAgentLabel.label(for: "openai"), "OpenAI")
+        XCTAssertEqual(WebhookAgentLabel.label(for: "gemini"), "Gemini")
+        XCTAssertEqual(WebhookAgentLabel.label(for: "copilot"), "GitHub Copilot")
+        // An agent the app has not been taught falls back to its mailbox rather than blank.
+        XCTAssertEqual(WebhookAgentLabel.label(for: "openclaw"), "openclaw")
+    }
+
+    /// The shared rows must sit somewhere BOTH targets compile. `Views/Settings/AgentHubView.swift`
+    /// and `Astrid Mac/Views/MacAgentHubView.swift` are each excluded from the other's target, so a
+    /// row left in either one can only be shared by copying it — which is how four twins appeared.
+    func testAITD398_SharedAgentHubRowsAreCompiledByBothTargets() throws {
+        let shared = "Astrid App/Core/Platform/AgentHubRows.swift"
+        let rows = try source(shared)
+        for type in ["struct WebSessionRequiredRow", "struct CopyableCodeBlock",
+                     "struct GitHubConnectionSection", "enum WebhookAgentLabel"] {
+            XCTAssertTrue(rows.contains(type), "\(type) should live in \(shared)")
+        }
+
+        // Membership is by synchronized group: the Mac target compiles everything under
+        // "Astrid App" that is NOT listed as an exception. Listing this file would re-break it.
+        let project = try source("Astrid App.xcodeproj/project.pbxproj")
+        XCTAssertFalse(project.contains("Core/Platform/AgentHubRows.swift,"),
+                       "AgentHubRows.swift must stay OFF the Mac exception list or the Mac loses these rows")
+    }
+
+    /// The Mac twins are gone, not merely unused. A re-added `Mac`-prefixed copy is the exact
+    /// regression this task removed.
+    func testAITD398_NoMacTwinsOfTheSharedRowsRemain() throws {
+        let macHub = try source("Astrid Mac/Views/MacAgentHubView.swift")
+        for twin in ["struct MacWebSessionRequiredRow", "struct MacCopyableCode",
+                     "struct MacGitHubConnectionSection", "enum MacWebhookAgentLabel"] {
+            XCTAssertFalse(macHub.contains(twin), "\(twin) duplicates a shared row in AgentHubRows.swift")
+        }
+        let iosHub = try source("Astrid App/Views/Settings/AgentHubView.swift")
+        for moved in ["struct WebSessionRequiredRow", "struct CopyableCodeBlock",
+                      "struct GitHubConnectionSection"] {
+            XCTAssertFalse(iosHub.contains(moved), "\(moved) moved to Core/Platform/AgentHubRows.swift")
+        }
+        XCTAssertFalse(try source("Astrid App/Views/Settings/WebhookSettingsView.swift")
+                        .contains("static func label(for agent: String)"),
+                       "the agent-label map lives in WebhookAgentLabel now")
+    }
 }
 
 // MARK: - Fake service

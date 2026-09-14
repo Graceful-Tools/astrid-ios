@@ -65,7 +65,7 @@ struct MacAgentHubView: View {
                 }
 
                 MacAssistantModelSection()
-                MacGitHubConnectionSection()
+                GitHubConnectionSection()
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -305,44 +305,6 @@ struct MacAssistantModelSection: View {
     }
 }
 
-// MARK: - GitHub App connection (server-run only, managed on the web)
-
-struct MacGitHubConnectionSection: View {
-    @State private var status: GitHubStatusResponse?
-    @State private var failed = false
-
-    var body: some View {
-        Section(NSLocalizedString("settings.agents.github.title", comment: "")) {
-            Text(String(format: NSLocalizedString("settings.agents.github.description", comment: ""), Brand.appName))
-                .font(.caption).foregroundStyle(Theme.textMuted)
-            HStack {
-                Circle().fill(status?.isGitHubConnected == true ? Theme.success : Theme.textMuted).frame(width: 8, height: 8)
-                if let status {
-                    Text(NSLocalizedString(
-                        status.isGitHubConnected ? "settings.agents.github.connected" : "settings.agents.github.not_connected",
-                        comment: ""
-                    )).foregroundStyle(Theme.textPrimary)
-                    if status.isGitHubConnected {
-                        Text(String(format: NSLocalizedString("settings.agents.github.repositories", comment: ""), status.repositoryCount))
-                            .font(.caption).foregroundStyle(Theme.textMuted)
-                    }
-                } else if failed {
-                    Text(NSLocalizedString("settings.agents.github.not_connected", comment: "")).foregroundStyle(Theme.textPrimary)
-                } else {
-                    ProgressView().controlSize(.small)
-                }
-                Spacer()
-                if let url = AgentHubLinks.webAgentSettings(origin: Constants.API.baseURL) {
-                    Button(NSLocalizedString("settings.agents.github.manage", comment: "")) { PlatformApplication.open(url) }
-                }
-            }
-        }
-        .task {
-            do { status = try await RemoteResourceService.shared.getGitHubStatus() } catch { failed = true }
-        }
-    }
-}
-
 // MARK: - Webhook transport sheet
 
 struct MacWebhookSettingsView: View {
@@ -362,14 +324,14 @@ struct MacWebhookSettingsView: View {
                 if let errorMessage = model.errorMessage {
                     Section {
                         Text(errorMessage).font(.caption).foregroundStyle(Theme.error)
-                        if model.requiresWebSession { MacWebSessionRequiredRow() }
+                        if model.requiresWebSession { WebSessionRequiredRow() }
                     }
                 }
                 if let secret = model.newSecret {
                     Section(NSLocalizedString("settings.agents.webhook.secret_title", comment: "")) {
                         Text(NSLocalizedString("settings.agents.webhook.secret_warning", comment: ""))
                             .font(.caption).foregroundStyle(Theme.warning)
-                        MacCopyableCode(code: secret)
+                        CopyableCodeBlock(code: secret)
                     }
                 }
                 Section {
@@ -379,7 +341,7 @@ struct MacWebhookSettingsView: View {
                     Toggle(NSLocalizedString("settings.agents.webhook.enabled", comment: ""), isOn: $model.enabled)
                     Text(NSLocalizedString("settings.agents.webhook.agents", comment: ""))
                     ForEach(model.availableAgents, id: \.self) { agent in
-                        Toggle(MacWebhookAgentLabel.label(for: agent), isOn: Binding(
+                        Toggle(WebhookAgentLabel.label(for: agent), isOn: Binding(
                             get: { model.selectedAgents.contains(agent) },
                             set: { _ in model.toggleAgent(agent) }
                         ))
@@ -434,18 +396,6 @@ struct MacWebhookSettingsView: View {
             Button(NSLocalizedString("settings.agents.webhook.remove", comment: ""), role: .destructive) {
                 _Concurrency.Task { await model.delete() }
             }
-        }
-    }
-}
-
-enum MacWebhookAgentLabel {
-    static func label(for agent: String) -> String {
-        switch agent {
-        case "claude": return "Claude"
-        case "openai": return "OpenAI"
-        case "gemini": return "Gemini"
-        case "copilot": return "GitHub Copilot"
-        default: return agent
         }
     }
 }
@@ -525,7 +475,7 @@ struct MacCustomAgentsView: View {
                     Section(NSLocalizedString("settings.openclaw.credentials_title", comment: "")) {
                         Text(NSLocalizedString("settings.openclaw.credentials_warning", comment: ""))
                             .font(.caption).foregroundStyle(Theme.warning)
-                        MacCopyableCode(code: MacCustomAgentCredentials.text(result))
+                        CopyableCodeBlock(code: MacCustomAgentCredentials.text(result))
                         Button(NSLocalizedString("actions.done", comment: "")) { model.registrationResult = nil }
                     }
                 }
@@ -598,11 +548,11 @@ struct MacCopilotCloudAgentView: View {
                 if let token = model.token {
                     Section(NSLocalizedString("settings.agents.copilot_cloud.token", comment: "")) {
                         Text(String(format: NSLocalizedString("settings.agents.copilot_cloud.secret_step", comment: ""), model.secretName)).font(.caption)
-                        MacCopyableCode(code: token)
+                        CopyableCodeBlock(code: token)
                     }
                     Section(NSLocalizedString("settings.agents.copilot_cloud.config", comment: "")) {
                         Text(NSLocalizedString("settings.agents.copilot_cloud.config_step", comment: "")).font(.caption)
-                        MacCopyableCode(code: model.config)
+                        CopyableCodeBlock(code: model.config)
                         Button(NSLocalizedString("settings.agents.copilot_cloud.open_docs", comment: "")) {
                             PlatformApplication.open(AgentHubLinks.githubCopilotMCPDocs)
                         }
@@ -610,7 +560,7 @@ struct MacCopilotCloudAgentView: View {
                 } else {
                     Section {
                         if let message = model.errorMessage { Text(message).font(.caption).foregroundStyle(Theme.error) }
-                        if model.requiresWebSession { MacWebSessionRequiredRow() }
+                        if model.requiresWebSession { WebSessionRequiredRow() }
                         HStack {
                             Button(NSLocalizedString("settings.agents.copilot_cloud.create", comment: "")) {
                                 _Concurrency.Task { await model.createToken() }
@@ -626,46 +576,4 @@ struct MacCopilotCloudAgentView: View {
     }
 }
 
-// MARK: - Shared pieces
-
-struct MacWebSessionRequiredRow: View {
-    var body: some View {
-        HStack {
-            Text(NSLocalizedString("settings.agents.session_required", comment: ""))
-                .font(.caption).foregroundStyle(Theme.warning)
-            Spacer()
-            if let url = AgentHubLinks.webAgentSettings(origin: Constants.API.baseURL) {
-                Button(NSLocalizedString("settings.agents.open_web", comment: "")) { PlatformApplication.open(url) }
-            }
-        }
-    }
-}
-
-struct MacCopyableCode: View {
-    let code: String
-    @State private var copied = false
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            ScrollView(.horizontal) {
-                Text(code)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            Button(NSLocalizedString(copied ? "settings.agents.copied" : "actions.copy", comment: "")) {
-                PlatformPasteboard.copy(code)
-                copied = true
-                _Concurrency.Task {
-                    try? await _Concurrency.Task.sleep(for: .seconds(2))
-                    copied = false
-                }
-            }
-            .controlSize(.small)
-        }
-        .padding(6)
-        .background(Color.secondary.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-}
 #endif
