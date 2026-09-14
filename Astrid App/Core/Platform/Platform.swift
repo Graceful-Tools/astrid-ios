@@ -113,6 +113,19 @@ public enum PlatformApplication {
     }
 }
 
+/// The system clipboard. Shared code must not name `UIPasteboard` / `NSPasteboard` directly;
+/// the copy idiom was written twelve times across both platforms before this existed.
+public enum PlatformPasteboard {
+    public static func copy(_ string: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = string
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+        #endif
+    }
+}
+
 public extension PlatformImage {
     /// PNG data on both platforms (UIImage.pngData / NSImage via bitmap representation).
     func pngDataCompat() -> Data? {

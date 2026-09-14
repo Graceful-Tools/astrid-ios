@@ -132,42 +132,16 @@ final class OutboxManager {
 
     /// Enqueue a chat message, optionally with an attachment that must upload
     /// first — builds the dependency chain (upload → sendChatMessage) atomically so
-    /// the message sends with the real fileId by construction. Mirrors
-    /// `enqueueComment`.
+    /// the message sends with the real fileId by construction.
     func enqueueChatMessage(
         _ message: SendChatMessageOutboxPayload,
         clientRequestId: String,
         attachment: UploadAttachmentOutboxPayload?,
         attachmentClientRequestId: String?
     ) async {
-        let now = Date()
-        var toEnqueue: [OutboxEntry] = []
-        var dependsOn: [String] = []
-
-        if let attachment,
-           let attachmentClientRequestId,
-           let attachmentData = try? JSONEncoder().encode(attachment) {
-            let uploadId = UUID().uuidString
-            toEnqueue.append(OutboxEntry(
-                id: uploadId, kind: OutboxKind.uploadAttachment, payload: attachmentData,
-                clientRequestId: attachmentClientRequestId, dependsOn: [], status: .pending,
-                attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
-            ))
-            dependsOn.append(uploadId)
-        }
-
-        guard let messageData = try? JSONEncoder().encode(message) else { return }
-        toEnqueue.append(OutboxEntry(
-            id: UUID().uuidString, kind: OutboxKind.sendChatMessage, payload: messageData,
-            clientRequestId: clientRequestId, dependsOn: dependsOn, status: .pending,
-            attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
-        ))
-
-        let runner = self.runner
-        let batch = toEnqueue
-        await runner.persistEnqueue(batch)
-        _Concurrency.Task { await runner.drain() }
-        noteMutation()
+        await enqueueChained(kind: OutboxKind.sendChatMessage, payload: message,
+                             clientRequestId: clientRequestId,
+                             attachment: attachment, attachmentClientRequestId: attachmentClientRequestId)
     }
 
     /// Enqueue an authoritative task update entry.
@@ -199,6 +173,19 @@ final class OutboxManager {
         attachment: UploadAttachmentOutboxPayload? = nil,
         attachmentClientRequestId: String? = nil
     ) async {
+        await enqueueChained(kind: OutboxKind.createComment, payload: comment,
+                             clientRequestId: clientRequestId,
+                             attachment: attachment, attachmentClientRequestId: attachmentClientRequestId)
+    }
+
+    /// The shape `enqueueComment` and `enqueueChatMessage` share: an optional upload entry the
+    /// main entry `dependsOn`, persisted as ONE batch so an interruption can't keep the upload
+    /// and lose the comment or message. Awaits the persist so the journal is durable before the
+    /// caller's optimistic write is committed; drains in the background.
+    private func enqueueChained<P: Encodable>(
+        kind: String, payload: P, clientRequestId: String,
+        attachment: UploadAttachmentOutboxPayload?, attachmentClientRequestId: String?
+    ) async {
         let now = Date()
         var toEnqueue: [OutboxEntry] = []
         var dependsOn: [String] = []
@@ -215,17 +202,13 @@ final class OutboxManager {
             dependsOn.append(uploadId)
         }
 
-        guard let commentData = try? JSONEncoder().encode(comment) else { return }
+        guard let data = try? JSONEncoder().encode(payload) else { return }
         toEnqueue.append(OutboxEntry(
-            id: UUID().uuidString, kind: OutboxKind.createComment, payload: commentData,
+            id: UUID().uuidString, kind: kind, payload: data,
             clientRequestId: clientRequestId, dependsOn: dependsOn, status: .pending,
             attempts: 0, nextAttemptAt: now, lastError: nil, createdAt: now, updatedAt: now, result: nil
         ))
 
-        // Enqueue the upload→comment chain atomically so an interruption can't
-        // persist the upload but lose the comment. Await the persist so the
-        // journal is durable before the caller's optimistic write is committed;
-        // drain in the background.
         let runner = self.runner
         let batch = toEnqueue
         await runner.persistEnqueue(batch)

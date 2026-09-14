@@ -148,7 +148,7 @@ struct TaskListView: View {
             return false
         }
 
-        return canUserAddTasks(userId: currentUserId, list: list)
+        return ListPermissions.canAddTasks(list, userId: currentUserId)
     }
 
     /// Determine if user can view list settings (any member can access sort/filter/leave).
@@ -1430,57 +1430,8 @@ struct TaskListView: View {
             return false // No list info, allow edit
         }
 
-        // Get the actual owner ID (prefer ownerId field, fall back to owner.id)
-        let listOwnerId = taskList.ownerId ?? taskList.owner?.id
-
-        // If user owns this task's list, all tasks are editable (includes copied lists)
-        if listOwnerId == currentUserId {
-            return false
-        }
-
-        // Check user's role in the list (shared with web semantics).
-        let role = taskList.role(for: currentUserId)
-
-        // List owner and admins can always edit.
-        if role == .owner || role == .admin {
-            return false
-        }
-
-        // For public copy-only lists (default), only owner/admin can edit (already handled above).
-        // Members and viewers should copy the list to edit tasks.
-        if taskList.privacy == .PUBLIC && (taskList.publicListType == "copy_only" || taskList.publicListType == nil) {
-            return true // Always read-only for non-owners/non-admins
-        }
-
-        // For public collaborative lists, task creator OR admin can edit.
-        if taskList.privacy == .PUBLIC && taskList.publicListType == "collaborative" {
-            let isCreator = task.isCreatedBy(currentUserId)
-            let isAdmin = role == .owner || role == .admin
-            return !isCreator && !isAdmin // Read-only unless creator or admin
-        }
-
-        // For non-public lists, members can edit.
-        return role != .member && role != .owner && role != .admin
-    }
-
-    /// Check if user can add tasks to a list (matching web's canUserEditTasks).
-    /// Role source is the shared `TaskList.role(for:)` — see `TaskList.swift`.
-    private func canUserAddTasks(userId: String, list: TaskList) -> Bool {
-        let role = list.role(for: userId)
-
-        // For public copy-only lists (default), only owner/admin can add tasks.
-        // Members and viewers should copy the list to add/edit tasks.
-        if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
-            return role == .owner || role == .admin
-        }
-
-        // For public collaborative lists, viewers can also add tasks.
-        if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
-            return role != nil
-        }
-
-        // Default: owner, admin, or member can add tasks.
-        return role == .owner || role == .admin || role == .member
+        // The rule itself is shared with web and the Mac: ListPermissions (CLAUDE.md rule 8).
+        return ListPermissions.isTaskReadOnly(task, in: taskList, userId: currentUserId)
     }
 
     private func handleListUpdate(original: TaskList, updated: TaskList) {

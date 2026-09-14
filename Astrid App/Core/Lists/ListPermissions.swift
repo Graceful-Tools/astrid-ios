@@ -33,4 +33,42 @@ enum ListPermissions {
         guard let userId else { return false }
         return list.role(for: userId) == .owner
     }
+
+    /// May this user add tasks to the list? Mirrors web's `canUserEditTasks`.
+    ///
+    /// A public copy-only list (the default for public) takes tasks only from its owner and
+    /// admins — members and viewers copy the list to work in it. A public collaborative list
+    /// takes them from anyone with a role, viewers included. Any other list: owner, admin, member.
+    static func canAddTasks(_ list: TaskList, userId: String?) -> Bool {
+        guard let userId else { return false }
+        let role = list.role(for: userId)
+        if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
+            return role == .owner || role == .admin
+        }
+        if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
+            return role != nil
+        }
+        return role == .owner || role == .admin || role == .member
+    }
+
+    /// Is `task` read-only for this user in `list`? Mirrors web's `canUserEditTask`.
+    ///
+    /// The list's owner and admins edit everything. On a public copy-only list nobody else does;
+    /// on a public collaborative list the task's creator does too; on any other list every
+    /// member does. Lived inline in `TaskListView` (four role checks) until the 2026-09-13 pass.
+    static func isTaskReadOnly(_ task: Task, in list: TaskList, userId: String?) -> Bool {
+        guard let userId else { return true }
+        // Owner check by id first: a copied list carries its owner in `ownerId` / `owner` before
+        // its member roster is populated.
+        if (list.ownerId ?? list.owner?.id) == userId { return false }
+        let role = list.role(for: userId)
+        if role == .owner || role == .admin { return false }
+        if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
+            return true
+        }
+        if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
+            return !task.isCreatedBy(userId)
+        }
+        return role != .member
+    }
 }

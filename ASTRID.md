@@ -111,9 +111,10 @@ fails a unit test instead of shipping.
 Two clients were live at once, so "where does a new endpoint go" had two answers and the
 real answer was whichever the neighbouring code happened to use. The tie was not broken
 on versioning — **both are entirely on `/api/v1`**; the `/api/user/...` migration finished
-long ago — but on weight: `AstridAPIClient` carries 29 of the 34 call sites and every
-current path, against 5 for the legacy client (`AuthManager`, `AccountService`,
-`AttachmentService`, `ProfileCache`, `RemoteResourceService`).
+long ago — but on weight: `AstridAPIClient` carries every current path, against eight
+paths for the legacy client, used by four services (`AuthManager`, `AccountService`,
+`AttachmentService`, `ProfileCache`). The 28 `APIEndpoint` cases nothing constructed were
+deleted on 2026-09-13; what remains is exactly what the legacy client still sends.
 
 **The cost of this choice, stated plainly:** `APIEndpoint` was the more readable shape —
 one enum listing every endpoint with its method and body type, checkable against the API

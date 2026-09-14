@@ -38,8 +38,10 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // the answer was an extraction; the new number is what stops the lines coming back.
         "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 1914,
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
-        "Astrid App/Views/Tasks/TaskListView.swift": 1766,
-        "Astrid App/Core/Services/TaskService.swift": 1675,
+        // Was 1766. The 2026-09-13 dedupe pass moved the task read-only / can-add rules into
+        // `ListPermissions`, where the Mac and web already look for them.
+        "Astrid App/Views/Tasks/TaskListView.swift": 1717,
+        "Astrid App/Core/Services/TaskService.swift": 1674,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them, and this was set to 1660 to lock that
@@ -51,8 +53,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
         // `AstridAPIClient+ListMembers.swift`, so the number goes DOWN rather than up again.
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1578,
-        "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1240,
+        // Was 1578. Two methods nothing called (getList, getAvailableModels) left on 2026-09-13.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1559,
+        "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1233,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,
     ]

@@ -112,27 +112,9 @@ final class DownloadedAttachmentCache {
     /// it. Running after every write is the part that matters — a sweep only at launch would let
     /// one long session grow without limit, which is the shape of the original bug.
     func enforceLimit() {
-        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
-        guard let files = try? fileManager.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: keys
-        ) else { return }
-
-        let entries: [FileCacheEntry] = files.compactMap { url in
-            guard let values = try? url.resourceValues(forKeys: Set(keys)),
-                  let size = values.fileSize else { return nil }
-            // Access date is the right signal but is not always recorded (noatime volumes, and
-            // it is unreliable on the simulator), so fall back to modification date rather than
-            // treating an unknown file as infinitely old and evicting it first.
-            let accessed = values.contentAccessDate ?? values.contentModificationDate ?? Date()
-            return FileCacheEntry(id: url.lastPathComponent, size: size, lastAccess: accessed)
-        }
-
-        let doomed = FileCacheEviction.idsToEvict(entries, cap: byteLimit)
-        guard !doomed.isEmpty else { return }
-        for id in doomed {
-            try? fileManager.removeItem(at: directory.appendingPathComponent(id))
-        }
-        AppLog.debug("🧹 [DownloadedAttachmentCache] Evicted \(doomed.count) files over the \(byteLimit) byte cap")
+        let removed = FileCacheEviction.sweep(directory: directory, cap: byteLimit, fileManager: fileManager)
+        guard removed > 0 else { return }
+        AppLog.debug("🧹 [DownloadedAttachmentCache] Evicted \(removed) files over the \(byteLimit) byte cap")
     }
 
     // MARK: -

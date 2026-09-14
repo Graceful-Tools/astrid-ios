@@ -8,9 +8,9 @@
 //  `includeTotal=true`. Pagination is unchanged: `nextCursor` is derived by fetching one row
 //  past the page.
 //
-//  The audit for AITD-321 found iOS calls that endpoint nowhere. `SearchService` searches the
-//  in-memory `TaskService.shared.tasks` when online and CoreData when offline — its own comment
-//  says "API doesn't have search endpoint" — and the only server paths with "search" in them are
+//  The audit for AITD-321 found iOS calls that endpoint nowhere. The `SearchService` of the
+//  time searched in-memory tasks and CoreData (it has since been deleted as unused), and the
+//  only server paths with "search" in them are
 //  /api/v1/users/search and /api/v1/contacts/search, which are different endpoints with different
 //  response shapes (`UserSearchResponse`, `ContactSearchResponse`) and neither carries a `total`.
 //

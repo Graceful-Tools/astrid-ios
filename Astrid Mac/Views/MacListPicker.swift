@@ -41,7 +41,7 @@ struct MacListPicker: View {
         // Wraps BETWEEN pills (459caa56). This was a plain HStack, which never wraps — with
         // several lists it squeezed instead, and the pill's unlimited Text then pushed the name
         // onto a second line, so a pill went multi-line inside a single-line row.
-        MacFlowLayout(spacing: 4, lineSpacing: 4) {
+        FlowLayout(spacing: 4, rowSpacing: 4) {
             ForEach(selectedLists) { list in
                 HStack(spacing: 4) {
                     MacListIcon(list: list, size: 11)

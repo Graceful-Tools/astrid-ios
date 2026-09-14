@@ -139,7 +139,6 @@ final class RecentlyCompletedSortPickerTests: XCTestCase {
 
     func testEverySortPickerOffersRecentlyCompleted() throws {
         for path in ["Astrid App/Views/Lists/ListSortFiltersTab.swift",
-                     "Astrid App/Views/Lists/ListFiltersView.swift",
                      "Astrid Mac/Views/MacListFilter.swift"] {
             let text = try source(path)
             XCTAssertTrue(text.contains("completedAt"),

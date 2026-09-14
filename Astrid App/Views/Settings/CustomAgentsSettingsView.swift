@@ -383,7 +383,7 @@ struct CustomAgentsSettingsView: View {
                     .truncationMode(.middle)
                 Spacer()
                 Button {
-                    UIPasteboard.general.string = value
+                    PlatformPasteboard.copy(value)
                     copiedField = fieldId
                     _Concurrency.Task {
                         try? await _Concurrency.Task.sleep(for: .seconds(2))

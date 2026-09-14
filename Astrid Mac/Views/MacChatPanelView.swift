@@ -228,7 +228,7 @@ struct MacChatPanelView: View {
         .macHoverHighlight()   // hover affordance surfaces the context-menu interactivity (77225941)
         .contextMenu {
             Button(NSLocalizedString("actions.copy", comment: "")) {
-                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(m.content, forType: .string)
+                PlatformPasteboard.copy(m.content)
             }
             Button(NSLocalizedString("mac.reply", comment: "")) { replyingTo = m }
             if MacChatActions.canDelete(authorId: m.authorId, currentUserId: auth.userId, isPending: isPending(m)) {

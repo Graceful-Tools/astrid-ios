@@ -58,7 +58,7 @@ struct ChatMessageBubble: View {
     private var contextMenu: some View {
         Group {
             Button {
-                UIPasteboard.general.string = message.content
+                PlatformPasteboard.copy(message.content)
             } label: {
                 Label(NSLocalizedString("actions.copy", comment: "Copy"), systemImage: "doc.on.doc")
             }

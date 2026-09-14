@@ -133,7 +133,7 @@ struct ListDefaultsView: View {
                         Spacer()
 
                         Button(action: {
-                            UIPasteboard.general.string = list.id
+                            PlatformPasteboard.copy(list.id)
                         }) {
                             Image(systemName: "doc.on.doc")
                                 .font(.system(size: 14))

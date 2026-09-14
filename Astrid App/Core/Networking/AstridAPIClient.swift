@@ -497,15 +497,6 @@ class AstridAPIClient {
         return response.list
     }
 
-    /// Get a single list by ID
-    func getList(id: String) async throws -> TaskList {
-        let response: ListResponse = try await request(
-            method: "GET",
-            path: "/api/v1/lists/\(id)"
-        )
-        return response.list
-    }
-
     /// Update a list
     func updateList(id: String, updates: UpdateListRequest) async throws -> TaskList {
         let response: ListResponse = try await request(
@@ -1223,16 +1214,6 @@ class AstridAPIClient {
             defaultAgentId: response.defaultAgentId,
             preferredService: response.preferredService
         )
-    }
-
-    /// Get available models for a service (claude, openai, gemini)
-    func getAvailableModels(service: String) async throws -> [String] {
-        let response: AvailableModelsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/users/me/available-models",
-            queryItems: [URLQueryItem(name: "service", value: service)]
-        )
-        return response.models
     }
 
     // MARK: - Account Management

@@ -2,7 +2,7 @@
 //  The list's "new task" defaults — priority, due date/time, repeat, assignee — resolved in ONE
 //  place for every platform.
 //
-//  iOS had this logic twice (private copies in QuickAddTaskView and TaskEditView) and Mac had it
+//  iOS had this logic twice (private copies in QuickAddTaskView and a since-deleted TaskEditView) and Mac had it
 //  nowhere, which is why a Mac quick-add ignored the list's defaults entirely. Adding a third copy
 //  would have guaranteed the three drift apart, so it lives here and callers delegate.
 //

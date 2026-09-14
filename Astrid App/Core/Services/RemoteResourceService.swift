@@ -17,7 +17,6 @@ final class RemoteResourceService {
     static let shared = RemoteResourceService()
 
     private let apiClient = AstridAPIClient.shared
-    private let legacyClient = APIClient.shared
 
     private init() {}
 
@@ -134,7 +133,7 @@ final class RemoteResourceService {
     // MARK: - User & agent search
 
     func searchUsersWithAIAgents(query: String, taskId: String?, listIds: [String]?) async throws -> [User] {
-        try await legacyClient.searchUsersWithAIAgents(query: query, taskId: taskId, listIds: listIds)
+        try await apiClient.searchUsersWithAIAgents(query: query, taskId: taskId, listIds: listIds)
     }
 
     // MARK: - Integration discovery (Google Tasks / GitHub)

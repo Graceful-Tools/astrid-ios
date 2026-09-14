@@ -98,11 +98,12 @@ final class APIEndpointInventoryTests: XCTestCase {
     // MARK: - The decision itself
 
     /// The legacy client is closed to additions. This is the rule that decays first, because
-    /// adding one more case beside 27 others always looks harmless.
+    /// adding one more case beside the others always looks harmless. Was 27 paths; the
+    /// 2026-09-13 dedupe pass deleted the 28 cases nothing constructed, leaving eight.
     func testTheLegacyClientIsNotGrowing() throws {
         let legacy = try paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift")
         XCTAssertLessThanOrEqual(
-            legacy.count, 26,
+            legacy.count, 8,
             "APIEndpoint gained a path. It is closed (ASTRID.md §2a) — add it to AstridAPIClient.")
     }
 

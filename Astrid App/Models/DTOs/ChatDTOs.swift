@@ -50,8 +50,3 @@ struct UpdateAIAssistantSettingsRequest: Codable {
     var defaultAgentId: String?
     var preferredService: String?
 }
-
-struct AvailableModelsResponse: Codable {
-    let models: [String]
-    let source: String?  // "live" or "static"
-}

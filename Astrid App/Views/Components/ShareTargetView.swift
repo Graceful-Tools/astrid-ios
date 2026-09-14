@@ -1,12 +1,19 @@
 import SwiftUI
 
-/// Share List Modal
-/// Generates a shareable shortcode URL and displays native iOS share sheet
-struct ShareListView: View {
+/// Share a task or a list: generate a shortcode URL, copy it, or hand it to the iOS share sheet.
+///
+/// One view for both targets — `ShareTaskView` and `ShareListView` were the same 260 lines with
+/// the word "task" swapped for "list" (2026-09-13 dedupe pass).
+struct ShareTargetView: View {
+    enum Target {
+        case task(Task)
+        case list(TaskList)
+    }
+
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
 
-    let list: TaskList
+    let target: Target
 
     @State private var shareUrl: String?
     @State private var isLoading = false
@@ -14,62 +21,101 @@ struct ShareListView: View {
     @State private var showCopiedConfirmation = false
     @State private var showShareSheet = false
 
+    init(task: Task) { target = .task(task) }
+    init(list: TaskList) { target = .list(list) }
+
+    // MARK: - What differs between a task and a list
+
+    private var targetType: String {
+        switch target { case .task: return "task"; case .list: return "list" }
+    }
+
+    private var targetId: String {
+        switch target { case .task(let t): return t.id; case .list(let l): return l.id }
+    }
+
+    private var name: String {
+        switch target { case .task(let t): return t.title; case .list(let l): return l.name }
+    }
+
+    private var title: String {
+        switch target {
+        case .task: return NSLocalizedString("share.share_task", comment: "Share Task")
+        case .list: return NSLocalizedString("share.share_list", comment: "Share List")
+        }
+    }
+
+    private var linkHint: String {
+        switch target {
+        case .task: return NSLocalizedString("share.share_link_hint", comment: "Share this link with anyone who has access to view this task")
+        case .list: return NSLocalizedString("share.share_list_link_hint", comment: "Share this link with anyone who has access to view this list")
+        }
+    }
+
+    private var redirectHint: String {
+        switch target {
+        case .task: return NSLocalizedString("share.link_redirect_task", comment: "The link will redirect to the task in the app")
+        case .list: return NSLocalizedString("share.link_redirect_list", comment: "The link will redirect to the list in the app")
+        }
+    }
+
+    /// Icon, colour and text for the privacy banner, or nil when there is nothing to say.
+    private var privacyNotice: (icon: String, color: Color, text: String)? {
+        switch target {
+        case .task(let task):
+            guard task.isPrivate else { return nil }
+            return ("lock.fill", Theme.accent,
+                    NSLocalizedString("share.private_task_message", comment: "This is a private task. Only users with access to this list can view it."))
+        case .list(let list):
+            switch list.privacy {
+            case .PRIVATE:
+                return ("lock.fill", Theme.accent,
+                        NSLocalizedString("share.private_list_message", comment: "This is a private list. Only members with access can view it."))
+            case .PUBLIC:
+                return ("globe", .green,
+                        NSLocalizedString("share.public_list_message", comment: "This is a public list. Anyone with the link can view it."))
+            default:
+                return nil
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: Theme.spacing16) {
-                // Header
                 HStack {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 20))
                         .foregroundColor(Theme.accent)
-                    Text(NSLocalizedString("share.share_list", comment: "Share List"))
+                    Text(title)
                         .font(Theme.Typography.headline())
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                 }
                 .padding(.top, Theme.spacing16)
 
-                // List name
-                Text(list.name)
+                Text(name)
                     .font(Theme.Typography.body())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Theme.spacing16)
 
-                // Privacy notice (if list is private)
-                if list.privacy == .PRIVATE {
+                if let notice = privacyNotice {
                     HStack(alignment: .top, spacing: Theme.spacing8) {
-                        Image(systemName: "lock.fill")
+                        Image(systemName: notice.icon)
                             .font(.system(size: 14))
-                            .foregroundColor(Theme.accent)
-
-                        Text(NSLocalizedString("share.private_list_message", comment: "This is a private list. Only members with access can view it."))
+                            .foregroundColor(notice.color)
+                        Text(notice.text)
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(Theme.accent)
+                            .foregroundColor(notice.color)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(Theme.spacing12)
-                    .background(Theme.accent.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-                    .padding(.horizontal, Theme.spacing16)
-                } else if list.privacy == .PUBLIC {
-                    HStack(alignment: .top, spacing: Theme.spacing8) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 14))
-                            .foregroundColor(.green)
-
-                        Text(NSLocalizedString("share.public_list_message", comment: "This is a public list. Anyone with the link can view it."))
-                            .font(Theme.Typography.caption1())
-                            .foregroundColor(.green)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(Theme.spacing12)
-                    .background(Color.green.opacity(0.1))
+                    .background(notice.color.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     .padding(.horizontal, Theme.spacing16)
                 }
 
-                // Loading / URL Display / Error
                 if isLoading {
                     VStack(spacing: Theme.spacing12) {
                         ProgressView()
@@ -99,12 +145,10 @@ struct ShareListView: View {
                     .padding(.horizontal, Theme.spacing16)
                 } else if let shareUrl = shareUrl {
                     VStack(spacing: Theme.spacing12) {
-                        // URL Display
                         HStack(spacing: Theme.spacing8) {
                             Image(systemName: "link")
                                 .font(.system(size: 14))
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-
                             Text(shareUrl)
                                 .font(.system(size: 13, design: .monospaced))
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
@@ -116,15 +160,15 @@ struct ShareListView: View {
                         .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
 
-                        // Action Buttons
                         HStack(spacing: Theme.spacing12) {
-                            // Copy Button
                             Button {
                                 copyToClipboard()
                             } label: {
                                 HStack {
                                     Image(systemName: showCopiedConfirmation ? "checkmark" : "doc.on.doc")
-                                    Text(showCopiedConfirmation ? "Copied!" : "Copy")
+                                    Text(showCopiedConfirmation
+                                         ? NSLocalizedString("share.link_copied", comment: "Link copied!")
+                                         : NSLocalizedString("actions.copy", comment: "Copy"))
                                 }
                                 .font(Theme.Typography.body())
                                 .foregroundColor(.white)
@@ -135,13 +179,12 @@ struct ShareListView: View {
                             }
                             .buttonStyle(.plain)
 
-                            // Share Button (Native iOS Share Sheet)
                             Button {
                                 showShareSheet = true
                             } label: {
                                 HStack {
                                     Image(systemName: "square.and.arrow.up")
-                                    Text("Share")
+                                    Text(NSLocalizedString("actions.share", comment: "Share"))
                                 }
                                 .font(Theme.Typography.body())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
@@ -157,19 +200,17 @@ struct ShareListView: View {
                             .buttonStyle(.plain)
                         }
 
-                        // Share info
                         VStack(alignment: .leading, spacing: Theme.spacing4) {
                             HStack(alignment: .top, spacing: Theme.spacing8) {
                                 Text("🔗")
-                                Text(NSLocalizedString("share.share_list_link_hint", comment: "Share this link with anyone who has access to view this list"))
+                                Text(linkHint)
                                     .font(Theme.Typography.caption1())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-
                             HStack(alignment: .top, spacing: Theme.spacing8) {
                                 Text("📌")
-                                Text(NSLocalizedString("share.link_redirect_list", comment: "The link will redirect to the list in the app"))
+                                Text(redirectHint)
                                     .font(Theme.Typography.caption1())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -188,7 +229,7 @@ struct ShareListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
+                    Button(NSLocalizedString("actions.close", comment: "Close")) {
                         dismiss()
                     }
                 }
@@ -214,14 +255,14 @@ struct ShareListView: View {
 
         do {
             let response = try await RemoteResourceService.shared.createShortcode(
-                targetType: "list",
-                targetId: list.id
+                targetType: targetType,
+                targetId: targetId
             )
             shareUrl = response.url
-            AppLog.debug("✅ [ShareListView] Generated share URL: \(response.url)")
+            AppLog.debug("✅ [ShareTargetView] Generated share URL: \(response.url)")
         } catch {
             errorMessage = "Failed to generate share link. Please try again."
-            AppLog.debug("❌ [ShareListView] Failed to generate share link: \(error)")
+            AppLog.debug("❌ [ShareTargetView] Failed to generate share link: \(error)")
         }
 
         isLoading = false
@@ -230,7 +271,7 @@ struct ShareListView: View {
     private func copyToClipboard() {
         guard let shareUrl = shareUrl else { return }
 
-        UIPasteboard.general.string = shareUrl
+        PlatformPasteboard.copy(shareUrl)
         showCopiedConfirmation = true
 
         // Reset confirmation after 2 seconds
@@ -240,43 +281,32 @@ struct ShareListView: View {
     }
 }
 
+// MARK: - Native Share Sheet Wrapper
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
 // MARK: - Preview
 
 #Preview {
-    ShareListView(
-        list: TaskList(
+    ShareTargetView(
+        task: Task(
             id: "1",
-            name: "Sample List with a Really Long Name That Should Truncate",
-            color: "#3b82f6",
-            imageUrl: nil,
-            coverImageUrl: nil,
-            privacy: .PRIVATE,
-            publicListType: nil,
-            ownerId: "user1",
-            owner: nil,
-            admins: nil,
-            members: nil,
-            listMembers: nil,
-            invitations: nil,
-            defaultAssigneeId: nil,
-            defaultAssignee: nil,
-            defaultPriority: nil,
-            defaultRepeating: nil,
-            defaultIsPrivate: nil,
-            defaultDueDate: nil,
-            defaultDueTime: nil,
-            mcpEnabled: nil,
-            mcpAccessLevel: nil,
-            aiAstridEnabled: nil,
-            preferredAiProvider: nil,
-            fallbackAiProvider: nil,
-            githubRepositoryId: nil,
-            aiAgentsEnabled: nil,
-            aiAgentConfiguredBy: nil,
-            copyCount: nil,
-            createdAt: Date(),
-            updatedAt: Date(),
-            description: "This is a sample list"
+            title: "Sample Task with a Really Long Title That Should Truncate",
+            description: "This is a sample task",
+            creatorId: "user1",
+            isAllDay: false,
+            repeating: .never,
+            priority: .high,
+            isPrivate: false,
+            completed: false
         )
     )
 }
