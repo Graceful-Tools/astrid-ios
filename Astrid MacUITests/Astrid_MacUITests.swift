@@ -12,8 +12,7 @@ final class Astrid_MacUITests: XCTestCase {
     }
 
     private func launchApp() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments += ["-uiTesting"]
+        let app = MacUITestLaunch.makeApp()
         app.launch()
         return app
     }
@@ -53,9 +52,7 @@ final class Astrid_MacUITests: XCTestCase {
     @MainActor
     func testLaunchPerformance() {
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            let app = XCUIApplication()
-            app.launchArguments += ["-uiTesting"]
-            app.launch()
+            MacUITestLaunch.makeApp().launch()
         }
     }
 
@@ -227,13 +224,9 @@ final class Astrid_MacUITests: XCTestCase {
     func testCaptureDetailPopoutLayout() {
         // The app may already be signed in (it reads the real keychain), in which case there is
         // no login screen — take whichever path lands in the shell.
-        let app = XCUIApplication()
-        app.launchArguments += ["-uiTesting", "-uiTestSelectRow=1"]   // select the middle row
+        let app = MacUITestLaunch.makeApp(arguments: ["-uiTestSelectRow=1"])   // select the middle row
         app.launch()
-        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
-        let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch
-        if offline.waitForExistence(timeout: 8) { offline.click() }
-        XCTAssertTrue(myTasks.waitForExistence(timeout: 20), "Should reach the shell")
+        XCTAssertTrue(MacUITestLaunch.enterShell(app).exists, "Should reach the shell")
         let listName = "UITest List \(Int.random(in: 1000...9999))"
 
         app.descendants(matching: .any).matching(identifier: "sidebar.newList").firstMatch.click()

@@ -96,9 +96,7 @@ final class MacFieldPickerLayoutTests: XCTestCase {
     // MARK: -
 
     private func macSource(_ relative: String) -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        RepositoryLocator.root
             .appendingPathComponent("Astrid Mac")
             .appendingPathComponent(relative)
     }

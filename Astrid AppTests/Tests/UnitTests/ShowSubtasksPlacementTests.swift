@@ -18,32 +18,20 @@ import XCTest
 final class ShowSubtasksPlacementTests: XCTestCase {
 
     private func source(_ relative: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent(relative), encoding: .utf8)
     }
 
     /// It belongs in Sort & Filters, where the rest of "what this list shows" lives.
     ///
-    /// iOS has TWO screens by that name — the settings-modal tab, and the one under a list's
-    /// Configuration — and shipping the toggle on only one of them is exactly what happened
-    /// (task 67552e15): "works on iOS" and "missing on iOS" were both true depending on which
-    /// door you came through. Both, or neither.
-    func testTheToggleIsInBothSortAndFiltersSurfaces() throws {
-        for file in ["Astrid App/Views/Lists/ListSortFiltersTab.swift",
-                     "Astrid App/Views/Lists/ListFiltersView.swift"] {
-            XCTAssertTrue(try source(file).contains("lists.show_subtasks"),
-                          "\(file) is a Sort & Filters surface and must carry the toggle")
-        }
-    }
-
-    /// The second surface saves through its own bulk `saveFilters()`, with the same hazard.
-    func testTheSecondSurfaceKeepsItOutOfTheBulkSave() throws {
-        let view = try source("Astrid App/Views/Lists/ListFiltersView.swift")
-        let save = try XCTUnwrap(view.components(separatedBy: "private func saveFilters()").last)
-        XCTAssertFalse(save.contains("showSubtasks"),
-                       "saveFilters() posts every filter field; including this would reset it")
+    /// iOS once had TWO screens by that name — the settings-modal tab, and a `ListFiltersView`
+    /// under a list's Configuration — and shipping the toggle on only one of them is exactly
+    /// what happened (task 67552e15). The second screen was unreachable and has since been
+    /// deleted, so there is one surface to check.
+    func testTheToggleIsInTheSortAndFiltersSurface() throws {
+        let file = "Astrid App/Views/Lists/ListSortFiltersTab.swift"
+        XCTAssertTrue(try source(file).contains("lists.show_subtasks"),
+                      "\(file) is the Sort & Filters surface and must carry the toggle")
     }
 
     /// …and not in Admin, where it was first shipped and where Jon could not find it.

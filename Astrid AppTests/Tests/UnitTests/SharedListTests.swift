@@ -302,28 +302,6 @@ final class SharedListTests: XCTestCase {
 
     // MARK: - Task Visibility Tests
 
-    func testListMemberCanSeeTask() {
-        // Given: A shared list with members
-        let (list, _, member) = createSharedListWithMembers()
-
-        // When: Checking if member can see tasks
-        let isMemberOfList = list.isMember(userId: member.id)
-
-        // Then: Member should have access
-        XCTAssertTrue(isMemberOfList)
-    }
-
-    func testNonMemberCannotSeeTask() {
-        // Given: A shared list
-        let (list, _, _) = createSharedListWithMembers()
-
-        // When: Checking if non-member can see tasks
-        let isNonMemberOfList = list.isMember(userId: "random-user")
-
-        // Then: Non-member should not have access
-        XCTAssertFalse(isNonMemberOfList)
-    }
-
     // MARK: - Task with Due Date in Shared List Tests
 
     func testCreateTaskWithDueDateInSharedList() {

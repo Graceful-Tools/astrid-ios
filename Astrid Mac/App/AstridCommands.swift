@@ -1,7 +1,7 @@
 //  AstridCommands.swift
 //  Astrid for Mac — menu bar (M1) + keyboard-shortcut wiring notes
 //
-//  Two layers of keyboard input (see docs/MAC_APP_SPEC.md §7.1):
+//  Two layers of keyboard input (see docs/archive/MAC_APP_SPEC.md §7.1):
 //   1) CANONICAL SHARED BARE-KEY scheme (n/x/j/k/0-3/…) — mirrors web
 //      astrid-web/hooks/useKeyboardShortcuts.ts (KEYBOARD_SHORTCUTS). This is a
 //      cross-platform CONTRACT. It is handled by a dedicated key handler that

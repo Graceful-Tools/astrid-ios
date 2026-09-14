@@ -3,19 +3,9 @@ import XCTest
 
 /// Tests for the Outbox journal's durable store. The journal must survive app
 /// relaunch (offline writes can't be lost), so it persists atomically to disk.
-final class OutboxStoreTests: XCTestCase {
+final class OutboxStoreTests: TempFileTestCase {
 
-    private var tempDir: URL!
-
-    override func setUpWithError() throws {
-        tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-test-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: tempDir)
-    }
+    private var tempDir: URL { tempDirectory }
 
     private func makeEntry(_ id: String) -> OutboxEntry {
         OutboxEntry(

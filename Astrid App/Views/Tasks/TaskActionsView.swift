@@ -51,7 +51,7 @@ struct TaskActionsView: View {
             }
             .buttonStyle(.plain)
             .sheet(isPresented: $showingShareModal) {
-                ShareTaskView(task: task)
+                ShareTargetView(task: task)
             }
 
             // Move out of parent task — iOS's route to the promotion the Mac offers by dragging

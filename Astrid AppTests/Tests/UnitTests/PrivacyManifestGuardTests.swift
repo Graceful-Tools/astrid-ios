@@ -15,14 +15,8 @@ import XCTest
 
 final class PrivacyManifestGuardTests: XCTestCase {
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     private func manifest() throws -> [String: Any] {
-        let url = repositoryRoot.appendingPathComponent("Astrid App/PrivacyInfo.xcprivacy")
+        let url = RepositoryLocator.root.appendingPathComponent("Astrid App/PrivacyInfo.xcprivacy")
         let data = try Data(contentsOf: url)
         let plist = try PropertyListSerialization.propertyList(from: data, format: nil)
         return try XCTUnwrap(plist as? [String: Any], "PrivacyInfo.xcprivacy is not a plist dict")
@@ -41,7 +35,7 @@ final class PrivacyManifestGuardTests: XCTestCase {
 
     func testTheMacTargetIsNotExcludedFromThePrivacyManifest() throws {
         let project = try String(
-            contentsOf: repositoryRoot.appendingPathComponent("Astrid App.xcodeproj/project.pbxproj"),
+            contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid App.xcodeproj/project.pbxproj"),
             encoding: .utf8
         )
 

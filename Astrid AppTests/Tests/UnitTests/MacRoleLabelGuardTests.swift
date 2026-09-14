@@ -28,11 +28,7 @@ final class MacRoleLabelGuardTests: XCTestCase {
     private static let englishRoleWords = ["Owner", "Admin", "Administrator", "Member", "Viewer"]
 
     private var macViewsRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views")
     }
 

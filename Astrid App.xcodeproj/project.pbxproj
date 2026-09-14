@@ -98,12 +98,9 @@
 				Core/Services/ReviewPromptManager.swift,
 				Core/Services/SettingsPresenter.swift,
 				Core/Services/TaskPresenter.swift,
-				"Extensions/View+DismissKeyboard.swift",
 				"Extensions/View+InteractivePopGesture.swift",
 				"Extensions/View+ReferenceNavigation.swift",
-				"Extensions/View+ScrollToTop.swift",
 				"Extensions/View+SwipeToDismiss.swift",
-				"Extensions/View+TextEditorInsets.swift",
 				Utilities/KeyboardEngineWarmer.swift,
 				ViewModels/AccountViewModel.swift,
 				ViewModels/EditProfileViewModel.swift,
@@ -120,12 +117,10 @@
 				Views/Chat/ChatToggleView.swift,
 				Views/Chat/ViewModeRotatorButton.swift,
 				Views/Components/AstridSpeechBubble.swift,
-				Views/Components/AttachmentEditorView.swift,
 				Views/Components/AttachmentThumbnail.swift,
 				Views/Components/AutocompleteSupport.swift,
 				Views/Components/CameraCapturePicker.swift,
 				Views/Components/CompactTaskRow.swift,
-				Views/Components/ConnectionStatusBanner.swift,
 				Views/Components/CustomRepeatingPatternEditor.swift,
 				Views/Components/EmptyStateView.swift,
 				Views/Components/FloatingHeader.swift,
@@ -134,7 +129,6 @@
 				Views/Components/InlineAssigneePicker.swift,
 				Views/Components/InlineDatePicker.swift,
 				Views/Components/InlineListsPicker.swift,
-				Views/Components/InlinePriorityPicker.swift,
 				Views/Components/InlineRepeatPicker.swift,
 				Views/Components/InlineTextEditor.swift,
 				Views/Components/InlineTimePicker.swift,
@@ -143,9 +137,7 @@
 				Views/Components/PriorityButtonPicker.swift,
 				Views/Components/QuickLookController.swift,
 				Views/Components/RichTextInput.swift,
-				Views/Components/ScrollToTopButton.swift,
 				Views/Components/SplashView.swift,
-				Views/Components/SyncStatusView.swift,
 				Views/Components/TwoColumnRow.swift,
 				Views/Components/UIKitWheelPicker.swift,
 				Views/EditProfileView.swift,
@@ -153,19 +145,14 @@
 				Views/Lists/ListAdminTab.swift,
 				Views/Lists/ListAgentSettingsView.swift,
 				Views/Lists/ListDefaultsView.swift,
-				Views/Lists/ListDetailView.swift,
 				Views/Lists/ListEditView.swift,
-				Views/Lists/ListFiltersView.swift,
 				Views/Lists/ListMembershipTab.swift,
-				Views/Lists/ListPickerView.swift,
 				Views/Lists/ListRowView.swift,
 				Views/Lists/ListSettingsModal.swift,
 				Views/Lists/ListSidebarView.swift,
 				Views/Lists/ListSortFiltersTab.swift,
-				Views/Lists/ListsView.swift,
 				Views/Lists/PublicListBrowserView.swift,
 				Views/Lists/SaveFilterDialog.swift,
-				Views/Lists/ShareListView.swift,
 				Views/MainTabView.swift,
 				Views/Onboarding/WelcomeChoiceView.swift,
 				Views/Reminders/ReminderView.swift,
@@ -189,15 +176,13 @@
 				Views/Tasks/iPadTaskManagerView.swift,
 				Views/Tasks/MyTasksFilterSheet.swift,
 				Views/Tasks/QuickAddTaskView.swift,
-				Views/Tasks/ShareTaskView.swift,
+				Views/Components/ShareTargetView.swift,
 				Views/Tasks/SubtasksSectionView.swift,
 				Views/Tasks/TaskActionsView.swift,
 				Views/Tasks/TaskAttachmentSectionView.swift,
 				Views/Tasks/TaskDetailLeadingControl.swift,
 				Views/Tasks/TaskDetailViewNew.swift,
 				Views/Tasks/TaskDetailViewOnly.swift,
-				Views/Tasks/TaskEditView.swift,
-				Views/Tasks/TaskListPickerView.swift,
 				Views/Tasks/TaskListView.swift,
 				Views/Tasks/TaskRowView.swift,
 				Views/Tasks/TaskTimerView.swift,
@@ -262,6 +247,16 @@
 		CBB1359E2EAB27CE00D41E86 /* Astrid AppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Astrid AppUITests";
+			sourceTree = "<group>";
+		};
+		CBFACADE0000000000000011 /* TestSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		CBFACADE0000000000000012 /* UITestSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UITestSupport;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -332,6 +327,8 @@
 				CB8DEFE53005D591003E5617 /* Astrid MacTests */,
 				CB8DEFEF3005D592003E5617 /* Astrid MacUITests */,
 				CBFACADE0000000000000010 /* Shared */,
+				CBFACADE0000000000000011 /* TestSupport */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 				CBB135852EAB27CD00D41E86 /* Products */,
 				CBB1360A2EAB284400D41E86 /* AstridApp.swift */,
 			);
@@ -416,6 +413,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB8DEFE53005D591003E5617 /* Astrid MacTests */,
+				CBFACADE0000000000000011 /* TestSupport */,
 			);
 			name = "Astrid MacTests";
 			packageProductDependencies = (
@@ -439,6 +437,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB8DEFEF3005D592003E5617 /* Astrid MacUITests */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 			);
 			name = "Astrid MacUITests";
 			packageProductDependencies = (
@@ -487,6 +486,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB135942EAB27CE00D41E86 /* Astrid AppTests */,
+				CBFACADE0000000000000011 /* TestSupport */,
 			);
 			name = "Astrid AppTests";
 			packageProductDependencies = (
@@ -510,6 +510,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB1359E2EAB27CE00D41E86 /* Astrid AppUITests */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 			);
 			name = "Astrid AppUITests";
 			packageProductDependencies = (

@@ -113,15 +113,12 @@ final class ListPermissionsContractTests: XCTestCase {
     // MARK: - The guard: no view may branch on the legacy arrays again
 
     func testNoSurfaceBranchesOnTheLegacyArrays() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         let audited = [
             "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift",
             "Astrid App/Views/Lists/ListMembershipTab.swift",
             "Astrid App/Views/Lists/ListSettingsModal.swift",
-            "Astrid Mac/Views/MacListMembersView.swift",
             // AITD-388 — the Mac's membership UI, audited from the day it existed rather than
             // after someone notices it reading the legacy arrays.
             "Astrid Mac/Views/MacListMembershipTab.swift",

@@ -5,11 +5,7 @@ final class SensitiveLoggingGuardTests: XCTestCase {
     /// Security-sensitive networking and authentication paths must never log
     /// secrets, raw payloads, complete URLs, headers, or account identifiers.
     func testSensitivePathsDoNotPrintPrivateRequestData() throws {
-        let repositoryRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repositoryRoot = RepositoryLocator.root
         let relativePaths = [
             "Astrid App/Core/Networking/APIClient.swift",
             "Astrid App/Core/Networking/AstridAPIClient.swift",

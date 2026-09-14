@@ -10,22 +10,13 @@ import XCTest
 /// The copy is cached locally on fetch rather than read live, because reminders fire
 /// OFFLINE — a notification scheduled on a plane must still speak in the brand's voice —
 /// and because notification scheduling does not run on the main actor.
-final class BrandCopyTests: XCTestCase {
+final class BrandCopyTests: DefaultsTestCase {
 
     private var store: BrandCopyStore!
-    private var defaults: UserDefaults!
 
-    override func setUp() {
-        super.setUp()
-        // A dedicated suite so these tests never disturb the app's stored copy.
-        defaults = UserDefaults(suiteName: "BrandCopyTests")!
-        defaults.removePersistentDomain(forName: "BrandCopyTests")
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         store = BrandCopyStore(defaults: defaults)
-    }
-
-    override func tearDown() {
-        defaults.removePersistentDomain(forName: "BrandCopyTests")
-        super.tearDown()
     }
 
     private func decodeCopy(_ json: String) throws -> ServerCapabilities {

@@ -26,9 +26,7 @@ import SwiftUI
 final class MacDetailTitleTests: XCTestCase {
 
     private func fieldsSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacTaskFieldsView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }

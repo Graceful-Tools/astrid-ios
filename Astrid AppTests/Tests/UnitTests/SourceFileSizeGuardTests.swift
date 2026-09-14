@@ -2,7 +2,7 @@
 //  Task AITD-346 — nine production files are over 1,000 lines; in August it was six.
 //
 //  This is a RATCHET, not a refactor. The August hygiene review
-//  (`docs/HYGIENE_REVIEW_2026-08.md`, finding 3) listed six files over 1,000 lines and concluded
+//  (`docs/archive/HYGIENE_REVIEW_2026-08.md`, finding 3) listed six files over 1,000 lines and concluded
 //  "small extractions, one per change, not a restructure". Three weeks later all four of the
 //  biggest had grown and three more had crossed — because nothing was watching. Every individual
 //  addition was reasonable; the drift was the sum of them, and nobody was in a position to see
@@ -38,8 +38,10 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // the answer was an extraction; the new number is what stops the lines coming back.
         "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 1914,
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
-        "Astrid App/Views/Tasks/TaskListView.swift": 1766,
-        "Astrid App/Core/Services/TaskService.swift": 1675,
+        // Was 1766. The 2026-09-13 dedupe pass moved the task read-only / can-add rules into
+        // `ListPermissions`, where the Mac and web already look for them.
+        "Astrid App/Views/Tasks/TaskListView.swift": 1717,
+        "Astrid App/Core/Services/TaskService.swift": 1674,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them, and this was set to 1660 to lock that
@@ -51,8 +53,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
         // `AstridAPIClient+ListMembers.swift`, so the number goes DOWN rather than up again.
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1578,
-        "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1240,
+        // Was 1578. Two methods nothing called (getList, getAvailableModels) left on 2026-09-13.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1559,
+        "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1233,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,
     ]
@@ -62,17 +65,11 @@ final class SourceFileSizeGuardTests: XCTestCase {
     /// would happily readmit every line that was removed.
     private static let slack = 150
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     /// Every production Swift file, keyed by repo-relative path, with its line count.
     private func lineCounts() throws -> [String: Int] {
         var counts: [String: Int] = [:]
         for root in Self.roots {
-            let rootURL = repositoryRoot.appendingPathComponent(root)
+            let rootURL = RepositoryLocator.root.appendingPathComponent(root)
             guard let walker = FileManager.default.enumerator(at: rootURL,
                                                               includingPropertiesForKeys: nil)
             else { continue }

@@ -26,6 +26,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/ios-destination.sh"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck source=lib/find-web-repo.sh
@@ -106,7 +107,7 @@ for profile in "${PROFILES[@]}"; do
     set +e
     xcodebuild test \
         -scheme "Astrid App" \
-        -destination "platform=iOS Simulator,name=iPhone 17" \
+        -destination "$ASTRID_IOS_DESTINATION" \
         -only-testing:"Astrid AppTests/BrandAuditTests" \
         -quiet > "/tmp/brand-audit-$profile-ios.log" 2>&1
     IOS_RESULT=$?

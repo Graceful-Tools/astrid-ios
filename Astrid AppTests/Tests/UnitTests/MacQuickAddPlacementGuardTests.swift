@@ -13,11 +13,7 @@ import XCTest
 final class MacQuickAddPlacementGuardTests: XCTestCase {
 
     private func rootSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacRootView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }

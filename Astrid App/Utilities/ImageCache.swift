@@ -79,24 +79,9 @@ class ImageCache {
     /// Same policy as the attachment cache — `FileCacheEviction`, written once and shared
     /// (AITD-344 built it for exactly this).
     func enforceDiskLimit(cap: Int = ImageCache.diskByteLimit) {
-        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
-        guard let files = try? fileManager.contentsOfDirectory(
-            at: cacheDirectory, includingPropertiesForKeys: keys
-        ) else { return }
-
-        let entries: [FileCacheEntry] = files.compactMap { url in
-            guard let values = try? url.resourceValues(forKeys: Set(keys)),
-                  let size = values.fileSize else { return nil }
-            let accessed = values.contentAccessDate ?? values.contentModificationDate ?? Date()
-            return FileCacheEntry(id: url.lastPathComponent, size: size, lastAccess: accessed)
-        }
-
-        let doomed = FileCacheEviction.idsToEvict(entries, cap: cap)
-        guard !doomed.isEmpty else { return }
-        for id in doomed {
-            try? fileManager.removeItem(at: cacheDirectory.appendingPathComponent(id))
-        }
-        AppLog.debug("🧹 [ImageCache] Evicted \(doomed.count) images over the \(cap) byte cap")
+        let removed = FileCacheEviction.sweep(directory: cacheDirectory, cap: cap, fileManager: fileManager)
+        guard removed > 0 else { return }
+        AppLog.debug("🧹 [ImageCache] Evicted \(removed) images over the \(cap) byte cap")
     }
 
     /// Memory, then a SYNCHRONOUS disk read and decode.

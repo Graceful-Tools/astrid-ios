@@ -13,31 +13,7 @@ import XCTest
 import CoreData
 @testable import Astrid_App
 
-final class CoreDataShowSubtasksTests: XCTestCase {
-
-    private var container: NSPersistentContainer!
-
-    override func setUpWithError() throws {
-        let appBundle = Bundle(for: CDTaskList.self)
-        let modelURL = try XCTUnwrap(appBundle.url(forResource: "AstridApp", withExtension: "momd"),
-                                     "Could not find AstridApp.momd in the app bundle")
-        let model = try XCTUnwrap(NSManagedObjectModel(contentsOf: modelURL))
-        container = NSPersistentContainer(name: "AstridApp", managedObjectModel: model)
-        let store = NSPersistentStoreDescription()
-        store.type = NSInMemoryStoreType
-        store.shouldMigrateStoreAutomatically = true
-        store.shouldInferMappingModelAutomatically = true
-        container.persistentStoreDescriptions = [store]
-
-        let exp = expectation(description: "container loaded")
-        container.loadPersistentStores { _, error in
-            XCTAssertNil(error, "Container failed to load: \(error?.localizedDescription ?? "?")")
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 5.0)
-    }
-
-    private var context: NSManagedObjectContext { container.viewContext }
+final class CoreDataShowSubtasksTests: InMemoryCoreDataTestCase {
 
     private func list(id: String, showSubtasks: Bool?) -> TaskList {
         var l = TaskList(id: id, name: "L", privacy: .PRIVATE)

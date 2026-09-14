@@ -1,5 +1,7 @@
 # Astrid for Mac — M0 Spike Notes
 
+> **Archived 2026-09-13.** Historical: every M0 step below is done (the `Astrid Mac` target and `Astrid MacTests` exist and ship to TestFlight). Kept because source comments cite its hotkey and platform-shim decisions.
+
 *Foundation for the native Mac app. Companion to [MAC_APP_SPEC.md](./MAC_APP_SPEC.md).*
 *Status: scaffolding landed; target-creation + runtime verification pending a Mac/Xcode session.*
 

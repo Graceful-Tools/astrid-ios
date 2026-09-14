@@ -37,13 +37,7 @@ final class AllDayTimezoneTests: XCTestCase {
     }
 
     private func makeTask(dueDateTime: Date?, isAllDay: Bool, completed: Bool = false) -> Task {
-        return Task(
-            id: "t-\(UUID().uuidString)",
-            title: "tz test",
-            dueDateTime: dueDateTime,
-            isAllDay: isAllDay,
-            completed: completed
-        )
+        TestHelpers.createTestTask(title: "tz test", completed: completed, dueDateTime: dueDateTime, isAllDay: isAllDay)
     }
 
     // MARK: - All-day: isDueToday / isOverdue

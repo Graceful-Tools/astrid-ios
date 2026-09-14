@@ -105,6 +105,24 @@ enum SyncPassFloor {
     }
 }
 
+/// The wait every provider worker takes before a pass: a short debounce PLUS whatever is left of
+/// the `SyncPassFloor`. A pass re-arms itself when a nudge arrives mid-pass, and a pass's own
+/// local writes nudge, so a debounce alone let passes run back to back — each decoding hundreds
+/// of KB on the main actor while taps queued behind it. Waiting here rather than returning means
+/// a nudge is delayed, never dropped. Was written out in three services (2026-09-13 dedupe pass).
+enum SyncPassScheduler {
+    static let debounce: TimeInterval = 2
+
+    /// Sleep for the debounce plus the floor remainder. `false` when the task was cancelled
+    /// meanwhile (a newer nudge superseded this one), so the caller must not start a pass.
+    static func waitForNextPass(lastPassStarted: Date?) async -> Bool {
+        let wait = SyncPassFloor.delayUntilNextPass(
+            lastPassStarted: lastPassStarted, now: Date(), floor: SyncPassFloor.defaultFloor)
+        try? await _Concurrency.Task.sleep(nanoseconds: UInt64((debounce + wait) * 1_000_000_000))
+        return !_Concurrency.Task.isCancelled
+    }
+}
+
 /// Bounds first-time remote mirroring so a large linked Astrid list cannot turn
 /// one provider pass into hundreds of sequential create/link requests.
 enum SyncPushBatch {
@@ -156,60 +174,6 @@ struct BackfillAdoptionIndex: Sendable {
         byTitle.removeValue(forKey: title)
         return id
     }
-}
-
-/// A remote container of items — an Apple Reminders calendar, a GitHub repo,
-/// a Google Tasks tasklist.
-struct RemoteContainer: Equatable, Sendable {
-    let id: String
-    let name: String
-}
-
-/// A remote item in provider-neutral, already-field-mapped form. Provider
-/// extras with no Astrid home (labels, milestone, issue #, parent…) ride in
-/// `metadata` and round-trip via the external-link mapping.
-struct RemoteItem: Equatable, Sendable {
-    let remoteId: String
-    var title: String
-    var notes: String?
-    var completed: Bool
-    var dueDateTime: Date?
-    var isAllDay: Bool
-    var remoteUpdatedAt: Date?
-    var metadata: [String: String] = [:]
-}
-
-/// A sync provider mirrors Astrid tasks to an external system. Astrid's server
-/// stays the collaboration source of truth for task CONTENT; providers are
-/// mirrors. Inbound writes MUST go through the canonical service layer
-/// (`TaskService.createTask/updateTask`, completion through
-/// `TaskService.completeTask(task:)` — the repeating-rollover control point),
-/// tagged with the provider's `source` for echo suppression.
-///
-/// Direction of travel (unified plan Phase 0): `AppleReminderProvider` wraps the
-/// existing EventKit code as the first conformer; `GitHubIssuesProvider` and
-/// `GoogleTasksProvider` call the astrid-web sync proxy.
-protocol SyncProvider {
-    /// Stable identifier, also used as the mapping-table discriminator.
-    var id: String { get }
-    var source: SyncSource { get }
-    var placement: SyncPlacement { get }
-
-    /// Ensure credentials/permission (EventKit authorization; OAuth connect).
-    func ensureAuthorized() async throws
-
-    /// The remote containers available to link (calendars / repos / tasklists).
-    func remoteContainers() async throws -> [RemoteContainer]
-    func createRemoteContainer(named name: String) async throws -> RemoteContainer
-
-    /// Push one Astrid task to the remote container. `existingRemoteId` nil =
-    /// create; non-nil = update. Returns the remote id.
-    func push(task: Task, containerId: String, existingRemoteId: String?) async throws -> String
-    func delete(remoteId: String, containerId: String) async throws
-
-    /// Pull items changed since `cursor` (nil = full). Returns the items plus
-    /// the next cursor (Google syncToken / GitHub since-watermark / nil).
-    func pull(containerId: String, since cursor: String?) async throws -> (items: [RemoteItem], cursor: String?)
 }
 
 /// Resolve an optimistic temp task id (from the Outbox-authoritative

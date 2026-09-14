@@ -18,6 +18,14 @@
 import Foundation
 
 enum MacUITestArgs {
+    /// Passed by every Mac UI test (`MacUITestLaunch.makeApp`). Skips onboarding, forces the
+    /// login screen regardless of the saved session, and leaves the launch selection alone.
+    static let uiTestingFlag = "-uiTesting"
+
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.arguments.contains(uiTestingFlag)
+    }
+
     static let selectRowFlag = "-uiTestSelectRow"
 
     /// The row index requested by `-uiTestSelectRow=<n>` (preferred) or `-uiTestSelectRow <n>`.

@@ -63,11 +63,7 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
     // MARK: - Both pickers must use the filter
 
     private func source(_ relativePath: String) throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
     }

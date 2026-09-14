@@ -8,6 +8,11 @@
 #   ./scripts/monkey-weekly.sh                 # both platforms, 200 actions each
 #   ./scripts/monkey-weekly.sh --actions 500
 #
+# To schedule it, install the launchd job next to this script (it runs weekly and calls
+# this file by absolute path — edit the path inside it first):
+#   cp scripts/cc.astrid.monkey.weekly.plist ~/Library/LaunchAgents/ && \
+#     launchctl load ~/Library/LaunchAgents/cc.astrid.monkey.weekly.plist
+#
 # The digest lands in build/monkey/weekly-<date>.md and the last line is RESULT:, so a scheduler
 # (or a person skimming) can tell what happened without reading the logs.
 #

@@ -24,8 +24,7 @@ enum MacTaskActions {
     static func canPresentShareSheet(shareURL: URL?) -> Bool { shareURL != nil }
 
     static func copyToPasteboard(_ string: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
+        PlatformPasteboard.copy(string)
     }
 
     /// Native share sheet — the Mac counterpart of iOS's UIActivityViewController: Mail, Messages,

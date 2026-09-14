@@ -424,56 +424,11 @@ extension Theme {
 // MARK: - Environment-aware theme access
 
 extension View {
-    @ViewBuilder
-    func themedBackground(light: Color, dark: Color, ocean: Color? = nil) -> some View {
-        self.modifier(ThemedBackgroundModifier(lightColor: light, darkColor: dark, oceanColor: ocean))
-    }
-
-    @ViewBuilder
-    func themedForeground(_ lightColor: Color, darkColor: Color, oceanColor: Color? = nil) -> some View {
-        self.modifier(ThemedForegroundModifier(lightColor: lightColor, darkColor: darkColor, oceanColor: oceanColor))
-    }
-
-    @ViewBuilder
-    func themedBorder(_ lightColor: Color, darkColor: Color, oceanColor: Color? = nil, width: CGFloat = 1) -> some View {
-        self.modifier(ThemedBorderModifier(lightColor: lightColor,
-                                          darkColor: darkColor,
-                                          oceanColor: oceanColor,
-                                          width: width))
-    }
-
     // MARK: - Semantic Theme Helpers (automatically use correct theme)
 
     /// Apply primary background color (main app background)
     func themedBackgroundPrimary() -> some View {
         self.modifier(SemanticBackgroundModifier(semantic: .primary))
-    }
-
-    /// Apply secondary background color (panels, cards)
-    func themedBackgroundSecondary() -> some View {
-        self.modifier(SemanticBackgroundModifier(semantic: .secondary))
-    }
-
-    /// Apply tertiary background color (subtle backgrounds)
-    func themedBackgroundTertiary() -> some View {
-        self.modifier(SemanticBackgroundModifier(semantic: .tertiary))
-    }
-
-    // MARK: - Liquid Glass Effects
-
-    /// Apply liquid glass effect with material blur
-    /// Falls back to standard material on pre-iOS 26 devices
-    @ViewBuilder
-    func liquidGlassEffect(
-        style: LiquidGlassStyle = .regular,
-        tint: Color? = nil
-    ) -> some View {
-        if let tintColor = tint {
-            self.background(style.material)
-                .background(tintColor)
-        } else {
-            self.background(style.material)
-        }
     }
 
     /// Conditional modifier helper
@@ -535,64 +490,6 @@ struct SemanticBackgroundModifier: ViewModifier {
     }
 }
 
-struct ThemedBackgroundModifier: ViewModifier {
-    @Environment(\.colorScheme) var colorScheme
-    @AppStorage("themeMode") private var themeMode: String = "ocean"
-    let lightColor: Color
-    let darkColor: Color
-    let oceanColor: Color?
-
-    func body(content: Content) -> some View {
-        let bgColor: Color = {
-            if themeMode == "ocean", let ocean = oceanColor {
-                return ocean
-            }
-            return colorScheme == .dark ? darkColor : lightColor
-        }()
-        content.background(bgColor)
-    }
-}
-
-struct ThemedForegroundModifier: ViewModifier {
-    @Environment(\.colorScheme) var colorScheme
-    @AppStorage("themeMode") private var themeMode: String = "ocean"
-    let lightColor: Color
-    let darkColor: Color
-    let oceanColor: Color?
-
-    func body(content: Content) -> some View {
-        let fgColor: Color = {
-            if themeMode == "ocean", let ocean = oceanColor {
-                return ocean
-            }
-            return colorScheme == .dark ? darkColor : lightColor
-        }()
-        content.foregroundColor(fgColor)
-    }
-}
-
-struct ThemedBorderModifier: ViewModifier {
-    @Environment(\.colorScheme) var colorScheme
-    @AppStorage("themeMode") private var themeMode: String = "ocean"
-    let lightColor: Color
-    let darkColor: Color
-    let oceanColor: Color?
-    let width: CGFloat
-
-    func body(content: Content) -> some View {
-        let borderColor: Color = {
-            if themeMode == "ocean", let ocean = oceanColor {
-                return ocean
-            }
-            return colorScheme == .dark ? darkColor : lightColor
-        }()
-        content.overlay(
-            RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .stroke(borderColor, lineWidth: width)
-        )
-    }
-}
-
 // MARK: - UIColor Extensions
 
 #if canImport(UIKit)
@@ -609,24 +506,3 @@ extension UIColor {
     }
 }
 #endif
-
-// MARK: - Liquid Glass Style
-
-/// Glass effect styles for liquid glass theme
-enum LiquidGlassStyle {
-    case ultraThin  // Most transparent, minimal blur
-    case thin       // Light blur for subtle glass
-    case regular    // Standard glass effect
-    case thick      // Heavy blur for prominent glass
-    case prominent  // Maximum blur for modals/overlays
-
-    var material: Material {
-        switch self {
-        case .ultraThin: return .ultraThinMaterial
-        case .thin: return .thinMaterial
-        case .regular: return .regularMaterial
-        case .thick: return .thickMaterial
-        case .prominent: return .thickMaterial
-        }
-    }
-}

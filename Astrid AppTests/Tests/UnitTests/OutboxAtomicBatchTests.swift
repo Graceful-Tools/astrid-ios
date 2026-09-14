@@ -4,16 +4,10 @@ import XCTest
 /// Blocker #3: a dependency chain (upload → comment) must be enqueued atomically
 /// — persisted in one journal write — so an interruption can't leave the upload
 /// queued but the comment lost.
-final class OutboxAtomicBatchTests: XCTestCase {
+final class OutboxAtomicBatchTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var url: URL!
-
-    override func setUpWithError() throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-batch-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: url) }
+    private var url: URL { tempFile }
 
     private func entry(_ id: String, dependsOn: [String] = []) -> OutboxEntry {
         OutboxEntry(id: id, kind: "k", payload: Data(), clientRequestId: "c-\(id)",

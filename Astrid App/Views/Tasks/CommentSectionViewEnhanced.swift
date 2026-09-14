@@ -1344,7 +1344,7 @@ struct CommentRowViewEnhanced: View {
     private var commentContextMenu: some View {
         Group {
             Button {
-                UIPasteboard.general.string = comment.content
+                PlatformPasteboard.copy(comment.content)
             } label: {
                 Label(NSLocalizedString("actions.copy", comment: "Copy"), systemImage: "doc.on.doc")
             }

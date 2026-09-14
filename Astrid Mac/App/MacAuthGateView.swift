@@ -43,7 +43,7 @@ struct MacAuthGateView: View {
             guard !MacRuntime.isRunningTests else { return }
             // UI testing: start from a clean signed-out state with no network work, so the sign-in
             // screen shows deterministically regardless of the machine's saved session (6c30df95).
-            if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            if MacUITestArgs.isUITesting {
                 auth.isCheckingAuth = false
                 auth.isAuthenticated = false
                 return
@@ -91,7 +91,7 @@ struct MacAuthGateView: View {
         .onChange(of: auth.isCheckingAuth) { _, checking in
             // Show onboarding once, after the initial auth check resolves (Task 0eeac7e8).
             // Skipped under UI testing (-uiTesting) for a deterministic login screen.
-            let uiTesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+            let uiTesting = MacUITestArgs.isUITesting
             if !checking && !hasSeenOnboarding && !MacRuntime.isRunningTests && !uiTesting { showOnboarding = true }
         }
         .sheet(isPresented: $showOnboarding, onDismiss: { hasSeenOnboarding = true }) {

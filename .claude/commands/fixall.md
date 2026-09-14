@@ -69,10 +69,10 @@ astrid-web uses — so it authenticates from the client-credentials pair in
 | Read a task | `get_task` `{ taskId }` and `get_task_comments` `{ taskId }` |
 | Comment (strategy, progress, report) | `add_comment` `{ taskId, content, type: "MARKDOWN" }` |
 | Complete | `update_task` `{ taskId, completed: true }` |
-| File the other repo's half | `create_task` `{ listId: <other board>, title, description, priority }` |
+| File the other repo's half | **Not `create_task`** — its `listId` is silently dropped (the API wants `listIds`; verified 2026-09-06, the task lands on no list). Use the OAuth scripts: `cd ../astrid-web && npx tsx scripts/create-task.ts "<title>" "<desc>" -p 2` (web board) or `scripts/file-ios-task.ts` (iOS board). |
 
 If the MCP tools are not loaded, they are deferred — load them with
-`ToolSearch "select:mcp__astrid__get_agent_queue,mcp__astrid__get_task,mcp__astrid__get_task_comments,mcp__astrid__add_comment,mcp__astrid__update_task,mcp__astrid__create_task"`.
+`ToolSearch "select:mcp__astrid__get_agent_queue,mcp__astrid__get_task,mcp__astrid__get_task_comments,mcp__astrid__add_comment,mcp__astrid__update_task"`.
 
 **If the session reports `astrid` failed to connect,** it is one of two local causes — MCP
 servers only attach at startup, so neither is fixable mid-run:
@@ -124,20 +124,6 @@ the *claim* has to be atomic.
 
 If those fail (OAuth flakiness), say so on the task with `add_comment` and carry on — a
 missing status change is a cosmetic gap; a task worked through the DB is not.
-
-### Until the web branch lands, degrade knowingly
-
-The claim's `--agent` support and `scripts/fixall-session.ts` arrived on astrid-web's
-`fix/fixall-collision-safety`, **which is not merged to astrid-web `main` as of 2026-09-09**.
-Check before concluding either is broken:
-
-- **`fixall-session.ts` missing** → the branch is not merged. Skip the lock, say so in the run
-  summary, and make certain by hand that no second session is in this checkout.
-- **The claim assigns to Copilot despite `--agent claude`** → the branch is merged but astrid-web
-  is not **deployed** (its deploys are manual). Fall back to `set-task-status.ts <taskId> Doing`
-  for that task. Do not work a task the board now says belongs to Copilot.
-
-Both halves ship independently and in either order, so neither of these blocks a run.
 
 ## The workflow itself is shared
 
@@ -223,5 +209,17 @@ git checkout main
 uploads straight to App Store Connect / TestFlight with the ASC key in `.env.local` — see
 `.claude/skills/appstore-release/SKILL.md`. Ask before an `:upload`.
 
-See [ASTRID.md](../../ASTRID.md) for architecture and the full coding workflow, and `/fixstuff`
-for the interactive, pick-one-task-at-a-time version.
+## Interactive mode (`/fixstuff`, "let's fix stuff")
+
+Same tools, same rules, same per-task loop, same end-of-run push. The only differences:
+
+1. **Ask which task(s) to work on** after pulling the queue, instead of taking them in order.
+   To show the whole board rather than the queue (Jon asks "what's on the list"), use
+   `get_tasks { listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` and filter on `completed`.
+2. **No working-tree lock** is needed; an interactive session is not one of several.
+3. Run `npm run predeploy` **after** implementation, not before.
+
+Everything else, including re-checking the queue after every task and pushing without
+asking when the run is done, is exactly as above.
+
+See [ASTRID.md](../../ASTRID.md) for architecture and the full coding workflow.

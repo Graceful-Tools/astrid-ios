@@ -22,9 +22,7 @@ import XCTest
 final class MacCommentAttachmentStagingTests: XCTestCase {
 
     private func detailSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }

@@ -430,9 +430,7 @@ extension TaskList {
     /// Check if the current user can access settings for this list.
     /// Returns true if user is owner or admin.
     func canUserSaveServerSettings() -> Bool {
-        guard let currentUserId = AuthManager.shared.userId else { return false }
-        let role = role(for: currentUserId)
-        return role == .owner || role == .admin
+        ListPermissions.canEditSettings(self, userId: AuthManager.shared.userId)
     }
 
     /// Check if a user is a member of this list (owner, admin, or member).

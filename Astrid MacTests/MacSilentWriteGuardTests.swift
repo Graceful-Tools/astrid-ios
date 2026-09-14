@@ -21,9 +21,7 @@ final class MacSilentWriteGuardTests: XCTestCase {
     ]
 
     func testNoMacWriteSwallowsItsError() throws {
-        let macRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let macRoot = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac")
 
         guard let files = FileManager.default.enumerator(at: macRoot, includingPropertiesForKeys: nil) else {

@@ -539,7 +539,7 @@ struct ListMembershipTab: View {
             transferAvailability = await listService.ownershipTransferAvailability(listId: list.id)
         }
         .sheet(isPresented: $showingShareList) {
-            ShareListView(list: list)
+            ShareTargetView(list: list)
         }
         .sheet(isPresented: $showingAddMember) {
             AddMemberSheet(

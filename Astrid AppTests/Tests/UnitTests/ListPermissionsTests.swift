@@ -79,10 +79,8 @@ final class ListPermissionsTests: XCTestCase {
     private static let mustAskTheRule = [
         "Astrid App/Views/Lists/ListMembershipTab.swift",
         "Astrid App/Views/Lists/ListSettingsModal.swift",
-        "Astrid Mac/Views/MacListMembersView.swift",
-        // The Mac's membership UI moved here in AITD-388. The old file is dead but still on this
-        // list: the contract is about every surface that decides, and a file nobody has deleted
-        // yet is a file someone can still reach for.
+        // The Mac's membership UI moved here in AITD-388 (the `MacListMembersView` it replaced
+        // has been deleted).
         "Astrid Mac/Views/MacListMembershipTab.swift",
         "Astrid Mac/Views/MacListSettingsWindow.swift",
         "Astrid Mac/Views/MacListMenu.swift",
@@ -93,7 +91,7 @@ final class ListPermissionsTests: XCTestCase {
 
     func testEveryDecidingCallSiteAsksTheSharedRule() throws {
         for relative in Self.mustAskTheRule {
-            let source = try String(contentsOf: repositoryRoot.appendingPathComponent(relative),
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
                                     encoding: .utf8)
             XCTAssertTrue(source.contains("ListPermissions."),
                           "\(relative) must ask the shared rule")
@@ -102,7 +100,7 @@ final class ListPermissionsTests: XCTestCase {
 
     func testNoCallSiteHandRollsTheRule() throws {
         for relative in Self.mustNotHandRollIt {
-            let source = try String(contentsOf: repositoryRoot.appendingPathComponent(relative),
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
                                     encoding: .utf8)
             // Only the hand-rolled OWNER-OR-ADMIN forms are banned. Comparing a role string is
             // fine elsewhere — ListMembershipTab legitimately does it to render and toggle
@@ -115,9 +113,55 @@ final class ListPermissionsTests: XCTestCase {
         }
     }
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+    // MARK: - Task-level rules moved out of TaskListView (2026-09-13)
+
+    private func list(privacy: TaskList.Privacy, publicListType: String? = nil,
+                      ownerId: String = "owner", member: String? = nil) -> TaskList {
+        var list = TestHelpers.createTestList(privacy: privacy, ownerId: ownerId)
+        list.publicListType = publicListType
+        if let member {
+            list.listMembers = [ListMember(id: "lm", listId: list.id, userId: member, role: "member",
+                                           createdAt: nil, updatedAt: nil, user: nil)]
+        }
+        return list
+    }
+
+    func testCopyOnlyPublicListTakesTasksFromOwnerAndAdminOnly() {
+        let list = list(privacy: .PUBLIC, member: "m")
+        XCTAssertTrue(ListPermissions.canAddTasks(list, userId: "owner"))
+        XCTAssertFalse(ListPermissions.canAddTasks(list, userId: "m"))
+        XCTAssertFalse(ListPermissions.canAddTasks(list, userId: "viewer"))
+        XCTAssertFalse(ListPermissions.canAddTasks(list, userId: nil))
+    }
+
+    func testCollaborativePublicListTakesTasksFromViewersToo() {
+        let list = list(privacy: .PUBLIC, publicListType: "collaborative")
+        XCTAssertTrue(ListPermissions.canAddTasks(list, userId: "anyone"),
+                      "a viewer of a public list has a role and may add")
+    }
+
+    func testPrivateListTakesTasksFromMembers() {
+        let list = list(privacy: .PRIVATE, member: "m")
+        XCTAssertTrue(ListPermissions.canAddTasks(list, userId: "m"))
+        XCTAssertFalse(ListPermissions.canAddTasks(list, userId: "stranger"))
+    }
+
+    func testReadOnlyFollowsTheSameMatrix() {
+        let mine = TestHelpers.createTestTask(creatorId: "m")
+        let theirs = TestHelpers.createTestTask(creatorId: "someone-else")
+
+        let copyOnly = list(privacy: .PUBLIC, member: "m")
+        XCTAssertFalse(ListPermissions.isTaskReadOnly(theirs, in: copyOnly, userId: "owner"))
+        XCTAssertTrue(ListPermissions.isTaskReadOnly(mine, in: copyOnly, userId: "m"),
+                      "copy-only: even a member's own task is read-only — copy the list to edit")
+
+        let collaborative = list(privacy: .PUBLIC, publicListType: "collaborative")
+        XCTAssertFalse(ListPermissions.isTaskReadOnly(mine, in: collaborative, userId: "m"))
+        XCTAssertTrue(ListPermissions.isTaskReadOnly(theirs, in: collaborative, userId: "m"))
+
+        let shared = list(privacy: .SHARED, member: "m")
+        XCTAssertFalse(ListPermissions.isTaskReadOnly(theirs, in: shared, userId: "m"))
+        XCTAssertTrue(ListPermissions.isTaskReadOnly(theirs, in: shared, userId: "stranger"))
+        XCTAssertTrue(ListPermissions.isTaskReadOnly(theirs, in: shared, userId: nil))
     }
 }

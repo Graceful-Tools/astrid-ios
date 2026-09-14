@@ -26,9 +26,7 @@ import SwiftUI
 final class MacCommentReferenceLinkTests: XCTestCase {
 
     private func macSource(_ path: String) throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent(path)
         return try String(contentsOf: url, encoding: .utf8)
     }

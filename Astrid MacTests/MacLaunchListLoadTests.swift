@@ -19,12 +19,8 @@ import XCTest
 
 final class MacLaunchListLoadTests: XCTestCase {
 
-    private static let repoRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()    // Astrid MacTests
-        .deletingLastPathComponent()    // repo root
-
     private func source(_ relative: String) throws -> String {
-        try String(contentsOf: Self.repoRoot.appendingPathComponent(relative), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative), encoding: .utf8)
     }
 
     // MARK: - The full sync is what caches now

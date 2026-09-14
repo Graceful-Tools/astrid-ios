@@ -12,35 +12,14 @@
 //   node scripts/asc-appstore.mjs testflight <ios|mac> <buildNumber> → is it live for testers?
 //   node scripts/asc-appstore.mjs versions <ios|mac>              → App Store version states
 //   node scripts/asc-appstore.mjs version-state <ios|mac> <x.y.z> → one version's state, or NOT_FOUND
-import crypto from 'crypto';
-import fs from 'fs';
-
-const ROOT = new URL('..', import.meta.url).pathname;
-// ASC_ENV_FILE lets check-version.sh and its test point both halves at the same file.
-const env = fs.readFileSync(process.env.ASC_ENV_FILE || ROOT + '.env.local', 'utf8');
-const pick = k => (env.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.replace(/^["']|["']$/g, '');
-
-// Match on the APPLE_ASC_PRIVATE_KEY= prefix, not the first PEM block in the file — .env.local
-// holds other private keys and grabbing the wrong one fails ES256 signing with "invalid digest".
-const jwt = () => {
-  const key = pick('APPLE_ASC_PRIVATE_KEY')?.replace(/\\n/g, '\n');
-  if (!key) die('APPLE_ASC_PRIVATE_KEY missing from .env.local');
-  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const now = Math.floor(Date.now() / 1000);
-  const unsigned = b64({ alg: 'ES256', kid: pick('APPLE_ASC_KEY_ID'), typ: 'JWT' }) + '.' +
-    b64({ iss: pick('APPLE_ASC_ISSUER_ID'), iat: now, exp: now + 900, aud: 'appstoreconnect-v1' });
-  return unsigned + '.' + crypto.sign('sha256', Buffer.from(unsigned), { key, dsaEncoding: 'ieee-p1363' }).toString('base64url');
-};
+// Credentials, signing and the env-file lookup (ASC_ENV_FILE) live in lib/asc-jwt.mjs.
+import { pick, ascRequest } from './lib/asc-jwt.mjs';
 
 const die = m => { console.error(m); process.exit(1); };
 
 const api = async path => {
-  const r = await fetch('https://api.appstoreconnect.apple.com' + path, {
-    headers: { Authorization: 'Bearer ' + jwt() },
-  });
-  const text = await r.text();
-  const body = text ? JSON.parse(text) : null;
-  if (r.status >= 300) die(`ASC ${r.status}: ${JSON.stringify(body?.errors ?? body).slice(0, 400)}`);
+  const { status, body } = await ascRequest(path).catch(e => die(e.message));
+  if (status >= 300) die(`ASC ${status}: ${JSON.stringify(body?.errors ?? body).slice(0, 400)}`);
   return body;
 };
 

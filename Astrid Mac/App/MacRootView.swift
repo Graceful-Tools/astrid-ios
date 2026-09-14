@@ -1531,7 +1531,7 @@ struct MacRootView: View {
             guard !didApplyLandingSelection else { return }
             didApplyLandingSelection = true
             // A UI test asks for its own starting selection; don't fight it.
-            guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+            guard !MacUITestArgs.isUITesting else { return }
             selectedListId = MacLaunchSelection.landingListId(restored: selectedListId,
                                                              myTasksId: Self.myTasksId)
         }

@@ -108,9 +108,7 @@ final class GoogleTasksPullDecisionTests: XCTestCase {
     // MARK: - The engine must ask, not re-derive
 
     func testTheEngineUsesTheseDecisions() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let engine = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Sync/GoogleTasksSyncService.swift"),
             encoding: .utf8)

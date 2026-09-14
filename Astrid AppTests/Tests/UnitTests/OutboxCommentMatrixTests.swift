@@ -6,16 +6,10 @@ import XCTest
 /// legacy uploader and disappeared). At this level we assert the CHAINS are
 /// correct: two back-to-back upload→comment chains complete independently with
 /// their own fileIds, and the offline-created-task variant orders correctly.
-final class OutboxCommentMatrixTests: XCTestCase {
+final class OutboxCommentMatrixTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var url: URL!
-
-    override func setUpWithError() throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-matrix-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: url) }
+    private var url: URL { tempFile }
 
     private func entry(_ id: String, kind: String, payload: [String: String] = [:],
                        dependsOn: [String] = []) -> OutboxEntry {

@@ -3,17 +3,10 @@ import XCTest
 
 /// Blocker #7: journal hardening — pruning, corruption-safe load, and
 /// concurrent-drain safety. (File protection is set on write; not unit-tested.)
-final class OutboxHardeningTests: XCTestCase {
+final class OutboxHardeningTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var tempDir: URL!
-
-    override func setUpWithError() throws {
-        tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-harden-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tempDir) }
+    private var tempDir: URL { tempDirectory }
 
     private func entry(_ id: String, status: OutboxStatus = .pending,
                        dependsOn: [String] = [], updatedOffset: TimeInterval = 0) -> OutboxEntry {

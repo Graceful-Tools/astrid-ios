@@ -37,21 +37,13 @@ final class ListViewPreferenceScopeTests: XCTestCase {
     private let listIdentityFields = ["name", "description", "color", "imageUrl", "privacy",
                                       "defaultPriority", "defaultDueDate", "defaultAssigneeId"]
 
-    private var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     // MARK: - 1. The copy
 
     /// The retired claim must be gone everywhere, and its replacement must exist in every
     /// language — a note that ships in English only is worse than no note, because the eleven
     /// other locales fall back to the key name.
     func testSortAndFilterCopyDoesNotClaimItAppliesToEveryone() throws {
-        let localizations = repoRoot.appendingPathComponent("Astrid App/Resources/Localizations")
+        let localizations = RepositoryLocator.root.appendingPathComponent("Astrid App/Resources/Localizations")
         let lprojs = try FileManager.default
             .contentsOfDirectory(at: localizations, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "lproj" }
@@ -98,7 +90,7 @@ final class ListViewPreferenceScopeTests: XCTestCase {
         var violations: [String] = []
 
         for tree in ["Astrid App", "Astrid Mac"] {
-            let root = repoRoot.appendingPathComponent(tree)
+            let root = RepositoryLocator.root.appendingPathComponent(tree)
             guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
                 return XCTFail("Could not enumerate \(root.path)")
             }

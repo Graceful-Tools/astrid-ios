@@ -7,6 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/lib/ios-destination.sh"
 
 # Colors for output
 RED='\033[0;31m'
@@ -80,6 +81,37 @@ if [[ "$QUICK_MODE" == "true" ]]; then
     TOTAL_STEPS=4
 fi
 
+# Print the numbered banner for the next step.
+step() {
+    STEP=$((STEP + 1))
+    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] $1${NC}"
+    echo ""
+}
+
+# Run a gate script; exit with the given failure message if it fails.
+gate() {
+    local ok="$1" fail="$2"; shift 2
+    if "$@"; then
+        echo -e "${GREEN}✓ $ok${NC}"
+    else
+        echo -e "${RED}✗ $fail${NC}"
+        exit 1
+    fi
+    echo ""
+}
+
+# The simulator build. One definition — the quick-mode path used to carry its own copy.
+build_ios() {
+    set +e
+    xcodebuild build \
+        -scheme "Astrid App" \
+        -destination "$ASTRID_IOS_DESTINATION" \
+        -quiet 2>&1
+    local build_exit=$?
+    set -e
+    [[ $build_exit -eq 0 ]]
+}
+
 # Step 1: App Store version state (AITD-396)
 # First, in every mode, because it is the cheapest check and the one that used to cost the most
 # to miss: a MARKETING_VERSION that App Store Connect has already released makes Xcode Cloud fail
@@ -88,66 +120,25 @@ fi
 # of them drifting. Fails ONLY on a positive collision: no key or no network prints a "skipped"
 # line and passes, so the gate still runs offline. In quick mode too: that is the mode people
 # reach for in a hurry, which is exactly when this gets missed.
-STEP=$((STEP + 1))
-echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking App Store version state...${NC}"
-echo ""
-if "$SCRIPT_DIR/check-version.sh" all; then
-    echo -e "${GREEN}✓ Version check passed${NC}"
-else
-    echo -e "${RED}✗ Version check failed — a released MARKETING_VERSION cannot take new builds${NC}"
-    exit 1
-fi
-echo ""
+step "Checking App Store version state..."
+gate "Version check passed" "Version check failed — a released MARKETING_VERSION cannot take new builds" \
+    "$SCRIPT_DIR/check-version.sh" all
 
 # Step 2: Localization checks
-STEP=$((STEP + 1))
-echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking localizations...${NC}"
-echo ""
-if "$SCRIPT_DIR/check-localizations.sh"; then
-    echo -e "${GREEN}✓ Localization checks passed${NC}"
-else
-    echo -e "${RED}✗ Localization checks failed${NC}"
-    exit 1
-fi
-echo ""
+step "Checking localizations..."
+gate "Localization checks passed" "Localization checks failed" "$SCRIPT_DIR/check-localizations.sh"
 
 # Step 3: Brand-literal checks (whitelabel — task 97208a72)
 # Its own gate, not folded into the unit tests, so a whitelabel regression is reported
 # as itself rather than as one failure among 1200. A brand literal is invisible on an
 # Astrid build and only surfaces on a partner's, where nobody is watching.
-STEP=$((STEP + 1))
-echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Checking brand literals...${NC}"
-echo ""
-if "$SCRIPT_DIR/check-brand.sh"; then
-    echo -e "${GREEN}✓ Brand checks passed${NC}"
-else
-    echo -e "${RED}✗ Brand checks failed${NC}"
-    exit 1
-fi
-echo ""
+step "Checking brand literals..."
+gate "Brand checks passed" "Brand checks failed" "$SCRIPT_DIR/check-brand.sh"
 
-# Step 4: Build verification (unless skipped or quick mode)
-if [[ "$SKIP_BUILD" != "true" && "$QUICK_MODE" != "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Verifying build compiles...${NC}"
-    echo ""
-
-    set +e
-    xcodebuild build \
-        -scheme "Astrid App" \
-        -destination "platform=iOS Simulator,name=iPhone 17" \
-        -quiet 2>&1
-
-    BUILD_EXIT=$?
-    set -e
-
-    if [[ $BUILD_EXIT -eq 0 ]]; then
-        echo -e "${GREEN}✓ Build verification passed${NC}"
-    else
-        echo -e "${RED}✗ Build failed${NC}"
-        exit 1
-    fi
-    echo ""
+# Step 4: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
+if [[ "$SKIP_BUILD" != "true" ]]; then
+    step "Verifying build compiles..."
+    gate "Build verification passed" "Build failed" build_ios
 fi
 
 # Step 5: Partner brand audit (unless quick mode)
@@ -156,90 +147,29 @@ fi
 # build every brand assertion is vacuous, because a reverted literal still compares
 # equal to the configured value. Task 97208a72.
 if [[ "$QUICK_MODE" != "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Auditing partner brand profiles...${NC}"
-    echo ""
-    if "$SCRIPT_DIR/check-brands.sh"; then
-        echo -e "${GREEN}✓ Brand audit passed${NC}"
-    else
-        echo -e "${RED}✗ Brand audit failed${NC}"
-        exit 1
-    fi
-    echo ""
+    step "Auditing partner brand profiles..."
+    gate "Brand audit passed" "Brand audit failed" "$SCRIPT_DIR/check-brands.sh"
 fi
 
 # Step 6: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running unit tests...${NC}"
-    echo ""
-    if "$SCRIPT_DIR/run-tests.sh"; then
-        echo -e "${GREEN}✓ Unit tests passed${NC}"
-    else
-        echo -e "${RED}✗ Unit tests failed${NC}"
-        exit 1
-    fi
+    step "Running unit tests..."
+    gate "Unit tests passed" "Unit tests failed" "$SCRIPT_DIR/run-tests.sh"
     # The version check above is a shell script; this is its test (AITD-396). Here rather than
     # in run-tests.sh because it is not an Xcode test, and it takes well under a second.
-    if "$SCRIPT_DIR/test-check-version.sh"; then
-        echo -e "${GREEN}✓ Script tests passed${NC}"
-    else
-        echo -e "${RED}✗ Script tests failed${NC}"
-        exit 1
-    fi
-    echo ""
+    gate "Script tests passed" "Script tests failed" "$SCRIPT_DIR/test-check-version.sh"
 fi
 
 # Step 7: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running UI tests...${NC}"
-    echo ""
-    if "$SCRIPT_DIR/run-tests.sh" --ui --no-unit; then
-        echo -e "${GREEN}✓ UI tests passed${NC}"
-    else
-        echo -e "${RED}✗ UI tests failed${NC}"
-        exit 1
-    fi
-    echo ""
+    step "Running UI tests..."
+    gate "UI tests passed" "UI tests failed" "$SCRIPT_DIR/run-tests.sh" --ui --no-unit
 fi
 
 # Step 8: Mac tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Running Mac tests...${NC}"
-    echo ""
-    if "$SCRIPT_DIR/run-mac-tests.sh"; then
-        echo -e "${GREEN}✓ Mac tests passed${NC}"
-    else
-        echo -e "${RED}✗ Mac tests failed${NC}"
-        exit 1
-    fi
-    echo ""
-fi
-
-# Quick mode check
-if [[ "$QUICK_MODE" == "true" ]]; then
-    STEP=$((STEP + 1))
-    echo -e "${BLUE}[$STEP/$TOTAL_STEPS] Quick build check...${NC}"
-    echo ""
-
-    set +e
-    xcodebuild build \
-        -scheme "Astrid App" \
-        -destination "platform=iOS Simulator,name=iPhone 17" \
-        -quiet 2>&1
-
-    BUILD_EXIT=$?
-    set -e
-
-    if [[ $BUILD_EXIT -eq 0 ]]; then
-        echo -e "${GREEN}✓ Build check passed${NC}"
-    else
-        echo -e "${RED}✗ Build failed${NC}"
-        exit 1
-    fi
-    echo ""
+    step "Running Mac tests..."
+    gate "Mac tests passed" "Mac tests failed" "$SCRIPT_DIR/run-mac-tests.sh"
 fi
 
 # Summary

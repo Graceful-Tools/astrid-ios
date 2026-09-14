@@ -114,9 +114,7 @@ final class SessionCookieRenewalTests: XCTestCase {
     // MARK: - The caller actually saves it
 
     func testAuthManagerPersistsARenewedToken() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Authentication/AuthManager.swift"),
             encoding: .utf8)

@@ -16,9 +16,7 @@ final class MacSidebarListSearchTests: XCTestCase {
 
     /// Every `.swift` file under `Astrid Mac`, paired with its source.
     private func macSources() throws -> [(name: String, source: String)] {
-        let macRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let macRoot = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac")
 
         guard let files = FileManager.default.enumerator(at: macRoot, includingPropertiesForKeys: nil) else {

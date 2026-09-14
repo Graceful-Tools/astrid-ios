@@ -62,7 +62,13 @@ enum TestHelpers {
         createdAt: Date? = nil,
         updatedAt: Date? = nil,
         originalTaskId: String? = nil,
-        sourceListId: String? = nil
+        sourceListId: String? = nil,
+        completedAt: Date? = nil,
+        completedSource: String? = nil,
+        statusRole: String? = nil,
+        secureFiles: [SecureFile]? = nil,
+        clientRequestId: String? = nil,
+        parentTaskId: String? = nil
     ) -> Task {
         return Task(
             id: id,
@@ -86,12 +92,18 @@ enum TestHelpers {
             listIds: listIds,
             isPrivate: isPrivate,
             completed: completed,
+            completedAt: completedAt,
+            completedSource: completedSource,
+            statusRole: statusRole,
             attachments: attachments,
+            secureFiles: secureFiles,
             comments: comments,
             createdAt: createdAt,
             updatedAt: updatedAt,
             originalTaskId: originalTaskId,
-            sourceListId: sourceListId
+            sourceListId: sourceListId,
+            clientRequestId: clientRequestId,
+            parentTaskId: parentTaskId
         )
     }
 

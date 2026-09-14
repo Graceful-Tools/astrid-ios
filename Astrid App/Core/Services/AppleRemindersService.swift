@@ -104,8 +104,8 @@ class AppleRemindersService: ObservableObject {
         guard hasPermission, !linkedLists.isEmpty, !isSyncing else { return }
         autoSyncDebounce?.cancel()
         autoSyncDebounce = _Concurrency.Task { @MainActor [weak self] in
-            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)  // 2s debounce
-            guard !_Concurrency.Task.isCancelled, let self, !self.isSyncing else { return }
+            guard await SyncPassScheduler.waitForNextPass(lastPassStarted: nil),  // shared debounce; no floor
+                  let self, !self.isSyncing else { return }
             do {
                 try await self.syncAllLinkedLists()
                 AppLog.debug("🔄 [AppleRemindersService] Auto-sync completed")

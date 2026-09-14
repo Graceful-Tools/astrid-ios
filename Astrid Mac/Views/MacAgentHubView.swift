@@ -654,8 +654,7 @@ struct MacCopyableCode: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Button(NSLocalizedString(copied ? "settings.agents.copied" : "actions.copy", comment: "")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(code, forType: .string)
+                PlatformPasteboard.copy(code)
                 copied = true
                 _Concurrency.Task {
                     try? await _Concurrency.Task.sleep(for: .seconds(2))

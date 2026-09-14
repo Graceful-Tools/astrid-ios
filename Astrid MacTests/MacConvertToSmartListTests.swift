@@ -18,9 +18,7 @@ import XCTest
 final class MacConvertToSmartListTests: XCTestCase {
 
     private func macSource(_ relative: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac")
             .appendingPathComponent(relative), encoding: .utf8)
     }

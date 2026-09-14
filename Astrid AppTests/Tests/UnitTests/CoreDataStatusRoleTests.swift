@@ -13,42 +13,10 @@ import CoreData
 /// stops hiding it the moment web stops dual-writing memberships: the field is
 /// nil from cache, the membership is gone, and every card falls to Inbox. That
 /// makes this a prerequisite for retiring the status lists, not a cosmetic fix.
-final class CoreDataStatusRoleTests: XCTestCase {
-
-    private var container: NSPersistentContainer!
-
-    override func setUpWithError() throws {
-        let appBundle = Bundle(for: CDTask.self)
-        let modelURL = try XCTUnwrap(
-            appBundle.url(forResource: "AstridApp", withExtension: "momd"),
-            "Could not find AstridApp.momd in the app bundle"
-        )
-        let model = try XCTUnwrap(NSManagedObjectModel(contentsOf: modelURL))
-        container = NSPersistentContainer(name: "AstridApp", managedObjectModel: model)
-        let store = NSPersistentStoreDescription()
-        store.type = NSInMemoryStoreType
-        store.shouldMigrateStoreAutomatically = true
-        store.shouldInferMappingModelAutomatically = true
-        container.persistentStoreDescriptions = [store]
-
-        let exp = expectation(description: "container loaded")
-        container.loadPersistentStores { _, error in
-            XCTAssertNil(error, "Container failed to load: \(error?.localizedDescription ?? "?")")
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 5.0)
-    }
-
-    private var context: NSManagedObjectContext { container.viewContext }
+final class CoreDataStatusRoleTests: InMemoryCoreDataTestCase {
 
     private func makeTask(id: String, statusRole: String?) -> Task {
-        Task(
-            id: id,
-            title: "Card",
-            description: "",
-            creatorId: "u1",
-            statusRole: statusRole
-        )
+        TestHelpers.createTestTask(id: id, title: "Card", creatorId: "u1", statusRole: statusRole)
     }
 
     /// `update(from:)` sets neither `id` nor `syncStatus`; the entity requires both.

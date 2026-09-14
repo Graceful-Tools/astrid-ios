@@ -245,7 +245,7 @@ struct TaskDetailViewNew: View {
                 CopyTaskView(task: task, currentListId: task.listIds?.first ?? task.lists?.first?.id)
             }
             .sheet(isPresented: $showingShareSheet) {
-                ShareTaskView(task: task)
+                ShareTargetView(task: task)
             }
             .confirmationDialog(
                 NSLocalizedString("tasks.delete_confirm", comment: ""),

@@ -87,22 +87,8 @@ refactor(sync): simplify SSE reconnection logic
 - Press **Cmd+U** to run all tests
 - Use the Test Navigator (Cmd+6) to run specific tests
 
-**From command line:**
-```bash
-xcodebuild test \
-  -project "Astrid App.xcodeproj" \
-  -scheme "Astrid App" \
-  -destination "platform=iOS Simulator,name=iPhone 17"
-```
-
-### Test File Locations
-
-| Test Type | Location |
-|-----------|----------|
-| Unit tests | `Astrid AppTests/Tests/UnitTests/` |
-| Integration tests | `Astrid AppTests/Tests/IntegrationTests/` |
-| Test helpers | `Astrid AppTests/Tests/Mocks/` |
-| UI tests | `Astrid AppUITests/` |
+**From command line:** `npm run test` (unit), `npm run test:ui`, `npm run test:mac`. The
+full command table and the test-file locations are in [CLAUDE.md](./CLAUDE.md) §Quality Gates.
 
 ### Writing Tests
 
@@ -123,21 +109,9 @@ func testTaskCompletion() {
 }
 ```
 
-### Core Test Classes
-
-These tests run in CI (fast, no network required):
-
-- `TaskModelTests` - Task model behavior
-- `UserModelTests` - User model behavior
-- `TaskListModelTests` - List model behavior
-- `RepeatingTaskCalculatorTests` - Recurring task logic
-- `UserImageCacheTests` - Image caching
-- `PasskeyErrorTests` - Passkey error handling
-- `EmailValidationTests` - Email format validation
-- `EmptyStateMessageTests` - Empty state UI
-- `ReviewPromptFeedbackTests` - App review prompts
-- `TaskPresenterTests` - Task presentation logic
-- `LocalizationManagerTests` - Localization
+Bug fixes are test-driven: a RED regression test naming the task id, then the fix
+(ASTRID.md §0 rule 7). Fixtures come from `TestHelpers` and the repo-root walk from
+`RepositoryLocator`; do not hand-roll either.
 
 ## Code Style
 
@@ -167,10 +141,12 @@ Use async/await for asynchronous operations:
 
 ```swift
 func fetchTasks() async throws -> [Task] {
-    let response = try await apiClient.request(.tasks)
-    return try JSONDecoder().decode([Task].self, from: response)
+    try await AstridAPIClient.shared.getTasks()
 }
 ```
+
+Views never call `AstridAPIClient` directly; writes go through the service layer
+(ASTRID.md §0 rule 1).
 
 ### Architecture
 
@@ -191,22 +167,13 @@ The app uses only system frameworks. Do not add external packages unless absolut
 
 ## API Compatibility
 
-The iOS app communicates with the Astrid backend API. When making changes:
-
-1. **Reference the API contract**: See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md)
-2. **Don't assume API changes**: Coordinate with backend team
-3. **Handle API versioning**: Use the `X-API-Version` header
-4. **Maintain backward compatibility**: Support older API versions where possible
-
-### API Endpoints Used
-
-All endpoints are defined in `Astrid App/Core/Networking/APIEndpoint.swift`. Key endpoints:
-
-- Authentication: `/api/auth/mobile-*`, `/api/auth/apple`, `/api/auth/google`
-- Tasks: `/api/v1/tasks`, `/api/v1/tasks/{id}`
-- Lists: `/api/lists`, `/api/lists/{id}`
-- Comments: `/api/v1/tasks/{id}/comments`
-- Real-time: `/api/v1/sse`
+- Every path is versioned `/api/v1/...` in the path; there is no version header.
+- New endpoints go in `AstridAPIClient` (ASTRID.md §2a); the `APIEndpoint` enum is legacy
+  and closed to additions.
+- The list of paths the app calls is [docs/API_ENDPOINTS.md](./docs/API_ENDPOINTS.md)
+  (test-gated); wire shapes are in [docs/API_CONTRACT.md](./docs/API_CONTRACT.md).
+- Make the web API change first, deploy it, then consume it here. For breaking changes add
+  a new version and keep the old one working.
 
 ## Pull Request Process
 
@@ -249,11 +216,7 @@ Brief description of changes
 
 ### View API Requests
 
-Add logging to `APIClient.swift`:
-```swift
-print("🌐 Request: \(endpoint.path)")
-print("📦 Response: \(String(data: data, encoding: .utf8) ?? "")")
-```
+Use `PrivacyLogger.request` / `.response` (DEBUG-only, redacts secrets) rather than `print`.
 
 ### Debug Server Configuration
 

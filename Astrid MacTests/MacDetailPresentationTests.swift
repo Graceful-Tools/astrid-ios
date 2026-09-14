@@ -92,8 +92,7 @@ final class MacDetailPresentationTests: XCTestCase {
     /// the action is still reachable, still turns full screen on rather than merely opening the
     /// panel, and still exists in exactly ONE place on the card.
     func testTheBoardCardOffersFullScreenFromItsMenuAndNotTheGutter_AITD377() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let board = try String(contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardView.swift"),
                                encoding: .utf8)
         XCTAssertTrue(board.contains("detailFullScreen = true"),
@@ -123,8 +122,7 @@ final class MacDetailPresentationTests: XCTestCase {
     /// helper for both the glyph and the tooltip, which is the whole reason that helper exists:
     /// it claimed to match the board while restating both literals.
     func testTheDetailHeaderKeepsItsButtonAndAsksTheSharedHelper() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let detail = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift"),
             encoding: .utf8)
@@ -152,8 +150,7 @@ final class MacDetailPresentationTests: XCTestCase {
     /// The view must ask the rule rather than re-deriving it — the buried condition is what let a
     /// control go dead without anything failing.
     func testTheRootViewAsksTheSharedRule() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(contentsOf: root.appendingPathComponent("Astrid Mac/App/MacRootView.swift"),
                                encoding: .utf8)
         XCTAssertTrue(source.contains("MacDetailPresentation.style("))

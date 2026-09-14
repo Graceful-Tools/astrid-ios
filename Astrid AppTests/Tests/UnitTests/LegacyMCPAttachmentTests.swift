@@ -130,9 +130,7 @@ final class LegacyMCPAttachmentTests: XCTestCase {
     /// view's ran — so the model's could not have been the fix. The view must ASK.
     func testTheAttachmentSectionUsesTheSharedUnion() throws {
         let source = try String(
-            contentsOf: URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().deletingLastPathComponent()
+            contentsOf: RepositoryLocator.root
                 .appendingPathComponent("Astrid App/Views/Tasks/TaskAttachmentSectionView.swift"),
             encoding: .utf8)
         XCTAssertTrue(source.contains("task.allSecureFiles("),
@@ -146,9 +144,7 @@ final class LegacyMCPAttachmentTests: XCTestCase {
     /// made visible.
     func testTheAttachmentSectionOffersNoDeletion() throws {
         let source = try String(
-            contentsOf: URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().deletingLastPathComponent()
+            contentsOf: RepositoryLocator.root
                 .appendingPathComponent("Astrid App/Views/Tasks/TaskAttachmentSectionView.swift"),
             encoding: .utf8)
         XCTAssertFalse(source.contains("onDelete"),

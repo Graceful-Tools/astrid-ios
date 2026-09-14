@@ -690,8 +690,7 @@ struct MacTaskDetailView: View {
     }
 
     private func copyToPasteboard(_ s: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(s, forType: .string)
+        PlatformPasteboard.copy(s)
     }
 
     // MARK: subtasks + comments

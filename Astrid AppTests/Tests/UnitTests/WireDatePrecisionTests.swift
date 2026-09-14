@@ -63,9 +63,7 @@ final class WireDatePrecisionTests: XCTestCase {
     /// two completions and found they were the same instant.
     func testTaskServiceStampsCompletedAtThroughWireDate() throws {
         let source = try String(
-            contentsOf: URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().deletingLastPathComponent()
+            contentsOf: RepositoryLocator.root
                 .appendingPathComponent("Astrid App/Core/Services/TaskService.swift"),
             encoding: .utf8)
 

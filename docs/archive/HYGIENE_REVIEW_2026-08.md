@@ -1,5 +1,7 @@
 # Hygiene review — astrid-ios, 2026-08-14
 
+> **Archived 2026-09-13.** Findings 1, 4 and 5 are closed (ASTRID.md §2a, `docs/API_ENDPOINTS.md`, `LOCAL_FIRST_PATTERN.md` §Caching); finding 3 is now the `SourceFileSizeGuardTests` ratchet. **Finding 2 (iOS sessions expire absolutely after 30 days; renewal must come from the server) is still open and cross-repo.**
+
 Companion to the web review (astrid-web `docs/architecture/REFACTORING_PROPOSAL.md`
 § "2026-08-13 review"). Task d6d42971.
 

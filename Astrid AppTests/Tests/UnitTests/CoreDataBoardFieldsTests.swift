@@ -5,39 +5,8 @@ import CoreData
 /// Round-trip tests for the new board-related Core Data attributes:
 /// project-related fields on CDTaskList + the new CDProject entity.
 ///
-/// Uses an in-memory NSPersistentContainer pointed at the production
-/// model. If the model XML is malformed or the new attributes don't match
-/// the @NSManaged properties on the classes, container setup fails here.
-final class CoreDataBoardFieldsTests: XCTestCase {
-
-    private var container: NSPersistentContainer!
-
-    override func setUpWithError() throws {
-        // Load the app's compiled Core Data model from the app bundle —
-        // the test bundle doesn't ship the .momd, so we walk to the
-        // CDTaskList class's bundle.
-        let appBundle = Bundle(for: CDTaskList.self)
-        let modelURL = try XCTUnwrap(
-            appBundle.url(forResource: "AstridApp", withExtension: "momd"),
-            "Could not find AstridApp.momd in the app bundle"
-        )
-        let model = try XCTUnwrap(NSManagedObjectModel(contentsOf: modelURL))
-        container = NSPersistentContainer(name: "AstridApp", managedObjectModel: model)
-        let store = NSPersistentStoreDescription()
-        store.type = NSInMemoryStoreType
-        store.shouldMigrateStoreAutomatically = true
-        store.shouldInferMappingModelAutomatically = true
-        container.persistentStoreDescriptions = [store]
-
-        let exp = expectation(description: "container loaded")
-        container.loadPersistentStores { _, error in
-            XCTAssertNil(error, "Container failed to load: \(error?.localizedDescription ?? "?")")
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 5.0)
-    }
-
-    private var context: NSManagedObjectContext { container.viewContext }
+/// Uses the in-memory container from `InMemoryCoreDataTestCase`, pointed at the production model.
+final class CoreDataBoardFieldsTests: InMemoryCoreDataTestCase {
 
     // MARK: - CDTaskList board fields
 

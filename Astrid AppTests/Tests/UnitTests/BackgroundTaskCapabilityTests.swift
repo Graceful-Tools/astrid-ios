@@ -68,11 +68,7 @@ final class BackgroundTaskCapabilityTests: XCTestCase {
     }
 
     private func plist(named name: String) throws -> [String: Any] {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repository root
+        let root = RepositoryLocator.root
         let data = try Data(contentsOf: root.appendingPathComponent(name))
         return try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
     }

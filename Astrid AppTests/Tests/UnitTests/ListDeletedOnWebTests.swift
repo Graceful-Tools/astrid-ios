@@ -79,9 +79,7 @@ final class ListDeletedOnWebTests: XCTestCase {
 
     /// The rule has to be applied where the fetch caches, or it is just a well-tested no-op.
     func testFetchListsAppliesThePruner() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Core/Services/ListService.swift"),
             encoding: .utf8)
         XCTAssertTrue(source.contains("SyncOrphanPrune"),
@@ -93,9 +91,7 @@ final class ListDeletedOnWebTests: XCTestCase {
     /// pinned in `ListCachePlanTests`; this is about where it is applied.
     /// The rule has to be applied where the caching happens, or it is a well-tested no-op.
     func testTheDeletionFilterLivesWhereBothFetchPathsCache() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Core/Services/ListService.swift"),
             encoding: .utf8)
 

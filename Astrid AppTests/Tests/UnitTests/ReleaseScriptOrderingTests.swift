@@ -15,11 +15,7 @@ final class ReleaseScriptOrderingTests: XCTestCase {
 
     private var script: String {
         get throws {
-            let url = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
+            let url = RepositoryLocator.root
                 .appendingPathComponent("scripts/appstore-release.sh")
             return try String(contentsOf: url, encoding: .utf8)
         }

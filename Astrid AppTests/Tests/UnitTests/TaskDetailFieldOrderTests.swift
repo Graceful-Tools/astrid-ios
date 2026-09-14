@@ -48,9 +48,7 @@ final class TaskDetailFieldOrderTests: XCTestCase {
     /// A flag icon on the priority row is the other half, and would silently come back with any
     /// copy-paste of a neighbouring row.
     func testTheIOSDetailEmitsTheRowsInOrder() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid App/Views/Tasks/TaskDetailViewNew.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
 

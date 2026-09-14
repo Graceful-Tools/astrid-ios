@@ -118,9 +118,7 @@ final class SSEFrameBufferTests: XCTestCase {
     // MARK: - The guard
 
     func testStreamingLoopDoesNotDecodeASingleByteAsUTF8() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/RealTime/SSEClient.swift"),
             encoding: .utf8

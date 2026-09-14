@@ -16,40 +16,37 @@ cd astrid-ios
 open "Astrid App.xcodeproj"
 ```
 
-Xcode resolves Swift Package dependencies automatically on first open.
+There are no package dependencies; the app uses system frameworks only.
 
 ## Configuration
 
 - API base URL and other endpoints live in `Astrid App/Utilities/Constants.swift`
   (`Constants.API.baseURL`). No hardcoded URLs elsewhere.
-- Local tooling reads `.env.local` (copied from `astrid-web` — see the root
-  `CLAUDE.md` "Environment Setup").
+- Local release tooling reads `.env.local` (the App Store Connect key; see
+  `.claude/skills/appstore-release/SKILL.md`). The task workflow talks to Astrid through
+  the `astrid` MCP server, which reads `astrid-web/.env.local` (see `.claude/commands/fixall.md`).
 
 ## Build & test
 
 ```bash
-npm run predeploy        # localizations + build + unit tests
-xcodebuild build -scheme "Astrid App" \
-  -destination "platform=iOS Simulator,name=iPhone 17" -quiet
+npm run predeploy        # the standard gate; steps listed in CLAUDE.md §Quality Gates
+npm run build            # build only
 ```
 
-See the root `CLAUDE.md` for the full quality-gate commands and the deploy
-workflow (push to `iosdev` / `macdev` → Xcode Cloud → TestFlight; `main` is
-reserved for App Store release builds).
+The root `CLAUDE.md` owns the quality-gate commands and the deploy workflow (work lands on
+`main`; pushing `iosdev` / `macdev` makes a TestFlight build; App Store submissions are manual).
 
 ## Targets
 
 - **Astrid App** — the main app.
 - **Astrid** — the Share Extension (built from `Astrid/`).
-- **Astrid AppTests / Astrid AppUITests** — unit and UI tests.
+- **Astrid Mac** — the macOS app; shares `Astrid App/Core` (ASTRID.md §9).
+- **Astrid AppTests / AppUITests / MacTests / MacUITests** — unit and UI tests per platform.
 
 ## Architecture
 
-The app is offline-first: every backend write flows through the unified
-**Outbox** (`Astrid App/Core/Outbox/`), and reads are cache-first (CoreData)
-with a background pull + SSE. External sync (Apple Reminders / Google Tasks /
-GitHub Issues) lives in `Astrid App/Core/Sync/`. See
-[`LOCAL_FIRST_PATTERN.md`](./LOCAL_FIRST_PATTERN.md) and the root `CLAUDE.md`.
+See the root `ASTRID.md` (rules and control points), [`LOCAL_FIRST_PATTERN.md`](./LOCAL_FIRST_PATTERN.md)
+(Outbox and caching) and [`SYNC_ARCHITECTURE.md`](./SYNC_ARCHITECTURE.md) (external sync).
 
 ## Pointing a Debug build at your own dev server
 

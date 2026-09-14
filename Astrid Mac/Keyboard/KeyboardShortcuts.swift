@@ -6,7 +6,7 @@
 //  single-key / modifier-less (Gmail-style) and muscle-memory must transfer 1:1
 //  between web and Mac. Changing a binding means changing BOTH platforms in the same
 //  PR, and updating `KeyboardShortcutsParityTests` (which locks this table against the
-//  web set). See docs/MAC_APP_SPEC.md §7.1 / §10.2.
+//  web set). See docs/archive/MAC_APP_SPEC.md §7.1 / §10.2.
 //
 //  This file is pure data (no UIKit/AppKit). ⌘-menu equivalents and the ⌘K palette are
 //  ADDITIVE and live in AstridCommands.swift — they are NOT part of this shared contract.

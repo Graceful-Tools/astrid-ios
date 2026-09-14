@@ -171,11 +171,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
     /// board card, so if the card stops declaring itself a card it silently inherits the row's
     /// answer again — which is the whole bug.
     func testTheBoardCardDeclaresItsSurface() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid App/Views/Board/BoardTaskCardView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(source.contains("surface: .boardCard"),
@@ -361,9 +357,7 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     ]
 
     private static func source(of path: String) throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 }

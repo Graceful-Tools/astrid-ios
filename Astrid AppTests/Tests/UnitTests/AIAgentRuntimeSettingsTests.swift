@@ -78,11 +78,7 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
     }
 
     func testTask_920155a6SettingsExposesAgentRuntimePage() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Views/Settings/SettingsView.swift"),
             encoding: .utf8

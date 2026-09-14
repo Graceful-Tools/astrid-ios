@@ -4,14 +4,6 @@ import XCTest
 /// Unit tests for SSE comment updates in task detail views
 final class CommentSSETests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
-    }
-
-    override func tearDown() {
-        super.tearDown()
-    }
-
     // MARK: - Handler Registration Tests
 
     /// Test that comment handlers are registered correctly

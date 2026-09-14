@@ -20,7 +20,7 @@ final class QuickEntryHotKeyController: ObservableObject {
         // Default ⌥Space; make user-rebindable in M2.
         hotKey = GlobalHotKey { [weak self] in self?.open() }
         if hotKey == nil {
-            NSLog("[Astrid][M0] GlobalHotKey registration FAILED — see docs/MAC_M0_NOTES.md fallback.")
+            NSLog("[Astrid][M0] GlobalHotKey registration FAILED — see docs/archive/MAC_M0_NOTES.md fallback.")
         }
     }
 

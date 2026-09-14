@@ -24,9 +24,7 @@ import SwiftUI
 final class MacSidebarChromeTests: XCTestCase {
 
     private func rootSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacRootView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }
@@ -34,9 +32,7 @@ final class MacSidebarChromeTests: XCTestCase {
     /// The account bar is a separate view painted over the container, and it has its own copy of
     /// the "does this follow the theme" question (AITD-307).
     private func accountBarSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacSidebarAccountBar.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }
@@ -82,7 +78,6 @@ final class MacSidebarChromeTests: XCTestCase {
         XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"),
                       "The footer strip must reach the window edge")
     }
-
 
     // MARK: - The regression this file's own fix caused (task 6531e684)
 

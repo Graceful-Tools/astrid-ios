@@ -14,7 +14,7 @@ One repository, two shipping apps: the `Astrid App` scheme (iOS/iPadOS) and the
 A signed and notarized `.dmg` is attached to every `mac-v*` GitHub Release (Developer ID,
 stapled, so it opens without a Gatekeeper detour). The [astrid.cc download
 page](https://astrid.cc/download) resolves the newest one automatically — publishing a release
-is the only step needed to ship a Mac update. Requires macOS 15 or later.
+is the only step needed to ship a Mac update. Requires macOS 14 or later.
 
 The binary lives on the Release, not in the git tree; `build/` is ignored. To produce one, see
 [Mac app](#mac-app) below.
@@ -94,9 +94,10 @@ astrid-ios/
 │   ├── Utilities/             # Helpers and constants
 │   └── Resources/
 │       └── Localizations/     # 12 language translations
-├── Astrid AppTests/           # Unit tests
-├── Astrid AppUITests/         # UI tests
-├── Astrid/                    # Share extension target (built from Astrid/)
+├── Astrid Mac/                # macOS app shell (shares Astrid App/Core)
+├── Shared/                    # Files compiled into the app and the share extension
+├── Astrid/                    # Share extension target
+├── Astrid AppTests/, Astrid AppUITests/, Astrid MacTests/, Astrid MacUITests/
 ├── docs/                      # Technical documentation
 └── scripts/                   # Build and test scripts
 ```
@@ -105,25 +106,10 @@ astrid-ios/
 
 ### Build and Test Commands
 
-```bash
-# Build the app
-npm run build
-
-# Run unit tests
-npm run test
-
-# Run all tests (unit + UI)
-npm run test:all
-
-# Boot the exact iPhone 17 simulator once; later runs reuse it
-npm run simulator:prepare
-
-# Predeploy checks (before pushing)
-npm run predeploy
-
-# Full predeploy (includes iOS UI and Mac tests)
-npm run predeploy:full
-```
+`npm run predeploy` is the standard gate before pushing. The full table of `npm run`
+commands, what each runs, and where the tests live is in [CLAUDE.md](./CLAUDE.md)
+§Quality Gates. `npm run simulator:prepare` boots the exact iPhone simulator once so later
+runs reuse it.
 
 ### Mac app
 
@@ -181,16 +167,10 @@ Localization files are in `Astrid App/Resources/Localizations/`.
 
 ## API Integration
 
-The app integrates with the Astrid backend:
-
-- **Authentication**: `/api/v1/auth/apple`, `/api/v1/auth/google`, `/api/v1/auth/mobile-*`
-- **Tasks**: `/api/v1/tasks` (CRUD operations)
-- **Lists**: `/api/v1/lists` (CRUD operations)
-- **Comments**: `/api/v1/tasks/{id}/comments`
-- **Real-time**: `/api/v1/sse` (Server-Sent Events)
-- **GitHub**: `/api/v1/github/repositories`
-
-See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) for the full API specification.
+Every path the app calls (all under `/api/v1/`) is listed in
+[docs/API_ENDPOINTS.md](./docs/API_ENDPOINTS.md), which a unit test keeps in step with the
+source. Wire shapes, SSE events and error codes are in
+[docs/API_CONTRACT.md](./docs/API_CONTRACT.md).
 
 ## Security
 
@@ -202,30 +182,11 @@ See [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) for the full API specificatio
 
 ## Deployment
 
-Day-to-day work ships from the dev branches; `main` is reserved for App Store releases:
+Work lands on `main`; pushing `iosdev` / `macdev` starts the Xcode Cloud TestFlight builds;
+App Store submissions are manual. The branch table, the batching rule and the local
+build-and-upload path are in [CLAUDE.md](./CLAUDE.md) §Deployment.
 
-```bash
-# Run predeploy checks first
-npm run predeploy
-
-# Then push to the dev branch for the platform you changed
-git push origin iosdev     # or macdev for Mac-only work
-```
-
-Xcode Cloud runs four workflows:
-
-| Branch | Workflow | Scheme | Goes to |
-|--------|----------|--------|---------|
-| `iosdev` | `iOS Internal testers` | `Astrid App` | TestFlight (internal) |
-| `macdev` | `Mac app internal testers` | `Astrid Mac` | TestFlight (internal) |
-| `main` | `iOS Release` | `Astrid App` | App Store submission |
-| `main` | `Mac Release` | `Astrid Mac` | App Store submission |
-
-Merge into `main` only when cutting an actual App Store release. Bump
-`CURRENT_PROJECT_VERSION` before pushing; Xcode Cloud stamps its own build number on CI
-archives, but local archives (the DMG) use this one.
-
-Publishing a Mac release:
+Publishing a direct-download Mac release:
 
 ```bash
 npm run package:mac
@@ -243,8 +204,12 @@ cutting a second release or it collides with the previous tag.
 - [docs/SHARE_EXTENSION_SETUP.md](./docs/SHARE_EXTENSION_SETUP.md) - Share extension setup
 
 ### Technical Docs
-- [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) - Backend API specification
-- [docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) - Offline-first architecture
+- [ASTRID.md](./ASTRID.md) - Architecture rules and cross-platform contracts (read first)
+- [docs/API_ENDPOINTS.md](./docs/API_ENDPOINTS.md) - Every API path the app calls
+- [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) - Wire shapes, SSE events, errors
+- [docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) - Outbox and caching
+- [docs/SYNC_ARCHITECTURE.md](./docs/SYNC_ARCHITECTURE.md) - External sync providers
+- [docs/MAC_SIGNING.md](./docs/MAC_SIGNING.md), [docs/MAC_DISTRIBUTION.md](./docs/MAC_DISTRIBUTION.md) - Mac signing and release channels
 
 ### Contributing
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - How to contribute
@@ -253,16 +218,9 @@ cutting a second release or it collides with the previous tag.
 
 ## Architecture
 
-Writes journal through the unified Outbox (`Core/Outbox/` — idempotent, retrying, dependency-ordered); reads are cache-first with a 60s SyncManager pull + SSE. External sync providers live in `Core/Sync/`. See `docs/LOCAL_FIRST_PATTERN.md`.
-
-The app follows a local-first architecture pattern:
-
-1. **Write Local, Sync Background** - All mutations save to Core Data immediately
-2. **Read from Cache First** - UI reads Core Data, never waits for network
-3. **Optimistic Updates** - Show changes instantly with temp IDs
-4. **Background Sync** - 60-second timer + network restoration triggers
-
-See [docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) for details.
+Local-first: every write applies optimistically, then journals through the unified Outbox;
+reads are cache-first. [ASTRID.md](./ASTRID.md) holds the rules and control points,
+[docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) the mechanism.
 
 ## Code Style
 

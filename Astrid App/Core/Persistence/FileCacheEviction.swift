@@ -41,4 +41,30 @@ enum FileCacheEviction {
         }
         return evicted
     }
+
+    /// Apply the policy to a directory of flat files. Returns how many were removed.
+    ///
+    /// The filesystem half that `ImageCache` and `DownloadedAttachmentCache` each carried a copy
+    /// of. Access date is the right signal but is not always recorded (noatime volumes, and it is
+    /// unreliable on the simulator), so fall back to modification date rather than treating an
+    /// unknown file as infinitely old and evicting it first.
+    @discardableResult
+    static func sweep(directory: URL, cap: Int, fileManager: FileManager = .default) -> Int {
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
+        guard let files = try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys)
+        else { return 0 }
+
+        let entries: [FileCacheEntry] = files.compactMap { url in
+            guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                  let size = values.fileSize else { return nil }
+            let accessed = values.contentAccessDate ?? values.contentModificationDate ?? Date()
+            return FileCacheEntry(id: url.lastPathComponent, size: size, lastAccess: accessed)
+        }
+
+        let doomed = idsToEvict(entries, cap: cap)
+        for id in doomed {
+            try? fileManager.removeItem(at: directory.appendingPathComponent(id))
+        }
+        return doomed.count
+    }
 }

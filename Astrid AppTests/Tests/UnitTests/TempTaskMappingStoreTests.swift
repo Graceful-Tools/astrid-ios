@@ -3,18 +3,7 @@ import XCTest
 
 /// Blocker #4: the temp→real task-id map must survive relaunch, or a photo/comment
 /// queued against an offline-created task is stranded after an app kill.
-final class TempTaskMappingStoreTests: XCTestCase {
-
-    private var defaults: UserDefaults!
-    private var suite: String!
-
-    override func setUpWithError() throws {
-        suite = "temp-map-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
-    }
-    override func tearDownWithError() throws {
-        defaults.removePersistentDomain(forName: suite)
-    }
+final class TempTaskMappingStoreTests: DefaultsTestCase {
 
     func testSaveThenLoadRoundTrips() {
         TempTaskMappingStore.save(["temp_a": "real_a", "temp_b": "real_b"], to: defaults)

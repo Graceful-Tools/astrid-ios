@@ -133,17 +133,12 @@ final class RecentlyCompletedSortTests: XCTestCase {
 final class RecentlyCompletedSortPickerTests: XCTestCase {
 
     private func source(_ path: String) throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let root = RepositoryLocator.root
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 
     func testEverySortPickerOffersRecentlyCompleted() throws {
         for path in ["Astrid App/Views/Lists/ListSortFiltersTab.swift",
-                     "Astrid App/Views/Lists/ListFiltersView.swift",
                      "Astrid Mac/Views/MacListFilter.swift"] {
             let text = try source(path)
             XCTAssertTrue(text.contains("completedAt"),

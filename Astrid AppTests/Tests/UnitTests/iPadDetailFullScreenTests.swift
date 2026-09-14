@@ -59,11 +59,7 @@ final class iPadDetailFullScreenTests: XCTestCase {
 
     /// The header control must be wired to the panel, not just exist as a layout rule.
     func testTheDetailHeaderOffersTheExpandControl() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Views/Tasks/TaskDetailViewNew.swift"),
             encoding: .utf8)
         XCTAssertTrue(source.contains("onToggleFullScreen"),

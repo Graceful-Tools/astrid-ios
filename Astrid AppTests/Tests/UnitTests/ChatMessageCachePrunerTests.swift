@@ -129,9 +129,7 @@ final class ChatMessageCachePrunerTests: XCTestCase {
 final class ChatMessagePruneWiringTests: XCTestCase {
 
     private func code() throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         return try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Services/ChatService.swift"),
             encoding: .utf8)

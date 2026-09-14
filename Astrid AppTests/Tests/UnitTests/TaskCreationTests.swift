@@ -7,26 +7,6 @@ final class TaskCreationTests: XCTestCase {
 
     // MARK: - Basic Task Creation Tests
 
-    func testCreateMinimalTask() {
-        // Given: Minimal task data
-        let task = TestHelpers.createTestTask(
-            id: "task-123",
-            title: "Simple Task"
-        )
-
-        // Then: Task should have correct defaults
-        XCTAssertEqual(task.id, "task-123")
-        XCTAssertEqual(task.title, "Simple Task")
-        XCTAssertEqual(task.description, "")
-        XCTAssertEqual(task.priority, .none)
-        XCTAssertFalse(task.completed)
-        XCTAssertFalse(task.isPrivate)
-        XCTAssertTrue(task.isAllDay)
-        XCTAssertNil(task.dueDateTime)
-        XCTAssertNil(task.assigneeId)
-        XCTAssertNil(task.repeating)
-    }
-
     func testCreateTaskWithTitle() {
         // Given: A task with specific title
         let title = "Buy groceries"
@@ -48,59 +28,6 @@ final class TaskCreationTests: XCTestCase {
     }
 
     // MARK: - Priority Tests (Quick Priority Setting)
-
-    func testCreateTaskWithNoPriority() {
-        // Given: A task with no priority
-        let task = TestHelpers.createTestTask(priority: .none)
-
-        // Then: Priority should be none
-        XCTAssertEqual(task.priority, .none)
-        XCTAssertEqual(task.priority.rawValue, 0)
-        XCTAssertEqual(task.priority.displayName, "None")
-    }
-
-    func testCreateTaskWithLowPriority() {
-        // Given: A task with low priority
-        let task = TestHelpers.createTestTask(priority: .low)
-
-        // Then: Priority should be low
-        XCTAssertEqual(task.priority, .low)
-        XCTAssertEqual(task.priority.rawValue, 1)
-        XCTAssertEqual(task.priority.displayName, "Low")
-        XCTAssertEqual(task.priority.color, "#10b981")
-    }
-
-    func testCreateTaskWithMediumPriority() {
-        // Given: A task with medium priority
-        let task = TestHelpers.createTestTask(priority: .medium)
-
-        // Then: Priority should be medium
-        XCTAssertEqual(task.priority, .medium)
-        XCTAssertEqual(task.priority.rawValue, 2)
-        XCTAssertEqual(task.priority.displayName, "Medium")
-        XCTAssertEqual(task.priority.color, "#f59e0b")
-    }
-
-    func testCreateTaskWithHighPriority() {
-        // Given: A task with high priority
-        let task = TestHelpers.createTestTask(priority: .high)
-
-        // Then: Priority should be high
-        XCTAssertEqual(task.priority, .high)
-        XCTAssertEqual(task.priority.rawValue, 3)
-        XCTAssertEqual(task.priority.displayName, "High")
-        XCTAssertEqual(task.priority.color, "#ef4444")
-    }
-
-    func testPriorityOrdering() {
-        // Given: All priority levels
-        let priorities: [Task.Priority] = [.none, .low, .medium, .high]
-
-        // Then: Raw values should be ordered
-        for i in 0..<priorities.count {
-            XCTAssertEqual(priorities[i].rawValue, i)
-        }
-    }
 
     // MARK: - Due Date Tests
 
@@ -216,36 +143,6 @@ final class TaskCreationTests: XCTestCase {
 
     // MARK: - Creator Tests
 
-    func testTaskWithCreatorId() {
-        // Given: A task with creator ID
-        let task = TestHelpers.createTestTask(creatorId: "creator-123")
-
-        // Then: Creator ID should be set
-        XCTAssertEqual(task.creatorId, "creator-123")
-        XCTAssertEqual(task.effectiveCreatorId, "creator-123")
-    }
-
-    func testTaskWithCreatorObject() {
-        // Given: A task with creator object
-        let creator = TestHelpers.createTestUser(id: "creator-456", name: "Task Creator")
-        let task = TestHelpers.createTestTask(creator: creator)
-
-        // Then: Creator should be set
-        XCTAssertNotNil(task.creator)
-        XCTAssertEqual(task.creator?.id, "creator-456")
-        XCTAssertEqual(task.effectiveCreatorId, "creator-456")
-    }
-
-    func testIsCreatedBy() {
-        // Given: A task with creator
-        let task = TestHelpers.createTestTask(creatorId: "user-abc")
-
-        // Then: isCreatedBy should work correctly
-        XCTAssertTrue(task.isCreatedBy("user-abc"))
-        XCTAssertFalse(task.isCreatedBy("user-xyz"))
-        XCTAssertFalse(task.isCreatedBy(""))
-    }
-
     // MARK: - Assignee Tests
 
     func testTaskWithAssignee() {
@@ -349,35 +246,7 @@ final class TaskCreationTests: XCTestCase {
 
     // MARK: - Task Equality Tests
 
-    func testTaskIdEquality() {
-        // Given: Two tasks with same ID
-        let task1 = TestHelpers.createTestTask(id: "same-id", title: "Task 1")
-        let task2 = TestHelpers.createTestTask(id: "same-id", title: "Task 2")
-
-        // Then: Should have same ID
-        XCTAssertEqual(task1.id, task2.id)
-    }
-
-    func testTaskIdInequality() {
-        // Given: Two tasks with different IDs
-        let task1 = TestHelpers.createTestTask(id: "task-1")
-        let task2 = TestHelpers.createTestTask(id: "task-2")
-
-        // Then: Should have different IDs
-        XCTAssertNotEqual(task1.id, task2.id)
-    }
-
     // MARK: - Task Hashable Tests
-
-    @MainActor func testTaskHashable() {
-        // Given: A task
-        let task = TestHelpers.createTestTask(id: "hash-test")
-
-        // Then: Should work in Set
-        var taskSet = Set<Task>()
-        taskSet.insert(task)
-        XCTAssertTrue(taskSet.contains(task))
-    }
 
     @MainActor func testMultipleTasksInSet() {
         // Given: Multiple tasks

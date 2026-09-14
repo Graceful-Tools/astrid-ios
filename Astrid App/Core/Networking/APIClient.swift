@@ -128,17 +128,6 @@ class APIClient: APIClientProtocol {
         }
     }
 
-    // MARK: - User Search
-
-    /// Search for users with AI agents included (based on user's configured API keys)
-    func searchUsersWithAIAgents(query: String, taskId: String?, listIds: [String]?) async throws -> [User] {
-        let response: UserSearchResponse = try await request(.searchUsersWithAIAgents(
-            query: query,
-            taskId: taskId,
-            listIds: listIds
-        ))
-        return response.users
-    }
 }
 
 // MARK: - User Search Response

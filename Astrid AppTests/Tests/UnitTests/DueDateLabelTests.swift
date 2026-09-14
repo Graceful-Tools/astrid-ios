@@ -335,9 +335,7 @@ final class DueDateLabelSharedSurfaceTests: XCTestCase {
     // MARK: - The guard: nobody hand-rolls these three words again
 
     func testNoSurfaceHardcodesTheDayNames() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         let audited = [
             "Astrid App/Views/Components/CompactTaskRow.swift",

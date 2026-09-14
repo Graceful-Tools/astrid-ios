@@ -33,18 +33,12 @@ final class CoreNetworkSessionGuardTests: XCTestCase {
     ]
     private static let exemptDirectory = "Astrid App/Core/Networking"
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     func testNoAppCodeUsesTheSharedURLSession() throws {
-        let exemptURL = repositoryRoot.appendingPathComponent(Self.exemptDirectory)
+        let exemptURL = RepositoryLocator.root.appendingPathComponent(Self.exemptDirectory)
         var violations: [String] = []
 
         for directory in Self.guardedDirectories {
-            let directoryURL = repositoryRoot.appendingPathComponent(directory)
+            let directoryURL = RepositoryLocator.root.appendingPathComponent(directory)
             let enumerator = try XCTUnwrap(
                 FileManager.default.enumerator(at: directoryURL, includingPropertiesForKeys: nil),
                 "\(directory) is not there — the guard is walking nothing"
@@ -77,7 +71,7 @@ final class CoreNetworkSessionGuardTests: XCTestCase {
     func testTheGuardedDirectoriesExist() {
         for directory in Self.guardedDirectories + [Self.exemptDirectory] {
             var isDirectory: ObjCBool = false
-            let path = repositoryRoot.appendingPathComponent(directory).path
+            let path = RepositoryLocator.root.appendingPathComponent(directory).path
             XCTAssertTrue(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
                           "\(directory) is not there — the guard is walking nothing")
             XCTAssertTrue(isDirectory.boolValue, "\(directory) is not a directory")

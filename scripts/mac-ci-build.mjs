@@ -3,25 +3,11 @@
 // and refuses to launch outside it.
 //
 // Usage: node scripts/mac-ci-build.mjs [--open]
-import crypto from 'crypto';
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { ascRequest } from './lib/asc-jwt.mjs';
 
-const ROOT = new URL('..', import.meta.url).pathname;
-const env = fs.readFileSync(ROOT + '.env.local', 'utf8');
-const pick = k => (env.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.replace(/^["']|["']$/g, '');
-const jwt = () => {
-  const key = pick('APPLE_ASC_PRIVATE_KEY').replace(/\\n/g, '\n');
-  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const now = Math.floor(Date.now() / 1000);
-  const u = b64({ alg: 'ES256', kid: pick('APPLE_ASC_KEY_ID'), typ: 'JWT' }) + '.' +
-    b64({ iss: pick('APPLE_ASC_ISSUER_ID'), iat: now, exp: now + 900, aud: 'appstoreconnect-v1' });
-  return u + '.' + crypto.sign('sha256', Buffer.from(u), { key, dsaEncoding: 'ieee-p1363' }).toString('base64url');
-};
-const api = async p => {
-  const r = await fetch('https://api.appstoreconnect.apple.com' + p, { headers: { Authorization: 'Bearer ' + jwt() } });
-  return r.json();
-};
+const api = async p => (await ascRequest(p)).body;
 
 const PRODUCT = 'AE1AD027-7DFE-4BBE-99DD-C5465D836CCB';
 const wfs = await api(`/v1/ciProducts/${PRODUCT}/workflows?limit=25`);

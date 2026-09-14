@@ -1,7 +1,7 @@
 //  MacMonkeyUITests.swift
-//  Random-input stress test for the Mac app. The iOS half is `MonkeyUITests.swift`; the two
-//  cannot share code because a file belongs to one test target, so the small pieces below
-//  (the seeded generator, the action set) are deliberately duplicated rather than fought over.
+//  Random-input stress test for the Mac app. The iOS half is `MonkeyUITests.swift`; the seeded
+//  generator and run configuration are shared through `UITestSupport/MonkeySupport.swift`. The
+//  action set is platform-specific and stays here.
 //
 //  Same contract as the iOS monkey: the app must stay in the foreground, no single action may
 //  take longer than the hang threshold, and the app must still be driveable at the end.
@@ -32,21 +32,14 @@ final class MacMonkeyUITests: XCTestCase {
 
     @MainActor
     func testMonkeyStressesTheMacAppWithoutCrashingOrHanging() throws {
-        let app = XCUIApplication()
-        app.launchArguments += ["-uiTesting"]
+        let app = MacUITestLaunch.makeApp()
         app.launch()
 
         // Reach the shell the way the rest of the Mac suite does.
-        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
-        let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch
-        let deadline = Date().addingTimeInterval(30)
-        while Date() < deadline && !myTasks.exists {
-            if offline.exists { offline.click() }
-            _ = myTasks.waitForExistence(timeout: 2)
-        }
+        let myTasks = MacUITestLaunch.enterShell(app)
         try XCTSkipUnless(myTasks.exists, "Never reached the shell, so there is nothing to stress")
 
-        var rng = MacSeededGenerator(seed: seed)
+        var rng = SeededGenerator(seed: seed)
         var journal: [String] = []
         var slowest: (String, TimeInterval) = ("none", 0)
 
@@ -86,7 +79,7 @@ final class MacMonkeyUITests: XCTestCase {
     }
 
     @MainActor
-    private func perform(_ action: MacMonkeyAction, on app: XCUIApplication, using rng: inout MacSeededGenerator) {
+    private func perform(_ action: MacMonkeyAction, on app: XCUIApplication, using rng: inout SeededGenerator) {
         // Coordinates are taken from the WINDOW, never from the application element. On macOS
         // XCUIApplication has no meaningful frame, so a normalised offset against it resolves to
         // INFINITY and XCTest traps with "Invalid parameter not satisfying: point.x != INFINITY".
@@ -141,7 +134,7 @@ enum MacMonkeyAction: CustomStringConvertible {
     case escape
     case scroll(CGFloat)
 
-    static func random(using rng: inout MacSeededGenerator) -> MacMonkeyAction {
+    static func random(using rng: inout SeededGenerator) -> MacMonkeyAction {
         switch Int.random(in: 0..<100, using: &rng) {
         case 0..<30:
             return .click(x: CGFloat.random(in: 0.05...0.95, using: &rng),
@@ -156,7 +149,7 @@ enum MacMonkeyAction: CustomStringConvertible {
         }
     }
 
-    private static func randomText(using rng: inout MacSeededGenerator) -> String {
+    private static func randomText(using rng: inout SeededGenerator) -> String {
         let samples = ["monkey task", "🐒", "'; DROP TABLE tasks; --",
                        "tomorrow at 5pm", "   ", "日本語のタスク", String(repeating: "x", count: 80)]
         return samples.randomElement(using: &rng)!
@@ -173,48 +166,3 @@ enum MacMonkeyAction: CustomStringConvertible {
         }
     }
 }
-
-/// SplitMix64 — see the iOS monkey for why a seeded generator matters here.
-struct MacSeededGenerator: RandomNumberGenerator {
-    private var state: UInt64
-    init(seed: UInt64) { state = seed }
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-        return z ^ (z >> 31)
-    }
-}
-
-/// How the run is tuned: actions, seed, hang threshold.
-///
-/// Read from a generated bundle resource, NOT the environment. xcodebuild does not forward the
-/// shell environment to the xctrunner process — measured here on 2026-08-27, when `--actions 25`
-/// produced a 150-action run — and this suite already learned that once with the test-account
-/// cookie (see UITestLaunch). The environment is still consulted first so running from Xcode
-/// with a scheme variable set keeps working.
-enum MonkeyConfig {
-    static let actions = value("actions", default: 150)
-    static let seed = UInt64(value("seed", default: 20_260_826))
-    static let hangSeconds = TimeInterval(value("hangSeconds", default: 10))
-
-    private static let plist: [String: Any] = {
-        let bundle = Bundle(for: MacMonkeyConfigToken.self)
-        guard let url = bundle.url(forResource: "MonkeyConfig", withExtension: "plist"),
-              let data = try? Data(contentsOf: url),
-              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-        else { return [:] }
-        return dict
-    }()
-
-    private static func value(_ key: String, default fallback: Int) -> Int {
-        let envKey = "MONKEY_" + key.uppercased()
-        if let fromEnv = ProcessInfo.processInfo.environment[envKey], let n = Int(fromEnv) { return n }
-        if let fromPlist = plist[key] as? Int { return fromPlist }
-        if let text = plist[key] as? String, let n = Int(text) { return n }
-        return fallback
-    }
-}
-
-private final class MacMonkeyConfigToken {}

@@ -5,16 +5,10 @@ import XCTest
 /// yields the real fileId), and its dependents must receive that output so they
 /// can fill it into their own request. This is what makes "create the comment
 /// with the file that was just uploaded" work without temp-id plumbing.
-final class OutboxDependencyOutputTests: XCTestCase {
+final class OutboxDependencyOutputTests: TempFileTestCase {
 
     private let fixedNow = Date(timeIntervalSince1970: 1_700_000_000)
-    private var tempURL: URL!
-
-    override func setUpWithError() throws {
-        tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-dep-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tempURL) }
+    private var tempURL: URL { tempFile }
 
     private func entry(_ id: String, kind: String, dependsOn: [String] = []) -> OutboxEntry {
         OutboxEntry(

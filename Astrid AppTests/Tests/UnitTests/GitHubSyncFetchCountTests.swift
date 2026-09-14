@@ -16,9 +16,7 @@ import XCTest
 final class GitHubSyncFetchCountTests: XCTestCase {
 
     private func syncPassBody() throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Sync/GitHubSyncService.swift"),
             encoding: .utf8)

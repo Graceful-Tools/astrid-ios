@@ -23,17 +23,11 @@ final class UIServiceBoundaryGuardTests: XCTestCase {
 
     private static let forbidden = ["APIClient.shared", "AstridAPIClient.shared"]
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     func testViewsAndViewModelsDoNotAccessNetworkClientsDirectly() throws {
         var violations: [String] = []
 
         for directory in Self.protectedDirectories {
-            let directoryURL = repositoryRoot.appendingPathComponent(directory)
+            let directoryURL = RepositoryLocator.root.appendingPathComponent(directory)
             guard let enumerator = FileManager.default.enumerator(
                 at: directoryURL,
                 includingPropertiesForKeys: nil
@@ -60,7 +54,7 @@ final class UIServiceBoundaryGuardTests: XCTestCase {
     func testEveryProtectedDirectoryActuallyExists() throws {
         for directory in Self.protectedDirectories {
             var isDirectory: ObjCBool = false
-            let path = repositoryRoot.appendingPathComponent(directory).path
+            let path = RepositoryLocator.root.appendingPathComponent(directory).path
 
             XCTAssertTrue(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory),
                           "\(directory) is not there — the guard is walking nothing")

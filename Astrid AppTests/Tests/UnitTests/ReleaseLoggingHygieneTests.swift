@@ -18,7 +18,7 @@ final class ReleaseLoggingHygieneTests: XCTestCase {
     /// picked up automatically.
     private static var rootSwiftFiles: [URL] {
         let contents = (try? FileManager.default.contentsOfDirectory(
-            at: repositoryRoot,
+            at: RepositoryLocator.root,
             includingPropertiesForKeys: nil
         )) ?? []
         return contents.filter { $0.pathExtension == "swift" }
@@ -71,16 +71,10 @@ final class ReleaseLoggingHygieneTests: XCTestCase {
 
     // MARK: - Source scanning
 
-    private static let repositoryRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()   // UnitTests
-        .deletingLastPathComponent()   // Tests
-        .deletingLastPathComponent()   // Astrid AppTests
-        .deletingLastPathComponent()   // repository root
-
     private static func swiftFiles() throws -> [URL] {
         var files: [URL] = rootSwiftFiles
         for tree in sourceTrees {
-            let root = repositoryRoot.appendingPathComponent(tree)
+            let root = RepositoryLocator.root.appendingPathComponent(tree)
             guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
                 XCTFail("Could not enumerate \(tree)")
                 continue
@@ -99,7 +93,7 @@ final class ReleaseLoggingHygieneTests: XCTestCase {
     }
 
     private static func relative(_ file: URL) -> String {
-        file.path.replacingOccurrences(of: repositoryRoot.path + "/", with: "")
+        file.path.replacingOccurrences(of: RepositoryLocator.root.path + "/", with: "")
     }
 
     /// `print(…)` as a statement. `Swift.print(…)` — how `AppLog` and

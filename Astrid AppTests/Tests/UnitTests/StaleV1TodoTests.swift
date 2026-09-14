@@ -22,23 +22,15 @@ import XCTest
 
 final class StaleV1TodoTests: XCTestCase {
 
-    private func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     private func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: repoRoot().appendingPathComponent(relativePath), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
     private func swiftSources() throws -> [(path: String, text: String)] {
         let fm = FileManager.default
         var results: [(String, String)] = []
         for target in ["Astrid App", "Astrid Mac"] {
-            let root = repoRoot().appendingPathComponent(target)
+            let root = RepositoryLocator.root.appendingPathComponent(target)
             guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: nil) else { continue }
             for case let url as URL in walker where url.pathExtension == "swift" {
                 let text = try String(contentsOf: url, encoding: .utf8)

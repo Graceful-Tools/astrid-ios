@@ -555,7 +555,7 @@ struct CopyableCodeBlock: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Button {
-                UIPasteboard.general.string = code
+                PlatformPasteboard.copy(code)
                 copiedField = id
                 _Concurrency.Task {
                     try? await _Concurrency.Task.sleep(for: .seconds(2))
