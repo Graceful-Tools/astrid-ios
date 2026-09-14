@@ -40,6 +40,38 @@ enum ListMembershipRoster {
         return invitations.filter { !joined.contains($0.email) }
     }
 
+    // MARK: - Finding one person on the roster
+
+    /// Is this agent (or anyone) already on the list?
+    ///
+    /// Both membership tabs asked this before offering an "Add" button, and both answered it by
+    /// hand: owner email, then the member rows. iOS additionally discounted anyone in its
+    /// `removedMemberEmails` set, so a row removed a moment ago does not come back looking like a
+    /// member when stale list data arrives — that is the `excluding:` parameter, empty by
+    /// default, so the Mac's call reads the same.
+    static func isMember(email: String?, of list: TaskList, roster: [ListMember] = [],
+                         excluding removedEmails: Set<String> = []) -> Bool {
+        guard let email, !email.isEmpty, !removedEmails.contains(email) else { return false }
+        if list.owner?.email == email { return true }
+        if list.listMembers?.contains(where: { $0.user?.email == email }) == true { return true }
+        return roster.contains { $0.user?.email == email }
+    }
+
+    /// The user id to address this person by, found from the email they were invited with.
+    ///
+    /// AN AGENT IS ADDED BY EMAIL AND REMOVED BY USER ID, so this hop is unavoidable — and it was
+    /// written once per platform, over different roster sources. `nil` means they are not on the
+    /// list, which is a real answer (the agent was already removed, or never joined) rather than
+    /// an error.
+    ///
+    /// The OWNER is checked first and separately: on most lists the owner has no `listMembers`
+    /// row at all, so a roster-only search would miss an agent that owns the list.
+    static func memberId(forEmail email: String, in list: TaskList, roster: [ListMember] = []) -> String? {
+        if list.owner?.email == email { return list.owner?.id }
+        if let member = list.listMembers?.first(where: { $0.user?.email == email }) { return member.userId }
+        return roster.first(where: { $0.user?.email == email })?.userId
+    }
+
     // MARK: - Leaving
 
     /// What the leave control offers this person, if anything.

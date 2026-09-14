@@ -36,12 +36,21 @@ final class MacListMembershipTabTests: XCTestCase {
 
     /// A pending invitation has no userId — there may be no account yet — so it is addressed by
     /// email on its own resource. Cancelling one through `removeMember` is the bug this fixes.
+    /// The claim is about WHICH ENDPOINT, not which object the view names. AITD-399 moved the
+    /// calls behind `ListMembershipActions`, so both halves are checked: the view asks for the
+    /// invitation-specific action, and that action goes to the invitation endpoint.
     func testInvitationsAreCancelledThroughTheInvitationPath() throws {
         let source = try Self.source(of: "Astrid Mac/Views/MacListMembershipTab.swift")
-        XCTAssertTrue(source.contains("svc.cancelInvitation(listId:"),
+        XCTAssertTrue(source.contains("ListMembershipActions.cancelInvitation(listId:"),
                       "AITD-388: cancel goes to the invitation endpoint")
-        XCTAssertTrue(source.contains("svc.updateInvitationRole(listId:"),
+        XCTAssertTrue(source.contains("ListMembershipActions.changeInvitationRole(listId:"),
                       "AITD-388: an invitation's role changes on the invitation, not on a member")
+
+        let actions = try Self.source(of: "Astrid App/Core/Lists/ListMembershipActions.swift")
+        XCTAssertTrue(actions.contains("members.cancelInvitation(listId:"),
+                      "AITD-388: an invitation has no userId — it is never cancelled as a member")
+        XCTAssertTrue(actions.contains("members.updateInvitationRole(listId:"),
+                      "AITD-388: an invitation's role changes on the invitation resource")
     }
 
     /// The window must not be a fourth place the permission rule is written out.

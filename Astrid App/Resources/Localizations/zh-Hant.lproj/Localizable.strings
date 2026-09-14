@@ -1377,3 +1377,9 @@
 "lists.transfer_ownership_select" = "選擇新的擁有者";
 "lists.transfer_ownership_none" = "目前還沒有可以接手這個列表的人 — 請先邀請某人。";
 "lists.transfer_ownership_confirm" = "「%@」現在屬於對方，你已離開該列表。此操作無法復原。";
+
+
+// Agent membership errors (AITD-399). Adding an agent needs its email; removing one
+// needs a user id resolved from that email — neither used to say anything when missing.
+"lists.agent_missing_email" = "該 AI 代理沒有電子郵件地址，因此無法加入清單。";
+"lists.agent_not_a_member" = "%@ 不在此清單中。";

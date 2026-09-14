@@ -635,7 +635,7 @@ struct ListMembershipTab: View {
         isTransferring = true
         _Concurrency.Task {
             do {
-                try await listService.transferOwnership(listId: list.id, to: successorId)
+                try await ListMembershipActions.transferOwnership(listId: list.id, to: successorId)
                 onListRelinquished?()
             } catch {
                 isTransferring = false
@@ -649,8 +649,8 @@ struct ListMembershipTab: View {
     private func addMember(email: String, role: String) {
         isProcessing = true
 
-        // Optimistic FIRST — this used to sit behind `await memberService.addMember`,
-        // so the new row only appeared once the network answered (task 33fc21fc).
+        // Optimistic FIRST — this used to sit behind the awaited add call, so the new row only
+        // appeared once the network answered (task 33fc21fc).
         // `list` is this sheet's own snapshot; the service updates its rosters and the
         // ListService cache in parallel.
         let placeholderId = ListMemberOptimistic.newPlaceholderId()
@@ -664,7 +664,7 @@ struct ListMembershipTab: View {
             do {
                 // Route through ListMemberService so the operation lands in
                 // the pending-ops queue and syncs on reconnect if offline.
-                let addedMember = try await memberService.addMember(listId: list.id, email: email, role: role)
+                let addedMember = try await ListMembershipActions.addMember(listId: list.id, email: email, role: role)
 
                 // A real membership replaces the placeholder. An invitation or a
                 // still-pending add leaves it in place as the pending row.
@@ -698,7 +698,7 @@ struct ListMembershipTab: View {
 
         _Concurrency.Task {
             do {
-                try await memberService.updateMemberRole(listId: list.id, userId: userId, role: newRole)
+                try await ListMembershipActions.changeRole(listId: list.id, userId: userId, to: newRole)
 
                 // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
@@ -726,7 +726,7 @@ struct ListMembershipTab: View {
 
         _Concurrency.Task {
             do {
-                try await memberService.removeMember(listId: list.id, userId: userId)
+                try await ListMembershipActions.removeMember(listId: list.id, userId: userId)
                 AppLog.debug("✅ [ListMembershipTab] Removed member from list")
             } catch {
                 // Revert on failure.
@@ -754,7 +754,7 @@ struct ListMembershipTab: View {
 
         _Concurrency.Task {
             do {
-                try await memberService.cancelInvitation(
+                try await ListMembershipActions.cancelInvitation(
                     listId: list.id,
                     invitationId: invitationId,
                     email: email
@@ -770,108 +770,55 @@ struct ListMembershipTab: View {
 
     // MARK: - AI Agents Functions
 
+    /// The agent list itself — fetch, filter and the offline cache — is
+    /// `ListMembershipActions.availableAgents()`, shared with the Mac. Only the GitHub status is
+    /// iOS's own, because only iOS has somewhere to show it.
     private func loadAiProviders() async {
         loadingAiProviders = true
+        defer { loadingAiProviders = false }
 
-        do {
-            AppLog.debug("🤖 [ListMembershipTab] Loading AI agents with profile photos")
-
-            // First check GitHub status for UI context
-            let status = try await apiClient.getGitHubStatus()
-            isGitHubConnected = status.isGitHubConnected
-
-            // Fetch actual AI agent User objects (with profile photos) based on user's API keys
-            let users = try await apiClient.searchUsersWithAIAgents(
-                query: "",
-                taskId: nil,
-                listIds: nil
-            )
-
-            // Filter to only AI agents and cache them
-            let agents = users.filter { $0.isAIAgent == true }
-            availableAiAgents = agents
-
-            // Cache agents for offline support
-            AIAgentCache.shared.save(agents)
-
-            AppLog.debug("✅ [ListMembershipTab] Found \(agents.count) AI agents with photos, GitHub connected: \(status.isGitHubConnected)")
-        } catch {
-            AppLog.debug("❌ [ListMembershipTab] Failed to load AI agents: \(error)")
-
-            // Try to load from cache as fallback
-            if let cachedAgents = AIAgentCache.shared.load() {
-                availableAiAgents = cachedAgents
-                AppLog.debug("📦 [ListMembershipTab] Using \(cachedAgents.count) cached AI agents")
-            } else {
-                availableAiAgents = []
-            }
-            isGitHubConnected = false
-        }
-
-        loadingAiProviders = false
+        availableAiAgents = await ListMembershipActions.availableAgents()
+        isGitHubConnected = (try? await apiClient.getGitHubStatus())?.isGitHubConnected ?? false
     }
 
+    /// The SHARED rule (AITD-399) — `removedMemberEmails` is why iOS passes `excluding:`: a row
+    /// removed a moment ago must not come back looking like a member when stale list data lands.
     private func isAgentMember(agentEmail: String?) -> Bool {
-        guard let email = agentEmail else { return false }
-
-        // If we've locally removed this member, it's not a member regardless of stale list data
-        if removedMemberEmails.contains(email) { return false }
-
-        // Check listMembers (canonical source — matches web's role tables).
-        if list.owner?.email == email { return true }
-        if list.listMembers?.contains(where: { $0.user?.email == email }) == true { return true }
-
-        return false
+        ListMembershipRoster.isMember(email: agentEmail, of: list, excluding: removedMemberEmails)
     }
 
     private func addCodingAgent(agent: User) {
-        guard let email = agent.email else { return }
-
         // Clear any stale removal tracking for this agent
-        removedMemberEmails.remove(email)
+        if let email = agent.email { removedMemberEmails.remove(email) }
 
         _Concurrency.Task {
             do {
-                AppLog.debug("🤖 [ListMembershipTab] Adding \(AppLog.redact(email: email)) to list")
-
-                // Route through ListMemberService so offline queue applies.
-                _ = try await memberService.addMember(listId: list.id, email: email, role: "member")
-
-                AppLog.debug("✅ [ListMembershipTab] Added \(AppLog.redact(email: email)) to list")
+                try await ListMembershipActions.addAgent(agent, toList: list.id)
 
                 // Refresh list data — parent chain propagates via onChange guard
                 _ = try? await listService.fetchLists()
             } catch {
                 AppLog.debug("❌ [ListMembershipTab] Failed to add agent: \(error)")
-                errorMessage = "Failed to add AI agent: \(error.localizedDescription)"
+                errorMessage = error.localizedDescription
             }
         }
     }
 
+    /// The optimistic edit needs the agent's USER ID up front — it has to know which row to hide
+    /// before the call goes out — so the email-to-id hop happens here, through the shared roster
+    /// rule, rather than inside `ListMembershipActions.removeAgent`.
     private func removeCodingAgent(agent: User) {
-        // Set loading state
         removingAgents.insert(agent.id)
 
-        guard let email = agent.email else { return }
-        AppLog.debug("🤖 [ListMembershipTab] Removing \(AppLog.redact(email: email)) from list")
-
-        // Track removal so UI stays correct even if stale data flows in
-        removedMemberEmails.insert(email)
-
-        // Find agent in list members by email (owner or listMembers — the
-        // canonical sources; legacy admins/members are no longer populated).
-        var agentUserId: String?
-        if list.owner?.email == email {
-            agentUserId = list.owner?.id
-        } else if let listMember = list.listMembers?.first(where: { $0.user?.email == email }) {
-            agentUserId = listMember.userId
-        }
-
-        guard let userId = agentUserId else {
-            AppLog.debug("⚠️ [ListMembershipTab] Agent \(AppLog.redact(email: email)) not found in list members")
+        guard let email = agent.email,
+              let userId = ListMembershipRoster.memberId(forEmail: email, in: list) else {
+            AppLog.debug("⚠️ [ListMembershipTab] Agent not found in list members")
             removingAgents.remove(agent.id)
             return
         }
+
+        // Track removal so UI stays correct even if stale data flows in
+        removedMemberEmails.insert(email)
 
         // Optimistic update: remove agent from list immediately
         var updatedList = list
@@ -885,12 +832,10 @@ struct ListMembershipTab: View {
 
         // Sync with server in background
         _Concurrency.Task {
-            defer {
-                removingAgents.remove(agent.id)
-            }
+            defer { removingAgents.remove(agent.id) }
 
             do {
-                try await memberService.removeMember(listId: list.id, userId: userId)
+                try await ListMembershipActions.removeMember(listId: list.id, userId: userId)
                 AppLog.debug("✅ [ListMembershipTab] Removed \(AppLog.redact(email: email)) from list")
             } catch {
                 // Revert on failure
@@ -898,7 +843,7 @@ struct ListMembershipTab: View {
                 removedMemberEmails.remove(email)
                 onUpdate(list)
                 ListService.shared.restoreCachedList(listId: list.id, from: originalList)
-                errorMessage = "Failed to remove AI agent: \(error.localizedDescription)"
+                errorMessage = error.localizedDescription
             }
         }
     }

@@ -1375,3 +1375,9 @@
 "lists.transfer_ownership_select" = "Escolher novo proprietário";
 "lists.transfer_ownership_none" = "Ainda não há ninguém para quem transferir esta lista — convide alguém primeiro.";
 "lists.transfer_ownership_confirm" = "“%@” agora é dessa pessoa e você saiu da lista. Isto não pode ser desfeito.";
+
+
+// Agent membership errors (AITD-399). Adding an agent needs its email; removing one
+// needs a user id resolved from that email — neither used to say anything when missing.
+"lists.agent_missing_email" = "Esse agente de IA não tem endereço de e-mail, por isso não pode ser adicionado a uma lista.";
+"lists.agent_not_a_member" = "%@ não está nesta lista.";

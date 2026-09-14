@@ -1377,3 +1377,9 @@
 "lists.transfer_ownership_select" = "새 소유자 선택";
 "lists.transfer_ownership_none" = "아직 이 목록을 넘겨줄 사람이 없습니다 — 먼저 누군가를 초대하세요.";
 "lists.transfer_ownership_confirm" = "“%@”은(는) 이제 그 사람의 것이고 당신은 목록을 나갔습니다. 되돌릴 수 없습니다.";
+
+
+// Agent membership errors (AITD-399). Adding an agent needs its email; removing one
+// needs a user id resolved from that email — neither used to say anything when missing.
+"lists.agent_missing_email" = "이 AI 에이전트에는 이메일 주소가 없어 목록에 추가할 수 없습니다.";
+"lists.agent_not_a_member" = "%@ 님은 이 목록에 없습니다.";

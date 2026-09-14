@@ -1375,3 +1375,9 @@
 "lists.transfer_ownership_select" = "Neue Eigentümerin oder neuen Eigentümer wählen";
 "lists.transfer_ownership_none" = "Es gibt noch niemanden, dem du diese Liste übergeben könntest — lade zuerst jemanden ein.";
 "lists.transfer_ownership_confirm" = "„%@“ gehört jetzt dieser Person und du hast die Liste verlassen. Das lässt sich nicht rückgängig machen.";
+
+
+// Agent membership errors (AITD-399). Adding an agent needs its email; removing one
+// needs a user id resolved from that email — neither used to say anything when missing.
+"lists.agent_missing_email" = "Dieser KI-Agent hat keine E-Mail-Adresse und kann deshalb keiner Liste hinzugefügt werden.";
+"lists.agent_not_a_member" = "%@ ist nicht auf dieser Liste.";
