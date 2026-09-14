@@ -92,4 +92,45 @@ final class MacAssigneeOptionsTests: XCTestCase {
 
         XCTAssertEqual(options.filter { $0.userId == "u1" }.count, 1)
     }
+
+    // MARK: - AITD-401: the Mac can hand work to an agent, in the order the web states
+
+    /// THE GAP. `build` took no agent list, so the Mac picker could not assign a task to an AI
+    /// agent at all — the same bug task 1484ea4a fixed on the iOS board.
+    func testAITD401_AnAgentCanBeAssignedFromTheMacPicker() {
+        var claude = User(id: "agent-claude", email: "claude@astrid.cc", name: "Claude", image: nil)
+        claude.isAIAgent = true
+
+        let options = MacAssigneeOptions.build(
+            members: [member("u1", name: "Adam")],
+            currentUserId: "me", taskAssignee: nil, aiAgents: [claude])
+
+        XCTAssertTrue(options.contains { $0.userId == "agent-claude" },
+                      "AITD-401: an agent must be offerable on the Mac too")
+    }
+
+    /// And in the order astrid-web states — "AI agents first, then current user, then
+    /// alphabetically". The Mac used to put the current user first, full stop.
+    func testAITD401_AgentsSortAheadOfTheCurrentUser() {
+        var claude = User(id: "agent-claude", email: "claude@astrid.cc", name: "Claude", image: nil)
+        claude.isAIAgent = true
+
+        let options = MacAssigneeOptions.build(
+            members: [member("u1", name: "Adam"), member("me", name: "Zoe")],
+            currentUserId: "me", taskAssignee: nil, aiAgents: [claude])
+
+        let people = options.filter { !$0.isUnassigned }
+        XCTAssertEqual(people.map(\.userId), ["agent-claude", "me", "u1"])
+        XCTAssertTrue(options.first?.isUnassigned == true, "'no one' stays the first row")
+    }
+
+    /// Passing no agents must behave exactly as before, so the three call sites that say nothing
+    /// about agents are unaffected beyond whatever the cache holds.
+    func testAITD401_WithNoAgentsTheOrderIsUnchanged() {
+        let options = MacAssigneeOptions.build(
+            members: [member("u1", name: "Adam"), member("me", name: "Zoe"), member("u2", name: "Bea")],
+            currentUserId: "me", taskAssignee: nil, aiAgents: [])
+
+        XCTAssertEqual(options.filter { !$0.isUnassigned }.map(\.displayName), ["Zoe", "Adam", "Bea"])
+    }
 }
