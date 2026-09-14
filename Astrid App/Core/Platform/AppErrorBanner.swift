@@ -1,11 +1,13 @@
-//  MacErrorBanner.swift
-//  Astrid for Mac — transient error banner driven by MacErrorCenter (Task 8a5f3066).
+//  AppErrorBanner.swift
+//  Astrid — the transient error banner driven by `AppErrorCenter` (task 8a5f3066, AITD-400).
+//
+//  Shared so adopting it is a one-line change rather than a second implementation. Only the Mac
+//  window currently places it; see AppActions.swift for why iOS is not wired up yet.
 
-#if os(macOS)
 import SwiftUI
 
-struct MacErrorBanner: View {
-    @StateObject private var center = MacErrorCenter.shared
+struct AppErrorBanner: View {
+    @StateObject private var center = AppErrorCenter.shared
 
     var body: some View {
         VStack {
@@ -32,4 +34,3 @@ struct MacErrorBanner: View {
         .allowsHitTesting(center.current != nil)
     }
 }
-#endif

@@ -112,7 +112,7 @@ struct QuickEntryView: View {
         // add bar does it — "unassigned" is a deliberate nobody, not a missing value (AITD-387).
         let chosenAssignee = assigneeOverride
         // Offline-first: creates locally + journals through the Outbox, syncs when online.
-        MacActions.perform("Add task") {
+        AppActions.perform("Add task") {
             _ = try await TaskService.shared.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate,

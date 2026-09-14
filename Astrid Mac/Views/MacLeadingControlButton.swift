@@ -254,7 +254,7 @@ struct MacProjectStateSection: View {
         guard column.id != currentColumnId else { return }
         let plan = planProjectColumnMove(task: task, column: column,
                                          lists: listService.lists, customStates: customStates)
-        MacActions.perform("Move task") {
+        AppActions.perform("Move task") {
             // Same sequencer as the iOS picker (AITD-352), including ASTRID.md rule 2 —
             // completion only ever through `completeTask`. The Mac discards the returned task:
             // its detail view is handed one derived from the observed `TaskService` and redraws

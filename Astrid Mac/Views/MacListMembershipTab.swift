@@ -415,7 +415,7 @@ struct MacListMembershipTab: View {
     }
 
     private func savePrivacy() {
-        MacActions.perform("Update list privacy") {
+        AppActions.perform("Update list privacy") {
             _ = try await ListService.shared.updateListAdvanced(
                 listId: list.id,
                 updates: MacListPrivacy.updates(privacy: privacy, publicType: publicType))
@@ -427,7 +427,7 @@ struct MacListMembershipTab: View {
         guard canInvite else { return }
         let e = email.trimmingCharacters(in: .whitespaces)
         let role = inviteRole
-        MacActions.perform("Invite \(e)") {
+        AppActions.perform("Invite \(e)") {
             _ = try await ListMembershipActions.addMember(listId: list.id, email: e, role: role)
             email = ""
             try? await svc.fetchMembers(listId: list.id)
@@ -437,14 +437,14 @@ struct MacListMembershipTab: View {
 
     private func setRole(_ m: ListMember, _ role: String) {
         guard role != m.role else { return }
-        MacActions.perform("Change role") {
+        AppActions.perform("Change role") {
             try await ListMembershipActions.changeRole(listId: list.id, userId: m.userId, to: role)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
     private func remove(_ m: ListMember) {
-        MacActions.perform("Remove member") {
+        AppActions.perform("Remove member") {
             try await ListMembershipActions.removeMember(listId: list.id, userId: m.userId)
             try? await svc.fetchMembers(listId: list.id)
         }
@@ -452,7 +452,7 @@ struct MacListMembershipTab: View {
 
     /// An invitation is addressed by EMAIL on its own resource — it has no userId to remove.
     private func cancelInvite(_ invite: ListInvite) {
-        MacActions.perform("Cancel invitation") {
+        AppActions.perform("Cancel invitation") {
             try await ListMembershipActions.cancelInvitation(listId: list.id, invitationId: invite.id,
                                                             email: invite.email)
         }
@@ -460,14 +460,14 @@ struct MacListMembershipTab: View {
 
     private func setInviteRole(_ invite: ListInvite, _ role: String) {
         guard role != invite.role else { return }
-        MacActions.perform("Change invitation role") {
+        AppActions.perform("Change invitation role") {
             try await ListMembershipActions.changeInvitationRole(listId: list.id, invitationId: invite.id,
                                                                  email: invite.email, to: role)
         }
     }
 
     private func addAgent(_ agent: User) {
-        MacActions.perform("Add \(agent.displayName)") {
+        AppActions.perform("Add \(agent.displayName)") {
             try await ListMembershipActions.addAgent(agent, toList: list.id)
             try? await svc.fetchMembers(listId: list.id)
         }
@@ -476,14 +476,14 @@ struct MacListMembershipTab: View {
     /// Resolving the agent's user id from its email is shared (AITD-399) — this used to be a
     /// bare `guard ... else { return }`, so an agent that was not on the list failed silently.
     private func removeAgent(_ agent: User) {
-        MacActions.perform("Remove \(agent.displayName)") {
+        AppActions.perform("Remove \(agent.displayName)") {
             try await ListMembershipActions.removeAgent(agent, fromList: currentList, roster: members)
             try? await svc.fetchMembers(listId: list.id)
         }
     }
 
     private func leave() {
-        MacActions.perform("Leave list") {
+        AppActions.perform("Leave list") {
             try await ListService.shared.leaveList(listId: list.id)
         }
     }
@@ -501,7 +501,7 @@ struct MacListMembershipTab: View {
     /// there is deliberately no `leaveList` after this.
     private func transferOwnership() {
         guard !successorId.isEmpty else { return }
-        MacActions.perform("Transfer list ownership") {
+        AppActions.perform("Transfer list ownership") {
             try await ListMembershipActions.transferOwnership(listId: list.id, to: successorId)
         }
     }

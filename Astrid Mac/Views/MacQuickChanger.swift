@@ -41,7 +41,7 @@ struct MacQuickChanger: View {
                 // looking dead (task a6cd1367).
                 MacPriorityPicker(selection: $priority, onSelect: { newValue in
                     onDismiss()
-                    MacActions.perform("Save priority") {
+                    AppActions.perform("Save priority") {
                         _ = try await taskService.updateTask(taskId: task.id,
                                                              priority: newValue.rawValue, task: task)
                     }
@@ -59,7 +59,7 @@ struct MacQuickChanger: View {
                     priority: priority,
                     onSelect: { newId in
                         onDismiss()
-                        MacActions.perform("Set assignee") {
+                        AppActions.perform("Set assignee") {
                             _ = try await taskService.updateTask(taskId: task.id,
                                                                  assigneeId: newId ?? "", task: task)
                         }
@@ -77,7 +77,7 @@ struct MacQuickChanger: View {
 
             Button {
                 onDismiss()
-                MacActions.perform("Toggle completion") {
+                AppActions.perform("Toggle completion") {
                     // `completeTask`, never `updateTask(completed:)` — the only path that rolls
                     // a repeating task forward (ASTRID.md rule 2).
                     _ = try await taskService.completeTask(id: task.id,

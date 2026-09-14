@@ -109,7 +109,7 @@ struct MacBoardView: View {
     private func enableBoard() {
         guard let list else { return }
         boardBusy = true
-        MacActions.perform("Enable board") {
+        AppActions.perform("Enable board") {
             defer { boardBusy = false }
             _ = try await ProjectService.shared.createBoardForList(list)
             _ = try? await ListService.shared.fetchLists()
@@ -118,7 +118,7 @@ struct MacBoardView: View {
 
     private func disableBoard() {
         guard let projectId = list?.projectId else { return }
-        MacActions.perform("Disable board") {
+        AppActions.perform("Disable board") {
             _ = try await ProjectService.shared.deleteProject(id: projectId)
             _ = try? await ListService.shared.fetchLists()
         }
@@ -183,7 +183,7 @@ struct MacBoardView: View {
         guard !title.isEmpty else { return }
         draftByColumn[col.id] = ""
         let spec = MacBoardAdd.newCard(in: col, domainListId: listId, lists: listService.lists)
-        MacActions.perform("Add card") {
+        AppActions.perform("Add card") {
             // Born in the column it was typed into, role and all (AITD-328). It used to be
             // created bare and then moved, and the move dropped the role — so a card typed into
             // Doing resolved to Inbox and appeared there.
@@ -305,7 +305,7 @@ struct MacBoardView: View {
         guard let task = tasks.first(where: { $0.id == taskId }) else { return }
         let plan = MacBoardMove.plan(task: task, column: col,
                                      lists: listService.lists, customStates: customStates)
-        MacActions.perform("Move task") {
+        AppActions.perform("Move task") {
             switch plan {
             case .none:
                 break
@@ -334,7 +334,7 @@ struct MacBoardView: View {
         // an undo step is the same click with less of a way back (AITD-372).
         MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed],
                                                              to: !t.completed))
-        MacActions.perform("Complete task") {
+        AppActions.perform("Complete task") {
             _ = try await taskService.completeTask(id: t.id, completed: !t.completed, task: t)
         }
     }
@@ -349,13 +349,13 @@ struct MacBoardView: View {
     private func moveToList(_ t: Task, _ targetListId: String) {
         MacUndoCoordinator.shared.record(
             MacUndo.moveStep(previous: [t.id: t.listIds ?? []], to: targetListId))
-        MacActions.perform("Move task") {
+        AppActions.perform("Move task") {
             _ = try await taskService.updateTask(taskId: t.id, listIds: [targetListId], task: t)
         }
     }
 
     private func copyTask(_ t: Task, to targetListId: String?) {
-        MacActions.perform("Copy task") {
+        AppActions.perform("Copy task") {
             _ = try await taskService.copyTask(id: t.id, targetListId: targetListId,
                                                includeComments: true)
         }
@@ -370,7 +370,7 @@ struct MacBoardView: View {
     }
 
     private func shareTask(_ t: Task) {
-        MacActions.perform("Share task") {
+        AppActions.perform("Share task") {
             if let url = try await MacTaskActions.makeShareURL(taskId: t.id) {
                 MacTaskActions.presentShareSheet(url: url, relativeTo: nil)
             }
@@ -384,7 +384,7 @@ struct MacBoardView: View {
         MacUndoCoordinator.shared.record(MacUndo.deleteStep(
             snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: [t],
                                                                    allTasks: taskService.tasks)))
-        MacActions.perform("Delete task") {
+        AppActions.perform("Delete task") {
             try await taskService.deleteTask(id: t.id, task: t)
         }
     }
@@ -412,7 +412,7 @@ struct MacBoardView: View {
 
         guard let write = outcome.write else { return }
         lastWrittenPriority[t.id] = write
-        MacActions.perform("Set priority") {
+        AppActions.perform("Set priority") {
             _ = try await taskService.updateTask(taskId: t.id, priority: write.rawValue, task: t)
             // Only if this write is still the newest thing the user asked for: clearing
             // unconditionally discarded a tap made while this one was in flight.
@@ -422,7 +422,7 @@ struct MacBoardView: View {
     }
 
     private func setAssignee(_ t: Task, _ assigneeId: String?) {
-        MacActions.perform("Set assignee") {
+        AppActions.perform("Set assignee") {
             _ = try await taskService.updateTask(taskId: t.id, assigneeId: assigneeId ?? "", task: t)
         }
     }

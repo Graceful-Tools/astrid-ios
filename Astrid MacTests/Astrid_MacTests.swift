@@ -2,7 +2,7 @@
 //  Astrid MacTests — shared-layer smoke tests (Task df40c2e9).
 //  Replaces the empty Xcode template tests. Broader coverage lives in the focused suites
 //  (MacTaskDetailUpdate, MacFeatureFlagGating, MacQuickAdd, MacCommandDispatch, MacRuntime,
-//  MacPaletteSearch, MacDeepLink, MacCustomRepeat, MacErrorCenter, MacMyTasks, MacBoardMove,
+//  MacPaletteSearch, MacDeepLink, MacCustomRepeat, AppErrorCenter, MacMyTasks, MacBoardMove,
 //  MacTaskVisuals, MacListTaskFiltering, SharedServiceLayer, …).
 
 import XCTest

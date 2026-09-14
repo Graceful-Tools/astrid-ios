@@ -183,7 +183,7 @@ final class MacUndoCoordinator: NSObject, ObservableObject {
             for (id, completed) in byId {
                 guard let task = service.tasks.first(where: { $0.id == id }) else { continue }
                 guard task.completed != completed else { continue }
-                MacActions.perform(name) {
+                AppActions.perform(name) {
                     _ = try await service.completeTask(id: id, completed: completed, task: task)
                 }
             }
@@ -191,7 +191,7 @@ final class MacUndoCoordinator: NSObject, ObservableObject {
         case .setLists(let byId):
             for (id, listIds) in byId {
                 guard let task = service.tasks.first(where: { $0.id == id }) else { continue }
-                MacActions.perform(name) {
+                AppActions.perform(name) {
                     _ = try await service.updateTask(taskId: id, listIds: listIds, task: task)
                 }
             }
@@ -199,13 +199,13 @@ final class MacUndoCoordinator: NSObject, ObservableObject {
         case .delete(let snapshots):
             for snap in snapshots {
                 guard let task = service.tasks.first(where: { $0.id == snap.id }) else { continue }
-                MacActions.perform(name) { try await service.deleteTask(id: snap.id, task: task) }
+                AppActions.perform(name) { try await service.deleteTask(id: snap.id, task: task) }
             }
 
         case .recreate(let snapshots):
             // Sequential, parents first: a subtask needs its parent's NEW id, which only exists
             // once the parent has been re-created.
-            MacActions.perform(name) {
+            AppActions.perform(name) {
                 var newIds: [String: String] = [:]
                 for snap in MacUndo.recreationOrder(snapshots) {
                     let parent = snap.parentTaskId.flatMap { newIds[$0] ?? $0 }

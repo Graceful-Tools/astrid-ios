@@ -8,7 +8,7 @@ import XCTest
 final class MacErrorCenterTests: XCTestCase {
 
     func testShowSetsCurrentBanner() {
-        let center = MacErrorCenter.shared
+        let center = AppErrorCenter.shared
         center.clear()
         center.show("Something failed")
         XCTAssertEqual(center.current?.text, "Something failed")
@@ -22,11 +22,11 @@ final class MacErrorCenterTests: XCTestCase {
     /// the log instead.
     func testReportShowsLocalizedCopyAndTheUnderlyingError() {
         struct E: LocalizedError { var errorDescription: String? { "network down" } }
-        let center = MacErrorCenter.shared
+        let center = AppErrorCenter.shared
         center.clear()
         center.report("Invite user", E())
         let text = center.current?.text
-        XCTAssertEqual(text, "\(MacFailureCopy.message(for: "Invite user")): network down")
+        XCTAssertEqual(text, "\(FailureCopy.message(for: "Invite user")): network down")
         XCTAssertFalse(text?.contains("Invite user") ?? true,
                        "The developer context must not reach the user")
         center.clear()

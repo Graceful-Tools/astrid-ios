@@ -33,7 +33,7 @@ struct MacAuthGateView: View {
                 MacLoginView()
             }
         }
-        .overlay { MacErrorBanner() }   // app-wide write-failure surface (Task 8a5f3066)
+        .overlay { AppErrorBanner() }   // app-wide write-failure surface (Task 8a5f3066)
         .tint(Theme.accent)   // match the iOS app's accent blue app-wide
         .preferredColorScheme(themeMode.colorScheme)
         .animation(MacMotion.medium, value: themeMode)   // theme switch cross-fades (4c7b9f08)

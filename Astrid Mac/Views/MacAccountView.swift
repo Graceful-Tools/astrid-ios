@@ -61,7 +61,7 @@ struct MacAccountView: View {
     /// Fetch the account export from the shared service, then save it via an NSSavePanel.
     private func export(format: String) {
         isExporting = true
-        MacActions.perform("Export data") {
+        AppActions.perform("Export data") {
             defer { isExporting = false }
             let data = try await AccountService.shared.exportAccountData(format: format)
             let panel = NSSavePanel()
@@ -86,7 +86,7 @@ struct MacAccountView: View {
     private func saveName() {
         let n = name.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty, n != auth.currentUser?.name else { return }
-        MacActions.perform("Update name") {
+        AppActions.perform("Update name") {
             _ = try await AccountService.shared.updateAccount(name: n, email: nil, image: nil)
             savedFlash = true
         }
@@ -120,7 +120,7 @@ struct MacDeleteAccountSheet: View {
 
     private func delete() {
         working = true
-        MacActions.perform("Delete account") {
+        AppActions.perform("Delete account") {
             defer { working = false }
             _ = try await AccountService.shared.deleteAccount(confirmationText: confirm)
             try? await AuthManager.shared.signOut()

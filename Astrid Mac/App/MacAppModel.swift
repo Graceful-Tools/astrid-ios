@@ -95,7 +95,7 @@ final class MacAppModel: ObservableObject {
             guard let t = all.first(where: { $0.id == id }) else { continue }
             // Keyboard actions report failures like every other write — a shortcut that silently
             // does nothing is indistinguishable from one that is not wired up (task f1f0cb13).
-            MacActions.perform("Update task") {
+            AppActions.perform("Update task") {
                 switch effect {
                 case .priority(let p):
                     _ = try await TaskService.shared.updateTask(taskId: id, priority: p, task: t)
@@ -132,7 +132,7 @@ final class MacAppModel: ObservableObject {
     @MainActor func refreshNow() {
         guard MacRefresh.isEnabled(isOnline: NetworkMonitor.shared.isConnected,
                                    isSyncing: SyncManager.shared.isSyncing) else { return }
-        MacActions.perform("Refresh") {
+        AppActions.perform("Refresh") {
             try await SyncManager.shared.performFullSync(includeUserTasks: true)
         }
     }
@@ -149,7 +149,7 @@ final class MacAppModel: ObservableObject {
         let byId = Dictionary(uniqueKeysWithValues: TaskService.shared.tasks
             .filter { ids.contains($0.id) }.map { ($0.id, $0.completed) })
         MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: byId, to: true))
-        MacActions.perform("Complete tasks") {
+        AppActions.perform("Complete tasks") {
             for id in ids { _ = try await TaskService.shared.completeTask(id: id, completed: true) }
         }
     }
@@ -161,7 +161,7 @@ final class MacAppModel: ObservableObject {
         let targets = TaskService.shared.tasks.filter { ids.contains($0.id) }
         MacUndoCoordinator.shared.record(MacUndo.deleteStep(
             snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: targets, allTasks: TaskService.shared.tasks)))
-        MacActions.perform("Delete tasks") {
+        AppActions.perform("Delete tasks") {
             for id in ids { try await TaskService.shared.deleteTask(id: id) }
         }
     }

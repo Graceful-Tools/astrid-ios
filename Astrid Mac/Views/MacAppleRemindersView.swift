@@ -110,13 +110,13 @@ struct MacAppleRemindersView: View {
     }
 
     private func link(_ list: TaskList, to calendar: EKCalendar) {
-        MacActions.perform("Link Reminders") {
+        AppActions.perform("Link Reminders") {
             try await apple.linkList(list.id, toCalendar: calendar, direction: .bidirectional)
         }
     }
 
     private func createAndLink(_ list: TaskList) {
-        MacActions.perform("Create Reminders list") {
+        AppActions.perform("Create Reminders list") {
             let cal = try apple.getOrCreateRemindersCalendar(for: list)
             try await apple.linkList(list.id, toCalendar: cal, direction: .bidirectional)
         }

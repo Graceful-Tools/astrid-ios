@@ -3,7 +3,7 @@
 //  sometimes unresponsive. should be optimistic update and update in the background!"
 //
 //  The update was ALREADY optimistic and already backgrounded: the picker sets its binding
-//  before it notifies, and `MacActions.perform` runs the write in a detached Task. What was
+//  before it notifies, and `AppActions.perform` runs the write in a detached Task. What was
 //  missing is that some taps never wrote anything:
 //
 //      guard newValue != task.priority else { return }

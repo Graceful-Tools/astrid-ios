@@ -153,7 +153,7 @@ struct MacRootView: View {
             MacUndo.moveStep(previous: Dictionary(uniqueKeysWithValues: toMove.map { ($0.id, $0.listIds ?? []) }),
                              to: listId))
         for t in toMove {
-            MacActions.perform("Move task") {
+            AppActions.perform("Move task") {
                 _ = try await taskService.updateTask(taskId: t.id, listIds: [listId], task: t)
             }
         }
@@ -183,19 +183,19 @@ struct MacRootView: View {
     /// Give a list a project board. Lived only inside the board pane, which is now hidden for a
     /// list that has no board — so it moves to the sidebar's context menu (8b71bc24).
     private func enableBoard(_ list: TaskList) {
-        MacActions.perform("Enable board") {
+        AppActions.perform("Enable board") {
             _ = try await ProjectService.shared.createBoardForList(list)
             _ = try? await ListService.shared.fetchLists()
         }
     }
 
     private func toggleFavorite(_ list: TaskList) {
-        MacActions.perform("Update favourite") {
+        AppActions.perform("Update favourite") {
             _ = try await listService.toggleFavorite(listId: list.id, isFavorite: !(list.isFavorite ?? false))
         }
     }
     private func deleteList(_ list: TaskList) {
-        MacActions.perform("Delete list") {
+        AppActions.perform("Delete list") {
             try await listService.deleteList(listId: list.id)
             if selectedListId == list.id { selectedListId = nil }
         }
@@ -270,7 +270,7 @@ struct MacRootView: View {
         let new = editingTaskTitle.trimmingCharacters(in: .whitespaces)
         editingTaskId = nil
         guard !new.isEmpty, new != t.title else { return }
-        MacActions.perform("Rename task") { _ = try await taskService.updateTask(taskId: t.id, title: new, task: t) }
+        AppActions.perform("Rename task") { _ = try await taskService.updateTask(taskId: t.id, title: new, task: t) }
     }
 
     /// Row currently under a drag-to-indent drop, for the highlight.
@@ -295,7 +295,7 @@ struct MacRootView: View {
     private func applyNesting(_ outcome: DragNestingOutcome, droppedId: String) {
         guard let parentId = DragNesting.parentIdToWrite(for: outcome),
               let dropped = droppedTask(droppedId) else { return }
-        MacActions.perform("Move task") {
+        AppActions.perform("Move task") {
             _ = try await taskService.updateTask(taskId: droppedId, task: dropped,
                                                  parentTaskId: parentId)
         }
@@ -605,7 +605,7 @@ struct MacRootView: View {
             MacUndo.completeStep(previous: Dictionary(uniqueKeysWithValues: toComplete.map { ($0.id, $0.completed) }),
                                  to: true))
         for task in toComplete {
-            MacActions.perform("Complete task") {
+            AppActions.perform("Complete task") {
                 _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
             }
         }
@@ -1031,7 +1031,7 @@ struct MacRootView: View {
     private func moveTasks(rows: [Task], from source: IndexSet, to destination: Int) {
         guard let listId = currentRealList?.id else { return }
         let ids = MacReorder.reordered(rows.map(\.id), from: source, to: destination)
-        MacActions.perform("Reorder tasks") {
+        AppActions.perform("Reorder tasks") {
             try await listService.updateManualOrder(listId: listId, order: ids)
         }
     }
@@ -1048,7 +1048,7 @@ struct MacRootView: View {
                 Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
                     get: { list.sortBy ?? "auto" },
                     set: { newValue in
-                        MacActions.perform("Update sort") {
+                        AppActions.perform("Update sort") {
                             _ = try await ListService.shared.updateListAdvanced(
                                 listId: list.id, updates: ["sortBy": newValue])
                         }
@@ -1074,7 +1074,7 @@ struct MacRootView: View {
     }
     private func bulkSetPriority(_ ids: Set<String>, _ p: Task.Priority) {
         let targets = tasksForSelection.filter { ids.contains($0.id) }
-        MacActions.perform("Set priority") {
+        AppActions.perform("Set priority") {
             for t in targets { _ = try await taskService.updateTask(taskId: t.id, priority: p.rawValue, task: t) }
         }
     }
@@ -1083,14 +1083,14 @@ struct MacRootView: View {
         selectedTaskIds.removeAll()
         MacUndoCoordinator.shared.record(MacUndo.deleteStep(
             snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: targets, allTasks: taskService.tasks)))
-        MacActions.perform("Delete tasks") {
+        AppActions.perform("Delete tasks") {
             for t in targets { try await taskService.deleteTask(id: t.id, task: t) }
         }
     }
 
     private func setCompleted(_ t: Task) {
         MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed], to: true))
-        MacActions.perform("Complete task") {
+        AppActions.perform("Complete task") {
             _ = try await taskService.completeTask(id: t.id, completed: true, task: t)
         }
     }
@@ -1100,7 +1100,7 @@ struct MacRootView: View {
         // Surface failures instead of swallowing them with `try?` — a silently-failing completion
         // is indistinguishable from a dead checkbox (task 652edb22).
         MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: [t.id: t.completed], to: !t.completed))
-        MacActions.perform("Complete task") {
+        AppActions.perform("Complete task") {
             _ = try await TaskService.shared.completeTask(id: t.id, completed: !t.completed, task: t)
         }
     }
@@ -1142,7 +1142,7 @@ struct MacRootView: View {
     /// Copy dropped tasks into a list (Option-drag), through the same service the menu uses so
     /// comments come across too.
     private func copyTasks(_ ids: Set<String>, to listId: String) {
-        MacActions.perform("Copy tasks") {
+        AppActions.perform("Copy tasks") {
             for id in ids {
                 _ = try await TaskService.shared.copyTask(id: id, targetListId: listId,
                                                           includeComments: true)
@@ -1153,7 +1153,7 @@ struct MacRootView: View {
     /// Copy a task into another list from the row menu — the SAME service call the detail menu
     /// uses, so the comments come across too.
     private func copyTask(_ task: Task, to listId: String?) {
-        MacActions.perform("Copy task") {
+        AppActions.perform("Copy task") {
             _ = try await TaskService.shared.copyTask(id: task.id, targetListId: listId,
                                                       includeComments: true)
         }
@@ -1162,7 +1162,7 @@ struct MacRootView: View {
     /// Share from the row: make the shortcode link through the shared service (identical to iOS
     /// ShareTaskView), then present the native share sheet.
     private func shareTaskFromRow(_ task: Task) {
-        MacActions.perform("Share task") {
+        AppActions.perform("Share task") {
             if let url = try await MacTaskActions.makeShareURL(taskId: task.id) {
                 MacTaskActions.presentShareSheet(url: url, relativeTo: nil)
             }
@@ -1258,7 +1258,7 @@ struct MacRootView: View {
         let assigneeOverride = draftAssigneeOverride
         draftPriorityOverride = nil          // the overrides apply to one task, like iOS
         draftAssigneeOverride = nil
-        MacActions.perform("Add task") {
+        AppActions.perform("Add task") {
             let created = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate,

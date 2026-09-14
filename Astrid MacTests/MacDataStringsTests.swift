@@ -144,7 +144,7 @@ final class MacFailureCopyTests: XCTestCase {
                         "Rename task", "Change role", "Set priority", "Reorder tasks", "Move task",
                         "Make subtask", "Share task", "Export data", "Test API key"]
         for context in contexts {
-            let message = MacFailureCopy.message(for: context)
+            let message = FailureCopy.message(for: context)
             XCTAssertFalse(message.isEmpty, "\(context) has no banner copy")
             XCTAssertFalse(message.hasPrefix("mac.failed."), "\(context) shows an unresolved key")
             XCTAssertNotEqual(message, context, "\(context) leaks the developer string to the user")
@@ -153,23 +153,23 @@ final class MacFailureCopyTests: XCTestCase {
 
     /// Grouped by verb: deletes read as deletes, creates as creates.
     func testTheVerbPicksTheCategory() {
-        XCTAssertEqual(MacFailureCopy.message(for: "Delete list"),
+        XCTAssertEqual(FailureCopy.message(for: "Delete list"),
                        NSLocalizedString("mac.failed.delete", comment: ""))
-        XCTAssertEqual(MacFailureCopy.message(for: "Remove member"),
+        XCTAssertEqual(FailureCopy.message(for: "Remove member"),
                        NSLocalizedString("mac.failed.delete", comment: ""))
-        XCTAssertEqual(MacFailureCopy.message(for: "Add subtask"),
+        XCTAssertEqual(FailureCopy.message(for: "Add subtask"),
                        NSLocalizedString("mac.failed.create", comment: ""))
-        XCTAssertEqual(MacFailureCopy.message(for: "Save notes"),
+        XCTAssertEqual(FailureCopy.message(for: "Save notes"),
                        NSLocalizedString("mac.failed.save", comment: ""))
-        XCTAssertEqual(MacFailureCopy.message(for: "Complete task"),
+        XCTAssertEqual(FailureCopy.message(for: "Complete task"),
                        NSLocalizedString("mac.failed.complete", comment: ""))
     }
 
     /// An unrecognised verb still gets a translated line rather than falling back to English.
     func testUnknownVerbsGetTheGenericLine() {
-        XCTAssertEqual(MacFailureCopy.message(for: "Frobnicate widget"),
+        XCTAssertEqual(FailureCopy.message(for: "Frobnicate widget"),
                        NSLocalizedString("mac.failed.generic", comment: ""))
-        XCTAssertEqual(MacFailureCopy.message(for: ""),
+        XCTAssertEqual(FailureCopy.message(for: ""),
                        NSLocalizedString("mac.failed.generic", comment: ""))
     }
 

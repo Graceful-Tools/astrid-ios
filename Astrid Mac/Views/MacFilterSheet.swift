@@ -146,7 +146,7 @@ struct MacListSortFiltersContent: View {
     private func saveShowSubtasks(_ on: Bool) {
         guard let value = ListSubtaskVisibility.payloadValue(original: list.showSubtasks,
                                                              edited: on) else { return }
-        MacActions.perform("Update show subtasks") {
+        AppActions.perform("Update show subtasks") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id,
                                                                 updates: ["showSubtasks": value])
         }
@@ -163,7 +163,7 @@ struct MacListSortFiltersContent: View {
                                              dueDate: dueDate, assignee: assignee, sortBy: sortBy,
                                              repeating: repeatingFilter, assignedBy: assignedBy)
             : MacListFilter.revertToNormalListUpdates()
-        MacActions.perform(on ? "Save as Smart List" : "Convert to normal list") {
+        AppActions.perform(on ? "Save as Smart List" : "Convert to normal list") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)
         }
     }
@@ -187,7 +187,7 @@ struct MacListSortFiltersContent: View {
             "filterAssignedBy": assignedBy,
             "filterRepeating": repeatingFilter,
         ]
-        MacActions.perform("Update filters") {
+        AppActions.perform("Update filters") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)
         }
     }

@@ -3,7 +3,7 @@
 //
 //  Mac call-sites used `_ = try? await TaskService…`, so a rejected create/update/delete
 //  produced no banner, no log, and no rollback — the user saw the optimistic row and assumed
-//  it saved. Writes must go through `MacActions.perform`, which reports through MacErrorCenter.
+//  it saved. Writes must go through `AppActions.perform`, which reports through AppErrorCenter (was MacActions/MacErrorCenter until AITD-400).
 //  Reads (`fetchMembers`, `fetchLists`, `searchContacts`) may still use `try?`: a stale refresh
 //  is not a lost edit.
 
@@ -32,7 +32,7 @@ final class MacSilentWriteGuardTests: XCTestCase {
         for case let url as URL in files where url.pathExtension == "swift" {
             let source = try String(contentsOf: url, encoding: .utf8)
             for (index, line) in source.components(separatedBy: .newlines).enumerated() {
-                // Comments describing the old pattern (MacErrorCenter's header) are not call-sites.
+                // Comments describing the old pattern (AppActions.swift's header) are not call-sites.
                 let code = line.trimmingCharacters(in: .whitespaces)
                 guard !code.hasPrefix("//"), code.contains("try? await") else { continue }
                 for method in writeMethods where code.contains("\(method)(") {
@@ -42,7 +42,7 @@ final class MacSilentWriteGuardTests: XCTestCase {
         }
 
         XCTAssertEqual(violations, [], """
-            Mac writes must surface failures via MacActions.perform, not swallow them with `try?`:
+            Mac writes must surface failures via AppActions.perform, not swallow them with `try?`:
             \(violations.joined(separator: "\n"))
             """)
     }

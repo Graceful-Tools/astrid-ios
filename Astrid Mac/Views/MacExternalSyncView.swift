@@ -60,7 +60,7 @@ struct MacGoogleTasksLinksView: View {
                                     Button(NSLocalizedString("reminders.unlink", comment: ""), role: .destructive) { _Concurrency.Task { await google.unlink(l.id) } }
                                 } else {
                                     Button(NSLocalizedString("mac.create_and_link", comment: "")) {
-                                        MacActions.perform("Link Google Tasks") {
+                                        AppActions.perform("Link Google Tasks") {
                                             _ = try await google.createGoogleTasklistAndLink(listId: list.id, listName: list.name)
                                         }
                                     }
@@ -122,7 +122,7 @@ struct MacGitHubLinksView: View {
     private func linkGitHub(_ list: TaskList) {
         let repo = (repoDrafts[list.id] ?? "").trimmingCharacters(in: .whitespaces)
         guard !repo.isEmpty else { return }
-        MacActions.perform("Link GitHub repo") { try await github.linkList(list.id, repo: repo) }
+        AppActions.perform("Link GitHub repo") { try await github.linkList(list.id, repo: repo) }
     }
 }
 
