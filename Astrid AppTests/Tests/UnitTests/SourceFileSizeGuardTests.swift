@@ -40,14 +40,13 @@ final class SourceFileSizeGuardTests: XCTestCase {
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
         // Was 1766. The 2026-09-13 dedupe pass moved the task read-only / can-add rules into
         // `ListPermissions`, where the Mac and web already look for them.
-        // Now 1725: AITD-406 gave two silent list writes a voice here — `deleteList` was
-        // swallowed with `try?`, and the advanced-update catch was empty with a comment calling
-        // itself non-fatal. Neither has an Outbox behind it, so both really did lose the write.
-        // Eight lines, and the ratchet's question ("should this still be one file?") has a real
-        // answer waiting: the list-management handlers — delete, leave, and the ~40-line updates
-        // dictionary above them — are a coherent group that wants its own file. That is an
-        // extraction to file and do on its own, not to bundle into an error-handling change.
-        "Astrid App/Views/Tasks/TaskListView.swift": 1725,
+        // Briefly 1725 while AITD-406 added error reporting, then DOWN to 1640: AITD-409 took
+        // the ratchet's question seriously and moved the ~85-line settings diff out to
+        // `ListSettingsPayload`, where it is a pure function with tests instead of a wall of
+        // near-identical `if`s inside the third-largest file in the repo. That wall is where the
+        // "Recently completed" field went missing for a while (545812e6), which is the argument
+        // for the extraction better than any line count is.
+        "Astrid App/Views/Tasks/TaskListView.swift": 1640,
         "Astrid App/Core/Services/TaskService.swift": 1674,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
