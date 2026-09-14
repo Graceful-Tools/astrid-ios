@@ -35,7 +35,7 @@ struct MacMenuBarView: View {
             } else {
                 ForEach(openTasks) { task in
                     Button {
-                        MacActions.perform("Complete task") {
+                        AppActions.perform("Complete task") {
                             _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
                         }
                     } label: {
@@ -61,7 +61,7 @@ struct MacMenuBarView: View {
                                                     smartEnabled: UserSettingsService.shared.smartTaskCreationEnabled,
                                                     currentUserId: AuthManager.shared.userId) else { return }
         quickText = ""
-        MacActions.perform("Add task") {
+        AppActions.perform("Add task") {
             _ = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
                 whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,

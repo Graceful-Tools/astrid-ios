@@ -14,7 +14,7 @@
 //  Those are different designs over different membership sources, not copies of each other, so
 //  folding them together would be inventing a merge rather than removing one. Everything here
 //  therefore `throws` and returns: no optimistic edit, no refresh, and no error presentation.
-//  iOS sets `errorMessage`; the Mac wraps the call in `MacActions.perform`.
+//  iOS sets `errorMessage`; the Mac wraps the call in `AppActions.perform`.
 //
 //  Writes go through `ListMemberService` / `ListService`, never `AstridAPIClient` — ASTRID.md §0
 //  rule 1 — which is also what puts them in the pending-ops queue so they survive being offline.

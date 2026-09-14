@@ -121,25 +121,25 @@ struct MacBoardCardEditor: View {
     }
 
     private func setAssignee(_ id: String?) {
-        MacActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
+        AppActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
     }
     private func saveNotes() {
         guard notes != task.description else { return }
-        MacActions.perform("Save notes") { _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task) }
+        AppActions.perform("Save notes") { _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task) }
     }
     private func savePriority() {
         guard priority != task.priority else { return }
-        MacActions.perform("Save priority") { _ = try await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
+        AppActions.perform("Save priority") { _ = try await taskService.updateTask(taskId: task.id, priority: priority.rawValue, task: task) }
     }
     private func saveDue() {
-        MacActions.perform("Save due date") {
+        AppActions.perform("Save due date") {
             _ = try await taskService.updateTask(taskId: task.id,
                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due), isAllDay: false, task: task)
         }
     }
     private func postComment() {
         let c = newComment.trimmingCharacters(in: .whitespaces); guard !c.isEmpty else { return }
-        MacActions.perform("Post comment") {
+        AppActions.perform("Post comment") {
             _ = try await CommentService.shared.createComment(
                 taskId: task.id, content: c,
                 authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
@@ -151,7 +151,7 @@ struct MacBoardCardEditor: View {
         if timerRunning, let s = timerStart {
             let total = (task.timerDuration ?? 0) + Int(Date().timeIntervalSince(s))
             timerRunning = false; timerStart = nil
-            MacActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
+            AppActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
         } else { timerRunning = true; timerStart = Date() }
     }
     private func attach() {
@@ -166,7 +166,7 @@ struct MacBoardCardEditor: View {
             await MainActor.run {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(fileData: data, fileName: name, mimeType: mime, taskId: taskId)
                 attaching = false
-                MacActions.perform("Attach to comment") {
+                AppActions.perform("Attach to comment") {
                     _ = try await CommentService.shared.createComment(
                         taskId: taskId, content: name, fileId: fileId,
                         authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))

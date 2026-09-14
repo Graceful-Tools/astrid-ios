@@ -158,7 +158,7 @@ struct MacChatPanelView: View {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
                     fileData: data, fileName: name, mimeType: mime, context: source.listIdForMembers.map { ["listId": $0] } ?? [:])
                 attaching = false
-                MacActions.perform("Attach file") {
+                AppActions.perform("Attach file") {
                     _ = try await chat.sendMessage(channelId: cid, content: name, fileId: fileId)
                 }
             }
@@ -240,7 +240,7 @@ struct MacChatPanelView: View {
 
     private func deleteMessage(_ m: ChatMessage) {
         guard let cid = channelId else { return }
-        MacActions.perform("Delete message") { try await chat.deleteMessage(id: m.id, channelId: cid) }
+        AppActions.perform("Delete message") { try await chat.deleteMessage(id: m.id, channelId: cid) }
     }
 
     private func load() async {
@@ -279,7 +279,7 @@ struct MacChatPanelView: View {
     private func loadEarlier() {
         guard let cid = channelId, !loadingMore else { return }
         loadingMore = true
-        MacActions.perform("Load messages") {
+        AppActions.perform("Load messages") {
             defer { loadingMore = false }
             try await chat.loadMoreMessages(channelId: cid)
         }
@@ -290,7 +290,7 @@ struct MacChatPanelView: View {
         guard !t.isEmpty, let cid = channelId else { return }
         // Optimistic/offline-first: the temp message appears immediately; keep the draft until it's accepted.
         let replyId = replyingTo?.id
-        MacActions.perform("Send message") {
+        AppActions.perform("Send message") {
             let sent = try await chat.sendMessage(channelId: cid, content: t, replyToId: replyId)
             text = ""
             replyingTo = nil

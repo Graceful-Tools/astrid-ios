@@ -409,14 +409,14 @@ struct MacTaskFieldsView: View {
     private func saveTitle() {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, trimmed != task.title else { return }
-        MacActions.perform("Save title") {
+        AppActions.perform("Save title") {
             _ = try await taskService.updateTask(taskId: task.id, title: trimmed, task: task)
         }
     }
 
     private func saveNotes() {
         guard notes != task.description else { return }
-        MacActions.perform("Save notes") {
+        AppActions.perform("Save notes") {
             _ = try await taskService.updateTask(taskId: task.id, description: notes, task: task)
         }
     }
@@ -432,26 +432,26 @@ struct MacTaskFieldsView: View {
         priority = newValue
         guard MacPriorityWrite.shouldWrite(tapped: newValue, lastWritten: lastWrittenPriority) else { return }
         lastWrittenPriority = newValue
-        MacActions.perform("Save priority") {
+        AppActions.perform("Save priority") {
             _ = try await taskService.updateTask(taskId: task.id, priority: newValue.rawValue, task: task)
         }
     }
 
     private func setAssignee(_ userId: String?) {
-        MacActions.perform("Assign task") {
+        AppActions.perform("Assign task") {
             _ = try await taskService.updateTask(taskId: task.id, assigneeId: userId ?? "", task: task)
         }
     }
 
     private func setLists(_ listIds: [String]) {
-        MacActions.perform("Save lists") {
+        AppActions.perform("Save lists") {
             _ = try await taskService.updateTask(taskId: task.id, listIds: listIds, task: task)
         }
     }
 
     private func saveDue() {
         // hasDue OFF sends Date.distantPast (the shared clear sentinel).
-        MacActions.perform("Save due date") {
+        AppActions.perform("Save due date") {
             _ = try await taskService.updateTask(
                 taskId: task.id,
                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due),
@@ -472,7 +472,7 @@ struct MacTaskFieldsView: View {
     }
 
     private func saveRepeat() {
-        MacActions.perform("Save repeat") {
+        AppActions.perform("Save repeat") {
             _ = try await taskService.updateTask(taskId: task.id,
                                                  repeating: repeating.rawValue,
                                                  repeatingData: customPattern,
@@ -483,7 +483,7 @@ struct MacTaskFieldsView: View {
     private func setCompleted(_ value: Bool) {
         // Surface failures instead of swallowing them — a silently failing completion
         // is indistinguishable from a dead checkbox (652edb22).
-        MacActions.perform("Complete task") {
+        AppActions.perform("Complete task") {
             _ = try await TaskService.shared.completeTask(id: task.id, completed: value, task: task)
         }
     }

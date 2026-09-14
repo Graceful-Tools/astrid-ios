@@ -184,7 +184,7 @@ struct MacListEditSheet: View {
         guard let e = existing else { return }
         // BOTH, in one write. Sending only the image meant the colour changed on screen and then
         // reverted on the next fetch unless you also happened to press Save (task da56d096).
-        MacActions.perform("Set list image") {
+        AppActions.perform("Set list image") {
             _ = try await ListService.shared.updateListAdvanced(
                 listId: e.id,
                 updates: ["imageUrl": placeholder.path, "color": placeholder.colorHex])
@@ -193,7 +193,7 @@ struct MacListEditSheet: View {
 
     private func saveDueTime() {
         guard let e = existing else { return }
-        MacActions.perform("Update default due time") {
+        AppActions.perform("Update default due time") {
             _ = try await ListService.shared.updateListAdvanced(
                 listId: e.id, updates: ["defaultDueTime": defDueTime as Any? ?? NSNull()])
         }
@@ -208,7 +208,7 @@ struct MacListEditSheet: View {
         } else {
             window = presetForValue(recentlyCompleted)
         }
-        MacActions.perform("Update recently completed window") {
+        AppActions.perform("Update recently completed window") {
             _ = try await ListService.shared.updateListAdvanced(
                 listId: e.id, updates: ["recentlyCompletedWindow": window?.updatePayloadValue ?? NSNull()])
         }
@@ -217,7 +217,7 @@ struct MacListEditSheet: View {
     private func saveDefaults() {
         guard let e = existing else { return }
         let updates = MacListDefaults.updates(priority: defPriority, dueDate: defDueDate, repeating: defRepeating)
-        MacActions.perform("Update list defaults") {
+        AppActions.perform("Update list defaults") {
             _ = try await ListService.shared.updateListAdvanced(listId: e.id, updates: updates)
         }
     }
@@ -260,7 +260,7 @@ struct MacListEditSheet: View {
 
     private func setImage(_ url: String?, for list: TaskList) {
         imageUrl = url
-        MacActions.perform("Update list image") {
+        AppActions.perform("Update list image") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: ["imageUrl": url ?? ""])
             _ = try? await ListService.shared.fetchLists()
         }
@@ -272,7 +272,7 @@ struct MacListEditSheet: View {
         let desc = listDescription.trimmingCharacters(in: .whitespaces)
         let chosenColor = color
         let chosenImage = imageUrl
-        MacActions.perform(existing == nil ? "Create list" : "Save list") {
+        AppActions.perform(existing == nil ? "Create list" : "Save list") {
             if let e = existing {
                 _ = try await ListService.shared.updateListAdvanced(
                     listId: e.id, updates: ["name": n, "description": desc, "color": chosenColor])

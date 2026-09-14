@@ -517,7 +517,7 @@ struct MacTaskDetailView: View {
     /// Delete this task via the canonical service, closing the pop-out first.
     private func deleteTask() {
         onClose?()
-        MacActions.perform("Delete task") { try await taskService.deleteTask(id: task.id, task: task) }
+        AppActions.perform("Delete task") { try await taskService.deleteTask(id: task.id, task: task) }
     }
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
@@ -572,7 +572,7 @@ struct MacTaskDetailView: View {
     }
 
     private func saveRepeat() {
-        MacActions.perform("Save repeat") {
+        AppActions.perform("Save repeat") {
             _ = try await taskService.updateTask(
                 taskId: task.id, repeating: repeating.rawValue,
                 repeatingData: repeating == .custom ? customPattern : nil,
@@ -582,7 +582,7 @@ struct MacTaskDetailView: View {
 
     private func setAssignee(_ id: String?) {
         // Empty string unassigns per the TaskService contract; "No one" (nil) must clear.
-        MacActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
+        AppActions.perform("Update assignee") { _ = try await taskService.updateTask(taskId: task.id, assigneeId: MacTaskDetailUpdate.assigneeArg(id), task: task) }
     }
 
     private var loggedSeconds: Int {
@@ -595,7 +595,7 @@ struct MacTaskDetailView: View {
         if timerRunning, let s = timerStart {
             let total = (task.timerDuration ?? 0) + Int(Date().timeIntervalSince(s))
             timerRunning = false; timerStart = nil
-            MacActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
+            AppActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
         } else {
             timerRunning = true; timerStart = Date()
         }
@@ -634,7 +634,7 @@ struct MacTaskDetailView: View {
 
     /// Delete a URL-backed attachment via the canonical service, then refresh.
     private func deleteAttachment(_ a: Attachment) {
-        MacActions.perform("Delete attachment") {
+        AppActions.perform("Delete attachment") {
             try await AttachmentService.shared.deleteAttachment(taskId: task.id, attachmentId: a.id)
             load()
         }
@@ -651,14 +651,14 @@ struct MacTaskDetailView: View {
     private func setCompleted(_ value: Bool) {
         // Surface failures instead of swallowing them with `try?` — a silently failing completion
         // is indistinguishable from a dead checkbox (652edb22).
-        MacActions.perform("Complete task") {
+        AppActions.perform("Complete task") {
             _ = try await TaskService.shared.completeTask(id: task.id, completed: value, task: task)
         }
     }
 
     /// Copy this task into another list (or My Tasks only) via the canonical service.
     private func copyTask(to listId: String?) {
-        MacActions.perform("Copy task") {
+        AppActions.perform("Copy task") {
             _ = try await taskService.copyTask(id: task.id, targetListId: listId, includeComments: true)
         }
     }
@@ -671,7 +671,7 @@ struct MacTaskDetailView: View {
             return
         }
         generatingShare = true
-        MacActions.perform("Share task") {
+        AppActions.perform("Share task") {
             defer { generatingShare = false }
             let url = try await MacTaskActions.makeShareURL(taskId: task.id)
             shareURL = url
@@ -682,7 +682,7 @@ struct MacTaskDetailView: View {
     /// Generate a shareable shortcode URL (then Copy / ShareLink present it).
     private func generateShareLink() {
         generatingShare = true
-        MacActions.perform("Create share link") {
+        AppActions.perform("Create share link") {
             defer { generatingShare = false }   // resets on success AND on thrown error
             let resp = try await RemoteResourceService.shared.createShortcode(targetType: "task", targetId: task.id)
             shareURL = URL(string: resp.url)
@@ -696,7 +696,7 @@ struct MacTaskDetailView: View {
     // MARK: subtasks + comments
 
     private func toggleSubtask(_ st: Task) {
-        MacActions.perform("Complete subtask") {
+        AppActions.perform("Complete subtask") {
             defer { load() }
             _ = try await taskService.completeTask(id: st.id, completed: !st.completed, task: st)
         }
@@ -706,14 +706,14 @@ struct MacTaskDetailView: View {
         let t = newSubtask.trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return }
         newSubtask = ""
-        MacActions.perform("Add subtask") {
+        AppActions.perform("Add subtask") {
             defer { load() }
             _ = try await taskService.createTask(listIds: task.listIds ?? [], title: t, parentTaskId: task.id)
         }
     }
 
     private func deleteSubtask(_ st: Task) {
-        MacActions.perform("Delete subtask") { defer { load() }; try await taskService.deleteTask(id: st.id) }
+        AppActions.perform("Delete subtask") { defer { load() }; try await taskService.deleteTask(id: st.id) }
     }
 
     private func renameSubtask() {
@@ -721,11 +721,11 @@ struct MacTaskDetailView: View {
         let t = editingSubtaskText.trimmingCharacters(in: .whitespaces)
         editingSubtask = nil
         guard !t.isEmpty, t != st.title else { return }
-        MacActions.perform("Rename subtask") { defer { load() }; _ = try await taskService.updateTask(taskId: st.id, title: t, task: st) }
+        AppActions.perform("Rename subtask") { defer { load() }; _ = try await taskService.updateTask(taskId: st.id, title: t, task: st) }
     }
 
     private func deleteComment(_ c: Comment) {
-        MacActions.perform("Delete comment") {
+        AppActions.perform("Delete comment") {
             try await CommentService.shared.deleteComment(id: c.id)
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
@@ -736,7 +736,7 @@ struct MacTaskDetailView: View {
         let text = editingCommentText.trimmingCharacters(in: .whitespaces)
         editingComment = nil
         guard !text.isEmpty, text != c.content else { return }
-        MacActions.perform("Edit comment") {
+        AppActions.perform("Edit comment") {
             _ = try await CommentService.shared.updateComment(id: c.id, content: text)
             comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
         }
@@ -926,7 +926,7 @@ struct MacTaskDetailView: View {
         guard !drafts.isEmpty else { return }
         let author = MacCommentPost.authorId(currentUserId: AuthManager.shared.userId)
         // Keep the draft until the post succeeds; surface failures instead of losing the text.
-        MacActions.perform("Post comment") {
+        AppActions.perform("Post comment") {
             // One at a time so they land in the order they were picked.
             for draft in drafts {
                 _ = try await CommentService.shared.createComment(

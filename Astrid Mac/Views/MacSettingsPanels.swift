@@ -114,7 +114,7 @@ struct MacSyncSettingsView: View {
                                     defer { connecting = nil }
                                     do { try await google.connect() }
                                     catch is CancellationError {}
-                                    catch { MacErrorCenter.shared.report("Connect Google Tasks", error) }
+                                    catch { AppErrorCenter.shared.report("Connect Google Tasks", error) }
                                 },
                                 disconnect: { await google.disconnect() },
                                 refresh: { await google.refreshStatus() },
@@ -130,7 +130,7 @@ struct MacSyncSettingsView: View {
                                 defer { connecting = nil }
                                 do { try await github.connect() }
                                 catch is CancellationError {}
-                                catch { MacErrorCenter.shared.report("Connect GitHub Issues", error) }
+                                catch { AppErrorCenter.shared.report("Connect GitHub Issues", error) }
                             },
                             disconnect: { await github.disconnect() },
                             refresh: { await github.refreshStatus() },
