@@ -51,10 +51,22 @@ final class RecentlyCompletedPayloadTests: XCTestCase {
     }
 
     /// The bug itself: the field has to appear in the update the view actually sends.
-    func testTheListUpdateDiffSendsTheWindow() throws {
-        let source = try String(contentsOf: RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"), encoding: .utf8)
-        XCTAssertTrue(source.contains(#"updates["recentlyCompletedWindow"]"#),
-                      "Changing the window must reach the server, not just the local model")
+    ///
+    /// This used to grep `TaskListView.swift` for the key, because the diff was ~85 lines inlined
+    /// in a 1,700-line view and there was nothing to call. AITD-409 moved it to
+    /// `ListSettingsPayload`, so the test can now assert the behaviour instead of the text — which
+    /// is the whole argument for that extraction: the omission this test was written for is the
+    /// kind a source scan can only approximate.
+    func testTheListUpdateDiffSendsTheWindow() {
+        var original = TaskList(id: "list-1", name: "Groceries")
+        original.recentlyCompletedWindow = .duration(amount: 1, unit: .day)
+        var updated = original
+        updated.recentlyCompletedWindow = .sinceWeekday(weekday: 1)
+
+        let updates = ListSettingsPayload.updates(original: original, updated: updated)
+        let sent = updates["recentlyCompletedWindow"] as? [String: Any]
+        XCTAssertEqual(sent?["kind"] as? String, "since-weekday",
+                       "Changing the window must reach the server, not just the local model")
+        XCTAssertEqual(sent?["weekday"] as? Int, 1)
     }
 }

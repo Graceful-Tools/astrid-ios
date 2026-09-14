@@ -1435,105 +1435,20 @@ struct TaskListView: View {
     }
 
     private func handleListUpdate(original: TaskList, updated: TaskList) {
+        // The diff itself is `ListSettingsPayload` (AITD-409) — pure, and tested there. It used
+        // to be ~85 lines of near-identical comparisons inlined here, which is how the
+        // "Recently completed" field came to be missing from the request for a while.
+        let updates = ListSettingsPayload.updates(original: original, updated: updated)
+        guard !updates.isEmpty else { return }
+
         _Concurrency.Task {
-
-            var updates: [String: Any] = [:]
-
-            // Check name
-            if updated.name != original.name {
-                updates["name"] = updated.name
-            }
-
-            // Check description
-            if updated.description != original.description {
-                updates["description"] = updated.description ?? ""
-            }
-
-            // Check sortBy
-            if updated.sortBy != original.sortBy {
-                updates["sortBy"] = updated.sortBy ?? "manual"
-            }
-            // Only on an actual change — a rename must not carry a showSubtasks value with it
-            // and quietly hide the list's subtasks (ba1deb9d).
-            if let value = ListSubtaskVisibility.payloadValue(original: original.showSubtasks,
-                                                              edited: updated.showSubtasks) {
-                updates["showSubtasks"] = value
-            }
-
-            // List Defaults
-            if updated.defaultPriority != original.defaultPriority {
-                updates["defaultPriority"] = updated.defaultPriority ?? 0
-            }
-            if updated.defaultDueDate != original.defaultDueDate {
-                updates["defaultDueDate"] = updated.defaultDueDate ?? "none"
-            }
-            if updated.defaultDueTime != original.defaultDueTime {
-                // Use NSNull() for nil to ensure key is sent to backend (nil removes key in Swift)
-                updates["defaultDueTime"] = updated.defaultDueTime != nil ? updated.defaultDueTime! : NSNull()
-            }
-            if updated.defaultIsPrivate != original.defaultIsPrivate {
-                updates["defaultIsPrivate"] = updated.defaultIsPrivate ?? true
-            }
-            if updated.defaultRepeating != original.defaultRepeating {
-                updates["defaultRepeating"] = updated.defaultRepeating ?? "never"
-            }
-            if updated.defaultAssigneeId != original.defaultAssigneeId {
-                // Use NSNull() for nil to ensure key is sent to backend (nil removes key in Swift)
-                let valueToSend: Any = updated.defaultAssigneeId != nil ? updated.defaultAssigneeId! : NSNull()
-                updates["defaultAssigneeId"] = valueToSend
-            }
-
-            // Filters
-            if updated.filterPriority != original.filterPriority {
-                updates["filterPriority"] = updated.filterPriority ?? "all"
-            }
-            if updated.filterAssignee != original.filterAssignee {
-                updates["filterAssignee"] = updated.filterAssignee ?? "all"
-            }
-            if updated.filterDueDate != original.filterDueDate {
-                updates["filterDueDate"] = updated.filterDueDate ?? "all"
-            }
-            if updated.filterCompletion != original.filterCompletion {
-                updates["filterCompletion"] = updated.filterCompletion ?? "default"
-            }
-            if updated.filterAssignedBy != original.filterAssignedBy {
-                updates["filterAssignedBy"] = updated.filterAssignedBy ?? "all"
-            }
-            if updated.filterRepeating != original.filterRepeating {
-                updates["filterRepeating"] = updated.filterRepeating ?? "all"
-            }
-            if updated.filterInLists != original.filterInLists {
-                updates["filterInLists"] = updated.filterInLists ?? "dont_filter"
-            }
-
-            // Privacy
-            if updated.privacy != original.privacy {
-                updates["privacy"] = updated.privacy?.rawValue ?? "PRIVATE"
-            }
-
-            // Image URL
-            if updated.imageUrl != original.imageUrl {
-                updates["imageUrl"] = updated.imageUrl ?? NSNull()
-            }
-            // The admin tab's "Recently completed" picker had no branch here, so changing it
-            // updated the local model and was dropped before the request (found while auditing
-            // Mac parity, task 545812e6). NSNull is the legacy 24h default, which is a real
-            // choice — omitting the key would leave the old window in place.
-            if updated.recentlyCompletedWindow != original.recentlyCompletedWindow {
-                updates["recentlyCompletedWindow"] = updated.recentlyCompletedWindow?.updatePayloadValue ?? NSNull()
-            }
-
-            // Save if there are updates
-            if !updates.isEmpty {
-
-                do {
-                    _ = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
-                    // Note: Not calling fetchLists() - updateListAdvanced already updates local lists with server response
-                } catch {
-                    // "Non-fatal" was only true locally: no Outbox backs this write, so the
-                    // server never hears and the change reverts later, unsaid (AITD-406).
-                    AppErrorCenter.shared.report("Save list settings", error)
-                }
+            do {
+                _ = try await listService.updateListAdvanced(listId: updated.id, updates: updates)
+                // Not calling fetchLists() — updateListAdvanced already applied the server response.
+            } catch {
+                // Local 404 only: updateListAdvanced swallows a server refusal and returns
+                // the optimistic list rather than throwing, so reporting here would announce
+                // a programming error and still miss the real one. That one is AITD-410.
             }
         }
     }

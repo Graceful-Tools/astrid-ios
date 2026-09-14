@@ -360,10 +360,10 @@ struct ListSortFiltersTab: View {
                 updated.isVirtual = isVirtual
                 onUpdate(updated)
             } catch {
-                AppLog.debug("  - Error type: \(type(of: error))")
-                // The sort and filters stay on screen looking saved, and nothing reverts them,
-                // so the log was the only trace this ever failed (AITD-406).
-                AppErrorCenter.shared.report("Save list filters", error)
+                // Local 404 only — updateListAdvanced swallows a server refusal and returns
+                // the optimistic list, so the sort and filters really can be lost with this
+                // catch never running. That is AITD-410, not something to report here.
+                AppLog.debug("❌ [ListSortFiltersTab] SAVE FAILED: \(type(of: error)) \(error)")
             }
         }
     }

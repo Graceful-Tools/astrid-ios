@@ -26,10 +26,14 @@ final class IOSSilentWriteGuardTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
-    /// Write methods that reach the server DIRECTLY, with no Outbox to retry them. A swallowed
-    /// failure on one of these is gone: nothing queued, nothing retried, nothing said.
-    private let directAPIWrites = [
-        "createList", "updateList", "updateListAdvanced", "deleteList",
+    /// Writes with no Outbox behind them that ALSO surface their failure to the caller. A
+    /// swallowed failure on one of these is gone: nothing queued, nothing retried, nothing said.
+    ///
+    /// `createList` and `updateListAdvanced` are deliberately absent — see
+    /// `testAITD406_TwoListWritesSwallowTheirOwnFailure`. They never throw on a server failure,
+    /// so a `try?` on them is not hiding anything the caller could have acted on.
+    private let throwingDirectAPIWrites = [
+        "updateList", "deleteList",
         "addMember", "removeMember", "updateMemberRole",
     ]
 
@@ -57,26 +61,67 @@ final class IOSSilentWriteGuardTests: XCTestCase {
                        NSLocalizedString("mac.failed.generic", comment: ""))
     }
 
+    /// AITD-408. `ListDefaultsView` built its user-facing error as an English literal — "Sync
+    /// issue: …. Changes saved locally." — so everyone not reading English got English. The copy
+    /// was also false: that catch only sees ListService's local 404, raised BEFORE any optimistic
+    /// write, so the single case it can appear in is the one where nothing was saved anywhere.
+    ///
+    /// Fixed by reuse rather than by adding a thirteenth-language chore: `FailureCopy` already
+    /// says this in all twelve, through the `mac.failed.*` keys. (AITD-403's lesson.)
+    func testAITD408_ListDefaultsUsesTranslatedCopyNotAnEnglishLiteral() throws {
+        let defaults = try source("Astrid App/Views/Lists/ListDefaultsView.swift")
+        XCTAssertFalse(defaults.contains("Changes saved locally"),
+                       "the claim was untranslated AND untrue — nothing is saved on the 404 path")
+        XCTAssertFalse(defaults.contains("Sync issue"), "same literal, other half")
+        XCTAssertTrue(defaults.contains(#"FailureCopy.message(for: "Save list defaults")"#),
+                      "reuse the copy that is already translated twelve ways")
+        XCTAssertEqual(FailureCopy.message(for: "Save list defaults"),
+                       NSLocalizedString("mac.failed.save", comment: ""),
+                       "…and make sure that context actually maps, rather than falling back to generic")
+    }
+
     // MARK: - Q2: the three that were saying nothing now speak
 
-    /// Each of these failed a write that reaches the server directly, and told the user nothing —
-    /// no message, and no revert either, so the screen went on showing the change that did not
-    /// happen. These are the exact bug `AppErrorCenter` was built for.
-    func testAITD406_TheThreeSilentListWritesNowReport() throws {
+    /// `deleteList` is the one view-level write that genuinely reaches the user: it throws on a
+    /// server refusal AND rolls the list back into view (ListService.swift:662-668), so before
+    /// this the list silently reappeared with no explanation.
+    func testAITD406_TheRefusedListDeleteNowReports() throws {
         let taskList = try source("Astrid App/Views/Tasks/TaskListView.swift")
         XCTAssertTrue(taskList.contains(#"AppErrorCenter.shared.report("Delete list""#),
-                      "a refused deleteList must say so — the list reappears at the next fetch otherwise")
-        XCTAssertTrue(taskList.contains(#"AppErrorCenter.shared.report("Save list settings""#),
-                      "the advanced-update catch applied local state and dropped the server write")
+                      "a refused deleteList must say so — it rolls back into view otherwise, unexplained")
+    }
 
-        let filters = try source("Astrid App/Views/Lists/ListSortFiltersTab.swift")
-        XCTAssertTrue(filters.contains(#"AppErrorCenter.shared.report("Save list filters""#),
-                      "this one logged the failure three times and showed the user nothing")
+    /// THE CORRECTION. AITD-406 first converted two `updateListAdvanced` catches as well, on the
+    /// reading that they were dropping server writes. They were not, and could not: that method
+    /// CATCHES its own API failure, keeps the optimistic value and returns it
+    /// (ListService.swift:621-628). The only thing those catches can ever see is the local 404
+    /// raised before any write happens — a programming error, not a lost edit. Reporting
+    /// "Couldn't save your changes" there would be the same mistake as banner-ing the
+    /// Outbox-backed task writes: a message for a case that is not the user's problem.
+    ///
+    /// The real defect is one level down and is filed as AITD-410: nothing retries these, so the
+    /// "will sync when online" the service logs is a promise nothing keeps.
+    func testAITD406_TwoListWritesSwallowTheirOwnFailure() throws {
+        let lists = try source("Astrid App/Core/Services/ListService.swift")
+
+        // Both swallow-and-return. If either ever starts throwing, its call sites become real
+        // candidates for the banner and this decision should be revisited.
+        XCTAssertTrue(lists.contains("// Return the optimistic list instead of throwing"),
+                      "updateListAdvanced still swallows its server failure")
+        XCTAssertTrue(lists.contains("// Return the optimistic list so UI shows it"),
+                      "createList still swallows its server failure")
+
+        // So no view should claim to report one of them.
+        for (path, context) in [("Astrid App/Views/Tasks/TaskListView.swift", "Save list settings"),
+                                ("Astrid App/Views/Lists/ListSortFiltersTab.swift", "Save list filters")] {
+            XCTAssertFalse(try source(path).contains("AppErrorCenter.shared.report(\"\(context)\""),
+                           "\(path) catches only a local 404 — see AITD-410 for the real failure")
+        }
     }
 
     /// And no NEW silent one appears. Scoped to the direct-API writes on purpose: see below for
     /// why a blanket ban would be wrong on iOS.
-    func testAITD406_NoIOSViewSwallowsADirectAPIWrite() throws {
+    func testAITD406_NoIOSViewSwallowsAWriteThatReportsItsFailure() throws {
         let views = RepositoryLocator.root.appendingPathComponent("Astrid App/Views")
         guard let files = FileManager.default.enumerator(at: views, includingPropertiesForKeys: nil) else {
             return XCTFail("Could not enumerate \(views.path)")
@@ -88,15 +133,15 @@ final class IOSSilentWriteGuardTests: XCTestCase {
             for (index, line) in source.components(separatedBy: .newlines).enumerated() {
                 let code = line.trimmingCharacters(in: .whitespaces)
                 guard !code.hasPrefix("//"), code.contains("try? await") else { continue }
-                for method in directAPIWrites where code.contains("\(method)(") {
+                for method in throwingDirectAPIWrites where code.contains("\(method)(") {
                     violations.append("\(url.lastPathComponent):\(index + 1) — try? await …\(method)(")
                 }
             }
         }
 
         XCTAssertEqual(violations, [], """
-            These writes have no Outbox behind them, so a swallowed failure is simply lost. \
-            Report through AppErrorCenter instead of `try?`:
+            These writes have no Outbox behind them AND they surface the failure to you, \
+            so a `try?` here simply loses it. Report through AppErrorCenter instead:
             \(violations.joined(separator: "\n"))
             """)
     }
@@ -129,7 +174,7 @@ final class IOSSilentWriteGuardTests: XCTestCase {
         // The scan above must not reach them, or the reasoning and the guard disagree.
         for outboxBacked in ["createTask", "updateTask", "completeTask", "deleteTask",
                              "createComment", "deleteComment", "sendMessage"] {
-            XCTAssertFalse(directAPIWrites.contains(outboxBacked),
+            XCTAssertFalse(throwingDirectAPIWrites.contains(outboxBacked),
                            "\(outboxBacked) is Outbox-backed and must stay out of the silent-write ban")
         }
     }

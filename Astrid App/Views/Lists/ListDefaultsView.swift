@@ -254,7 +254,12 @@ struct ListDefaultsView: View {
                 await MainActor.run {
                     isSaving = false
                     showSaveSuccess = false
-                    saveError = "Sync issue: \(error.localizedDescription). Changes saved locally."
+                    // Was an English literal that also claimed the edit had been kept on the
+                    // device. Wrong twice over (AITD-408): it shipped untranslated, and this
+                    // catch only ever sees ListService's local 404, raised BEFORE any optimistic
+                    // write — so the one case that reaches it is the one where nothing was kept
+                    // anywhere. FailureCopy already says this in all twelve languages.
+                    saveError = "\(FailureCopy.message(for: "Save list defaults")): \(error.localizedDescription)"
 
                     // Hide error after 3 seconds
                     _Concurrency.Task {
