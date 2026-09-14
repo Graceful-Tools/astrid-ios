@@ -3,11 +3,7 @@ import XCTest
 final class GooglePKCEStorageGuardTests: XCTestCase {
     /// Regression for Astrid task 968463ad-14a0-42d9-9ad2-a37ff317aaa2.
     func testPKCEVerifierIsNeverPersisted() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Authentication/GoogleSignInManager.swift"),
             encoding: .utf8

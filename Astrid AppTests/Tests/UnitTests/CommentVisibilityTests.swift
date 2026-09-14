@@ -98,9 +98,7 @@ final class CommentVisibilityTests: XCTestCase {
     // MARK: - The view must ask, not repeat
 
     func testTheViewUsesTheSharedRule() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let view = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift"),
             encoding: .utf8)

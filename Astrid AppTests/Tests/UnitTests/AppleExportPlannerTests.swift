@@ -27,10 +27,9 @@ final class AppleExportPlannerTests: XCTestCase {
         repeating: Task.Repeating? = nil,
         reminderTime: Date? = nil
     ) -> Task {
-        Task(id: UUID().uuidString, title: title, description: description,
-             dueDateTime: due, isAllDay: isAllDay,
-             reminderTime: reminderTime, repeating: repeating,
-             priority: .high, listIds: ["list1"], completed: completed)
+        TestHelpers.createTestTask(title: title, description: description, priority: .high, completed: completed,
+                                   dueDateTime: due, isAllDay: isAllDay, repeating: repeating,
+                                   listIds: ["list1"], reminderTime: reminderTime)
     }
 
     /// In-sync pair → no write. This is the loop-breaker: if this regresses,

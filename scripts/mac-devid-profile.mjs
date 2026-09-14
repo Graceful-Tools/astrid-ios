@@ -2,30 +2,10 @@
 //
 // The xcodebuild CLI has no signed-in Xcode account, so it cannot create one itself — it fails the
 // export with "No Accounts". The App Store Connect API can, using the same key Xcode Cloud uses.
-import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
+import { pick, ascRequest as api } from './lib/asc-jwt.mjs';
 
-const ROOT = new URL('..', import.meta.url).pathname;
-const env = fs.readFileSync(ROOT + '.env.local', 'utf8');
-const pick = k => (env.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.replace(/^["']|["']$/g, '');
-
-const jwt = () => {
-  const key = pick('APPLE_ASC_PRIVATE_KEY').replace(/\\n/g, '\n');
-  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
-  const now = Math.floor(Date.now() / 1000);
-  const unsigned = b64({ alg: 'ES256', kid: pick('APPLE_ASC_KEY_ID'), typ: 'JWT' }) + '.' +
-    b64({ iss: pick('APPLE_ASC_ISSUER_ID'), iat: now, exp: now + 900, aud: 'appstoreconnect-v1' });
-  return unsigned + '.' + crypto.sign('sha256', Buffer.from(unsigned), { key, dsaEncoding: 'ieee-p1363' }).toString('base64url');
-};
-
-const api = async (path, opts = {}) => {
-  const r = await fetch('https://api.appstoreconnect.apple.com' + path, {
-    ...opts, headers: { Authorization: 'Bearer ' + jwt(), 'Content-Type': 'application/json', ...(opts.headers || {}) },
-  });
-  const text = await r.text();
-  return { status: r.status, body: text ? JSON.parse(text) : null };
-};
 
 const NAME = 'Astrid Mac Developer ID';
 const BUNDLE = 'Graceful-Tools-Inc.Astrid-App';

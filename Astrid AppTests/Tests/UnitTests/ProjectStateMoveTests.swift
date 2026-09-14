@@ -101,14 +101,8 @@ final class ProjectStateMoveTests: XCTestCase {
 
     // MARK: - The call sites
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     private func source(_ path: String) throws -> String {
-        try String(contentsOf: repositoryRoot.appendingPathComponent(path), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
     }
 
     func testTheDetailViewAdoptsTheMovedTask() throws {

@@ -17,9 +17,7 @@ import XCTest
 final class MacListAgentSectionTests: XCTestCase {
 
     private func source(_ relativePath: String) throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
     }

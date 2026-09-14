@@ -16,8 +16,7 @@ import XCTest
 final class MacListEditSaveOnChangeTests: XCTestCase {
 
     private func sheet() throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacListEditSheet.swift"), encoding: .utf8)
     }
 

@@ -22,9 +22,7 @@ import XCTest
 final class MacBoardLeadingControlTests: XCTestCase {
 
     private func boardSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacBoardView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }

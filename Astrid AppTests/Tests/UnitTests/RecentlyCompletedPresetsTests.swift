@@ -61,12 +61,7 @@ final class RecentlyCompletedPresetsTests: XCTestCase {
     /// list with `Last 7 days` set on the web showed tasks the user
     /// didn't see on iOS. This test pins the fix.
     private func makeTask(id: String, completed: Bool, updatedAt: Date) -> Task {
-        Task(
-            id: id, title: id, description: "",
-            isAllDay: false, priority: .none,
-            isPrivate: false, completed: completed,
-            updatedAt: updatedAt
-        )
+        TestHelpers.createTestTask(id: id, title: id, completed: completed, isAllDay: false, updatedAt: updatedAt)
     }
 
     func test_default_withSevenDayWindow_keepsCompletedFromThreeDaysAgo() {

@@ -18,16 +18,8 @@ final class AgentHubTests: XCTestCase {
     private var claude: AgentRuntimeRow { AgentRuntimeRow.all[0] }
     private var codex: AgentRuntimeRow { AgentRuntimeRow.all[1] }
 
-    private func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     private func source(_ relativePath: String) throws -> String {
-        try String(contentsOf: repoRoot().appendingPathComponent(relativePath), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
     // MARK: - Ownership is derived, never stored
@@ -311,7 +303,7 @@ final class AgentHubTests: XCTestCase {
     /// iOS settings views use UIKit-only API, so every file under Views/Settings must be listed in
     /// the Mac target's membership exceptions — a file added without the entry breaks the Mac build.
     func testAITD297_EveryIOSSettingsViewIsExcludedFromTheMacTarget() throws {
-        let settings = repoRoot().appendingPathComponent("Astrid App/Views/Settings")
+        let settings = RepositoryLocator.root.appendingPathComponent("Astrid App/Views/Settings")
         let files = try FileManager.default.contentsOfDirectory(atPath: settings.path)
             .filter { $0.hasSuffix(".swift") }
             .sorted()

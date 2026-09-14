@@ -24,9 +24,7 @@ final class MacAssigneeLabelTests: XCTestCase {
     private let sharedKey = "assignee.unassigned"
 
     private func source(_ relativePath: String) throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
     }

@@ -5,19 +5,7 @@ import XCTest
 /// server's tombstone set (up to its cap) must NOT evict this device's own
 /// local-delete tombstones — otherwise a locally-deleted task can resurrect
 /// via completed-backfill (a GitHub twin is only closed, not deleted).
-final class SyncTombstoneLedgerTests: XCTestCase {
-    private var defaults: UserDefaults!
-    private var suite: String!
-
-    override func setUp() {
-        super.setUp()
-        suite = "TombstoneLedgerTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
-    }
-    override func tearDown() {
-        defaults.removePersistentDomain(forName: suite)
-        super.tearDown()
-    }
+final class SyncTombstoneLedgerTests: DefaultsTestCase {
 
     // The ledger reads UserDefaults.standard directly; use a real ledger and
     // clean up its keys after. Isolate by unique provider names per test.

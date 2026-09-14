@@ -8,17 +8,8 @@ import XCTest
 final class StartupHydrationTests: XCTestCase {
 
     private func makeTask(_ id: String) -> Task {
-        Task(
-            id: id,
-            title: id,
-            description: "",
-            dueDateTime: nil,
-            isAllDay: false,
-            priority: .none,
-            isPrivate: false,
-            completed: false,
-            createdAt: ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z")!
-        )
+        TestHelpers.createTestTask(id: id, title: id, isAllDay: false,
+                                   createdAt: ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z")!)
     }
 
     func test_dropsTasksAlreadyInMemory() {

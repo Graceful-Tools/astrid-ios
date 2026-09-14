@@ -40,9 +40,7 @@ final class MacEntitlementsGuardTests: XCTestCase {
     ]
 
     func testMacEntitlementsUseOnlyKeysMacOSSupports() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         var violations: [String] = []
         for name in ["Astrid Mac/Astrid Mac.entitlements",
@@ -65,9 +63,7 @@ final class MacEntitlementsGuardTests: XCTestCase {
 
     /// The capability the app actually needs — EventKit reminders ride on it — must stay.
     func testCalendarsEntitlementSurvives() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         for name in ["Astrid Mac/Astrid Mac.entitlements", "Astrid Mac/Astrid Mac Direct.entitlements"] {
             let data = try Data(contentsOf: root.appendingPathComponent(name))
             let plist = try XCTUnwrap(try PropertyListSerialization

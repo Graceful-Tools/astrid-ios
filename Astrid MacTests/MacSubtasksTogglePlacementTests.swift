@@ -18,8 +18,7 @@ import XCTest
 final class MacSubtasksTogglePlacementTests: XCTestCase {
 
     private func macSource(_ relative: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac").appendingPathComponent(relative), encoding: .utf8)
     }
 

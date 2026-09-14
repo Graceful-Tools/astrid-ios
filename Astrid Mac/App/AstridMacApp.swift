@@ -81,7 +81,7 @@ struct AstridMacApp: App {
     /// screen, leaving bottom UI (quick-add) off-screen and "not hittable". Clamp the main window
     /// to the visible screen and bring it frontmost so XCUITest coordinates are always on-screen.
     private static func normalizeWindowForUITestingIfNeeded() {
-        guard ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+        guard MacUITestArgs.isUITesting else { return }
         DispatchQueue.main.async {
             guard let win = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) else { return }
             let vis = win.screen?.visibleFrame ?? NSScreen.main?.visibleFrame

@@ -95,9 +95,7 @@ final class PasskeySignInPlanTests: XCTestCase {
     // MARK: - The Mac login view follows the rule
 
     func testAITD298_MacLoginUsesThePlanAndOffersTheFallback() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacAuthGateView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(source.contains("PasskeySignInPlan.initialPresentation(isMac: true)"),

@@ -79,9 +79,7 @@ final class PresentationAnchorSelectionTests: XCTestCase {
     // MARK: - The call site
 
     func testPlatformNoLongerTrapsWhenThereIsNoWindow() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Platform/Platform.swift"),
             encoding: .utf8

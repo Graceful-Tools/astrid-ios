@@ -52,9 +52,7 @@ final class RecentlyCompletedPayloadTests: XCTestCase {
 
     /// The bug itself: the field has to appear in the update the view actually sends.
     func testTheListUpdateDiffSendsTheWindow() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"), encoding: .utf8)
         XCTAssertTrue(source.contains(#"updates["recentlyCompletedWindow"]"#),
                       "Changing the window must reach the server, not just the local model")

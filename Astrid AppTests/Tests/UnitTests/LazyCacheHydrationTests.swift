@@ -16,15 +16,9 @@ import XCTest
 
 final class LazyCacheHydrationTests: XCTestCase {
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     /// Code only — comments here explain what was removed and name the very calls being banned.
     private func code(_ path: String) throws -> String {
-        try String(contentsOf: repositoryRoot.appendingPathComponent(path), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
             .split(separator: "\n", omittingEmptySubsequences: false)
             .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
             .joined(separator: "\n")

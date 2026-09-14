@@ -18,18 +18,10 @@ import XCTest
 
 final class APIEndpointInventoryTests: XCTestCase {
 
-    private func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     /// Every `/api/v1` literal in a source file, with interpolations flattened to `{id}` so the
     /// list is stable across renamed local variables.
     fileprivate func paths(inSourceAt relativePath: String) throws -> Set<String> {
-        let url = repoRoot().appendingPathComponent(relativePath)
+        let url = RepositoryLocator.root.appendingPathComponent(relativePath)
         let source = try String(contentsOf: url, encoding: .utf8)
         var found: Set<String> = []
         let pattern = try NSRegularExpression(pattern: "\"(/api/v1/[^\"]*)\"")
@@ -46,7 +38,7 @@ final class APIEndpointInventoryTests: XCTestCase {
     }
 
     private func documentedPaths() throws -> Set<String> {
-        let url = repoRoot().appendingPathComponent("docs/API_ENDPOINTS.md")
+        let url = RepositoryLocator.root.appendingPathComponent("docs/API_ENDPOINTS.md")
         let doc = try String(contentsOf: url, encoding: .utf8)
         var found: Set<String> = []
         for line in doc.components(separatedBy: .newlines) where line.hasPrefix("- `/api/v1/") {
@@ -116,7 +108,7 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     /// The decision has to be findable by someone who never read the task.
     func testTheDecisionIsRecordedWhereAgentsRead() throws {
-        let astrid = try String(contentsOf: repoRoot().appendingPathComponent("ASTRID.md"),
+        let astrid = try String(contentsOf: RepositoryLocator.root.appendingPathComponent("ASTRID.md"),
                                 encoding: .utf8)
         XCTAssertTrue(astrid.contains("`AstridAPIClient` is the HTTP client"),
                       "ASTRID.md must state which client is the one")

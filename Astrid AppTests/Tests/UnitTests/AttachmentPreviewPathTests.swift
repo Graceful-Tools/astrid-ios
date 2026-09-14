@@ -106,11 +106,7 @@ final class AttachmentPreviewPathTests: XCTestCase {
     // MARK: - The guard: no call site may join a raw name onto a temp directory again
 
     func testNoAttachmentPathJoinsARawNameOntoATemporaryDirectory() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let root = RepositoryLocator.root
 
         let audited = [
             "Astrid App/Core/Services/AttachmentService.swift",

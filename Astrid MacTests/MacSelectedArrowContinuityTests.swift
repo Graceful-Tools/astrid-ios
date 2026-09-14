@@ -21,9 +21,7 @@ import SwiftUI
 final class MacSelectedArrowContinuityTests: XCTestCase {
 
     private func rootSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacRootView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }

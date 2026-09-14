@@ -117,9 +117,7 @@ final class ImageCacheTests: XCTestCase {
 final class ImageCacheLoadPathTests: XCTestCase {
 
     private func source() throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         return try String(contentsOf: root.appendingPathComponent("Astrid App/Utilities/ImageCache.swift"),
                           encoding: .utf8)
     }
@@ -137,9 +135,7 @@ final class ImageCacheLoadPathTests: XCTestCase {
     }
 
     func testTheLaunchWarmUpKeepsItsDeliberateSynchronousRead() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let text = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Services/UserImageCache.swift"),
             encoding: .utf8)

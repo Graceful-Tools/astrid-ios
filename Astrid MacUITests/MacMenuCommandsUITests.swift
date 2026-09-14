@@ -11,17 +11,10 @@ final class MacMenuCommandsUITests: XCTestCase {
 
     @MainActor
     func testViewMenuOffersAndPerformsTheWebsCommands() {
-        let app = XCUIApplication()
-        app.launchArguments += ["-uiTesting"]
+        let app = MacUITestLaunch.makeApp()
         app.launch()
 
-        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
-        let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch
-        let deadline = Date().addingTimeInterval(30)
-        while Date() < deadline && !myTasks.exists {
-            if offline.exists { offline.click() }
-            _ = myTasks.waitForExistence(timeout: 2)
-        }
+        let myTasks = MacUITestLaunch.enterShell(app)
         XCTAssertTrue(myTasks.exists, "Should reach the shell")
 
         app.activate()

@@ -7,11 +7,7 @@ import XCTest
 final class ChatPanelPollingGuardTests: XCTestCase {
     private var source: String {
         get throws {
-            let root = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
+            let root = RepositoryLocator.root
             return try String(
                 contentsOf: root.appendingPathComponent("Astrid App/Views/Chat/ChatPanelView.swift"),
                 encoding: .utf8

@@ -20,9 +20,7 @@ final class MacQuickAddPlaceholderTests: XCTestCase {
 
     /// Every `*.lproj/Localizable.strings` in the repo, so a language added later is covered too.
     private func localizationFiles() throws -> [(language: String, url: URL)] {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let root = RepositoryLocator.root
             .appendingPathComponent("Astrid App/Resources/Localizations")
         let dirs = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "lproj" }
@@ -68,8 +66,7 @@ final class MacQuickAddPlaceholderTests: XCTestCase {
 
     /// English is the one we can assert exactly — it is what the task asked for verbatim.
     func testEnglishReadsAddATask() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
             .appendingPathComponent("Astrid App/Resources/Localizations/en.lproj/Localizable.strings")
         XCTAssertEqual(try placeholder(in: root), "Add a task…")
     }

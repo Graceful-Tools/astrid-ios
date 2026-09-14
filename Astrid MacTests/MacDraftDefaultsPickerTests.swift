@@ -109,8 +109,7 @@ final class MacDraftDefaultsPickerTests: XCTestCase {
     }
 
     private static func source(of path: String) throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 }

@@ -7,10 +7,6 @@ import XCTest
 
 final class MacUndoButtonTests: XCTestCase {
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     /// The toolbar carries Undo on purpose, and `MacListChrome` is where this app records what
     /// the toolbar does and does not hold — beside the two constants saying sort, filter and "+"
     /// were taken OUT of it.
@@ -35,7 +31,7 @@ final class MacUndoButtonTests: XCTestCase {
     /// It names the action, from the SAME helper the Edit menu titles itself with — so the button
     /// and the menu item cannot come to call one action two things.
     func testTheButtonNamesTheActionLikeTheMenuDoes_AITD374() throws {
-        let source = try String(contentsOf: repositoryRoot
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacUndoToolbarButton.swift"), encoding: .utf8)
         XCTAssertTrue(source.contains("undo.undoTitle"),
                       "the toolbar button must take its title from the shared undo title")
@@ -43,7 +39,7 @@ final class MacUndoButtonTests: XCTestCase {
                       "…and perform undo through the coordinator, not its own path")
 
         // And MacRootView actually places it, gated on the recorded exception.
-        let root = try String(contentsOf: repositoryRoot
+        let root = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacRootView.swift"), encoding: .utf8)
         XCTAssertTrue(root.contains("MacUndoToolbarButton()"),
                       "the window toolbar must carry the button")
@@ -59,7 +55,7 @@ final class MacUndoButtonTests: XCTestCase {
     /// launch. So "greying out Undo when there is nothing to undo" is a plausible polish that
     /// would be a bug, and it should fail here rather than in someone's text field.
     func testTheEditMenuUndoIsNotDisabledOnAnEmptyStack_AITD374() throws {
-        let source = try String(contentsOf: repositoryRoot
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/AstridCommands.swift"), encoding: .utf8)
         for banned in [".disabled(!undo.canUndo)", ".disabled(!undo.canRedo)",
                        ".disabled(!MacUndoCoordinator.shared.canUndo)"] {

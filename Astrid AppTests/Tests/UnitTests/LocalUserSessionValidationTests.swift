@@ -48,9 +48,7 @@ final class LocalUserSessionValidationTests: XCTestCase {
     /// keychain cookie. Two different spellings of "is this a local user" is how the two halves
     /// would come to disagree.
     func testItUsesTheSameLocalPrefixAsTheKeychainExemption() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid App/Core/Authentication/AuthManager.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(source.contains("shouldValidateSessionInBackground"),

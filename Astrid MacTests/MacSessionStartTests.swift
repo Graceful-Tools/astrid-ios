@@ -75,9 +75,7 @@ final class MacSessionStartTests: XCTestCase {
     // MARK: - The guard: the gate must actually go through the latch
 
     func testStartSessionIsLatchedAndSignOutReleasesIt() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()    // Astrid MacTests
-            .deletingLastPathComponent()    // repo root
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/App/MacAuthGateView.swift"),
             encoding: .utf8)
@@ -91,8 +89,7 @@ final class MacSessionStartTests: XCTestCase {
     /// The claim must stay a check-and-set with nothing awaited in between. An `await` there is
     /// exactly what would let both launch paths through again.
     func testTheClaimHasNoSuspensionPointInsideIt() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/App/MacSessionStart.swift"),
             encoding: .utf8)

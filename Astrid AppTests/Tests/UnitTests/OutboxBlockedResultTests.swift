@@ -6,10 +6,10 @@ import XCTest
 /// can outlast the whole backoff window (a long offline stretch), and burning
 /// attempts there dead-letters a perfectly good write. This was a real dropped
 /// sync caught in the production soak.
-final class OutboxBlockedResultTests: XCTestCase {
+final class OutboxBlockedResultTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var url: URL!
+    private var url: URL { tempFile }
 
     private final class TestClock: @unchecked Sendable {
         private let lock = NSLock(); private var t: Date
@@ -17,12 +17,6 @@ final class OutboxBlockedResultTests: XCTestCase {
         var now: Date { lock.lock(); defer { lock.unlock() }; return t }
         func advance(_ s: TimeInterval) { lock.lock(); t = t.addingTimeInterval(s); lock.unlock() }
     }
-
-    override func setUpWithError() throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-blocked-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: url) }
 
     private func entry(_ id: String) -> OutboxEntry {
         OutboxEntry(id: id, kind: "k", payload: Data(), clientRequestId: "c-\(id)",

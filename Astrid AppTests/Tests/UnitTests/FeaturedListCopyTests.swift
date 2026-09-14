@@ -43,15 +43,9 @@ final class FeaturedListCopyTests: XCTestCase {
 
     // MARK: - The call site (AITD-348 itself)
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     func testCopyListActuallyCallsTheCopyService() throws {
         let source = try String(
-            contentsOf: repositoryRoot.appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"),
+            contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"),
             encoding: .utf8
         )
         let body = try XCTUnwrap(Self.copyListBody(in: source), "copyList() is not in TaskListView any more")
@@ -67,7 +61,7 @@ final class FeaturedListCopyTests: XCTestCase {
 
     func testCopyListRestoresItsSpinnerOnEveryPath() throws {
         let source = try String(
-            contentsOf: repositoryRoot.appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"),
+            contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid App/Views/Tasks/TaskListView.swift"),
             encoding: .utf8
         )
         let body = try XCTUnwrap(Self.copyListBody(in: source))

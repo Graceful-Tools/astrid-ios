@@ -81,8 +81,7 @@ final class MacBoardPriorityStallTests: XCTestCase {
     // MARK: - The board must use the rule
 
     func testTheBoardDoesNotCompareAgainstItsSnapshot() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacBoardView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertFalse(source.contains("guard priority != t.priority"),

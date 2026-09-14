@@ -66,9 +66,7 @@ final class MacPriorityWriteTests: XCTestCase {
     /// A rule nothing calls is a rule that is not enforced. The stale comparison lived at the
     /// call site, so this pins that the call site is gone.
     func testTheDetailPanelDoesNotCompareAgainstItsSnapshot() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacTaskFieldsView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertFalse(source.contains("guard newValue != task.priority"),

@@ -3,10 +3,10 @@ import XCTest
 
 /// Tests for the OutboxRunner drain loop: success, retry/backoff, permanent
 /// dead-letter, dependency ordering, missing handler, and persistence.
-final class OutboxRunnerTests: XCTestCase {
+final class OutboxRunnerTests: TempFileTestCase {
 
     private let fixedNow = Date(timeIntervalSince1970: 1_700_000_000)
-    private var tempURL: URL!
+    private var tempURL: URL { tempFile }
 
     /// Records the order handlers were invoked in (thread-safe via actor).
     private actor Recorder {
@@ -19,15 +19,6 @@ final class OutboxRunnerTests: XCTestCase {
         private(set) var peak = 0
         func enter() { active += 1; peak = max(peak, active) }
         func leave() { active -= 1 }
-    }
-
-    override func setUpWithError() throws {
-        tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-runner-\(UUID().uuidString).json")
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: tempURL)
     }
 
     private func entry(

@@ -3,11 +3,7 @@ import XCTest
 final class BuildConfigurationPrivacyTests: XCTestCase {
     /// Regression for Astrid task a5ce5620-8be6-421e-a6fb-1d7d55ce253c.
     func testLocalNetworkExceptionsAreDebugOnly() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let release = try plist(root.appendingPathComponent("Info.plist"))
         let debug = try plist(root.appendingPathComponent("Info-Debug.plist"))
         let project = try String(contentsOf: root.appendingPathComponent("Astrid App.xcodeproj/project.pbxproj"), encoding: .utf8)

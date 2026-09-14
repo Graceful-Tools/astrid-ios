@@ -3,15 +3,11 @@ import XCTest
 
 /// Unit tests for UserImageCache and User.cachedImageURL extension
 /// These tests ensure profile photos display correctly in list members and other views
-final class UserImageCacheTests: XCTestCase {
-
-    private var defaults: UserDefaults!
+final class UserImageCacheTests: DefaultsTestCase {
 
     // MARK: - Setup/Teardown
 
     override func setUp() async throws {
-        defaults = UserDefaults(suiteName: "UserImageCacheTests.AITD-283")!
-        defaults.removePersistentDomain(forName: "UserImageCacheTests.AITD-283")
         // Clear cache before each test
         await MainActor.run {
             UserImageCache.shared.clearCache()
@@ -23,8 +19,6 @@ final class UserImageCacheTests: XCTestCase {
         await MainActor.run {
             UserImageCache.shared.clearCache()
         }
-        defaults.removePersistentDomain(forName: "UserImageCacheTests.AITD-283")
-        defaults = nil
     }
 
     // MARK: - Cache Operations Tests

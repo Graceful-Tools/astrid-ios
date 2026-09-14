@@ -18,9 +18,7 @@ import XCTest
 final class ShowSubtasksPlacementTests: XCTestCase {
 
     private func source(_ relative: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent(relative), encoding: .utf8)
     }
 

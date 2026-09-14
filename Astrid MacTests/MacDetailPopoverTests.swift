@@ -88,9 +88,7 @@ extension MacDetailPopoverTests {
     }
 
     private func macDetailPopoverSource() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacDetailPopover.swift")
     }
 }

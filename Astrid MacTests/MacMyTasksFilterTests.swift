@@ -134,8 +134,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     /// from the list filter control and had no route of its own — the filters existed, were
     /// synced, and could only be changed from another device.
     func testTheFilterControlIsOfferedForMyTasks() throws {
-        let root = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/App/MacRootView.swift"), encoding: .utf8)
         XCTAssertTrue(root.contains("myTasksFilterButton"),
                       "My Tasks needs its own filter control — it has no TaskList to edit")
@@ -145,8 +144,7 @@ final class MacMyTasksFilterTests: XCTestCase {
 
     /// The sheet must offer the same three iOS offers, read from the same synced preferences.
     func testTheSheetOffersTheSameThreeFiltersAsIOS() throws {
-        let sheet = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let sheet = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacMyTasksFilterSheet.swift"), encoding: .utf8)
         XCTAssertTrue(sheet.contains("MacListFilter.completion"))
         XCTAssertTrue(sheet.contains("MacListFilter.priority"))

@@ -130,32 +130,8 @@ final class MyTasksFilterTests: XCTestCase {
         completed: Bool,
         listIds: [String]? = nil
     ) -> Astrid_App.Task {
-        Astrid_App.Task(
-            id: id,
-            title: title,
-            description: "",
-            assigneeId: assigneeId,
-            assignee: nil,
-            creatorId: assigneeId, // For simplicity, creator = assignee
-            creator: nil,
-            dueDateTime: nil,
-            isAllDay: true,
-            reminderTime: nil,
-            reminderSent: nil,
-            reminderType: nil,
-            repeating: nil,
-            repeatingData: nil,
-            repeatFrom: nil,
-            occurrenceCount: nil,
-            priority: .none,
-            lists: nil,
-            listIds: listIds,
-            isPrivate: false,
-            completed: completed,
-            attachments: nil,
-            comments: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
+        // creator = assignee, for simplicity
+        TestHelpers.createTestTask(id: id, title: title, completed: completed,
+                                   assigneeId: assigneeId, creatorId: assigneeId, listIds: listIds)
     }
 }

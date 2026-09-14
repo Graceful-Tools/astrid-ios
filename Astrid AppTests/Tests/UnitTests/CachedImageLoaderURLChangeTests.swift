@@ -126,9 +126,7 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     /// The component must not go back to relying on call sites remembering `.id(url)`. It reacts to
     /// a changed url itself, for every one of the ~25 places that build one.
     func testTheViewReactsToAChangedURLItself() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Utilities/ImageCache.swift"), encoding: .utf8)
         let view = try XCTUnwrap(source.components(separatedBy: "struct CachedAsyncImage").last)
         XCTAssertTrue(view.contains("onChange(of: url)") || view.contains("task(id: url)"),

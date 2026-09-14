@@ -3,11 +3,7 @@ import XCTest
 final class MobileOAuthBootstrapTests: XCTestCase {
     /// Regression for Astrid task a403bcc6-991d-49c4-9600-8cc60dd0bcf9.
     func testAppEntryPointDoesNotEmbedOrBootstrapOAuthClientSecret() throws {
-        let repositoryRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        let repositoryRoot = RepositoryLocator.root
         let source = try String(
             contentsOf: repositoryRoot.appendingPathComponent("AstridApp.swift"),
             encoding: .utf8

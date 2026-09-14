@@ -113,9 +113,7 @@ final class ListPermissionsContractTests: XCTestCase {
     // MARK: - The guard: no view may branch on the legacy arrays again
 
     func testNoSurfaceBranchesOnTheLegacyArrays() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         let audited = [
             "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift",

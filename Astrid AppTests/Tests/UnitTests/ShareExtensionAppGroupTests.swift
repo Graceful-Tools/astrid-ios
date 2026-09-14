@@ -86,7 +86,7 @@ final class ShareExtensionAppGroupTests: XCTestCase {
     /// App Store Connect rejects an extension that declares both entry-point mechanisms.
     /// MainInterface already instantiates ShareViewController, so the plist must use only it.
     func testShareExtensionDeclaresOneEntryPointForAppStoreExport() throws {
-        let data = try Data(contentsOf: repoRoot.appendingPathComponent("Astrid/Info.plist"))
+        let data = try Data(contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid/Info.plist"))
         let plist = try XCTUnwrap(
             PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         let extensionConfig = try XCTUnwrap(plist["NSExtension"] as? [String: Any])
@@ -118,7 +118,7 @@ final class ShareExtensionAppGroupTests: XCTestCase {
     func testShareDataManagerLivesWhereTheExtensionCanCompileIt() throws {
         let project = try sourceFile("Astrid App.xcodeproj/project.pbxproj")
 
-        XCTAssertTrue(FileManager.default.fileExists(atPath: repoRoot.appendingPathComponent("Shared/ShareDataManager.swift").path),
+        XCTAssertTrue(FileManager.default.fileExists(atPath: RepositoryLocator.root.appendingPathComponent("Shared/ShareDataManager.swift").path),
                       "ShareDataManager moved out of Shared/ — the extension can no longer compile it")
         // Three targets: the extension, the iOS app, the Mac app. Counted inside the targets'
         // fileSystemSynchronizedGroups lists only — the group also appears once in the project's
@@ -138,20 +138,13 @@ final class ShareExtensionAppGroupTests: XCTestCase {
     /// repo through `#filePath` there has hung a suite before (see the Mac test-host notes). The
     /// runtime check above is the one that matters on both platforms; this one exists to say
     /// WHICH file is wrong when it fails.
-    private var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
 
     private func sourceFile(_ path: String) throws -> String {
-        try String(contentsOf: repoRoot.appendingPathComponent(path), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
     }
 
     private func groups(inEntitlementsNamed name: String) throws -> [String] {
-        let url = repoRoot
+        let url = RepositoryLocator.root
             .appendingPathComponent(name)
             .appendingPathComponent("\(name).entitlements")
 

@@ -4,16 +4,10 @@ import XCTest
 /// Blocker #2: a dependent of a permanently-failed (or missing) entry can never
 /// run — its dependency will never complete — so it must be dead-lettered, not
 /// left pending forever. Failure propagates transitively.
-final class OutboxDependencyFailureTests: XCTestCase {
+final class OutboxDependencyFailureTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var tempURL: URL!
-
-    override func setUpWithError() throws {
-        tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-depfail-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tempURL) }
+    private var tempURL: URL { tempFile }
 
     private func entry(_ id: String, status: OutboxStatus = .pending, dependsOn: [String] = []) -> OutboxEntry {
         OutboxEntry(id: id, kind: "k", payload: Data(), clientRequestId: "c-\(id)",

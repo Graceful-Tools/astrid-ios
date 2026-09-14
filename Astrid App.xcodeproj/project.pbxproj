@@ -264,6 +264,16 @@
 			path = "Astrid AppUITests";
 			sourceTree = "<group>";
 		};
+		CBFACADE0000000000000011 /* TestSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		CBFACADE0000000000000012 /* UITestSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UITestSupport;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -332,6 +342,8 @@
 				CB8DEFE53005D591003E5617 /* Astrid MacTests */,
 				CB8DEFEF3005D592003E5617 /* Astrid MacUITests */,
 				CBFACADE0000000000000010 /* Shared */,
+				CBFACADE0000000000000011 /* TestSupport */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 				CBB135852EAB27CD00D41E86 /* Products */,
 				CBB1360A2EAB284400D41E86 /* AstridApp.swift */,
 			);
@@ -416,6 +428,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB8DEFE53005D591003E5617 /* Astrid MacTests */,
+				CBFACADE0000000000000011 /* TestSupport */,
 			);
 			name = "Astrid MacTests";
 			packageProductDependencies = (
@@ -439,6 +452,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CB8DEFEF3005D592003E5617 /* Astrid MacUITests */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 			);
 			name = "Astrid MacUITests";
 			packageProductDependencies = (
@@ -487,6 +501,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB135942EAB27CE00D41E86 /* Astrid AppTests */,
+				CBFACADE0000000000000011 /* TestSupport */,
 			);
 			name = "Astrid AppTests";
 			packageProductDependencies = (
@@ -510,6 +525,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				CBB1359E2EAB27CE00D41E86 /* Astrid AppUITests */,
+				CBFACADE0000000000000012 /* UITestSupport */,
 			);
 			name = "Astrid AppUITests";
 			packageProductDependencies = (

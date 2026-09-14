@@ -15,21 +15,12 @@ final class MacUndoUITests: XCTestCase {
 
     @MainActor
     func testCompletingATaskArmsEditUndo() {
-        let app = XCUIApplication()
         // -uiTestSelectRow selects a rendered row; XCUITest cannot click macOS List rows, and the
         // Complete command is disabled without a selection.
-        app.launchArguments += ["-uiTesting", "-uiTestSelectRow=0"]
+        let app = MacUITestLaunch.makeApp(arguments: ["-uiTestSelectRow=0"])
         app.launch()
 
-        // The offline choice persists in the shared container, so a second run may launch
-        // straight into the shell — take whichever of the two screens shows up.
-        let offline = app.descendants(matching: .any).matching(identifier: "login.offline").firstMatch
-        let myTasks = app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch
-        let deadline = Date().addingTimeInterval(30)
-        while Date() < deadline && !myTasks.exists {
-            if offline.exists { offline.click() }
-            _ = myTasks.waitForExistence(timeout: 2)
-        }
+        let myTasks = MacUITestLaunch.enterShell(app)
         XCTAssertTrue(myTasks.exists, "Should reach the shell")
 
         // A real list, so quick-add is available.

@@ -19,7 +19,8 @@ NC='\033[0m' # No Color
 RUN_UNIT_TESTS=true
 RUN_UI_TESTS=false
 QUIET_MODE=true
-DESTINATION="platform=iOS Simulator,name=iPhone 17"
+source "$SCRIPT_DIR/lib/ios-destination.sh"
+DESTINATION="$ASTRID_IOS_DESTINATION"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -47,7 +48,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --ui          Also run UI tests (slower)"
             echo "  --no-unit     Skip unit tests"
             echo "  --verbose     Show full xcodebuild output"
-            echo "  --destination Set simulator destination (default: iPhone 17)"
+            echo "  --destination Set simulator destination (default: $ASTRID_IOS_DESTINATION)"
             echo "  --help        Show this help"
             exit 0
             ;;

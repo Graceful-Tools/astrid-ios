@@ -28,9 +28,7 @@ final class MacCommentAttachmentDisplayTests: XCTestCase {
     }
 
     private func detailSource() throws -> String {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // Astrid MacTests
-            .deletingLastPathComponent()   // repo root
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }
@@ -106,8 +104,7 @@ final class MacCommentAttachmentDisplayTests: XCTestCase {
     /// The bytes come from the SHARED ladder (staged local copy → download cache → server), not
     /// a Mac transcription of iOS's. Two copies of that ladder is how the platforms drift.
     func testThumbnailBytesUseTheSharedLadder() throws {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacCommentAttachments.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(source.contains("AttachmentService.shared.fileData(for:"),

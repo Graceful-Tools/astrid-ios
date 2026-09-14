@@ -64,19 +64,9 @@ final class FileCacheEvictionTests: XCTestCase {
 
 /// The filesystem half of AITD-344: the policy is pure and tested above, but "does the sweep
 /// actually read sizes and delete the right files" needs real files on disk.
-final class DownloadCacheSweepTests: XCTestCase {
+final class DownloadCacheSweepTests: TempFileTestCase {
 
-    private var directory: URL!
-
-    override func setUpWithError() throws {
-        directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AITD344-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: directory)
-    }
+    private var directory: URL { tempDirectory }
 
     /// Write `bytes` to `name`, backdating its timestamps so age is controllable.
     private func write(_ name: String, bytes: Int, minutesAgo: Int) throws {

@@ -62,17 +62,11 @@ final class SourceFileSizeGuardTests: XCTestCase {
     /// would happily readmit every line that was removed.
     private static let slack = 150
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     /// Every production Swift file, keyed by repo-relative path, with its line count.
     private func lineCounts() throws -> [String: Int] {
         var counts: [String: Int] = [:]
         for root in Self.roots {
-            let rootURL = repositoryRoot.appendingPathComponent(root)
+            let rootURL = RepositoryLocator.root.appendingPathComponent(root)
             guard let walker = FileManager.default.enumerator(at: rootURL,
                                                               includingPropertiesForKeys: nil)
             else { continue }

@@ -14,12 +14,6 @@ import XCTest
 
 final class DevServerConfigurationTests: XCTestCase {
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     /// Private address ranges, per RFC 1918. A literal from any of them in tracked source is one
     /// machine on one network, which is never right for everybody who clones the repository.
     private static let privateAddress = try! NSRegularExpression(
@@ -53,10 +47,10 @@ final class DevServerConfigurationTests: XCTestCase {
         }
 
         for name in Self.scannedFiles {
-            try scan(repositoryRoot.appendingPathComponent(name), label: name)
+            try scan(RepositoryLocator.root.appendingPathComponent(name), label: name)
         }
         for root in Self.scannedRoots {
-            let rootURL = repositoryRoot.appendingPathComponent(root)
+            let rootURL = RepositoryLocator.root.appendingPathComponent(root)
             guard let walker = FileManager.default.enumerator(at: rootURL, includingPropertiesForKeys: nil)
             else { continue }
             for case let fileURL as URL in walker

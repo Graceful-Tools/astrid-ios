@@ -4,10 +4,10 @@ import XCTest
 /// Blocker #1: a retryable failure sets a future nextAttemptAt, but nothing wakes
 /// the runner to retry — it stalls until the next enqueue / network event /
 /// relaunch. The runner must schedule a wake-up at the earliest future retry.
-final class OutboxRetryWakeupTests: XCTestCase {
+final class OutboxRetryWakeupTests: TempFileTestCase {
 
     private let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-    private var tempURL: URL!
+    private var tempURL: URL { tempFile }
 
     /// Thread-safe, advanceable clock for deterministic timing.
     private final class TestClock: @unchecked Sendable {
@@ -29,12 +29,6 @@ final class OutboxRetryWakeupTests: XCTestCase {
         func date(_ i: Int) -> Date { lock.lock(); defer { lock.unlock() }; return dates[i] }
         func fire(_ i: Int) async { lock.lock(); let a = actions[i]; lock.unlock(); await a() }
     }
-
-    override func setUpWithError() throws {
-        tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("outbox-wakeup-\(UUID().uuidString).json")
-    }
-    override func tearDownWithError() throws { try? FileManager.default.removeItem(at: tempURL) }
 
     private func entry(_ id: String, kind: String = "k", dependsOn: [String] = []) -> OutboxEntry {
         OutboxEntry(id: id, kind: kind, payload: Data(), clientRequestId: "c-\(id)",

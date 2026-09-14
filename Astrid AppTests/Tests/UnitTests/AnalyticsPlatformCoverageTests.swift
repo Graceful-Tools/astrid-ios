@@ -19,19 +19,11 @@ import XCTest
 
 final class AnalyticsPlatformCoverageTests: XCTestCase {
 
-    private func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     /// Every Swift source in the two shipping targets, with its contents.
     private func sources() throws -> [(name: String, path: String, text: String)] {
         var found: [(String, String, String)] = []
         for target in ["Astrid App", "Astrid Mac"] {
-            let root = repoRoot().appendingPathComponent(target)
+            let root = RepositoryLocator.root.appendingPathComponent(target)
             guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
                 XCTFail("Could not enumerate \(root.path)")
                 continue

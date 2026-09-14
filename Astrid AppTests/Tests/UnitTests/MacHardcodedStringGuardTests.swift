@@ -32,11 +32,7 @@ final class MacHardcodedStringGuardTests: XCTestCase {
     private let allowed: Set<String> = ["Astrid", "astrid", "Astrid Mac"]
 
     func testNoUserFacingLiteralsInTheMacTarget() throws {
-        let macRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
+        let macRoot = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac")
 
         guard let files = FileManager.default.enumerator(at: macRoot, includingPropertiesForKeys: nil) else {

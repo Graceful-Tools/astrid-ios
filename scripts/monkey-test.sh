@@ -59,15 +59,16 @@ echo "  $ACTIONS actions, hang threshold ${HANG}s${SEED:+, seed $SEED}"
 # so a log stream attached to the booted device captures nothing at all, which is how the first
 # run produced an empty log while reporting success.
 if [ "$TARGET" = "ios" ]; then
-  SIM_UDID=$(xcrun simctl list devices available -j | python3 -c "
-import json,sys
+  MONKEY_DEVICE="${ASTRID_MONKEY_SIMULATOR_NAME:-iPhone 17 Pro}"
+  SIM_UDID=$(xcrun simctl list devices available -j | MONKEY_DEVICE="$MONKEY_DEVICE" python3 -c "
+import json,os,sys
 for runtime, devices in json.load(sys.stdin)['devices'].items():
     if 'iOS' not in runtime: continue
     for d in devices:
-        if d['name'] == 'iPhone 17 Pro':
+        if d['name'] == os.environ['MONKEY_DEVICE']:
             print(d['udid']); raise SystemExit
 " 2>/dev/null)
-  [ -n "$SIM_UDID" ] || { echo "RESULT: FAILED — no iPhone 17 Pro simulator available"; exit 1; }
+  [ -n "$SIM_UDID" ] || { echo "RESULT: FAILED — no $MONKEY_DEVICE simulator available (set ASTRID_MONKEY_SIMULATOR_NAME)"; exit 1; }
   xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
   xcrun simctl bootstatus "$SIM_UDID" -b >/dev/null 2>&1 || true
   DESTINATION="platform=iOS Simulator,id=$SIM_UDID"

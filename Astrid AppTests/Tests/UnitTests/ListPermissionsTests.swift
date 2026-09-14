@@ -93,7 +93,7 @@ final class ListPermissionsTests: XCTestCase {
 
     func testEveryDecidingCallSiteAsksTheSharedRule() throws {
         for relative in Self.mustAskTheRule {
-            let source = try String(contentsOf: repositoryRoot.appendingPathComponent(relative),
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
                                     encoding: .utf8)
             XCTAssertTrue(source.contains("ListPermissions."),
                           "\(relative) must ask the shared rule")
@@ -102,7 +102,7 @@ final class ListPermissionsTests: XCTestCase {
 
     func testNoCallSiteHandRollsTheRule() throws {
         for relative in Self.mustNotHandRollIt {
-            let source = try String(contentsOf: repositoryRoot.appendingPathComponent(relative),
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
                                     encoding: .utf8)
             // Only the hand-rolled OWNER-OR-ADMIN forms are banned. Comparing a role string is
             // fine elsewhere — ListMembershipTab legitimately does it to render and toggle
@@ -115,9 +115,4 @@ final class ListPermissionsTests: XCTestCase {
         }
     }
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
 }

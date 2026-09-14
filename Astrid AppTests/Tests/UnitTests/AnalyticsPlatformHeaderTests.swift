@@ -49,11 +49,7 @@ final class AnalyticsPlatformHeaderTests: XCTestCase {
     /// the dashboard would under-count by whichever calls happened to use the third.
     func testEveryRequestBuilderSendsTheHeader() throws {
         let source = try String(
-            contentsOf: URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()   // UnitTests
-                .deletingLastPathComponent()   // Tests
-                .deletingLastPathComponent()   // Astrid AppTests
-                .deletingLastPathComponent()   // repo root
+            contentsOf: RepositoryLocator.root
                 .appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift"),
             encoding: .utf8)
 

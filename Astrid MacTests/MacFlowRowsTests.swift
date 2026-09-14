@@ -71,8 +71,7 @@ final class MacFlowRowsTests: XCTestCase {
     // MARK: - The second half: a pill stays one line
 
     func testThePillTextIsLimitedToOneLine() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacListPicker.swift"),
             encoding: .utf8)

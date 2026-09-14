@@ -14,17 +14,8 @@ final class TaskSortTests: XCTestCase {
         dueDateTime: Date? = nil,
         createdAt: Date = ISO8601DateFormatter().date(from: "2026-01-01T00:00:00Z")!
     ) -> Task {
-        Task(
-            id: id,
-            title: title ?? id,
-            description: "",
-            dueDateTime: dueDateTime,
-            isAllDay: false,
-            priority: priority,
-            isPrivate: false,
-            completed: completed,
-            createdAt: createdAt
-        )
+        TestHelpers.createTestTask(id: id, title: title ?? id, priority: priority, completed: completed,
+                                   dueDateTime: dueDateTime, isAllDay: false, createdAt: createdAt)
     }
 
     func test_priority_highestFirst() {

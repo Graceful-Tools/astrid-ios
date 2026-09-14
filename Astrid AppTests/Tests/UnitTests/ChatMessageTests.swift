@@ -59,9 +59,7 @@ final class ChatMessageTests: XCTestCase {
     /// Regression for task 68bebdaa: Copilot's avatar URL serves SVG without an extension.
     /// Chat must use the shared loader that substitutes the bundled mascot before decoding.
     func testTask_68bebdaaChatAvatarUsesAssetAwareImageLoader() throws {
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: RepositoryLocator.root
             .appendingPathComponent("Astrid App/Views/Chat/ChatMessageBubble.swift"), encoding: .utf8)
         let avatarView = try XCTUnwrap(
             source.components(separatedBy: "private var avatarView").last?

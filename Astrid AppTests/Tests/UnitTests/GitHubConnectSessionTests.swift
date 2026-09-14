@@ -15,16 +15,8 @@ import XCTest
 
 final class GitHubConnectSessionTests: XCTestCase {
 
-    private var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     private func source(_ relative: String) throws -> String {
-        try String(contentsOf: repoRoot.appendingPathComponent(relative), encoding: .utf8)
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative), encoding: .utf8)
     }
 
     // MARK: - The guard: no platform may open the GitHub authorize URL outside the app

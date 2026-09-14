@@ -86,9 +86,7 @@ final class PublicListMappingTests: XCTestCase {
 
     /// The guard: nobody writes a fourth copy.
     func testNoSurfaceHandRollsTheMappingAgain() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         let audited = [
             "Astrid App/Views/Lists/ListSidebarView.swift",

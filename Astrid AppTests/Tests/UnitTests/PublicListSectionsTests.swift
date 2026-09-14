@@ -85,9 +85,7 @@ final class PublicListSectionsTests: XCTestCase {
     // MARK: - Both platforms ask the same rule
 
     func testTheSidebarsUseTheSharedRule() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
         for relative in ["Astrid Mac/App/MacRootView.swift",
                          "Astrid App/Views/Lists/ListSidebarView.swift"] {
             let source = try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
@@ -109,9 +107,7 @@ final class PublicListSectionsTests: XCTestCase {
     }
 
     func testBothSidebarsFilterWithDomainListPredicate() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         for relative in ["Astrid App/Views/Lists/ListSidebarView.swift",
                          "Astrid Mac/App/MacRootView.swift"] {

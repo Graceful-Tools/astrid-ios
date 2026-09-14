@@ -216,9 +216,7 @@ final class LiveUpdateWiringTests: XCTestCase {
     // MARK: - The guard: something must actually be listening
 
     func testTheServicesSubscribeToEveryTaskAndListEvent() throws {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         let taskSource = try String(
             contentsOf: root.appendingPathComponent("Astrid App/Core/Services/TaskService.swift"),
@@ -241,9 +239,7 @@ final class LiveUpdateWiringTests: XCTestCase {
     func testTheLiveApplyPathNeverCallsTheAPIClient() throws {
         // Cache-only is the whole contract. A live event that wrote back to the server is the
         // ping-pong the web board has an open task about.
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
+        let root = RepositoryLocator.root
 
         for (file, methods) in [
             ("Astrid App/Core/Services/TaskService.swift", ["applyLiveTaskUpsert", "applyLiveTaskDelete"]),
@@ -268,7 +264,7 @@ final class LiveUpdateWiringTests: XCTestCase {
         // moved that decode off the main actor. If the `@MainActor` hop comes back, a collaborator's
         // keystroke-batch is main-thread `JSONSerialization` + `decode(Task.self)` again — invisible
         // in every behavioural test in this file, because the cache ends up identical either way.
-        let source = try String(contentsOf: repoRoot.appendingPathComponent(
+        let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(
             "Astrid App/Core/RealTime/SSEClient.swift"), encoding: .utf8)
         let body = try XCTUnwrap(functionBody(named: "handleEvent", in: source),
                                  "handleEvent not found in SSEClient.swift")
@@ -292,7 +288,7 @@ final class LiveUpdateWiringTests: XCTestCase {
             ("Astrid App/Models/UserSettingsService.swift", ["UserSettings"]),
             ("Astrid App/Models/User.swift", ["User"]),
         ] {
-            let source = try String(contentsOf: repoRoot.appendingPathComponent(file), encoding: .utf8)
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(file), encoding: .utf8)
             for type in types {
                 XCTAssertTrue(
                     source.contains("nonisolated struct \(type):"),
@@ -300,12 +296,6 @@ final class LiveUpdateWiringTests: XCTestCase {
                     + "main actor (AITD-320)")
             }
         }
-    }
-
-    private var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
     }
 
     private func strippingComments(_ source: String) -> String {

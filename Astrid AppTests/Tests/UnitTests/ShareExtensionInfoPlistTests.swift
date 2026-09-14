@@ -10,7 +10,7 @@ import XCTest
 final class ShareExtensionInfoPlistTests: XCTestCase {
 
     func testExtensionNamesItsEntryPointExactlyOneWay_a915a6b2() throws {
-        let extensionPlist = try repoRoot().appendingPathComponent("Astrid/Info.plist")
+        let extensionPlist = try RepositoryLocator.root.appendingPathComponent("Astrid/Info.plist")
         let data = try Data(contentsOf: extensionPlist)
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         let nsExtension = try XCTUnwrap(plist["NSExtension"] as? [String: Any])
@@ -29,17 +29,10 @@ final class ShareExtensionInfoPlistTests: XCTestCase {
     /// The storyboard is the entry point, so it has to bind the real
     /// controller — the template's stub is what shipped for months.
     func testMainStoryboardBindsTheRealShareViewController_a915a6b2() throws {
-        let storyboard = try repoRoot().appendingPathComponent("Astrid/Base.lproj/MainInterface.storyboard")
+        let storyboard = try RepositoryLocator.root.appendingPathComponent("Astrid/Base.lproj/MainInterface.storyboard")
         let xml = try String(contentsOf: storyboard, encoding: .utf8)
         XCTAssertTrue(xml.contains("customClass=\"ShareViewController\""))
         XCTAssertTrue(xml.contains("customModuleProvider=\"target\""))
     }
 
-    private func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
 }

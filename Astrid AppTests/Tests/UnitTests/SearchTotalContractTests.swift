@@ -24,21 +24,13 @@ import XCTest
 
 final class SearchTotalContractTests: XCTestCase {
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // UnitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // Astrid AppTests
-            .deletingLastPathComponent()   // repo root
-    }
-
     /// Every Swift source that ships in a product: both apps, the share extension, and the code
     /// they share. The extension makes no API calls today, but a guard that only covers the places
     /// a caller happens to live now is the guard that misses the next one.
     private func appSources() throws -> [(path: String, source: String)] {
         var sources: [(String, String)] = []
         for target in ["Astrid App", "Astrid Mac", "Astrid", "Shared"] {
-            let root = repositoryRoot.appendingPathComponent(target)
+            let root = RepositoryLocator.root.appendingPathComponent(target)
             guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
                 XCTFail("Could not enumerate \(root.path)")
                 continue

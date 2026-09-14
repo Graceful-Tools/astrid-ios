@@ -22,16 +22,10 @@ final class LegacySecureFilesPathTests: XCTestCase {
 
     private static let roots = ["Astrid App", "Astrid Mac", "Astrid"]
 
-    private var repositoryRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     private func productionSources() throws -> [(path: String, source: String)] {
         var found: [(String, String)] = []
         for root in Self.roots {
-            let rootURL = repositoryRoot.appendingPathComponent(root)
+            let rootURL = RepositoryLocator.root.appendingPathComponent(root)
             guard let walker = FileManager.default.enumerator(at: rootURL,
                                                               includingPropertiesForKeys: nil)
             else { continue }
@@ -63,7 +57,7 @@ final class LegacySecureFilesPathTests: XCTestCase {
     /// every file uploaded afterwards is another legacy row.
     func testTheUploadPathMintsTheV1Form() throws {
         let source = try String(
-            contentsOf: repositoryRoot
+            contentsOf: RepositoryLocator.root
                 .appendingPathComponent("Astrid App/Core/Services/AttachmentService.swift"),
             encoding: .utf8)
         XCTAssertTrue(source.contains("\"/api/v1/secure-files/\\(fileId)\""),
@@ -80,7 +74,7 @@ final class LegacySecureFilesPathTests: XCTestCase {
     /// which is a long way from the change that caused it.
     func testTheImageLoadersStillAuthenticateLegacyStoredURLs() throws {
         let source = try String(
-            contentsOf: repositoryRoot.appendingPathComponent("Astrid App/Utilities/ImageCache.swift"),
+            contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid App/Utilities/ImageCache.swift"),
             encoding: .utf8)
         XCTAssertTrue(source.contains("/api/secure-files/"),
                       "ImageCache must still recognise legacy stored URLs as needing auth, or "
