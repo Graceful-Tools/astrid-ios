@@ -455,9 +455,9 @@ struct AccountSettingsView: View {
     }
 
     private func formatPasskeyDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: dateString) {
+        // Was fractional-ONLY, so a plain `…:37Z` stamp produced no date at all and the passkey
+        // row fell back to showing the raw string (AITD-404).
+        if let date = WireDate.date(from: dateString) {
             let displayFormatter = DateFormatter()
             displayFormatter.dateStyle = .medium
             return String(format: NSLocalizedString("settings.account.added_on", comment: ""), displayFormatter.string(from: date))

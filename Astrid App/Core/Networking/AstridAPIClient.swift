@@ -391,10 +391,10 @@ class AstridAPIClient {
                 var utcCalendar = Calendar.current
                 utcCalendar.timeZone = TimeZone(identifier: "UTC")!
                 let startOfDay = utcCalendar.startOfDay(for: dueDateTime)
-                dueDateTimeString = ISO8601DateFormatter().string(from: startOfDay)
+                dueDateTimeString = WireDate.dueDateString(from: startOfDay)
             } else {
                 // Timed task - use exact datetime
-                dueDateTimeString = ISO8601DateFormatter().string(from: dueDateTime)
+                dueDateTimeString = WireDate.dueDateString(from: dueDateTime)
             }
         } else {
             dueDateTimeString = nil

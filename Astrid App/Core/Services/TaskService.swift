@@ -740,9 +740,9 @@ class TaskService: ObservableObject {
                     // Set due date (normalize to UTC midnight if all-day)
                     if let isAllDay = isAllDay, isAllDay {
                         let startOfDay = utcCalendar.startOfDay(for: dueDateTime)
-                        dueDateTimeString = ISO8601DateFormatter().string(from: startOfDay)
+                        dueDateTimeString = WireDate.dueDateString(from: startOfDay)
                     } else {
-                        dueDateTimeString = ISO8601DateFormatter().string(from: dueDateTime)
+                        dueDateTimeString = WireDate.dueDateString(from: dueDateTime)
                     }
                     isAllDayValue = isAllDay
                 }
@@ -754,12 +754,12 @@ class TaskService: ObservableObject {
             } else if let when = when, when != Date.distantPast {
                 // Legacy: Set date (all-day task)
                 let startOfDay = utcCalendar.startOfDay(for: when)
-                dueDateTimeString = ISO8601DateFormatter().string(from: startOfDay)
+                dueDateTimeString = WireDate.dueDateString(from: startOfDay)
 
                 // Check if time component is also being set
                 if let whenTime = whenTime, whenTime != Date.distantPast {
                     // Time is set - timed task
-                    dueDateTimeString = ISO8601DateFormatter().string(from: whenTime)
+                    dueDateTimeString = WireDate.dueDateString(from: whenTime)
                     isAllDayValue = false
                 } else if let whenTime = whenTime, whenTime == Date.distantPast {
                     // Explicitly clear time (all-day)
@@ -770,7 +770,7 @@ class TaskService: ObservableObject {
                 }
             } else if let whenTime = whenTime, whenTime != Date.distantPast {
                 // Legacy: Only time provided (timed task)
-                dueDateTimeString = ISO8601DateFormatter().string(from: whenTime)
+                dueDateTimeString = WireDate.dueDateString(from: whenTime)
                 isAllDayValue = false
             } else {
                 // No date/time updates
