@@ -112,8 +112,46 @@ train, and iOS keeps building so nothing looks wrong until the next `macdev` pus
 node scripts/asc-appstore.mjs builds ios      # recent uploads and their state (or: mac)
 node scripts/asc-appstore.mjs versions ios    # App Store version states
 node scripts/asc-appstore.mjs version-state ios 1.9.3   # one version's state, or NOT_FOUND
+node scripts/asc-appstore.mjs released ios    # the version that is LIVE, or NONE
 node scripts/asc-appstore.mjs status ios 912  # one build
 ```
+
+## AFTER an iOS version goes live: update astrid-web's released-version row
+
+**This is not part of submitting — it is a separate step, days later, and it is easy to forget
+because nothing fails when you do.** (AITD-407)
+
+astrid-web hand-maintains the **iOS** row of `RELEASED_APP_VERSIONS` in `lib/app-version.ts`,
+served as `GET /api/v1/app-version?platform=ios`. The in-app Update card compares the running
+app against `latestVersion` and tells the user to update when they are behind. Nothing keeps
+that row in step with the store, and the event that makes it stale happens here.
+
+**Update it only once the version actually reads `READY_FOR_SALE` — never at submission, never
+at upload, never from `MARKETING_VERSION`.** The two directions of drift are not equally bad:
+
+| State | What users see | Severity |
+|---|---|---|
+| Row **behind** the store | never told an update exists | silent, mild — and the normal state for a few hours after a release |
+| Row **ahead** of the store | nagged on every launch to install a build that does not exist | loud, looks like a bug in the app |
+
+So the order is: confirm live → then edit the row. Never the reverse.
+
+```bash
+node scripts/asc-appstore.mjs released ios    # is the new version actually live?
+npm run check:app-version                     # does the row agree with the store?
+```
+
+**Mac has no such step.** Its row is `{}` on purpose: the Mac app is not on the Mac App Store,
+it ships as a notarized DMG, so the version is resolved per request from the GitHub Releases
+feed (`lib/mac-release.ts`). Hardcoding a Mac number from App Store Connect is exactly the bug
+AWTD-942 fixed — it claimed 1.1.1 against a real latest of 1.0.3 and pointed Mac users at the
+iOS listing. Cutting a Mac release means publishing the GitHub Release; the card follows on
+its own.
+
+`npm run check:app-version` runs in every `predeploy` too (step 2). It fails only on the
+ahead-of-store case and warns on behind-the-store, and it skips silently with no key, no
+network, or no astrid-web checkout. It can *detect* the drift but cannot fix it — the edit is a
+one-line change in the astrid-web repo.
 
 ## Background for whoever maintains this
 

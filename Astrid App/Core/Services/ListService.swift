@@ -523,46 +523,10 @@ class ListService: ObservableObject {
 
         AppLog.debug("📡 [ListService] updateListAdvanced called with updates: \(updates)")
 
-        // Create optimistic updated list by applying changes
-        var optimisticList = originalList
-
-        // Apply updates to create optimistic list
-        if let name = updates["name"] as? String { optimisticList.name = name }
-        if let description = updates["description"] as? String { optimisticList.description = description }
-        if let color = updates["color"] as? String { optimisticList.color = color }
-        if let imageUrl = updates["imageUrl"] as? String { optimisticList.imageUrl = imageUrl }
-        if let privacy = updates["privacy"] as? String, let privacyEnum = TaskList.Privacy(rawValue: privacy) {
-            optimisticList.privacy = privacyEnum
-        }
-        if let publicListType = updates["publicListType"] as? String { optimisticList.publicListType = publicListType }
-        if let isFavorite = updates["isFavorite"] as? Bool { optimisticList.isFavorite = isFavorite }
-        if let showSubtasks = updates["showSubtasks"] as? Bool { optimisticList.showSubtasks = showSubtasks }
-
-        // List defaults
-        if let defaultPriority = updates["defaultPriority"] as? Int { optimisticList.defaultPriority = defaultPriority }
-        if let defaultRepeating = updates["defaultRepeating"] as? String { optimisticList.defaultRepeating = defaultRepeating }
-        if let defaultIsPrivate = updates["defaultIsPrivate"] as? Bool { optimisticList.defaultIsPrivate = defaultIsPrivate }
-        if let defaultDueDate = updates["defaultDueDate"] as? String { optimisticList.defaultDueDate = defaultDueDate }
-        if updates.keys.contains("defaultDueTime") {
-            optimisticList.defaultDueTime = updates["defaultDueTime"] as? String
-        }
-        if updates.keys.contains("defaultAssigneeId") {
-            optimisticList.defaultAssigneeId = updates["defaultAssigneeId"] as? String
-        }
-
-        // Virtual list settings
-        if let isVirtual = updates["isVirtual"] as? Bool { optimisticList.isVirtual = isVirtual }
-        if let virtualListType = updates["virtualListType"] as? String { optimisticList.virtualListType = virtualListType }
-
-        // Sort and filter settings
-        if let sortBy = updates["sortBy"] as? String { optimisticList.sortBy = sortBy }
-        if let filterPriority = updates["filterPriority"] as? String { optimisticList.filterPriority = filterPriority }
-        if let filterAssignee = updates["filterAssignee"] as? String { optimisticList.filterAssignee = filterAssignee }
-        if let filterDueDate = updates["filterDueDate"] as? String { optimisticList.filterDueDate = filterDueDate }
-        if let filterCompletion = updates["filterCompletion"] as? String { optimisticList.filterCompletion = filterCompletion }
-        if let filterRepeating = updates["filterRepeating"] as? String { optimisticList.filterRepeating = filterRepeating }
-        if let filterAssignedBy = updates["filterAssignedBy"] as? String { optimisticList.filterAssignedBy = filterAssignedBy }
-        if let filterInLists = updates["filterInLists"] as? String { optimisticList.filterInLists = filterInLists }
+        // Which fields an updates dictionary sets is `ListSettingsApply`'s business, not this
+        // method's — it is the mirror of `ListSettingsPayload`, and a pure function with tests
+        // rather than a wall of near-identical `if`s (AITD-410).
+        let optimisticList = ListSettingsApply.applying(updates, to: originalList)
 
         // Update UI immediately
         cachedLists[listId] = optimisticList
@@ -619,14 +583,34 @@ class ListService: ObservableObject {
 
             return updatedList
         } catch {
-            // DON'T ROLLBACK - Keep optimistic update for offline support
-            // The update was already saved to CoreData and will persist across app restarts
+            // DON'T ROLLBACK - keep the optimistic update for offline support. That part was
+            // always right; what was missing is the other half of the promise. This used to log
+            // "will sync when online" and return, and nothing ever retried it: the Outbox covered
+            // task and comment writes but had no list kind, and `CDTaskList.update(from:)` never
+            // marks the row pending, so the `syncStatus == "pending"` sweep could not see it
+            // either. The change survived until the next `fetchLists()` overwrote it — a silent
+            // revert, minutes or days later (AITD-410).
+            //
+            // Journaling it instead makes the old log line true. Deliberately NOT surfaced to the
+            // user: `updateManualOrder` (drag-to-reorder) routes through here, so an error banner
+            // would fire on ordinary background-ish work.
             AppLog.debug("⚠️ [ListService] Failed to sync list update to server (offline?): \(error)")
-            AppLog.debug("💾 [ListService] Keeping optimistic update - will sync when online")
+            await UpdateListOutboxPayload.enqueueReplay(listId: listId, updates: updates)
 
             // Return the optimistic list instead of throwing
             return optimisticList
         }
+    }
+
+    /// Adopt the server's copy after a queued list update finally lands (AITD-410). Mirrors the
+    /// reconcile step the online path already does inline, so a replayed write leaves memory,
+    /// the cache and CoreData in the same state a first-try success would have.
+    func reconcileOutboxUpdatedList(_ updated: TaskList) async {
+        cachedLists[updated.id] = updated
+        if let index = lists.firstIndex(where: { $0.id == updated.id }) {
+            lists[index] = updated
+        }
+        try? await saveListToCoreData(updated, syncStatus: "synced")
     }
 
     func deleteList(listId: String) async throws {
@@ -912,7 +896,9 @@ class ListService: ObservableObject {
         do {
             let context = coreDataManager.viewContext
             let request = CDTaskList.fetchRequest()
-            request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
+            // "failed" counts as unsynced too, or a single lost attempt drops the count to zero
+            // and stops the 60s retry timer that would have recovered it (AITD-410).
+            request.predicate = NSPredicate(format: "syncStatus IN %@", ListSyncStatus.unsynced)
             let count = try context.count(for: request)
             pendingListsCount = count
             AppLog.debug("📊 [ListService] Pending lists: \(count)")
@@ -937,9 +923,11 @@ class ListService: ObservableObject {
 
         let context = coreDataManager.viewContext
 
-        // Fetch all pending lists
+        // Fetch every unsynced list. This used to select only "pending", while the catch below
+        // wrote "failed" — so a list dropped out of its own retry predicate after one failure
+        // and was stranded for good (AITD-410).
         let request = CDTaskList.fetchRequest()
-        request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
+        request.predicate = NSPredicate(format: "syncStatus IN %@", ListSyncStatus.unsynced)
         let pendingLists = try context.fetch(request)
 
         AppLog.debug("📤 [ListService] Found \(pendingLists.count) pending lists")
@@ -978,14 +966,24 @@ class ListService: ObservableObject {
                     // CRITICAL: Notify TaskService to update any tasks with the temp list ID
                     // This allows tasks created on offline lists to be properly associated
                     await TaskService.shared.onListSynced(tempListId: tempListId, realListId: createdList.id)
+                } else {
+                    // Not a temp id, so there is no create to replay. Unsynced list *updates* are
+                    // journaled in the Outbox now, which is the authoritative record of them —
+                    // this row's marker is stale bookkeeping, and leaving it set would spin the
+                    // 60s timer forever with nothing to do (AITD-410). It used to fall through
+                    // here and be counted as synced without anything being sent.
+                    cdList.syncStatus = ListSyncStatus.synced
+                    try? coreDataManager.save()
+                    AppLog.debug("ℹ️ [ListService] Cleared stale unsynced marker on non-temp list \(cdList.id)")
                 }
 
                 syncedCount += 1
             } catch {
                 AppLog.debug("❌ [ListService] Failed to sync list \(cdList.id): \(error)")
                 failedCount += 1
-                // Mark as failed for retry later
-                cdList.syncStatus = "failed"
+                // Mark as failed — still selected by the sweep above, so "for retry later" is
+                // now true rather than aspirational (AITD-410).
+                cdList.syncStatus = ListSyncStatus.failed
                 try? coreDataManager.save()
             }
         }

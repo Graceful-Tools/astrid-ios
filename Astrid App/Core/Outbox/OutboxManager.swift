@@ -10,6 +10,7 @@ enum OutboxKind {
     static let deleteTask = "deleteTask"
     static let updateComment = "updateComment"
     static let deleteComment = "deleteComment"
+    static let updateList = "updateList"
 }
 
 /// App-facing entry point to the Outbox: owns the single `OutboxRunner`, wires
@@ -32,7 +33,8 @@ final class OutboxManager {
                 OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) },
                 OutboxKind.deleteTask: { entry, _ in await DeleteTaskOutboxHandler.handle(entry) },
                 OutboxKind.updateComment: { entry, _ in await UpdateCommentOutboxHandler.handle(entry) },
-                OutboxKind.deleteComment: { entry, _ in await DeleteCommentOutboxHandler.handle(entry) }
+                OutboxKind.deleteComment: { entry, _ in await DeleteCommentOutboxHandler.handle(entry) },
+                OutboxKind.updateList: { entry, _ in await UpdateListOutboxHandler.handle(entry) }
             ]
         )
         self.runner = runner
@@ -162,6 +164,12 @@ final class OutboxManager {
 
     func enqueueDeleteComment(_ payload: DeleteCommentOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.deleteComment, payload: payload, clientRequestId: clientRequestId)
+    }
+
+    /// Enqueue a list settings update that failed against the server, so it is replayed on
+    /// reconnect instead of being silently dropped (AITD-410).
+    func enqueueUpdateList(_ payload: UpdateListOutboxPayload, clientRequestId: String) async {
+        await enqueue(kind: OutboxKind.updateList, payload: payload, clientRequestId: clientRequestId)
     }
 
     /// Enqueue a comment, optionally with an attachment that must upload first.
