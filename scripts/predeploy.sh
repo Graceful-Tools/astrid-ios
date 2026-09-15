@@ -50,6 +50,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Default behavior:"
             echo "  - Check neither target's MARKETING_VERSION is already released (skips offline)"
+            echo "  - Check astrid-web's released iOS version matches the App Store (skips offline)"
             echo "  - Check localizations"
             echo "  - Check brand literals"
             echo "  - Audit partner brand profiles"
@@ -73,12 +74,12 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=6
+TOTAL_STEPS=7
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=8
+    TOTAL_STEPS=9
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
-    TOTAL_STEPS=4
+    TOTAL_STEPS=5
 fi
 
 # Print the numbered banner for the next step.
@@ -124,24 +125,37 @@ step "Checking App Store version state..."
 gate "Version check passed" "Version check failed — a released MARKETING_VERSION cannot take new builds" \
     "$SCRIPT_DIR/check-version.sh" all
 
-# Step 2: Localization checks
+# Step 2: astrid-web's released-version table vs the actual App Store (AITD-407)
+# The in-app Update card reads the iOS row of `RELEASED_APP_VERSIONS` from astrid-web, which is
+# hand-maintained and goes stale when a release here goes live. Ahead-of-store is the direction
+# that hurts — every user nagged on every launch to install something that does not exist — so
+# that fails; behind-the-store only warns, because it is the correct state for the hours after a
+# release. iOS only: the Mac row is resolved per request from GitHub Releases, because the Mac
+# app is not on the App Store (AWTD-942), so there is nothing there to drift.
+# Skips (and passes) with no key, no network or no astrid-web checkout, like the check above.
+step "Checking the released-version table..."
+gate "App version table matches the App Store" \
+    "App version table is AHEAD of the App Store — users are being nagged to install a build that is not there" \
+    "$SCRIPT_DIR/check-app-version-table.sh"
+
+# Step 3: Localization checks
 step "Checking localizations..."
 gate "Localization checks passed" "Localization checks failed" "$SCRIPT_DIR/check-localizations.sh"
 
-# Step 3: Brand-literal checks (whitelabel — task 97208a72)
+# Step 4: Brand-literal checks (whitelabel — task 97208a72)
 # Its own gate, not folded into the unit tests, so a whitelabel regression is reported
 # as itself rather than as one failure among 1200. A brand literal is invisible on an
 # Astrid build and only surfaces on a partner's, where nobody is watching.
 step "Checking brand literals..."
 gate "Brand checks passed" "Brand checks failed" "$SCRIPT_DIR/check-brand.sh"
 
-# Step 4: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
+# Step 5: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
 if [[ "$SKIP_BUILD" != "true" ]]; then
     step "Verifying build compiles..."
     gate "Build verification passed" "Build failed" build_ios
 fi
 
-# Step 5: Partner brand audit (unless quick mode)
+# Step 6: Partner brand audit (unless quick mode)
 # Its own gate for the same reason as the web's brand matrix: a whitelabel regression
 # should be reported as itself. This is the ONLY gate that can see one — on an Astrid
 # build every brand assertion is vacuous, because a reverted literal still compares
@@ -151,22 +165,24 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     gate "Brand audit passed" "Brand audit failed" "$SCRIPT_DIR/check-brands.sh"
 fi
 
-# Step 6: Unit tests (unless quick mode)
+# Step 7: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
     step "Running unit tests..."
     gate "Unit tests passed" "Unit tests failed" "$SCRIPT_DIR/run-tests.sh"
     # The version check above is a shell script; this is its test (AITD-396). Here rather than
     # in run-tests.sh because it is not an Xcode test, and it takes well under a second.
     gate "Script tests passed" "Script tests failed" "$SCRIPT_DIR/test-check-version.sh"
+    gate "App version table script tests passed" "App version table script tests failed" \
+        "$SCRIPT_DIR/test-check-app-version-table.sh"
 fi
 
-# Step 7: UI tests (only with --full)
+# Step 8: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     step "Running UI tests..."
     gate "UI tests passed" "UI tests failed" "$SCRIPT_DIR/run-tests.sh" --ui --no-unit
 fi
 
-# Step 8: Mac tests (only with --full)
+# Step 9: Mac tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     step "Running Mac tests..."
     gate "Mac tests passed" "Mac tests failed" "$SCRIPT_DIR/run-mac-tests.sh"

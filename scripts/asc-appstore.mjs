@@ -71,7 +71,7 @@ const testflightState = async (platform, want) => {
 };
 
 const [cmd, target] = process.argv.slice(2);
-const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions> <ios|mac> [...]');
+const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions|released|version-state> <ios|mac> [...]');
 
 if (cmd === 'next') {
   // Apple rejects an upload whose build number is not strictly greater than every build already
@@ -126,6 +126,18 @@ if (cmd === 'next') {
   // uploaded under it. Judge a version by its state, never by this date.
   const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&limit=5`);
   for (const v of res.data) console.log(`${v.attributes.versionString}\t${v.attributes.appStoreState}\t${v.attributes.createdDate}`);
+} else if (cmd === 'released') {
+  // Which version is LIVE on the store for this platform, as opposed to merely existing as a
+  // record. Answers the one question `version-state` cannot: it needs a version to ask about,
+  // and the point here is to find out which one that is (AITD-407).
+  //
+  // Only READY_FOR_SALE counts. REMOVED_FROM_SALE and REPLACED_WITH_NEW_INFO are "released" for
+  // check-version.sh's purpose (Apple has closed them to new builds) but they are NOT installable,
+  // so pointing the in-app Update card at one would nag every user toward a version they cannot
+  // get — the loud failure this check exists to prevent.
+  const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&filter[appStoreState]=READY_FOR_SALE&limit=5`);
+  const live = res.data.map(v => v.attributes.versionString);
+  console.log(live.length ? live[0] : 'NONE');
 } else if (cmd === 'version-state') {
   // Asked by name, so a version older than the five `versions` lists is still found. Prints the
   // bare state (READY_FOR_SALE, PREPARE_FOR_SUBMISSION, …) or NOT_FOUND when App Store Connect
