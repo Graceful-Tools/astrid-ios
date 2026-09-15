@@ -18,7 +18,7 @@ The Outbox is the **only** client write path for tasks, comments, chat sends, an
 | `OutboxManager` | Enqueue API + `drain()` (pull-to-refresh / "sync now" / reconnect entry point) |
 | Per-kind handlers | Perform the server call and reconcile local state (temp→real id swaps, mark synced) |
 
-**Kinds (8):** `createTask`, `updateTask`, `deleteTask`, `createComment`, `updateComment`, `deleteComment`, `sendChatMessage`, `uploadAttachment`.
+**Kinds (9):** `createTask`, `updateTask`, `deleteTask`, `createComment`, `updateComment`, `deleteComment`, `sendChatMessage`, `uploadAttachment`, `updateList`.
 
 Key behaviors:
 - **Idempotency**: every entry carries a `clientRequestId`; the server dedupes, so retries can't double-create.
@@ -38,7 +38,14 @@ Key behaviors:
 
 ### Still on the legacy per-service pattern
 
-`ListService.syncPendingLists`, `ListMemberService.syncPendingOperations`, and chat **deletes** (`ChatService.syncPendingMessages` delete branch) — these have no Outbox kinds yet. `TaskService.syncPendingOperations` and `CommentService.syncPendingComments` still exist but are thin wrappers over `OutboxManager.drain()`.
+`ListService.syncPendingLists` (list **creates** only), `ListMemberService.syncPendingOperations`, and chat **deletes** (`ChatService.syncPendingMessages` delete branch) — these have no Outbox kinds yet. `TaskService.syncPendingOperations` and `CommentService.syncPendingComments` still exist but are thin wrappers over `OutboxManager.drain()`.
+
+**Lists are split on purpose (AITD-410).** List *updates* are an Outbox kind (`updateList`); list *creates* are still the legacy sweep. Updates were the silent-data-loss case: `updateListAdvanced` swallowed the failure, logged "will sync when online", and nothing retried it — `CDTaskList.update(from:)` never marks the row pending, so the sweep's `syncStatus` predicate could not see it, and the next `fetchLists()` reverted the change. Creates already replayed (network-restore observer + 60s timer); their bug was that a failed attempt wrote `syncStatus = "failed"` while the predicate selected only `"pending"`, so one lost attempt stranded the list forever. `ListSyncStatus.unsynced` now owns that selection.
+
+Two things to know before extending this:
+
+- The update payload is journaled as **JSON text, not a typed struct**. `updateListAdvanced` takes `[String: Any]` because `NSNull()` ("clear this field") has to stay distinct from an absent key ("leave it alone") — see `ListSettingsPayload`. A `Codable` struct of optionals cannot express that difference.
+- `updateList` has its own **serialization lane** (`list:<id>`) in `OutboxScheduler.serializationKey`. Without one the default is `entry:<id>`, and two queued updates to the same list can run concurrently and land out of order — the user's last edit silently replaced by the one before it.
 
 ## Reads and merges
 

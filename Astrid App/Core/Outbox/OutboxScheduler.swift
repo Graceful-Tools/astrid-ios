@@ -233,6 +233,12 @@ nonisolated enum OutboxScheduler {
             if let payload = try? decoder.decode(SendChatMessageOutboxPayload.self, from: entry.payload) {
                 return "channel:\(payload.channelId)"
             }
+        case "updateList":
+            // Repeated settings writes to one list must stay FIFO: dispatched concurrently,
+            // the older body can land last and quietly undo the newer edit (AITD-410).
+            if let payload = try? decoder.decode(UpdateListOutboxPayload.self, from: entry.payload) {
+                return "list:\(payload.listId)"
+            }
         case "uploadAttachment":
             if let payload = try? decoder.decode(UploadAttachmentOutboxPayload.self, from: entry.payload) {
                 return "upload:\(payload.localPath)"

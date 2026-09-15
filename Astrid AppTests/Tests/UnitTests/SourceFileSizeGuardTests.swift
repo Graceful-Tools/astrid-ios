@@ -47,7 +47,13 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // "Recently completed" field went missing for a while (545812e6), which is the argument
         // for the extraction better than any line count is.
         "Astrid App/Views/Tasks/TaskListView.swift": 1640,
-        "Astrid App/Core/Services/TaskService.swift": 1674,
+        // Was 1674. AITD-410 added a 3-line `mappedRealListId` accessor so the `updateList`
+        // Outbox handler can retarget a queued settings change from an offline-created list's
+        // temp id onto the real one. The ratchet's question was asked and answered: the
+        // alternative was a SECOND temp→real list map owned by ListService, duplicating the one
+        // `onListSynced` already maintains here — more lines overall, in two places that could
+        // disagree. Nothing else in this file grew.
+        "Astrid App/Core/Services/TaskService.swift": 1683,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them, and this was set to 1660 to lock that

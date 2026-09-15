@@ -53,6 +53,15 @@ class TaskService: ObservableObject {
         tempTaskIdMapping[tempId]
     }
 
+    /// Real server id for a temporary (offline-created) LIST id, once its create has synced;
+    /// nil while it is still only local. `onListSynced` populates the mapping from both
+    /// temp→real transitions, so this answers for an online create and an offline replay alike.
+    /// Used by the `updateList` Outbox handler so a queued settings change made against an
+    /// offline-created list retargets onto the real list instead of blocking forever (AITD-410).
+    func mappedRealListId(for tempId: String) -> String? {
+        tempListIdMapping[tempId]
+    }
+
     /// Records that an offline-created task's temporary id now corresponds to a
     /// real server id. MUST be called from every temp→real transition (online
     /// create AND offline sync) so callers like CommentService can re-target
