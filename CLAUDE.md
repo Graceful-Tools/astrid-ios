@@ -177,6 +177,17 @@ table, the never-the-database rule, the connection troubleshooting, the OAuth-sc
 exceptions (claim / status / assign), and the per-task process (strategy comment → RED-GREEN
 TDD with a task-id-linked test → gates → completion report → mark complete).
 
+**`/fixall` also runs unattended on a schedule.** The `cc.astrid.fixall` LaunchAgent
+(`scripts/launchd/cc.astrid.fixall.plist`, install instructions in its header) fires one pass
+at `:00` and `:30` — interleaved with the Copilot GitHub workflow's `:15`/`:45` — through
+`scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held or the tree
+is dirty. `npm run fixall:loop` runs one pass by hand; the log is
+`~/Library/Logs/astrid-fixall.log`.
+
+**Run summaries go to the iOS list's Astrid chat, not to chat here** — per-task detail stays in
+each task's completion comment, and the terminal gets one `RESULT:` line. See
+`.claude/commands/fixall.md` §Reporting.
+
 ## Documentation map
 
 | File | Purpose |

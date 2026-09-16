@@ -2,10 +2,20 @@ Check the Astrid iOS to-do list and autonomously work every open task to complet
 
 ## Goal
 
-**Drive the iOS queue to empty.** Unlike `/fixstuff`, this does not ask which task to work on —
-it takes them in the order the queue returns them and keeps going until nothing is left. It
-stops on its own when the queue is clear, so a scheduled re-run that finds an empty queue is a
-no-op, not busywork.
+**Drive the iOS queue to empty — and clear `RECHECK` / `REVIEW` with it.** Unlike `/fixstuff`,
+this does not ask which task to work on — it takes them in the order the queue returns them and
+keeps going until nothing is left. It stops on its own when the queue is clear, so a scheduled
+re-run that finds an empty queue is a no-op, not busywork.
+
+`READY_EMPTY` with a non-empty `RECHECK` or `REVIEW` section is **not a finished run**. Those
+are work: a `RECHECK` task's blocking condition has to be re-verified, and a `REVIEW` task is
+one sitting in `Waiting` with no date and no marker, which means nobody knows what it is waiting
+for.
+
+**This runs on a schedule.** `cc.astrid.fixall` (see `scripts/launchd/cc.astrid.fixall.plist`)
+fires an unattended pass at `:00` and `:30`, interleaved with the Copilot workflow's `:15`/`:45`.
+Most ticks are no-ops, which is the design — see `scripts/fixall-loop.sh` for the guards and
+`~/Library/Logs/astrid-fixall.log` for what they decided.
 
 ## One session per working tree — take the lock first
 
@@ -24,6 +34,14 @@ away from: parallel runs are good, sharing one checkout is not.
 
 Release when the run ends — the same command with `release --pid $PPID` — and `status` says who
 holds the tree and whether they are still alive.
+
+**Unless `ASTRID_FIXALL_LOCK_HELD=1` — then the lock is already yours; do not acquire or
+release it.** The scheduled runner (`scripts/fixall-loop.sh`) takes the lock with its own pid
+*before* starting Claude, so it can skip a busy tree without paying for a session to find out.
+Inside `claude -p`, `$PPID` is the claude process — a **different live pid** from the launcher's
+— so an acquire here would come back `2` and the run would stop before reading the queue,
+blocked by its own launcher. Releasing would be worse: it exits `1` as `held-by-other` and, if
+it ever succeeded, would unlock the tree while the run was still editing it.
 
 **Why not `cd ../astrid-web` like every other script here.** The lock is keyed to
 `git rev-parse --absolute-git-dir` **of the current directory**, so running it from astrid-web
@@ -209,6 +227,38 @@ git checkout main
 uploads straight to App Store Connect / TestFlight with the ASC key in `.env.local` — see
 `.claude/skills/appstore-release/SKILL.md`. Ask before an `:upload`.
 
+## Reporting: the board, not the terminal
+
+Two channels, and neither of them is chat.
+
+1. **Per task — a completion comment**, as the canonical loop already requires. One build
+   carries several tasks, so the comment is the only place the detail for *this* task exists.
+2. **Per run — one message in the iOS list chat**, posted after the push:
+
+   ```bash
+   cd ../astrid-web && npx tsx scripts/post-list-message.ts \
+     aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36 "<summary>"
+   ```
+
+   What was done, what was skipped and why, and that a build is on the way. If the queue was
+   empty but `held.scheduled` is not, say when the next task comes due — a quiet run and a
+   finished one are different things.
+
+Then **one `RESULT:` line** in the terminal and nothing else. `RESULT: OK — <n> tasks`,
+`RESULT: SKIPPED — <why>`, `RESULT: FAILED — <why>`.
+
+- **Post only when something happened.** A run that worked no tasks writes no message. At two
+  ticks an hour, announcing every quiet one would bury the messages worth reading.
+- **Write for the phone.** iOS chat renders *inline* markdown only: `##` headings, `-` bullets
+  and fenced blocks come out literally. Use `**bold**` labels, `•` bullets and plain newlines.
+  Image syntax — an exclamation mark, the task title in square brackets, the task id in
+  parentheses — renders as a tappable link to that task, which is how to name a task by title
+  and still give Jon a way through to it. No `@`-mentions — a mention is the only thing that
+  fires a push notification.
+- **This holds interactively too** (Jon, 2026-09-15). The chat wrap-up is gone from every
+  `/fixall` run, watched or not: the board is where he looks, and a summary that only exists in
+  a terminal is gone as soon as the window is.
+
 ## Interactive mode (`/fixstuff`, "let's fix stuff")
 
 Same tools, same rules, same per-task loop, same end-of-run push. The only differences:
@@ -219,7 +269,8 @@ Same tools, same rules, same per-task loop, same end-of-run push. The only diffe
 2. **No working-tree lock** is needed; an interactive session is not one of several.
 3. Run `npm run predeploy` **after** implementation, not before.
 
-Everything else, including re-checking the queue after every task and pushing without
-asking when the run is done, is exactly as above.
+Everything else, including re-checking the queue after every task, pushing without asking when
+the run is done, and posting the run summary to the list chat rather than saying it here, is
+exactly as above.
 
 See [ASTRID.md](../../ASTRID.md) for architecture and the full coding workflow.

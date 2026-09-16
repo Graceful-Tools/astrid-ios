@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Scheduled /fixall — one unattended pass at :00 and :30. Install with:
+
+    cp scripts/launchd/cc.astrid.fixall.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cc.astrid.fixall.plist
+
+  Stop it with:
+
+    launchctl bootout gui/$(id -u)/cc.astrid.fixall
+
+  Paths are absolute because launchd does not expand ~. Adjust them if your checkout
+  lives elsewhere. See .claude/commands/fixall.md.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>cc.astrid.fixall</string>
+
+    <!-- node, not zsh: launchd's zsh has no TCC access to ~/Documents. See the shim. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/jonparis/Documents/mycode/astrid-ios/scripts/run-fixall-loop.mjs</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!--
+          An unattended run cannot answer a permission prompt: a prompt in `claude -p`
+          is a denial, and the run stalls on its first build. This is the same mode the
+          astrid-web weekly hygiene review has run under since 2026-09-06.
+
+          It is set HERE rather than defaulted in fixall-loop.sh on purpose, so that
+          granting it is a visible line in the file you install, and so `npm run
+          fixall:loop` by hand still prompts like an ordinary session.
+        -->
+        <key>FIXALL_PERMISSION_MODE</key>
+        <string>bypassPermissions</string>
+    </dict>
+
+    <!--
+      :00 and :30, deliberately NOT StartInterval 1800. Fixed clock minutes interleave
+      with the Copilot workflow in .github/workflows/fixall.yml, which runs at :15 and
+      :45 against the same board. Two harnesses claiming the same queue at the same
+      instant is a race the claim endpoint answers with a 409; not racing is better.
+
+      If the Mac is asleep, launchd runs it once on wake rather than replaying every
+      missed tick.
+    -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jonparis/Library/Logs/astrid-fixall.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/jonparis/Library/Logs/astrid-fixall.log</string>
+</dict>
+</plist>

@@ -26,6 +26,7 @@
     "monkey:ios": "./scripts/monkey-test.sh ios",
     "monkey:mac": "./scripts/monkey-test.sh mac",
     "monkey:weekly": "./scripts/monkey-weekly.sh",
+    "fixall:loop": "./scripts/fixall-loop.sh",
     "release:ios": "./scripts/appstore-release.sh ios",
     "release:ios:upload": "./scripts/appstore-release.sh ios --upload",
     "release:mac": "./scripts/appstore-release.sh mac",
