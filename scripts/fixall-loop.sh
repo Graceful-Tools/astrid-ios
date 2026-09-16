@@ -23,6 +23,7 @@
 # Environment:
 #   FIXALL_MODEL        model for the unattended run (default: opus)
 #   FIXALL_MAX_MINUTES  watchdog, kills a wedged run (default: 50)
+#   FIXALL_MAX_USD      hard spend cap for one run (default: 10; empty = no cap)
 #   CLAUDE_BIN          path to the claude CLI (default: ~/.local/bin/claude)
 #   FIXALL_FORCE=1      skip the dirty-tree/branch guard (testing only)
 
@@ -35,6 +36,7 @@ TSX="$WEB/node_modules/.bin/tsx"
 CLAUDE="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
 MODEL="${FIXALL_MODEL:-opus}"
 MAX_MINUTES="${FIXALL_MAX_MINUTES:-50}"
+MAX_USD="${FIXALL_MAX_USD-10}"
 IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
 
 echo "──────── fixall loop $(date '+%Y-%m-%d %H:%M:%S') ────────"
@@ -99,17 +101,48 @@ if [ "${FIXALL_FORCE:-0}" != "1" ]; then
   fi
 fi
 
+# ── Guard 3: is there actually any work? ─────────────────────────────────────
+# THE expensive question, asked the cheap way. Without this a quiet tick still
+# boots a whole session — CLAUDE.md, fixall.md, the MCP tool schemas — to call
+# get_agent_queue once and find `empty: true`. At two ticks an hour that is most
+# of a day's tokens spent learning there was nothing to do. GET
+# /api/v1/agent-queue is the same question for one HTTP request.
+#
+# Exit 1 means "could not tell" (network, auth) and must NOT be read as empty:
+# a queue we cannot see is a reason to run and let the agent report properly,
+# not a reason to skip quietly forever.
+QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" 2>&1 )
+QUEUE_STATUS=$?
+QUEUE_LINE=$(echo "$QUEUE_OUT" | grep '^QUEUE:' | tail -1)
+echo "  ${QUEUE_LINE:-QUEUE: no verdict}"
+if [ "$QUEUE_STATUS" -eq 3 ]; then
+  echo "RESULT: SKIPPED — nothing queued for claude"
+  exit 0
+fi
+
 if [ ! -x "$CLAUDE" ]; then
   echo "RESULT: FAILED — no claude CLI at $CLAUDE (set CLAUDE_BIN)"
   exit 1
 fi
 
 # ── The run ──────────────────────────────────────────────────────────────────
-# Watchdog: launchd will not start a second copy of a label while the first is
-# alive, so one wedged run silently swallows every later tick until someone
-# notices. macOS ships no `timeout`, hence the subshell.
-echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m)"
-"$CLAUDE" -p "/fixall" --model "$MODEL" --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" &
+# Two bounds, because a run goes wrong in two different ways.
+#
+# The watchdog catches one that HANGS. launchd will not start a second copy of a
+# label while the first is alive, so one wedged run silently swallows every
+# later tick until someone notices. macOS ships no `timeout`, hence the subshell.
+#
+# The budget catches one that stays BUSY — a task it cannot finish, retried
+# until the clock runs out — which the watchdog would not stop for 50 minutes.
+# --max-budget-usd only works with -p, which is the mode this always runs in.
+BUDGET_ARGS=()
+[ -n "$MAX_USD" ] && BUDGET_ARGS=(--max-budget-usd "$MAX_USD")
+
+echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})"
+"$CLAUDE" -p "/fixall" \
+  --model "$MODEL" \
+  --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" \
+  "${BUDGET_ARGS[@]}" &
 CLAUDE_PID=$!
 
 ( sleep $((MAX_MINUTES * 60)); kill -TERM "$CLAUDE_PID" 2>/dev/null ) &

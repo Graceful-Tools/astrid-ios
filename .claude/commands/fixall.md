@@ -17,6 +17,13 @@ fires an unattended pass at `:00` and `:30`, interleaved with the Copilot workfl
 Most ticks are no-ops, which is the design — see `scripts/fixall-loop.sh` for the guards and
 `~/Library/Logs/astrid-fixall.log` for what they decided.
 
+**A quiet tick must not cost a session.** The runner asks
+`GET /api/v1/agent-queue` (via `scripts/agent-queue-status.ts`) *before* starting Claude, and
+skips on `empty`. Booting a session — this file, CLAUDE.md, the MCP tool schemas — to call
+`get_agent_queue` once and learn there is no work is most of a day's tokens at two ticks an
+hour, for an answer one HTTP request already had. Inside a run the MCP tool is still the way to
+re-check after every task; the pre-check only decides whether there is a run at all.
+
 ## One session per working tree — take the lock first
 
 **Before anything else, including reading the queue:**

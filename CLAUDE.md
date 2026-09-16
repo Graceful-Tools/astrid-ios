@@ -180,8 +180,10 @@ TDD with a task-id-linked test → gates → completion report → mark complete
 **`/fixall` also runs unattended on a schedule.** The `cc.astrid.fixall` LaunchAgent
 (`scripts/launchd/cc.astrid.fixall.plist`, install instructions in its header) fires one pass
 at `:00` and `:30` — interleaved with the Copilot GitHub workflow's `:15`/`:45` — through
-`scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held or the tree
-is dirty. `npm run fixall:loop` runs one pass by hand; the log is
+`scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held, the tree is
+dirty, or the queue is empty — that last one checked with a single HTTP request before any
+session starts, so a quiet tick costs nothing. A run is bounded by both a wall-clock watchdog
+and `--max-budget-usd`. `npm run fixall:loop` runs one pass by hand; the log is
 `~/Library/Logs/astrid-fixall.log`.
 
 **Run summaries go to the iOS list's Astrid chat, not to chat here** — per-task detail stays in
