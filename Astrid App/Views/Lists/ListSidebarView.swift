@@ -482,145 +482,17 @@ struct ListSidebarView: View {
 
     // MARK: - Helper Methods
 
+    /// The sidebar badge, through the SHARED rule (AITD-414).
+    ///
+    /// This used to be ~140 lines here: a membership test that asked only `task.lists`, plus a
+    /// private third copy of the saved-filter pipeline. `CDTask` restores `listIds` and leaves
+    /// `lists` nil, so offline the membership test matched nothing and every list badged 0 —
+    /// and the filter copy had drifted from `filterTasksForList` besides. `ListTaskCount` is
+    /// the Mac's implementation, moved where both platforms compile it.
     private func getTaskCount(for list: TaskList) -> Int {
-        // For public lists, use the taskCount from the API
-        if list.privacy == .PUBLIC && list.taskCount != nil {
-            return list.taskCount ?? 0
-        }
-
-        if list.isVirtual == true {
-            // Virtual list - apply filters
-            return applyFilters(taskService.tasks, list: list).count
-        } else {
-            // Regular list - filter by membership AND incomplete only
-            return taskService.tasks.filter { task in
-                let isMember = task.lists?.contains(where: { $0.id == list.id }) ?? false
-                return isMember && !task.completed
-            }.count
-        }
+        ListTaskCount.count(taskService.tasks, list: list, currentUserId: authManager.userId)
     }
 
-    private func applyFilters(_ tasks: [Task], list: TaskList) -> [Task] {
-        var filtered = tasks
-
-        // Completion filter
-        if let completion = list.filterCompletion {
-            switch completion {
-            case "completed":
-                filtered = filtered.filter { $0.completed }
-            case "incomplete":
-                filtered = filtered.filter { !$0.completed }
-            default:
-                break
-            }
-        }
-
-        // Priority filter
-        if let priority = list.filterPriority, priority != "all" {
-            if let priorityInt = Int(priority) {
-                filtered = filtered.filter { $0.priority.rawValue == priorityInt }
-            }
-        }
-
-        // Due date filter
-        if let dueDate = list.filterDueDate, dueDate != "all" {
-            filtered = applyDueDateFilter(filtered, filter: dueDate)
-        }
-
-        // Assignee filter
-        if let assignee = list.filterAssignee, assignee != "all" {
-            switch assignee {
-            case "current_user":
-                if let currentUserId = AuthManager.shared.userId {
-                    filtered = filtered.filter { $0.assigneeId == currentUserId }
-                } else {
-                    filtered = []
-                }
-            case "not_current_user":
-                if let currentUserId = AuthManager.shared.userId {
-                    filtered = filtered.filter { $0.assigneeId != currentUserId && $0.assigneeId != nil }
-                } else {
-                    filtered = filtered.filter { $0.assigneeId != nil }
-                }
-            case "unassigned":
-                filtered = filtered.filter { $0.assigneeId == nil }
-            default:
-                filtered = filtered.filter { $0.assigneeId == assignee }
-            }
-        }
-
-        // Assigned By filter
-        if let assignedBy = list.filterAssignedBy, assignedBy != "all" {
-            switch assignedBy {
-            case "current_user":
-                if let currentUserId = AuthManager.shared.userId {
-                    filtered = filtered.filter { $0.isCreatedBy(currentUserId) }
-                } else {
-                    filtered = []
-                }
-            case "not_current_user":
-                if let currentUserId = AuthManager.shared.userId {
-                    filtered = filtered.filter { !$0.isCreatedBy(currentUserId) }
-                }
-            default:
-                filtered = filtered.filter { $0.isCreatedBy(assignedBy) }
-            }
-        }
-
-        // In Lists filter
-        if let inLists = list.filterInLists, inLists != "dont_filter" {
-            switch inLists {
-            case "not_in_list":
-                filtered = filtered.filter { task in
-                    let hasLists = (task.lists?.count ?? 0) > 0
-                    let hasListIds = (task.listIds?.count ?? 0) > 0
-                    return !hasLists && !hasListIds
-                }
-            case "in_list":
-                filtered = filtered.filter { task in
-                    let hasLists = (task.lists?.count ?? 0) > 0
-                    let hasListIds = (task.listIds?.count ?? 0) > 0
-                    return hasLists || hasListIds
-                }
-            case "public_lists":
-                filtered = filtered.filter { task in
-                    task.lists?.contains(where: { $0.privacy == .PUBLIC }) ?? false
-                }
-            default:
-                break
-            }
-        }
-
-        return filtered
-    }
-
-    private func applyDueDateFilter(_ tasks: [Task], filter: String) -> [Task] {
-        let now = Date()
-        let calendar = Calendar.current
-
-        return tasks.filter { task in
-            guard let dueDate = task.dueDateTime else {
-                return filter == "no_date"
-            }
-
-            switch filter {
-            case "overdue":
-                return dueDate < now && !task.completed
-            case "today":
-                return calendar.isDateInToday(dueDate)
-            case "this_week":
-                let weekFromNow = calendar.date(byAdding: .day, value: 7, to: now)!
-                return dueDate >= now && dueDate <= weekFromNow
-            case "this_month":
-                let monthFromNow = calendar.date(byAdding: .day, value: 30, to: now)!
-                return dueDate >= now && dueDate <= monthFromNow
-            case "no_date":
-                return false
-            default:
-                return true
-            }
-        }
-    }
 
     private func loadData() async {
         do {
