@@ -30,6 +30,44 @@ final class AssigneeOptionsTests: XCTestCase {
         return l
     }
 
+    // MARK: - AITD-413 — "Cannot assign tasks when offline"
+
+    /// A list rehydrated from CoreData on an offline cold launch RESOLVES, but knows nobody:
+    /// `CDTaskList` did not persist `owner` or `listMembers`, and `discoveredUsers` is empty
+    /// because the user search throws with no network. The existing fallback only fired when
+    /// the task's lists were missing entirely, so this case fell between the two and the picker
+    /// came up with `Unassigned` and nothing else — you could not assign a task to YOURSELF.
+    ///
+    /// The invariant: you are always an option, because a task you can open is a task you can
+    /// take.
+    func testAITD413ListThatResolvesButKnowsNobodyStillOffersYou() {
+        let me = user("me", "Jon")
+        let cachedOffline = TaskList(id: "list-1", name: "Groceries")  // no owner, no members
+
+        let options = AssigneeOptions.build(availableLists: [cachedOffline],
+                                            taskListIds: ["list-1"],
+                                            aiAgents: [],
+                                            currentUser: me)
+
+        XCTAssertTrue(options.contains { $0.id == me.id },
+                      "offline the picker offered nobody at all — you could not even assign to yourself")
+    }
+
+    /// The fallback must not fire when the list DOES carry people. Adding yourself to a list you
+    /// are not a member of would offer an assignment the server will refuse.
+    func testAITD413YouAreNotAddedToAListThatAlreadyHasARoster() {
+        let me = user("me", "Jon")
+        let dana = user("dana", "Dana")
+
+        let options = AssigneeOptions.build(availableLists: [list("list-1", owner: dana, members: [])],
+                                            taskListIds: ["list-1"],
+                                            aiAgents: [],
+                                            currentUser: me)
+
+        XCTAssertEqual(options.map(\.id), ["dana"],
+                       "a hydrated roster is the answer; the fallback is only for an empty one")
+    }
+
     // MARK: - THE BUG
 
     /// Agents belong in the list even when the task's lists resolve to nothing — which is the

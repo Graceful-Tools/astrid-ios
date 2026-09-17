@@ -46,6 +46,9 @@ public class CDTaskList: NSManagedObject {
     @NSManaged public var showSubtasks: NSNumber?
     /// JSON-serialised `RecentlyCompletedWindow`. Nil = legacy 24h default.
     @NSManaged public var recentlyCompletedWindowJSON: String?
+    /// JSON-serialised `ListRosterCache.Roster` — the list's owner and members (AITD-413).
+    /// Nil = this list has never been cached with anybody in it.
+    @NSManaged public var listRosterJSON: String?
 
     // MARK: - Conversion to Domain Model
 
@@ -57,6 +60,10 @@ public class CDTaskList: NSManagedObject {
             imageUrl: imageUrl,
             privacy: TaskList.Privacy(rawValue: privacy) ?? .PRIVATE,
             ownerId: ownerId,
+            // Restored so an OFFLINE COLD LAUNCH still knows who is on this list: the assignee
+            // picker's roster is built from exactly these two fields (AITD-413).
+            owner: roster.owner,
+            listMembers: roster.members,
             defaultAssigneeId: defaultAssigneeId,
             defaultPriority: Int(defaultPriority),
             defaultRepeating: defaultRepeating,
@@ -83,6 +90,10 @@ public class CDTaskList: NSManagedObject {
             statusCompleted: statusCompleted?.boolValue,
             recentlyCompletedWindow: decodeRecentlyCompletedWindow()
         )
+    }
+
+    private var roster: ListRosterCache.Roster {
+        ListRosterCache.decode(listRosterJSON)
     }
 
     private func decodeRecentlyCompletedWindow() -> RecentlyCompletedWindow? {
@@ -121,6 +132,12 @@ public class CDTaskList: NSManagedObject {
         self.statusDescription = list.statusDescription
         self.statusCompleted = list.statusCompleted.map(NSNumber.init(value:))
         self.showSubtasks = list.showSubtasks.map(NSNumber.init(value:))
+        // LAST KNOWN ROSTER WINS. A list can reach the cache unhydrated — an optimistic local
+        // create, a minimal API response — and letting that blank the roster would restore the
+        // empty offline picker on the next launch (AITD-413). nil means leave what you had.
+        if let rosterJSON = ListRosterCache.encode(owner: list.owner, members: list.listMembers) {
+            self.listRosterJSON = rosterJSON
+        }
         if let window = list.recentlyCompletedWindow,
            let data = try? JSONEncoder().encode(window),
            let json = String(data: data, encoding: .utf8) {

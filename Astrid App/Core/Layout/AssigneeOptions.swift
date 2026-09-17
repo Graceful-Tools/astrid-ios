@@ -73,11 +73,20 @@ enum AssigneeOptions {
             roster.append(contentsOf: (list.listMembers ?? []).compactMap(\.user))
         }
 
+        let peopleFromLists = !roster.isEmpty
+
         roster.append(contentsOf: discoveredUsers)
 
-        // A task with no resolvable lists — "My Tasks", or a board card whose lists this screen
-        // has not loaded — still has to offer you, or the picker comes up empty.
-        if taskLists.isEmpty, let currentUser { roster.append(currentUser) }
+        // YOU ARE ALWAYS AN OPTION when nobody else could be found — a task you can open is a
+        // task you can take, and a picker with no people in it is not a picker.
+        //
+        // Two ways to get here. A task with no resolvable lists — "My Tasks", or a board card
+        // whose lists this screen has not loaded. And, since AITD-413, a list that resolves but
+        // knows NOBODY: offline after a relaunch, the cached list carries whatever roster
+        // `ListRosterCache` kept, which for a list last cached before that existed is nothing,
+        // and the user search that would have filled the gap needs the network. Testing only
+        // `taskLists.isEmpty` left that second case with an empty picker.
+        if !peopleFromLists, let currentUser { roster.append(currentUser) }
 
         return build(roster: roster, aiAgents: aiAgents, currentUser: currentUser)
     }

@@ -75,6 +75,10 @@
         <attribute name="statusDescription" optional="YES" attributeType="String"/>
         <attribute name="statusCompleted" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO"/>
         <attribute name="recentlyCompletedWindowJSON" optional="YES" attributeType="String"/>
+        <!-- Who this list knows: owner + listMembers as JSON (AITD-413). Without it a
+             list rehydrated offline knew nobody and the assignee picker came up empty.
+             Optional, so lightweight migration covers it. See ListRosterCache. -->
+        <attribute name="listRosterJSON" optional="YES" attributeType="String"/>
         <!-- Per-list inline subtasks (ba1deb9d). Optional Boolean, NOT scalar: absent
              must stay distinct from false, because absent means SHOW. -->
         <attribute name="showSubtasks" optional="YES" attributeType="Boolean" usesScalarValueType="NO"/>
