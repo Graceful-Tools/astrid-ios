@@ -167,6 +167,13 @@ extension CDTaskList {
         return try context.fetch(request).first
     }
     
+    /// Every cached list as a domain model — the right-hand side of `TaskListHydration`'s join
+    /// (AITD-415). Answers `[]` rather than throwing: a task rejoined against no lists keeps the
+    /// lists it already had, which is the correct degradation.
+    static func cachedDomainModels(in context: NSManagedObjectContext) -> [TaskList] {
+        ((try? fetchAll(context: context)) ?? []).map { $0.toDomainModel() }
+    }
+
     static func fetchFavorites(context: NSManagedObjectContext) throws -> [CDTaskList] {
         let request = fetchRequest()
         request.predicate = NSPredicate(format: "isFavorite == YES")

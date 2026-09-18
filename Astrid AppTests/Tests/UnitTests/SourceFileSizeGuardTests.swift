@@ -53,7 +53,19 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // alternative was a SECOND temp→real list map owned by ListService, duplicating the one
         // `onListSynced` already maintains here — more lines overall, in two places that could
         // disagree. Nothing else in this file grew.
-        "Astrid App/Core/Services/TaskService.swift": 1683,
+        //
+        // Then 1683 → 1691 for AITD-415, which rejoins cached tasks with their lists on the way
+        // out of CoreData. The ratchet asked and the answer was a partial extraction: the three
+        // cache-load paths each repeated the same filter-map pair, so they now share
+        // `tasksFromCache`, and the lists lookup moved to `CDTaskList.cachedDomainModels`. That
+        // is why +8 and not +20. A FULL extraction — moving the whole cache-load block to a
+        // `TaskService+CacheLoad.swift` extension, the way AITD-388 moved the list-member
+        // endpoints out of AstridAPIClient — was measured and rejected: the block needs four
+        // `private` members (`cachedTasks`, `coreDataManager`, `recentlyDeletedIds`,
+        // `updatePendingOperationsCount`), and Swift would make every one of them internal to
+        // the whole app target. Widening the invariant-bearing task cache to buy back 8 lines is
+        // the wrong trade. Worth revisiting if this file needs extracting for its own sake.
+        "Astrid App/Core/Services/TaskService.swift": 1691,
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them, and this was set to 1660 to lock that

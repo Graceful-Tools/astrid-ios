@@ -329,12 +329,11 @@ class TaskService: ObservableObject {
             fetchRequest.fetchLimit = Self.initialActivePageSize
             let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
 
-            // Convert to domain models, excluding tasks pending deletion.
-            // Also exclude tasks tracked in recentlyDeletedIds (persisted in UserDefaults)
-            // in case CoreData status was lost from a previous bug.
-            self.tasks = cdTasks
-                .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
-                .map { $0.toDomainModel() }
+            // Convert to domain models, excluding tasks pending deletion — also those tracked
+            // in recentlyDeletedIds (UserDefaults), in case CoreData status was lost to an
+            // earlier bug — and rejoin each with its lists.
+            self.tasks = Self.tasksFromCache(cdTasks, deletedIds: deletedIds,
+                                             context: coreDataManager.viewContext)
             for task in self.tasks {
                 cachedTasks[task.id] = task
             }
@@ -354,6 +353,19 @@ class TaskService: ObservableObject {
             AppLog.debug("❌ [TaskService] Failed to load cached tasks: \(Self.safeErrorSummary(error))")
             self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
         }
+    }
+
+    /// CDTask rows → tasks, for all three cache-load paths: drop what is pending deletion, map,
+    /// and rejoin each task with its lists (AITD-415 — see `TaskListHydration`). The lists come
+    /// from the CALLER'S context, never `ListService.shared`, so hydration cannot depend on which
+    /// singleton loaded first. `nonisolated`: the background path runs it in `context.perform`.
+    nonisolated static func tasksFromCache(_ rows: [CDTask],
+                                           deletedIds: Set<String>,
+                                           context: NSManagedObjectContext) -> [Task] {
+        TaskListHydration.hydrated(
+            rows.filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
+                .map { $0.toDomainModel() },
+            using: CDTaskList.cachedDomainModels(in: context))
     }
 
     /// Number of active tasks mapped synchronously at launch. Enough to fill the
@@ -376,9 +388,7 @@ class TaskService: ObservableObject {
             request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
             request.fetchOffset = pageSize
             guard let cdTasks = try? context.fetch(request) else { return [] }
-            return cdTasks
-                .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
-                .map { $0.toDomainModel() }
+            return TaskService.tasksFromCache(cdTasks, deletedIds: deletedIds, context: context)
         }
 
         let fresh = Self.freshActiveTasksToAppend(
@@ -411,9 +421,8 @@ class TaskService: ObservableObject {
             fetchRequest.predicate = NSPredicate(format: "completed == YES")
             let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
             let deletedIds = recentlyDeletedIds
-            let completed = cdTasks
-                .filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
-                .map { $0.toDomainModel() }
+            let completed = Self.tasksFromCache(cdTasks, deletedIds: deletedIds,
+                                                context: coreDataManager.viewContext)
                 .filter { cachedTasks[$0.id] == nil }
             guard !completed.isEmpty else { return }
             for task in completed { cachedTasks[task.id] = task }
@@ -515,11 +524,10 @@ class TaskService: ObservableObject {
             isAllDay = false
         }
 
-        // Resolve full TaskList objects from ListService cache so the row
-        // can render list badges immediately (works offline too)
-        let resolvedLists: [TaskList]? = listIds.isEmpty ? nil : listIds.compactMap { listId in
-            ListService.shared.lists.first { $0.id == listId }
-        }
+        // List badges on the new row immediately, offline included — through the SHARED join
+        // (AITD-415), which this was one of four hand-rolled copies of.
+        let resolvedLists = TaskListHydration.lists(
+            forListIds: listIds, using: TaskListHydration.index(ListService.shared.lists))
 
         let optimisticTask = Task(
             id: tempId,
