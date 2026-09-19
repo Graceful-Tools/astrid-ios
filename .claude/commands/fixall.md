@@ -234,37 +234,28 @@ git checkout main
 uploads straight to App Store Connect / TestFlight with the ASC key in `.env.local` — see
 `.claude/skills/appstore-release/SKILL.md`. Ask before an `:upload`.
 
-## Reporting: the board, not the terminal
+## Reporting
 
-Two channels, and neither of them is chat.
+**The rules are in the shared doc** — [`../astrid-web/docs/FIXALL_WORKFLOW.md`](../../../astrid-web/docs/FIXALL_WORKFLOW.md)
+→ *The engagement contract*: read the attention inbox with the queue, answer on the task and
+never in the terminal, run summaries to the board's list chat with no `@`-mentions, anything
+needing a decision escalated as assign-to-Jon plus a question on the task, and one `RESULT:`
+line in the terminal. This section used to restate all of that in full, which is how these two
+files drifted by 440 lines the first time (AWTD-965).
 
-1. **Per task — a completion comment**, as the canonical loop already requires. One build
-   carries several tasks, so the comment is the only place the detail for *this* task exists.
-2. **Per run — one message in the iOS list chat**, posted after the push:
+Only what is different here:
 
-   ```bash
-   cd ../astrid-web && npx tsx scripts/post-list-message.ts \
-     aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36 "<summary>"
-   ```
+- **The board id** for the run summary is the iOS one:
 
-   What was done, what was skipped and why, and that a build is on the way. If the queue was
-   empty but `held.scheduled` is not, say when the next task comes due — a quiet run and a
-   finished one are different things.
+  ```bash
+  cd ../astrid-web && npx tsx scripts/post-list-message.ts \
+    aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36 "<summary>"
+  ```
 
-Then **one `RESULT:` line** in the terminal and nothing else. `RESULT: OK — <n> tasks`,
-`RESULT: SKIPPED — <why>`, `RESULT: FAILED — <why>`.
-
-- **Post only when something happened.** A run that worked no tasks writes no message. At two
-  ticks an hour, announcing every quiet one would bury the messages worth reading.
-- **Write for the phone.** iOS chat renders *inline* markdown only: `##` headings, `-` bullets
-  and fenced blocks come out literally. Use `**bold**` labels, `•` bullets and plain newlines.
-  Image syntax — an exclamation mark, the task title in square brackets, the task id in
-  parentheses — renders as a tappable link to that task, which is how to name a task by title
-  and still give Jon a way through to it. No `@`-mentions — a mention is the only thing that
-  fires a push notification.
-- **This holds interactively too** (Jon, 2026-09-15). The chat wrap-up is gone from every
-  `/fixall` run, watched or not: the board is where he looks, and a summary that only exists in
-  a terminal is gone as soon as the window is.
+- **Say that a build is on the way**, since the push started one and one build carries several
+  tasks. That is the trade for not burning the Xcode Cloud allotment: the build no longer maps
+  to a single change, so the per-task completion comments are the only place the detail for
+  *this* task exists.
 
 ## Interactive mode (`/fixstuff`, "let's fix stuff")
 
