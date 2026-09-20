@@ -52,9 +52,7 @@ final class MonkeyUITests: XCTestCase {
 
         for step in 1...actionCount {
             let action = MonkeyAction.random(using: &rng)
-            let started = Date()
-            perform(action, on: app, using: &rng)
-            let elapsed = Date().timeIntervalSince(started)
+            let elapsed = perform(action, on: app, using: &rng)
 
             journal.append(String(format: "%3d. %@ (%.2fs)", step, action.description, elapsed))
             if elapsed > slowest.seconds { slowest = (action.description, elapsed) }
@@ -112,7 +110,17 @@ final class MonkeyUITests: XCTestCase {
     // MARK: - Actions
 
     @MainActor
-    private func perform(_ action: MonkeyAction, on app: XCUIApplication, using rng: inout SeededGenerator) {
+    /// Performs the action and returns how long the APP took to absorb it.
+    ///
+    /// The clock starts once the harness has chosen what to do: `tapRandomButton` first
+    /// snapshots the accessibility tree (`allElementsBoundByIndex`, then `exists` and `frame`
+    /// per button), which on a CI simulator showing the due-date sheet — five quick options
+    /// plus a 31-day calendar — costs ten seconds by itself. Timing that as if it were the tap
+    /// reported a beachball the app never had: every run since 2026-09-15 failed at
+    /// "tapRandomButton took 13.6s" with the tap itself sub-second. The hang threshold is
+    /// about the app; the query cost is ours.
+    private func perform(_ action: MonkeyAction, on app: XCUIApplication, using rng: inout SeededGenerator) -> TimeInterval {
+        var started = Date()
         switch action {
         case .tap(let x, let y):
             app.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).tap()
@@ -133,6 +141,7 @@ final class MonkeyUITests: XCTestCase {
                 return !frame.isEmpty && !frame.isNull && !frame.isInfinite && frame.intersects(appFrame)
             }
             if let target = buttons.randomElement(using: &rng) {
+                started = Date()
                 UITestLaunch.tapCenter(target)
             }
 
@@ -150,6 +159,7 @@ final class MonkeyUITests: XCTestCase {
                 app.typeText("\n")
             }
         }
+        return Date().timeIntervalSince(started)
     }
 
     @MainActor
