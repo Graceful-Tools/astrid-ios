@@ -34,7 +34,7 @@ fails on click (see `MacSignInOptions`).
 
 - **Sign in with Apple** (required for App Store)
 - **Google Sign In** (OAuth 2.0 with PKCE)
-- **Email/password** authentication
+- **Passkeys** (WebAuthn; email/password sign-in was removed in 2026-04)
 - Task management (create, edit, complete, delete)
 - List management with colors and privacy
 - Real-time sync via Server-Sent Events
@@ -42,6 +42,7 @@ fails on click (see `MacSignInOptions`).
 - iPad optimized layouts
 - **Share Extension** - Create tasks from Photos, Files, Safari
 - **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents
+- **AI Agents & Connections** - the Agent Hub (who runs each agent: Astrid, your own harness, a webhook server, Custom Agents) and Connections (everything that can act as your account, revocable), on iOS and the Mac; see `docs/API_ENDPOINTS.md`
 
 ## Quick Start
 
