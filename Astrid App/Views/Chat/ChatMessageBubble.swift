@@ -102,12 +102,12 @@ struct ChatMessageBubble: View {
                         )
                     }
 
-                    // Content — with colored @mentions, #lists, !tasks
+                    // Content — block markdown (headings, lists, fences) with colored
+                    // @mentions, #lists, !tasks (AITD-416)
                     if hasTextContent {
-                        Text(message.content.attributedWithReferences(
-                            defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
-                        ))
-                        .font(Theme.Typography.body())
+                        MarkdownText(source: message.content,
+                                     defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                                     fillsWidth: false)
                     }
                 }
                 .padding(Theme.spacing12)

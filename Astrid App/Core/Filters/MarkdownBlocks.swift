@@ -19,6 +19,9 @@ enum MarkdownBlock: Equatable {
     case orderedItem(number: Int, text: String)
     /// `-` or `*`.
     case bulletItem(text: String)
+    /// A ``` fence. The text is VERBATIM — newlines and indentation kept, no inline marks —
+    /// because that is the whole promise of a fence (AITD-416).
+    case codeBlock(text: String)
     /// Everything else. Consecutive plain lines join, as markdown means them.
     case paragraph(text: String)
 }
@@ -37,9 +40,29 @@ enum MarkdownBlocks {
             paragraph.removeAll()
         }
 
+        // Inside a fence nothing else is syntax, so the fence state has to be checked before
+        // every other rule — a `# comment` in a shell snippet is a comment, not a heading.
+        var fence: [String]?
+
         for rawLine in source.components(separatedBy: .newlines) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
 
+            if var open = fence {
+                if isFence(line) {
+                    blocks.append(.codeBlock(text: open.joined(separator: "\n")))
+                    fence = nil
+                } else {
+                    // Verbatim: the RAW line, because indentation is meaning in code.
+                    open.append(rawLine)
+                    fence = open
+                }
+                continue
+            }
+            if isFence(line) {
+                flushParagraph()
+                fence = []
+                continue
+            }
             if line.isEmpty {
                 flushParagraph()
                 continue
@@ -61,8 +84,18 @@ enum MarkdownBlocks {
             }
             paragraph.append(line)
         }
+        // An agent comment can be cut off mid-fence. Closing it here renders the snippet as
+        // code; dropping it would lose the text entirely.
+        if let open = fence {
+            blocks.append(.codeBlock(text: open.joined(separator: "\n")))
+        }
         flushParagraph()
         return blocks
+    }
+
+    /// ``` — with or without a language tag, which belongs to the fence and not to the code.
+    private static func isFence(_ line: String) -> Bool {
+        line.hasPrefix("```")
     }
 
     /// `# ` … `###### `. The SPACE is required: `#header` is not a heading in markdown, and

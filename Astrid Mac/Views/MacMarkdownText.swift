@@ -36,6 +36,8 @@ struct MacMarkdownText: View {
                     marked("\(number).", text)
                 case .bulletItem(let text):
                     marked("•", text)
+                case .codeBlock(let text):
+                    code(text)
                 case .paragraph(let text):
                     inline(text)
                         .font(MacTypography.detailBody)
@@ -69,6 +71,18 @@ struct MacMarkdownText: View {
             // would be another way of demanding the whole thread's width.
             if fillsWidth { Spacer(minLength: 0) }
         }
+    }
+
+    /// A fence renders VERBATIM in a monospaced face — no inline pass, because the promise of a
+    /// fence is that what is inside it is not markdown (AITD-416).
+    private func code(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, design: .monospaced))
+            .foregroundStyle(Theme.textPrimary)
+            .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
+            .padding(6)
+            .background(Theme.bgTertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
     /// Inline marks only. Falls back to the raw text when the fragment will not parse —

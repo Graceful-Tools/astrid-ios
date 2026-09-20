@@ -1403,13 +1403,13 @@ struct CommentRowViewEnhanced: View {
                             )
                         }
 
-                        // Content
-                        // Content — with colored @mentions, #lists, !tasks
+                        // Content — block markdown (headings, lists, fences) with colored
+                        // @mentions, #lists, !tasks (AITD-416). A completion report is read
+                        // here, so this is the view that needs blocks most.
                         if hasTextContent {
-                            Text(comment.content.attributedWithReferences(
-                                defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
-                            ))
-                            .font(Theme.Typography.body())
+                            MarkdownText(source: comment.content,
+                                         defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                                         fillsWidth: false)
                         }
 
                         // Pending indicator removed - comments sync automatically in background
