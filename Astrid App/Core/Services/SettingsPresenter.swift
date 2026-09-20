@@ -16,7 +16,9 @@ class SettingsPresenter: ObservableObject {
         case profile
         case reminders
         case agents
+        /// Retired name kept for old deep links; opens Connections.
         case apiAccess = "api-access"
+        case connections
         case chatgpt
         case contacts
         case appearance
@@ -78,10 +80,13 @@ struct SettingsRootView: View {
             AccountSettingsView()
         case .reminders:
             ReminderSettingsView()
+        // The Agent Hub replaced AIAssistantSettingsView (AITD-297); the deep links kept pointing
+        // at the old screen, and api-access at the provider-key manager, which is not what the
+        // web page of that name ever was.
         case .agents, .chatgpt:
-            AIAssistantSettingsView()
-        case .apiAccess:
-            AIAPIKeyManagerView()
+            AgentHubView()
+        case .apiAccess, .connections:
+            ConnectionsScreen()
         case .appearance:
             AppearanceSettingsView()
         case .language:

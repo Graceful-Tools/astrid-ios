@@ -57,6 +57,13 @@ struct SettingsView: View {
                         )
                     }
 
+                    NavigationLink(destination: LazyView { ConnectionsScreen() }) {
+                        Label(
+                            NSLocalizedString("settings.connections.title", comment: ""),
+                            systemImage: "link"
+                        )
+                    }
+
                     NavigationLink(destination: LazyView { AppleRemindersSettingsView() }) {
                         HStack {
                             Image(systemName: "checklist")

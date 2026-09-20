@@ -1044,6 +1044,27 @@ class AstridAPIClient {
         try await request(method: "POST", path: "/api/mcp/user-tokens", body: MCPUserTokenRequest.copilotCloudAgent)
     }
 
+    // MARK: - Connections (everything that can act as the account)
+
+    func getConnections() async throws -> ConnectionsResponse {
+        try await request(method: "GET", path: "/api/v1/users/me/connections")
+    }
+
+    /// Revoke one connection. The path pairs the row's own kind and id; session-only server-side.
+    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
+        try await request(method: "DELETE", path: connection.revokePath)
+    }
+
+    /// Mint client credentials for a transport from its preset — the server picks the scopes.
+    func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient {
+        let response: MintedOAuthClientResponse = try await request(
+            method: "POST",
+            path: "/api/v1/oauth/clients",
+            body: OAuthClientPresetRequest(preset: preset, agent: agent)
+        )
+        return response.client
+    }
+
     // MARK: - Chat Channels
 
     /// Get or create a chat channel for a list

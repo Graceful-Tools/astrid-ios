@@ -21,14 +21,6 @@ final class KeychainService: @unchecked Sendable {
     }
 
 
-    func getMCPToken() -> String? {
-        return try? get(key: Constants.Keychain.mcpTokenKey)
-    }
-
-    func deleteMCPToken() {
-        try? delete(key: Constants.Keychain.mcpTokenKey)
-    }
-
     // MARK: - OAuth Token Management
 
     func saveOAuthClientSecret(_ secret: String) {

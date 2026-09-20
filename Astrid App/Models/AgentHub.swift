@@ -141,9 +141,11 @@ enum AgentHubLinks {
         URL(string: "\(clean(origin))/settings/agents")
     }
 
-    /// Where a webhook server gets its own credentials.
-    static func webAPIAccess(origin: String) -> URL? {
-        URL(string: "\(clean(origin))/settings/api-access")
+    /// The web Connections page — the audit list of everything that can act as the account, with
+    /// the developer console (hand-made OAuth apps, the API tester) folded underneath it. Native
+    /// has the list itself (ConnectionsScreen); this is where the console lives.
+    static func webConnections(origin: String) -> URL? {
+        URL(string: "\(clean(origin))/settings/connections")
     }
 
     static let sdkPackage = URL(string: "https://www.npmjs.com/package/@gracefultools/astrid-sdk")!

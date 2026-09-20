@@ -96,6 +96,20 @@ final class RemoteResourceService {
         try await apiClient.createCopilotCloudAgentToken()
     }
 
+    // MARK: - Connections
+
+    func getConnections() async throws -> ConnectionsResponse {
+        try await apiClient.getConnections()
+    }
+
+    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
+        try await apiClient.revokeConnection(connection)
+    }
+
+    func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient {
+        try await apiClient.createOAuthClient(preset: preset, agent: agent)
+    }
+
     // MARK: - Webhook transport
 
     func getWebhookSettings() async throws -> WebhookSettings {
