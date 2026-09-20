@@ -26,7 +26,7 @@ final class ConnectionsModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     @Published var requiresWebSession = false
-    @Published var revokingID: String?
+    @Published var revokingIDs: Set<String> = []
 
     private let service: ConnectionsServicing
 
@@ -54,18 +54,29 @@ final class ConnectionsModel: ObservableObject {
     }
 
     /// Optimistic: the row disappears at once and comes back, in place, if the server refuses.
+    ///
+    /// Only *this* row comes back. Revokes can overlap — every other row's button stays live
+    /// while one is in flight — and a refresh can land mid-request, so restoring a snapshot of
+    /// the whole list would resurrect a row another revoke had just removed for good.
     func revoke(_ connection: Connection) async {
         guard connection.revocable else { return }
-        let previous = connections
-        revokingID = connection.id
+        let isSameRow: (Connection) -> Bool = { $0.id == connection.id && $0.kind == connection.kind }
+        let predecessors = connections.prefix { !isSameRow($0) }
+        revokingIDs.insert(connection.id)
         errorMessage = nil
         requiresWebSession = false
-        connections.removeAll { $0.id == connection.id && $0.kind == connection.kind }
-        defer { revokingID = nil }
+        connections.removeAll(where: isSameRow)
+        defer { revokingIDs.remove(connection.id) }
         do {
             _ = try await service.revokeConnection(connection)
         } catch {
-            connections = previous
+            if !connections.contains(where: isSameRow) {
+                // Right after the nearest row that preceded it and is still here; the front if none is.
+                let after = connections.lastIndex { row in
+                    predecessors.contains { $0.id == row.id && $0.kind == row.kind }
+                }
+                connections.insert(connection, at: after.map { $0 + 1 } ?? 0)
+            }
             requiresWebSession = AgentHubErrors.requiresWebSession(error)
             errorMessage = AgentHubErrors.message(error)
         }

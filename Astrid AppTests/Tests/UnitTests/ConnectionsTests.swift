@@ -59,8 +59,8 @@ final class ConnectionsTests: XCTestCase {
 
     func testTheRevokePathPairsTheRowsOwnKindAndId() throws {
         let rows = try decodeFixture()
-        XCTAssertEqual(rows[1].revokePath, "/api/v1/users/me/connections/authorizedApp/dcr-1")
-        XCTAssertEqual(rows[4].revokePath, "/api/v1/users/me/connections/webhook/webhook")
+        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[1]), "/api/v1/users/me/connections/authorizedApp/dcr-1")
+        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[4]), "/api/v1/users/me/connections/webhook/webhook")
     }
 
     func testSectionsFollowDisplayOrderAndSkipEmptyKinds() async throws {
@@ -83,7 +83,7 @@ final class ConnectionsTests: XCTestCase {
 
         await model.revoke(claude)
 
-        XCTAssertEqual(service.revoked.map(\.revokePath), ["/api/v1/users/me/connections/authorizedApp/dcr-1"])
+        XCTAssertEqual(service.revoked.map(\.id), ["dcr-1"])
         let remaining = await model.connections.map(\.id)
         XCTAssertFalse(remaining.contains("dcr-1"))
         XCTAssertEqual(remaining.count, 5)
@@ -104,6 +104,37 @@ final class ConnectionsTests: XCTestCase {
         XCTAssertEqual(remaining.count, 6)
         let message = await model.errorMessage
         XCTAssertNotNil(message)
+    }
+
+    /// Two revokes overlap; the second succeeds and the first is refused. Rolling back a
+    /// whole-list snapshot would bring the revoked second row back as "Active".
+    func testARefusedRevokePutsBackOnlyItsOwnRow() async throws {
+        let service = FakeConnectionsService()
+        service.rows = try decodeFixture()
+        service.holdRevokes = true
+        service.revokeErrors["dcr-1"] = URLError(.badServerResponse)
+        let model = await ConnectionsModel(service: service)
+        await model.load()
+        let claude = try XCTUnwrap(service.rows.first { $0.id == "dcr-1" })
+        let script = try XCTUnwrap(service.rows.first { $0.id == "c1" })
+
+        let first = _Concurrency.Task { await model.revoke(claude) }
+        let second = _Concurrency.Task { await model.revoke(script) }
+        while await MainActor.run(body: { service.heldIDs.count }) < 2 { await _Concurrency.Task.yield() }
+        let inFlight = await model.revokingIDs
+        XCTAssertEqual(inFlight, ["dcr-1", "c1"], "both rows show as revoking while both are in flight")
+
+        await MainActor.run { service.release("c1") }
+        await second.value
+        await MainActor.run { service.release("dcr-1") }
+        await first.value
+
+        let remaining = await model.connections.map(\.id)
+        XCTAssertTrue(remaining.contains("dcr-1"), "the refused revoke puts its own row back")
+        XCTAssertFalse(remaining.contains("c1"), "the revoke that succeeded stays revoked")
+        XCTAssertEqual(remaining, ["dcr-1", "agent-1", "tok-1", "webhook", "future-1"], "and it comes back in place")
+        let stillRevoking = await model.revokingIDs
+        XCTAssertTrue(stillRevoking.isEmpty)
     }
 
     func testAnUnrevocableRowNeverReachesTheServer() async throws {
@@ -171,14 +202,24 @@ private final class FakeConnectionsService: ConnectionsServicing {
     var rows: [Connection] = []
     var revoked: [Connection] = []
     var revokeError: Error?
+    var revokeErrors: [String: Error] = [:]
     var mints: [OAuthClientPresetRequest] = []
+
+    /// When set, each revoke parks until `release(_:)` names it, so a test can overlap two.
+    var holdRevokes = false
+    private var held: [String: CheckedContinuation<Void, Never>] = [:]
+    var heldIDs: [String] { Array(held.keys) }
+    func release(_ id: String) { held.removeValue(forKey: id)?.resume() }
 
     func getConnections() async throws -> ConnectionsResponse {
         ConnectionsResponse(connections: rows)
     }
 
     func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
-        if let revokeError { throw revokeError }
+        if holdRevokes {
+            await withCheckedContinuation { held[connection.id] = $0 }
+        }
+        if let error = revokeErrors[connection.id] ?? revokeError { throw error }
         revoked.append(connection)
         return ConnectionRevokeResponse(success: true, kind: connection.kind, id: connection.id, revokedTokens: 1)
     }

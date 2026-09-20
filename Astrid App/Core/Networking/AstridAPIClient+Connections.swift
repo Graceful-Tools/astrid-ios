@@ -15,9 +15,16 @@ extension AstridAPIClient {
         try await request(method: "GET", path: "/api/v1/users/me/connections")
     }
 
+    /// Both halves of the revoke path from the row itself, so a caller cannot pair the wrong two.
+    /// Lives here, not on the DTO: APIEndpointInventoryTests only scans the client files, and a
+    /// path built elsewhere is a path docs/API_ENDPOINTS.md never hears about.
+    static func revokeConnectionPath(_ connection: Connection) -> String {
+        "/api/v1/users/me/connections/\(connection.kind.rawValue)/\(connection.id)"
+    }
+
     /// Revoke one connection. The path pairs the row's own kind and id; session-only server-side.
     func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
-        try await request(method: "DELETE", path: connection.revokePath)
+        try await request(method: "DELETE", path: Self.revokeConnectionPath(connection))
     }
 
     /// Mint client credentials for a transport from its preset — the server picks the scopes.

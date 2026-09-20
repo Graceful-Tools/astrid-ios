@@ -52,7 +52,7 @@ struct ConnectionsScreen: View {
                 ForEach(model.sections, id: \.kind) { section in
                     Section(section.kind.localizedLabel) {
                         ForEach(section.rows) { row in
-                            ConnectionRow(connection: row, isRevoking: model.revokingID == row.id) {
+                            ConnectionRow(connection: row, isRevoking: model.revokingIDs.contains(row.id)) {
                                 pendingRevoke = row
                             }
                         }

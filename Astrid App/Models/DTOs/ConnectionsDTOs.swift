@@ -105,9 +105,6 @@ struct Connection: Codable, Equatable, Identifiable {
         self.detail = detail
     }
 
-    /// Both halves of the revoke path, so a caller cannot pair the wrong two.
-    var revokePath: String { "/api/v1/users/me/connections/\(kind.rawValue)/\(id)" }
-
     var managedOnAgentsPage: Bool { manageIn == "agents" }
 }
 
