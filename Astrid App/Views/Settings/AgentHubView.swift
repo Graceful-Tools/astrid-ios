@@ -64,6 +64,7 @@ struct AgentHubView: View {
                     customAgentsSection
                 }
 
+                connectionsSection
                 assistantModelSection
                 githubSection
             }
@@ -225,6 +226,27 @@ struct AgentHubView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(NSLocalizedString("settings.agents.custom.title", comment: ""))
                         Text(NSLocalizedString("settings.agents.custom.subtitle", comment: ""))
+                            .font(Theme.Typography.caption2())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Everything that can act as the account — the credentials the rows above mint, the apps
+    /// approved on the consent page, and a Revoke for each. Native twin of the web's Connections.
+    private var connectionsSection: some View {
+        Section {
+            NavigationLink(destination: ConnectionsScreen()) {
+                HStack(spacing: Theme.spacing12) {
+                    Image(systemName: "link")
+                        .font(.title3)
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 30, height: 30)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(NSLocalizedString("settings.connections.title", comment: ""))
+                        Text(NSLocalizedString("settings.connections.subtitle", comment: ""))
                             .font(Theme.Typography.caption2())
                             .foregroundStyle(.secondary)
                     }

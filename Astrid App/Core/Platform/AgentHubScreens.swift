@@ -28,7 +28,9 @@ import UniformTypeIdentifiers
 
 // MARK: - Shared chrome
 
-private extension View {
+// Internal, not private: ConnectionsScreen.swift shares the same chrome (AITD-405 rule — one
+// spelling of "hub sub-screen", or the Mac and iOS drift apart again).
+extension View {
     /// Form chrome for a hub sub-screen. iOS pushes these as navigation detail, so it owns the
     /// title; the Mac presents them inside `MacAgentHubSheet`, which draws its own header.
     @ViewBuilder
@@ -62,8 +64,8 @@ private extension View {
 struct WebhookSettingsScreen: View {
     static var title: String { NSLocalizedString("settings.agents.transport.webhook", comment: "") }
 
-    @Environment(\.openURL) private var openURL
     @StateObject private var model = WebhookSettingsModel()
+    @StateObject private var credentials = TransportCredentialsModel()
     @State private var confirmRemove = false
 
     var body: some View {
@@ -105,6 +107,9 @@ struct WebhookSettingsScreen: View {
         }
         .agentHubScreenChrome(Self.title)
         .task { await model.load() }
+        .sheet(item: $credentials.minted) { minted in
+            TransportCredentialsSheet(minted: minted) { credentials.minted = nil }
+        }
         .confirmationDialog(
             NSLocalizedString("settings.agents.webhook.remove_confirm", comment: ""),
             isPresented: $confirmRemove,
@@ -173,10 +178,27 @@ struct WebhookSettingsScreen: View {
         } footer: {
             VStack(alignment: .leading, spacing: Theme.spacing4) {
                 Text(String(format: NSLocalizedString("settings.agents.webhook.url_hint", comment: ""), Brand.appName))
-                if let api = AgentHubLinks.webAPIAccess(origin: Constants.API.baseURL) {
-                    Button(NSLocalizedString("settings.agents.open_web", comment: "")) { openURL(api) }
-                        .font(Theme.Typography.caption2())
+                if let errorMessage = credentials.errorMessage {
+                    Text(errorMessage).foregroundStyle(.red)
                 }
+                if credentials.requiresWebSession {
+                    WebSessionRequiredRow()
+                }
+                // The server needs a client_credentials pair as well as the webhook secret. It is
+                // minted here, from the webhook preset, rather than on the web's developer console
+                // — the same move astrid-web made in components/agent-hub.tsx.
+                Button {
+                    _Concurrency.Task {
+                        await credentials.mint(preset: .webhookServer, agent: model.selectedAgents.first ?? "claude")
+                    }
+                } label: {
+                    HStack {
+                        Label(NSLocalizedString("settings.agents.webhook.create_credentials", comment: ""), systemImage: "key.fill")
+                        if credentials.isMinting { ProgressView().controlSize(.small) }
+                    }
+                    .font(Theme.Typography.caption2())
+                }
+                .disabled(credentials.isMinting)
             }
         }
     }

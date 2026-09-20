@@ -129,7 +129,6 @@ import Foundation
     enum Keychain {
         static let service = "com.astrid.ios"
         static let sessionCookieKey = "session_cookie"
-        static let mcpTokenKey = "mcp_token"
     }
     
     enum UserDefaults {

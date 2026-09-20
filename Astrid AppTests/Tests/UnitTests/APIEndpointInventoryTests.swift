@@ -63,6 +63,7 @@ final class APIEndpointInventoryTests: XCTestCase {
         "Astrid App/Core/Networking/AstridAPIClient.swift",
         "Astrid App/Core/Networking/AstridAPIClient+ListMembers.swift",
         "Astrid App/Core/Networking/AstridAPIClient+ListOwnership.swift",
+        "Astrid App/Core/Networking/AstridAPIClient+Connections.swift",
     ]
 
     private static func currentClientPaths(_ test: APIEndpointInventoryTests) throws -> Set<String> {

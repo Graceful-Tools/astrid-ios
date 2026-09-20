@@ -1295,7 +1295,7 @@
 "settings.agents.copilot_cloud.open_docs" = "Open GitHub docs";
 "settings.agents.webhook.configure" = "Configure webhook server";
 "settings.agents.webhook.url" = "Webhook URL";
-"settings.agents.webhook.url_hint" = "Your server's endpoint. Runs on the %@ SDK (npx astrid-agent serve); it gets its own credentials from API Access on the web.";
+"settings.agents.webhook.url_hint" = "Your server's endpoint. Runs on the %@ SDK (npx astrid-agent serve). It needs the client credentials below to call the API and the webhook secret to verify deliveries.";
 "settings.agents.webhook.enabled" = "Enabled";
 "settings.agents.webhook.agents" = "Agents this webhook handles";
 "settings.agents.webhook.agents_hint" = "Unselected agents fall back to polling.";
@@ -1407,3 +1407,33 @@
 "filters.sort_incomplete_first" = "Non terminées d’abord";
 "filters.save_failed" = "Échec de l’enregistrement : %@";
 "share.link_failed" = "Impossible de générer le lien de partage. Réessayez.";
+
+/* Connections (everything that can act as the account) */
+"settings.connections.title" = "Connections";
+"settings.connections.subtitle" = "Everything that can act as your account";
+"settings.connections.empty" = "Nothing is connected to your account yet.";
+"settings.connections.kind.oauthClient" = "OAuth apps";
+"settings.connections.kind.authorizedApp" = "Authorized apps";
+"settings.connections.kind.customAgent" = "Custom Agents";
+"settings.connections.kind.accessToken" = "Access tokens";
+"settings.connections.kind.webhook" = "Webhook server";
+"settings.connections.kind.unknown" = "Other";
+"settings.connections.status.active" = "Active";
+"settings.connections.status.expired" = "Expired";
+"settings.connections.status.disabled" = "Disabled";
+"settings.connections.status.unknown" = "Unknown";
+"settings.connections.acts_as" = "Acts as %@";
+"settings.connections.acts_as_you" = "you";
+"settings.connections.created" = "Created %@";
+"settings.connections.last_used" = "Last used %@";
+"settings.connections.expires" = "Expires %@";
+"settings.connections.never" = "never";
+"settings.connections.revoke" = "Revoke";
+"settings.connections.revoke_confirm" = "Revoke %@? Anything using it stops working immediately.";
+"settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
+"settings.connections.manage_in_agents" = "Managed in AI Agents";
+"settings.connections.developer_web" = "Developer tools on the web";
+"settings.agents.webhook.create_credentials" = "Create client credentials";
+"settings.agents.webhook.credentials_title" = "Client credentials";
+"settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
+"settings.agents.webhook.credentials_needs_both" = "Your server needs both: these credentials to call the API, and the webhook secret to verify what it is sent.";

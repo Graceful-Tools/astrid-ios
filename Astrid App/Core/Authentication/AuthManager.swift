@@ -572,7 +572,6 @@ class AuthManager: ObservableObject {
         // ===== KEYCHAIN CLEANUP =====
         // Clear ALL keychain items to prevent credential leakage
         try? keychainService.deleteSessionCookie()
-        keychainService.deleteMCPToken()
         keychainService.deleteOAuthClientSecret()
         try? keychainService.deleteOAuthAccessToken()
 

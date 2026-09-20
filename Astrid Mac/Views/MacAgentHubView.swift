@@ -17,6 +17,7 @@ struct MacAgentHubView: View {
     @State private var showWebhook = false
     @State private var showCustomAgents = false
     @State private var showCopilotCloud = false
+    @State private var showConnections = false
 
     private var origin: String { Constants.API.baseURL }
 
@@ -64,6 +65,15 @@ struct MacAgentHubView: View {
                     }
                 }
 
+                Section(NSLocalizedString("settings.connections.title", comment: "")) {
+                    HStack {
+                        Text(NSLocalizedString("settings.connections.subtitle", comment: ""))
+                            .font(.caption).foregroundStyle(Theme.textMuted)
+                        Spacer()
+                        Button(NSLocalizedString("mac.manage", comment: "")) { showConnections = true }
+                    }
+                }
+
                 MacAssistantModelSection()
                 GitHubConnectionSection()
             }
@@ -78,6 +88,9 @@ struct MacAgentHubView: View {
         }
         .sheet(isPresented: $showCopilotCloud) {
             MacAgentHubSheet(title: CopilotCloudAgentScreen.title, height: 480) { CopilotCloudAgentScreen() }
+        }
+        .sheet(isPresented: $showConnections) {
+            MacAgentHubSheet(title: ConnectionsScreen.title, height: 560) { ConnectionsScreen() }
         }
         // OAuth completes in the browser; re-poll on focus so a new Copilot grant shows up.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
