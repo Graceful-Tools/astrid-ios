@@ -69,6 +69,21 @@ if [[ "$QUIET_MODE" == "true" ]]; then
     QUIET_FLAG="-quiet"
 fi
 
+# Xcode 27 (on the runner since 2026-09-14) spends 600 seconds per test bundle trying to
+# collect sysdiagnose-style diagnostics from the simulator and then gives up:
+#   "Failure collecting diagnostics from simulator: Timed out after 600.0 seconds
+#    while waiting for a response from the invoked process"
+# It does that even when every test passed, and a UI run is two bundles, so twenty minutes
+# of the CI step's thirty-minute budget went to a collection that never produced anything.
+# That, not a hang in the app, is why `UI Tests (Simulator / Device)` had failed on every
+# `main` run since 2026-09-15 while the monkey itself passed in five minutes.
+#
+# This turns off only the long-running sysdiagnose / log-archive collection. Test results,
+# failure messages, screenshots and XCTAttachments (the monkey's journal and its final
+# screenshot) are written to the .xcresult either way. Older xcodebuilds that predate the
+# flag ignore it.
+DIAGNOSTICS_FLAGS=(-collect-test-diagnostics never)
+
 # Run unit tests
 if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     echo -e "${BLUE}Running unit tests...${NC}"
@@ -81,6 +96,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -scheme "Astrid App" \
             -destination "$DESTINATION" \
             -only-testing:"Astrid AppTests" \
+            "${DIAGNOSTICS_FLAGS[@]}" \
             -quiet 2>&1 | tee /tmp/unit_tests.log
 
         UNIT_EXIT=${PIPESTATUS[0]}
@@ -88,7 +104,8 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
         xcodebuild test \
             -scheme "Astrid App" \
             -destination "$DESTINATION" \
-            -only-testing:"Astrid AppTests" 2>&1 | tee /tmp/unit_tests.log
+            -only-testing:"Astrid AppTests" \
+            "${DIAGNOSTICS_FLAGS[@]}" 2>&1 | tee /tmp/unit_tests.log
 
         UNIT_EXIT=${PIPESTATUS[0]}
     fi
@@ -184,6 +201,7 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
             -scheme "Astrid App" \
             -destination "$DESTINATION" \
             -resultBundlePath "$result_path" \
+            "${DIAGNOSTICS_FLAGS[@]}" \
             "$@" \
             $QUIET_FLAG 2>&1 | tee "$log_path"
         return "${PIPESTATUS[0]}"

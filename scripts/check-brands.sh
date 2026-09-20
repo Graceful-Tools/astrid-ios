@@ -109,6 +109,7 @@ for profile in "${PROFILES[@]}"; do
         -scheme "Astrid App" \
         -destination "$ASTRID_IOS_DESTINATION" \
         -only-testing:"Astrid AppTests/BrandAuditTests" \
+        -collect-test-diagnostics never \
         -quiet > "/tmp/brand-audit-$profile-ios.log" 2>&1
     IOS_RESULT=$?
 

@@ -156,6 +156,7 @@ env MONKEY_ACTIONS="$ACTIONS" MONKEY_HANG_SECONDS="$HANG" ${SEED:+MONKEY_SEED=$S
     -destination "$DESTINATION" \
     -only-testing:"$SUITE" \
     -parallel-testing-enabled NO \
+    -collect-test-diagnostics never \
     2>&1 | tee "$LOG" | grep -E "Test case|MONKEY_SUMMARY|error:|XCTFail" 
 TEST_RC=${PIPESTATUS[0]}
 set -e
