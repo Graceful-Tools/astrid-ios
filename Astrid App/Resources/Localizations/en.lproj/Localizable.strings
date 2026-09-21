@@ -1425,6 +1425,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "New connection";
+"settings.connections.new_title" = "New connection";
+"settings.connections.edit" = "Edit";
+"settings.connections.edit_title" = "Edit connection";
+"settings.connections.create" = "Create";
+"settings.connections.name_fixed" = "The name and description are set when the connection is created.";
+"settings.connections.field.name" = "Name";
+"settings.connections.field.name_placeholder" = "My script";
+"settings.connections.field.description" = "Description";
+"settings.connections.field.description_placeholder" = "What this connection is for";
+"settings.connections.field.description_none" = "No description";
+"settings.connections.field.grant_types" = "Grant types";
+"settings.connections.field.redirect_uris" = "Redirect URIs";
+"settings.connections.field.redirect_uris_hint" = "One per line. The authorization code grant needs at least one.";
+"settings.connections.field.scopes" = "Scopes";
+"settings.connections.scopes_hint" = "What this connection is allowed to do on your behalf.";
+"settings.connections.scopes_none" = "No scopes: this connection can sign in but cannot read or change anything.";
+"settings.connections.grant.client_credentials" = "Client credentials";
+"settings.connections.grant.client_credentials_hint" = "Server to server, with no one signing in";
+"settings.connections.grant.authorization_code" = "Authorization code";
+"settings.connections.grant.authorization_code_hint" = "Someone approves it in a browser";
+"settings.connections.grant.refresh_token" = "Refresh token";
+"settings.connections.grant.refresh_token_hint" = "Stay signed in; comes with the authorization code grant";
+"settings.connections.error.name_required" = "Give this connection a name.";
+"settings.connections.error.grant_required" = "Choose at least one grant type.";
+"settings.connections.error.redirect_required" = "The authorization code grant needs at least one redirect URI.";
+"settings.connections.error.redirect_invalid" = "Not an http or https address: %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

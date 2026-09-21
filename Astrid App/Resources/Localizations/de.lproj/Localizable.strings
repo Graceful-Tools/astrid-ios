@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "Neue Verbindung";
+"settings.connections.new_title" = "Neue Verbindung";
+"settings.connections.edit" = "Bearbeiten";
+"settings.connections.edit_title" = "Verbindung bearbeiten";
+"settings.connections.create" = "Erstellen";
+"settings.connections.name_fixed" = "Name und Beschreibung werden beim Erstellen der Verbindung festgelegt.";
+"settings.connections.field.name" = "Name";
+"settings.connections.field.name_placeholder" = "Mein Skript";
+"settings.connections.field.description" = "Beschreibung";
+"settings.connections.field.description_placeholder" = "Wofür diese Verbindung gedacht ist";
+"settings.connections.field.description_none" = "Keine Beschreibung";
+"settings.connections.field.grant_types" = "Grant-Typen";
+"settings.connections.field.redirect_uris" = "Weiterleitungs-URIs";
+"settings.connections.field.redirect_uris_hint" = "Eine pro Zeile. Der Authorization-Code-Grant benötigt mindestens eine.";
+"settings.connections.field.scopes" = "Berechtigungen";
+"settings.connections.scopes_hint" = "Was diese Verbindung in deinem Namen tun darf.";
+"settings.connections.scopes_none" = "Keine Berechtigungen: Diese Verbindung kann sich anmelden, aber nichts lesen oder ändern.";
+"settings.connections.grant.client_credentials" = "Client Credentials";
+"settings.connections.grant.client_credentials_hint" = "Server zu Server, ohne dass sich jemand anmeldet";
+"settings.connections.grant.authorization_code" = "Authorization Code";
+"settings.connections.grant.authorization_code_hint" = "Jemand bestätigt sie im Browser";
+"settings.connections.grant.refresh_token" = "Refresh Token";
+"settings.connections.grant.refresh_token_hint" = "Angemeldet bleiben; gehört zum Authorization-Code-Grant";
+"settings.connections.error.name_required" = "Gib dieser Verbindung einen Namen.";
+"settings.connections.error.grant_required" = "Wähle mindestens einen Grant-Typ.";
+"settings.connections.error.redirect_required" = "Der Authorization-Code-Grant benötigt mindestens eine Weiterleitungs-URI.";
+"settings.connections.error.redirect_invalid" = "Keine http- oder https-Adresse: %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "Nieuwe verbinding";
+"settings.connections.new_title" = "Nieuwe verbinding";
+"settings.connections.edit" = "Bewerken";
+"settings.connections.edit_title" = "Verbinding bewerken";
+"settings.connections.create" = "Aanmaken";
+"settings.connections.name_fixed" = "Naam en beschrijving worden vastgelegd bij het aanmaken van de verbinding.";
+"settings.connections.field.name" = "Naam";
+"settings.connections.field.name_placeholder" = "Mijn script";
+"settings.connections.field.description" = "Beschrijving";
+"settings.connections.field.description_placeholder" = "Waar deze verbinding voor is";
+"settings.connections.field.description_none" = "Geen beschrijving";
+"settings.connections.field.grant_types" = "Granttypen";
+"settings.connections.field.redirect_uris" = "Redirect-URI's";
+"settings.connections.field.redirect_uris_hint" = "Eén per regel. De authorization code grant heeft er minstens één nodig.";
+"settings.connections.field.scopes" = "Scopes";
+"settings.connections.scopes_hint" = "Wat deze verbinding namens jou mag doen.";
+"settings.connections.scopes_none" = "Geen scopes: deze verbinding kan inloggen, maar niets lezen of wijzigen.";
+"settings.connections.grant.client_credentials" = "Client credentials";
+"settings.connections.grant.client_credentials_hint" = "Server naar server, zonder dat iemand inlogt";
+"settings.connections.grant.authorization_code" = "Authorization code";
+"settings.connections.grant.authorization_code_hint" = "Iemand keurt het goed in een browser";
+"settings.connections.grant.refresh_token" = "Refresh token";
+"settings.connections.grant.refresh_token_hint" = "Ingelogd blijven; hoort bij de authorization code grant";
+"settings.connections.error.name_required" = "Geef deze verbinding een naam.";
+"settings.connections.error.grant_required" = "Kies minstens één granttype.";
+"settings.connections.error.redirect_required" = "De authorization code grant heeft minstens één redirect-URI nodig.";
+"settings.connections.error.redirect_invalid" = "Geen http- of https-adres: %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

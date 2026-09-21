@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "新しい接続";
+"settings.connections.new_title" = "新しい接続";
+"settings.connections.edit" = "編集";
+"settings.connections.edit_title" = "接続を編集";
+"settings.connections.create" = "作成";
+"settings.connections.name_fixed" = "名前と説明は接続の作成時に決まります。";
+"settings.connections.field.name" = "名前";
+"settings.connections.field.name_placeholder" = "マイスクリプト";
+"settings.connections.field.description" = "説明";
+"settings.connections.field.description_placeholder" = "この接続の用途";
+"settings.connections.field.description_none" = "説明なし";
+"settings.connections.field.grant_types" = "グラントタイプ";
+"settings.connections.field.redirect_uris" = "リダイレクトURI";
+"settings.connections.field.redirect_uris_hint" = "1行に1つ。認可コードグラントには少なくとも1つ必要です。";
+"settings.connections.field.scopes" = "スコープ";
+"settings.connections.scopes_hint" = "この接続があなたに代わってできること。";
+"settings.connections.scopes_none" = "スコープなし：この接続はサインインできますが、読み取りも変更もできません。";
+"settings.connections.grant.client_credentials" = "クライアントクレデンシャル";
+"settings.connections.grant.client_credentials_hint" = "サインインなしのサーバー間通信";
+"settings.connections.grant.authorization_code" = "認可コード";
+"settings.connections.grant.authorization_code_hint" = "ブラウザで誰かが承認します";
+"settings.connections.grant.refresh_token" = "リフレッシュトークン";
+"settings.connections.grant.refresh_token_hint" = "サインインを維持します。認可コードグラントに付属します。";
+"settings.connections.error.name_required" = "この接続に名前を付けてください。";
+"settings.connections.error.grant_required" = "グラントタイプを1つ以上選んでください。";
+"settings.connections.error.redirect_required" = "認可コードグラントにはリダイレクトURIが少なくとも1つ必要です。";
+"settings.connections.error.redirect_invalid" = "http または https のアドレスではありません：%@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

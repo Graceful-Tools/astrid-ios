@@ -72,6 +72,7 @@ Regenerate: see the test — it prints the expected list on failure.
 ### `/api/v1/oauth`
 
 - `/api/v1/oauth/clients`
+- `/api/v1/oauth/clients/{id}`
 
 ### `/api/v1/projects`
 

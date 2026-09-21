@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "Nuova connessione";
+"settings.connections.new_title" = "Nuova connessione";
+"settings.connections.edit" = "Modifica";
+"settings.connections.edit_title" = "Modifica connessione";
+"settings.connections.create" = "Crea";
+"settings.connections.name_fixed" = "Nome e descrizione vengono impostati alla creazione della connessione.";
+"settings.connections.field.name" = "Nome";
+"settings.connections.field.name_placeholder" = "Il mio script";
+"settings.connections.field.description" = "Descrizione";
+"settings.connections.field.description_placeholder" = "A cosa serve questa connessione";
+"settings.connections.field.description_none" = "Nessuna descrizione";
+"settings.connections.field.grant_types" = "Tipi di concessione";
+"settings.connections.field.redirect_uris" = "URI di reindirizzamento";
+"settings.connections.field.redirect_uris_hint" = "Uno per riga. La concessione authorization code ne richiede almeno uno.";
+"settings.connections.field.scopes" = "Ambiti";
+"settings.connections.scopes_hint" = "Cosa può fare questa connessione per tuo conto.";
+"settings.connections.scopes_none" = "Nessun ambito: questa connessione può accedere ma non può leggere né modificare nulla.";
+"settings.connections.grant.client_credentials" = "Credenziali client";
+"settings.connections.grant.client_credentials_hint" = "Da server a server, senza che nessuno acceda";
+"settings.connections.grant.authorization_code" = "Authorization code";
+"settings.connections.grant.authorization_code_hint" = "Qualcuno la approva in un browser";
+"settings.connections.grant.refresh_token" = "Token di aggiornamento";
+"settings.connections.grant.refresh_token_hint" = "Resta connesso; arriva con la concessione authorization code";
+"settings.connections.error.name_required" = "Dai un nome a questa connessione.";
+"settings.connections.error.grant_required" = "Scegli almeno un tipo di concessione.";
+"settings.connections.error.redirect_required" = "La concessione authorization code richiede almeno un URI di reindirizzamento.";
+"settings.connections.error.redirect_invalid" = "Non è un indirizzo http o https: %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

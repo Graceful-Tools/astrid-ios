@@ -2,9 +2,13 @@
 //  Everything that can act as this account, with a way to stop each one — written once for
 //  iOS and Mac, like the Agent Hub sub-screens (AITD-405).
 //
-//  Native twin of astrid-web components/connections-list.tsx over the same endpoint. The list is
-//  the whole screen: the developer console (hand-made OAuth apps, the API tester) stays on the
-//  web, reachable from the footer, because a scope matrix is not a phone-sized decision.
+//  Native twin of astrid-web components/connections-list.tsx over the same endpoint.
+//
+//  The list was once the whole screen, on the reasoning that a scope matrix is not a phone-sized
+//  decision. AITD-419 reversed that: making a connection and fixing a redirect URI are the two
+//  things people actually came here to do, and sending them to a laptop to do either is worse
+//  than a long list of toggles. What stays on the web is the rest of the developer console — the
+//  API tester, secret regeneration, scope groups — still reachable from the footer.
 
 import SwiftUI
 
@@ -16,6 +20,7 @@ struct ConnectionsScreen: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var model = ConnectionsModel()
     @State private var pendingRevoke: Connection?
+    @State private var editorMode: OAuthClientEditorModel.Mode?
 
     var body: some View {
         Form {
@@ -52,9 +57,14 @@ struct ConnectionsScreen: View {
                 ForEach(model.sections, id: \.kind) { section in
                     Section(section.kind.localizedLabel) {
                         ForEach(section.rows) { row in
-                            ConnectionRow(connection: row, isRevoking: model.revokingIDs.contains(row.id)) {
-                                pendingRevoke = row
-                            }
+                            ConnectionRow(
+                                connection: row,
+                                isRevoking: model.revokingIDs.contains(row.id),
+                                onEdit: Self.editableClientId(row).map { clientId in
+                                    { editorMode = .edit(clientId: clientId) }
+                                },
+                                onRevoke: { pendingRevoke = row }
+                            )
                         }
                     }
                 }
@@ -71,6 +81,23 @@ struct ConnectionsScreen: View {
             }
         }
         .agentHubScreenChrome(Self.title)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    editorMode = .create
+                } label: {
+                    Label(NSLocalizedString("settings.connections.new", comment: ""), systemImage: "plus")
+                }
+            }
+        }
+        .sheet(item: $editorMode) { mode in
+            OAuthClientEditorScreen(mode: mode) {
+                editorMode = nil
+                _Concurrency.Task { await model.load() }
+            } onCancel: {
+                editorMode = nil
+            }
+        }
         .task { await model.load() }
         .refreshable { await model.load() }
         .confirmationDialog(
@@ -101,9 +128,26 @@ struct ConnectionsScreen: View {
 
 // MARK: - One row
 
+extension ConnectionsScreen {
+    /// The client id an Edit button would write to, or nil when this row is not one to edit here.
+    ///
+    /// Three conditions, each for its own reason: only an `oauthClient` has redirect URIs to
+    /// change; a row `manageIn: "agents"` is a transport the Agent Hub owns, and editing it from
+    /// two screens is how the two screens come to disagree; and a row whose `detail.clientId` the
+    /// server did not send is one this build cannot address.
+    static func editableClientId(_ connection: Connection) -> String? {
+        guard connection.kind == .oauthClient, !connection.managedOnAgentsPage else { return nil }
+        guard let clientId = connection.detail?.clientId, !clientId.isEmpty else { return nil }
+        return clientId
+    }
+}
+
+// MARK: - One row
+
 private struct ConnectionRow: View {
     let connection: Connection
     let isRevoking: Bool
+    let onEdit: (() -> Void)?
     let onRevoke: () -> Void
 
     var body: some View {
@@ -147,12 +191,21 @@ private struct ConnectionRow: View {
                 Spacer()
                 if isRevoking {
                     ProgressView().controlSize(.small)
-                } else if connection.revocable {
-                    Button(role: .destructive, action: onRevoke) {
-                        Label(NSLocalizedString("settings.connections.revoke", comment: ""), systemImage: "xmark.shield")
-                            .font(Theme.Typography.caption1())
+                } else {
+                    if let onEdit {
+                        Button(action: onEdit) {
+                            Label(NSLocalizedString("settings.connections.edit", comment: ""), systemImage: "pencil")
+                                .font(Theme.Typography.caption1())
+                        }
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
+                    if connection.revocable {
+                        Button(role: .destructive, action: onRevoke) {
+                            Label(NSLocalizedString("settings.connections.revoke", comment: ""), systemImage: "xmark.shield")
+                                .font(Theme.Typography.caption1())
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
             }
         }
