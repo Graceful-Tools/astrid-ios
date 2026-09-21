@@ -256,12 +256,16 @@ Then **one `RESULT:` line** in the terminal and nothing else. `RESULT: OK — <n
 
 - **Post only when something happened.** A run that worked no tasks writes no message. At two
   ticks an hour, announcing every quiet one would bury the messages worth reading.
-- **Write for the phone.** iOS chat renders *inline* markdown only: `##` headings, `-` bullets
-  and fenced blocks come out literally. Use `**bold**` labels, `•` bullets and plain newlines.
-  Image syntax — an exclamation mark, the task title in square brackets, the task id in
-  parentheses — renders as a tappable link to that task, which is how to name a task by title
-  and still give Jon a way through to it. No `@`-mentions — a mention is the only thing that
-  fires a push notification.
+- **Write for the phone.** Block markdown renders — `##` headings, `-` bullets and fenced code
+  blocks all draw, since AITD-416 routed the iOS chat bubble and the task-comment bubble
+  through the shared block renderer (merged 2026-09-19, confirmed installed 2026-09-20). Write
+  normal markdown; the old advice to flatten everything into `**bold**` labels and `•` bullets
+  was a workaround for a renderer that no longer has that limit. Two neighbouring rules are
+  unchanged, because neither was ever about rendering: image syntax — an exclamation mark, the
+  task title in square brackets, the task id in parentheses — still renders as a tappable link
+  to that task, which is how to name a task by title and still give Jon a way through to it;
+  and no `@`-mentions — a mention is the only thing that fires a push notification, and a
+  scheduled run must not notify at an arbitrary hour.
 - **This holds interactively too** (Jon, 2026-09-15). The chat wrap-up is gone from every
   `/fixall` run, watched or not: the board is where he looks, and a summary that only exists in
   a terminal is gone as soon as the window is.
