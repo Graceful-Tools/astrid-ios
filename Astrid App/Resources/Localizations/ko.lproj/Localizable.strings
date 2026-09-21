@@ -1404,6 +1404,17 @@
 "settings.connections.kind.accessToken" = "Access tokens";
 "settings.connections.kind.webhook" = "Webhook server";
 "settings.connections.kind.unknown" = "Other";
+
+/* AITD-420: what a row IS, and what the screen groups by — the three app kinds are one
+   credential with three owners. Same words as web settingsPages.connections.categories. */
+"settings.connections.category.app" = "앱";
+"settings.connections.category.token" = "액세스 토큰";
+"settings.connections.category.webhook" = "웹훅 서버";
+"settings.connections.category.unknown" = "기타";
+/* Whose app it is, worn as a badge on an app row. Web: ...connections.owners. */
+"settings.connections.owner.you" = "내 것";
+"settings.connections.owner.thirdParty" = "서드파티";
+"settings.connections.owner.agent" = "에이전트";
 "settings.connections.status.active" = "Active";
 "settings.connections.status.expired" = "Expired";
 "settings.connections.status.disabled" = "Disabled";

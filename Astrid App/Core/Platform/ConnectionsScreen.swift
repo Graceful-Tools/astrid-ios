@@ -4,6 +4,11 @@
 //
 //  Native twin of astrid-web components/connections-list.tsx over the same endpoint.
 //
+//  Grouped by `category` — Apps, Access tokens, Webhook server — rather than by `kind`, which
+//  drew five peer sections where there are three types (AITD-420). The three app kinds are one
+//  credential with three owners, so an app row wears its owner as a badge instead of a heading
+//  of its own. Against a server that predates the facets the old per-kind sections still draw.
+//
 //  The list was once the whole screen, on the reasoning that a scope matrix is not a phone-sized
 //  decision. AITD-419 reversed that: making a connection and fixing a redirect URI are the two
 //  things people actually came here to do, and sending them to a laptop to do either is worse
@@ -54,11 +59,12 @@ struct ConnectionsScreen: View {
                     }
                 }
 
-                ForEach(model.sections, id: \.kind) { section in
-                    Section(section.kind.localizedLabel) {
+                ForEach(model.sections) { section in
+                    Section(section.localizedTitle) {
                         ForEach(section.rows) { row in
                             ConnectionRow(
                                 connection: row,
+                                ownerBadge: section.showsOwnerBadges ? row.ownerLabel : nil,
                                 isRevoking: model.revokingIDs.contains(row.id),
                                 onEdit: Self.editableClientId(row).map { clientId in
                                     { editorMode = .edit(clientId: clientId) }
@@ -146,6 +152,9 @@ extension ConnectionsScreen {
 
 private struct ConnectionRow: View {
     let connection: Connection
+    /// Whose app this is, when the section is grouped by category and the row is an app —
+    /// "Yours" / "Third-party" / "Agent". nil draws nothing; see `ConnectionSection`.
+    let ownerBadge: String?
     let isRevoking: Bool
     let onEdit: (() -> Void)?
     let onRevoke: () -> Void
@@ -156,6 +165,14 @@ private struct ConnectionRow: View {
                 Text(connection.name.isEmpty ? connection.kind.localizedLabel : connection.name)
                     .font(Theme.Typography.body())
                     .lineLimit(1)
+                if let ownerBadge {
+                    Text(ownerBadge)
+                        .font(Theme.Typography.caption2())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, Theme.spacing4)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                }
                 Spacer()
                 Text(connection.status.localizedLabel)
                     .font(Theme.Typography.caption2())

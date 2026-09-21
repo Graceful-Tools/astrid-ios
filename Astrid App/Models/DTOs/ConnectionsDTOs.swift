@@ -5,6 +5,12 @@
 //  purpose: a `kind` this build has never heard of is a row it cannot revoke, not a decode
 //  failure that blanks the whole list — the server may add a sixth source before the App Store
 //  ships the build that knows it.
+//
+//  A row also carries two facets (AWTD-981 / AITD-420): `category` — what it actually IS, and
+//  what the screen groups by — and `owner`, whose app it is. `kind` is untouched by that: it is
+//  the path segment of DELETE .../connections/{kind}/{id}, so the facets group and the kind
+//  revokes. A client that adopted the facets and dropped the kind would group beautifully and
+//  revoke nothing.
 
 import Foundation
 
@@ -36,6 +42,53 @@ enum ConnectionKind: String, Codable, CaseIterable {
     static let displayOrder: [ConnectionKind] = [.authorizedApp, .oauthClient, .customAgent, .accessToken, .webhook, .unknown]
 }
 
+/// What a row IS, once `oauthClient`, `authorizedApp` and `customAgent` are seen for what they
+/// are: one `OAuthClient` row holding one credential, read by three queries that differ only in
+/// what `userId` equals. That is an owner, not a type — so there are three categories, not five.
+///
+/// Mirrors astrid-web lib/connections/connection-taxonomy.ts, where the mapping from kind is
+/// total and lives in one place.
+enum ConnectionCategory: String, Codable, CaseIterable {
+    /// A client id + secret, whoever owns it.
+    case app
+    /// A bearer string, pasted.
+    case token
+    /// The server Astrid calls OUT to, rather than one calling in.
+    case webhook
+    /// A category added server-side after this build shipped.
+    case unknown
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ConnectionCategory(rawValue: raw) ?? .unknown
+    }
+
+    var localizedLabel: String {
+        NSLocalizedString("settings.connections.category.\(rawValue)", comment: "")
+    }
+
+    /// What acts as you, then how, then what points out. The unknown trails, as with kinds.
+    static let displayOrder: [ConnectionCategory] = [.app, .token, .webhook, .unknown]
+}
+
+/// For an app, whose it is. Absent for a token or a webhook, which have no owner to draw.
+///
+/// Unlike `ConnectionKind` and `ConnectionCategory` there is no `unknown` case: an owner this
+/// build cannot name is a badge it cannot write, and no badge is the honest answer. So the
+/// decode maps an unrecognised string to nil rather than to a case.
+enum ConnectionOwner: String, Codable, CaseIterable {
+    /// Made in the developer console.
+    case you
+    /// Approved on the consent page.
+    case thirdParty
+    /// Belongs to a Custom Agent the user registered.
+    case agent
+
+    var localizedLabel: String {
+        NSLocalizedString("settings.connections.owner.\(rawValue)", comment: "")
+    }
+}
+
 enum ConnectionStatus: String, Codable {
     case active, expired, disabled
     case unknown
@@ -63,6 +116,11 @@ struct ConnectionDetail: Codable, Equatable {
 struct Connection: Codable, Equatable, Identifiable {
     let id: String
     let kind: ConnectionKind
+    /// Which of the three real types this is, and what the screen groups by. `nil` means the
+    /// server predates AWTD-981 — not that the row is uncategorised.
+    let category: ConnectionCategory?
+    /// Whose app it is; `nil` for a token, a webhook, or an owner this build cannot name.
+    let owner: ConnectionOwner?
     let name: String
     /// The email this credential authors as; nil means the user themself.
     let actsAs: String?
@@ -80,6 +138,9 @@ struct Connection: Codable, Equatable, Identifiable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         kind = try c.decodeIfPresent(ConnectionKind.self, forKey: .kind) ?? .unknown
+        // Absent stays absent: it is how this build tells an old deployment from a new one.
+        category = try c.decodeIfPresent(ConnectionCategory.self, forKey: .category)
+        owner = ConnectionOwner(rawValue: try c.decodeIfPresent(String.self, forKey: .owner) ?? "")
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         actsAs = try c.decodeIfPresent(String.self, forKey: .actsAs)
         scopes = try c.decodeIfPresent([String].self, forKey: .scopes) ?? []
@@ -95,17 +156,23 @@ struct Connection: Codable, Equatable, Identifiable {
         detail = try c.decodeIfPresent(ConnectionDetail.self, forKey: .detail)
     }
 
-    init(id: String, kind: ConnectionKind, name: String, actsAs: String? = nil, scopes: [String] = [],
+    init(id: String, kind: ConnectionKind, category: ConnectionCategory? = nil,
+         owner: ConnectionOwner? = nil, name: String, actsAs: String? = nil, scopes: [String] = [],
          createdAt: String = "", lastUsedAt: String? = nil, expiresAt: String? = nil,
          status: ConnectionStatus = .active, revocable: Bool = true, manageIn: String? = nil,
          detail: ConnectionDetail? = nil) {
-        self.id = id; self.kind = kind; self.name = name; self.actsAs = actsAs; self.scopes = scopes
+        self.id = id; self.kind = kind; self.category = category; self.owner = owner
+        self.name = name; self.actsAs = actsAs; self.scopes = scopes
         self.createdAt = createdAt; self.lastUsedAt = lastUsedAt; self.expiresAt = expiresAt
         self.status = status; self.revocable = revocable && kind != .unknown; self.manageIn = manageIn
         self.detail = detail
     }
 
     var managedOnAgentsPage: Bool { manageIn == "agents" }
+
+    /// The badge an app row wears in place of the kind label — "Yours", "Third-party", "Agent".
+    /// `nil` where there is no owner distinction to draw, which is every token and webhook.
+    var ownerLabel: String? { owner?.localizedLabel }
 }
 
 struct ConnectionsResponse: Codable {
