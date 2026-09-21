@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "新建连接";
+"settings.connections.new_title" = "新建连接";
+"settings.connections.edit" = "编辑";
+"settings.connections.edit_title" = "编辑连接";
+"settings.connections.create" = "创建";
+"settings.connections.name_fixed" = "名称和描述在创建连接时确定。";
+"settings.connections.field.name" = "名称";
+"settings.connections.field.name_placeholder" = "我的脚本";
+"settings.connections.field.description" = "描述";
+"settings.connections.field.description_placeholder" = "这个连接的用途";
+"settings.connections.field.description_none" = "无描述";
+"settings.connections.field.grant_types" = "授权类型";
+"settings.connections.field.redirect_uris" = "重定向 URI";
+"settings.connections.field.redirect_uris_hint" = "每行一个。授权码模式至少需要一个。";
+"settings.connections.field.scopes" = "权限范围";
+"settings.connections.scopes_hint" = "这个连接可以代表你做什么。";
+"settings.connections.scopes_none" = "没有权限范围：该连接可以登录，但无法读取或修改任何内容。";
+"settings.connections.grant.client_credentials" = "客户端凭据";
+"settings.connections.grant.client_credentials_hint" = "服务器到服务器，无需任何人登录";
+"settings.connections.grant.authorization_code" = "授权码";
+"settings.connections.grant.authorization_code_hint" = "由某人在浏览器中批准";
+"settings.connections.grant.refresh_token" = "刷新令牌";
+"settings.connections.grant.refresh_token_hint" = "保持登录状态；随授权码模式一起提供";
+"settings.connections.error.name_required" = "给这个连接起个名字。";
+"settings.connections.error.grant_required" = "至少选择一种授权类型。";
+"settings.connections.error.redirect_required" = "授权码模式至少需要一个重定向 URI。";
+"settings.connections.error.redirect_invalid" = "不是 http 或 https 地址：%@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

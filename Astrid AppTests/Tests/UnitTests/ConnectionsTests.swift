@@ -195,37 +195,3 @@ final class ConnectionsTests: XCTestCase {
                        "https://example.test/settings/connections")
     }
 }
-
-// MARK: - Fake service
-
-private final class FakeConnectionsService: ConnectionsServicing {
-    var rows: [Connection] = []
-    var revoked: [Connection] = []
-    var revokeError: Error?
-    var revokeErrors: [String: Error] = [:]
-    var mints: [OAuthClientPresetRequest] = []
-
-    /// When set, each revoke parks until `release(_:)` names it, so a test can overlap two.
-    var holdRevokes = false
-    private var held: [String: CheckedContinuation<Void, Never>] = [:]
-    var heldIDs: [String] { Array(held.keys) }
-    func release(_ id: String) { held.removeValue(forKey: id)?.resume() }
-
-    func getConnections() async throws -> ConnectionsResponse {
-        ConnectionsResponse(connections: rows)
-    }
-
-    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
-        if holdRevokes {
-            await withCheckedContinuation { held[connection.id] = $0 }
-        }
-        if let error = revokeErrors[connection.id] ?? revokeError { throw error }
-        revoked.append(connection)
-        return ConnectionRevokeResponse(success: true, kind: connection.kind, id: connection.id, revokedTokens: 1)
-    }
-
-    func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient {
-        mints.append(OAuthClientPresetRequest(preset: preset, agent: agent))
-        return MintedOAuthClient(clientId: "astrid_client_minted", clientSecret: "shh")
-    }
-}

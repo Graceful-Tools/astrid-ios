@@ -1419,6 +1419,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "新增連線";
+"settings.connections.new_title" = "新增連線";
+"settings.connections.edit" = "編輯";
+"settings.connections.edit_title" = "編輯連線";
+"settings.connections.create" = "建立";
+"settings.connections.name_fixed" = "名稱和描述在建立連線時決定。";
+"settings.connections.field.name" = "名稱";
+"settings.connections.field.name_placeholder" = "我的指令碼";
+"settings.connections.field.description" = "描述";
+"settings.connections.field.description_placeholder" = "這個連線的用途";
+"settings.connections.field.description_none" = "沒有描述";
+"settings.connections.field.grant_types" = "授權類型";
+"settings.connections.field.redirect_uris" = "重新導向 URI";
+"settings.connections.field.redirect_uris_hint" = "每行一個。授權碼模式至少需要一個。";
+"settings.connections.field.scopes" = "權限範圍";
+"settings.connections.scopes_hint" = "這個連線可以代表你做什麼。";
+"settings.connections.scopes_none" = "沒有權限範圍：此連線可以登入，但無法讀取或變更任何內容。";
+"settings.connections.grant.client_credentials" = "用戶端憑證";
+"settings.connections.grant.client_credentials_hint" = "伺服器對伺服器，不需要任何人登入";
+"settings.connections.grant.authorization_code" = "授權碼";
+"settings.connections.grant.authorization_code_hint" = "由某人在瀏覽器中核准";
+"settings.connections.grant.refresh_token" = "更新權杖";
+"settings.connections.grant.refresh_token_hint" = "保持登入狀態；隨授權碼模式一起提供";
+"settings.connections.error.name_required" = "為這個連線取個名字。";
+"settings.connections.error.grant_required" = "至少選擇一種授權類型。";
+"settings.connections.error.redirect_required" = "授權碼模式至少需要一個重新導向 URI。";
+"settings.connections.error.redirect_invalid" = "不是 http 或 https 位址：%@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

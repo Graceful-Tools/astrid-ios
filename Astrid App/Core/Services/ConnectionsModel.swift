@@ -14,6 +14,9 @@ protocol ConnectionsServicing: AnyObject {
     func getConnections() async throws -> ConnectionsResponse
     func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse
     func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient
+    func getOAuthClient(clientId: String) async throws -> OAuthClientSummary
+    func createOAuthClient(_ body: CreateOAuthClientRequest) async throws -> MintedOAuthClient
+    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary
 }
 
 extension RemoteResourceService: ConnectionsServicing {}
@@ -110,6 +113,94 @@ final class TransportCredentialsModel: ObservableObject {
         } catch {
             requiresWebSession = AgentHubErrors.requiresWebSession(error)
             errorMessage = AgentHubErrors.message(error)
+        }
+    }
+}
+
+// MARK: - Making and changing a client (AITD-419)
+
+/// The state behind the new/edit sheet. The view is thin, as with `ConnectionsModel`: what can be
+/// sent is `OAuthClientDraft`'s answer, and everything here is about the round trip.
+@MainActor
+final class OAuthClientEditorModel: ObservableObject {
+    /// Making one, or changing one that exists. An edit names the client because the redirect
+    /// URIs it starts from have to be fetched — the connections list does not carry them.
+    enum Mode: Equatable, Identifiable {
+        case create
+        case edit(clientId: String)
+
+        /// What `sheet(item:)` keys on — distinct per client, so tapping Edit on a second row
+        /// while the first sheet is closing opens the second client and not the first again.
+        var id: String {
+            switch self {
+            case .create: return "create"
+            case .edit(let clientId): return "edit:\(clientId)"
+            }
+        }
+    }
+
+    @Published var draft = OAuthClientDraft()
+    @Published var isLoading = false
+    @Published var isSaving = false
+    @Published var errorMessage: String?
+    @Published var requiresWebSession = false
+    /// Set once, on a successful create: the secret the server will never show again.
+    @Published var minted: MintedOAuthClient?
+
+    let mode: Mode
+    private let service: ConnectionsServicing
+
+    init(mode: Mode, service: ConnectionsServicing = RemoteResourceService.shared) {
+        self.mode = mode
+        self.service = service
+    }
+
+    var isEditing: Bool {
+        if case .edit = mode { return true }
+        return false
+    }
+
+    /// Fill the draft from the server. Create mode has nothing to fetch.
+    func load() async {
+        guard case .edit(let clientId) = mode else { return }
+        isLoading = true
+        errorMessage = nil
+        requiresWebSession = false
+        defer { isLoading = false }
+        do {
+            draft = OAuthClientDraft(try await service.getOAuthClient(clientId: clientId))
+        } catch {
+            requiresWebSession = AgentHubErrors.requiresWebSession(error)
+            errorMessage = AgentHubErrors.message(error)
+        }
+    }
+
+    /// Returns true when the sheet should close. A validation problem is reported in the same
+    /// place a server error is, so a person is not hunting two kinds of message.
+    func save() async -> Bool {
+        if let problem = draft.problem {
+            errorMessage = problem.localizedMessage
+            return false
+        }
+        isSaving = true
+        errorMessage = nil
+        requiresWebSession = false
+        defer { isSaving = false }
+        do {
+            switch mode {
+            case .create:
+                // Held, not dismissed: the secret is shown once and closing on top of it would
+                // lose the only copy that will ever exist.
+                minted = try await service.createOAuthClient(draft.createRequest())
+                return false
+            case .edit(let clientId):
+                _ = try await service.updateOAuthClient(clientId: clientId, body: draft.updateRequest())
+                return true
+            }
+        } catch {
+            requiresWebSession = AgentHubErrors.requiresWebSession(error)
+            errorMessage = AgentHubErrors.message(error)
+            return false
         }
     }
 }

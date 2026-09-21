@@ -141,3 +141,62 @@ struct MintedOAuthClient: Codable, Equatable {
 struct MintedOAuthClientResponse: Codable {
     let client: MintedOAuthClient
 }
+
+// MARK: - OAuth clients (GET/POST /api/v1/oauth/clients, GET/PUT /api/v1/oauth/clients/{id})
+
+/// One OAuth client as the server describes it — the fields an editor needs, which is more than
+/// the connections list carries (a `Connection` knows the client id but not its redirect URIs).
+///
+/// Decoded leniently for the same reason as `Connection`: this build must survive a server that
+/// has learned a new field, and an absent field is a default, not a decode failure.
+struct OAuthClientSummary: Codable, Equatable, Identifiable {
+    let clientId: String
+    let name: String
+    let description: String?
+    let redirectUris: [String]
+    let grantTypes: [String]
+    let scopes: [String]
+    let isActive: Bool
+
+    var id: String { clientId }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        clientId = try c.decode(String.self, forKey: .clientId)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        redirectUris = try c.decodeIfPresent([String].self, forKey: .redirectUris) ?? []
+        grantTypes = try c.decodeIfPresent([String].self, forKey: .grantTypes) ?? []
+        scopes = try c.decodeIfPresent([String].self, forKey: .scopes) ?? []
+        // Absent reads as active: the screen only ever asks for a client it just saw listed.
+        isActive = try c.decodeIfPresent(Bool.self, forKey: .isActive) ?? true
+    }
+
+    init(clientId: String, name: String, description: String? = nil, redirectUris: [String] = [],
+         grantTypes: [String] = [], scopes: [String] = [], isActive: Bool = true) {
+        self.clientId = clientId; self.name = name; self.description = description
+        self.redirectUris = redirectUris; self.grantTypes = grantTypes; self.scopes = scopes
+        self.isActive = isActive
+    }
+}
+
+struct OAuthClientResponse: Codable {
+    let client: OAuthClientSummary
+}
+
+/// The developer-console shape of a create: the caller chose everything, as opposed to
+/// `OAuthClientPresetRequest` where the preset did.
+struct CreateOAuthClientRequest: Codable, Equatable {
+    let name: String
+    let description: String?
+    let scopes: [String]
+    let grantTypes: [String]
+    let redirectUris: [String]?
+}
+
+/// What an edit writes. Only the redirect URIs, matching astrid-web's edit dialog — the PUT
+/// accepts name, description, scopes and isActive too, and the two consoles deliberately offer
+/// the same narrow thing rather than each inventing its own idea of an edit.
+struct UpdateOAuthClientRequest: Codable, Equatable {
+    let redirectUris: [String]
+}

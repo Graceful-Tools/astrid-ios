@@ -37,4 +37,43 @@ extension AstridAPIClient {
         return response.client
     }
 
+    // MARK: - The developer console's half, on the phone (AITD-419)
+
+    /// Where one client lives. Built here, not at the call site, for the same reason as
+    /// `revokeConnectionPath`: `APIEndpointInventoryTests` only scans the client files, and a path
+    /// assembled elsewhere is a path `docs/API_ENDPOINTS.md` never hears about.
+    static func oauthClientPath(_ clientId: String) -> String {
+        "/api/v1/oauth/clients/\(clientId)"
+    }
+
+    /// One client with the fields an editor needs — the connections list carries the client id
+    /// but not its redirect URIs, so an edit has to ask.
+    func getOAuthClient(clientId: String) async throws -> OAuthClientSummary {
+        let response: OAuthClientResponse = try await request(
+            method: "GET", path: Self.oauthClientPath(clientId)
+        )
+        return response.client
+    }
+
+    /// Register a client the user configured themselves. The secret comes back once and is never
+    /// retrievable again, which is why the caller shows it rather than storing it.
+    ///
+    /// Session-only server-side: registration from a delegated OAuth token would let a leaked
+    /// narrow-scope token mint itself a wider one. iOS sends the account's session cookie, so this
+    /// works from the app — a build that ever stops doing so gets `requiresWebSession` handling
+    /// rather than a bare 403.
+    func createOAuthClient(_ body: CreateOAuthClientRequest) async throws -> MintedOAuthClient {
+        let response: MintedOAuthClientResponse = try await request(
+            method: "POST", path: "/api/v1/oauth/clients", body: body
+        )
+        return response.client
+    }
+
+    /// Change an existing client's redirect URIs.
+    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary {
+        let response: OAuthClientResponse = try await request(
+            method: "PUT", path: Self.oauthClientPath(clientId), body: body
+        )
+        return response.client
+    }
 }

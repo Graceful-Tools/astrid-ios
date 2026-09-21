@@ -1433,6 +1433,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "Nouvelle connexion";
+"settings.connections.new_title" = "Nouvelle connexion";
+"settings.connections.edit" = "Modifier";
+"settings.connections.edit_title" = "Modifier la connexion";
+"settings.connections.create" = "Créer";
+"settings.connections.name_fixed" = "Le nom et la description sont définis à la création de la connexion.";
+"settings.connections.field.name" = "Nom";
+"settings.connections.field.name_placeholder" = "Mon script";
+"settings.connections.field.description" = "Description";
+"settings.connections.field.description_placeholder" = "À quoi sert cette connexion";
+"settings.connections.field.description_none" = "Aucune description";
+"settings.connections.field.grant_types" = "Types d’autorisation";
+"settings.connections.field.redirect_uris" = "URI de redirection";
+"settings.connections.field.redirect_uris_hint" = "Une par ligne. Le type code d’autorisation en exige au moins une.";
+"settings.connections.field.scopes" = "Autorisations";
+"settings.connections.scopes_hint" = "Ce que cette connexion peut faire en votre nom.";
+"settings.connections.scopes_none" = "Aucune autorisation : cette connexion peut se connecter, mais ne peut rien lire ni modifier.";
+"settings.connections.grant.client_credentials" = "Identifiants client";
+"settings.connections.grant.client_credentials_hint" = "De serveur à serveur, sans connexion d’un utilisateur";
+"settings.connections.grant.authorization_code" = "Code d’autorisation";
+"settings.connections.grant.authorization_code_hint" = "Quelqu’un l’approuve dans un navigateur";
+"settings.connections.grant.refresh_token" = "Jeton de rafraîchissement";
+"settings.connections.grant.refresh_token_hint" = "Rester connecté ; fourni avec le type code d’autorisation";
+"settings.connections.error.name_required" = "Donnez un nom à cette connexion.";
+"settings.connections.error.grant_required" = "Choisissez au moins un type d’autorisation.";
+"settings.connections.error.redirect_required" = "Le type code d’autorisation exige au moins une URI de redirection.";
+"settings.connections.error.redirect_invalid" = "Ce n’est pas une adresse http ou https : %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";

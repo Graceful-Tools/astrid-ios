@@ -110,6 +110,18 @@ final class RemoteResourceService {
         try await apiClient.createOAuthClient(preset: preset, agent: agent)
     }
 
+    func getOAuthClient(clientId: String) async throws -> OAuthClientSummary {
+        try await apiClient.getOAuthClient(clientId: clientId)
+    }
+
+    func createOAuthClient(_ body: CreateOAuthClientRequest) async throws -> MintedOAuthClient {
+        try await apiClient.createOAuthClient(body)
+    }
+
+    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary {
+        try await apiClient.updateOAuthClient(clientId: clientId, body: body)
+    }
+
     // MARK: - Webhook transport
 
     func getWebhookSettings() async throws -> WebhookSettings {

@@ -1417,6 +1417,35 @@
 "settings.connections.remove_agent_confirm" = "Remove %@? The agent and its credentials are deleted.";
 "settings.connections.manage_in_agents" = "Managed in AI Agents";
 "settings.connections.developer_web" = "Developer tools on the web";
+
+/* Connections — new / edit an API connection (AITD-419) */
+"settings.connections.new" = "Новое подключение";
+"settings.connections.new_title" = "Новое подключение";
+"settings.connections.edit" = "Изменить";
+"settings.connections.edit_title" = "Изменить подключение";
+"settings.connections.create" = "Создать";
+"settings.connections.name_fixed" = "Имя и описание задаются при создании подключения.";
+"settings.connections.field.name" = "Имя";
+"settings.connections.field.name_placeholder" = "Мой скрипт";
+"settings.connections.field.description" = "Описание";
+"settings.connections.field.description_placeholder" = "Для чего это подключение";
+"settings.connections.field.description_none" = "Без описания";
+"settings.connections.field.grant_types" = "Типы разрешений";
+"settings.connections.field.redirect_uris" = "URI перенаправления";
+"settings.connections.field.redirect_uris_hint" = "По одному в строке. Для authorization code нужен хотя бы один.";
+"settings.connections.field.scopes" = "Области доступа";
+"settings.connections.scopes_hint" = "Что это подключение может делать от вашего имени.";
+"settings.connections.scopes_none" = "Без областей доступа: подключение сможет войти, но не сможет ничего читать или менять.";
+"settings.connections.grant.client_credentials" = "Учётные данные клиента";
+"settings.connections.grant.client_credentials_hint" = "Сервер — серверу, без входа пользователя";
+"settings.connections.grant.authorization_code" = "Код авторизации";
+"settings.connections.grant.authorization_code_hint" = "Кто-то подтверждает его в браузере";
+"settings.connections.grant.refresh_token" = "Токен обновления";
+"settings.connections.grant.refresh_token_hint" = "Сохранять вход; идёт вместе с кодом авторизации";
+"settings.connections.error.name_required" = "Дайте подключению имя.";
+"settings.connections.error.grant_required" = "Выберите хотя бы один тип разрешения.";
+"settings.connections.error.redirect_required" = "Для кода авторизации нужен хотя бы один URI перенаправления.";
+"settings.connections.error.redirect_invalid" = "Это не адрес http или https: %@";
 "settings.agents.webhook.create_credentials" = "Create client credentials";
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
