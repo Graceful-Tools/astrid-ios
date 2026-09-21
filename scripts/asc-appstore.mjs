@@ -70,8 +70,32 @@ const testflightState = async (platform, want) => {
   };
 };
 
+// `runs` is the only command here that is not per-platform, and the only one that can tie a
+// TestFlight build back to a commit: nothing on /v1/builds carries a sha, but a build number IS
+// its Xcode Cloud run number (measured 2026-08-18), and the run knows what it built. That is the
+// question a task cannot be completed without answering — "is my fix in a build Jon can open?"
+// See `.claude/commands/fixall.md`, "A task is DONE when the build carrying it is ready".
+if (process.argv[2] === 'runs') {
+  const limit = arg('--limit', '10');
+  const products = await api('/v1/ciProducts?limit=10');
+  for (const prod of products.data ?? []) {
+    const runs = await api(`/v1/ciProducts/${prod.id}/buildRuns?limit=${limit}&sort=-number`);
+    for (const r of runs.data ?? []) {
+      const a = r.attributes ?? {};
+      const subject = (a.sourceCommit?.message ?? '').split('\n')[0].slice(0, 60);
+      console.log([
+        a.number,
+        a.completionStatus ?? a.executionProgress ?? '-',
+        (a.sourceCommit?.commitSha ?? '-').slice(0, 7),
+        subject,
+      ].join('\t'));
+    }
+  }
+  process.exit(0);
+}
+
 const [cmd, target] = process.argv.slice(2);
-const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions|released|version-state> <ios|mac> [...]');
+const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions|released|version-state> <ios|mac> [...]\n       node scripts/asc-appstore.mjs runs [--limit N]   # build number -> commit');
 
 if (cmd === 'next') {
   // Apple rejects an upload whose build number is not strictly greater than every build already

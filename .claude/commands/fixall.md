@@ -93,7 +93,8 @@ astrid-web uses — so it authenticates from the client-credentials pair in
 | The queue | `get_agent_queue` `{ agent: "claude", listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` |
 | Read a task | `get_task` `{ taskId }` and `get_task_comments` `{ taskId }` |
 | Comment (strategy, progress, report) | `add_comment` `{ taskId, content, type: "MARKDOWN" }` |
-| Complete | `update_task` `{ taskId, completed: true }` |
+| Working on it | `update_task` `{ taskId, statusRole: "doing" }` — where a task stays until its build is ready |
+| Complete | `update_task` `{ taskId, completed: true }` — **only once a TestFlight build carries it**, see below |
 | File the other repo's half | **Not `create_task`** — its `listId` is silently dropped (the API wants `listIds`; verified 2026-09-06, the task lands on no list). Use the OAuth scripts: `cd ../astrid-web && npx tsx scripts/create-task.ts "<title>" "<desc>" -p 2` (web board) or `scripts/file-ios-task.ts` (iOS board). |
 
 If the MCP tools are not loaded, they are deferred — load them with
@@ -191,9 +192,30 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
   [[xcode-cloud-runs-canceled]]. (The two Release workflows became manual-only on 2026-08-27,
   so a push now starts two runs rather than four — batching still matters.)
 
-- **A task is DONE when it is merged into `main` with the gates green.** Say in the completion
-  report that it is merged, and — once the run's push has happened — that a build is on the
-  way. Never say it shipped: an App Store submission is a separate, deliberate act.
+- **A task is DONE when the TestFlight build carrying it is ready — not when it merges**
+  (Jon, 2026-09-21: *"Completion of tasks should update when the TestFlight build is ready.
+  Should keep in 'working on it' until this lands."*). A merge is not something he can open.
+  So the task stays in `Doing` through the gates, the merge and the push, and is completed
+  only once a build containing its commit is VALID. Merged-but-not-built is still in progress.
+
+  The completion comment names the build. Nothing on `/v1/builds` carries a commit, so the
+  link runs through the Xcode Cloud run number, which is also the build number:
+
+  ```bash
+  node scripts/asc-appstore.mjs runs --limit 6   # build number -> status -> commit
+  node scripts/asc-appstore.mjs builds ios       # that number's processing state (want VALID)
+  git merge-base --is-ancestor <fix-sha> <run-sha> && echo "the build carries the fix"
+  ```
+
+  Use `--is-ancestor` rather than eyeballing the subject line: one build carries several tasks,
+  so the run's own commit message usually names a *different* task than the one being closed.
+
+  Never say it shipped: an App Store submission is a separate, deliberate act.
+
+- **When a run ends before its build does**, leave the tasks in `Doing` and say so in the run
+  message. The webhook has lagged up to ~36 minutes and a build takes longer still, so the
+  last thing a run does is often not the last thing a task needs. The next run — or the next
+  session — closes them once `runs` shows the build SUCCEEDED and `builds` shows it VALID.
 
 - **Gates:** `npm run predeploy`, plus the Mac suite for anything touching `Core/` or Mac:
   ```bash
