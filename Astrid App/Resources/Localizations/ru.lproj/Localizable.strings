@@ -1402,6 +1402,17 @@
 "settings.connections.kind.accessToken" = "Access tokens";
 "settings.connections.kind.webhook" = "Webhook server";
 "settings.connections.kind.unknown" = "Other";
+
+/* AITD-420: what a row IS, and what the screen groups by — the three app kinds are one
+   credential with three owners. Same words as web settingsPages.connections.categories. */
+"settings.connections.category.app" = "Приложения";
+"settings.connections.category.token" = "Токены доступа";
+"settings.connections.category.webhook" = "Сервер вебхуков";
+"settings.connections.category.unknown" = "Другое";
+/* Whose app it is, worn as a badge on an app row. Web: ...connections.owners. */
+"settings.connections.owner.you" = "Ваши";
+"settings.connections.owner.thirdParty" = "Сторонние";
+"settings.connections.owner.agent" = "Агент";
 "settings.connections.status.active" = "Active";
 "settings.connections.status.expired" = "Expired";
 "settings.connections.status.disabled" = "Disabled";

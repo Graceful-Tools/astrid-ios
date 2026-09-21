@@ -21,6 +21,45 @@ protocol ConnectionsServicing: AnyObject {
 
 extension RemoteResourceService: ConnectionsServicing {}
 
+// MARK: - One heading, and the rows under it
+
+/// A section of the Connections screen — two flavours, because the server has two vintages.
+///
+/// A deployment carrying AWTD-981 stamps every row with a `category`, and the screen draws the
+/// three sections that are actually types (AITD-420). An older one sends none, and the screen
+/// falls back to the per-kind sections it always drew: the facets are additive, so a build in
+/// the wild has to keep working against both.
+struct ConnectionSection: Identifiable, Equatable {
+    enum Heading: Equatable {
+        case category(ConnectionCategory)
+        case kind(ConnectionKind)
+    }
+
+    let heading: Heading
+    let rows: [Connection]
+
+    var id: String {
+        switch heading {
+        case .category(let category): return "category:\(category.rawValue)"
+        case .kind(let kind): return "kind:\(kind.rawValue)"
+        }
+    }
+
+    var localizedTitle: String {
+        switch heading {
+        case .category(let category): return category.localizedLabel
+        case .kind(let kind): return kind.localizedLabel
+        }
+    }
+
+    /// Owner badges belong to the category grouping only. Under a kind heading the row's owner
+    /// is already what the heading says, and the badge would say it twice.
+    var showsOwnerBadges: Bool {
+        if case .category = heading { return true }
+        return false
+    }
+}
+
 // MARK: - The list
 
 @MainActor
@@ -37,11 +76,23 @@ final class ConnectionsModel: ObservableObject {
         self.service = service
     }
 
-    /// Rows grouped in display order, empty kinds omitted.
-    var sections: [(kind: ConnectionKind, rows: [Connection])] {
-        ConnectionKind.displayOrder.compactMap { kind in
-            let rows = connections.filter { $0.kind == kind }
-            return rows.isEmpty ? nil : (kind, rows)
+    /// Rows grouped in display order, empty groups omitted.
+    ///
+    /// By category when the server stamped every row with one, which collapses the three
+    /// `OAuthClient`-backed kinds into a single Apps section (AITD-420). By kind when any row
+    /// lacks one: `category` is emitted by every build carrying AWTD-981, so a gap means this
+    /// app is talking to a deployment that predates it — all-or-nothing per response, not a
+    /// row-by-row decision, or one old row would strand the rest under a heading of its own.
+    var sections: [ConnectionSection] {
+        guard connections.allSatisfy({ $0.category != nil }) else {
+            return ConnectionKind.displayOrder.compactMap { kind in
+                let rows = connections.filter { $0.kind == kind }
+                return rows.isEmpty ? nil : ConnectionSection(heading: .kind(kind), rows: rows)
+            }
+        }
+        return ConnectionCategory.displayOrder.compactMap { category in
+            let rows = connections.filter { $0.category == category }
+            return rows.isEmpty ? nil : ConnectionSection(heading: .category(category), rows: rows)
         }
     }
 
