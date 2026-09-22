@@ -15,8 +15,8 @@ import XCTest
 @MainActor
 final class AgentHubTests: XCTestCase {
 
-    private var claude: AgentRuntimeRow { AgentRuntimeRow.all[0] }
-    private var codex: AgentRuntimeRow { AgentRuntimeRow.all[1] }
+    private var claude: AgentRuntimeRow { AgentRuntimeRow.all.first { $0.id == "claude" }! }
+    private var codex: AgentRuntimeRow { AgentRuntimeRow.all.first { $0.id == "codex" }! }
 
     private func source(_ relativePath: String) throws -> String {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
@@ -147,8 +147,12 @@ final class AgentHubTests: XCTestCase {
         model.copilotConnected = false
 
         XCTAssertTrue(model.isConfigured(claude))
-        XCTAssertFalse(model.isConfigured(AgentRuntimeRow.all[2]), "Copilot in api mode needs the GitHub OAuth grant")
-        XCTAssertTrue(model.isConfigured(AgentRuntimeRow.all[3]), "polling never needs a key")
+        // By id, not by index: adding an agent row must not silently re-point these assertions
+        // at a different agent — the trap web hit when Muse joined the table (task d0b5f7ae).
+        let copilot = AgentRuntimeRow.all.first { $0.id == "copilot" }!
+        let gemini = AgentRuntimeRow.all.first { $0.id == "gemini" }!
+        XCTAssertFalse(model.isConfigured(copilot), "Copilot in api mode needs the GitHub OAuth grant")
+        XCTAssertTrue(model.isConfigured(gemini), "polling never needs a key")
     }
 
     func testAITD297_WebSessionRequirementIsRecognised() {

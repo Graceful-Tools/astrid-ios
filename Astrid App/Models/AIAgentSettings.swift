@@ -166,9 +166,29 @@ enum BuiltInModel: String, CaseIterable {
         let imageAsset: String?
         let fallbackSystemImage: String
         let usesOAuth: Bool
+        /// No server executor and no credential — the agent exists only as a CLI on the user's
+        /// own machine, so "\(Brand.appName) runs it" is a button whose PUT the server rejects
+        /// and there is no webhook to push work to. Mirrors web's `isHarnessOnly`, which reads
+        /// the same harness registry the server rejects writes from.
+        ///
+        /// Keyed on the MODE MAILBOX, not the row: the Codex row is not harness-only, because
+        /// the mode it writes is `openai`, which does have an executor.
+        let isHarnessOnly: Bool
 
         func identityMailbox(for mode: AgentExecutionMode) -> String {
             id == "codex" && mode == .polling ? "codex" : modeMailbox
+        }
+
+        /// The ownership choices this row may offer. A harness-only agent has nobody but the
+        /// user to run it, so "\(Brand.appName) runs it" is not among them.
+        var availableOwnerships: [AgentOwnership] {
+            isHarnessOnly ? [.user, .off] : AgentOwnership.allCases
+        }
+
+        /// The transports offered under "I run it". A harness-only agent has exactly one, so the
+        /// picker is not a choice and the view does not draw it.
+        var availableTransports: [AgentSelfTransport] {
+            isHarnessOnly ? [.polling] : AgentSelfTransport.allCases
         }
 
         static let all: [AgentRuntimeRow] = [
@@ -180,7 +200,8 @@ enum BuiltInModel: String, CaseIterable {
                 pollMailbox: "claude",
                 imageAsset: "ai-claude",
                 fallbackSystemImage: "cpu",
-                usesOAuth: false
+                usesOAuth: false,
+                isHarnessOnly: false
             ),
             AgentRuntimeRow(
                 id: "codex",
@@ -190,7 +211,22 @@ enum BuiltInModel: String, CaseIterable {
                 pollMailbox: "codex",
                 imageAsset: "ai-openai",
                 fallbackSystemImage: "cpu",
-                usesOAuth: false
+                usesOAuth: false,
+                isHarnessOnly: false
+            ),
+            // Muse Code is Meta's terminal coding agent (August 2026) — a CLI the user runs, not
+            // an API Astrid calls, so it has no key field and its identity never changes with the
+            // mode. Web has it in lib/ai/harness-agents.ts (AWTD-937).
+            AgentRuntimeRow(
+                id: "muse",
+                label: "Muse",
+                modeMailbox: "muse",
+                service: "muse",
+                pollMailbox: "muse",
+                imageAsset: "ai-muse",
+                fallbackSystemImage: "terminal",
+                usesOAuth: false,
+                isHarnessOnly: true
             ),
             AgentRuntimeRow(
                 id: "copilot",
@@ -200,7 +236,8 @@ enum BuiltInModel: String, CaseIterable {
                 pollMailbox: "copilot",
                 imageAsset: "ai-copilot",
                 fallbackSystemImage: "chevron.left.forwardslash.chevron.right",
-                usesOAuth: true
+                usesOAuth: true,
+                isHarnessOnly: false
             ),
             AgentRuntimeRow(
                 id: "gemini",
@@ -210,7 +247,8 @@ enum BuiltInModel: String, CaseIterable {
                 pollMailbox: "gemini",
                 imageAsset: "ai-gemini",
                 fallbackSystemImage: "cpu",
-                usesOAuth: false
+                usesOAuth: false,
+                isHarnessOnly: false
             ),
         ]
     }
@@ -253,6 +291,21 @@ enum BuiltInModel: String, CaseIterable {
                         steps: [
                             "[mcp_servers.\(serverName)]\ncommand = \"npx\"\nargs = [\"-y\", \"mcp-remote\", \"\(mcpURL)\"]",
                             "*/30 * * * * cd ~/code/your-project && codex exec \"\(queuePrompt)\" >> ~/\(serverName)-loop.log 2>&1",
+                        ]
+                    ),
+                ]
+            case "muse":
+                return [
+                    AgentHarnessRecipe(
+                        id: "muse",
+                        name: "Muse Code",
+                        steps: [
+                            "muse mcp add \(serverName) --url \(mcpURL)\nmuse mcp login \(serverName)",
+                            "[mcp_servers.\(serverName)]\ncommand = \"npx\"\nargs = [\"-y\", \"mcp-remote\", \"\(mcpURL)\"]",
+                            // Muse parses options on the SUBCOMMAND, not the root, so the flag
+                            // follows `exec` — `muse --disable-approval exec …` is not the same
+                            // command and an unattended run would stop at the approval prompt.
+                            "*/30 * * * * cd ~/code/your-project && muse exec \"\(queuePrompt)\" --disable-approval >> ~/\(serverName)-loop.log 2>&1",
                         ]
                     ),
                 ]

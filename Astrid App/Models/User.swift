@@ -50,6 +50,7 @@ nonisolated struct User: Identifiable, Codable, Equatable, Hashable {
         case "openai", "openai_agent": return "ai-openai"
         case "gemini", "gemini_agent": return "ai-gemini"
         case "copilot", "copilot_agent": return "ai-copilot"
+        case "muse", "muse_agent": return "ai-muse"
         case "openclaw", "astrid": return "ai-openclaw"
         default: return nil
         }

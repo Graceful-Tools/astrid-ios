@@ -138,7 +138,7 @@ struct AgentHubView: View {
                 get: { ownership },
                 set: { newValue in _Concurrency.Task { await model.select(newValue, for: row) } }
             )) {
-                ForEach(AgentOwnership.allCases) { candidate in
+                ForEach(row.availableOwnerships) { candidate in
                     Text(candidate.localizedLabel).tag(candidate)
                 }
             }
@@ -146,7 +146,9 @@ struct AgentHubView: View {
             .labelsHidden()
             .disabled(model.savingRowID != nil)
 
-            if ownership == .user {
+            // A harness-only agent has exactly one transport, so the picker would be a choice
+            // between one thing — the same reason web omits it.
+            if ownership == .user && !row.isHarnessOnly {
                 Picker(NSLocalizedString("settings.agents.transport", comment: ""), selection: Binding(
                     get: { model.transport(for: row) ?? .polling },
                     set: { newValue in
@@ -157,7 +159,7 @@ struct AgentHubView: View {
                         }
                     }
                 )) {
-                    ForEach(AgentSelfTransport.allCases) { transport in
+                    ForEach(row.availableTransports) { transport in
                         Label(transport.localizedLabel, systemImage: transport.systemImage).tag(transport)
                     }
                 }
