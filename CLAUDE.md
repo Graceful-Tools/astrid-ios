@@ -57,7 +57,7 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run predeploy` | Quick + partner-brand audit + unit tests + script self-test — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (needs a minted test-account session) + Mac unit tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
-| `npm run test:scripts` | Self-test for `scripts/check-version.sh` |
+| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`) |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:mac` | Mac unit tests (`Astrid MacTests`); never alongside `predeploy`, whose brand audit rewrites the Info.plists |

@@ -174,6 +174,8 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     gate "Script tests passed" "Script tests failed" "$SCRIPT_DIR/test-check-version.sh"
     gate "App version table script tests passed" "App version table script tests failed" \
         "$SCRIPT_DIR/test-check-app-version-table.sh"
+    gate "fixall loop script tests passed" "fixall loop script tests failed" \
+        "$SCRIPT_DIR/test-fixall-loop.sh"
 fi
 
 # Step 8: UI tests (only with --full)

@@ -26,13 +26,16 @@
 #   FIXALL_MAX_USD      hard spend cap for one run (default: 10; empty = no cap)
 #   CLAUDE_BIN          path to the claude CLI (default: ~/.local/bin/claude)
 #   FIXALL_FORCE=1      skip the dirty-tree/branch guard (testing only)
+#   FIXALL_TSX          path to tsx (default: astrid-web's). scripts/test-fixall-loop.sh
+#                       points it at a stub so the test can run this loop for real without
+#                       taking the working-tree lock or calling the board.
 
 set -u
 export PATH="/opt/homebrew/bin:$PATH"
 
 REPO="${0:A:h:h}"
 WEB="$REPO/../astrid-web"
-TSX="$WEB/node_modules/.bin/tsx"
+TSX="${FIXALL_TSX:-$WEB/node_modules/.bin/tsx}"
 CLAUDE="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
 MODEL="${FIXALL_MODEL:-opus}"
 MAX_MINUTES="${FIXALL_MAX_MINUTES:-50}"
@@ -108,13 +111,24 @@ fi
 # of a day's tokens spent learning there was nothing to do. GET
 # /api/v1/agent-queue is the same question for one HTTP request.
 #
+# The seen-file write is the SECOND phase of waking. This preflight runs with
+# --no-write-seen and hands its keys back on a KEYS: line; the run's outcome
+# records them. A run that crashes, is watchdog-killed, or exhausts its budget
+# must not mute the items that woke it on the first failure — otherwise "one run
+# per item" becomes "one attempt ever" — but it gets a strike (--mark-seen
+# --failed), and a key out of strikes is muted like a finished one, so a run that
+# keeps dying on the same item cannot wake a session every tick forever. The
+# strike limit lives in astrid-web/scripts/lib/wake-keys.ts; this loop only
+# passes flags.
+#
 # Exit 1 means "could not tell" (network, auth) and must NOT be read as empty:
 # a queue we cannot see is a reason to run and let the agent report properly,
 # not a reason to skip quietly forever.
-QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" 2>&1 )
+QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --no-write-seen 2>&1 )
 QUEUE_STATUS=$?
-QUEUE_LINE=$(echo "$QUEUE_OUT" | grep '^QUEUE:' | tail -1)
-echo "  ${QUEUE_LINE:-QUEUE: no verdict}"
+QUEUE_LINES=$(echo "$QUEUE_OUT" | grep -E '^(QUEUE|LANES|SEEN):')
+QUEUE_KEYS=$(echo "$QUEUE_OUT" | sed -n 's/^KEYS: //p' | head -1)
+echo "${QUEUE_LINES:-QUEUE: no verdict}" | sed 's/^/  /'
 if [ "$QUEUE_STATUS" -eq 3 ]; then
   echo "RESULT: SKIPPED — nothing queued for claude"
   exit 0
@@ -151,6 +165,19 @@ WATCHDOG_PID=$!
 wait "$CLAUDE_PID"
 STATUS=$?
 kill "$WATCHDOG_PID" 2>/dev/null
+
+# Phase two of waking, before the RESULT lines so that line stays last (the
+# header promises it). A finished run had its chance at the preflight's items:
+# they are marked seen and will not wake another run. A run that died gives them
+# a strike instead. Same `cd "$WEB"` as the preflight — loadScriptEnv() reads
+# .env.local from the cwd, and that file lives in astrid-web.
+if [ -n "${QUEUE_KEYS:-}" ]; then
+  if [ "$STATUS" -eq 0 ]; then
+    ( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --mark-seen --seen-keys "$QUEUE_KEYS" 2>&1 ) | sed 's/^/  /'
+  else
+    ( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --mark-seen --failed --seen-keys "$QUEUE_KEYS" 2>&1 ) | sed 's/^/  /'
+  fi
+fi
 
 if [ "$STATUS" -eq 0 ]; then
   echo "RESULT: OK — run finished (see the tasks for what changed)"
