@@ -225,6 +225,24 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
   Re-run them on the MERGED tree, not just the branch — a merge can break what neither side
   broke alone.
 
+- **A running gate is a reason to WAIT, not a reason to end the turn.** On 2026-09-22 the
+  17:30 run wrote its fix, started the suite, said *"Fix applied; the green run is going.
+  Waiting on it before the full gates"* — and then ended, leaving four modified files
+  uncommitted on a branch. The loop saw exit 0 and recorded `RESULT: OK`; the next 25 ticks
+  skipped on the tree it left, for 12 hours, with the queue non-empty the whole time
+  (AITD-426).
+
+  **Never end a turn with uncommitted changes.** The tree you hand back is either committed
+  or it is not finished. If a gate is still running, wait for it — that is what the 50-minute
+  watchdog and the budget cap are for, and a run that is killed by one of them is reported
+  honestly, which is strictly better than one that exits 0 having left a mess. If you truly
+  cannot finish, commit the work in progress on its branch and say so on the task, so the
+  next tick starts from a clean tree instead of refusing to start at all.
+
+  The loop now checks `git status --porcelain` after the run as well as before, so this
+  fails loudly (`RESULT: FAILED — run left the tree dirty`, a message on the board, and a
+  strike against the wake keys) rather than being inferred from the next tick's skip.
+
 - **No `CURRENT_PROJECT_VERSION` bump per fix.** It does not name the TestFlight build:
   measured 2026-08-18, TestFlight's numbers are the Xcode Cloud RUN numbers (877, 878, 882…)
   while the repo said 254. Tell Jon the build number or the commit, not the bump.

@@ -130,6 +130,131 @@ not_called "--mark-seen" "a skipped tick must not mark anything seen"
 not_called "^claude " "a skipped tick must not start a session"
 if echo "$OUT" | tail -1 | grep -q '^RESULT: SKIPPED'; then ok; else bad "a quiet tick ends on RESULT: SKIPPED" "$OUT"; fi
 
+# --- The stall alert, and the run that causes one (AITD-426) ------------------------
+#
+# The tree guards are RIGHT to refuse once. On 2026-09-22 they refused 25 times across 12
+# hours with the queue non-empty the whole time, and said so only in a log nobody reads
+# unless they already suspect a problem — Jon found out by asking. The skip is not the
+# defect; the silence is.
+#
+# These need the guards to actually run, which FIXALL_FORCE=1 turns off, and they need a
+# tree whose cleanliness the test controls rather than whatever this checkout happens to
+# be mid-run. So the loop runs in a throwaway git repo: REPO comes from $0, so a copy of
+# the script at $SANDBOX/repo/scripts/ makes $SANDBOX/repo the tree it guards and
+# $SANDBOX/astrid-web the sibling it shells out to.
+SANDBOX="$TMP/sandbox"
+mkdir -p "$SANDBOX/repo/scripts" "$SANDBOX/astrid-web"
+cp "$LOOP" "$SANDBOX/repo/scripts/fixall-loop.sh"
+chmod +x "$SANDBOX/repo/scripts/fixall-loop.sh"
+(
+  cd "$SANDBOX/repo"
+  git init -q -b main .
+  git config user.email t@example.com
+  git config user.name  Test
+  # The copied loop is COMMITTED, not left untracked: clean_sandbox runs `git clean -fd`,
+  # which would otherwise delete the very script under test.
+  git add -A
+  git commit -q -m init
+) >/dev/null 2>&1
+
+# A claude that does what the 17:30 run did: edits a file, then ends its turn anyway.
+cat > "$TMP/bin/claude-leaves-mess" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+echo "half-finished" > leftover.txt
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-leaves-mess"
+
+STALL_STATE="$TMP/stall.state"
+
+run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
+  : > "$CALLS"
+  FIXALL_TSX="$TMP/bin/tsx" \
+  CLAUDE_BIN="${1:-$TMP/bin/claude}" \
+  FIXALL_MAX_MINUTES=1 \
+  FIXALL_MAX_USD= \
+  FIXALL_STALL_STATE="$STALL_STATE" \
+  FIXALL_STALL_ALERT_AFTER=3 \
+  STUB_CLAUDE_EXIT=0 \
+  STUB_QUEUE_EXIT=0 \
+  "$SANDBOX/repo/scripts/fixall-loop.sh" > "$TMP/out.txt" 2>&1
+  STATUS=$?
+  OUT=$(cat "$TMP/out.txt")
+}
+
+dirty_sandbox() { echo "uncommitted" > "$SANDBOX/repo/work-in-progress.txt"; }
+clean_sandbox() { ( cd "$SANDBOX/repo" && git clean -qfd && git checkout -q -- . ); }
+
+# `called` matches within ONE logged line, which the run summaries are. A stall alert is
+# markdown with headings and a fenced block, so its words land on different lines of the
+# log — this reads the whole file instead.
+posted() {  # posted <description> <pattern…>
+  local desc="$1"; shift
+  grep -q "post-list-message.ts" "$CALLS" || { bad "$desc (nothing was posted)" "$(cat "$CALLS")"; return 0; }
+  local want
+  for want in "$@"; do
+    grep -qF -- "$want" "$CALLS" || { bad "$desc (no \"$want\" in the message)" "$(cat "$CALLS")"; return 0; }
+  done
+  ok
+}
+
+# One skip is the healthy outcome and must stay silent — at two ticks an hour, a per-tick
+# alert is just a different way of being ignored.
+rm -f "$STALL_STATE"
+dirty_sandbox
+run_sandbox
+not_called "post-list-message.ts" "the first dirty-tree skip stays quiet"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: SKIPPED'; then ok
+else bad "a dirty tree still ends on RESULT: SKIPPED" "$OUT"; fi
+
+# The second is still within tolerance…
+run_sandbox
+not_called "post-list-message.ts" "the second consecutive skip is still quiet"
+
+# …the third is the stall, and it says so once, naming what is in the way.
+run_sandbox
+posted "the third consecutive skip posts to the list chat"
+posted "…and names the branch it is stuck on" "On branch \`main\`"
+posted "…and names the file holding it up" "work-in-progress.txt"
+posted "…and says whether work is piling up behind it" "QUEUE:"
+
+# Once per stall, not once per tick.
+run_sandbox
+not_called "post-list-message.ts" "a fourth skip does not post again — once per stall"
+
+# Getting past the guards resets the counter, so the NEXT stall is heard too.
+clean_sandbox
+run_sandbox
+not_called "post-list-message.ts" "a tick that gets past the guards posts nothing itself"
+dirty_sandbox
+run_sandbox
+not_called "post-list-message.ts" "…and the count starts again from one after it"
+
+# The wrong-branch guard is the same failure class and gets the same treatment.
+rm -f "$STALL_STATE"
+clean_sandbox
+( cd "$SANDBOX/repo" && git checkout -q -b some-fix )
+run_sandbox; run_sandbox; run_sandbox
+posted "three ticks stuck off main also post once" "HEAD is on some-fix, not main"
+( cd "$SANDBOX/repo" && git checkout -q main )
+
+# --- The other half: a run that leaves the tree dirty is a FAILED run ---------------
+# `claude -p` exiting 0 is not enough. The 17:30 run exited 0 with four modified files
+# still uncommitted, so the loop recorded OK and nothing downstream treated it as a
+# failure — the wake keys were marked seen rather than struck, and the stall was left to
+# be inferred from the next tick's skip.
+rm -f "$STALL_STATE"
+clean_sandbox
+run_sandbox "$TMP/bin/claude-leaves-mess"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED'; then ok
+else bad "a run that leaves the tree dirty must not report OK" "$OUT"; fi
+called "…and its wake keys get a strike, not a mute" \
+       "agent-queue-status.ts" "--mark-seen" "--failed"
+posted "…and it says so on the board, since the run cannot report for itself" \
+       "left work uncommitted" "leftover.txt"
+clean_sandbox
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1
