@@ -317,10 +317,11 @@ class CachedImageLoader: ObservableObject {
 enum AgentAvatarAsset {
     nonisolated static func assetName(for url: URL?) -> String? {
         guard let url, url.path.hasPrefix("/api/v1/agent-icon/") else { return nil }
-        switch url.lastPathComponent {
-        case "copilot": return "ai-copilot"
-        default: return nil
-        }
+        guard let asset = User.brandImageAsset(forAgentSlug: url.lastPathComponent) else { return nil }
+        // Only claim the asset on a platform that actually ships it — the iOS catalog is on the
+        // Mac target's exception list, so a name that resolves here can be missing there, and an
+        // Image() of a missing name draws nothing at all where the placeholder would have drawn.
+        return PlatformImage(named: asset) == nil ? nil : asset
     }
 }
 
