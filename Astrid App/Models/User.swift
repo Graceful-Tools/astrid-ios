@@ -45,7 +45,15 @@ nonisolated struct User: Identifiable, Codable, Equatable, Hashable {
     /// Local asset image name for AI agent brand icon, if available
     var agentBrandImageAsset: String? {
         guard isAIAgent == true else { return nil }
-        switch aiAgentType {
+        return User.brandImageAsset(forAgentSlug: aiAgentType)
+    }
+
+    /// The one slug → bundled brand mark table. `aiAgentType` and the last path component of an
+    /// `/api/v1/agent-icon/<slug>` URL speak the same vocabulary, so `AgentAvatarAsset` resolves
+    /// through here too rather than keeping a second, shorter copy of the list (AITD-424 — the
+    /// copy it kept knew only Copilot, so every other agent's avatar drew blank).
+    static func brandImageAsset(forAgentSlug slug: String?) -> String? {
+        switch slug {
         case "claude", "claude_agent": return "ai-claude"
         case "openai", "openai_agent": return "ai-openai"
         case "gemini", "gemini_agent": return "ai-gemini"

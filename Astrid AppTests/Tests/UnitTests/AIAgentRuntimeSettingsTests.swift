@@ -97,6 +97,66 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
         }
     }
 
+    // MARK: - AITD-424: Muse's brand mark
+
+    private func agentAsset(_ imageset: String, _ file: String) throws -> String {
+        try String(
+            contentsOf: RepositoryLocator.root
+                .appendingPathComponent("Astrid App/Assets.xcassets/\(imageset).imageset/\(file)"),
+            encoding: .utf8
+        )
+    }
+
+    /// AITD-424: `ai-muse` shipped a redrawn infinity loop rather than Meta's mark. Web's icon
+    /// table (`lib/ai/harness-agents.ts`) names the simple-icons `meta` slug in `#0467DF`, and
+    /// every other bundled fallback is that slug's path copied verbatim — iOS never calls the
+    /// `/api/v1/agent-icon` proxy, so whatever is in the catalog is what the phone shows forever.
+    func testAITD424_TheMuseAssetCarriesMetasOfficialMark() throws {
+        let muse = try agentAsset("ai-muse", "muse.svg")
+
+        XCTAssertTrue(muse.contains("M6.915 4.03c-1.968"),
+                      "ai-muse must be the simple-icons `meta` path, not a redraw of it")
+        XCTAssertFalse(muse.contains("M6.2 5.5c-2.6"),
+                       "the hand-drawn stand-in must be gone")
+        XCTAssertTrue(muse.contains("#0467DF"), "Meta brand blue, as web's icon table specifies")
+    }
+
+    /// AITD-424: web applies `padding: 0.125` in the proxy; iOS has no proxy, so the padding is
+    /// baked into the catalog copy — `ai-copilot` already does this. Unpadded, the hub's
+    /// `.clipShape(Circle())` crops the outer edges of the mark.
+    func testAITD424_TheMuseAssetIsPaddedLikeTheOtherClippedMarks() throws {
+        let muse = try agentAsset("ai-muse", "muse.svg")
+        let copilot = try agentAsset("ai-copilot", "copilot.svg")
+
+        func viewBox(_ svg: String) -> String? {
+            guard let range = svg.range(of: #"viewBox="[^"]*""#, options: .regularExpression)
+            else { return nil }
+            return String(svg[range])
+        }
+
+        XCTAssertEqual(viewBox(copilot), #"viewBox="-3 -3 30 30""#, "the padding convention itself")
+        XCTAssertEqual(viewBox(muse), viewBox(copilot),
+                       "a mark clipped to a circle needs the same breathing room as Copilot's")
+    }
+
+    /// AITD-424: the agent-icon endpoint serves SVG, which `PlatformImage` cannot decode, so a
+    /// Muse byline must resolve to the bundled vector instead of attempting a network load.
+    /// The resolver knew only `copilot`; every other agent drew blank.
+    func testAITD424_TheMuseAgentIconURLResolvesToTheBundledAsset() {
+        let museURL = URL(string: "https://astrid.cc/api/v1/agent-icon/muse")!
+        XCTAssertEqual(AgentAvatarAsset.assetName(for: museURL), "ai-muse")
+
+        for (slug, asset) in [("claude", "ai-claude"), ("openai", "ai-openai"),
+                              ("gemini", "ai-gemini"), ("copilot", "ai-copilot")] {
+            let url = URL(string: "https://astrid.cc/api/v1/agent-icon/\(slug)")!
+            XCTAssertEqual(AgentAvatarAsset.assetName(for: url), asset,
+                           "\(slug) has a bundled mark too")
+        }
+
+        XCTAssertNil(AgentAvatarAsset.assetName(for: URL(string: "https://astrid.cc/avatars/x.png")!),
+                     "only the agent-icon endpoint is resolved locally")
+    }
+
     func testTask_920155a6AgentModesResponseDecodesVersionedContract() throws {
         let json = """
         {
