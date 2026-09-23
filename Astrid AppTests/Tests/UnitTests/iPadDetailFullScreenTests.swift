@@ -58,15 +58,26 @@ final class iPadDetailFullScreenTests: XCTestCase {
     }
 
     /// The header control must be wired to the panel, not just exist as a layout rule.
+    ///
+    /// Two files since AITD-425 extracted the header bar out of what was the largest file in
+    /// the repo: `TaskDetailViewNew` still has to ACCEPT the callback from the iPad panel and
+    /// hand it on, and `TaskDetailHeaderBar` is where the control is drawn.
     func testTheDetailHeaderOffersTheExpandControl() throws {
-        let source = try String(contentsOf: RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Views/Tasks/TaskDetailViewNew.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(source.contains("onToggleFullScreen"),
+        let detail = try source(of: "Astrid App/Views/Tasks/TaskDetailViewNew.swift")
+        XCTAssertTrue(detail.contains("onToggleFullScreen"),
                       "TaskDetailViewNew needs the expand callback the iPad panel supplies")
-        XCTAssertTrue(source.contains("arrow.up.left.and.arrow.down.right"),
+
+        let header = try source(of: "Astrid App/Views/Tasks/TaskDetailHeaderBar.swift")
+        XCTAssertTrue(header.contains("onToggleFullScreen"),
+                      "…and must pass it through to the bar that draws the control")
+        XCTAssertTrue(header.contains("arrow.up.left.and.arrow.down.right"),
                       "Expand uses the same glyph as the Mac pop-out and the board")
-        XCTAssertTrue(source.contains("arrow.down.right.and.arrow.up.left"),
+        XCTAssertTrue(header.contains("arrow.down.right.and.arrow.up.left"),
                       "…and its counterpart for going back to normal")
+    }
+
+    private func source(of path: String) throws -> String {
+        try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path),
+                   encoding: .utf8)
     }
 }
