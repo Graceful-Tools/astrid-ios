@@ -29,6 +29,8 @@
 #   FIXALL_TSX          path to tsx (default: astrid-web's). scripts/test-fixall-loop.sh
 #                       points it at a stub so the test can run this loop for real without
 #                       taking the working-tree lock or calling the board.
+#   FIXALL_STALL_STATE  where the consecutive-skip count lives (default: beside the log)
+#   FIXALL_STALL_ALERT_AFTER  how many skips in a row before saying so (default: 3)
 
 set -u
 export PATH="/opt/homebrew/bin:$PATH"
@@ -41,6 +43,8 @@ MODEL="${FIXALL_MODEL:-opus}"
 MAX_MINUTES="${FIXALL_MAX_MINUTES:-50}"
 MAX_USD="${FIXALL_MAX_USD-10}"
 IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
+STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}"
+STALL_ALERT_AFTER="${FIXALL_STALL_ALERT_AFTER:-3}"
 
 echo "──────── fixall loop $(date '+%Y-%m-%d %H:%M:%S') ────────"
 
@@ -53,6 +57,63 @@ post_to_list() {
   [ -x "$TSX" ] || return 0
   ( cd "$WEB" && "$TSX" scripts/post-list-message.ts "$IOS_LIST_ID" "$1" ) \
     >/dev/null 2>&1 || echo "  (could not post to list chat)"
+}
+
+# ── The stall alarm ──────────────────────────────────────────────────────────
+# The tree guards below are RIGHT to refuse once. What they must not do is refuse
+# silently and indefinitely: on 2026-09-22 a run left four files uncommitted on a
+# branch, and guard 2 then skipped 25 consecutive ticks across 12 hours with the
+# queue non-empty the whole time. The only trace was a line in a log nobody reads
+# unless they already suspect a problem, so Jon found out by asking (AITD-426).
+#
+# The skip is not the defect. The silence is. So: count consecutive skips and, on
+# the Nth, say so ONCE — once per stall, not once per tick, because at two ticks
+# an hour a per-tick alert is just a slower way of being ignored. Any tick that
+# gets past the guards clears the count, so the next stall is heard too.
+#
+# State is one line: <count> <alerted 0|1> <first-skip ISO8601>.
+stall_field() {  # stall_field <1-based field>  → value, or 0/empty
+  [ -f "$STALL_STATE" ] || { echo ""; return 0; }
+  awk -v f="$1" 'NR==1 { print $f }' "$STALL_STATE" 2>/dev/null
+}
+
+clear_stall() { rm -f "$STALL_STATE" 2>/dev/null; return 0; }
+
+# Every exit path out of the guards goes through here, so a new guard cannot be
+# added without deciding what its stall looks like.
+skip_and_maybe_alert() {  # skip_and_maybe_alert <one-line reason> <detail block>
+  local reason="$1" detail="${2:-}"
+  local count alerted since
+  count=$(stall_field 1); count=$(( ${count:-0} + 1 ))
+  alerted=$(stall_field 2); alerted=${alerted:-0}
+  since=$(stall_field 3)
+  [ -n "$since" ] || since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+  if [ "$count" -ge "$STALL_ALERT_AFTER" ] && [ "$alerted" != "1" ]; then
+    # Only now — once per stall — is it worth an HTTP request to say whether
+    # anything is actually piling up behind the stall. That is what makes this
+    # worth interrupting someone for, rather than a tidy-up note.
+    local queue
+    queue=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts \
+               --agent claude --list "$IOS_LIST_ID" --no-write-seen 2>&1 \
+             | grep -E '^QUEUE:' | head -1 )
+    [ -n "$queue" ] || queue="QUEUE: could not tell"
+    post_to_list "## Scheduled /fixall has been skipping
+
+$reason
+
+It has skipped **$count ticks in a row**, first at \`$since\`. That guard is doing its job — it will not clobber work in progress — but it will keep refusing until the tree is put back, so this says so once rather than waiting to be asked.
+
+$detail
+
+$queue
+
+Log: \`~/Library/Logs/astrid-fixall.log\`"
+    alerted=1
+  fi
+
+  echo "$count $alerted $since" > "$STALL_STATE" 2>/dev/null
+  echo "RESULT: SKIPPED — $reason"
 }
 
 # ── Guard 1: one session per working tree ────────────────────────────────────
@@ -92,17 +153,29 @@ export ASTRID_FIXALL_LOCK_HELD=1
 # /fixstuff takes no lock, so an interactive session editing files here is
 # invisible to guard 1. This is the only thing between a 30-minute tick and
 # uncommitted work.
+GUARDS_CONFIRMED_CLEAN=0
 if [ "${FIXALL_FORCE:-0}" != "1" ]; then
   BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-  if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-    echo "RESULT: SKIPPED — working tree is dirty, leaving it alone"
+  DIRTY=$(git status --porcelain 2>/dev/null)
+  if [ -n "$DIRTY" ]; then
+    skip_and_maybe_alert "working tree is dirty, leaving it alone" \
+      "On branch \`$BRANCH\`, uncommitted:
+
+\`\`\`
+$(echo "$DIRTY" | head -20)
+\`\`\`"
     exit 0
   fi
   if [ "$BRANCH" != "main" ]; then
-    echo "RESULT: SKIPPED — HEAD is on $BRANCH, not main"
+    skip_and_maybe_alert "HEAD is on $BRANCH, not main" \
+      "The tree is clean but parked on \`$BRANCH\`. Merging it to \`main\` (or checking \`main\` out) starts the ticks again."
     exit 0
   fi
+  GUARDS_CONFIRMED_CLEAN=1
 fi
+
+# Got past them: whatever the last stall was, it is over.
+clear_stall
 
 # ── Guard 3: is there actually any work? ─────────────────────────────────────
 # THE expensive question, asked the cheap way. Without this a quiet tick still
@@ -166,6 +239,20 @@ wait "$CLAUDE_PID"
 STATUS=$?
 kill "$WATCHDOG_PID" 2>/dev/null
 
+# The other half of AITD-426. `claude -p` exiting 0 is not enough: the 17:30 run
+# exited 0 with four files still uncommitted, so this recorded OK, the wake keys
+# were marked seen rather than struck, and the stall was left to be INFERRED from
+# the next tick's skip 30 minutes later. A run that hands back a dirty tree has
+# not finished, and saying so here makes it visible at the moment it happens.
+#
+# Only when the guards confirmed the tree was clean going in — under FIXALL_FORCE
+# it may have been dirty all along, and blaming the run for that would be a lie.
+LEFT_DIRTY=""
+if [ "$STATUS" -eq 0 ] && [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ]; then
+  LEFT_DIRTY=$(git status --porcelain 2>/dev/null)
+  [ -n "$LEFT_DIRTY" ] && STATUS=90
+fi
+
 # Phase two of waking, before the RESULT lines so that line stays last (the
 # header promises it). A finished run had its chance at the preflight's items:
 # they are marked seen and will not wake another run. A run that died gives them
@@ -186,6 +273,23 @@ fi
 
 # A run that died cannot write its own completion comment, and this is precisely
 # the outcome worth hearing about, so the wrapper says it on the board itself.
+if [ -n "$LEFT_DIRTY" ]; then
+  REASON="run left the tree dirty"
+  post_to_list "## Scheduled /fixall left work uncommitted
+
+The run exited cleanly but handed back a dirty tree, which is not a finished run — every tick from here will skip on it until someone puts it back (AITD-426).
+
+On branch \`$(git rev-parse --abbrev-ref HEAD 2>/dev/null)\`:
+
+\`\`\`
+$(echo "$LEFT_DIRTY" | head -20)
+\`\`\`
+
+Nothing was pushed. Log: \`~/Library/Logs/astrid-fixall.log\`"
+  echo "RESULT: FAILED — $REASON"
+  exit 1
+fi
+
 if [ "$STATUS" -ge 128 ]; then
   REASON="killed after ${MAX_MINUTES}m watchdog timeout (signal $((STATUS - 128)))"
 else

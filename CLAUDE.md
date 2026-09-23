@@ -183,7 +183,9 @@ at `:00` and `:30` — interleaved with the Copilot GitHub workflow's `:15`/`:45
 `scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held, the tree is
 dirty, or the queue is empty — that last one checked with a single HTTP request before any
 session starts, so a quiet tick costs nothing. A run is bounded by both a wall-clock watchdog
-and `--max-budget-usd`. `npm run fixall:loop` runs one pass by hand; the log is
+and `--max-budget-usd`. Three skips in a row on a dirty tree or the wrong branch posts once to
+the iOS list chat, and a run that hands back a dirty tree is `RESULT: FAILED`, not `OK` —
+a correct one-tick skip used to become an invisible 12-hour stall (AITD-426). `npm run fixall:loop` runs one pass by hand; the log is
 `~/Library/Logs/astrid-fixall.log`.
 
 **Run summaries go to the iOS list's Astrid chat, not to chat here** — per-task detail stays in
