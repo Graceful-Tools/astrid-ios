@@ -29,6 +29,27 @@ policy.
 
 ---
 
+## Deletion: learned by absence, never by tombstone
+
+iOS **never sends an `updatedSince` cursor** on any request. `SyncManager`'s incremental pass is
+a client-side delta over a *full* fetch — `getLists()` and `getAllTasks()`, the latter paging
+until the server is exhausted — and a remote deletion is learned by the row's **absence** from
+that set.
+
+This is a contract, not an accident. The server attaches `deletedIds` only to a request that
+carries a valid `updatedSince`, and web now expires deletion tombstones after 30 days
+(`DELETION_LOG_RETENTION_DAYS`, AWTD-993). A cursor older than that yields a delta that no longer
+mentions the deletion, and the local copy stays visible forever with nothing raising anything —
+only a full fetch repairs it. Sending no cursor is what keeps the app immune at any age, which
+matters more here than on web: an iOS app can sit unlaunched for months.
+
+Adding a delta cursor therefore needs both halves — a persisted `lastSync` stamp, and a full-fetch
+fallback once it is older than a threshold comfortably under 30 days (web uses 24h,
+`MAX_CURSOR_AGE`). `DeltaSyncCursorGuardTests` fails the build if a cursor appears without them.
+See AITD-427.
+
+---
+
 ## Real-Time Updates
 
 ### GET `/api/v1/sse`
