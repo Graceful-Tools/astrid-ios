@@ -141,98 +141,20 @@ struct TaskDetailViewNew: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Custom header — avoids iOS 26 glass toolbar bubbles
-            HStack {
-                    Button {
-                        if let onClose { onClose() } else { dismiss() }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-
-                    Button {
-                        scrollToTopAction?()
-                    } label: {
-                        Text(NSLocalizedString("tasks.task_details", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                    }
-                    .buttonStyle(.plain)
-                    // How a UI test knows the detail is open (task b86c97c5). The suite matched
-                    // `app.staticTexts["Task Details"]`, which never could: the header is a
-                    // BUTTON — it scrolls the panel to the top — so the label belongs to the
-                    // button, not to a static text. Nine tests read that as "detail did not
-                    // appear" when it had. An identifier says which element rather than hoping
-                    // for a type, and it does not change when the app is in French.
-                    .accessibilityIdentifier(TaskDetailHeader.accessibilityIdentifier)
-
-                    Spacer()
-
-                    // Expand the panel / put it back (task c5ba07ed). Same affordance, glyphs and
-                    // strings as the Mac pop-out (42013da7) and the board's full screen — the
-                    // point is the same one: a description needs more room than a side panel.
-                    if let onToggleFullScreen {
-                        Button(action: onToggleFullScreen) {
-                            Image(systemName: isFullScreen
-                                  ? "arrow.down.right.and.arrow.up.left"
-                                  : "arrow.up.left.and.arrow.down.right")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                .accessibilityLabel(Text(NSLocalizedString(
-                                    isFullScreen ? "board.exit_full_screen" : "board.full_screen",
-                                    comment: "")))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("taskDetail.fullScreen")
-                        .padding(.trailing, 12)
-                    }
-
-                    if !isReadOnly {
-                        Menu {
-                            Button {
-                                showingCopySheet = true
-                            } label: {
-                                Label(NSLocalizedString("tasks.copy_task", comment: ""), systemImage: "doc.on.doc")
-                            }
-
-                            Button {
-                                showingShareSheet = true
-                            } label: {
-                                Label(NSLocalizedString("tasks.share_task", comment: ""), systemImage: "square.and.arrow.up")
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                showingDeleteConfirmation = true
-                            } label: {
-                                Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 20))
-                                .rotationEffect(.degrees(90))  // SF Symbols has no ellipsis.vertical — rotate the horizontal one to match the web's vertical three-dot
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                .frame(minWidth: 44, minHeight: 44)  // 44pt is Apple HIG min tap target
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("taskDetailActionsMenu")
-                        .accessibilityLabel("Task actions")
-                    } else {
-                        // Spacer to balance the back button
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .opacity(0)
-                    }
-                }
-                .padding(.horizontal, Theme.spacing16)
-                .padding(.vertical, Theme.spacing12)
-                .background(toolbarBackgroundColor)
+            // A custom bar rather than a toolbar because iOS 26 draws toolbar items as
+            // glass bubbles. It lives in `TaskDetailHeaderBar` (AITD-425) — this was the
+            // largest file in the repo and the header was the most separable thing in it.
+            TaskDetailHeaderBar(
+                isReadOnly: isReadOnly,
+                onClose: onClose,
+                isFullScreen: isFullScreen,
+                onToggleFullScreen: onToggleFullScreen,
+                scrollToTopAction: scrollToTopAction,
+                background: toolbarBackgroundColor,
+                showingCopySheet: $showingCopySheet,
+                showingShareSheet: $showingShareSheet,
+                showingDeleteConfirmation: $showingDeleteConfirmation
+            )
 
             mainContent
         }

@@ -31,12 +31,18 @@ final class SourceFileSizeGuardTests: XCTestCase {
     /// Lowering an entry is always welcome. RAISING one should be a conscious decision with a
     /// reason, not a reflex to make the suite green — that reflex is how six became nine.
     private static let ceilings: [String: Int] = [
-        // Was 2090. AITD-363 extracted the leading control into its own
+        // Was 2090, then 1914. AITD-363 extracted the leading control into its own
         // `TaskDetailLeadingControl.swift` — the shape the Mac has had since
         // `MacLeadingControlButton` — rather than raising this to fit a confirmation
         // dialog into the largest file in the repo. The ratchet asked the question and
         // the answer was an extraction; the new number is what stops the lines coming back.
-        "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 1914,
+        //
+        // It asked again on AITD-425, which needed ~14 lines to give the back chevron a 44pt
+        // tap target, and got the same answer: the custom header was 109 lines of four
+        // controls with no state of their own beyond the parent's, so it moved to
+        // `TaskDetailHeaderBar.swift`. Down to 1836, not up to 1928 — which is the whole
+        // point of asking.
+        "Astrid App/Views/Tasks/TaskDetailViewNew.swift": 1836,
         "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": 1822,
         // Was 1766. The 2026-09-13 dedupe pass moved the task read-only / can-add rules into
         // `ListPermissions`, where the Mac and web already look for them.
