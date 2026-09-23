@@ -157,6 +157,58 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
                      "only the agent-icon endpoint is resolved locally")
     }
 
+    // MARK: - AITD-428: Muse in the list-settings agent picker
+
+    /// AITD-428: the picker itself needed nothing — `ListMembershipActions.availableAgents()`
+    /// filters on `isAIAgent` alone, so both platforms offer whatever the server returns. What
+    /// was missing is the MARK. `Astrid App/Assets.xcassets` is on the Mac target's membership
+    /// exception list, so the Mac ships its own catalog, and that catalog held only `ai-copilot`
+    /// and `ai-openclaw`. `AgentAvatarAsset` refuses to name an asset the running platform does
+    /// not bundle, so `MacAuthorAvatar` fell through to its initials placeholder: four of the six
+    /// agents in the one brand table — Muse among them — drew no mark at all on the Mac.
+    ///
+    /// This must be a FILESYSTEM check. `PlatformImage(named:)` only ever sees the catalog of the
+    /// target running the test, so from the iOS suite the Mac's half is invisible — which is
+    /// precisely how the gap survived AITD-424, whose own resolver test passes on iOS today.
+    func testAITD428_EveryAgentBrandMarkShipsInBothCatalogs() throws {
+        let fileManager = FileManager.default
+
+        /// The image `Contents.json` points at, so the assertion is about the artwork rather than
+        /// about a directory that happens to exist.
+        func artwork(inImagesetAt url: URL) throws -> Data {
+            let manifest = try String(
+                contentsOf: url.appendingPathComponent("Contents.json"), encoding: .utf8
+            )
+            let match = try XCTUnwrap(
+                manifest.range(of: #"(?<="filename" : ")[^"]+"#, options: .regularExpression),
+                "\(url.lastPathComponent)/Contents.json names no image file"
+            )
+            return try Data(contentsOf: url.appendingPathComponent(String(manifest[match])))
+        }
+
+        for slug in ["claude", "openai", "gemini", "copilot", "muse", "openclaw", "astrid"] {
+            let asset = try XCTUnwrap(User.brandImageAsset(forAgentSlug: slug),
+                                      "\(slug) is in the brand table")
+            let imagesets = ["Astrid App", "Astrid Mac"].map {
+                RepositoryLocator.root
+                    .appendingPathComponent("\($0)/Assets.xcassets/\(asset).imageset")
+            }
+
+            for imageset in imagesets {
+                XCTAssertTrue(
+                    fileManager.fileExists(atPath: imageset.path),
+                    "\(asset) is missing from \(imageset.deletingLastPathComponent().path) — "
+                        + "the agent picker draws initials instead of the brand mark there"
+                )
+            }
+            guard imagesets.allSatisfy({ fileManager.fileExists(atPath: $0.path) }) else { continue }
+
+            XCTAssertEqual(try artwork(inImagesetAt: imagesets[0]),
+                           try artwork(inImagesetAt: imagesets[1]),
+                           "\(asset) must be the same artwork on both platforms, not two redraws")
+        }
+    }
+
     func testTask_920155a6AgentModesResponseDecodesVersionedContract() throws {
         let json = """
         {
