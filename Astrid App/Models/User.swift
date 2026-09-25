@@ -46,6 +46,22 @@ nonisolated struct User: Identifiable, Codable, Equatable, Hashable {
     var agentBrandImageAsset: String? {
         guard isAIAgent == true else { return nil }
         return User.brandImageAsset(forAgentSlug: aiAgentType)
+            ?? User.brandImageAsset(forAgentSlug: agentMailbox)
+    }
+
+    /// The local part of an agent identity address — `muse@astrid.cc` -> `muse`.
+    ///
+    /// This is the key web itself brands off (`lib/brand/agent-emails.ts`, and the `AGENT_ICONS`
+    /// table behind `/api/v1/agent-icon/<slug>`), and it is the vocabulary `brandImageAsset`
+    /// already speaks. `aiAgentType` is NOT: a locally polled harness arrives as the generic
+    /// `local_harness_agent`, shared by Muse and Codex alike, so it can never name one mark
+    /// (AITD-428 — Muse drew a placeholder in the list-settings picker on both platforms for
+    /// exactly this reason). Scoped to `isAIAgent` rows, so a person whose address happens to
+    /// look like an agent's never picks up a brand mark.
+    var agentMailbox: String? {
+        guard isAIAgent == true, let email, let at = email.firstIndex(of: "@") else { return nil }
+        let mailbox = email[email.startIndex..<at].lowercased()
+        return mailbox.isEmpty ? nil : mailbox
     }
 
     /// The one slug → bundled brand mark table. `aiAgentType` and the last path component of an

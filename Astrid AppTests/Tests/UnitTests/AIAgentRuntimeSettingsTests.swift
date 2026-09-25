@@ -268,4 +268,54 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
         XCTAssertTrue(source.contains("AgentHubView()"))
         XCTAssertTrue(source.contains("\"settings.agents.title\""))
     }
+
+    // MARK: - AITD-428: the row as the server actually returns it
+
+    /// AITD-428: once `muse@astrid.cc` existed in production, the picker could finally be asked
+    /// what it draws — and the answer was a placeholder. The live row is
+    /// `{ aiAgentType: "local_harness_agent", image: null }`, which defeats BOTH routes to a
+    /// brand mark: the slug table knows `muse`/`muse_agent` but not the generic harness type,
+    /// and `AgentAvatarAsset` needs an `/api/v1/agent-icon/<slug>` URL that a null image cannot
+    /// produce. `openclaw@astrid.cc` arrives the same way.
+    ///
+    /// The earlier pass asserted against the *contract* in the task description, which promised
+    /// a resolvable `aiAgentType`. These rows are copied from the endpoint instead, so the test
+    /// fails when the wire shape moves rather than when the documentation does.
+    func testAITD428_LiveAgentRowsResolveTheirMarkFromTheMailbox() throws {
+        let live = [
+            (email: "muse@astrid.cc", name: "Muse Agent", type: "local_harness_agent", asset: "ai-muse"),
+            (email: "openclaw@astrid.cc", name: "Custom Agent", type: "openclaw_worker", asset: "ai-openclaw"),
+        ]
+
+        for row in live {
+            let user = User(id: "u-\(row.email)", email: row.email, name: row.name, image: nil,
+                            isAIAgent: true, aiAgentType: row.type)
+
+            XCTAssertEqual(user.agentBrandImageAsset, row.asset,
+                           "\(row.email) carries no resolvable aiAgentType, so the mailbox has to answer")
+
+            let url = try XCTUnwrap(user.cachedImageURL.flatMap { URL(string: $0) },
+                                    "an agent row with no image still needs an icon URL to fall back on")
+            XCTAssertEqual(AgentAvatarAsset.assetName(for: url), row.asset,
+                           "\(row.email): every avatar goes through CachedAsyncImage, so this is what both pickers draw")
+        }
+    }
+
+    /// AITD-428: the mailbox fallback must not start inventing marks for people. Only an
+    /// `isAIAgent` row gets one, and only when the mailbox is one the brand table knows.
+    func testAITD428_TheMailboxFallbackIsScopedToKnownAgentIdentities() {
+        let person = User(id: "p", email: "claude@gmail.com", name: "Claude Someone", image: nil,
+                          isAIAgent: false, aiAgentType: nil)
+        XCTAssertNil(person.agentBrandImageAsset, "a person is not an agent, whatever their address")
+
+        let unknown = User(id: "a", email: "cursor@astrid.cc", name: "Cursor", image: nil,
+                           isAIAgent: true, aiAgentType: "local_harness_agent")
+        XCTAssertNil(unknown.agentBrandImageAsset, "no bundled mark means no mark, not a wrong one")
+
+        let explicit = User(id: "c", email: "copilot@astrid.cc", name: "GitHub Copilot Agent",
+                            image: "/api/v1/agent-icon/copilot", isAIAgent: true,
+                            aiAgentType: "copilot_agent")
+        XCTAssertEqual(explicit.cachedImageURL?.hasSuffix("/api/v1/agent-icon/copilot"), true,
+                       "a row that already has an image keeps it untouched")
+    }
 }
