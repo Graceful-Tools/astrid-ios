@@ -127,6 +127,14 @@ extension User {
         if url == nil || url?.isEmpty == true {
             url = UserImageCache.shared.getImageURL(userId: self.id)
         }
+        // An agent row can arrive with no image at all — `muse@astrid.cc` and `openclaw@astrid.cc`
+        // both do — and without a URL there is nothing for `AgentAvatarAsset` to resolve, so every
+        // avatar on both platforms fell through to its placeholder (AITD-428). The icon proxy is
+        // keyed by mailbox and is the canonical source for these marks, so name it and let the
+        // usual resolution take over: bundled asset first, network only if we do not ship one.
+        if url == nil || url?.isEmpty == true, let mailbox = agentMailbox {
+            url = "/api/v1/agent-icon/\(mailbox)"
+        }
         guard var path = url, !path.isEmpty else { return nil }
 
         // iOS can't render SVG via AsyncImage — use PNG version instead
