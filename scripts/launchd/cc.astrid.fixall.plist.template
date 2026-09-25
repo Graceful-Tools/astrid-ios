@@ -1,28 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Scheduled /fixall — one unattended pass at :00 and :30. Install with:
+  Scheduled /fixall — one unattended pass at :00 and :30.
 
-    cp scripts/launchd/cc.astrid.fixall.plist ~/Library/LaunchAgents/
-    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/cc.astrid.fixall.plist
+  A TEMPLATE, not an installable plist. Install it with:
 
-  Stop it with:
+    ./scripts/launchd/install.sh cc.astrid.fixall
+
+  which fills in __REPO_ROOT__ and __HOME__ from wherever this checkout actually lives,
+  then bootstraps the job. Re-run it after moving the checkout; no path is committed, so
+  there is nothing to hand-edit and nothing to rot. Stop it with:
 
     launchctl bootout gui/$(id -u)/cc.astrid.fixall
 
-  Paths are absolute because launchd does not expand ~. Adjust them if your checkout
-  lives elsewhere. See .claude/commands/fixall.md.
+  KEEP THE CHECKOUT OUT OF TCC-PROTECTED DIRECTORIES (~/Documents, ~/Desktop,
+  ~/Downloads). From one of those, a launchd agent reading the repo blocks pending
+  consent rather than failing, and the job hangs in `state = running` with an empty log
+  while launchd swallows every later tick. See .claude/commands/fixall.md.
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>cc.astrid.fixall</string>
 
-    <!-- node, not zsh: launchd's zsh has no TCC access to ~/Documents. See the shim. -->
+    <!--
+      node, not zsh: a zsh launched straight by launchd has no TCC access to protected
+      locations, and git dies before the run starts. The shim also self-locates the repo,
+      which is what lets this template name only __REPO_ROOT__. Keep it. See the shim.
+    -->
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/node</string>
-        <string>/Users/jonparis/Documents/mycode/astrid-ios/scripts/run-fixall-loop.mjs</string>
+        <string>__REPO_ROOT__/scripts/run-fixall-loop.mjs</string>
     </array>
 
     <key>EnvironmentVariables</key>
@@ -65,8 +74,8 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/jonparis/Library/Logs/astrid-fixall.log</string>
+    <string>__HOME__/Library/Logs/astrid-fixall.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/jonparis/Library/Logs/astrid-fixall.log</string>
+    <string>__HOME__/Library/Logs/astrid-fixall.log</string>
 </dict>
 </plist>
