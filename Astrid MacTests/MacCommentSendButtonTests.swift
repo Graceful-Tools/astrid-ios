@@ -15,7 +15,9 @@ final class MacCommentSendButtonTests: XCTestCase {
 
     private func detailSource() throws -> String {
         let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift")
+            // The comment thread and composer moved here from MacTaskDetailView so the board card
+            // draws the same ones (AITD-432).
+            .appendingPathComponent("Astrid Mac/Views/MacCommentThread.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }
 

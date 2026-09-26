@@ -8,7 +8,6 @@
 import SwiftUI
 import AppKit
 import QuickLook
-import UniformTypeIdentifiers
 
 struct MacTaskDetailView: View {
     let task: Task
@@ -52,10 +51,9 @@ struct MacTaskDetailView: View {
     @State private var editingSubtask: Task?
     @State private var editingSubtaskText = ""
     @State private var comments: [Comment] = []
-    @State private var newComment = ""
-    /// Files picked but not yet posted (task 3b3d70ce). Rendered as previews above the field;
-    /// nothing reaches the server as a comment until Post.
-    @State private var stagedFiles: [AttachedFileInfo] = []
+    /// The comment being written — text, staged files, paste, posting. Shared with the board
+    /// card so the two cannot drift again (AITD-432).
+    @StateObject private var commentDraft = MacCommentDraft()
     @State private var editingComment: Comment?
     @State private var editingCommentText = ""
     @State private var previewURL: URL?           // QuickLook target (local temp copy)
@@ -63,16 +61,8 @@ struct MacTaskDetailView: View {
     /// System comments ("marked complete", "moved to …") are hidden until asked for — iOS parity
     /// (CommentSectionViewEnhanced). Task 9c24d16c.
     @State private var showSystemComments = false
-    @State private var expandedStreaks: Set<String> = []   // folded completion runs (dd3fda86)
     @State private var profileTarget: MacProfileTarget?      // author name tapped → profile sheet (0994eabb)
     @ObservedObject private var network = NetworkMonitor.shared
-    @State private var commentSuggestions: [MacAutocomplete.Suggestion] = []
-    @State private var commentHit: MacAutocompleteHit?
-    /// ⌘V with a screenshot or a file on the clipboard attaches it to the comment (AITD-306).
-    /// A local monitor rather than `.onPasteCommand`: the comment field is an NSTextField, and it
-    /// swallows `paste:` whether or not it found a string to insert — so an image paste never
-    /// reached a SwiftUI paste modifier at all.
-    @State private var pasteMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -214,37 +204,16 @@ struct MacTaskDetailView: View {
             // Web-style comments (df22157f): "Comments (N)" header + Refresh; own comments as
             // right-aligned lavender bubbles with an avatar and a "You · date" caption.
             Section {
-                if comments.isEmpty {
-                    Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
-                }
-                // A repeating task appends a completion line per rollover; a run of them folds
-                // into one streak row you can expand (dd3fda86).
-                ForEach(CompletionStreak.fold(
-                    CommentVisibility.displayed(comments, showSystem: showSystemComments,
-                                                isOffline: !network.isConnected))) { item in
-                    switch item {
-                    case .comment(let c):
-                        commentBubble(c)
-                    case .streak(let streak):
-                        streakRow(streak)
-                    }
-                }
+                // The SHARED thread (AITD-432) — the board card draws the same one.
+                MacCommentThreadList(comments: $comments, taskId: task.id,
+                                     showSystem: showSystemComments, isOffline: !network.isConnected,
+                                     profileTarget: $profileTarget,
+                                     onPreviewFile: previewSecureFile,
+                                     onEdit: { editingComment = $0; editingCommentText = $0.content })
             } header: {
-                HStack {
-                    Text(String(format: NSLocalizedString("mac.comments_count", comment: ""),
-                                CommentVisibility.count(comments, showSystem: showSystemComments,
-                                                        isOffline: !network.isConnected)))
-                    if MacSystemComments.showsToggle(comments, isOffline: !network.isConnected) {
-                        Button(MacSystemComments.toggleTitle(showingSystem: showSystemComments)) {
-                            showSystemComments.toggle()
-                        }
-                        .buttonStyle(.borderless).font(.caption).foregroundStyle(Theme.textMuted)
-                    }
-                    Spacer()
-                    Button {
-                        _Concurrency.Task { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }
-                    } label: { Label(NSLocalizedString("mac.refresh", comment: ""), systemImage: "arrow.clockwise").labelStyle(.titleAndIcon) }
-                    .buttonStyle(.borderless).font(.caption)
+                MacCommentsHeader(comments: comments, showSystem: $showSystemComments,
+                                  isOffline: !network.isConnected) {
+                    _Concurrency.Task { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }
                 }
             }
 
@@ -336,57 +305,27 @@ struct MacTaskDetailView: View {
         // STICKY Add-a-comment footer (e13e4959) — board-editor design: pinned to the bottom with
         // the paperclip + timer visible, autocomplete popping above it. Never scrolls away.
         Divider()
-        if !commentSuggestions.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(commentSuggestions) { s in
-                    Button { applyCommentSuggestion(s) } label: {
-                        Label(s.label, systemImage: s.icon).frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8).padding(.vertical, 4).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .macHoverHighlight()
-                }
-            }
-            .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
-            .padding(.horizontal, 8)
-        }
-        stagedAttachments
-        HStack(spacing: 8) {
-            Button { attachComment() } label: { Image(systemName: "paperclip") }
-                .buttonStyle(.borderless).help(NSLocalizedString("mac.attach_file", comment: ""))
-                .disabled(AttachmentQueue.isFull(stagedFiles))
-            TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
-                .textFieldStyle(.plain)
-                .focused($commentFocused)
-                .onChange(of: commentFocused) { _, focused in
-                    if focused { editing.begin(Self.commentEditor) } else { editing.end(Self.commentEditor) }
-                }
-                .onChange(of: newComment) { updateCommentSuggestions() }
-                .onSubmit(addComment)
+        // The SHARED composer (AITD-432): paste-to-attach, staging, Send and autocomplete live
+        // there, so the board card has them too.
+        MacCommentComposerBar(draft: commentDraft, taskId: task.id, members: members,
+                              focus: $commentFocused,
+                              onPosted: { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }) {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 if timerRunning {
                     Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent)
                 }
             }
-            // The trailing slot becomes Send as soon as there is something to send (AITD-303).
-            // Return already posted; nothing said so, and a staged screenshot had no visible way
-            // out. Stopping a running timer stays reachable — the detail shows a Timer section
-            // with Stop while one runs.
-            if MacCommentSend.showsSend(text: newComment, stagedCount: stagedFiles.count) {
-                Button(action: addComment) { Image(systemName: "paperplane.fill") }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(Theme.accent)
-                    .macPointingHand()
-                    .help(NSLocalizedString("chat.send", comment: ""))
-                    .accessibilityIdentifier("comment.send")
-            } else {
-                Button { toggleTimer() } label: { Image(systemName: "timer") }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
-                    .help(timerRunning ? NSLocalizedString("mac.timer_stop_menu", comment: "") : NSLocalizedString("mac.timer_start_menu", comment: ""))
-            }
+        } idle: {
+            // Stopping a running timer stays reachable while Send holds this slot — the detail
+            // shows a Timer section with Stop while one runs.
+            Button { toggleTimer() } label: { Image(systemName: "timer") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
+                .help(timerRunning ? NSLocalizedString("mac.timer_stop_menu", comment: "") : NSLocalizedString("mac.timer_start_menu", comment: ""))
         }
-        .padding(10)
+        .onChange(of: commentFocused) { _, focused in
+            if focused { editing.begin(Self.commentEditor) } else { editing.end(Self.commentEditor) }
+        }
         }
         .background(MacDetailChrome.background)
         .macTextSelection()
@@ -399,7 +338,6 @@ struct MacTaskDetailView: View {
             if field == .comment { commentFocused = true }
         }
         .task(id: task.id) { load() }
-        .onAppear { installPasteMonitor() }
         // Exclusivity, applied: when the session hands the editor over, the fields that lost it
         // actually resign — and resigning is what saves, so the displaced edit is committed
         // rather than dropped (55010e29).
@@ -410,7 +348,7 @@ struct MacTaskDetailView: View {
         }
         // Leaving the detail — closing it, or switching to another task — commits whatever was
         // open. Same click-out rule, applied to the view going away.
-        .onDisappear { editing.commitAll(); removePasteMonitor() }
+        .onDisappear { editing.commitAll() }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
         .sheet(item: $editingComment) { _ in editSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText, onSave: saveEditedComment) }
         .sheet(item: $editingSubtask) { _ in editSheet(title: NSLocalizedString("mac.rename_subtask", comment: ""), text: $editingSubtaskText, onSave: renameSubtask) }
@@ -422,98 +360,6 @@ struct MacTaskDetailView: View {
         }
     }
 
-    /// Web-style comment bubble (df22157f): own comments right-aligned in a lavender card with an
-    /// avatar and a "You · date" caption; others left-aligned with the author's name.
-    ///
-    /// The bubble also draws the comment's OWN files (AITD-304). It used to draw `c.content` and
-    /// nothing else, so a file posted without a caption arrived as an empty pill — which is what
-    /// "the attachment is broken" turned out to mean: it attached, and nothing ever showed it.
-    @ViewBuilder private func commentBubble(_ c: Comment) -> some View {
-        // One shared decision for every surface that shows an author (283a03df).
-        let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
-        let mine = who.isCurrentUser
-        let files = MacCommentBubble.attachments(of: c)
-        VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
-            HStack(alignment: .bottom, spacing: 8) {
-                if mine { Spacer(minLength: 30) }
-                if !mine { commentAvatar(who, authorId: c.authorId) }
-                VStack(alignment: .leading, spacing: 6) {
-                    if !files.isEmpty {
-                        MacCommentAttachmentsView(files: files) { previewSecureFile($0) }
-                    }
-                    // No text, no text bubble — an empty pill under a photo reads as a failure.
-                    if MacCommentBubble.showsText(c.content) {
-                        // A comment is markdown, like a description and like the web bubble these
-                        // are usually read in (AITD-389) — same renderer, hugging its text so the
-                        // bubble stays the size of what was said.
-                        MacMarkdownText(source: c.content, fillsWidth: false)
-                    }
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(mine ? Theme.accent.opacity(0.12) : Theme.bgSecondary,
-                            in: RoundedRectangle(cornerRadius: 12))
-                if mine { commentAvatar(who, authorId: c.authorId) }
-                if !mine { Spacer(minLength: 30) }
-            }
-            HStack(spacing: 4) {
-                // Names open the profile, as on iOS. System comments have no id and stay plain.
-                Text(who.name).macOpensProfile(c.authorId, target: $profileTarget)
-                if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
-            }
-            .font(.caption2).foregroundStyle(Theme.textMuted)
-            .padding(mine ? .trailing : .leading, 30)
-        }
-        .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
-        .contentShape(Rectangle())
-        .contextMenu {
-            // Edit/Delete only your own comments (permission-safe).
-            if mine {
-                Button(NSLocalizedString("actions.edit", comment: "")) { editingComment = c; editingCommentText = c.content }
-                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteComment(c) }
-            }
-        }
-    }
-
-    /// The photo opens the profile too — people click the face at least as often as the name.
-    /// A folded run of completions (dd3fda86) — one line, expanding to the actual dates on click.
-    @ViewBuilder private func streakRow(_ streak: CompletionStreak.Streak) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(MacMotion.fast) {
-                    if expandedStreaks.contains(streak.id) { expandedStreaks.remove(streak.id) }
-                    else { expandedStreaks.insert(streak.id) }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "flame.fill").foregroundStyle(Theme.accent)
-                    Text(CompletionStreak.summary(for: streak))
-                        .foregroundStyle(Theme.textSecondary)
-                    Image(systemName: expandedStreaks.contains(streak.id) ? "chevron.down" : "chevron.right")
-                        .font(.caption2).foregroundStyle(Theme.textMuted)
-                }
-                .font(.caption)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).macPointingHand()
-
-            if expandedStreaks.contains(streak.id) {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(streak.dates, id: \.self) { date in
-                        Text(date, format: .dateTime.month().day().hour().minute())
-                            .font(.caption2).foregroundStyle(Theme.textMuted)
-                    }
-                }
-                .padding(.leading, 20)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func commentAvatar(_ who: MacAuthorDisplay, authorId: String?) -> some View {
-        MacAuthorAvatar(display: who, size: 20)
-            .macOpensProfile(authorId, target: $profileTarget)
-    }
-
     /// Delete this task via the canonical service, closing the pop-out first.
     private func deleteTask() {
         onClose?()
@@ -522,20 +368,9 @@ struct MacTaskDetailView: View {
 
     /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
 
-    /// Small reusable edit sheet for a single text value.
     private func editSheet(title: String, text: Binding<String>, onSave: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.headline)
-            TextField("", text: text, axis: .vertical).lineLimit(2...6).textFieldStyle(.roundedBorder)
-                .macTextSelection()
-            HStack {
-                Spacer()
-                Button(NSLocalizedString("actions.cancel", comment: "")) { editingComment = nil; editingSubtask = nil }.keyboardShortcut(.escape, modifiers: [])
-                Button(NSLocalizedString("actions.save", comment: ""), action: onSave).buttonStyle(.borderedProminent)
-                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(20).frame(width: 360)
+        MacTextEditSheet(title: title, text: text,
+                         onCancel: { editingComment = nil; editingSubtask = nil }, onSave: onSave)
     }
 
     // MARK: load + save
@@ -620,15 +455,12 @@ struct MacTaskDetailView: View {
         }
     }
 
-    /// Open a comment's file in Quick Look (AITD-304). The SHARED preparer resolves the bytes —
-    /// a still-uploading staged file from the local copy, anything else from the cache or the
-    /// server — so a photo can be opened full size the moment it is posted, offline included.
+    /// Open a comment's file in Quick Look (AITD-304), through the shared preparer.
     private func previewSecureFile(_ file: SecureFile) {
         previewLoadingId = file.id
         _Concurrency.Task {
             defer { previewLoadingId = nil }
-            let items = await AttachmentService.shared.prepareFilesForPreview(files: [file])
-            if let first = items.first { previewURL = first.url }
+            if let url = await MacCommentThreadList.previewURL(for: file) { previewURL = url }
         }
     }
 
@@ -645,7 +477,7 @@ struct MacTaskDetailView: View {
     /// old implementation stranded files in the local cache forever). Same working path as the
     /// comment paperclip: persist locally, then post an attachment comment that owns the upload.
     private func addFile() {
-        attachComment()
+        commentDraft.attachComment(taskId: task.id)
     }
 
     private func setCompleted(_ value: Bool) {
@@ -724,219 +556,10 @@ struct MacTaskDetailView: View {
         AppActions.perform("Rename subtask") { defer { load() }; _ = try await taskService.updateTask(taskId: st.id, title: t, task: st) }
     }
 
-    private func deleteComment(_ c: Comment) {
-        AppActions.perform("Delete comment") {
-            try await CommentService.shared.deleteComment(id: c.id)
-            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
-        }
-    }
-
     private func saveEditedComment() {
         guard let c = editingComment else { return }
-        let text = editingCommentText.trimmingCharacters(in: .whitespaces)
         editingComment = nil
-        guard !text.isEmpty, text != c.content else { return }
-        AppActions.perform("Edit comment") {
-            _ = try await CommentService.shared.updateComment(id: c.id, content: text)
-            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
-        }
-    }
-
-    // MARK: comment autocomplete + attachments (eda86d23)
-
-    private func updateCommentSuggestions() {
-        guard let hit = MacAutocomplete.detectTrigger(in: newComment) else { commentSuggestions = []; commentHit = nil; return }
-        commentHit = hit
-        commentSuggestions = MacAutocomplete.suggestions(for: hit, members: members,
-                                                         lists: listService.lists, tasks: taskService.tasks)
-    }
-
-    private func applyCommentSuggestion(_ s: MacAutocomplete.Suggestion) {
-        guard let hit = commentHit else { return }
-        newComment = MacAutocomplete.insert(label: s.label, into: newComment, hit: hit)
-        commentSuggestions = []; commentHit = nil
-    }
-
-    /// STAGE a file on the comment being written (task 3b3d70ce).
-    ///
-    /// This used to post immediately, with the filename as the body — so the paperclip meant
-    /// "post a comment that is a file" rather than "attach to this comment". You could not see
-    /// what you had picked, and you could not say anything alongside it.
-    ///
-    /// The upload still starts now rather than on send: it is offline-first and returns a temp
-    /// id straight away, so by the time you press Post the bytes are usually already gone. What
-    /// changed is only WHEN the comment is created.
-    private func attachComment() {
-        guard !AttachmentQueue.isFull(stagedFiles) else { return }
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let name = url.lastPathComponent
-        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        let taskId = task.id
-        _Concurrency.Task.detached(priority: .userInitiated) {
-            guard let data = try? Data(contentsOf: url) else { return }
-            await MainActor.run {
-                let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
-                    fileData: data, fileName: name, mimeType: mime, taskId: taskId)
-                // The SHARED queue owns the cap and the duplicate rule. Its header records why:
-                // hand-rolling this got "pick a second file" wrong once already, and the first
-                // pick vanished silently.
-                stagedFiles = AttachmentQueue.adding(
-                    AttachedFileInfo(fileId: fileId, fileName: name, fileSize: data.count,
-                                     mimeType: mime,
-                                     imageData: mime.hasPrefix("image/") ? data : nil),
-                    to: stagedFiles)
-            }
-        }
-    }
-
-    // MARK: paste to attach (AITD-306)
-
-    /// Watch for ⌘V while this detail is on screen. The event is CONSUMED only when the paste is
-    /// going to attach something; every other ⌘V is handed straight back so text still pastes.
-    private func installPasteMonitor() {
-        guard pasteMonitor == nil else { return }
-        pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            handlePaste(event) ? nil : event
-        }
-    }
-
-    private func removePasteMonitor() {
-        if let m = pasteMonitor { NSEvent.removeMonitor(m); pasteMonitor = nil }
-    }
-
-    /// Returns true when the paste was turned into a staged attachment.
-    private func handlePaste(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.intersection([.command, .control, .option, .shift]) == [.command],
-              event.charactersIgnoringModifiers?.lowercased() == "v" else { return false }
-        guard !AttachmentQueue.isFull(stagedFiles) else { return false }
-        let candidates = MacCommentPaste.candidates(from: pasteboardSnapshot(), now: Date())
-        // A text editor other than the comment field owns its own ⌘V — the title and the notes
-        // are still plain text paste.
-        let otherEditor = !commentFocused
-            && (NSApp.keyWindow?.firstResponder is NSText
-                || NSApp.keyWindow?.firstResponder is NSTextView)
-        guard MacCommentPaste.handlesPaste(hasAttachableContent: !candidates.isEmpty,
-                                           commentFieldFocused: commentFocused,
-                                           otherEditorFocused: otherEditor) else { return false }
-        let taskId = task.id
-        stagedFiles = MacCommentPaste.staged(candidates, onto: stagedFiles) { candidate in
-            // Same call the paperclip makes: offline-first, returns a temp id immediately, and
-            // the Outbox carries the bytes. Nothing is posted until Send.
-            AttachmentService.shared.saveLocallyAndUploadAsync(
-                fileData: candidate.data, fileName: candidate.name,
-                mimeType: candidate.mimeType, taskId: taskId)
-        }
-        // Attaching implies you meant to comment; put the caret where the caption goes.
-        commentFocused = true
-        return true
-    }
-
-    /// Read the general pasteboard into the pure `Snapshot` the rules work on.
-    ///
-    /// File URLs first — a file copied in Finder puts BOTH a URL and an image rendition on the
-    /// board, and the file keeps the real name and the original bytes. `.png` is preferred over
-    /// `.tiff` for a nameless rendition because a screenshot is already PNG and the TIFF is a
-    /// much larger re-encode of the same pixels.
-    private func pasteboardSnapshot() -> MacCommentPaste.Snapshot {
-        let pb = NSPasteboard.general
-        let urls = pb.readObjects(forClasses: [NSURL.self],
-                                  options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        let files: [MacCommentPaste.Candidate] = urls.compactMap { url in
-            // A folder has no bytes to attach, and `Data(contentsOf:)` on one throws.
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-                  !isDirectory.boolValue,
-                  let data = try? Data(contentsOf: url) else { return nil }
-            return MacCommentPaste.file(named: url.lastPathComponent, data: data)
-        }
-        if !files.isEmpty { return MacCommentPaste.Snapshot(files: files) }
-        if let png = pb.data(forType: .png) {
-            return MacCommentPaste.Snapshot(imageData: png, imageExtension: "png")
-        }
-        if let tiff = pb.data(forType: .tiff) {
-            // Re-encode to PNG: a pasted TIFF is several times the size for the same pixels, and
-            // the thumbnail path and the server both prefer PNG.
-            let encoded = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
-            return MacCommentPaste.Snapshot(imageData: encoded ?? tiff,
-                                            imageExtension: encoded == nil ? "tiff" : "png")
-        }
-        return MacCommentPaste.Snapshot()
-    }
-
-    /// The staged files, above the comment field — a strip, since several can be queued.
-    @ViewBuilder private var stagedAttachments: some View {
-        if !stagedFiles.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(stagedFiles, id: \.fileId) { file in
-                        ZStack(alignment: .topTrailing) {
-                            if file.isImage, let data = file.imageData, let image = NSImage(data: data) {
-                                Image(nsImage: image)
-                                    .resizable().aspectRatio(contentMode: .fill)
-                                    .frame(width: 56, height: 56)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                            } else {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 6).fill(Theme.bgSecondary)
-                                        .frame(width: 56, height: 56)
-                                    VStack(spacing: 2) {
-                                        Image(systemName: "doc").font(.system(size: 18))
-                                        // A file extension, not prose — verbatim so the hardcoded-string guard passes it deliberately.
-                                        Text(verbatim: file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
-                                            .font(.system(size: 9, weight: .medium))
-                                    }
-                                    .foregroundStyle(Theme.textMuted)
-                                }
-                            }
-                            // Without this a mis-picked file could only be got rid of by posting it.
-                            Button {
-                                if file.fileId.hasPrefix("temp_") {
-                                    AttachmentService.shared.cancelUpload(tempFileId: file.fileId)
-                                }
-                                stagedFiles = AttachmentQueue.removing(fileId: file.fileId, from: stagedFiles)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(.white, Color.black.opacity(0.6))
-                            }
-                            .buttonStyle(.plain)
-                            .offset(x: 5, y: -5)
-                            .help(NSLocalizedString("actions.remove", comment: ""))
-                        }
-                    }
-                }
-                .padding(.horizontal, 10).padding(.top, 8)
-            }
-        }
-    }
-
-    private func addComment() {
-        let c = newComment.trimmingCharacters(in: .whitespaces)
-        // Either text or a staged file is enough to post; neither is not.
-        guard !c.isEmpty || !stagedFiles.isEmpty else { return }
-        commentSuggestions = []; commentHit = nil
-        // The SHARED splitter. The comments endpoint takes a single fileId, so several files
-        // become several comments — with the typed text on the FIRST only, since repeating a
-        // caption under every photo reads as a stutter. iOS sends through this same function.
-        let drafts = CommentAttachmentBatch.drafts(text: c,
-                                                   fileIds: stagedFiles.map(\.fileId),
-                                                   useMarkdown: false)
-        guard !drafts.isEmpty else { return }
-        let author = MacCommentPost.authorId(currentUserId: AuthManager.shared.userId)
-        // Keep the draft until the post succeeds; surface failures instead of losing the text.
-        AppActions.perform("Post comment") {
-            // One at a time so they land in the order they were picked.
-            for draft in drafts {
-                _ = try await CommentService.shared.createComment(
-                    taskId: task.id, content: draft.content,
-                    fileId: draft.fileId, authorId: author)
-            }
-            newComment = ""
-            stagedFiles = []
-            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
-        }
+        MacCommentThreadList.saveEdit(of: c, text: editingCommentText, taskId: task.id, into: $comments)
     }
 }
 

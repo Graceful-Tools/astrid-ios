@@ -112,6 +112,7 @@ final class AttachmentPreviewPathTests: XCTestCase {
             "Astrid App/Core/Services/AttachmentService.swift",
             "Astrid App/Views/Components/AttachmentThumbnail.swift",
             "Astrid Mac/Views/MacTaskDetailView.swift",
+            "Astrid Mac/Views/MacCommentThread.swift",
         ]
 
         for relative in audited {
