@@ -23,20 +23,22 @@ final class MacCommentAttachmentStagingTests: XCTestCase {
 
     private func detailSource() throws -> String {
         let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid Mac/Views/MacTaskDetailView.swift")
+            // The comment thread and composer moved here from MacTaskDetailView so the board card
+            // draws the same ones (AITD-432).
+            .appendingPathComponent("Astrid Mac/Views/MacCommentThread.swift")
         return try String(contentsOf: url, encoding: .utf8)
     }
 
     /// The body of `attachComment()`, which is the function the paperclip calls.
     private func attachCommentBody() throws -> String {
         let source = try detailSource()
-        guard let start = source.range(of: "private func attachComment()") else {
+        guard let start = source.range(of: "func attachComment(") else {
             XCTFail("attachComment() not found — did it move?")
             return ""
         }
-        // Up to the next top-level `private func`, which is close enough to bound one function.
+        // Up to the next member's doc comment, which is close enough to bound one function.
         let rest = source[start.upperBound...]
-        let end = rest.range(of: "\n    private func")?.lowerBound ?? rest.endIndex
+        let end = rest.range(of: "\n    /// ")?.lowerBound ?? rest.endIndex
         return String(rest[..<end])
     }
 

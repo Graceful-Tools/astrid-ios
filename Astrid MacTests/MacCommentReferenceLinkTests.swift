@@ -115,7 +115,7 @@ final class MacCommentReferenceLinkTests: XCTestCase {
     /// Reuse is most of the point. The comment bubble and the chat bubble draw through the SAME
     /// composed view — three surfaces with three answers is what AITD-390 exists to end.
     func testBothMacBubblesDrawThroughTheOneComposedRenderer() throws {
-        let detail = try macSource("Astrid Mac/Views/MacTaskDetailView.swift")
+        let detail = try macSource("Astrid Mac/Views/MacCommentThread.swift")   // the shared thread (AITD-432)
         XCTAssertTrue(detail.contains("MacMarkdownText(source: c.content"),
                       "the comment bubble renders through the composed renderer")
 

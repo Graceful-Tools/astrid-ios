@@ -28,7 +28,7 @@ final class MacCommentMarkdownTests: XCTestCase {
 
     /// The body of `commentBubble(_:)` — the function that draws one comment.
     private func commentBubbleBody() throws -> String {
-        let source = try macSource("Astrid Mac/Views/MacTaskDetailView.swift")
+        let source = try macSource("Astrid Mac/Views/MacCommentThread.swift")   // moved from MacTaskDetailView (AITD-432)
         guard let start = source.range(of: "private func commentBubble(") else {
             XCTFail("commentBubble() not found — did it move?")
             return ""

@@ -3,11 +3,15 @@
 //  vertically to edit in place, laid out like Astrid Web: labeled Who / Date / Priority / Lists /
 //  Description rows, a Comments section, and a STICKY 'Add a comment…' footer with paperclip +
 //  timer. All writes go through the shared services (TaskService / CommentService / AttachmentService).
+//
+//  The comments and the composer are the SAME views the task details draw (AITD-432). The card
+//  had its own, which never got paste-to-attach, staging, Send, autocomplete, or a bubble that
+//  shows a comment's files — so ⌘V with a screenshot on the board did nothing at all.
 
 #if os(macOS)
 import SwiftUI
 import AppKit
-import UniformTypeIdentifiers
+import QuickLook
 
 /// Pure expand/collapse toggle — tapping the open card collapses it; tapping another opens it.
 enum MacBoardExpand {
@@ -31,10 +35,15 @@ struct MacBoardCardEditor: View {
     @State private var due = Date()
     @State private var members: [ListMember] = []
     @State private var comments: [Comment] = []
-    @State private var newComment = ""
+    @StateObject private var commentDraft = MacCommentDraft()
+    @FocusState private var commentFocused: Bool
+    @State private var showSystemComments = false
+    @State private var editingComment: Comment?
+    @State private var editingCommentText = ""
+    @State private var previewURL: URL?
+    @ObservedObject private var network = NetworkMonitor.shared
     @State private var timerRunning = false
     @State private var timerStart: Date?
-    @State private var attaching = false
 
     private var taskLists: [TaskList] {
         (task.listIds ?? []).compactMap { id in listService.lists.first { $0.id == id } }
@@ -59,40 +68,46 @@ struct MacBoardCardEditor: View {
 
             // Sticky footer — Add a comment with paperclip + timer, always visible (web parity).
             Divider()
-            HStack(spacing: 8) {
-                Button { attach() } label: { Image(systemName: "paperclip") }
-                    .buttonStyle(.borderless).disabled(attaching).help(NSLocalizedString("mac.attach_file", comment: ""))
-                TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $newComment)
-                    .textFieldStyle(.plain)
-                    .macTextSelection()
-                    .onSubmit(postComment)
+            MacCommentComposerBar(draft: commentDraft, taskId: task.id, members: members,
+                                  focus: $commentFocused, onPosted: refreshComments) {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     if timerRunning { Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent) }
                 }
+            } idle: {
                 Button { toggleTimer() } label: { Image(systemName: "timer") }
                     .buttonStyle(.borderless).foregroundStyle(timerRunning ? Theme.accent : Theme.textMuted)
                     .help(timerRunning ? NSLocalizedString("mac.timer_stop_menu", comment: "") : NSLocalizedString("mac.timer_start_menu", comment: ""))
             }
-            .padding(8)
         }
         .macTextSelection()
         .task(id: task.id) { await load() }
         .onDisappear { saveNotes() }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
+        .sheet(item: $editingComment) { c in
+            MacTextEditSheet(title: NSLocalizedString("mac.edit_comment", comment: ""), text: $editingCommentText,
+                             onCancel: { editingComment = nil }) {
+                editingComment = nil
+                MacCommentThreadList.saveEdit(of: c, text: editingCommentText, taskId: task.id, into: $comments)
+            }
+        }
+        .quickLookPreview($previewURL)
     }
 
     // MARK: rows
 
     @ViewBuilder private var commentsSection: some View {
-        Text(String(format: NSLocalizedString("mac.comments_count", comment: ""), comments.count)).font(.caption).bold().foregroundStyle(Theme.textSecondary)
-        ForEach(comments) { c in
-            VStack(alignment: .leading, spacing: 1) {
-                let who = MacAuthorDisplay.of(c, currentUser: AuthManager.shared.currentUser)
-                Text(who.name).font(.caption2).bold().foregroundStyle(Theme.textSecondary)
-                    .macOpensProfile(c.authorId, target: $profileTarget)
-                Text(c.content).font(.callout).foregroundStyle(Theme.textPrimary)
-            }.frame(maxWidth: .infinity, alignment: .leading)
+        MacCommentsHeader(comments: comments, showSystem: $showSystemComments,
+                          isOffline: !network.isConnected) {
+            _Concurrency.Task { await refreshComments() }
         }
+        .font(.caption).bold().foregroundStyle(Theme.textSecondary)
+        MacCommentThreadList(comments: $comments, taskId: task.id,
+                             showSystem: showSystemComments, isOffline: !network.isConnected,
+                             profileTarget: $profileTarget,
+                             onPreviewFile: { file in
+                                 _Concurrency.Task { previewURL = await MacCommentThreadList.previewURL(for: file) }
+                             },
+                             onEdit: { editingComment = $0; editingCommentText = $0.content })
         // Expanding to full screen and closing the card BOTH live in the header now, beside the
         // caret (7017c3c1). They were at opposite ends of a card whose height changes with its
         // content, so the way out and the way further in were nowhere near each other. Done stays
@@ -137,15 +152,8 @@ struct MacBoardCardEditor: View {
                 dueDateTime: MacTaskDetailUpdate.dueDateArg(hasDue: hasDue, due: due), isAllDay: false, task: task)
         }
     }
-    private func postComment() {
-        let c = newComment.trimmingCharacters(in: .whitespaces); guard !c.isEmpty else { return }
-        AppActions.perform("Post comment") {
-            _ = try await CommentService.shared.createComment(
-                taskId: task.id, content: c,
-                authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
-            newComment = ""
-            comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? []
-        }
+    private func refreshComments() async {
+        comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments
     }
     private func toggleTimer() {
         if timerRunning, let s = timerStart {
@@ -153,27 +161,6 @@ struct MacBoardCardEditor: View {
             timerRunning = false; timerStart = nil
             AppActions.perform("Save timer") { _ = try await taskService.updateTask(taskId: task.id, timerDuration: total, task: task) }
         } else { timerRunning = true; timerStart = Date() }
-    }
-    private func attach() {
-        let panel = NSOpenPanel(); panel.allowsMultipleSelection = false; panel.canChooseFiles = true; panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let name = url.lastPathComponent
-        let mime = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        let taskId = task.id
-        attaching = true
-        _Concurrency.Task.detached(priority: .userInitiated) {
-            guard let data = try? Data(contentsOf: url) else { await MainActor.run { attaching = false }; return }
-            await MainActor.run {
-                let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(fileData: data, fileName: name, mimeType: mime, taskId: taskId)
-                attaching = false
-                AppActions.perform("Attach to comment") {
-                    _ = try await CommentService.shared.createComment(
-                        taskId: taskId, content: name, fileId: fileId,
-                        authorId: MacCommentPost.authorId(currentUserId: AuthManager.shared.userId))
-                    comments = (try? await CommentService.shared.fetchComments(taskId: taskId)) ?? []
-                }
-            }
-        }
     }
 }
 #endif
