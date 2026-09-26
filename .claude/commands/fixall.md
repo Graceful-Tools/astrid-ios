@@ -12,7 +12,8 @@ are work: a `RECHECK` task's blocking condition has to be re-verified, and a `RE
 one sitting in `Waiting` with no date and no marker, which means nobody knows what it is waiting
 for.
 
-**This runs on a schedule.** `cc.astrid.fixall` (see `scripts/launchd/cc.astrid.fixall.plist`)
+**This runs on a schedule.** `cc.astrid.fixall` (see `scripts/launchd/cc.astrid.fixall.plist.template`,
+installed with `scripts/launchd/install.sh`)
 fires an unattended pass at `:00` and `:30`, interleaved with the Copilot workflow's `:15`/`:45`.
 Most ticks are no-ops, which is the design — see `scripts/fixall-loop.sh` for the guards and
 `~/Library/Logs/astrid-fixall.log` for what they decided.

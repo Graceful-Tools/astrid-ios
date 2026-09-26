@@ -2,13 +2,14 @@
 <!--
   Weekly monkey run. Mondays at 09:00, on this Mac.
 
-  Install:
-    cp scripts/cc.astrid.monkey.weekly.plist ~/Library/LaunchAgents/
-    launchctl load ~/Library/LaunchAgents/cc.astrid.monkey.weekly.plist
+  A TEMPLATE, not an installable plist. Install:
+    ./scripts/launchd/install.sh cc.astrid.monkey.weekly
+
+  which fills in this checkout's absolute path, then bootstraps the job. Re-run it after moving the checkout.
 
   Check / remove:
     launchctl list | grep astrid.monkey
-    launchctl unload ~/Library/LaunchAgents/cc.astrid.monkey.weekly.plist
+    launchctl bootout gui/$(id -u)/cc.astrid.monkey.weekly
 
   Two requirements, both one-time and both learned the hard way:
     • developer mode must be on, or the Mac UI runner cannot attach:
@@ -26,7 +27,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd "$HOME/Documents/mycode/astrid-dev/astrid-ios" &amp;&amp; ./scripts/monkey-weekly.sh</string>
+        <string>cd "__REPO_ROOT__" &amp;&amp; ./scripts/monkey-weekly.sh</string>
     </array>
 
     <key>StartCalendarInterval</key>

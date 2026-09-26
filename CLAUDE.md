@@ -178,7 +178,8 @@ exceptions (claim / status / assign), and the per-task process (strategy comment
 TDD with a task-id-linked test → gates → completion report → mark complete).
 
 **`/fixall` also runs unattended on a schedule.** The `cc.astrid.fixall` LaunchAgent
-(`scripts/launchd/cc.astrid.fixall.plist`, install instructions in its header) fires one pass
+(`scripts/launchd/cc.astrid.fixall.plist.template`, rendered and installed by
+`scripts/launchd/install.sh` — no path in git names a machine) fires one pass
 at `:00` and `:30` — interleaved with the Copilot GitHub workflow's `:15`/`:45` — through
 `scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held, the tree is
 dirty, or the queue is empty — that last one checked with a single HTTP request before any
