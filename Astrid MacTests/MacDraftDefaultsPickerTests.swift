@@ -91,7 +91,8 @@ final class MacDraftDefaultsPickerTests: XCTestCase {
     /// compiler cannot do: a second hand-rolled VStack of the same controls compiles perfectly and
     /// then drifts.
     func testBothQuickAddSurfacesUseTheSharedPicker() throws {
-        for path in ["Astrid Mac/App/MacRootView.swift",
+        // The list's bar moved into MacQuickAddBar, shared with the board columns (AITD-431).
+        for path in ["Astrid Mac/Views/MacQuickAddBar.swift",
                      "Astrid Mac/Support/QuickEntryView.swift"] {
             XCTAssertTrue(try Self.source(of: path).contains("MacDraftDefaultsPicker("),
                           "\(path): AITD-387 — the options popover is shared, not re-made here")
