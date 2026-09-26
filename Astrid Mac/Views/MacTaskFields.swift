@@ -24,6 +24,10 @@ enum MacTaskFieldRow: Equatable {
     /// The board column, in LIST mode, and only for a task that actually has one (AITD-327).
     case projectState
 
+    /// "Waiting on" — the tasks this one is blocked by, on a board only, in BOTH display modes
+    /// (AITD-430; web AWTD-1002). After Lists and the board-state row, never interleaved.
+    case blockers
+
     /// The Mac's name for a shared field, so `MacTaskFields.rows` can build list mode straight
     /// from `TaskDetailFieldOrder.listMode` (task c8a1ff51).
     nonisolated init(_ field: TaskDetailField) {
@@ -58,11 +62,16 @@ enum MacTaskFields {
                      displayMode: TaskDisplayMode,
                      isInProject: Bool = false) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
+        // Both modes, unlike board state: blocking is said nowhere else in the compact layout.
+        // The rule is iOS's and web's (`TaskBlockers.showsRow`); this editor has no read-only
+        // mode, so an empty row is always the way to add the first blocker.
+        let blockers: [MacTaskFieldRow] = TaskBlockers.showsRow(
+            isInProject: isInProject, isReadOnly: false, hasBlockers: false) ? [.blockers] : []
         guard displayMode.showsSeparateAssigneeAndPriorityRows else {
             // Project mode: priority and assignee are not rows at all — the leading control
             // depicts both (task 42013da7) — and board state is in that same popover, so there
             // is no order to share and no state row to add.
-            return leading + [.when, .lists, .description]
+            return leading + [.when, .lists] + blockers + [.description]
         }
         // Board state gets a row in LIST mode when the task is in a project (AITD-327), and the
         // reasoning behind that lives with the rule in `TaskDetailProjectStateRow`. It was
@@ -76,7 +85,8 @@ enum MacTaskFields {
         let state: [MacTaskFieldRow] = TaskDetailProjectStateRow.isVisible(
             displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
             ? [.projectState] : []
-        return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + [.description]
+        return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + blockers
+            + [.description]
     }
 
     /// Every field the editor shows is one the user can change. The Lists row
