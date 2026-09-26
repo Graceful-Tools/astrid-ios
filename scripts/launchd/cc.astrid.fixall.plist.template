@@ -7,8 +7,7 @@
 
     ./scripts/launchd/install.sh cc.astrid.fixall
 
-  which fills in __REPO_ROOT__ and __HOME__ from wherever this checkout actually lives,
-  then bootstraps the job. Re-run it after moving the checkout; no path is committed, so
+  which fills in this checkout's absolute paths, then bootstraps the job. Re-run it after moving the checkout; no path is committed, so
   there is nothing to hand-edit and nothing to rot. Stop it with:
 
     launchctl bootout gui/$(id -u)/cc.astrid.fixall
@@ -26,7 +25,7 @@
     <!--
       node, not zsh: a zsh launched straight by launchd has no TCC access to protected
       locations, and git dies before the run starts. The shim also self-locates the repo,
-      which is what lets this template name only __REPO_ROOT__. Keep it. See the shim.
+      which is what lets this template carry a single repo path. Keep it. See the shim.
     -->
     <key>ProgramArguments</key>
     <array>

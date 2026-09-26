@@ -5,8 +5,7 @@
   A TEMPLATE, not an installable plist. Install:
     ./scripts/launchd/install.sh cc.astrid.monkey.weekly
 
-  which fills in __REPO_ROOT__ from wherever this checkout actually lives, then
-  bootstraps the job. Re-run it after moving the checkout.
+  which fills in this checkout's absolute path, then bootstraps the job. Re-run it after moving the checkout.
 
   Check / remove:
     launchctl list | grep astrid.monkey
