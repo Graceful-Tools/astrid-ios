@@ -115,6 +115,10 @@ struct MacTaskFieldsView: View {
             // `MacTaskFields.rows` decides both (AITD-327).
             labeled(icon: "square.grid.2x2",
                     NSLocalizedString("board.project_state", comment: "")) { projectStateRow }
+        case .blockers:
+            // Only reached for a task on a board — `MacTaskFields.rows` decides (AITD-430).
+            labeled(icon: "hourglass",
+                    NSLocalizedString("tasks.waitingOn.label", comment: "")) { MacTaskBlockersRow(task: task) }
         }
     }
 

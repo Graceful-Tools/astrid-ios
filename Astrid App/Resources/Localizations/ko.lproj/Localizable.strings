@@ -1463,3 +1463,14 @@
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
 "settings.agents.webhook.credentials_needs_both" = "Your server needs both: these credentials to call the API, and the webhook secret to verify what it is sent.";
+
+/* Waiting on — task blockers on project boards (AITD-429; web AWTD-1002) */
+"tasks.waitingOn.label" = "대기 중인 작업";
+"tasks.waitingOn.add" = "대기할 작업 추가";
+"tasks.waitingOn.searchPlaceholder" = "작업 검색…";
+"tasks.waitingOn.empty" = "대기 중인 작업이 없습니다";
+"tasks.waitingOn.hidden" = "볼 수 없는 작업";
+"tasks.waitingOn.remove" = "이 작업 대기 해제";
+"tasks.waitingOn.cycleError" = "해당 작업들이 서로를 기다리게 됩니다";
+"tasks.waitingOn.addError" = "해당 작업을 대기 대상으로 추가하지 못했습니다";
+"tasks.waitingOn.noResults" = "일치하는 작업이 없습니다";

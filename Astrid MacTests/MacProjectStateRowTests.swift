@@ -57,13 +57,15 @@ final class MacProjectStateRowTests: XCTestCase {
     func testTheSharedListModeOrderIsUntouched() {
         // The Who/Date/Priority/Lists order is a cross-platform contract (task c8a1ff51). The new
         // row is appended after it, never interleaved.
-        let ordered = rows(.list, inProject: true).filter { $0 != .title && $0 != .projectState && $0 != .description }
+        let ordered = rows(.list, inProject: true)
+            .filter { ![.title, .projectState, .blockers, .description].contains($0) }
 
         XCTAssertEqual(ordered, TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init))
     }
 
     func testAddingTheRowChangesNothingElseAboutListMode() {
-        let withState = rows(.list, inProject: true).filter { $0 != .projectState }
+        // `.blockers` is the other project-only row (AITD-430), pinned in MacTaskBlockersRowTests.
+        let withState = rows(.list, inProject: true).filter { $0 != .projectState && $0 != .blockers }
 
         XCTAssertEqual(withState, rows(.list, inProject: false))
     }

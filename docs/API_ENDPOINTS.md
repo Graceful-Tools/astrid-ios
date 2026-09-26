@@ -84,6 +84,10 @@ Regenerate: see the test — it prints the expected list on failure.
 
 - `/api/v1/public/lists`
 
+### `/api/v1/search`
+
+- `/api/v1/search`
+
 ### `/api/v1/shortcodes`
 
 - `/api/v1/shortcodes`
@@ -93,6 +97,8 @@ Regenerate: see the test — it prints the expected list on failure.
 
 - `/api/v1/tasks`
 - `/api/v1/tasks/{id}`
+- `/api/v1/tasks/{id}/blockers`
+- `/api/v1/tasks/{id}/blockers/{id}`
 - `/api/v1/tasks/{id}/comments`
 
 ### `/api/v1/users`
