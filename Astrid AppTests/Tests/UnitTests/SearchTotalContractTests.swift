@@ -44,18 +44,21 @@ final class SearchTotalContractTests: XCTestCase {
         return sources
     }
 
-    /// The state AITD-321 verified: nobody calls the endpoint at all.
+    /// Who calls the endpoint. AITD-321 verified there was nobody; the "Waiting on" picker
+    /// (AITD-429 / AITD-430) became the first caller, and it decodes only `tasks` — no `total`
+    /// at all — so the contract below holds for it without opting in.
     ///
-    /// If this ever fails, the failure is not the bug — calling /api/v1/search is fine and may be
-    /// an improvement over filtering the cached task list. The failure is a prompt to satisfy the
-    /// contract in `testAnyCallerOfTheSearchEndpointHandlesAnAbsentTotal` below, and then to
-    /// update this test to name the new caller instead of asserting there is none.
-    func testNoAppCodeCallsTheV1SearchEndpoint() throws {
+    /// If this fails, the failure is not the bug — calling /api/v1/search is fine. It is a
+    /// prompt to satisfy `testAnyCallerOfTheSearchEndpointHandlesAnAbsentTotal` below, and then
+    /// to name the new caller here.
+    private static let knownCallers = ["Astrid App/AstridAPIClient+Blockers.swift"]
+
+    func testOnlyTheKnownCallersUseTheV1SearchEndpoint() throws {
         let callers = try appSources()
             .filter { $0.source.contains("/api/v1/search") }
             .map(\.path)
 
-        XCTAssertEqual(callers, [], """
+        XCTAssertEqual(callers.sorted(), Self.knownCallers, """
             iOS gained a caller of /api/v1/search. Its `total` is null on every page but the last
             unless the request passes includeTotal=true — see AITD-321:
             \(callers.joined(separator: "\n"))
