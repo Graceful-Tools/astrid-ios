@@ -456,7 +456,6 @@ struct TaskDetailViewNew: View {
                 // After Lists and before the description on purpose: state belongs with WHERE
                 // the task lives. The Who/Date/Priority/Lists order above is a cross-platform
                 // contract (task c8a1ff51), so the row is appended after it, never interleaved.
-                //
                 // Whether it appears at all is asked of `TaskDetailProjectStateRow`, which the
                 // Mac asks too — the condition is not spelled here — and "does this task have a
                 // column" of `isTaskInProject`, the same derivation the board uses.
@@ -470,6 +469,7 @@ struct TaskDetailViewNew: View {
                                                 onTaskUpdated: { self.task = $0 })
                     }
                 }
+                TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON (AITD-429)
 
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)

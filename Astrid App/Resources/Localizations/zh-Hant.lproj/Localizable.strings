@@ -1463,3 +1463,14 @@
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
 "settings.agents.webhook.credentials_needs_both" = "Your server needs both: these credentials to call the API, and the webhook secret to verify what it is sent.";
+
+/* Waiting on — task blockers on project boards (AITD-429; web AWTD-1002) */
+"tasks.waitingOn.label" = "等待中";
+"tasks.waitingOn.add" = "新增等待的任務";
+"tasks.waitingOn.searchPlaceholder" = "搜尋任務…";
+"tasks.waitingOn.empty" = "沒有在等待任何任務";
+"tasks.waitingOn.hidden" = "你無法檢視的任務";
+"tasks.waitingOn.remove" = "取消等待此任務";
+"tasks.waitingOn.cycleError" = "這些任務會互相等待";
+"tasks.waitingOn.addError" = "無法等待該任務";
+"tasks.waitingOn.noResults" = "沒有符合的任務";

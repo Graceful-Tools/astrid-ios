@@ -1461,3 +1461,14 @@
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
 "settings.agents.webhook.credentials_needs_both" = "Your server needs both: these credentials to call the API, and the webhook secret to verify what it is sent.";
+
+/* Waiting on — task blockers on project boards (AITD-429; web AWTD-1002) */
+"tasks.waitingOn.label" = "Wacht op";
+"tasks.waitingOn.add" = "Op een taak wachten…";
+"tasks.waitingOn.searchPlaceholder" = "Taken zoeken…";
+"tasks.waitingOn.empty" = "Wacht op geen enkele taak";
+"tasks.waitingOn.hidden" = "Een taak die je niet kunt zien";
+"tasks.waitingOn.remove" = "Niet meer op deze taak wachten";
+"tasks.waitingOn.cycleError" = "Die taken zouden op elkaar gaan wachten";
+"tasks.waitingOn.addError" = "Kon niet op die taak wachten";
+"tasks.waitingOn.noResults" = "Geen overeenkomende taken";

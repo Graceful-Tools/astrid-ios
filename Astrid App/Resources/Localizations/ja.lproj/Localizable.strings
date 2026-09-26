@@ -1461,3 +1461,14 @@
 "settings.agents.webhook.credentials_title" = "Client credentials";
 "settings.agents.webhook.credentials_warning" = "Save these now. The client secret will not be shown again.";
 "settings.agents.webhook.credentials_needs_both" = "Your server needs both: these credentials to call the API, and the webhook secret to verify what it is sent.";
+
+/* Waiting on — task blockers on project boards (AITD-429; web AWTD-1002) */
+"tasks.waitingOn.label" = "待機中のタスク";
+"tasks.waitingOn.add" = "待機するタスクを追加";
+"tasks.waitingOn.searchPlaceholder" = "タスクを検索…";
+"tasks.waitingOn.empty" = "待機中のタスクはありません";
+"tasks.waitingOn.hidden" = "閲覧できないタスク";
+"tasks.waitingOn.remove" = "このタスクを待たない";
+"tasks.waitingOn.cycleError" = "これらのタスクが互いに待ち合う状態になります";
+"tasks.waitingOn.addError" = "そのタスクを待機対象にできませんでした";
+"tasks.waitingOn.noResults" = "一致するタスクがありません";
