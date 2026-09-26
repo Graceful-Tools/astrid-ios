@@ -46,7 +46,7 @@ struct TaskBlockerMutationResponse: Codable {
     let blockedBy: [TaskBlocker]
 }
 
-/// A task as `/api/v1/search` returns it — only what the picker needs.
+/// A task as the v1 search endpoint returns it — only what the picker needs.
 struct BlockerSearchHit: Codable, Identifiable, Equatable {
     struct ListRef: Codable, Equatable {
         let id: String
