@@ -77,8 +77,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // choices instead of a second copy of them, and this was set to 1660 to lock that
         // in. AITD-389 then needed three lines of it back to explain why a real list's sort
         // outranks the window override — 1660 was a tighter number than the extraction had
-        // actually earned. Still well below where the day started.
-        "Astrid Mac/App/MacRootView.swift": 1663,
+        // actually earned. Still well below where the day started. Then 1465 for AITD-431: the
+        // quick-add bar moved out to `MacQuickAddBar` so every board column could draw it too.
+        "Astrid Mac/App/MacRootView.swift": 1465,
         // Was 1625, then 1639, and the second raise in one day is what this ratchet exists to
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to

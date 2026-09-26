@@ -43,5 +43,18 @@ enum MacBoardAdd {
                        statusRole: move.statusRole,
                        complete: move.completed)
     }
+
+    /// A column's quick-add, built the way the list's is (AITD-431): the typed text and the
+    /// list's defaults give the title, priority, date, repeat, assignee and privacy; the COLUMN
+    /// gives the memberships and the role. Its lists come first, then any list the text named
+    /// with #list, once each.
+    static func placing(_ args: MacQuickAdd.CreateArgs, in card: NewCard) -> MacQuickAdd.CreateArgs {
+        var listIds = card.listIds
+        for id in args.listIds where !listIds.contains(id) { listIds.append(id) }
+        return MacQuickAdd.CreateArgs(title: args.title, listIds: listIds, priority: args.priority,
+                                      whenDate: args.whenDate, repeating: args.repeating,
+                                      repeatingData: args.repeatingData,
+                                      assigneeId: args.assigneeId, isPrivate: args.isPrivate)
+    }
 }
 #endif

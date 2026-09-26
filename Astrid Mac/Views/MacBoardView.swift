@@ -15,7 +15,6 @@ struct MacBoardView: View {
     @StateObject private var projectService = ProjectService.shared
     @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
-    @State private var draftByColumn: [String: String] = [:]
     @State private var boardBusy = false
     @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
     /// Shared with the detail panel and its header toggle, so "full screen" means one
@@ -162,39 +161,16 @@ struct MacBoardView: View {
         } isTargeted: { dropTargetColumnId = $0 ? col.id : nil }
     }
 
-    /// Inline "＋ Add task" footer per column (iOS/web parity). Creates in the domain list, then
-    /// places the card into this column via the shared board move plan.
+    /// The column's Add-a-task bar: the SAME bar the list column draws (AITD-431), told which
+    /// column it is in so the card is born there. It was a bare TextField of its own, without the
+    /// list's defaults, smart parsing, the defaults picker or ⊕.
     @ViewBuilder private func addCardField(_ col: ProjectBoardColumn) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "plus").foregroundStyle(Theme.textMuted).font(.caption)
-            TextField(NSLocalizedString("tasks.add_task", comment: ""), text: Binding(
-                get: { draftByColumn[col.id] ?? "" },
-                set: { draftByColumn[col.id] = $0 }
-            ))
-            .textFieldStyle(.plain)
-            .onSubmit { addCard(to: col) }
-        }
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bgPrimary.opacity(0.6)))
-    }
-
-    private func addCard(to col: ProjectBoardColumn) {
-        let title = (draftByColumn[col.id] ?? "").trimmingCharacters(in: .whitespaces)
-        guard !title.isEmpty else { return }
-        draftByColumn[col.id] = ""
-        let spec = MacBoardAdd.newCard(in: col, domainListId: listId, lists: listService.lists)
-        AppActions.perform("Add card") {
-            // Born in the column it was typed into, role and all (AITD-328). It used to be
-            // created bare and then moved, and the move dropped the role — so a card typed into
-            // Doing resolved to Inbox and appeared there.
-            let created = try await taskService.createTask(listIds: spec.listIds, title: title,
-                                                          statusRole: spec.statusRole)
-            // Done goes through completeTask, never updateTask(completed:) — the only path that
-            // rolls a repeating task forward (ASTRID.md §0 rule 2).
-            if spec.complete {
-                _ = try await taskService.completeTask(id: created.id, completed: true, task: created)
-            }
-        }
+        MacQuickAddBar(selectedListId: listId, selectionIsVirtual: false, list: list,
+                       column: col, style: .boardColumn,
+                       // ⊕ adds the card and opens it in place, as the list's ⊕ opens details.
+                       onOpen: { created in
+                           withAnimation(MacMotion.spring) { expandedCardId = created.id }
+                       })
     }
 
     private func card(_ t: Task) -> some View {
