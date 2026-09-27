@@ -91,28 +91,10 @@ struct TaskRowView: View {
         task.lists?.contains(where: { $0.privacy == .PUBLIC }) ?? false
     }
 
-    // Get effective assignee - use task.assignee if available, or create minimal User from assigneeId
-    // This handles the case where task is loaded from Core Data (which only stores assigneeId)
+    /// The id wins over the embedded `assignee`, which is left stale by a reassignment
+    /// (AITD-442); a minimal User from the id still reaches UserImageCache for a photo.
     private var effectiveAssignee: User? {
-        // First try the full assignee object
-        if let assignee = task.assignee {
-            return assignee
-        }
-        // If we have an assigneeId, create a minimal User that can use UserImageCache
-        if let assigneeId = task.assigneeId {
-            return User(
-                id: assigneeId,
-                email: nil,
-                name: nil,
-                image: nil,  // Will fallback to UserImageCache via cachedImageURL
-                createdAt: nil,
-                defaultDueTime: nil,
-                isPending: nil,
-                isAIAgent: nil,
-                aiAgentType: nil
-            )
-        }
-        return nil
+        AssigneeResolver.resolve(task: task)
     }
 
     var body: some View {
@@ -386,6 +368,9 @@ struct TaskRowView: View {
                         .foregroundColor(.white)
                 }
             }
+            // Keyed on the person: CachedAsyncImage keeps its loaded image while its identity
+            // holds, so without this a reassignment could keep the old face (AITD-442).
+            .id(AssigneeResolver.avatarIdentity(for: assignee.id))
             .frame(width: 34, height: 34)
             // Rounded rectangle with a priority-colored border — matches the
             // web's assigned-task avatar (rounded-lg square, border-2).

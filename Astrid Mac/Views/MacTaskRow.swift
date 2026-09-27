@@ -72,8 +72,10 @@ struct MacTaskRow: View {
     private var avatarAssignee: User? {
         guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId,
                                       displayMode: displayMode),
-              let id = task.assigneeId else { return nil }
-        return task.assignee ?? User(id: id, email: nil, name: nil, image: nil)
+              task.assigneeId != nil else { return nil }
+        // Not `task.assignee ?? …`: a reassignment leaves that stale, which drew the previous
+        // person on the row (AITD-442).
+        return AssigneeResolver.resolve(task: task)
     }
 
     private var chipLists: [TaskList] {

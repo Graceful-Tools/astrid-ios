@@ -39,6 +39,14 @@ enum AssigneeResolver {
         return User(id: id, email: nil, name: nil, image: nil)
     }
 
+    /// The assignee a task ROW draws (AITD-442). Reassigning writes `assigneeId` optimistically
+    /// but leaves the embedded `assignee` from the last fetch, and the rows read that object
+    /// first — so the previous person stayed on the row until a refetch. Going through
+    /// `resolve(id:)` makes the id the truth and the embedded record a source only when it agrees.
+    static func resolve(task: Task, members: [User] = [], agents: [User] = []) -> User? {
+        resolve(id: task.assigneeId, members: members, taskAssignee: task.assignee, agents: agents)
+    }
+
     /// Identity for the avatar view. SwiftUI reuses a view whose identity has not changed, so
     /// without keying on the assignee the image stays put when the person changes.
     static func avatarIdentity(for id: String?) -> String {
