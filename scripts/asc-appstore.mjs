@@ -12,6 +12,7 @@
 //   node scripts/asc-appstore.mjs testflight <ios|mac> <buildNumber> → is it live for testers?
 //   node scripts/asc-appstore.mjs versions <ios|mac>              → App Store version states
 //   node scripts/asc-appstore.mjs version-state <ios|mac> <x.y.z> → one version's state, or NOT_FOUND
+//   node scripts/asc-appstore.mjs live    <ios|mac>              → live version, build, commit, phased state
 // Credentials, signing and the env-file lookup (ASC_ENV_FILE) live in lib/asc-jwt.mjs.
 import { pick, ascRequest } from './lib/asc-jwt.mjs';
 
@@ -95,7 +96,7 @@ if (process.argv[2] === 'runs') {
 }
 
 const [cmd, target] = process.argv.slice(2);
-const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions|released|version-state> <ios|mac> [...]\n       node scripts/asc-appstore.mjs runs [--limit N]   # build number -> commit');
+const platform = PLATFORM[target] || die('Usage: node scripts/asc-appstore.mjs <next|builds|status|wait|versions|released|version-state|live> <ios|mac> [...]\n       node scripts/asc-appstore.mjs runs [--limit N]   # build number -> commit');
 
 if (cmd === 'next') {
   // Apple rejects an upload whose build number is not strictly greater than every build already
@@ -162,6 +163,29 @@ if (cmd === 'next') {
   const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&filter[appStoreState]=READY_FOR_SALE&limit=5`);
   const live = res.data.map(v => v.attributes.versionString);
   console.log(live.length ? live[0] : 'NONE');
+} else if (cmd === 'live') {
+  // What users are running, down to the commit (AITD-434 / AITD-435) — what moves ios-prod and
+  // mac-prod. Prints `<version>\t<build>\t<sha|->\t<phased state|->`, or NONE.
+  //
+  // The commit comes from the Xcode Cloud run whose number IS the build number (see `runs`). A
+  // build uploaded from this machine has no run, so the sha is `-` here and the caller falls back
+  // to the `<platform>-build-<n>` tag appstore-release.sh leaves on the commit it uploaded.
+  const res = await api(`/v1/apps/${APP}/appStoreVersions?filter[platform]=${platform}&filter[appStoreState]=READY_FOR_SALE&limit=1&include=build,appStoreVersionPhasedRelease`);
+  const v = res.data[0];
+  if (!v) { console.log('NONE'); process.exit(0); }
+  const inc = id => (res.included ?? []).find(i => i.id === id);
+  const build = inc(v.relationships?.build?.data?.id)?.attributes?.version;
+  const phased = inc(v.relationships?.appStoreVersionPhasedRelease?.data?.id)?.attributes?.phasedReleaseState ?? '-';
+  let sha = '-';
+  if (build) {
+    const products = await api('/v1/ciProducts?limit=10');
+    for (const prod of products.data ?? []) {
+      const runs = await api(`/v1/ciProducts/${prod.id}/buildRuns?limit=200&sort=-number`);
+      const run = (runs.data ?? []).find(r => String(r.attributes?.number) === String(build));
+      if (run?.attributes?.sourceCommit?.commitSha) { sha = run.attributes.sourceCommit.commitSha; break; }
+    }
+  }
+  console.log([v.attributes.versionString, build ?? '-', sha, phased].join('\t'));
 } else if (cmd === 'version-state') {
   // Asked by name, so a version older than the five `versions` lists is still found. Prints the
   // bare state (READY_FOR_SALE, PREPARE_FOR_SUBMISSION, …) or NOT_FOUND when App Store Connect

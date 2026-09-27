@@ -65,6 +65,7 @@ run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv
   : > "$CALLS"
   FIXALL_FORCE=1 \
   FIXALL_TSX="$TMP/bin/tsx" \
+  FIXALL_PROD_SYNC= \
   CLAUDE_BIN="$TMP/bin/claude" \
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \
@@ -171,6 +172,7 @@ STALL_STATE="$TMP/stall.state"
 run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
   : > "$CALLS"
   FIXALL_TSX="$TMP/bin/tsx" \
+  FIXALL_PROD_SYNC= \
   CLAUDE_BIN="${1:-$TMP/bin/claude}" \
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \

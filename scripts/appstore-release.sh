@@ -289,6 +289,16 @@ set -e
 [ "$UPLOAD_RC" -eq 0 ] || fail "the upload step failed. Search $LOG for 'error:'"
 green "✓ Upload accepted"
 
+# A local upload has no Xcode Cloud run, so nothing else ties build $BUILD_NUM to a commit —
+# and scripts/sync-prod-branches.sh needs exactly that when this build is released (AITD-434).
+# Best effort: the build is uploaded either way.
+if git tag -f "$TARGET-build-$BUILD_NUM" HEAD >/dev/null 2>&1 \
+   && git push -q -f origin "refs/tags/$TARGET-build-$BUILD_NUM" >/dev/null 2>&1; then
+  green "✓ Tagged $TARGET-build-$BUILD_NUM at $(git rev-parse --short HEAD)"
+else
+  echo "  (could not push the $TARGET-build-$BUILD_NUM tag — ${TARGET}-prod will not find this build's commit)"
+fi
+
 # --- Verify -----------------------------------------------------------------------
 # An accepted upload is not yet an installable build: App Store Connect processes it afterwards
 # and can still reject it. Nothing is called shipped before it reads VALID.

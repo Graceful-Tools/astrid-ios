@@ -31,6 +31,8 @@
 #                       taking the working-tree lock or calling the board.
 #   FIXALL_STALL_STATE  where the consecutive-skip count lives (default: beside the log)
 #   FIXALL_STALL_ALERT_AFTER  how many skips in a row before saying so (default: 3)
+#   FIXALL_PROD_SYNC    the ios-prod/mac-prod sync run each tick (default:
+#                       scripts/sync-prod-branches.sh; empty = skip, as the test does)
 
 set -u
 export PATH="/opt/homebrew/bin:$PATH"
@@ -45,6 +47,7 @@ MAX_USD="${FIXALL_MAX_USD-10}"
 IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
 STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}"
 STALL_ALERT_AFTER="${FIXALL_STALL_ALERT_AFTER:-3}"
+PROD_SYNC="${FIXALL_PROD_SYNC-$REPO/scripts/sync-prod-branches.sh}"
 
 echo "──────── fixall loop $(date '+%Y-%m-%d %H:%M:%S') ────────"
 
@@ -115,6 +118,14 @@ Log: \`~/Library/Logs/astrid-fixall.log\`"
   echo "$count $alerted $since" > "$STALL_STATE" 2>/dev/null
   echo "RESULT: SKIPPED — $reason"
 }
+
+# ── Before the guards: keep ios-prod / mac-prod on what the App Store serves ──
+# (AITD-434 / AITD-435.) Every tick, even one that skips below: it moves refs on the remote and
+# never touches the working tree, so a busy or dirty checkout is no reason to let the branches
+# fall behind a release. A tick with no new release pushes nothing. Never fatal to the loop.
+if [ -n "$PROD_SYNC" ] && [ -x "$PROD_SYNC" ]; then
+  "$PROD_SYNC" 2>&1 | sed 's/^/  prod: /'
+fi
 
 # ── Guard 1: one session per working tree ────────────────────────────────────
 # Cheap by design: no Claude session is started just to discover the tree is

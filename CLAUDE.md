@@ -98,6 +98,12 @@ and finished work gets pushed without being asked for** (Jon, 2026-09-06).
 | `iosdev` | iOS Internal testers | `Astrid App` | TestFlight (internal) |
 | `macdev` | Mac app internal testers | `Astrid Mac` | TestFlight (internal) |
 | `main` (manual) | iOS Release + Mac Release | both | **App Store submission** |
+| `ios-prod` / `mac-prod` | *none — never commit to them* | — | what the App Store is serving |
+
+`ios-prod` / `mac-prod` point at the commit each platform's READY_FOR_SALE build came from, tagged
+`ios-v<version>` / `mac-v<version>`. `git log origin/ios-prod..main` is what the next release adds.
+Only automation moves them: `scripts/sync-prod-branches.sh` (`npm run prod:sync`) runs on every
+`/fixall` tick.
 
 ```bash
 npm run predeploy                    # 1. Verify (must pass)
