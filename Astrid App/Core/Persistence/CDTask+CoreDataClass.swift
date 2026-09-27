@@ -54,6 +54,8 @@ public class CDTask: NSManagedObject {
     /// membership — unstored, it read back nil on every cold start and every
     /// card fell to Inbox once the status lists went away.
     @NSManaged public var statusRole: String?
+    /// The server-minted `KEY-N` (AITD-437). Optional, so a lightweight migration.
+    @NSManaged public var identifier: String?
 
     // MARK: - Conversion to Domain Model
     
@@ -83,6 +85,7 @@ public class CDTask: NSManagedObject {
             isPrivate: isPrivate,
             completed: completed,
             statusRole: statusRole,
+            identifier: identifier,
             attachments: nil,
             comments: nil,
             createdAt: createdAt,
@@ -115,6 +118,8 @@ public class CDTask: NSManagedObject {
         // role, and a `??  self.statusRole` fallback here would keep the old one
         // and snap the card back to the column it just left.
         self.statusRole = task.statusRole
+        // Kept when a payload omits it (a local edit, an older endpoint): an id is permanent.
+        self.identifier = task.identifier ?? self.identifier
         // Preserve createdAt: use task value if present, otherwise keep existing (or set to now for new entries)
         self.createdAt = task.createdAt ?? self.createdAt ?? Date()
         self.updatedAt = task.updatedAt ?? Date()

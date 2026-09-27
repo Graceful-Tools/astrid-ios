@@ -38,6 +38,9 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     /// send it, and the board falls back to membership — which is what keeps
     /// this build working against an unmigrated server.
     var statusRole: String?
+    /// The server-minted `KEY-N` (e.g. `AWTD-1007`), set when the task first lands on a board.
+    /// Never derived here — see `TaskIdentifiers` for where it is shown (AITD-437).
+    var identifier: String?
     var attachments: [Attachment]?
     var secureFiles: [SecureFile]?
     var comments: [Comment]?
@@ -136,7 +139,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, completedAt, completedSource, statusRole, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
@@ -168,6 +171,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         completedAt: Date? = nil,
         completedSource: String? = nil,
         statusRole: String? = nil,
+        identifier: String? = nil,
         attachments: [Attachment]? = nil,
         secureFiles: [SecureFile]? = nil,
         comments: [Comment]? = nil,
@@ -204,6 +208,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         self.completedAt = completedAt
         self.completedSource = completedSource
         self.statusRole = statusRole
+        self.identifier = identifier
         self.attachments = attachments
         self.secureFiles = secureFiles
         self.comments = comments

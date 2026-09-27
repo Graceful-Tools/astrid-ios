@@ -1472,3 +1472,7 @@
 "tasks.waitingOn.cycleError" = "これらのタスクが互いに待ち合う状態になります";
 "tasks.waitingOn.addError" = "そのタスクを待機対象にできませんでした";
 "tasks.waitingOn.noResults" = "一致するタスクがありません";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "タスクID";
+"tasks.taskId.copy" = "タスクIDをコピー";

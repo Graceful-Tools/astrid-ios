@@ -1472,3 +1472,7 @@
 "tasks.waitingOn.cycleError" = "Diese Aufgaben würden aufeinander warten";
 "tasks.waitingOn.addError" = "Konnte nicht auf diese Aufgabe warten";
 "tasks.waitingOn.noResults" = "Keine passenden Aufgaben";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "Aufgaben-ID";
+"tasks.taskId.copy" = "Aufgaben-ID kopieren";

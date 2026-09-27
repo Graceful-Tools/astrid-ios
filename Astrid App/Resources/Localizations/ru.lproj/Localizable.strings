@@ -1472,3 +1472,7 @@
 "tasks.waitingOn.cycleError" = "Эти задачи начали бы ждать друг друга";
 "tasks.waitingOn.addError" = "Не удалось добавить ожидание этой задачи";
 "tasks.waitingOn.noResults" = "Подходящих задач нет";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "ID задачи";
+"tasks.taskId.copy" = "Копировать ID задачи";

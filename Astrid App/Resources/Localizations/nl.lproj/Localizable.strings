@@ -1472,3 +1472,7 @@
 "tasks.waitingOn.cycleError" = "Die taken zouden op elkaar gaan wachten";
 "tasks.waitingOn.addError" = "Kon niet op die taak wachten";
 "tasks.waitingOn.noResults" = "Geen overeenkomende taken";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "Taak-ID";
+"tasks.taskId.copy" = "Taak-ID kopiëren";

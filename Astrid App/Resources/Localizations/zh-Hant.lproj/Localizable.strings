@@ -1474,3 +1474,7 @@
 "tasks.waitingOn.cycleError" = "這些任務會互相等待";
 "tasks.waitingOn.addError" = "無法等待該任務";
 "tasks.waitingOn.noResults" = "沒有符合的任務";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "任務 ID";
+"tasks.taskId.copy" = "複製任務 ID";
