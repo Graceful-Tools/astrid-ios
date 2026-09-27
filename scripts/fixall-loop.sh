@@ -236,11 +236,16 @@ fi
 BUDGET_ARGS=()
 [ -n "$MAX_USD" ] && BUDGET_ARGS=(--max-budget-usd "$MAX_USD")
 
+# The run's output goes to a file as well as the log, because the loop has to read
+# it back: see RUN_VERDICT below. A plain redirect, not a pipe to tee, so $! is
+# still claude itself and the watchdog kills the right process. `claude -p` prints
+# only its final message, so nothing is lost by echoing it once the run ends.
+RUN_OUT=$(mktemp -t fixall-run) || RUN_OUT=/dev/null
 echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})"
 "$CLAUDE" -p "/fixall" \
   --model "$MODEL" \
   --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" \
-  "${BUDGET_ARGS[@]}" &
+  "${BUDGET_ARGS[@]}" > "$RUN_OUT" 2>&1 &
 CLAUDE_PID=$!
 
 ( sleep $((MAX_MINUTES * 60)); kill -TERM "$CLAUDE_PID" 2>/dev/null ) &
@@ -249,6 +254,9 @@ WATCHDOG_PID=$!
 wait "$CLAUDE_PID"
 STATUS=$?
 kill "$WATCHDOG_PID" 2>/dev/null
+cat "$RUN_OUT" 2>/dev/null
+RUN_VERDICT=$(grep -E '^RESULT: ' "$RUN_OUT" 2>/dev/null | tail -1)
+[ "$RUN_OUT" != /dev/null ] && rm -f "$RUN_OUT"
 
 # The other half of AITD-426. `claude -p` exiting 0 is not enough: the 17:30 run
 # exited 0 with four files still uncommitted, so this recorded OK, the wake keys
@@ -262,6 +270,21 @@ LEFT_DIRTY=""
 if [ "$STATUS" -eq 0 ] && [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ]; then
   LEFT_DIRTY=$(git status --porcelain 2>/dev/null)
   [ -n "$LEFT_DIRTY" ] && STATUS=90
+fi
+
+# A run that SAYS it failed has failed, whatever it exits (AITD-440). On
+# 2026-09-27 08:30 the astrid MCP server timed out at session start; the session
+# wrote "RESULT: FAILED — … never read the queue" and `claude -p` exited 0 anyway,
+# so this loop printed RESULT: OK under it, marked the wake keys seen instead of
+# striking them, and told the board nothing. Only the LAST RESULT: line counts —
+# fixall.md makes it the run's closing verdict. After the dirty-tree check, so
+# a run that did both is reported as the stall it causes.
+REPORTED_FAILED=""
+if [ "$STATUS" -eq 0 ] && [[ "$RUN_VERDICT" == "RESULT: FAILED"* ]]; then
+  REPORTED_FAILED="${RUN_VERDICT#RESULT: FAILED}"
+  REPORTED_FAILED="${REPORTED_FAILED# — }"
+  [ -n "$REPORTED_FAILED" ] || REPORTED_FAILED="no reason given"
+  STATUS=91
 fi
 
 # Phase two of waking, before the RESULT lines so that line stays last (the
@@ -298,6 +321,16 @@ $(echo "$LEFT_DIRTY" | head -20)
 
 Nothing was pushed. Log: \`~/Library/Logs/astrid-fixall.log\`"
   echo "RESULT: FAILED — $REASON"
+  exit 1
+fi
+
+if [ -n "$REPORTED_FAILED" ]; then
+  post_to_list "**Scheduled /fixall did not finish** — the run reported FAILED although it exited 0:
+
+> $REPORTED_FAILED
+
+Its wake items got a strike rather than being marked seen, so the next tick tries again. Log: \`~/Library/Logs/astrid-fixall.log\`"
+  echo "RESULT: FAILED — run reported: $REPORTED_FAILED"
   exit 1
 fi
 
