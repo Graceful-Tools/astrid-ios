@@ -1,6 +1,7 @@
 //  MacStrayAutoFillPanel.swift
-//  Astrid for Mac — dismiss the empty Password AutoFill popover macOS parks on us at launch.
-//  "[mac] wierd square appeared on app open" (AITD-333).
+//  Astrid for Mac — dismiss the empty Password AutoFill popover macOS parks on the quick-add field.
+//  "[mac] wierd square appeared on app open" (AITD-333), and again as "[mac] we get a wierd
+//  popover on app open on mac" (AITD-436).
 //
 //  WHAT IT IS. Not ours. Measured on a running build: an `SPRoundedWindow` from
 //  SafariPlatformSupport, hosting an `NSRemoteView` whose service is
@@ -24,17 +25,28 @@
 //  WHY THIS OWNS ITS OWN STATE. It was first written as `@State` + `.onAppear`/`.onDisappear` on
 //  the quick-add field. SwiftUI rebuilds that field during launch, and the resulting `onDisappear`
 //  invalidated the timer before it had ticked once — the sweep never ran, twice over, silently.
-//  A launch-scoped job has no business hanging off a view's lifecycle, so it hangs off nothing.
+//  A watch that must outlive the view that armed it has no business hanging off that view's
+//  lifecycle, so it hangs off nothing.
 //
 //  THE NARROWNESS IS THE DESIGN. Our own popovers (priority, assignee, due date) are also child
 //  windows at this level, so closing on "child window" alone would break every picker in the app.
 //  Three conditions have to hold together, and each one rules out a real window we must not touch:
+//    - the window is an `SPRoundedWindow` — AutoFill's own class; an open panel or a share sheet
+//      hosts a remote view too, but in a different window;
 //    - the content view is an `NSRemoteView` — ours are SwiftUI hosting views, never this;
-//    - the user has not interacted yet — every one of our popovers needs a click to open, and so
-//      does anything else remote (an NSOpenPanel, a share sheet);
-//    - we are still within a few seconds of the watch STARTING TO RUN.
+//    - we are still within a few seconds of the quick-add TAKING FOCUS.
 //  Outside that window this does nothing at all, which is what keeps an OS change from turning it
-//  into a picker that will not stay open.
+//  into a picker that will not stay open. If Apple renames the class, the panel simply stays — the
+//  failure is the old bug, never a broken picker.
+//
+//  WHY IT CAME BACK (AITD-436). AITD-333 identified the panel by "the user has not interacted
+//  yet" and ran once per process. Both were holes:
+//    - The panel arrives 1–1.5s after focus. Clicking into the window as it opens ended the watch
+//      BEFORE the panel existed, and it then stayed for good. A click that precedes the panel did
+//      not ask for it; the window class says what it is, so engagement no longer decides.
+//    - The app lives on in the menu bar when its window closes. Reopening it (Dock, "Open Astrid")
+//      builds a new window whose quick-add takes focus and summons the panel again, and the watch
+//      refused to run twice. It is now armed by every focus the quick-add takes.
 
 #if os(macOS)
 import AppKit
@@ -42,13 +54,16 @@ import Foundation
 
 enum MacStrayAutoFillPanel {
 
-    /// How long to watch. The panel arrives a second or two in; past this the app is in ordinary
-    /// use and every remote view belongs to something the user asked for.
+    /// How long to watch after a focus. The panel arrives a second or two in; past this every
+    /// remote view belongs to something the user asked for.
     static let watchDuration: TimeInterval = 5
 
     /// Sampling interval. The panel stays put for the whole watch, so this decides how quickly it
     /// goes, not whether it is caught.
     static let pollInterval: TimeInterval = 0.25
+
+    /// The window AutoFill parks on us — SafariPlatformSupport's `SPRoundedWindow`.
+    static let autoFillWindowClassName = "SPRoundedWindow"
 
     /// The content view class of a view hosted by another process. The AutoFill panel's content is
     /// one; nothing the app itself builds is.
@@ -58,53 +73,44 @@ enum MacStrayAutoFillPanel {
     ///
     /// Pure so the conditions can be asserted — the dangerous half is what it must NOT match, and
     /// a mistake there is a picker that closes itself, which no log would explain.
-    static func isStray(contentViewClassName: String,
+    static func isStray(windowClassName: String,
+                        contentViewClassName: String,
                         isChildOfAppWindow: Bool,
-                        hasUserEngaged: Bool,
-                        secondsSinceLaunch: TimeInterval) -> Bool {
+                        secondsSinceWatchStarted: TimeInterval) -> Bool {
         isChildOfAppWindow
+            && windowClassName == autoFillWindowClassName
             && contentViewClassName == remoteViewClassName
-            && !hasUserEngaged
-            && secondsSinceLaunch <= watchDuration
+            && secondsSinceWatchStarted <= watchDuration
     }
 
     // MARK: - The watch
 
     @MainActor private static var timer: Timer?
-    @MainActor private static var engagementMonitor: Any?
-    @MainActor private static var hasUserEngaged = false
-    @MainActor private static var hasRun = false
 
-    /// Start the launch watch. Idempotent: the quick-add field calls this from `.onAppear`, which
-    /// SwiftUI may run more than once, and a second call must not restart or cancel anything.
+    /// Whether a watch is running now.
+    @MainActor static var isWatching: Bool { timer != nil }
+
+    /// Watch for the panel after the quick-add takes focus. A call while a watch is running is a
+    /// no-op — SwiftUI rebuilds the field during launch and runs `.onAppear` more than once, and
+    /// that must not restart or cancel anything — but once a watch has ended, the next focus
+    /// starts a new one (AITD-436).
     @MainActor
-    static func beginLaunchWatch() {
-        guard !hasRun else { return }
-        hasRun = true
-
-        // Any real interaction means anything remote on screen was asked for. `.mouseMoved` is in
-        // the mask for completeness, though a window only delivers it when asked to — the click,
-        // key and scroll cases are what actually carry this.
-        engagementMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown, .keyDown, .scrollWheel, .mouseMoved]
-        ) { event in
-            noteUserEngagement()
-            return event          // observed, never swallowed
-        }
+    static func beginWatch() {
+        guard timer == nil else { return }
 
         // Elapsed is measured from the first TICK, not from here. Launch saturates the main
         // thread, so a deadline started now can already be spent by the time the run loop
-        // services this timer — which is exactly what happened while this was being written: the
-        // first fire invalidated having done nothing at all.
+        // services this timer — which is exactly what happened while AITD-333 was being written:
+        // the first fire invalidated having done nothing at all.
         var watchingSince: Date?
-        let sweep = Timer(timeInterval: pollInterval, repeats: true) { timer in
+        let sweep = Timer(timeInterval: pollInterval, repeats: true) { _ in
             MainActor.assumeIsolated {
                 let now = Date()
                 let startedAt = watchingSince ?? now
                 watchingSince = startedAt
                 let elapsed = now.timeIntervalSince(startedAt)
 
-                guard elapsed <= watchDuration, !hasUserEngaged else {
+                guard elapsed <= watchDuration else {
                     endWatch()
                     return
                 }
@@ -118,29 +124,21 @@ enum MacStrayAutoFillPanel {
     }
 
     @MainActor
+    static func endWatch() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    @MainActor
     private static func dismissStrayPanels(secondsWatching: TimeInterval) {
         for window in NSApp.windows {
             guard let content = window.contentView, window.parent != nil else { continue }
-            guard isStray(contentViewClassName: NSStringFromClass(type(of: content)),
+            guard isStray(windowClassName: NSStringFromClass(type(of: window)),
+                          contentViewClassName: NSStringFromClass(type(of: content)),
                           isChildOfAppWindow: true,
-                          hasUserEngaged: hasUserEngaged,
-                          secondsSinceLaunch: secondsWatching) else { continue }
+                          secondsSinceWatchStarted: secondsWatching) else { continue }
             window.orderOut(nil)
         }
-    }
-
-    @MainActor
-    private static func noteUserEngagement() {
-        hasUserEngaged = true
-        endWatch()
-    }
-
-    @MainActor
-    private static func endWatch() {
-        timer?.invalidate()
-        timer = nil
-        if let engagementMonitor { NSEvent.removeMonitor(engagementMonitor) }
-        engagementMonitor = nil
     }
 }
 #endif

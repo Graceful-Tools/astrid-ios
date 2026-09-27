@@ -91,15 +91,13 @@ struct MacQuickAddBar: View {
                 // evaluates it and says so through `takesFocus`.
                 // Focus on appear, exactly as b71850e6 set it up — the caret is not delayed and no
                 // keystroke is lost. Focusing is what summons macOS's empty AutoFill popover, so
-                // the watch that closes it starts alongside (AITD-333). The watch owns its own
-                // state and is idempotent: SwiftUI rebuilds this field during launch, and hanging
-                // the timer off the view's lifecycle meant `onDisappear` killed it before it ever
-                // ticked once.
-                .onAppear {
-                    if takesFocus { focused = true }
-                    MacStrayAutoFillPanel.beginLaunchWatch()
-                }
-                .onChange(of: focusKey) { if takesFocus { focused = true } }
+                // EVERY focus arms the watch that closes it (AITD-333) — not just the first one in
+                // the process: a window reopened from the Dock or the menu bar focuses a new field
+                // and gets the panel again (AITD-436). The watch owns its own state and ignores a
+                // call while running: SwiftUI rebuilds this field during launch, and hanging the
+                // timer off the view's lifecycle meant `onDisappear` killed it before it ticked.
+                .onAppear { if takesFocus { takeFocus() } }
+                .onChange(of: focusKey) { if takesFocus { takeFocus() } }
                 .accessibilityLabel(NSLocalizedString("tasks.add_task_placeholder", comment: ""))
                 .accessibilityIdentifier(style == .list ? "tasks.quickAdd" : "board.quickAdd")
 
@@ -154,6 +152,12 @@ struct MacQuickAddBar: View {
             // The column is already the frame; the cards above it carry no lift either.
             bar.frame(maxWidth: .infinity).macTextSelection()
         }
+    }
+
+    /// Put the caret here, and watch for the AutoFill panel that focusing summons.
+    private func takeFocus() {
+        focused = true
+        MacStrayAutoFillPanel.beginWatch()
     }
 
     // MARK: - Draft defaults
