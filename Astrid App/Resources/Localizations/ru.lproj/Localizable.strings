@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "Ожидает";
 "tasks.waitingOn.add" = "Ожидать задачу…";
 "tasks.waitingOn.searchPlaceholder" = "Поиск задач…";
-"tasks.waitingOn.empty" = "Не ожидает ни одной задачи";
+"tasks.waitingOn.empty" = "Нечего ждать";
 "tasks.waitingOn.hidden" = "Задача, недоступная для просмотра";
 "tasks.waitingOn.remove" = "Не ожидать эту задачу";
 "tasks.waitingOn.cycleError" = "Эти задачи начали бы ждать друг друга";

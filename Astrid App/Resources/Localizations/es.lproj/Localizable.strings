@@ -1482,7 +1482,7 @@
 "tasks.waitingOn.label" = "Esperando a";
 "tasks.waitingOn.add" = "Esperar a una tarea…";
 "tasks.waitingOn.searchPlaceholder" = "Buscar tareas…";
-"tasks.waitingOn.empty" = "No espera ninguna tarea";
+"tasks.waitingOn.empty" = "Nada que esperar";
 "tasks.waitingOn.hidden" = "Una tarea que no puedes ver";
 "tasks.waitingOn.remove" = "Dejar de esperar a esta tarea";
 "tasks.waitingOn.cycleError" = "Esas tareas acabarían esperándose entre sí";

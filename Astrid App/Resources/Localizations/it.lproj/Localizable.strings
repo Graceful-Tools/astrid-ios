@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "In attesa di";
 "tasks.waitingOn.add" = "Attendi un'attività…";
 "tasks.waitingOn.searchPlaceholder" = "Cerca attività…";
-"tasks.waitingOn.empty" = "Non è in attesa di nessuna attività";
+"tasks.waitingOn.empty" = "Niente da attendere";
 "tasks.waitingOn.hidden" = "Unattività che non puoi vedere";
 "tasks.waitingOn.remove" = "Non attendere più questa attività";
 "tasks.waitingOn.cycleError" = "Quelle attività finirebbero per aspettarsi a vicenda";

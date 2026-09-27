@@ -1482,7 +1482,7 @@
 "tasks.waitingOn.label" = "En attente de";
 "tasks.waitingOn.add" = "Attendre une tâche…";
 "tasks.waitingOn.searchPlaceholder" = "Rechercher des tâches…";
-"tasks.waitingOn.empty" = "N'attend aucune tâche";
+"tasks.waitingOn.empty" = "Rien à attendre";
 "tasks.waitingOn.hidden" = "Une tâche que vous ne pouvez pas voir";
 "tasks.waitingOn.remove" = "Ne plus attendre cette tâche";
 "tasks.waitingOn.cycleError" = "Ces tâches finiraient par s'attendre mutuellement";

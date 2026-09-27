@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "待機中のタスク";
 "tasks.waitingOn.add" = "待機するタスクを追加";
 "tasks.waitingOn.searchPlaceholder" = "タスクを検索…";
-"tasks.waitingOn.empty" = "待機中のタスクはありません";
+"tasks.waitingOn.empty" = "待つものはありません";
 "tasks.waitingOn.hidden" = "閲覧できないタスク";
 "tasks.waitingOn.remove" = "このタスクを待たない";
 "tasks.waitingOn.cycleError" = "これらのタスクが互いに待ち合う状態になります";

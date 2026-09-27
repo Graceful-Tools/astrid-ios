@@ -49,9 +49,7 @@ struct MacTaskBlockersRow: View {
             if blocker.isHidden {
                 Image(systemName: "lock").font(MacTypography.label)
             }
-            Text(blocker.isHidden
-                 ? NSLocalizedString("tasks.waitingOn.hidden", comment: "")
-                 : blocker.title ?? blocker.identifier ?? "")
+            Text(TaskBlockers.chipLabel(for: blocker)) // short id first, as iOS (AITD-438)
                 .font(MacTypography.label)
                 .strikethrough(blocker.isCompleted)
                 .lineLimit(1)

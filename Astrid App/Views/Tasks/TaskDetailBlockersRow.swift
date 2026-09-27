@@ -45,31 +45,40 @@ struct TaskDetailBlockersRow: View {
         }
     }
 
-    // Wraps with no cap and no "+N more": the row is designed for one to three, and assumes
-    // neither.
+    // Reads like the When row (AITD-438): the empty state is a chip that says so and opens the
+    // picker, as "No due date" opens the date picker, and a blocker is a chip naming its short
+    // task id. Wraps with no cap and no "+N more": designed for one to three, assumes neither.
     private var chips: some View {
         FlowLayout(spacing: Theme.spacing8, rowSpacing: Theme.spacing8) {
             if blockedBy.isEmpty {
-                Text(NSLocalizedString("tasks.waitingOn.empty", comment: ""))
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(textSecondary)
-                    .padding(.vertical, Theme.spacing8)
+                Button { showingPicker = true } label: {
+                    Text(NSLocalizedString("tasks.waitingOn.empty", comment: ""))
+                        .font(Theme.Typography.body())
+                        .foregroundColor(textMuted)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .chipBackground(colorScheme)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnly)
             }
             ForEach(blockedBy) { blocker in
                 chip(for: blocker)
             }
-            if !isReadOnly {
+            if !isReadOnly && !blockedBy.isEmpty {
                 Button { showingPicker = true } label: {
-                    Text(NSLocalizedString("tasks.waitingOn.add", comment: ""))
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(textSecondary)
-                        .padding(.vertical, Theme.spacing8)
+                    Image(systemName: "plus")
+                        .font(Theme.Typography.body())
+                        .foregroundColor(textMuted)
+                        .chipBackground(colorScheme)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(NSLocalizedString("tasks.waitingOn.add", comment: ""))
             }
         }
     }
 
+    /// Tapping the id opens that task's details on top of this one, so Back returns here.
     private func chip(for blocker: TaskBlocker) -> some View {
         HStack(spacing: Theme.spacing4) {
             Button { open(blocker) } label: {
@@ -78,35 +87,28 @@ struct TaskDetailBlockersRow: View {
                         Image(systemName: "lock")
                             .font(Theme.Typography.caption1())
                     }
-                    Text(label(for: blocker))
-                        .font(Theme.Typography.caption1())
+                    Text(TaskBlockers.chipLabel(for: blocker))
+                        .font(Theme.Typography.body())
                         .strikethrough(blocker.isCompleted)
                         .lineLimit(1)
                 }
-                .foregroundColor(blocker.isHidden || blocker.isCompleted ? textSecondary : textPrimary)
+                .foregroundColor(blocker.isHidden || blocker.isCompleted ? textMuted : textPrimary)
             }
             .buttonStyle(.plain)
             .disabled(blocker.isHidden)
+            .accessibilityHint(blocker.title ?? "")
 
             if !isReadOnly {
                 Button { remove(blocker) } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(textSecondary)
+                        .foregroundColor(textMuted)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(NSLocalizedString("tasks.waitingOn.remove", comment: ""))
             }
         }
-        .padding(.horizontal, Theme.spacing12)
-        .padding(.vertical, Theme.spacing8)
-        .background(RoundedRectangle(cornerRadius: Theme.radiusMedium)
-            .fill(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
-    }
-
-    private func label(for blocker: TaskBlocker) -> String {
-        if blocker.isHidden { return NSLocalizedString("tasks.waitingOn.hidden", comment: "") }
-        return blocker.title ?? blocker.identifier ?? ""
+        .chipBackground(colorScheme)
     }
 
     /// The same in-stack navigation the description's `astrid://tasks/` links use.
@@ -135,7 +137,17 @@ struct TaskDetailBlockersRow: View {
     }
 
     private var textPrimary: Color { colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
-    private var textSecondary: Color { colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary }
+    private var textMuted: Color { colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
+}
+
+private extension View {
+    /// The When row's compact chip (`InlineDatePicker(compact: true)`), so the two rows match.
+    func chipBackground(_ colorScheme: ColorScheme) -> some View {
+        padding(.horizontal, Theme.spacing8)
+            .padding(.vertical, Theme.spacing4)
+            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+    }
 }
 
 /// Search the server for a task to wait on. Stays open between picks — adding two or three at

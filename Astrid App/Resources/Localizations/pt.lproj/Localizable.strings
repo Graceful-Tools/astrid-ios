@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "À espera de";
 "tasks.waitingOn.add" = "Esperar por uma tarefa…";
 "tasks.waitingOn.searchPlaceholder" = "Pesquisar tarefas…";
-"tasks.waitingOn.empty" = "Não está à espera de nenhuma tarefa";
+"tasks.waitingOn.empty" = "Nada por que esperar";
 "tasks.waitingOn.hidden" = "Uma tarefa que não podes ver";
 "tasks.waitingOn.remove" = "Deixar de esperar por esta tarefa";
 "tasks.waitingOn.cycleError" = "Essas tarefas acabariam à espera uma da outra";

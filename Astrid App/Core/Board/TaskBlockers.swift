@@ -98,6 +98,15 @@ enum TaskBlockers {
         return offered.filter(isNeighbour) + offered.filter { !isNeighbour($0) }
     }
 
+    /// What a blocker's chip says in the "Waiting on" row (AITD-438): the short task id, as
+    /// the server issues it, so three blockers fit on one line. The title is the fallback for
+    /// a task with no id. A hidden task says so and nothing more, not even its id.
+    static func chipLabel(for blocker: TaskBlocker) -> String {
+        if blocker.isHidden { return NSLocalizedString("tasks.waitingOn.hidden", comment: "") }
+        if let identifier = blocker.identifier, !identifier.isEmpty { return identifier }
+        return blocker.title ?? ""
+    }
+
     /// Is this the 409 `dependency_cycle` refusal — the two tasks would wait on each other?
     /// It has its own message (`tasks.waitingOn.cycleError`); every other failure is `addError`.
     static func isCycleRefusal(_ error: Error) -> Bool {

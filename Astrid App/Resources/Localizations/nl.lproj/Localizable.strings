@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "Wacht op";
 "tasks.waitingOn.add" = "Op een taak wachten…";
 "tasks.waitingOn.searchPlaceholder" = "Taken zoeken…";
-"tasks.waitingOn.empty" = "Wacht op geen enkele taak";
+"tasks.waitingOn.empty" = "Nergens op wachten";
 "tasks.waitingOn.hidden" = "Een taak die je niet kunt zien";
 "tasks.waitingOn.remove" = "Niet meer op deze taak wachten";
 "tasks.waitingOn.cycleError" = "Die taken zouden op elkaar gaan wachten";
