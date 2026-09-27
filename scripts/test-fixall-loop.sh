@@ -19,7 +19,8 @@
 #   - a run that died gives them a strike instead (--failed) and does not mute them outright;
 #   - the keys reach the second phase verbatim;
 #   - marking happens BEFORE the RESULT: line, which stays last in the output;
-#   - a skipped tick (nothing queued) marks nothing — no run was woken, so nothing was answered.
+#   - a skipped tick (nothing queued) marks nothing — no run was woken, so nothing was answered;
+#   - a run whose own last RESULT: line says FAILED is FAILED even when it exits 0 (AITD-440).
 set -u
 cd "$(dirname "$0")/.."
 
@@ -255,6 +256,47 @@ called "…and its wake keys get a strike, not a mute" \
        "agent-queue-status.ts" "--mark-seen" "--failed"
 posted "…and it says so on the board, since the run cannot report for itself" \
        "left work uncommitted" "leftover.txt"
+clean_sandbox
+
+# --- A run that SAYS it failed is a failed run, whatever it exits (AITD-440) ---------
+# 2026-09-27 08:30: the `astrid` MCP server timed out while the session was starting. The
+# session reported "RESULT: FAILED — … never read the queue", but `claude -p` exited 0, so
+# the loop wrote RESULT: OK under it, marked the wake keys seen, and told the board nothing.
+# The run's own verdict is the better witness than its exit code.
+cat > "$TMP/bin/claude-reports-failed" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+echo "Tried to start."
+echo "RESULT: FAILED — the astrid MCP server timed out after 30 seconds"
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-reports-failed"
+
+rm -f "$STALL_STATE"
+clean_sandbox
+run_sandbox "$TMP/bin/claude-reports-failed"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED'; then ok
+else bad "a run whose own RESULT: line says FAILED must not be logged OK" "$OUT"; fi
+if [ "$STATUS" != 0 ]; then ok; else bad "…and the loop exits non-zero" "$OUT"; fi
+called "…and its wake keys get a strike, not a mute" \
+       "agent-queue-status.ts" "--mark-seen" "--failed"
+posted "…and the board hears the run's own reason" "MCP server timed out"
+if echo "$OUT" | grep -q '^RESULT: FAILED — the astrid MCP'; then ok
+else bad "…and the run's own output still reaches the log" "$OUT"; fi
+
+# Only the LAST RESULT: line counts: a run that quotes an old failure and then finishes
+# is a finished run.
+cat > "$TMP/bin/claude-recovers" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+echo "RESULT: FAILED — first attempt"
+echo "RESULT: OK — 1 task"
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-recovers"
+run_sandbox "$TMP/bin/claude-recovers"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: OK'; then ok
+else bad "a run whose LAST RESULT: line is OK is still OK" "$OUT"; fi
 clean_sandbox
 
 echo ""
