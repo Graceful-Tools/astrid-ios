@@ -1476,3 +1476,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "タスクID";
 "tasks.taskId.copy" = "タスクIDをコピー";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "仕分け";
+"reminders.triage.progress" = "%1$d / %2$d";
+"reminders.triage.close" = "閉じる";
+"reminders.triage.card_hint" = "タスクを開きます";
+"reminders.triage.assign_to" = "%@に割り当て";
+"reminders.triage.keep" = "保持";
+"reminders.triage.caught_up" = "すべて完了";
+"reminders.triage.done" = "完了";

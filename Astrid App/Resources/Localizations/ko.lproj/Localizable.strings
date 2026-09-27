@@ -1478,3 +1478,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "작업 ID";
 "tasks.taskId.copy" = "작업 ID 복사";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "분류";
+"reminders.triage.progress" = "%1$d / %2$d";
+"reminders.triage.close" = "닫기";
+"reminders.triage.card_hint" = "작업을 엽니다";
+"reminders.triage.assign_to" = "%@에게 할당";
+"reminders.triage.keep" = "유지";
+"reminders.triage.caught_up" = "모두 처리됨";
+"reminders.triage.done" = "완료";

@@ -155,6 +155,7 @@
 				Views/Lists/SaveFilterDialog.swift,
 				Views/MainTabView.swift,
 				Views/Onboarding/WelcomeChoiceView.swift,
+				Views/Reminders/ReminderTriageView.swift,
 				Views/Reminders/ReminderView.swift,
 				Views/Settings/AccountSettingsView.swift,
 				Views/Settings/AgentHubView.swift,
