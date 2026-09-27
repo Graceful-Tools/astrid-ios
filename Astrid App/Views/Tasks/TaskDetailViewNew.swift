@@ -449,25 +449,7 @@ struct TaskDetailViewNew: View {
                         )
                     }
                 }
-
-                // 7. (cont.) TASK ID, next to the lists, when the task is on a board (AITD-437,
-                // spec §7). The rule is `TaskIdentifiers.shows`; long-press copies it.
-                if TaskIdentifiers.shows(task, lists: listService.lists, on: .details),
-                   let identifier = task.identifier {
-                    TwoColumnRow(label: NSLocalizedString("tasks.taskId.label", comment: ""), icon: "number") {
-                        Text(identifier)
-                            .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = identifier
-                                } label: {
-                                    Label(NSLocalizedString("tasks.taskId.copy", comment: ""), systemImage: "doc.on.doc")
-                                }
-                            }
-                    }
-                }
-
+                TaskDetailIdentifierRow(task: task) // 7. (cont.) TASK ID, beside the lists (AITD-437)
                 // 7a. PROJECT STATE, in LIST mode, and only for a task that actually has a
                 // board column (AITD-332 — the iOS half of the Mac's AITD-327).
                 //
