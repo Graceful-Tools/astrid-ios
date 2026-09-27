@@ -33,6 +33,8 @@
 #   FIXALL_STALL_ALERT_AFTER  how many skips in a row before saying so (default: 3)
 #   FIXALL_PROD_SYNC    the ios-prod/mac-prod sync run each tick (default:
 #                       scripts/sync-prod-branches.sh; empty = skip, as the test does)
+#   FIXALL_CLOSE_BUILT  closes Doing tasks whose TestFlight build is VALID (default:
+#                       node scripts/close-built-tasks.mjs; empty = skip, as the test does)
 
 set -u
 export PATH="/opt/homebrew/bin:$PATH"
@@ -48,6 +50,7 @@ IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
 STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}"
 STALL_ALERT_AFTER="${FIXALL_STALL_ALERT_AFTER:-3}"
 PROD_SYNC="${FIXALL_PROD_SYNC-$REPO/scripts/sync-prod-branches.sh}"
+CLOSE_BUILT="${FIXALL_CLOSE_BUILT-node $REPO/scripts/close-built-tasks.mjs}"
 
 echo "──────── fixall loop $(date '+%Y-%m-%d %H:%M:%S') ────────"
 
@@ -125,6 +128,16 @@ Log: \`~/Library/Logs/astrid-fixall.log\`"
 # fall behind a release. A tick with no new release pushes nothing. Never fatal to the loop.
 if [ -n "$PROD_SYNC" ] && [ -x "$PROD_SYNC" ]; then
   "$PROD_SYNC" 2>&1 | sed 's/^/  prod: /'
+fi
+
+# ── Before the guards: close the tasks whose build is ready ──────────────────
+# A task stays in Doing until a VALID TestFlight build carries its fix, and closing it used to
+# be a step inside a session — which the empty-queue skip below never starts. So on a quiet
+# board nothing came back for them and Doing filled up (Jon, 2026-09-27). Every tick, like the
+# prod sync: it reads the board and App Store Connect and never touches the working tree.
+# Never fatal to the loop.
+if [ -n "$CLOSE_BUILT" ]; then
+  ${=CLOSE_BUILT} 2>&1 | sed 's/^/  /'
 fi
 
 # ── Guard 1: one session per working tree ────────────────────────────────────

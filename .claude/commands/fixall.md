@@ -217,8 +217,22 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
 
 - **When a run ends before its build does**, leave the tasks in `Doing` and say so in the run
   message. The webhook has lagged up to ~36 minutes and a build takes longer still, so the
-  last thing a run does is often not the last thing a task needs. The next run — or the next
-  session — closes them once `runs` shows the build SUCCEEDED and `builds` shows it VALID.
+  last thing a run does is often not the last thing a task needs.
+
+  **End the pushed task's comment with the marker line** — the fix commit, full or short sha:
+
+  ```
+  **Awaiting build:** `<fix-sha>`
+  ```
+
+  The loop closes the task from that line itself, on every tick, without a session:
+  `scripts/close-built-tasks.mjs` finds each Doing task assigned to claude, takes its newest
+  marker (only if newer than the task's last completion, so a reopened task is never closed on
+  the fix that missed), and completes it with a comment naming the build once a VALID iOS or Mac
+  build contains the commit. **Without the marker nothing closes it.** Closing used to be a
+  step inside a session, and a quiet queue never starts one, so tasks sat in Doing until
+  someone noticed (Jon, 2026-09-27: *"Make sure the fixall script resolves the doing tasks"*).
+  A task with no marker is still closed by hand, as below.
 
 - **Gates:** `npm run predeploy`, plus the Mac suite for anything touching `Core/` or Mac:
   ```bash
