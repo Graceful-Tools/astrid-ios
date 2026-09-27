@@ -98,7 +98,7 @@ skip_and_maybe_alert() {  # skip_and_maybe_alert <one-line reason> <detail block
     # worth interrupting someone for, rather than a tidy-up note.
     local queue
     queue=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts \
-               --agent claude --list "$IOS_LIST_ID" --no-write-seen 2>&1 \
+               --agent claude --list "$IOS_LIST_ID" --include-unassigned --no-write-seen 2>&1 \
              | grep -E '^QUEUE:' | head -1 )
     [ -n "$queue" ] || queue="QUEUE: could not tell"
     post_to_list "## Scheduled /fixall has been skipping
@@ -208,7 +208,7 @@ clear_stall
 # Exit 1 means "could not tell" (network, auth) and must NOT be read as empty:
 # a queue we cannot see is a reason to run and let the agent report properly,
 # not a reason to skip quietly forever.
-QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --no-write-seen 2>&1 )
+QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --include-unassigned --no-write-seen 2>&1 )
 QUEUE_STATUS=$?
 QUEUE_LINES=$(echo "$QUEUE_OUT" | grep -E '^(QUEUE|LANES|SEEN):')
 QUEUE_KEYS=$(echo "$QUEUE_OUT" | sed -n 's/^KEYS: //p' | head -1)
