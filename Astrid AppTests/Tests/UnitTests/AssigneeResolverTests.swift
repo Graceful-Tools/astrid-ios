@@ -110,4 +110,28 @@ final class AssigneeResolverTests: XCTestCase {
         XCTAssertNotEqual(AssigneeResolver.avatarIdentity(for: nil),
                           AssigneeResolver.avatarIdentity(for: "u1"))
     }
+
+    // MARK: - AITD-442: the list row showed the PREVIOUS assignee after a reassignment
+
+    /// Reassigning updates `assigneeId` optimistically but leaves the embedded `assignee` from the
+    /// last server fetch. The row read that object first, so it drew the old person until a
+    /// refetch replaced it. The id is the truth; the embedded record only counts when it agrees.
+    func testRowResolvesTheNewAssigneeWhenTheEmbeddedOneIsStale_AITD442() {
+        let task = Task(id: "t1", title: "T", assigneeId: "new-person", assignee: user("old-person", name: "Old"))
+        XCTAssertEqual(AssigneeResolver.resolve(task: task)?.id, "new-person",
+                       "a stale embedded assignee must not outrank the task's assigneeId")
+    }
+
+    /// Unassigning leaves the same stale object behind; the row must show nobody, not the old face.
+    func testRowResolvesNobodyAfterUnassigning_AITD442() {
+        let task = Task(id: "t1", title: "T", assigneeId: nil, assignee: user("old-person"))
+        XCTAssertNil(AssigneeResolver.resolve(task: task))
+    }
+
+    /// When the embedded record IS the assignee, the row keeps its name and photo.
+    func testRowKeepsTheEmbeddedRecordWhenItMatches_AITD442() {
+        let task = Task(id: "t1", title: "T", assigneeId: "u1",
+                        assignee: user("u1", name: "Dana", image: "https://example.com/d.jpg"))
+        XCTAssertEqual(AssigneeResolver.resolve(task: task)?.name, "Dana")
+    }
 }
