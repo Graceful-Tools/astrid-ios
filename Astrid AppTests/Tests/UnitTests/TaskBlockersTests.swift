@@ -82,4 +82,30 @@ final class TaskBlockersTests: XCTestCase {
         XCTAssertTrue(TaskBlockers.isCycleRefusal(cycle))
         XCTAssertFalse(TaskBlockers.isCycleRefusal(AstridAPIError.httpError(statusCode: 403, message: "")))
     }
+
+    // MARK: - How a blocker reads in the row (AITD-438)
+
+    /// AITD-438: "Waiting on … and a list of short task ids". A chip names its task by the
+    /// server's identifier; the title is only the fallback for a task that has none.
+    func testAITD438ChipShowsTheShortTaskIdBeforeTheTitle() {
+        let withId = TaskBlocker(id: "t1", title: "Ship the release notes", identifier: "AITD-12",
+                                 completed: false, hidden: nil)
+        XCTAssertEqual(TaskBlockers.chipLabel(for: withId), "AITD-12")
+
+        let noId = TaskBlocker(id: "t2", title: "A personal task", identifier: nil,
+                               completed: false, hidden: nil)
+        XCTAssertEqual(TaskBlockers.chipLabel(for: noId), "A personal task")
+    }
+
+    /// A task the reader cannot see still says so, and never leaks an id.
+    func testAITD438HiddenChipSaysSoRatherThanNamingTheTask() {
+        let hidden = TaskBlocker(id: "t3", title: nil, identifier: "AITD-99", completed: nil, hidden: true)
+        XCTAssertEqual(TaskBlockers.chipLabel(for: hidden),
+                       NSLocalizedString("tasks.waitingOn.hidden", comment: ""))
+    }
+
+    /// AITD-438: the empty row reads like the empty date ("No due date"), in Jon's words.
+    func testAITD438EmptyRowSaysNothingToWaitFor() {
+        XCTAssertEqual(NSLocalizedString("tasks.waitingOn.empty", comment: ""), "Nothing to wait for")
+    }
 }

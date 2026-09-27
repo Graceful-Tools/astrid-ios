@@ -1468,7 +1468,7 @@
 "tasks.waitingOn.label" = "等待中";
 "tasks.waitingOn.add" = "新增等待的任務";
 "tasks.waitingOn.searchPlaceholder" = "搜尋任務…";
-"tasks.waitingOn.empty" = "沒有在等待任何任務";
+"tasks.waitingOn.empty" = "沒有要等待的";
 "tasks.waitingOn.hidden" = "你無法檢視的任務";
 "tasks.waitingOn.remove" = "取消等待此任務";
 "tasks.waitingOn.cycleError" = "這些任務會互相等待";

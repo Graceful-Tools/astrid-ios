@@ -1466,7 +1466,7 @@
 "tasks.waitingOn.label" = "等待中";
 "tasks.waitingOn.add" = "添加等待的任务";
 "tasks.waitingOn.searchPlaceholder" = "搜索任务…";
-"tasks.waitingOn.empty" = "没有在等待任何任务";
+"tasks.waitingOn.empty" = "没有要等待的";
 "tasks.waitingOn.hidden" = "你无法查看的任务";
 "tasks.waitingOn.remove" = "取消等待此任务";
 "tasks.waitingOn.cycleError" = "这些任务会互相等待";

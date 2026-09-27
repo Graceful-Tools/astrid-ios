@@ -1474,7 +1474,7 @@
 "tasks.waitingOn.label" = "Waiting on";
 "tasks.waitingOn.add" = "Wait on a task…";
 "tasks.waitingOn.searchPlaceholder" = "Search tasks…";
-"tasks.waitingOn.empty" = "Not waiting on any task";
+"tasks.waitingOn.empty" = "Nothing to wait for";
 "tasks.waitingOn.hidden" = "A task you cannot see";
 "tasks.waitingOn.remove" = "Stop waiting on this task";
 "tasks.waitingOn.cycleError" = "Those tasks would end up waiting for each other";
