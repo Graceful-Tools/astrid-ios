@@ -1492,3 +1492,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID de tâche";
 "tasks.taskId.copy" = "Copier l'ID de la tâche";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "Trier";
+"reminders.triage.progress" = "%1$d sur %2$d";
+"reminders.triage.close" = "Fermer";
+"reminders.triage.card_hint" = "Ouvre la tâche";
+"reminders.triage.assign_to" = "Attribuer à %@";
+"reminders.triage.keep" = "Garder";
+"reminders.triage.caught_up" = "Tout est à jour";
+"reminders.triage.done" = "Terminé";

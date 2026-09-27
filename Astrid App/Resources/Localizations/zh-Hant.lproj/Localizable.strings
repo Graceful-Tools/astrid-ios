@@ -1478,3 +1478,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "任務 ID";
 "tasks.taskId.copy" = "複製任務 ID";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "整理";
+"reminders.triage.progress" = "%1$d / %2$d";
+"reminders.triage.close" = "關閉";
+"reminders.triage.card_hint" = "開啟任務";
+"reminders.triage.assign_to" = "指派給%@";
+"reminders.triage.keep" = "保留";
+"reminders.triage.caught_up" = "全部處理完畢";
+"reminders.triage.done" = "完成";

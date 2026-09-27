@@ -1476,3 +1476,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID attività";
 "tasks.taskId.copy" = "Copia ID attività";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "Smista";
+"reminders.triage.progress" = "%1$d di %2$d";
+"reminders.triage.close" = "Chiudi";
+"reminders.triage.card_hint" = "Apre l'attività";
+"reminders.triage.assign_to" = "Assegna a %@";
+"reminders.triage.keep" = "Tieni";
+"reminders.triage.caught_up" = "Tutto in ordine";
+"reminders.triage.done" = "Fine";

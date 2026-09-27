@@ -1476,3 +1476,13 @@
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID задачи";
 "tasks.taskId.copy" = "Копировать ID задачи";
+
+// Reminder triage deck (AITD-441)
+"reminders.triage.title" = "Разбор";
+"reminders.triage.progress" = "%1$d из %2$d";
+"reminders.triage.close" = "Закрыть";
+"reminders.triage.card_hint" = "Открывает задачу";
+"reminders.triage.assign_to" = "Назначить: %@";
+"reminders.triage.keep" = "Оставить";
+"reminders.triage.caught_up" = "Всё разобрано";
+"reminders.triage.done" = "Готово";

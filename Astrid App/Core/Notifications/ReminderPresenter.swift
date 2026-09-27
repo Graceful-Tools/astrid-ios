@@ -9,6 +9,12 @@ class ReminderPresenter: ObservableObject {
     @Published var taskToShow: Task?
     @Published var isShowingReminder = false
 
+    /// The triage deck a reminder opens (AITD-441). Empty means the single-task card instead.
+    @Published var triageDeck: [Task] = []
+    /// The assistant's display name, nil when no assistant is known (disables the up swipe).
+    @Published var triageAssistantName: String?
+    private var triageAssistantId: String?
+
     private let taskService = TaskService.shared
     private let notificationManager = NotificationManager.shared
 
@@ -52,7 +58,16 @@ class ReminderPresenter: ObservableObject {
             do {
                 let task = try await taskService.fetchTask(id: taskId)
                 AppLog.debug("✅ [ReminderPresenter] Task fetched: \(task.title)")
+                // The fetched copy is the freshest; the rest of the deck comes from the cache.
+                let known = [task] + taskService.tasks.filter { $0.id != task.id }
+                let deck = ReminderTriage.deck(from: known,
+                                               currentUserId: AuthManager.shared.userId,
+                                               remindedTaskId: task.id)
+                if !deck.isEmpty {
+                    await loadTriageAssistant()
+                }
                 await MainActor.run {
+                    self.triageDeck = deck
                     self.taskToShow = task
                     self.isShowingReminder = true
                     AppLog.debug("🎉 [ReminderPresenter] isShowingReminder set to true - popup should show!")
@@ -108,9 +123,46 @@ class ReminderPresenter: ObservableObject {
         )
 
         AppLog.debug("✅ [ReminderPresenter] Test task created: \(testTask.title)")
+        self.triageDeck = []
         self.taskToShow = testTask
         self.isShowingReminder = true
         AppLog.debug("🎉 [ReminderPresenter] isShowingReminder set to true - test popup should show!")
+    }
+
+    /// Find the assistant for the up swipe — from the agent cache, or the server if it is empty.
+    private func loadTriageAssistant() async {
+        var assistant = ReminderTriage.assistant(in: AIAgentCache.shared.load() ?? [])
+        if assistant == nil {
+            _ = try? await ChatService.shared.fetchAvailableAgents()
+            assistant = ReminderTriage.assistant(in: AIAgentCache.shared.load() ?? [])
+        }
+        triageAssistantId = assistant?.id
+        triageAssistantName = assistant.map { $0.name ?? Brand.appName }
+    }
+
+    /// Carry out one triage decision (AITD-441). Every write goes through `TaskService`.
+    func triage(_ task: Task, _ action: ReminderTriage.Action) {
+        _Concurrency.Task {
+            do {
+                switch action {
+                case .keep:
+                    return
+                case .complete:
+                    _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
+                case .postpone:
+                    _ = try await taskService.updateTask(
+                        taskId: task.id,
+                        dueDateTime: ReminderTriage.postponedDueDate(for: task),
+                        isAllDay: ReminderTriage.postponedIsAllDay(for: task),
+                        task: task)
+                case .assignToAssistant:
+                    guard let assistantId = triageAssistantId else { return }
+                    _ = try await taskService.updateTask(taskId: task.id, assigneeId: assistantId, task: task)
+                }
+            } catch {
+                AppLog.debug("❌ [ReminderPresenter] Triage \(action) failed: \(error)")
+            }
+        }
     }
 
     /// Complete the task
@@ -169,6 +221,7 @@ class ReminderPresenter: ObservableObject {
     func dismiss() {
         isShowingReminder = false
         taskToShow = nil
+        triageDeck = []
     }
 }
 
@@ -179,7 +232,15 @@ struct ReminderPresentationModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .fullScreenCover(isPresented: $presenter.isShowingReminder) {
-                if let task = presenter.taskToShow {
+                if !presenter.triageDeck.isEmpty {
+                    ReminderTriageView(
+                        deck: presenter.triageDeck,
+                        assistantName: presenter.triageAssistantName,
+                        onDecide: { task, action in
+                            presenter.triage(task, action)
+                        }
+                    )
+                } else if let task = presenter.taskToShow {
                     ReminderView(
                         task: task,
                         onComplete: {
