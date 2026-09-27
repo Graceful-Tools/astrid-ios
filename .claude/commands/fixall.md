@@ -91,7 +91,7 @@ astrid-web uses — so it authenticates from the client-credentials pair in
 
 | Need | Tool |
 |------|------|
-| The queue | `get_agent_queue` `{ agent: "claude", listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36" }` |
+| The queue | `get_agent_queue` `{ agent: "claude", listId: "aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36", includeUnassigned: true }` |
 | Read a task | `get_task` `{ taskId }` and `get_task_comments` `{ taskId }` |
 | Comment (strategy, progress, report) | `add_comment` `{ taskId, content, type: "MARKDOWN" }` |
 | Working on it | `update_task` `{ taskId, statusRole: "doing" }` — where a task stays until its build is ready |
@@ -162,13 +162,15 @@ this file holds only what is different about the iOS repo.
 
 ### What `get_agent_queue` returns
 
-A task is in the queue only when **all** hold: Ready status, **assigned to `claude`**, on the
-given list, and due now (a task with a future `dueDateTime` is listed under `held.scheduled`
+A task is in the queue only when **all** hold: Ready status, **assigned to `claude` or
+unassigned**, on the given list, and due now (a task with a future `dueDateTime` is listed under `held.scheduled`
 with when it comes due). It answers `empty: true` when there is nothing to do.
 
-- **Assignment is required.** Unlike the old `ready-tasks.ts` script, an unassigned Ready task
-  is NOT in the queue — it is someone's untriaged note. If something unassigned is genuinely
-  yours, say so and let Jon assign it; do not work around the filter.
+- **Unassigned Ready tasks are yours to claim** (`includeUnassigned: true`; they come back with
+  `assigned: false`). On this board Ready is the hand-off. Claim before working — the claim
+  assigns the task and moves it to `Doing` atomically, so `CLAIM_CONFLICT` means a peer loop
+  took it first. A task assigned to a person or another agent is never in the queue.
+- **`Doing` is ignored.** It never queues: another agent or a person is already working it.
 - **A queue held up by the clock is not an idle one.** If `empty` but `held.scheduled` is
   non-empty, say when the next task comes due rather than just "empty".
 - **Re-check after every task with the same call** — never work from the opening snapshot. New
