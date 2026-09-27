@@ -1472,3 +1472,7 @@
 "tasks.waitingOn.cycleError" = "Quelle attività finirebbero per aspettarsi a vicenda";
 "tasks.waitingOn.addError" = "Impossibile attendere quell'attività";
 "tasks.waitingOn.noResults" = "Nessuna attività corrispondente";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "ID attività";
+"tasks.taskId.copy" = "Copia ID attività";

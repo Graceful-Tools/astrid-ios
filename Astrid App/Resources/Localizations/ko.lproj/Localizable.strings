@@ -1474,3 +1474,7 @@
 "tasks.waitingOn.cycleError" = "해당 작업들이 서로를 기다리게 됩니다";
 "tasks.waitingOn.addError" = "해당 작업을 대기 대상으로 추가하지 못했습니다";
 "tasks.waitingOn.noResults" = "일치하는 작업이 없습니다";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "작업 ID";
+"tasks.taskId.copy" = "작업 ID 복사";

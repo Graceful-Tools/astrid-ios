@@ -37,6 +37,8 @@
              adding it stays a lightweight migration. Without it the role was
              dropped on every persist and the board fell back to membership. -->
         <attribute name="statusRole" optional="YES" attributeType="String"/>
+        <!-- Server-minted KEY-N (AITD-437). Optional: lightweight migration. -->
+        <attribute name="identifier" optional="YES" attributeType="String"/>
     </entity>
     <entity name="CDTaskList" representedClassName="CDTaskList" syncable="YES">
         <attribute name="color" optional="YES" attributeType="String"/>

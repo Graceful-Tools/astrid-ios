@@ -1480,3 +1480,7 @@
 "tasks.waitingOn.cycleError" = "Those tasks would end up waiting for each other";
 "tasks.waitingOn.addError" = "Could not wait on that task";
 "tasks.waitingOn.noResults" = "No matching tasks";
+
+/* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
+"tasks.taskId.label" = "Task ID";
+"tasks.taskId.copy" = "Copy task id";

@@ -177,6 +177,13 @@ struct MacTaskRowMenuContent: View {
 
         case .copy:
             Button(NSLocalizedString("actions.copy", comment: ""), action: actions.copyToPasteboard)
+            // Beside Copy, whenever the task has an id (AITD-437, spec §7).
+            if TaskIdentifiers.canCopy(identifier: task.identifier), let identifier = task.identifier {
+                Button(NSLocalizedString("tasks.taskId.copy", comment: "")) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(identifier, forType: .string)
+                }
+            }
 
         case .openInNewWindow:
             Button(NSLocalizedString("mac.open_new_window", comment: ""),

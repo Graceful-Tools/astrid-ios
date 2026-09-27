@@ -163,8 +163,17 @@ struct TaskRowView: View {
                 // the title wouldn't vertically center in the row.
                 let chipLists = chipListsForTaskRow(task.lists, hiddenListIds: hiddenListIds)
                 let hasDateToShow = task.dueDateTime != nil && !isPublicListTask
-                if !chipLists.isEmpty || hasDateToShow {
+                // The task id, muted, on board cards only (AITD-437, spec §7) — never in a list.
+                let boardIdentifier = surface == .boardCard ? TaskIdentifiers.boardCardLabel(for: task) : nil
+                if !chipLists.isEmpty || hasDateToShow || boardIdentifier != nil {
                     HStack(spacing: Theme.spacing8) {
+                        if let boardIdentifier {
+                            Text(boardIdentifier)
+                                .font(Theme.Typography.subheadline())
+                                .foregroundColor(effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
                         // Date/Time (left side, plain text) - hide for public list tasks
                         // Use dueDateTime + isAllDay to determine display
                         if !isPublicListTask {
@@ -282,6 +291,16 @@ struct TaskRowView: View {
         // tasks found", "Task detail did not appear") pointed at the app rather than at the
         // query. One identifier removes the whole class of guessing.
         .accessibilityIdentifier(TaskRowView.accessibilityIdentifier)
+        // Long-press → "Copy task id", whenever the task has one (AITD-437, spec §7).
+        .contextMenu {
+            if TaskIdentifiers.canCopy(identifier: task.identifier), let identifier = task.identifier {
+                Button {
+                    UIPasteboard.general.string = identifier
+                } label: {
+                    Label(NSLocalizedString("tasks.taskId.copy", comment: ""), systemImage: "number")
+                }
+            }
+        }
     }
 
     /// What a UI test matches on to find task rows. Referenced by `UITestLaunch.taskRows`.
