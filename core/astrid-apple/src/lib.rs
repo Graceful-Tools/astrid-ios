@@ -85,6 +85,16 @@ impl SecureStore for ForeignSecureStore {
     }
 }
 
+/// Told when the cache moves: a colleague's edit arriving on the live stream, a sync pass, a
+/// reminder coming due. `change_json` is the core's own vocabulary — `{"change":"task","id":…}`,
+/// `{"change":"synced","taskIds":[…],"listIds":[…]}` and so on (`Change::to_json`).
+///
+/// Called on one of the core's threads, never the main one: the app hops to where it draws.
+#[uniffi::export(with_foreign)]
+pub trait ChangeListener: Send + Sync {
+    fn on_change(&self, change_json: String);
+}
+
 /// Why the client could not start.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum StartError {
@@ -157,6 +167,13 @@ impl CoreClient {
         }
     }
 
+    /// Hear every change to the cache from now on. The app subscribes once, not per screen.
+    pub fn subscribe(&self, listener: Arc<dyn ChangeListener>) {
+        self.app
+            .realtime()
+            .on_change(move |change| listener.on_change(change.to_json()));
+    }
+
     /// Ask the background loops to stop at their next check. Commands still run afterwards.
     pub fn stop(&self) {
         self.running.store(false, Ordering::Relaxed);
@@ -221,6 +238,34 @@ mod tests {
     fn an_unreadable_rule_is_a_failure_not_a_crash() {
         let answer = run_rule("not json".into());
         assert!(answer.contains(r#""ok":false"#), "{answer}");
+    }
+
+    #[derive(Default)]
+    struct Heard(Mutex<Vec<String>>);
+
+    impl ChangeListener for Heard {
+        fn on_change(&self, change_json: String) {
+            self.0.lock().unwrap().push(change_json);
+        }
+    }
+
+    #[test]
+    fn a_listener_hears_changes_in_the_cores_words() {
+        let core = CoreClient::start(
+            r#"{"cachePath":":memory:","platform":"ios-app"}"#.into(),
+            Arc::new(MemoryCredentials::default()),
+            false,
+        )
+        .expect("starts");
+        let heard = Arc::new(Heard::default());
+        core.subscribe(heard.clone());
+        core.app
+            .realtime()
+            .publish(astrid_core::realtime::Change::Task("t1".into()));
+        assert_eq!(
+            heard.0.lock().unwrap().as_slice(),
+            [r#"{"change":"task","id":"t1"}"#.to_string()]
+        );
     }
 
     #[test]

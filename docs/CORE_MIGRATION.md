@@ -59,15 +59,13 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 
 | Domain | Swift that goes | Status |
 |---|---|---|
-| Repeating rollover + completion outcome | `Utilities/RepeatingTaskHandler.swift` math, `TaskService.calculateNextOccurrence` | **in progress** — delegating to `rules` (`completion`, `nextOccurrence`) |
-| Markdown | `Core/Filters/MarkdownBlocks.swift`, `Extensions/String+Markdown.swift` | next |
-| Permissions | `TaskList.role(for:)`, `Core/Lists/ListPermissions.swift` (D6) | planned |
-| Filters, sort, subtasks, recently completed, My Tasks | `Core/Filters/*`, `TaskListView` inline pipeline, `MacRowPipeline`, `MacMyTasks` | planned |
-| Board columns and moves | `Core/Board/ProjectStatus.swift` (rules only; geometry stays) | planned |
-| Smart parse, search grammar, mentions | `Utilities/SmartTaskParser.swift`, `AutocompleteSupport`, `MacAutocomplete` | planned |
-| Keyboard table, palette scoring, editing session | `Astrid Mac/Keyboard`, `FuzzyMatch`, `Core/Layout/EditingSession.swift` | planned |
-| Row projections (due labels, leading control, assignee, pickers) | `Core/Layout/*` | planned |
-| Data layer: API client, Outbox, cache, sync, realtime, services | `Core/Networking`, `Core/Outbox`, `Core/Persistence`, `Core/Sync`, `Core/RealTime`, `Core/Services` | planned — last, see below |
+| Repeating rollover + completion outcome | `RepeatingTaskHandler.swift` math, `TaskService.calculateNextOccurrence` | **done** — `rules` `completion` / `nextOccurrence`; 78 Swift tests pass against the core |
+| Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
+| Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
+| Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
+| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*`, view pipelines, `ProjectStatus`, `MacTaskSearch`, `FuzzyMatch` | with the data layer — they run over the whole task set, which the core already holds |
+| Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
+| Data layer: API client, Outbox, cache, sync, realtime, services | `Core/Networking`, `Core/Outbox`, `Core/Persistence`, `Core/Sync`, `Core/RealTime`, `Core/Services` | **in progress** — see the design below |
 
 **Stays native regardless:** Apple Reminders (EventKit), Foundation Models, Sign in with Apple /
 passkeys / Google sign-in UI, UserNotifications scheduling, badge, BGTask, StoreKit review, address
@@ -93,11 +91,39 @@ or filed.
   off by one between Apple and the core; each Apple list picker applies half of
   `is_destination`; CONTRACTS D8 is stale (the Mac already uses the shared assignee builder).
 
+## The data layer: design
+
+The Swift data layer — `AstridAPIClient`, the Outbox, Core Data, sync, SSE, the services' write
+paths — duplicates the core's `App` end to end. It moves as follows.
+
+1. **One cache.** The core's SQLite store replaces Core Data and `outbox.json`. No entity is ever
+   synced by both engines: two caches that each think they are the truth is the regression to
+   avoid above all others.
+2. **Adapter services.** `TaskService`, `ListService`, `CommentService`, … keep their public API and
+   their `@Published` state, because ~40k lines of views bind to them. Their bodies become core
+   commands; their state is refreshed from core reads when the core reports a change
+   (`CoreSession.subscribe` → `{"change":"task","id":…}` and friends).
+3. **Cut over by coupled group, atomically.** Tasks, lists, comments, attachments, projects and
+   members share temp ids and one journal, so they move together. Chat, account/settings, agents
+   and connections can move separately.
+4. **Upgrade without losing anything.** On the first launch of a core build: seed the core's cache
+   from Core Data (so an offline launch still shows everything), and replay any pending Swift
+   Outbox entries as core commands (so an offline edit made before the update still reaches the
+   server). Then Core Data and `outbox.json` are deleted.
+5. **Auth stays Swift, the credential is shared.** Sign in with Apple, passkeys, Google and
+   session renewal remain native; they write the session cookie to the Keychain item the core
+   reads on every request (`CoreCredentials`). Sign-out calls the core's `signOut`, which wipes its
+   cache and journal, as the Swift sign-out does.
+6. **The platform is stated** — `ios-app` / `mac-app` in `x-platform`, as the Swift client did.
+
 ## Data-layer gaps in the core
 
-What the core must grow before the Swift data layer can go (from the 2026-09-28 mapping):
-session renewal (`/api/v1/auth/mobile-session`), a configurable `x-platform` header (hard-coded
-`windows-app`), task blockers, project create/delete and "create board for list", shortcode
+What the core must grow before the Swift data layer can go (from the 2026-09-28 mapping). Done:
+a configurable platform header (`Config.platform`), change events as JSON (`Change::to_json`).
+Still to do:
+`completeTask` carrying the on-screen task, the timer, an inbound source and `completedAt`;
+`createTask` carrying repeat, privacy and reminder; a bulk wire-shape read of cached tasks; a cache
+seed for the upgrade; project create/delete and "create board for list", shortcode
 resolve, chat paging / delete / virtual channels / agent responses / AI assistant settings,
 attachment delete and replace, invitation cancel and role change, `updateCustomAgent`, the Copilot
 cloud-agent token, contacts upload / search / recommended, app-version check, local (no account)
