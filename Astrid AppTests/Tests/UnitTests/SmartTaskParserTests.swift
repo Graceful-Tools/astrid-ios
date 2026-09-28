@@ -162,25 +162,51 @@ final class SmartTaskParserTests: XCTestCase {
 
     // MARK: - Date Keyword Tests
 
+    /// A parsed date is an all-day date: the person's calendar day, stored at UTC midnight. Read
+    /// it back on the UTC calendar, as every all-day date is read.
+    private func allDayDay(_ date: Date?) -> DateComponents? {
+        guard let date else { return nil }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        return utc.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+    }
+
+    private func localDay(daysFromToday offset: Int) -> DateComponents {
+        let calendar = Calendar.current
+        let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: Date()))!
+        var components = calendar.dateComponents([.year, .month, .day], from: day)
+        components.hour = 0
+        components.minute = 0
+        return components
+    }
+
     func testParseToday() {
         let result = SmartTaskParser.parse("Buy groceries today", lists: mockLists)
 
         XCTAssertEqual(result.title, "Buy groceries")
+        XCTAssertEqual(allDayDay(result.dueDateTime), localDay(daysFromToday: 0),
+                       "today on the person's calendar, at UTC midnight")
+    }
+
+    /// D12: a date word is the person's calendar day, stored at UTC midnight. The Swift parser
+    /// stored LOCAL midnight, which east of UTC is the previous UTC day — so "tomorrow" typed in
+    /// Paris landed on today once the server normalised it.
+    func testADateWordIsTheCalendarDayAtUTCMidnight() {
+        var paris = Calendar(identifier: .gregorian)
+        paris.timeZone = TimeZone(identifier: "Europe/Paris")!
+        // 00:30 on 29 September in Paris is still 28 September in UTC.
+        let justAfterMidnightInParis = paris.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 0, minute: 30))!
+        let result = SmartTaskParser.parse("Call mom tomorrow", lists: mockLists, today: justAfterMidnightInParis)
         XCTAssertNotNil(result.dueDateTime)
-        // Should be today at start of day
-        let calendar = Calendar.current
-        XCTAssertTrue(calendar.isDateInToday(result.dueDateTime!))
+        XCTAssertEqual(result.dueDateTime.map { ISO8601DateFormatter().string(from: $0) }.map { $0.hasSuffix("T00:00:00Z") }, true,
+                       "an all-day date sits at UTC midnight, whatever the device's zone")
     }
 
     func testParseTomorrow() {
         let result = SmartTaskParser.parse("Call mom tomorrow", lists: mockLists)
 
         XCTAssertEqual(result.title, "Call mom")
-        XCTAssertNotNil(result.dueDateTime)
-        // Should be tomorrow
-        let calendar = Calendar.current
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        XCTAssertTrue(calendar.isDate(result.dueDateTime!, inSameDayAs: tomorrow))
+        XCTAssertEqual(allDayDay(result.dueDateTime), localDay(daysFromToday: 1))
     }
 
     func testParseDayName() {
@@ -188,10 +214,10 @@ final class SmartTaskParserTests: XCTestCase {
 
         XCTAssertEqual(result.title, "Meeting")
         XCTAssertNotNil(result.dueDateTime)
-        // Should be next Monday
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: result.dueDateTime!)
-        XCTAssertEqual(weekday, 2) // Monday = 2
+        // Should be next Monday — on the UTC calendar, where an all-day date lives
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        XCTAssertEqual(utc.component(.weekday, from: result.dueDateTime!), 2) // Monday = 2
     }
 
     // MARK: - Priority Keyword Tests
@@ -235,7 +261,9 @@ final class SmartTaskParserTests: XCTestCase {
         let result = SmartTaskParser.parse("Clean up code low priority", lists: mockLists)
 
         XCTAssertEqual(result.title, "Clean up code")
-        XCTAssertEqual(result.priority, 0)
+        // "low" is priority 0, which the web reads as no priority at all (`priority || undefined`):
+        // the words leave the title and the picker or list default decides (smart.json fixture).
+        XCTAssertNil(result.priority)
     }
 
     // MARK: - Hashtag Tests

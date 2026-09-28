@@ -48,7 +48,7 @@ struct AstridApp: App {
         AppLog.debug("⚡️ [AstridApp] Starting service warm-up...")
         let start = CFAbsoluteTimeGetCurrent()
 
-        // Pre-compile SmartTaskParser regex patterns (synchronous, fast)
+        // Load the smart parser's keyword tables in the core (synchronous, fast)
         SmartTaskParser.warmUp()
 
         // Drain any Outbox journal persisted from a previous session (no-op when

@@ -72,9 +72,13 @@ final class MacQuickAddDefaultsTests: XCTestCase {
     func testTypedDateOverridesTheListDefault() {
         let args = MacQuickAdd.makeArgs(rawText: "Pay rent tomorrow", selectedListId: "list-1",
                                         lists: [list(defaultDueDate: "next_week")])
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        XCTAssertTrue(Calendar.current.isDate(try! XCTUnwrap(args?.whenDate), inSameDayAs: tomorrow),
-                      "A typed date must beat the list default")
+        // A typed date is an all-day date: the person's tomorrow, at UTC midnight (D12).
+        let tomorrow = Calendar.current.dateComponents(
+            [.year, .month, .day], from: Calendar.current.date(byAdding: .day, value: 1, to: Date())!)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        XCTAssertEqual(utc.dateComponents([.year, .month, .day], from: try! XCTUnwrap(args?.whenDate)), tomorrow,
+                       "A typed date must beat the list default")
     }
 
     /// The quick-add checkbox lets the user pick a priority for the next task; that choice must
