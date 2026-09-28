@@ -83,6 +83,8 @@ struct MacQuickAddBar: View {
                 .textFieldStyle(.plain)
                 .font(MacTypography.rowTitle)
                 .macTextSelection()
+                // Not a credential field — avoids the AutoFill panel rather than closing it (AITD-443).
+                .textContentType(MacStrayAutoFillPanel.quickAddContentType)
                 .focused($focused)
                 .onSubmit { commitDraft() }
                 // The caret was unreachable except by clicking the field: the FocusState was
