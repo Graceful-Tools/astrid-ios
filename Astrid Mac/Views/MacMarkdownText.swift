@@ -1,16 +1,15 @@
 //  MacMarkdownText.swift
-//  Astrid for Mac — a description, rendered. (Task f5520874)
+//  Astrid for Mac — a description, a comment or a chat message, rendered. (Task f5520874)
 //
-//  Blocks come from the shared `MarkdownBlocks`; inline marks inside each block go to
-//  `AttributedString(markdown:)`, which is what actually knows how to draw bold and links.
-//  The two halves are deliberately separate: SwiftUI's Text renders inline attributes but
-//  not block structure, so neither one alone is enough.
+//  The Mac style for the shared `MarkdownView`: what the text means is astrid-core's
+//  (`CoreRules.markdown`, the web's own rendering); what it looks like on a Mac is this file's.
 //
 //  Only the DISPLAY is formatted. The editor stays plain text, because what you edit has to
 //  be the characters you typed — showing rendered markdown in the editor would leave no way
 //  to write the syntax.
 
 #if os(macOS)
+import AstridCore
 import SwiftUI
 
 struct MacMarkdownText: View {
@@ -24,30 +23,24 @@ struct MacMarkdownText: View {
     var fillsWidth: Bool = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(MarkdownBlocks.parse(source).enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .heading(let level, let text):
-                    inline(text)
-                        .font(.system(size: Self.headingSize(level), weight: .semibold))
-                        .foregroundStyle(Theme.textPrimary)
-                        .padding(.top, 2)
-                case .orderedItem(let number, let text):
-                    marked("\(number).", text)
-                case .bulletItem(let text):
-                    marked("•", text)
-                case .codeBlock(let text):
-                    code(text)
-                case .paragraph(let text):
-                    inline(text)
-                        .font(MacTypography.detailBody)
-                        .foregroundStyle(Theme.textPrimary)
-                }
-            }
-        }
-        .multilineTextAlignment(.leading)
-        .textSelection(.enabled)
-        .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
+        MarkdownView(source: source, style: style)
+            .textSelection(.enabled)
+            .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
+    }
+
+    private var style: MarkdownStyle {
+        MarkdownStyle(
+            body: MacTypography.detailBody,
+            heading: { .system(size: Self.headingSize($0), weight: .semibold) },
+            code: .system(size: 12, design: .monospaced),
+            text: Theme.textPrimary,
+            muted: Theme.textMuted,
+            codeBackground: Theme.bgTertiary,
+            blockSpacing: 4,
+            markerSpacing: 6,
+            codePadding: 6,
+            codeCornerRadius: 4,
+            fillsWidth: fillsWidth)
     }
 
     /// `nil` is SwiftUI's "no constraint" — the view ends up as wide as its text.
@@ -55,55 +48,11 @@ struct MacMarkdownText: View {
         fillsWidth ? .infinity : nil
     }
 
-    /// A list row: the marker keeps its own column so wrapped text lines up under itself
-    /// rather than under the number.
-    private func marked(_ marker: String, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(marker)
-                .font(MacTypography.detailBody)
-                .foregroundStyle(Theme.textMuted)
-                .frame(minWidth: 14, alignment: .trailing)
-            inline(text)
-                .font(MacTypography.detailBody)
-                .foregroundStyle(Theme.textPrimary)
-            // The spacer is what pins the marker column to the left edge of a pane that is wider
-            // than the text. In a bubble there is no spare width to take up, and asking for it
-            // would be another way of demanding the whole thread's width.
-            if fillsWidth { Spacer(minLength: 0) }
-        }
-    }
-
-    /// A fence renders VERBATIM in a monospaced face — no inline pass, because the promise of a
-    /// fence is that what is inside it is not markdown (AITD-416).
-    private func code(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 12, design: .monospaced))
-            .foregroundStyle(Theme.textPrimary)
-            .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
-            .padding(6)
-            .background(Theme.bgTertiary)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-
-    /// Inline marks only. Falls back to the raw text when the fragment will not parse —
-    /// showing the characters someone typed always beats showing nothing.
-    private func inline(_ text: String) -> Text {
-        Text(Self.attributed(text))
-    }
-
     /// One block's worth of inline text, as an attributed string: markdown marks AND
-    /// `@`/`#`/`!` references, from the one shared pass (AITD-390).
+    /// `@`/`#`/`!` references, from the one shared pass (AITD-390). `referenceFont: nil` because
+    /// the BLOCK sets the font here: a heading's reference has to be heading-sized.
     ///
-    /// `attributedWithReferences` splits at each reference and markdown-parses the gaps, so the
-    /// two have never actually collided — what was missing is that this renderer called
-    /// `AttributedString(markdown:)` directly and stepped around the reference pass, leaving a
-    /// comment showing `![Name](id)` as characters while chat two panes over drew it as a link.
-    ///
-    /// `referenceFont: nil` because the BLOCK sets the font here: a heading's reference has to be
-    /// heading-sized. A flat bubble keeps the extension's `.body` default.
-    ///
-    /// Pure and static so it can be asserted on without building a view — the same seam
-    /// `maxWidth(fillsWidth:)` opens for the layout half.
+    /// Pure and static so it can be asserted on without building a view.
     static func attributed(_ text: String) -> AttributedString {
         text.attributedWithReferences(defaultColor: Theme.textPrimary, referenceFont: nil)
     }

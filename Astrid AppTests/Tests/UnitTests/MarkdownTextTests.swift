@@ -13,6 +13,7 @@
 //  comment differently is the drift both tasks exist to end, so the assertions are the same
 //  assertions; where they differ is only the view type and the font vocabulary.
 
+import AstridCore
 import XCTest
 import SwiftUI
 @testable import Astrid_App
@@ -33,18 +34,20 @@ final class MarkdownTextTests: XCTestCase {
 
     /// The whole report in one assertion: a run summary's heading is a heading, not `##`.
     func testAHeadingIsABlockRatherThanLiteralHashes() {
-        XCTAssertEqual(MarkdownBlocks.parse("## Run summary\nTwo tasks merged."),
-                       [.heading(level: 2, text: "Run summary"),
-                        .paragraph(text: "Two tasks merged.")],
-                       "the bubble parses blocks — `##` must not survive as characters")
+        XCTAssertEqual(CoreRules.markdown("## Run summary\n\nTwo tasks merged."),
+                       [.heading(level: 2, [.text(MarkdownRun(text: "Run summary"))]),
+                        .paragraph([.text(MarkdownRun(text: "Two tasks merged."))])],
+                       "the bubble draws blocks — `##` must not survive as characters")
     }
 
     /// …and the same for the other two shapes the report names.
     func testBulletsAndFencesAreBlocksToo() {
-        XCTAssertEqual(MarkdownBlocks.parse("- merged\n- pushed"),
-                       [.bulletItem(text: "merged"), .bulletItem(text: "pushed")])
-        XCTAssertEqual(MarkdownBlocks.parse("```\nnpm run predeploy\n```"),
-                       [.codeBlock(text: "npm run predeploy")],
+        guard case .list(ordered: false, _, let items)? = CoreRules.markdown("- merged\n- pushed").first else {
+            return XCTFail("a bulleted list")
+        }
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(CoreRules.markdown("```\nnpm run predeploy\n```"),
+                       [.code(language: nil, text: "npm run predeploy\n")],
                        "a fenced block is its own block — the backticks are markup, not text")
     }
 
@@ -53,30 +56,30 @@ final class MarkdownTextTests: XCTestCase {
     /// The language tag is part of the fence, not part of the code. Showing `swift` as the first
     /// line of the snippet would be showing markup.
     func testAFenceDropsItsLanguageTag() {
-        XCTAssertEqual(MarkdownBlocks.parse("```swift\nlet x = 1\n```"),
-                       [.codeBlock(text: "let x = 1")])
+        XCTAssertEqual(CoreRules.markdown("```swift\nlet x = 1\n```"),
+                       [.code(language: "swift", text: "let x = 1\n")])
     }
 
     /// Inside a fence, markdown stops meaning anything — that is what a fence is for. A `#`
     /// comment in a shell snippet must stay a `#` comment and not become a heading.
     func testAFenceKeepsItsContentsVerbatim() {
-        XCTAssertEqual(MarkdownBlocks.parse("```\n# not a heading\n- not a bullet\n```"),
-                       [.codeBlock(text: "# not a heading\n- not a bullet")],
-                       "block syntax inside a fence is code, and blank lines inside it do not split it")
+        XCTAssertEqual(CoreRules.markdown("```\n# not a heading\n- not a bullet\n```"),
+                       [.code(language: nil, text: "# not a heading\n- not a bullet\n")],
+                       "block syntax inside a fence is code")
     }
 
     /// Indentation is meaning in code, so a fence is the one block that must not be trimmed
     /// line by line the way a paragraph is.
     func testAFencePreservesIndentation() {
-        XCTAssertEqual(MarkdownBlocks.parse("```\nif x {\n    return y\n}\n```"),
-                       [.codeBlock(text: "if x {\n    return y\n}")])
+        XCTAssertEqual(CoreRules.markdown("```\nif x {\n    return y\n}\n```"),
+                       [.code(language: nil, text: "if x {\n    return y\n}\n")])
     }
 
     /// An unterminated fence still has to render as code rather than swallowing the rest of the
     /// message — a truncated agent comment is exactly when this happens.
     func testAnUnclosedFenceStillClosesAtTheEnd() {
-        XCTAssertEqual(MarkdownBlocks.parse("```\nnpm run predeploy"),
-                       [.codeBlock(text: "npm run predeploy")])
+        XCTAssertEqual(CoreRules.markdown("```\nnpm run predeploy"),
+                       [.code(language: nil, text: "npm run predeploy")])
     }
 
     // MARK: - References still linkify
@@ -103,9 +106,6 @@ final class MarkdownTextTests: XCTestCase {
 
     /// A bullet keeps its inline marks AND its link — blocks and references compose.
     func testABulletKeepsItsBoldAndStillLinkifies() {
-        XCTAssertEqual(MarkdownBlocks.parse("- **Done** — see ![Sync bug](abc123)"),
-                       [.bulletItem(text: "**Done** — see ![Sync bug](abc123)")])
-
         let attributed = MarkdownText.attributed("**Done** — see ![Sync bug](abc123)",
                                                  defaultColor: .primary)
         XCTAssertEqual(links(attributed), [URL(string: "astrid://tasks/abc123")!])
@@ -171,16 +171,20 @@ final class MarkdownTextTests: XCTestCase {
                        "the inline-only path is the bug this replaces")
     }
 
-    /// The renderer must go through the SHARED parser and the SHARED reference pass rather than
-    /// growing an iOS-local copy — a second copy is how a deep-link scheme changes on one
-    /// platform only.
+    /// The renderer must draw through the SHARED view, which asks astrid-core what the text
+    /// means, rather than growing an iOS-local parser — a second copy is how a deep-link scheme
+    /// changes on one platform only.
     func testTheRendererUsesTheSharedPasses() throws {
         let renderer = try RepositoryLocator.source(at: "Astrid App/Views/Components/MarkdownText.swift")
-        XCTAssertTrue(renderer.contains("MarkdownBlocks.parse"),
-                      "blocks come from the shared parser, not an iOS-local one")
-        XCTAssertTrue(renderer.contains("attributedWithReferences"),
-                      "references come from the shared String extension")
+        XCTAssertTrue(renderer.contains("MarkdownView(source:"),
+                      "the phone draws through the shared view, not an iOS-local one")
         XCTAssertFalse(renderer.contains("NSRegularExpression"),
                        "a second copy of the reference pattern is exactly the drift to avoid")
+
+        let shared = try RepositoryLocator.source(at: "Astrid App/Core/Platform/MarkdownView.swift")
+        XCTAssertTrue(shared.contains("CoreRules.markdown"),
+                      "what the text means is astrid-core's answer, the web's own rendering")
+        XCTAssertFalse(shared.contains("NSRegularExpression"),
+                       "no pattern of its own: references arrive from the core as pills")
     }
 }

@@ -68,10 +68,6 @@ final class MacCommentReferenceLinkTests: XCTestCase {
     /// The half AITD-389 built has to survive: block structure still comes from the SHARED parser,
     /// and a reference inside a bullet linkifies without eating the bullet's inline marks.
     func testABulletKeepsItsBoldAndStillLinkifies() {
-        let blocks = MarkdownBlocks.parse("- **Done** — see ![Sync bug](abc123)")
-        XCTAssertEqual(blocks, [.bulletItem(text: "**Done** — see ![Sync bug](abc123)")],
-                       "the block parser hands the reference through untouched, for the inline pass")
-
         let attributed = MacMarkdownText.attributed("**Done** — see ![Sync bug](abc123)")
         XCTAssertEqual(links(attributed), [URL(string: "astrid://tasks/abc123")!])
         XCTAssertEqual(plain(attributed), "Done — see !Sync bug",
@@ -126,14 +122,14 @@ final class MacCommentReferenceLinkTests: XCTestCase {
                        "the bare inline-only path is the drift this replaces")
     }
 
-    /// The composed renderer must go through the SHARED extension rather than growing a Mac-local
+    /// The composed renderer must draw through the SHARED view rather than growing a Mac-local
     /// copy of the reference regex — a second copy is how a scheme changes on one platform only.
     func testTheRendererUsesTheSharedReferencePass() throws {
         let renderer = try macSource("Astrid Mac/Views/MacMarkdownText.swift")
+        XCTAssertTrue(renderer.contains("MarkdownView(source:"),
+                      "the Mac draws through the shared view, which asks astrid-core")
         XCTAssertTrue(renderer.contains("attributedWithReferences"),
-                      "references come from the shared String extension, not a Mac-local regex")
-        XCTAssertTrue(renderer.contains("MarkdownBlocks.parse"),
-                      "blocks still come from the shared parser")
+                      "its inline seam is the shared String extension, not a Mac-local regex")
         XCTAssertFalse(renderer.contains("NSRegularExpression"),
                        "a second copy of the reference pattern is exactly the drift to avoid")
     }

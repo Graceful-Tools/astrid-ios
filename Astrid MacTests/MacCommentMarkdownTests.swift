@@ -15,6 +15,7 @@
 //  bubble across the whole thread if nobody says otherwise.
 
 #if os(macOS)
+import AstridCore
 import XCTest
 @testable import Astrid_Mac
 
@@ -59,8 +60,8 @@ final class MacCommentMarkdownTests: XCTestCase {
                       "the description renders through MacMarkdownText — the comment must use that one")
         let renderers = ["Astrid Mac/Views/MacMarkdownText.swift"]
         for path in renderers {
-            XCTAssertTrue(try macSource(path).contains("MarkdownBlocks.parse"),
-                          "\(path) must parse with the SHARED block parser, not a Mac-local copy")
+            XCTAssertTrue(try macSource(path).contains("MarkdownView(source:"),
+                          "\(path) must draw through the SHARED view, not a Mac-local parser")
         }
     }
 
@@ -96,12 +97,14 @@ final class MacCommentMarkdownTests: XCTestCase {
         ## Gates
         predeploy green.
         """
-        let blocks = MarkdownBlocks.parse(comment)
-        XCTAssertEqual(blocks.count, 5, "lead, two bullets, heading, closing paragraph")
-        XCTAssertEqual(blocks.first, .paragraph(text: "**Done — merged into `main`.**"),
-                       "inline marks stay in the text for AttributedString to draw")
-        XCTAssertEqual(blocks[1], .bulletItem(text: "the rule moved into one place"))
-        XCTAssertEqual(blocks[3], .heading(level: 2, text: "Gates"))
+        let blocks = CoreRules.markdown(comment)
+        XCTAssertEqual(blocks.count, 4, "lead, the list, heading, closing paragraph")
+        guard case .paragraph(let lead) = blocks[0] else { return XCTFail("a lead paragraph") }
+        XCTAssertEqual(lead.first, .text(MarkdownRun(text: "Done — merged into ", bold: true)),
+                       "inline marks arrive as runs, drawn by the view — not as asterisks")
+        guard case .list(ordered: false, _, let items) = blocks[1] else { return XCTFail("a list") }
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(blocks[2], .heading(level: 2, [.text(MarkdownRun(text: "Gates"))]))
     }
 }
 #endif
