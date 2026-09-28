@@ -142,7 +142,7 @@ class ConnectionModeManager: ObservableObject {
         // retries while the network was down.
         _Concurrency.Task {
             try? await SyncManager.shared.performQuickSync()
-            await SSEClient.shared.reconnectNow()
+            AppCore.shared.reconnectStream()
         }
     }
 

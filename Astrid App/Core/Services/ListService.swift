@@ -112,6 +112,7 @@ class ListService: ObservableObject {
         command.set("description", description)
         let list = try await core.run(command, as: TaskList.self)
         show(list)
+        LocalMutation.note()
         return list
     }
 
@@ -158,6 +159,7 @@ class ListService: ObservableObject {
             CoreCommand(kind: "updateList", ["listId": .value(listId), "changes": .value(changes)]),
             as: TaskList.self)
         show(list)
+        LocalMutation.note()
         return list
     }
 
@@ -167,6 +169,7 @@ class ListService: ObservableObject {
         let googleLink = GoogleTasksSyncService.shared.links.first { $0.astridListId == listId }
         try await core.run(CoreCommand(kind: "deleteList", ["listId": .value(listId)]))
         forget(listId)
+        LocalMutation.note()
         if let googleLink {
             await GoogleTasksSyncService.shared.noteMirroredListDeleted(tasklistId: googleLink.remoteContainerId)
             await GoogleTasksSyncService.shared.refreshStatus()
@@ -180,6 +183,7 @@ class ListService: ObservableObject {
             CoreCommand(kind: "setManualOrder", ["listId": .value(listId), "order": .value(order)]),
             as: TaskList.self)
         show(list)
+        LocalMutation.note()
     }
 
     /// isFavorite is a field on the list, not a sub-resource: v1 has no /lists/{id}/favorite, and

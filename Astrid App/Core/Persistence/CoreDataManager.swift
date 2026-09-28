@@ -66,32 +66,6 @@ class CoreDataManager {
 
     // MARK: - Store Loading Management
 
-    /// Wait for the persistent store to finish loading
-    func waitForStoreLoad() async {
-        // Trigger lazy loading if not already started
-        _ = persistentContainer
-
-        // If already loaded, return immediately
-        guard !isStoreLoaded else {
-            AppLog.debug("✅ [CoreData] Store already loaded")
-            return
-        }
-
-        AppLog.debug("⏳ [CoreData] Waiting for store to load...")
-
-        // Wait for store to load
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            if isStoreLoaded {
-                // Double-check after acquiring lock
-                continuation.resume()
-            } else {
-                storeLoadContinuations.append(continuation)
-            }
-        }
-
-        AppLog.debug("✅ [CoreData] Store load wait completed")
-    }
-
     private func markStoreAsLoaded() {
         AppLog.debug("🎉 [CoreData] Marking store as loaded, resuming \(storeLoadContinuations.count) waiting tasks")
         isStoreLoaded = true

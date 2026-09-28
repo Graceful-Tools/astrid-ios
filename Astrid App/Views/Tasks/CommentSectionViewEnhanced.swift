@@ -113,13 +113,8 @@ struct CommentSectionViewEnhanced: View {
         }
     }
 
-    // SSE unsubscribe closures
-    @State private var unsubscribeCommentAdded: (@Sendable () -> Void)?
-    @State private var unsubscribeCommentUpdated: (@Sendable () -> Void)?
-    @State private var unsubscribeCommentDeleted: (@Sendable () -> Void)?
-    @State private var unsubscribeTypingStart: (@Sendable () -> Void)?
-    @State private var unsubscribeTypingStop: (@Sendable () -> Void)?
-    @State private var agentTypingName: String?
+    /// The agent writing a reply on this task right now, from the core's live stream.
+    private var agentTypingName: String? { commentService.typingAgent[taskId] }
 
     // Computed properties for filtering comments
     private var userComments: [Comment] {
@@ -575,7 +570,6 @@ struct CommentSectionViewEnhanced: View {
             // Cache mentionable users on first load
             updateMentionableUsers()
             await loadComments()
-            await subscribeToSSE()
         }
         .onChange(of: networkMonitor.isConnected) { oldValue, newValue in
             if newValue && !oldValue {
@@ -583,7 +577,6 @@ struct CommentSectionViewEnhanced: View {
                 _Concurrency.Task {
                     AppLog.debug("🔄 [CommentSection] Network restored - syncing pending comments...")
                     await retryPendingComments()
-                    await subscribeToSSE()
                 }
             }
         }
@@ -596,9 +589,6 @@ struct CommentSectionViewEnhanced: View {
             _Concurrency.Task {
                 await loadComments()
             }
-        }
-        .onDisappear {
-            unsubscribeFromSSE()
         }
         .onChange(of: selectedPhotoItems) { _, newValue in
             guard !newValue.isEmpty else { return }
@@ -665,7 +655,6 @@ struct CommentSectionViewEnhanced: View {
         // invisible to both of these if we only looked at the top level (AITD-331).
         let localFlat = CommentThread.flatten(comments)
         let localComments = Dictionary(localFlat.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let pendingComments = localFlat.filter { $0.id.hasPrefix("temp_") }
 
         do {
             let fetchedComments = try await commentService.fetchComments(taskId: taskId, useCache: true)
@@ -692,30 +681,9 @@ struct CommentSectionViewEnhanced: View {
                 mergedComments.append(fetched)
             }
 
-            // Add pending comments that haven't synced yet
-            for pending in pendingComments {
-                // Check if it synced - use multiple criteria for robust matching:
-                // 1. Same content AND similar time (within 5 minutes to handle clock skew)
-                // 2. OR same author AND similar time (for attachment-only comments with empty content)
-                let synced = fetchedComments.contains { fetched in
-                    let timeDiff = abs((fetched.createdAt ?? Date()).timeIntervalSince(pending.createdAt ?? Date()))
-                    let timeMatches = timeDiff < 300 // 5 minutes to handle clock skew
-
-                    // Content match (handles text comments)
-                    let contentMatches = fetched.content == pending.content && !fetched.content.isEmpty
-
-                    // Author + time match (handles attachment-only comments)
-                    let authorMatches = fetched.authorId == pending.authorId && pending.authorId != nil
-
-                    return (contentMatches && timeMatches) || (authorMatches && timeMatches && fetched.content == pending.content)
-                }
-                if !synced {
-                    mergedComments.append(pending)
-                    AppLog.debug("📝 [CommentSection] Keeping pending comment: \(pending.id.prefix(20))")
-                } else {
-                    AppLog.debug("✅ [CommentSection] Pending comment synced: \(pending.id.prefix(20))")
-                }
-            }
+            // Comments still on their way are in the core's list already, under the id this view
+            // drew them with; once delivered the core swaps in the server's copy itself. There is
+            // nothing to merge back by guessing from content and time.
 
             // Sort by createdAt to maintain correct order (pending comments may have earlier timestamps)
             mergedComments.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
@@ -727,92 +695,6 @@ struct CommentSectionViewEnhanced: View {
         } catch {
             logger.error("❌ loadComments failed: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    private func subscribeToSSE() async {
-        // Skip SSE subscription when offline
-        guard networkMonitor.isConnected else {
-            AppLog.debug("📵 [CommentSection] Skipping SSE subscription - device is offline")
-            return
-        }
-
-        AppLog.debug("📡 [CommentSection] Subscribing to SSE events for task \(taskId)")
-
-        // Subscribe to comment events and store unsubscribe closures
-        unsubscribeCommentAdded = await SSEClient.shared.onCommentAdded { [taskId] comment, relatedTaskId in
-            guard relatedTaskId == taskId else { return }
-            AppLog.debug("✅ [CommentSection] SSE comment_added: \(comment.id)")
-            _Concurrency.Task { @MainActor in
-                // Clear typing indicator if agent comment arrived
-                if comment.author?.isAIAgent == true {
-                    agentTypingName = nil
-                }
-
-                // Dedupe on comment id, never on author. The fan-out now includes the comment's
-                // own author, so this arrives for comments THIS device wrote — and for comments
-                // the same user wrote on another device, which must still be accepted (AITD-331).
-                comments = CommentThread.settle(comment, in: comments)
-            }
-        }
-
-        unsubscribeCommentUpdated = await SSEClient.shared.onCommentUpdated { [taskId] comment, relatedTaskId in
-            guard relatedTaskId == taskId else { return }
-            AppLog.debug("✅ [CommentSection] SSE comment_updated: \(comment.id)")
-            _Concurrency.Task { @MainActor in
-                // Reply-aware: an edit to a reply must find it under its parent, not only at the
-                // top level. Content and updatedAt only — the event can omit the author and the
-                // secure files this device already resolved (AITD-331).
-                comments = CommentThread.applyEdit(comment, to: comments)
-            }
-        }
-
-        unsubscribeCommentDeleted = await SSEClient.shared.onCommentDeleted { [taskId] commentId, relatedTaskId in
-            guard relatedTaskId == taskId else {
-                AppLog.debug("🔕 [CommentSection] Ignoring comment_deleted for different task (got \(relatedTaskId), want \(taskId))")
-                return
-            }
-            AppLog.debug("✅ [CommentSection] Received comment_deleted for task \(taskId)")
-            _Concurrency.Task { @MainActor in
-                // Applied whoever the actor was, reply-aware, and a no-op when it is already gone
-                // — the delete we made ourselves echoes back to us now (AITD-331).
-                comments = CommentThread.remove(id: commentId, from: comments)
-            }
-        }
-
-        // Typing indicators for task comments
-        unsubscribeTypingStart = await SSEClient.shared.onAgentTypingStart { [taskId] agentName, _, eventTaskId in
-            guard eventTaskId == taskId else { return }
-            _Concurrency.Task { @MainActor in
-                self.agentTypingName = agentName
-            }
-        }
-
-        unsubscribeTypingStop = await SSEClient.shared.onAgentTypingStop { [taskId] _, eventTaskId in
-            guard eventTaskId == taskId else { return }
-            _Concurrency.Task { @MainActor in
-                self.agentTypingName = nil
-            }
-        }
-
-        AppLog.debug("✅ [CommentSection] SSE subscriptions registered")
-    }
-
-    private func unsubscribeFromSSE() {
-        AppLog.debug("📡 [CommentSection] Unsubscribing from SSE events for task \(taskId)")
-
-        unsubscribeCommentAdded?()
-        unsubscribeCommentUpdated?()
-        unsubscribeCommentDeleted?()
-        unsubscribeTypingStart?()
-        unsubscribeTypingStop?()
-
-        unsubscribeCommentAdded = nil
-        unsubscribeCommentUpdated = nil
-        unsubscribeCommentDeleted = nil
-        unsubscribeTypingStart = nil
-        unsubscribeTypingStop = nil
-
-        AppLog.debug("✅ [CommentSection] SSE subscriptions cleaned up")
     }
 
     private func submitComment() async {

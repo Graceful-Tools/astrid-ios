@@ -13,7 +13,7 @@ struct ChatPanelView: View {
 
     @StateObject private var chatService = ChatService.shared
     @StateObject private var networkMonitor = NetworkMonitor.shared
-    @ObservedObject private var sseState = SSEConnectionState.shared
+    @ObservedObject private var core = AppCore.shared
 
     @State private var channelId: String?
     @State private var isLoadingChannel = true
@@ -22,17 +22,10 @@ struct ChatPanelView: View {
     @State private var replyingTo: ChatMessage?
     @State private var availableAgents: [User] = []  // AI agents for @mention
 
-    // Agent typing indicator
-    @State private var agentTypingName: String?
-    @State private var unsubscribeTypingStart: (@Sendable () -> Void)?
-    @State private var unsubscribeTypingStop: (@Sendable () -> Void)?
+    /// The agent writing a reply here right now, from the core's live stream.
+    private var agentTypingName: String? { channelId.flatMap { chatService.typingAgent[$0] } }
 
-    // SSE unsubscribe closures
-    @State private var unsubscribeCreated: (@Sendable () -> Void)?
-    @State private var unsubscribeUpdated: (@Sendable () -> Void)?
-    @State private var unsubscribeDeleted: (@Sendable () -> Void)?
-
-    // Fallback poll, used only while the SSE stream is down — see ChatPollingPolicy
+    // Fallback poll, used only while the live stream is down — see ChatPollingPolicy
     @State private var pollTimer: Timer?
 
     // Sign-in sheet for unauthenticated users
@@ -191,10 +184,9 @@ struct ChatPanelView: View {
             await loadChannel()
         }
         .onDisappear {
-            unsubscribeSSE()
             stopPolling()
         }
-        .onChange(of: sseState.isStreamLive) { _, _ in
+        .onChange(of: core.isStreamLive) { _, _ in
             updatePolling()
         }
         .onChange(of: chatService.cachedMessages) { _, newValue in
@@ -233,8 +225,8 @@ struct ChatPanelView: View {
             let fetchedMessages = try await chatService.fetchMessages(channelId: resolvedChannelId)
             messages = fetchedMessages
 
-            // Subscribe to SSE events; the poll is a fallback and only runs if the stream is down
-            subscribeToSSE(channelId: resolvedChannelId)
+            // The core's live stream keeps `cachedMessages` current; the poll is a fallback and
+            // only runs while the stream is down.
             updatePolling()
 
             // Fetch available agents for @mention (fire-and-forget)
@@ -267,70 +259,13 @@ struct ChatPanelView: View {
         isLoadingChannel = false
     }
 
-    // MARK: - SSE
-
-    private func subscribeToSSE(channelId: String) {
-        unsubscribeSSE()
-
-        _Concurrency.Task {
-            unsubscribeCreated = await SSEClient.shared.onChatMessageCreated { [channelId] message, eventChannelId in
-                guard eventChannelId == channelId else { return }
-                _Concurrency.Task { @MainActor in
-                    ChatService.shared.handleMessageCreated(message, channelId: channelId)
-                }
-            }
-
-            unsubscribeUpdated = await SSEClient.shared.onChatMessageUpdated { [channelId] message, eventChannelId in
-                guard eventChannelId == channelId else { return }
-                _Concurrency.Task { @MainActor in
-                    ChatService.shared.handleMessageUpdated(message, channelId: channelId)
-                }
-            }
-
-            unsubscribeDeleted = await SSEClient.shared.onChatMessageDeleted { [channelId] messageId, eventChannelId in
-                guard eventChannelId == channelId else { return }
-                _Concurrency.Task { @MainActor in
-                    ChatService.shared.handleMessageDeleted(messageId, channelId: channelId)
-                }
-            }
-
-            // Typing indicators
-            unsubscribeTypingStart = await SSEClient.shared.onAgentTypingStart { [channelId] agentName, eventChannelId, _ in
-                guard eventChannelId == channelId else { return }
-                _Concurrency.Task { @MainActor in
-                    self.agentTypingName = agentName
-                }
-            }
-
-            unsubscribeTypingStop = await SSEClient.shared.onAgentTypingStop { [channelId] eventChannelId, _ in
-                guard eventChannelId == channelId else { return }
-                _Concurrency.Task { @MainActor in
-                    self.agentTypingName = nil
-                }
-            }
-        }
-    }
-
-    private func unsubscribeSSE() {
-        unsubscribeCreated?()
-        unsubscribeUpdated?()
-        unsubscribeDeleted?()
-        unsubscribeTypingStart?()
-        unsubscribeTypingStop?()
-        unsubscribeCreated = nil
-        unsubscribeUpdated = nil
-        unsubscribeDeleted = nil
-        unsubscribeTypingStart = nil
-        unsubscribeTypingStop = nil
-    }
-
     // MARK: - Polling Fallback
 
     /// Run the fallback poll only while the stream is down. Called on channel load and on every
     /// stream transition, so a chat left open on a healthy connection fetches nothing at all.
     private func updatePolling() {
         let shouldPoll = ChatPollingPolicy.shouldPoll(
-            isStreamLive: sseState.isStreamLive,
+            isStreamLive: core.isStreamLive,
             hasChannel: channelId != nil,
             isAuthenticated: AuthManager.shared.isAuthenticated
         )
@@ -349,11 +284,7 @@ struct ChatPanelView: View {
                 guard AuthManager.shared.isAuthenticated else { return }
                 guard let channelId = self.channelId else { return }
                 do {
-                    let merged = try await chatService.refreshMessagesFromServer(channelId: channelId)
-                    self.messages = merged
-                    if merged.last?.isFromAgent == true {
-                        self.agentTypingName = nil
-                    }
+                    self.messages = try await chatService.refreshMessagesFromServer(channelId: channelId)
                 } catch {
                     // Silent — polling failures are expected sometimes
                 }

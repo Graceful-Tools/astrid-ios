@@ -7,10 +7,11 @@
 //  Keychain, and passes on what it says moved to the services the views bind to.
 
 import AstridCore
+import Combine
 import Foundation
 
 @MainActor
-final class AppCore {
+final class AppCore: ObservableObject {
     static let shared = AppCore()
 
     /// The running core. Started on first use, so every service reaches the same one.
@@ -72,6 +73,40 @@ final class AppCore {
     fileprivate func route(_ change: CoreChange) {
         ListService.shared.coreDidChange(change)
         TaskService.shared.coreDidChange(change)
+        CommentService.shared.coreDidChange(change)
+        ChatService.shared.coreDidChange(change)
+        ProjectService.shared.coreDidChange(change)
+        switch change {
+        case .settings:
+            // Another device changed a setting, or the deployment its feature flags: the stream
+            // says that something moved, not what.
+            _Concurrency.Task {
+                await UserSettingsService.shared.fetchSettings()
+                await MyTasksPreferencesService.shared.fetchPreferences()
+                await FeatureFlagService.shared.refreshIfStale(force: true)
+            }
+        case .needsSync:
+            // An external provider reported changes (a GitHub webhook): wake the mirrors.
+            NotificationCenter.default.post(name: .externalSyncRefresh, object: nil)
+        case .stream(let live):
+            isStreamLive = live
+        default:
+            break
+        }
+    }
+
+    /// Whether the core's live stream is connected — what a chat panel's fallback poll waits on.
+    @Published private(set) var isStreamLive = false
+
+    /// Send what is waiting in the core's journal now, rather than at its delivery loop's next turn.
+    func drainJournal() async {
+        _ = try? await session.run(CoreCommand(kind: "drain"))
+    }
+
+    /// Drop the live stream and connect again now: the machine woke, the network came back, or
+    /// somebody signed in. The core keeps it connected otherwise; there is nothing to start.
+    func reconnectStream() {
+        _Concurrency.Task { try? await session.run(CoreCommand(kind: "reconnectStream")) }
     }
 }
 
@@ -120,5 +155,34 @@ final class CoreCredentials: CoreCredentialStore, @unchecked Sendable {
         }
         // Deleting what is not there is still a delete.
         return true
+    }
+}
+
+/// How the core's write journal is doing — the Settings screen's readout.
+struct JournalStats: Decodable, Equatable {
+    struct DeadLetter: Decodable, Hashable {
+        let kind: String
+        let error: String?
+    }
+
+    let pending: Int
+    let running: Int
+    let completed: Int
+    let failed: Int
+    /// The newest few refused writes and why.
+    let deadLetters: [DeadLetter]
+
+    /// No write refused. Pending and running are transient and fine.
+    var isHealthy: Bool { failed == 0 }
+
+    @MainActor
+    static func load() async -> JournalStats? {
+        try? await AppCore.shared.session.run(CoreCommand(kind: "outboxStats"), as: JournalStats.self)
+    }
+
+    /// Give every refused write another go.
+    @MainActor
+    static func retryDropped() async {
+        _ = try? await AppCore.shared.session.run(CoreCommand(kind: "retryDeadLetters"))
     }
 }

@@ -559,9 +559,6 @@ class AuthManager: ObservableObject {
 
         AppLog.debug("🚪 [AuthManager] Starting sign-out - clearing ALL user data...")
 
-        // Disconnect SSE first to stop receiving updates
-        await SSEClient.shared.disconnect()
-
         do {
             // Call sign out endpoint
             let _: EmptyResponse = try await apiClient.request(.signOut)
@@ -647,10 +644,11 @@ class AuthManager: ObservableObject {
         // Clear Apple Reminders integration data
         AppleRemindersService.shared.clearAllData()
 
-        // External sync: wipe the Outbox journal (queued writes belong to the
-        // departing user — replaying under a new session would cross-post),
-        // all persisted sync ledgers/caches, and the services' in-memory state.
-        await OutboxManager.shared.clearAllForSignOut()
+        // The core's `signOut` wiped its journal (queued writes belong to the departing user —
+        // replaying them under a new session would cross-post). A pre-core `outbox.json` the
+        // upgrade could not move goes too. Then every persisted sync ledger and cache, and the
+        // services' in-memory state.
+        try? FileManager.default.removeItem(at: OutboxStore.defaultFileURL())
         SyncStateReset.clearAll()
         GitHubSyncService.shared.resetForSignOut()
         GoogleTasksSyncService.shared.resetForSignOut()

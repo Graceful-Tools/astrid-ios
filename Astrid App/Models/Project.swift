@@ -8,7 +8,7 @@ import Foundation
 /// regular (domain) lists and status lists (one per board column).
 /// Inbox and Done remain virtual columns derived from task state and are
 /// never stored. See `docs/product/project-status-board.md` (astrid-web).
-struct Project: Identifiable, Codable, Equatable, Hashable {
+nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
     let id: String
     var name: String
     var description: String?

@@ -6,7 +6,9 @@ public enum CoreChange: Equatable, Sendable {
     case list(id: String)
     case comments(taskId: String)
     case chat(channelId: String)
-    case agentTyping(channelId: String, active: Bool)
+    /// An agent starting or stopping a reply, in a list's chat (`channelId`) or on a task's
+    /// comments (`taskId`); `agentName` is what the indicator says.
+    case agentTyping(channelId: String?, taskId: String?, agentName: String?, active: Bool)
     case settings
     case remindersDue
     /// Something the live stream could not describe changed: ask for a sync pass.
@@ -15,6 +17,8 @@ public enum CoreChange: Equatable, Sendable {
     /// which, and whatever is on screen should be read again.
     case synced(taskIds: [String], listIds: [String])
     case notifications
+    /// The live stream connected (`true`) or dropped.
+    case stream(live: Bool)
     /// A change this build does not know — a newer core. Treated as "read everything again".
     case unknown(String)
 
@@ -26,8 +30,10 @@ public enum CoreChange: Equatable, Sendable {
             let taskId: String?
             let channelId: String?
             let active: Bool?
+            let agentName: String?
             let taskIds: [String]?
             let listIds: [String]?
+            let live: Bool?
         }
         guard let wire = try? JSONDecoder().decode(Wire.self, from: Data(json.utf8)) else {
             self = .unknown(json)
@@ -38,14 +44,15 @@ public enum CoreChange: Equatable, Sendable {
         case "list": self = wire.id.map { .list(id: $0) } ?? .unknown(json)
         case "comments": self = wire.taskId.map { .comments(taskId: $0) } ?? .unknown(json)
         case "chat": self = wire.channelId.map { .chat(channelId: $0) } ?? .unknown(json)
-        case "agentTyping":
-            self = wire.channelId.map { .agentTyping(channelId: $0, active: wire.active ?? false) }
-                ?? .unknown(json)
+        case "agentTyping" where wire.channelId != nil || wire.taskId != nil:
+            self = .agentTyping(channelId: wire.channelId, taskId: wire.taskId,
+                                agentName: wire.agentName, active: wire.active ?? false)
         case "settings": self = .settings
         case "remindersDue": self = .remindersDue
         case "needsSync": self = .needsSync
         case "synced": self = .synced(taskIds: wire.taskIds ?? [], listIds: wire.listIds ?? [])
         case "notifications": self = .notifications
+        case "stream": self = .stream(live: wire.live ?? false)
         default: self = .unknown(json)
         }
     }

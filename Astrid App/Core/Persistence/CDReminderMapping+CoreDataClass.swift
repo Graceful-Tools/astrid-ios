@@ -51,45 +51,12 @@ extension CDReminderMapping {
         return try context.fetch(request).first
     }
 
-    /// Fetch mapping by Reminder identifier
-    static func fetchByReminderIdentifier(_ identifier: String, context: NSManagedObjectContext) throws -> CDReminderMapping? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "reminderIdentifier == %@", identifier)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
     /// Fetch all mappings for a specific Astrid list
     static func fetchByListId(_ listId: String, context: NSManagedObjectContext) throws -> [CDReminderMapping] {
         let request = fetchRequest()
         request.predicate = NSPredicate(format: "astridListId == %@", listId)
         request.sortDescriptors = [NSSortDescriptor(key: "lastSyncedAt", ascending: false)]
         return try context.fetch(request)
-    }
-
-    /// Fetch all mappings for a specific Reminders calendar
-    static func fetchByCalendarIdentifier(_ calendarId: String, context: NSManagedObjectContext) throws -> [CDReminderMapping] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "reminderCalendarIdentifier == %@", calendarId)
-        request.sortDescriptors = [NSSortDescriptor(key: "lastSyncedAt", ascending: false)]
-        return try context.fetch(request)
-    }
-
-    /// Delete all mappings for a specific Astrid list
-    static func deleteByListId(_ listId: String, context: NSManagedObjectContext) throws {
-        let mappings = try fetchByListId(listId, context: context)
-        for mapping in mappings {
-            context.delete(mapping)
-        }
-        try context.save()
-    }
-
-    /// Delete a mapping by Astrid task ID
-    static func deleteByTaskId(_ taskId: String, context: NSManagedObjectContext) throws {
-        if let mapping = try fetchByTaskId(taskId, context: context) {
-            context.delete(mapping)
-            try context.save()
-        }
     }
 
     /// Create or update a mapping
@@ -128,10 +95,4 @@ extension CDReminderMapping {
         return try context.count(for: request)
     }
 
-    /// Get the count of mappings for a specific list
-    static func countForList(_ listId: String, context: NSManagedObjectContext) throws -> Int {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "astridListId == %@", listId)
-        return try context.count(for: request)
-    }
 }

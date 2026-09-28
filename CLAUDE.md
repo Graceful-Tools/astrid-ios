@@ -24,8 +24,8 @@ completion, repeating tasks, the Outbox, sync, chat, list members, or an API cal
    `updateTask(completed: true)` (that skips repeat rollover).
 3. **Completing from an editable view?** Copy edited fields (`dueDateTime`, `isAllDay`,
    `repeating`, `repeatingData`, `repeatFrom`) into the `task:` argument first.
-4. **Next-occurrence math lives ONLY in `RepeatingTaskCalculator`** — never inline it;
-   mirror changes into `astrid-web/types/repeating.ts`.
+4. **Next-occurrence math lives ONLY in astrid-core** (reached via `RepeatingTaskCalculator`) —
+   never inline it; a change goes to `astrid-web/types/repeating.ts`, then astrid-core.
 5. **API paths are `/api/v1/...` only** — `/api/user/...` and `/api/chat/...` are dead.
 6. **Preserve Outbox / offline behavior.** For breaking API changes, add a new version.
 7. **Bug fixes are TDD:** RED regression test (name the task id) → green → `npm run predeploy`.

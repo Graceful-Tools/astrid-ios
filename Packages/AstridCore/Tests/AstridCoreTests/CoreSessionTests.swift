@@ -84,7 +84,11 @@ final class CoreChangeTests: XCTestCase {
         XCTAssertEqual(CoreChange(json: #"{"change":"synced","taskIds":[],"listIds":["l1"]}"#),
                        .synced(taskIds: [], listIds: ["l1"]))
         XCTAssertEqual(CoreChange(json: #"{"change":"agentTyping","channelId":"c","active":true}"#),
-                       .agentTyping(channelId: "c", active: true))
+                       .agentTyping(channelId: "c", taskId: nil, agentName: nil, active: true))
+        XCTAssertEqual(
+            CoreChange(json: #"{"change":"agentTyping","channelId":null,"taskId":"t","agentName":"Claude","active":false}"#),
+            .agentTyping(channelId: nil, taskId: "t", agentName: "Claude", active: false))
+        XCTAssertEqual(CoreChange(json: #"{"change":"stream","live":true}"#), .stream(live: true))
     }
 
     func testSomethingNewerIsUnknownNotACrash() {

@@ -39,19 +39,12 @@ final class ChatPollingPolicyTests: XCTestCase {
         XCTAssertEqual(ChatPollingPolicy.interval, 3.0)
     }
 
-    /// `SSEClient.isConnected` is set optimistically inside `connect()`, before the
-    /// stream is known to work. Exposing that flag would silence the fallback at the
-    /// exact moment the connection is failing, so the observable state starts false
-    /// and only the confirmed-streaming transition may set it true.
+    /// The fallback keys on the core's stream: the flag starts down, so the poll runs until the
+    /// stream has actually said it is live (`Change::Stream`), never on an optimistic guess.
     @MainActor
-    func testStreamStateStartsDownSoTheFallbackRunsUntilTheStreamIsProven() {
-        let state = SSEConnectionState()
-        XCTAssertFalse(state.isStreamLive)
-
-        state.streamDidBecomeLive()
-        XCTAssertTrue(state.isStreamLive)
-
-        state.streamDidStop()
-        XCTAssertFalse(state.isStreamLive)
+    func testTheStreamStateStartsDownSoTheFallbackRunsUntilTheStreamIsProven() {
+        XCTAssertTrue(ChatPollingPolicy.shouldPoll(isStreamLive: AppCore.shared.isStreamLive,
+                                                   hasChannel: true, isAuthenticated: true),
+                      "the unit-test core has no stream, so the poll must be on")
     }
 }

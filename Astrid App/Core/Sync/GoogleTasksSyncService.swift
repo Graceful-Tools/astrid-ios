@@ -55,7 +55,7 @@ final class GoogleTasksSyncService: ObservableObject {
         observers.append(center.addObserver(
             forName: .externalSyncRefresh, object: nil, queue: .main
         ) { [weak self] note in
-            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            let source = note.userInfo?[LocalMutation.sourceKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
@@ -70,9 +70,9 @@ final class GoogleTasksSyncService: ObservableObject {
         // re-arming a pass on those creates a self-sustaining ~2s loop until the
         // whole history is imported.
         observers.append(center.addObserver(
-            forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
+            forName: LocalMutation.didHappen, object: nil, queue: .main
         ) { [weak self] note in
-            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            let source = note.userInfo?[LocalMutation.sourceKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .google, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         })
@@ -182,6 +182,12 @@ final class GoogleTasksSyncService: ObservableObject {
         try? await apiClient.updateIntegrationMetadata(
             provider: "GOOGLE_TASKS",
             metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
+    }
+
+    /// Remember that `taskId` is mirrored by `remoteId` in `containerId`, so deleting the task can
+    /// find its twin before the server's link row cascades away with it.
+    func noteTaskLink(taskId: String, remoteId: String, containerId: String) {
+        taskLinkCache[taskId] = "\(remoteId)|\(containerId)"
     }
 
     /// The user deleted a mirrored task: record the remote twin for deletion +

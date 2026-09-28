@@ -1,5 +1,6 @@
 //  MacWakeRecoveryTests.swift
-//  Regression for task de2764fb — "make sure SSE and notifications all work".
+//  Regression for task de2764fb — "make sure SSE and notifications all work". The stream is
+//  astrid-core's; waking asks it to reconnect now (`AppCore.reconnectStream`).
 //
 //  The failure was silent: a Mac sleeps, the SSE stream dies, its five retries burn against a
 //  network that is not there, and once exhausted NOTHING revived it. The app kept running with no
@@ -21,31 +22,8 @@ final class MacWakeRecoveryTests: XCTestCase {
         XCTAssertFalse(MacWakeRecovery.shouldReconnect(isAuthenticated: true, isOfflineOnly: true))
     }
 
-    // MARK: - The policy that made the stream stay dead
-
-    /// Recovery RESETS the count. Without this the exhausted attempts from the sleep window keep
-    /// the stream permanently dead.
-    func testRecoveryResetsTheAttemptCount() {
-        XCTAssertEqual(SSEReconnectPolicy.attemptsAfterRecovery(), 0)
-        XCTAssertTrue(SSEReconnectPolicy.shouldRetry(attempt: SSEReconnectPolicy.attemptsAfterRecovery()),
-                      "After a wake the stream must be willing to try again")
-    }
-
-    func testGivesUpAfterTheBoundedAttempts() {
-        XCTAssertTrue(SSEReconnectPolicy.shouldRetry(attempt: SSEReconnectPolicy.maxAttempts - 1))
-        XCTAssertFalse(SSEReconnectPolicy.shouldRetry(attempt: SSEReconnectPolicy.maxAttempts))
-    }
-
-    /// Backoff grows but stays capped, so a long outage doesn't push the next try minutes out.
-    func testBackoffGrowsAndIsCapped() {
-        XCTAssertLessThan(SSEReconnectPolicy.delay(attempt: 1), SSEReconnectPolicy.delay(attempt: 3))
-        XCTAssertLessThanOrEqual(SSEReconnectPolicy.delay(attempt: 99), 60)
-    }
-
-    /// A 401 is not a transient failure — retrying cannot fix a missing session.
-    func testDoesNotRetryOnAuthFailure() {
-        XCTAssertFalse(SSEReconnectPolicy.shouldRetry(afterStatusCode: 401))
-        XCTAssertTrue(SSEReconnectPolicy.shouldRetry(afterStatusCode: 500))
-    }
+    // The reconnect policy itself — recovery resets the count, bounded attempts, a capped
+    // backoff, no retry on a 401 — is astrid-core's now, with its tests
+    // (`realtime::reconnect`, and `a_reconnect_now_cuts_the_backoff_short` for the wake).
 }
 #endif

@@ -1,17 +1,13 @@
+import AstridCore
 import Foundation
 import Combine
-import CoreData
 
-/// Project (status board) service. Mirrors the ListService pattern at
-/// reduced scope: in-memory `projects`, Core Data cache, server-first
-/// CRUD against /api/v1/projects.
+/// The boards (projects) — through astrid-core.
 ///
-/// Why no offline outbox for Phase B: project create/delete is a low-
-/// frequency operation (a user creates a board, not 100s/min). The
-/// Phase C board UI is online-only at launch. If offline-create becomes
-/// a real need later, the `syncStatus` column on CDProject is already
-/// in place and can be wired through an outbox identical to
-/// `ListMemberService.syncPendingOperations`.
+/// The core caches every board, refreshes them on each sync pass (dropping one deleted
+/// elsewhere), and makes and deletes them online: a board is a structure the server numbers and
+/// seeds with its status columns, not a local fact. This service keeps the `projects` the board
+/// views bind to and reads them back when the core says something moved.
 @MainActor
 class ProjectService: ObservableObject {
     static let shared = ProjectService()
@@ -20,87 +16,34 @@ class ProjectService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    private let apiClient = AstridAPIClient.shared
-    private let coreDataManager = CoreDataManager.shared
+    private var core: CoreSession { AppCore.shared.session }
 
     private init() {
-        loadCachedProjects()
-    }
-
-    // MARK: - Cache
-
-    /// Synchronously hydrate `projects` from Core Data on startup so the
-    /// UI has data available offline before any network call fires.
-    private func loadCachedProjects() {
-        do {
-            let cached = try CDProject.fetchAll(context: coreDataManager.viewContext)
-            self.projects = cached.map { $0.toDomainModel() }
-        } catch {
-            AppLog.debug("⚠️ [ProjectService] Failed to load cached projects: \(error)")
+        // Boards draw their columns from these on the first frame, offline included.
+        if let cached = try? core.runBlocking(CoreCommand(kind: "projects"), as: [Project].self) {
+            projects = cached
         }
     }
 
-    private func saveProjectToCoreData(_ project: Project, syncStatus: String = "synced") {
-        let context = coreDataManager.viewContext
-        do {
-            let cd: CDProject
-            if let existing = try CDProject.fetchById(project.id, context: context) {
-                cd = existing
-            } else {
-                cd = CDProject(context: context)
-                cd.id = project.id
-            }
-            cd.update(from: project)
-            cd.syncStatus = syncStatus
-            cd.lastSyncedAt = Date()
-            try context.save()
-        } catch {
-            AppLog.debug("⚠️ [ProjectService] Failed to save project to Core Data: \(error)")
+    /// Read the cached boards again — after a sync pass, or anything the core could not describe.
+    func coreDidChange(_ change: CoreChange) {
+        switch change {
+        case .synced, .unknown, .needsSync:
+            _Concurrency.Task { await self.reload() }
+        default:
+            break
         }
     }
 
-    private func deleteProjectFromCoreData(_ id: String) {
-        let context = coreDataManager.viewContext
-        do {
-            if let cd = try CDProject.fetchById(id, context: context) {
-                context.delete(cd)
-                try context.save()
-            }
-        } catch {
-            AppLog.debug("⚠️ [ProjectService] Failed to delete cached project: \(error)")
-        }
+    func reload() async {
+        guard let cached = try? await core.run(CoreCommand(kind: "projects"), as: [Project].self),
+              cached != projects else { return }
+        projects = cached
     }
 
     // MARK: - Server operations
 
-    /// Pull every project the user can see, replace the in-memory cache,
-    /// and write through to Core Data. Called by SyncManager during a
-    /// full sync.
-    @discardableResult
-    func refreshFromServer() async throws -> [Project] {
-        isLoading = true
-        defer { isLoading = false }
-        let fetched = try await apiClient.getProjects()
-        self.projects = fetched
-
-        // Reconcile Core Data: upsert new/updated, delete removed.
-        let context = coreDataManager.viewContext
-        let existing = (try? CDProject.fetchAll(context: context)) ?? []
-        let serverIds = Set(fetched.map { $0.id })
-        for cd in existing where !serverIds.contains(cd.id) {
-            context.delete(cd)
-        }
-        for project in fetched {
-            saveProjectToCoreData(project, syncStatus: "synced")
-        }
-        try? context.save()
-
-        return fetched
-    }
-
-    /// Create a project + seed its status lists on the server, then
-    /// reflect the new entity locally. iOS UI sees the project + lists
-    /// instantly through the published `projects` array.
+    /// Create a board; the server seeds its status columns.
     @discardableResult
     func createProject(
         name: String,
@@ -108,14 +51,12 @@ class ProjectService: ObservableObject {
         color: String? = nil,
         imageUrl: String? = nil
     ) async throws -> Project {
-        let project = try await apiClient.createProject(
-            name: name,
-            description: description,
-            color: color,
-            imageUrl: imageUrl,
-        )
-        projects.insert(project, at: 0)
-        saveProjectToCoreData(project, syncStatus: "synced")
+        var command = CoreCommand(kind: "createProject", ["name": .value(name)])
+        command.set("description", description)
+        command.set("color", color)
+        command.set("imageUrl", imageUrl)
+        let project = try await core.run(command, as: Project.self)
+        await reloadWithLists()
         return project
     }
 
@@ -139,47 +80,27 @@ class ProjectService: ObservableObject {
     /// (now `listType: regular`) plus the seeded status columns.
     @discardableResult
     func createBoardForList(_ list: TaskList) async throws -> Project {
-        let project = try await apiClient.createProjectFromList(listId: list.id)
-
-        // Mirror the attached list's new state into ListService's published
-        // array so the board renders immediately. The server returns it inside
-        // project.lists as a regular (non-status) list.
-        let projectLists = project.lists ?? []
-        if let idx = ListService.shared.lists.firstIndex(where: { $0.id == list.id }) {
-            if let attached = projectLists.first(where: { $0.id == list.id }) {
-                ListService.shared.lists[idx] = attached
-            } else {
-                // Fallback: server didn't echo the list — at least reflect the link.
-                ListService.shared.lists[idx].projectId = project.id
-            }
-        }
-        // Also mirror the project's seeded status lists (Ready / Doing /
-        // Waiting) — without this the board has no columns until the
-        // next full sync, which reads as "Create Board didn't work".
-        ListService.shared.lists = applyProjectStatusLists(
-            ListService.shared.lists,
-            adding: projectLists
-        )
-        projects.insert(project, at: 0)
-        saveProjectToCoreData(project, syncStatus: "synced")
+        let project = try await core.run(
+            CoreCommand(kind: "createBoardForList", ["listId": .value(list.id)]), as: Project.self)
+        // The core cached the seeded columns and attached the list: without them the board has
+        // no columns until the next pass, which reads as "Create Board didn't work".
+        await reloadWithLists()
         return project
     }
 
-    /// Delete a project (owner only). On success, remove it from the
-    /// in-memory cache and Core Data, and mirror the server's cascade
-    /// onto ListService: drop the project's status lists and detach
-    /// its domain list(s). Without this the board's columns linger and
-    /// the list keeps a stale `projectId` until the next full sync.
+    /// Delete a board (owner only). The core mirrors the server's cascade: its lists detached,
+    /// kept; the status lists, which every board shares, untouched.
     @discardableResult
     func deleteProject(id: String) async throws -> DeleteProjectResponse {
-        let response = try await apiClient.deleteProject(id: id)
-        projects.removeAll { $0.id == id }
-        deleteProjectFromCoreData(id)
-        ListService.shared.lists = applyProjectDeletion(
-            ListService.shared.lists,
-            deletedProjectId: id
-        )
+        let response = try await core.run(
+            CoreCommand(kind: "deleteProject", ["projectId": .value(id)]), as: DeleteProjectResponse.self)
+        await reloadWithLists()
         return response
+    }
+
+    private func reloadWithLists() async {
+        await reload()
+        await ListService.shared.reload()
     }
 
     /// Look up a single project from the cache. The board UI uses this

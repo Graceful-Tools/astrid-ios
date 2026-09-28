@@ -26,10 +26,11 @@ Violating any of these has caused a shipped regression. If you read nothing else
    edited fields (`dueDateTime`, `isAllDay`, `repeating`, `repeatingData`, `repeatFrom`)
    into the `task:` argument before calling `completeTask`, so rollover anchors on
    what the user sees, not stale cache. (See §2, §4.)
-4. **Next-occurrence math lives ONLY in `RepeatingTaskCalculator`.** Never inline
-   pattern math anywhere else. Mirror any change into `astrid-web/types/repeating.ts`. (See §4.)
-5. **Preserve offline behavior.** Writes journal through the Outbox; local-first
-   caching and dedup must keep working. Don't bypass the Outbox. (See §3.)
+4. **Next-occurrence math lives ONLY in astrid-core** (`repeating`), reached through
+   `RepeatingTaskCalculator` / `CoreRules`. Never inline pattern math. A change goes to
+   `astrid-web/types/repeating.ts` first, then astrid-core, then the pinned core. (See §4.)
+5. **Preserve offline behavior.** Every write journals through astrid-core's Outbox (via the
+   services); local-first caching and dedup must keep working. Don't bypass it. (See §3.)
 6. **All API paths are versioned `/api/v1/...`.** There are no `/api/user/...` or
    `/api/chat/...` paths in this app — those are dead. (See §7 for the list.)
 7. **TDD for bug fixes:** write a RED regression test naming the task id, watch it
@@ -63,9 +64,12 @@ Distilled from recurring friction. Applies to every agent.
 
 ## 2. Canonical Control Points (the service layer)
 
-Every write to a backend-backed resource flows through a service. The service layer
-is where optimistic updates, the offline Outbox, the CoreData cache, and dedup live,
-and it's where iOS stays aligned with the web's logic contract.
+Every write to a backend-backed resource flows through a service. For tasks, lists, comments
+and chat the service is a face over astrid-core (`AppCore.shared.session`,
+`docs/CORE_MIGRATION.md`): the core holds the cache, the Outbox journal, sync, the live stream
+and the dedup; the service keeps the `@Published` state the views bind to and reads it back when
+the core says something moved. That shared core is how iOS, Mac and Windows stay aligned with
+the web's logic contract.
 
 **Rule of thumb:** if a service lacks the method you need, add it there first. A one-off
 direct `AstridAPIClient` call from a view is exactly how we shipped the weekly-M/W/F
@@ -74,12 +78,12 @@ loss bug.
 
 | Domain | Canonical service | Entry point(s) | Notes |
 |--------|-------------------|----------------|-------|
-| Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | Writes journal through the unified Outbox; CDTask is the cache/reconcile store. |
+| Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | astrid-core: cache, journal, sync. Every write posts `LocalMutation` (nudges Google/GitHub). |
 | Task completion (incl. repeat rollover) | `TaskService.completeTask` | See §4 for all entry points. | MUST go through this — never `updateTask(completed: true)`. |
-| Lists | `ListService` | `createList`, `updateList`, `deleteList`, `toggleFavorite`, `fetchLists` | Lists/members are still legacy (no Outbox kinds yet). |
+| Lists | `ListService` | `createList`, `updateList`, `deleteList`, `toggleFavorite`, `fetchLists` | astrid-core; every list edit is journaled. |
 | List members (add / role / remove) | `ListMemberService` | `addMember`, `updateMemberRole`, `removeMember`, `cancelInvitation` | Offline queue via CDMember. |
-| Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | Outbox-backed (create/update/delete kinds). |
-| Chat | `ChatService` | `sendMessage`, `getAIAssistantSettings`, `postAgentResponse` | AI-assistant helpers cached (60s TTL). |
+| Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | astrid-core; a picture's upload and its comment are one journaled chain. |
+| Chat | `ChatService` | `sendMessage`, `deleteMessage`, `getAIAssistantSettings`, `postAgentResponse` | astrid-core for channels, messages, sends and paging; AI-assistant helpers cached (60s TTL). |
 | Attachments | `AttachmentService` | `saveLocallyAndUploadAsync`, … | |
 | User smart-task settings | `UserSettingsService` ↔ `AstridAPIClient.getSmartTaskSettings` / `updateSmartTaskSettings` | `/api/v1/users/me/settings` | UserDefaults-first, 300ms debounce to server. |
 | My Tasks preferences | `MyTasksPreferencesService` ↔ `AstridAPIClient.getMyTasksPreferences` / `updateMyTasksPreferences` | `/api/v1/users/me/my-tasks-preferences` | UserDefaults-first, 300ms debounce to server. |
@@ -132,19 +136,21 @@ Until then both clients exist, but only one of them grows.
 
 ---
 
-## 3. Unified Outbox (the only write path)
+## 3. The Outbox (the only write path)
 
-All backend writes for **tasks, comments, chat sends, and attachment uploads** journal
-through `Astrid App/Core/Outbox/` (journal + runner + per-kind handlers; eight kinds, listed
-in `docs/LOCAL_FIRST_PATTERN.md`).
+All backend writes for **tasks, lists, comments, chat sends and attachment uploads** journal
+through astrid-core's Outbox (`outbox::journal` / `runner` / `handlers` in
+https://github.com/Graceful-Tools/astrid-core), reached through the services. The Swift runner
+is gone; `Core/Outbox/` keeps only the reader `CoreUpgrade` uses to move a pre-core
+`outbox.json` into the core's journal on first launch.
 
 - Entries carry a `clientRequestId` (server-side idempotency), retry with backoff, and
-  dead-letter on permanent errors (surfaced in Settings → Outbox).
-- `dependsOn` chains sequence dependent work (upload → comment/send).
-- Local-state waits return `.blocked` (no attempt burn).
-- CDTask/CDChatMessage remain the cache/reconcile store; the Outbox is the write journal.
-- Lists/ListMembers and chat *deletes* remain legacy (no Outbox kinds yet).
-- Sign-out wipes the journal.
+  dead-letter on permanent errors (surfaced in Settings → Outbox, with a retry).
+- A write waits for an older entry that has still to produce a temporary id it names (a photo
+  comment for its upload, a comment for its offline-created task).
+- The core's SQLite cache is the reconcile store for everything it journals; Core Data remains
+  only for what has not moved yet (members, projects) and the one-time upgrade seed.
+- Sign-out wipes the journal and drops the live stream.
 
 Details: `docs/LOCAL_FIRST_PATTERN.md`.
 
@@ -243,8 +249,7 @@ agent; server-side `processAstridMessage`), and real-time updates (SSE + 3s poll
 | `Views/Chat/ChatMessageBubble.swift` | Message rendering with agent indicators |
 | `Views/Chat/ChatMessageListView.swift` | Scrollable list with pagination |
 | `Views/Chat/ChatToggleView.swift` | Header toggle (tasks ↔ chat) |
-| `Core/Services/ChatService.swift` | Local-first service; Outbox-backed sends |
-| `Core/Persistence/CDChatMessage+CoreDataClass.swift` | CoreData persistence |
+| `Core/Services/ChatService.swift` | Face over astrid-core: channels, messages, sends, paging, typing |
 | `Models/ChatMessage.swift` | ChatChannel + ChatMessage domain models |
 | `Models/DTOs/ChatDTOs.swift` | API request/response types |
 
@@ -260,20 +265,17 @@ agent; server-side `processAstridMessage`), and real-time updates (SSE + 3s poll
 
 **Attachment upload flow:**
 1. User picks photo/document → `AttachmentService.saveLocallyAndUploadAsync(context:)`
-   saves locally + starts background upload. Context is `{"listId": "..."}` for list
-   channels or `{"channelId": "..."}` for virtual channels.
-2. Upload → `/api/v1/secure-upload/request-upload` (<4MB) or
-   `/api/v1/secure-upload/get-upload-url` + direct blob (≥4MB).
-3. Sends go through the Outbox `sendChatMessage` handler with a `dependsOn` edge on the
-   `uploadAttachment` entry (real fileId read from the dependency's result); reconcile
-   via `ChatService.reconcileOutboxSentMessage`.
-4. Server associates `SecureFile` with `ChatMessage` via `chatMessageId`; response
-   includes a `secureFiles` array for rendering.
+   stages it locally under a temp id (its thumbnail is drawn under that id at once).
+2. `ChatService.sendMessage(fileId:)` hands the staged file to the core's `sendChatMessage`,
+   which copies it, journals the upload (context `{"listId"}` for a list channel,
+   `{"channelId"}` for a virtual one) and the message after it; the message waits for the
+   upload and goes with the real file id.
+3. The server's copy replaces the optimistic message by `clientRequestId`, whichever path
+   brings it first (live stream, page, delivery).
 
-**Offline support:** messages saved to CoreData with `syncStatus: "pending"` +
-`clientRequestId` (dedup); attachments cached with temp IDs. Queued sends replay via
-the **Outbox drain** on relaunch/reconnect. (`ChatService.syncPendingMessages()` only
-handles legacy chat deletes — it is NOT the send path.)
+**Offline support:** the core's cache and journal — a message sent offline is in the transcript
+at once and keeps its place; paging prunes only within a page's time window (AITD-354). Delete is
+local-only (chat has no server delete) and withdraws a message not yet sent.
 
 ---
 

@@ -1,3 +1,4 @@
+import AstridCore
 //  TaskBlockers.swift
 //  "Waiting on" — the tasks a task is blocked by (AITD-429 on iOS, AITD-430 on the Mac; web's
 //  AWTD-1002). Spec of record: astrid-web docs/specs/TASK_BLOCKING_DEPENDENCIES.md.
@@ -80,24 +81,6 @@ enum TaskBlockers {
         query.trimmingCharacters(in: .whitespacesAndNewlines).count >= minimumQueryLength
     }
 
-    /// What the picker offers, in the order it offers it (web `rankBlockerCandidates`).
-    ///
-    /// Drops the task itself and `excludedIds` (already linked, or would cycle) and nothing
-    /// else, then puts tasks sharing a list with this one first, keeping search order inside
-    /// each group. Ranking, not filtering: a cross-board blocker is still one search away.
-    static func rankCandidates(hits: [BlockerSearchHit],
-                               taskId: String,
-                               taskListIds: [String],
-                               excludedIds: [String]) -> [BlockerSearchHit] {
-        let excluded = Set([taskId] + excludedIds)
-        let board = Set(taskListIds)
-        let offered = hits.filter { !excluded.contains($0.id) }
-        let isNeighbour: (BlockerSearchHit) -> Bool = { hit in
-            (hit.lists ?? []).contains { board.contains($0.id) }
-        }
-        return offered.filter(isNeighbour) + offered.filter { !isNeighbour($0) }
-    }
-
     /// What a blocker's chip says in the "Waiting on" row (AITD-438): the short task id, as
     /// the server issues it, so three blockers fit on one line. The title is the fallback for
     /// a task with no id. A hidden task says so and nothing more, not even its id.
@@ -110,6 +93,9 @@ enum TaskBlockers {
     /// Is this the 409 `dependency_cycle` refusal — the two tasks would wait on each other?
     /// It has its own message (`tasks.waitingOn.cycleError`); every other failure is `addError`.
     static func isCycleRefusal(_ error: Error) -> Bool {
+        if let failure = error as? CoreFailure {
+            return failure.status == 409 && failure.message.contains("dependency_cycle")
+        }
         guard case AstridAPIError.httpError(let status, let message) = error else { return false }
         return status == 409 && message.contains("dependency_cycle")
     }

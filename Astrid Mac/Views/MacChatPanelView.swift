@@ -1,6 +1,6 @@
 //  MacChatPanelView.swift
 //  Astrid for Mac — per-list chat (E1, made real-time/paginated/offline-aware in Task 91f2626d).
-//  Binds to ChatService.cachedMessages (updated live by SSE handlers), paginates history, and
+//  Binds to ChatService.cachedMessages (kept live by the core's stream), paginates history, and
 //  shows pending/failed sends. Send stays offline-first via the shared service.
 
 #if os(macOS)
@@ -22,11 +22,11 @@ struct MacChatPanelView: View {
     @State private var activeHit: MacAutocompleteHit?
     @State private var attaching = false
     @State private var replyingTo: ChatMessage?
-    @State private var agentTypingName: String?     // "… is thinking" indicator (eb1b7da6)
-    @State private var unsubscribeTyping: [() -> Void] = []
+    /// "… is thinking" indicator (eb1b7da6), from the core's live stream.
+    private var agentTypingName: String? { channelId.flatMap { chat.typingAgent[$0] } }
     @State private var loadingChannel = false       // first-load spinner (1c3562e9)
 
-    /// Live messages from the observable service cache (SSE + polling keep this fresh).
+    /// Live messages from the observable service cache (the core's live stream keeps it fresh).
     private var messages: [ChatMessage] {
         guard let cid = channelId else { return [] }
         return chat.cachedMessages[cid] ?? []
@@ -122,7 +122,6 @@ struct MacChatPanelView: View {
             }
         }
         .task(id: source) { await load() }
-        .onDisappear { unsubscribeTyping.forEach { $0() }; unsubscribeTyping = [] }
         .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
 
     }
@@ -257,23 +256,8 @@ struct MacChatPanelView: View {
         }
         guard let cid = channelId else { loadingChannel = false; return }
         _ = try? await chat.fetchMessages(channelId: cid)   // populates the observable cache
-        // Spinner clears DETERMINISTICALLY here (e4d0eb84) — it must never wait on the SSE actor.
+        // Spinner clears DETERMINISTICALLY here (e4d0eb84) — it waits on nothing live.
         loadingChannel = false
-
-        // Agent typing indicator (eb1b7da6): subscribe OFF the load path — awaiting the SSE actor
-        // here used to wedge load() (and the spinner) whenever the actor was busy streaming.
-        _Concurrency.Task { @MainActor in
-            unsubscribeTyping.forEach { $0() }
-            let start = await SSEClient.shared.onAgentTypingStart { agentName, eventChannelId, _ in
-                guard eventChannelId == cid else { return }
-                _Concurrency.Task { @MainActor in agentTypingName = agentName }
-            }
-            let stop = await SSEClient.shared.onAgentTypingStop { eventChannelId, _ in
-                guard eventChannelId == cid else { return }
-                _Concurrency.Task { @MainActor in agentTypingName = nil }
-            }
-            unsubscribeTyping = [start, stop]
-        }
     }
 
     private func loadEarlier() {

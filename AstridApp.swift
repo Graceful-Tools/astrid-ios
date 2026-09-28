@@ -51,10 +51,6 @@ struct AstridApp: App {
         // Load the smart parser's keyword tables in the core (synchronous, fast)
         SmartTaskParser.warmUp()
 
-        // Drain any Outbox journal persisted from a previous session (no-op when
-        // empty — the common case while dual-write is off).
-        _Concurrency.Task { @MainActor in OutboxManager.shared.start() }
-
         // Start the GitHub sync worker (observers + status). No-op until the
         // user connects GitHub and links a list.
         _Concurrency.Task { @MainActor in
@@ -147,11 +143,8 @@ struct AstridApp: App {
                     AppLog.debug("📡 [AstridApp] Auth changed: \(oldValue) -> \(newValue)")
                     _Concurrency.Task {
                         if newValue {
-                            // User just logged in - establish SSE connection with delay
-                            // Wait a bit to ensure session is fully established
-                            AppLog.debug("📡 [AstridApp] User logged in - will connect to SSE in 2s...")
-                            try? await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000)
-                            await connectSSE()
+                            // Signed in: live updates now rather than on the core's retry.
+                            await reviveLiveUpdates()
 
                             // Prompt new users to enable push notifications
                             // Small delay to let the main UI appear first
@@ -162,11 +155,8 @@ struct AstridApp: App {
                             // Wait longer to let user engage with the app first
                             try? await _Concurrency.Task.sleep(nanoseconds: 5_000_000_000)
                             await ReviewPromptManager.shared.checkAndPromptForReview()
-                        } else {
-                            // User logged out - disconnect from SSE
-                            AppLog.debug("📡 [AstridApp] User logged out - disconnecting from SSE...")
-                            await SSEClient.shared.disconnect()
                         }
+                        // Signed out: the core dropped its live stream as part of signing out.
                     }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -176,9 +166,9 @@ struct AstridApp: App {
                         // This ensures web-updated images show on iOS
                         ImageCache.shared.clearMemoryCache()
 
-                        // Reconnect SSE if it dropped while in background
+                        // A suspended app's stream is dead whatever it looks like: start it over.
                         _Concurrency.Task {
-                            await connectSSE()
+                            await reviveLiveUpdates()
                         }
 
                         // Check for review prompt when app becomes active (good time to ask)
@@ -192,9 +182,9 @@ struct AstridApp: App {
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .networkDidBecomeAvailable)) { _ in
-                    // Reconnect SSE when network is restored
+                    // The network is back: do not wait out a backoff chosen while it was gone.
                     _Concurrency.Task {
-                        await connectSSE()
+                        await reviveLiveUpdates()
                     }
                 }
                 .alert("Enable Push Notifications", isPresented: $notificationPromptManager.showPromptAlert) {
@@ -490,22 +480,13 @@ struct AstridApp: App {
         }
     }
 
-    private func connectSSE() async {
-        guard authManager.isAuthenticated else {
-            AppLog.debug("⚠️ [AstridApp] Not authenticated - skipping SSE connection")
-            return
-        }
+    private func reviveLiveUpdates() async {
+        guard authManager.isAuthenticated else { return }
+        // Only with a real server session (not local-only mode).
+        guard (try? KeychainService.shared.getSessionCookie()) != nil else { return }
 
-        // Only connect SSE if we have a real server session (not local-only mode)
-        let hasCookie = (try? KeychainService.shared.getSessionCookie()) != nil
-        guard hasCookie else {
-            AppLog.debug("⚠️ [AstridApp] No session cookie - skipping SSE (local-only mode)")
-            return
-        }
-
-        AppLog.debug("📡 [AstridApp] Establishing SSE connection...")
-        await SSEClient.shared.connect()
-        AppLog.debug("✅ [AstridApp] SSE connection established")
+        // The core keeps its live stream connected while signed in; this only says "now".
+        AppCore.shared.reconnectStream()
     }
 
     /// Updates all UIKit windows to use the specified user interface style

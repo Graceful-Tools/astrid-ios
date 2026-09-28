@@ -72,40 +72,6 @@ extension CDMember {
         return try context.fetch(request)
     }
 
-    /// Fetch member by list and user ID
-    static func fetchByListAndUser(_ listId: String, userId: String, context: NSManagedObjectContext) throws -> CDMember? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "listId == %@ AND userId == %@",
-            listId, userId
-        )
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    /// Fetch all pending members (add, update, remove operations)
-    static func fetchPending(context: NSManagedObjectContext) throws -> [CDMember] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "syncStatus IN %@",
-            ["pending", "pending_update", "pending_delete", "failed"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    /// Fetch pending members for a specific list
-    static func fetchPendingForList(_ listId: String, context: NSManagedObjectContext) throws -> [CDMember] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "listId == %@ AND syncStatus IN %@",
-            listId,
-            ["pending", "pending_update", "pending_delete", "failed"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
     // MARK: - Retry Policy
 
     /// Maximum retry attempts before giving up
@@ -128,16 +94,6 @@ extension CDMember {
         guard !shouldGiveUp else { return false }
         guard let lastAttempt = lastSyncAttemptAt else { return true }
         return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Record a failed sync attempt
-    func recordSyncFailure(error: String) {
-        syncAttempts += 1
-        lastSyncAttemptAt = Date()
-        syncError = error
-        if shouldGiveUp {
-            syncStatus = "failed"
-        }
     }
 
     /// Reset retry state after successful sync

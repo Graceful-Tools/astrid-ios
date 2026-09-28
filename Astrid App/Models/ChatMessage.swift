@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Chat Channel
 
-struct ChatChannel: Identifiable, Codable, Equatable, Hashable {
+nonisolated struct ChatChannel: Identifiable, Codable, Equatable, Hashable {
     let id: String
     var listId: String?
     var virtualKey: String?

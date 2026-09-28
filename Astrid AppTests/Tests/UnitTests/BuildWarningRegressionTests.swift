@@ -16,9 +16,6 @@ final class BuildWarningRegressionTests: XCTestCase {
         let richText = try source("Astrid App/Views/Components/RichTextInput.swift")
         XCTAssertFalse(richText.contains("return ZStack(alignment: .topTrailing)"))
 
-        let reconnect = try source("Astrid App/Core/RealTime/SSEReconnectPolicy.swift")
-        XCTAssertTrue(reconnect.contains("nonisolated static let maxAttempts"))
-
         let isolation = try source("Astrid App/Core/Networking/UITestNetworkIsolation.swift")
         XCTAssertTrue(isolation.contains("nonisolated static func harden"))
 

@@ -6,6 +6,7 @@
 //  astrid-web lib/task-detail-project-state.ts and `rankBlockerCandidates` in
 //  lib/task-dependencies.ts. Each test below names the web behaviour it pins.
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -29,28 +30,8 @@ final class TaskBlockersTests: XCTestCase {
         XCTAssertFalse(TaskBlockers.showsRow(isInProject: true, isReadOnly: true, hasBlockers: false))
     }
 
-    // MARK: - What the picker offers (web `rankBlockerCandidates`)
-
-    private func hit(_ id: String, lists: [String] = []) -> BlockerSearchHit {
-        BlockerSearchHit(id: id, title: id, completed: false,
-                         lists: lists.map { BlockerSearchHit.ListRef(id: $0) })
-    }
-
-    func testDropsTheTaskItselfLinkedBlockersAndDependents() {
-        let ranked = TaskBlockers.rankCandidates(
-            hits: [hit("self"), hit("linked"), hit("dependent"), hit("ok")],
-            taskId: "self", taskListIds: [], excludedIds: ["linked", "dependent"])
-        XCTAssertEqual(ranked.map(\.id), ["ok"])
-    }
-
-    /// Ranking, not filtering: same-board tasks first, search order kept inside each group.
-    func testPutsSameBoardTasksFirstKeepingSearchOrder() {
-        let ranked = TaskBlockers.rankCandidates(
-            hits: [hit("a", lists: ["other"]), hit("b", lists: ["board"]),
-                   hit("c"), hit("d", lists: ["board", "other"])],
-            taskId: "self", taskListIds: ["board"], excludedIds: [])
-        XCTAssertEqual(ranked.map(\.id), ["b", "d", "a", "c"])
-    }
+    // What the picker offers, and in what order, is astrid-core's (`services::dependency::pickable`,
+    // ranked by the task's own lists as web's `rankBlockerCandidates` is).
 
     func testSearchStartsAtTwoCharacters() {
         XCTAssertFalse(TaskBlockers.shouldSearch(" a "))
@@ -81,6 +62,13 @@ final class TaskBlockersTests: XCTestCase {
             message: #"{"error":"Would create a cycle","reason":"dependency_cycle"}"#)
         XCTAssertTrue(TaskBlockers.isCycleRefusal(cycle))
         XCTAssertFalse(TaskBlockers.isCycleRefusal(AstridAPIError.httpError(statusCode: 403, message: "")))
+    }
+
+    /// The refusal as it arrives now — from astrid-core, which sends the add (CONTRACTS D32).
+    func testRecognisesTheCycleRefusalFromTheCore() throws {
+        let json = #"{"kind":"refused","status":409,"message":"the server refused the request: 409 {\"reason\":\"dependency_cycle\"}"}"#
+        let cycle = try JSONDecoder().decode(CoreFailure.self, from: Data(json.utf8))
+        XCTAssertTrue(TaskBlockers.isCycleRefusal(cycle))
     }
 
     // MARK: - How a blocker reads in the row (AITD-438)

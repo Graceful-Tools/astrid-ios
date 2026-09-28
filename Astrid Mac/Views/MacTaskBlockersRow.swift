@@ -2,7 +2,7 @@
 //  Astrid for Mac — "Waiting on" in task details (AITD-430; iOS AITD-429; web AWTD-1002).
 //
 //  Shares everything but the styling with iOS: `MacTaskFields.rows` places the row via
-//  `TaskBlockers.showsRow`, the picker ranks through `TaskBlockers.rankCandidates`, and every
+//  `TaskBlockers.showsRow`, the picker's candidates come ranked from astrid-core, and every
 //  call goes through `TaskBlockerService`. Mac specifics: the picker works from the keyboard
 //  (↑/↓, Return to add, Escape to close), and a chip opens its task on click or from its
 //  context menu.

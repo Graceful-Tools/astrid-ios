@@ -689,13 +689,6 @@ struct TaskListView: View {
             guard !hasLoadedInitialData else { return }
             hasLoadedInitialData = true
 
-            // Register SSE handler for My Tasks preferences updates (once only)
-            await SSEClient.shared.onMyTasksPreferencesUpdated { preferences in
-                _Concurrency.Task { @MainActor in
-                    MyTasksPreferencesService.shared.handleSSEUpdate(preferences)
-                }
-            }
-
             // Load data in background to avoid blocking UI on initial load
             // UI will update automatically when data arrives via @Published properties
             _Concurrency.Task {

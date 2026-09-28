@@ -98,8 +98,9 @@ final class AnalyticsPlatformCoverageTests: XCTestCase {
     /// The four surfaces this task found unidentified, named so the fix cannot be partially
     /// reverted without a failure that says which one went.
     func testAITD301_TheSurfacesThisTaskFixedStayFixed() throws {
-        let required = ["SSEClient.swift",           // the app is OPEN — the clearest Mac signal
-                        "PasskeyManager.swift",      // sign-in: a new Mac user's first traffic
+        // The live stream — the clearest "the app is open" signal — is astrid-core's, which sends
+        // the platform the app hands it (`AppCore.platform`) on every request, the stream included.
+        let required = ["PasskeyManager.swift",      // sign-in: a new Mac user's first traffic
                         "AttachmentService.swift",
                         "OAuthManager.swift",
                         "APIEndpoint.swift"]

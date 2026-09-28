@@ -229,6 +229,7 @@ class TaskService: ObservableObject {
                 repeatingData: repeatingData, isPrivate: isPrivate),
             as: Task.self)
         show(created)
+        LocalMutation.note(source: source)
 
         // A history import is born completed and backdated, so the row never flashes open.
         if let presumeCompletedAt {
@@ -310,14 +311,15 @@ class TaskService: ObservableObject {
         if let statusRole {
             statusRole.isEmpty ? changes.clear("statusRole") : changes.set("statusRole", statusRole)
         }
-        return try await apply(changes, to: taskId)
+        return try await apply(changes, to: taskId, source: source)
     }
 
     /// One edit, through the core: its cache and journal first, the server when it can.
-    private func apply(_ changes: TaskEdit, to taskId: String) async throws -> Task {
+    private func apply(_ changes: TaskEdit, to taskId: String, source: SyncSource? = nil) async throws -> Task {
         let updated = try await core.run(
             CoreCommand.updateTask(taskId: resolved(taskId), changes: changes), as: Task.self)
         show(updated)
+        LocalMutation.note(source: source)
         refreshOutboxCounts()
         return updated
     }
@@ -385,6 +387,7 @@ class TaskService: ObservableObject {
                 source: source?.rawValue),
             as: Task.self)
         show(done)
+        LocalMutation.note(source: source)
         refreshOutboxCounts()
         return done
     }
@@ -416,7 +419,9 @@ class TaskService: ObservableObject {
             name: .astridTaskDeleted, object: nil,
             userInfo: ["taskId": id, "resolvedTaskId": resolvedId])
         // Providers that mirror tasks elsewhere note the twin before the task goes: the server
-        // cascades its link rows away with it. (Google's is the core's own, in its ledger.)
+        // cascades its link rows away with it. Google included — its pass is still the Swift one
+        // (docs/CORE_MIGRATION.md), which reads its own ledger, not the core's.
+        await GoogleTasksSyncService.shared.noteTaskDeleted(taskId: resolvedId)
         await GitHubSyncService.shared.noteTaskDeleted(taskId: resolvedId)
         await AppleRemindersService.shared.noteTaskDeleted(taskId: resolvedId)
 
@@ -424,6 +429,7 @@ class TaskService: ObservableObject {
         var next = tasks
         next.removeAll { $0.id == resolvedId }
         publish(next)
+        LocalMutation.note()
 
         await notificationManager.cancelNotification(for: resolvedId)
         refreshOutboxCounts()

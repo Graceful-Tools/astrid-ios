@@ -104,18 +104,6 @@ class MyTasksPreferencesService: ObservableObject {
         }
     }
 
-    /// Handle SSE update from another device
-    func handleSSEUpdate(_ newPreferences: MyTasksPreferences) {
-        AppLog.debug("🔔 [SSE] My Tasks preferences updated from another device")
-        self.preferences = newPreferences
-
-        // Save to UserDefaults for offline support
-        if let encoded = try? JSONEncoder().encode(newPreferences) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            AppLog.debug("💾 [MyTasksPrefs] Saved SSE update to UserDefaults")
-        }
-    }
-
     /// Clear all preferences data on logout
     /// This prevents data leakage between users
     func clearData() {

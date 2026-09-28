@@ -1321,7 +1321,7 @@ struct TaskDetailViewNew: View {
         // First, sync any pending attachments and comments (if online)
         if NetworkMonitor.shared.isConnected {
             AppLog.debug("🔄 [TaskDetailViewNew] Pull to refresh - draining outbox first...")
-            await OutboxManager.shared.drain()
+            await AppCore.shared.drainJournal()
         }
 
         do {

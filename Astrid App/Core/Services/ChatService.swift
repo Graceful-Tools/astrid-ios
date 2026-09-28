@@ -1,323 +1,234 @@
-import Foundation
+import AstridCore
 import Combine
-import CoreData
-import os.log
+import Foundation
 
-private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatService")
-
-/// Errors that can occur during chat message sync
-enum ChatSyncError: Error {
-    case attachmentPending  // Attachment upload not complete yet - will retry later
-    case channelNotFound    // Channel hasn't been resolved yet
-}
-
+/// A list's chat — through astrid-core.
+///
+/// The core holds the channels and each channel's messages in its cache, journals every send (a
+/// picture's upload first, the message waiting for it), and keeps the transcript current from the
+/// live stream (docs/CORE_MIGRATION.md). This service keeps the per-channel buckets the chat
+/// panels bind to and reads them back when the core says a channel moved.
 @MainActor
 class ChatService: ObservableObject {
     static let shared = ChatService()
 
     @Published var isLoading = false
     @Published var errorMessage: String?
+    /// Chat sends waiting to reach the server.
     @Published var pendingOperationsCount: Int = 0
-    @Published var cachedMessages: [String: [ChatMessage]] = [:]  // channelId -> messages
-    @Published var channelForList: [String: String] = [:]         // listId -> channelId
-    @Published var hasMore: [String: Bool] = [:]                  // channelId -> hasMore pages
+    /// channelId → its messages, oldest first.
+    @Published var cachedMessages: [String: [ChatMessage]] = [:]
+    /// listId (or virtual key) → channelId.
+    @Published var channelForList: [String: String] = [:]
+    /// channelId → whether there is older history on the server.
+    @Published var hasMore: [String: Bool] = [:]
+    /// channelId → the agent writing a reply there right now.
+    @Published var typingAgent: [String: String] = [:]
 
-    private let apiClient = AstridAPIClient.shared
-    private let coreDataManager = CoreDataManager.shared
-    private let networkMonitor = NetworkMonitor.shared
-    private var lastFetchTime: [String: Date] = [:]  // channelId -> last fetch time
-    private var inFlightFetches: [String: _Concurrency.Task<[ChatMessage], Error>] = [:]
-    private var networkObserver: NSObjectProtocol?
+    private var core: CoreSession { AppCore.shared.session }
+    /// When each channel was last asked of the server, so reopening a panel does not fetch twice.
+    private var lastFetchTime: [String: Date] = [:]
 
-    init() {
-        _Concurrency.Task { @MainActor in
-            await self.loadCachedChannels()
-            await self.updatePendingOperationsCount()
-        }
-        setupNetworkObserver()
-    }
+    init() {}
 
-    deinit {
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
+    // MARK: - Channels
 
-    private func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                try? await self?.syncPendingMessages()
-            }
-        }
-
-        // Re-sync when an attachment upload completes (resolves pending messages waiting for fileId)
-        NotificationCenter.default.addObserver(
-            forName: .attachmentUploadCompleted,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                try? await self?.syncPendingMessages()
-            }
-        }
-    }
-
-    // MARK: - Channel Resolution
-
-    /// Resolve the chat channel for a list (cached → API fallback)
+    /// The chat channel for a list — the cache's, else the server's, which creates it on first use.
     func resolveChannel(forListId listId: String) async throws -> String {
-        // Check memory cache
-        if let channelId = channelForList[listId] {
-            return channelId
-        }
-
-        // Check CoreData cache
-        await coreDataManager.waitForStoreLoad()
-        let cachedChannel: ChatChannel? = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let cdChannel = try CDChatChannel.fetchByListId(listId, context: context)
-                    continuation.resume(returning: cdChannel?.toDomainModel())
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        if let channel = cachedChannel {
-            channelForList[listId] = channel.id
-            return channel.id
-        }
-
-        // Fetch from API
-        let channel = try await apiClient.getOrCreateChatChannel(listId: listId)
-
-        // Cache in CoreData
-        try await coreDataManager.saveInBackground { context in
-            let cdChannel = try CDChatChannel.fetchById(channel.id, context: context) ?? CDChatChannel(context: context)
-            cdChannel.id = channel.id
-            cdChannel.update(from: channel)
-        }
-
-        channelForList[listId] = channel.id
-        return channel.id
+        try await resolve(key: listId, CoreCommand(kind: "resolveChatChannel", ["listId": .value(listId)]))
     }
 
-    /// Resolve a virtual chat channel (e.g. for My Tasks)
+    /// The chat channel of a virtual list, such as My Tasks.
     func resolveVirtualChannel(virtualKey: String) async throws -> String {
-        // Check memory cache
-        if let channelId = channelForList[virtualKey] {
-            return channelId
-        }
+        try await resolve(key: virtualKey,
+                          CoreCommand(kind: "resolveChatChannel", ["virtualKey": .value(virtualKey)]))
+    }
 
-        // Fetch from API
-        let channel = try await apiClient.getOrCreateVirtualChannel(virtualKey: virtualKey)
-
-        // Cache in CoreData
-        try await coreDataManager.saveInBackground { context in
-            let cdChannel = try CDChatChannel.fetchById(channel.id, context: context) ?? CDChatChannel(context: context)
-            cdChannel.id = channel.id
-            cdChannel.update(from: channel)
-        }
-
-        channelForList[virtualKey] = channel.id
+    private func resolve(key: String, _ command: CoreCommand) async throws -> String {
+        if let channelId = channelForList[key] { return channelId }
+        let channel = try await core.run(command, as: ChatChannel.self)
+        channelForList[key] = channel.id
         return channel.id
     }
 
-    // MARK: - Cache Management
+    // MARK: - Reading
 
-    // Chat messages are NOT hydrated at launch (task AITD-341, the companion to AITD-335).
-    //
-    // `loadCachedMessages` used to do `CDChatMessage.fetchAll`, a domain model for every row and
-    // a sort per channel, before any chat panel had been opened — and then hold the lot in memory
-    // for the session. Chat messages accumulate the same way comments did, and nothing prunes
-    // them.
-    //
-    // `fetchMessages(channelId:)` already walks memory → CoreData → network, and its CoreData
-    // step is `loadMessagesFromCoreData(channelId:)`, scoped to one channel. Every bucket the
-    // eager pass built is one the lazy path builds when the channel is opened, and only for the
-    // channel opened. Deleting the eager pass is the whole fix.
-    //
-    // `loadCachedChannels` below is a different thing and stays: it is a small list→channel id
-    // mapping, and it is what lets a chat panel know which channel to ask for at all.
-
-    /// Load cached channel mappings from CoreData
-    private func loadCachedChannels() async {
-        await coreDataManager.waitForStoreLoad()
-
-        do {
-            let mappings: [String: String] = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let channels = try CDChatChannel.fetchAll(context: context)
-                        var result: [String: String] = [:]
-                        for channel in channels {
-                            if let listId = channel.listId {
-                                result[listId] = channel.id
-                            }
-                        }
-                        continuation.resume(returning: result)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-            self.channelForList = mappings
-        } catch {
-            logger.error("Failed to load cached channels: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    private func updatePendingOperationsCount() async {
-        do {
-            let count: Int = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let pending = try CDChatMessage.fetchPending(context: context)
-                        continuation.resume(returning: pending.count)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-            pendingOperationsCount = count
-        } catch {
-            logger.error("Failed to count pending chat operations: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    // MARK: - Fetching
-
-    /// Fetch messages with cache hierarchy: Memory → CoreData → Network
+    /// A channel's messages: the cache at once, then the server's newest page — refreshed in the
+    /// background when the cache has some, awaited when it has none.
     func fetchMessages(channelId: String, useCache: Bool = true) async throws -> [ChatMessage] {
-        logger.notice("===== fetchMessages: \(channelId.prefix(8), privacy: .public) =====")
-
-        // STEP 1: Memory cache
-        if useCache, let cached = cachedMessages[channelId] {
-            logger.notice("✓ MEMORY: \(cached.count, privacy: .public) messages")
-            backgroundRefreshFromNetwork(channelId: channelId)
+        let cached = await read(channelId: channelId)
+        if useCache, !cached.isEmpty {
+            backgroundRefresh(channelId: channelId)
             return cached
         }
-
-        // STEP 2: CoreData
-        if useCache {
-            await coreDataManager.waitForStoreLoad()
-            let coreDataMessages = try await loadMessagesFromCoreData(channelId: channelId)
-            if !coreDataMessages.isEmpty {
-                logger.notice("✓ COREDATA: \(coreDataMessages.count, privacy: .public) messages")
-                cachedMessages[channelId] = coreDataMessages
-                backgroundRefreshFromNetwork(channelId: channelId)
-                return coreDataMessages
-            }
-        }
-
-        // STEP 3: Network
-        if let existingTask = inFlightFetches[channelId] {
-            return try await existingTask.value
-        }
-
-        logger.notice("→ NETWORK: Fetching...")
         isLoading = true
         errorMessage = nil
-
-        let fetchTask = _Concurrency.Task<[ChatMessage], Error> { [weak self] in
-            guard let self = self else { return [] }
-            do {
-                let response = try await self.apiClient.getChatMessages(channelId: channelId)
-                logger.notice("✓ NETWORK: \(response.messages.count, privacy: .public) messages")
-
-                await MainActor.run {
-                    self.lastFetchTime[channelId] = Date()
-                    self.hasMore[channelId] = response.hasMore
-                }
-
-                try await self.saveMessagesToCoreData(
-                    response.messages, channelId: channelId,
-                    prune: Self.prunePage(response.messages, isFirstPage: true, hasMore: response.hasMore))
-
-                await MainActor.run {
-                    let pendingMessages = self.cachedMessages[channelId]?.filter { $0.id.hasPrefix("temp_") } ?? []
-                    var merged = response.messages
-                    merged.append(contentsOf: pendingMessages)
-                    merged.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-                    self.cachedMessages[channelId] = merged
-
-                    NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
-                }
-
-                return response.messages
-            } catch {
-                let nsError = error as NSError
-                if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                    return []
-                }
-                logger.error("✗ NETWORK: \(error.localizedDescription, privacy: .public)")
-                await MainActor.run { self.errorMessage = error.localizedDescription }
-                throw error
-            }
-        }
-
-        inFlightFetches[channelId] = fetchTask
-
+        defer { isLoading = false }
         do {
-            let result = try await fetchTask.value
-            inFlightFetches.removeValue(forKey: channelId)
-            isLoading = false
-            return result
+            return try await refreshMessagesFromServer(channelId: channelId)
         } catch {
-            inFlightFetches.removeValue(forKey: channelId)
-            isLoading = false
-            throw error
+            // Offline: the cache is the answer.
+            errorMessage = error.localizedDescription
+            return cached
         }
     }
 
-    /// Load more messages (pagination — older messages)
-    func loadMoreMessages(channelId: String) async throws {
-        guard hasMore[channelId] == true else { return }
-
-        // Find the oldest message's createdAt as cursor
-        guard let oldest = cachedMessages[channelId]?.first(where: { !$0.id.hasPrefix("temp_") }),
-              let oldestDate = oldest.createdAt else { return }
-
-        let response = try await apiClient.getChatMessages(channelId: channelId, before: oldestDate, limit: 50)
-        hasMore[channelId] = response.hasMore
-
-        // Save to CoreData
-        try await saveMessagesToCoreData(
-            response.messages, channelId: channelId,
-            prune: Self.prunePage(response.messages, isFirstPage: false, hasMore: response.hasMore))
-
-        // Prepend to cache
-        var current = cachedMessages[channelId] ?? []
-        let existingIds = Set(current.map { $0.id })
-        let newMessages = response.messages.filter { !existingIds.contains($0.id) }
-        current.insert(contentsOf: newMessages, at: 0)
-        current.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        cachedMessages[channelId] = current
+    /// Fetch the newest page now and answer with the channel as the cache then holds it — the
+    /// fallback poll and explicit refreshes.
+    @discardableResult
+    func refreshMessagesFromServer(channelId: String) async throws -> [ChatMessage] {
+        lastFetchTime[channelId] = Date()
+        let page = try await core.run(
+            CoreCommand(kind: "loadChatMessages", ["channelId": .value(channelId)]), as: Page.self)
+        hasMore[channelId] = page.hasMore
+        publish(page.messages, in: channelId)
+        return page.messages
     }
 
-    /// Fetch available agents through ChatService so views do not couple
-    /// directly to the API client. The raw agent models are useful in settings
-    /// screens, while chat input can map them to mentionable users.
+    /// The page before the oldest message this device holds.
+    func loadMoreMessages(channelId: String) async throws {
+        guard hasMore[channelId] == true,
+              let oldest = cachedMessages[channelId]?.first(where: { !$0.isPending })?.createdAt
+        else { return }
+        let page = try await core.run(
+            CoreCommand(kind: "loadChatMessages", [
+                "channelId": .value(channelId),
+                "before": .value(WireDate.string(from: oldest)),
+            ]),
+            as: Page.self)
+        hasMore[channelId] = page.hasMore
+        publish(page.messages, in: channelId)
+    }
+
+    private struct Page: Decodable {
+        let messages: [ChatMessage]
+        let hasMore: Bool
+    }
+
+    /// What the core holds for `channelId`, published into its bucket.
+    @discardableResult
+    private func read(channelId: String) async -> [ChatMessage] {
+        guard let messages = try? await core.run(
+            CoreCommand(kind: "chatMessages", ["channelId": .value(channelId)]), as: [ChatMessage].self)
+        else { return cachedMessages[channelId] ?? [] }
+        publish(messages, in: channelId)
+        return messages
+    }
+
+    private func publish(_ messages: [ChatMessage], in channelId: String) {
+        guard cachedMessages[channelId] != messages else { return }
+        cachedMessages[channelId] = messages
+        // A reply from an agent is the end of its typing, whatever the stream said.
+        if messages.last?.isFromAgent == true { typingAgent[channelId] = nil }
+        NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
+    }
+
+    /// Ask the server again, at most every 30 seconds per channel.
+    private func backgroundRefresh(channelId: String) {
+        if let last = lastFetchTime[channelId], Date().timeIntervalSince(last) < 30 { return }
+        lastFetchTime[channelId] = Date()
+        _Concurrency.Task { try? await self.refreshMessagesFromServer(channelId: channelId) }
+    }
+
+    /// The core says a channel moved — the live stream, a delivery, a pass: read back the ones a
+    /// panel is showing.
+    func coreDidChange(_ change: CoreChange) {
+        switch change {
+        case .chat(let channelId) where cachedMessages[channelId] != nil:
+            _Concurrency.Task { await self.read(channelId: channelId) }
+        case .agentTyping(let channelId?, _, let agentName, let active):
+            typingAgent[channelId] = active ? (agentName ?? "Agent") : nil
+        case .synced, .unknown:
+            for channelId in cachedMessages.keys {
+                _Concurrency.Task { await self.read(channelId: channelId) }
+            }
+            refreshOutboxCounts()
+        default:
+            break
+        }
+    }
+
+    // MARK: - Writing
+
+    /// Send a message — at once in the transcript, to the server when it can.
+    ///
+    /// - Parameter fileId: a file to carry. A temporary one is a file the person just picked,
+    ///   staged by `AttachmentService`: the core copies it, uploads it, and sends the message once
+    ///   the upload answers, all through its journal.
+    func sendMessage(
+        channelId: String,
+        content: String,
+        type: Comment.CommentType = .TEXT,
+        fileId: String? = nil,
+        replyToId: String? = nil,
+        authorId: String? = nil
+    ) async throws -> ChatMessage {
+        var command = CoreCommand(kind: "sendChatMessage", [
+            "channelId": .value(channelId), "content": .value(content), "type": .value(type.rawValue),
+        ])
+        command.set("replyToId", replyToId)
+        command.set("fileId", fileId)
+        if let fileId, fileId.hasPrefix("temp_"),
+           let staged = AttachmentService.shared.pendingUploads[fileId] {
+            command.set("path", staged.localPath)
+            command.set("name", staged.fileName)
+            command.set("mimeType", staged.mimeType)
+        }
+        let message = try await core.run(command, as: ChatMessage.self)
+        var bucket = cachedMessages[channelId] ?? []
+        bucket.removeAll { $0.id == message.id }
+        bucket.append(message)
+        cachedMessages[channelId] = bucket
+        refreshOutboxCounts()
+        return message
+    }
+
+    /// Take a message out of this device's transcript. Chat has no delete on the server; a
+    /// message not yet sent is not sent.
+    func deleteMessage(id: String, channelId: String) async throws {
+        cachedMessages[channelId]?.removeAll { $0.id == id }
+        try await core.run(CoreCommand(kind: "forgetChatMessage", ["messageId": .value(id)]))
+        refreshOutboxCounts()
+    }
+
+    /// Send what is waiting now rather than at the delivery loop's next turn.
+    func syncPendingMessages() async throws {
+        try await core.run(CoreCommand(kind: "drain"))
+        refreshOutboxCounts()
+    }
+
+    private func refreshOutboxCounts() {
+        struct Stats: Decodable { let pending: Int; let running: Int }
+        _Concurrency.Task {
+            guard let stats = try? await core.run(CoreCommand(kind: "outboxStats"), as: Stats.self) else { return }
+            pendingOperationsCount = stats.pending + stats.running
+        }
+    }
+
+    /// Clear what the panels read (sign-out; the core wipes its own cache there too).
+    func clearCache() {
+        cachedMessages = [:]
+        channelForList = [:]
+        hasMore = [:]
+        typingAgent = [:]
+        lastFetchTime = [:]
+    }
+
+    // MARK: - Agents
+
+    /// Fetch available agents through ChatService so views do not couple directly to the API
+    /// client. The raw agent models are useful in settings screens, while chat input can map them
+    /// to mentionable users.
     func fetchAvailableAgents(useCacheOnFailure: Bool = true) async throws -> [AvailableAgent] {
         do {
-            let agents = try await apiClient.getAvailableAgents()
+            let agents = try await AstridAPIClient.shared.getAvailableAgents()
             AIAgentCache.shared.save(agents.map(Self.agentUser))
             return agents
         } catch {
             if useCacheOnFailure, let cachedUsers = AIAgentCache.shared.load() {
                 return cachedUsers.map {
-                    AvailableAgent(
-                        id: $0.id,
-                        name: $0.displayName,
-                        email: $0.email ?? "",
-                        image: $0.image,
-                        service: $0.aiAgentType ?? ""
-                    )
+                    AvailableAgent(id: $0.id, name: $0.displayName, email: $0.email ?? "",
+                                   image: $0.image, service: $0.aiAgentType ?? "")
                 }
             }
             throw error
@@ -328,263 +239,28 @@ class ChatService: ObservableObject {
     /// (`?serverRun=true`). NOT cached — the mention cache must keep the unfiltered list, which
     /// includes polling agents that cannot power the assistant but can be assigned (AITD-297).
     func fetchServerRunAgents() async throws -> [AvailableAgent] {
-        try await apiClient.getAvailableAgents(serverRunOnly: true)
+        try await AstridAPIClient.shared.getAvailableAgents(serverRunOnly: true)
     }
 
     func fetchAvailableAgentUsers(useCacheOnFailure: Bool = true) async throws -> [User] {
-        let agents = try await fetchAvailableAgents(useCacheOnFailure: useCacheOnFailure)
-        return agents.map(Self.agentUser)
-    }
-
-    /// Refresh one channel from the v1 chat messages endpoint and preserve
-    /// locally pending optimistic messages. Used by polling fallbacks and
-    /// explicit refreshes so the merge behavior has one owner.
-    @discardableResult
-    func refreshMessagesFromServer(channelId: String) async throws -> [ChatMessage] {
-        let response = try await apiClient.getChatMessages(channelId: channelId)
-        hasMore[channelId] = response.hasMore
-
-        let serverMessages = response.messages
-        let serverIds = Set(serverMessages.map { $0.id })
-        let serverClientRequestIds = Set(serverMessages.compactMap { $0.clientRequestId })
-        let pendingMessages = cachedMessages[channelId]?.filter { message in
-            guard message.id.hasPrefix("temp_") else { return false }
-            guard !serverIds.contains(message.id) else { return false }
-            if let clientRequestId = message.clientRequestId {
-                return !serverClientRequestIds.contains(clientRequestId)
-            }
-            return true
-        } ?? []
-
-        var merged = serverMessages
-        merged.append(contentsOf: pendingMessages)
-        merged.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-        cachedMessages[channelId] = merged
-        lastFetchTime[channelId] = Date()
-
-        try await saveMessagesToCoreData(
-            serverMessages, channelId: channelId,
-            prune: Self.prunePage(serverMessages, isFirstPage: true, hasMore: response.hasMore))
-        NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
-        return merged
+        try await fetchAvailableAgents(useCacheOnFailure: useCacheOnFailure).map(Self.agentUser)
     }
 
     private static func agentUser(_ agent: AvailableAgent) -> User {
-        User(
-            id: agent.id,
-            email: agent.email,
-            name: agent.name,
-            image: agent.image,
-            createdAt: nil,
-            defaultDueTime: nil,
-            isPending: nil,
-            isAIAgent: true,
-            aiAgentType: agent.service
-        )
-    }
-
-    private func loadMessagesFromCoreData(channelId: String) async throws -> [ChatMessage] {
-        let messages: [ChatMessage] = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let cdMessages = try CDChatMessage.fetchByChannelId(channelId, context: context)
-                    let domainMessages = cdMessages.map { $0.toDomainModel() }
-                    continuation.resume(returning: domainMessages)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-        return messages
-    }
-
-    private func backgroundRefreshFromNetwork(channelId: String) {
-        if let lastFetch = lastFetchTime[channelId], Date().timeIntervalSince(lastFetch) < 30 {
-            return
-        }
-        lastFetchTime[channelId] = Date()
-
-        _Concurrency.Task.detached { [weak self] in
-            guard let self = self else { return }
-            do {
-                let response = try await self.apiClient.getChatMessages(channelId: channelId)
-                try await self.saveMessagesToCoreData(
-                    response.messages, channelId: channelId,
-                    prune: Self.prunePage(response.messages, isFirstPage: true, hasMore: response.hasMore))
-                await MainActor.run {
-                    self.hasMore[channelId] = response.hasMore
-                    let pendingMessages = self.cachedMessages[channelId]?.filter { $0.id.hasPrefix("temp_") } ?? []
-                    var merged = response.messages
-                    merged.append(contentsOf: pendingMessages)
-                    merged.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-                    self.cachedMessages[channelId] = merged
-                    NotificationCenter.default.post(name: .chatMessageDidSync, object: nil, userInfo: ["channelId": channelId])
-                }
-            } catch {
-                // Silent fail - already returned cached data
-            }
-        }
-    }
-
-    // MARK: - Sending Messages
-
-    /// Send a chat message (local-first with optimistic update)
-    func sendMessage(
-        channelId: String,
-        content: String,
-        type: Comment.CommentType = .TEXT,
-        fileId: String? = nil,
-        replyToId: String? = nil,
-        authorId: String? = nil
-    ) async throws -> ChatMessage {
-        let tempId = "temp_\(UUID().uuidString)"
-        let clientRequestId = UUID().uuidString
-
-        // Look up attachment info for temp fileIds
-        var secureFiles: [SecureFile]? = nil
-        if let tempFileId = fileId, tempFileId.hasPrefix("temp_") {
-            if let pending = AttachmentService.shared.pendingUploads[tempFileId] {
-                let secureFile = SecureFile(
-                    id: tempFileId,
-                    name: pending.fileName,
-                    size: pending.fileSize,
-                    mimeType: pending.mimeType
-                )
-                secureFiles = [secureFile]
-            }
-        }
-
-        let optimisticMessage = ChatMessage(
-            id: tempId,
-            channelId: channelId,
-            authorId: authorId,
-            author: nil,
-            content: content,
-            type: type,
-            replyToId: replyToId,
-            clientRequestId: clientRequestId,
-            secureFiles: secureFiles,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
-        // Save to CoreData with pending status
-        let savedFileId = fileId
-        let savedContent = content
-        let savedType = type.rawValue
-        let savedReplyToId = replyToId
-
-        var secureFilesJson: String? = nil
-        if let files = secureFiles, !files.isEmpty {
-            if let jsonData = try? JSONEncoder().encode(files),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                secureFilesJson = jsonString
-            }
-        }
-
-        do {
-            try await coreDataManager.saveInBackground { context in
-                let cdMessage = CDChatMessage(context: context)
-                cdMessage.id = tempId
-                cdMessage.channelId = channelId
-                cdMessage.content = savedContent
-                cdMessage.type = savedType
-                cdMessage.authorId = authorId
-                cdMessage.replyToId = savedReplyToId
-                cdMessage.clientRequestId = clientRequestId
-                cdMessage.createdAt = Date()
-                cdMessage.updatedAt = Date()
-                cdMessage.syncStatus = "pending"
-                cdMessage.pendingOperation = "create"
-                cdMessage.syncAttempts = 0
-                cdMessage.pendingFileId = savedFileId
-                cdMessage.secureFilesData = secureFilesJson
-            }
-            await updatePendingOperationsCount()
-        } catch {
-            logger.error("Failed to save pending chat message: \(error.localizedDescription, privacy: .public)")
-        }
-
-        // Update in-memory cache
-        if cachedMessages[channelId] == nil {
-            cachedMessages[channelId] = []
-        }
-        cachedMessages[channelId]?.append(optimisticMessage)
-
-        // Hand the send to the Outbox (authoritative). The clientRequestId
-        // dedupes server-side (ChatMessage.clientRequestId is unique).
-        let chatPayload = SendChatMessageOutboxPayload(
-            channelId: channelId,
-            content: content,
-            type: type.rawValue,
-            fileId: fileId,
-            replyToId: replyToId
-        )
-        // A message with a staged attachment becomes an upload→send dependency
-        // chain so the Outbox owns the upload and the send waits for the real
-        // fileId from its dependency's result.
-        if let temp = fileId, temp.hasPrefix("temp_"),
-           let pending = AttachmentService.shared.pendingUploads[temp] {
-            await OutboxManager.shared.enqueueChatMessage(
-                chatPayload,
-                clientRequestId: clientRequestId,
-                attachment: UploadAttachmentOutboxPayload(
-                    localPath: pending.localPath,
-                    fileName: pending.fileName,
-                    mimeType: pending.mimeType,
-                    context: pending.uploadContext
-                ),
-                attachmentClientRequestId: temp
-            )
-        } else {
-            await OutboxManager.shared.enqueueChatMessage(chatPayload, clientRequestId: clientRequestId)
-        }
-
-        return optimisticMessage
-    }
-
-    /// Delete a chat message (local-first with optimistic update)
-    func deleteMessage(id: String, channelId: String) async throws {
-        // Remove from memory cache
-        if let index = cachedMessages[channelId]?.firstIndex(where: { $0.id == id }) {
-            cachedMessages[channelId]?.remove(at: index)
-        }
-
-        // Mark as pending delete in CoreData
-        _Concurrency.Task.detached { [weak self] in
-            guard let self = self else { return }
-            do {
-                try await self.coreDataManager.saveInBackground { context in
-                    guard let cdMessage = try CDChatMessage.fetchById(id, context: context) else { return }
-                    cdMessage.syncStatus = "pending_delete"
-                    cdMessage.pendingOperation = "delete"
-                    cdMessage.syncAttempts = 0
-                }
-                await self.updatePendingOperationsCount()
-            } catch {
-                // Silent fail
-            }
-        }
-
-        if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                try? await self?.syncPendingMessages()
-            }
-        }
+        User(id: agent.id, email: agent.email, name: agent.name, image: agent.image, createdAt: nil,
+             defaultDueTime: nil, isPending: nil, isAIAgent: true, aiAgentType: agent.service)
     }
 
     // MARK: - AI Assistant (on-device / agent response)
     //
-    // These wrap AstridAPIClient so views and on-device-AI callers have a
-    // single chat entry point — matches the ChatService contract for regular
-    // messages. `getAIAssistantSettings` is called on every @Astrid send, so
-    // it's cached briefly to avoid a round-trip per message.
+    // `getAIAssistantSettings` is called on every @Astrid send, so it is cached briefly to avoid a
+    // round-trip per message.
 
     private var cachedAIAssistantSettings: (value: AIAssistantSettings, fetchedAt: Date)?
     private let aiAssistantSettingsTTL: TimeInterval = 60
 
-    /// Returns the user's AI assistant settings, using a short in-memory
-    /// cache so the on-device-model gate doesn't re-fetch on every keystroke.
+    /// The user's AI assistant settings, from a short in-memory cache so the on-device-model gate
+    /// does not re-fetch on every keystroke.
     func getAIAssistantSettings() async throws -> AIAssistantSettings {
         if let cached = cachedAIAssistantSettings,
            Date().timeIntervalSince(cached.fetchedAt) < aiAssistantSettingsTTL {
@@ -595,331 +271,37 @@ class ChatService: ObservableObject {
         return settings
     }
 
-    /// Invalidate the AI-assistant-settings cache (e.g., after the user
-    /// changes the model in settings).
+    /// Invalidate the AI-assistant-settings cache (e.g., after the user changes the model).
     func invalidateAIAssistantSettingsCache() {
         cachedAIAssistantSettings = nil
     }
 
-    /// Update the user's AI-assistant settings through the chat service
-    /// boundary, then refresh the short-lived settings cache.
+    /// Update the user's AI-assistant settings, then refresh the short-lived cache.
     @discardableResult
     func updateAIAssistantSettings(
         defaultAgentId: String? = nil,
         preferredService: String? = nil
     ) async throws -> AIAssistantSettings {
-        let settings = try await apiClient.updateAIAssistantSettings(
-            defaultAgentId: defaultAgentId,
-            preferredService: preferredService
-        )
+        let settings = try await AstridAPIClient.shared.updateAIAssistantSettings(
+            defaultAgentId: defaultAgentId, preferredService: preferredService)
         cachedAIAssistantSettings = (settings, Date())
         return settings
     }
 
     /// Post an on-device AI agent's response to a chat channel.
     func postAgentResponse(channelId: String, content: String) async throws {
-        try await AstridAPIClient.shared.postAgentResponse(channelId: channelId, content: content)
+        try await core.run(CoreCommand(kind: "postAgentResponse", [
+            "channelId": .value(channelId), "content": .value(content),
+        ]))
     }
 
     /// Ask the server to answer as Astrid when this device cannot (task 9dce4c73).
     func requestServerAstridResponse(channelId: String, messageId: String?, content: String) async throws {
-        try await AstridAPIClient.shared.requestServerAstridResponse(
-            channelId: channelId, messageId: messageId, content: content)
-    }
-
-    // MARK: - SSE Event Handling
-
-    /// Handle a new message from SSE
-    func handleMessageCreated(_ message: ChatMessage, channelId: String) {
-        // Deduplicate: if this message matches a pending message's clientRequestId, replace the temp
-        if let clientRequestId = message.clientRequestId,
-           let messages = cachedMessages[channelId],
-           let index = messages.firstIndex(where: { $0.clientRequestId == clientRequestId && $0.id.hasPrefix("temp_") }) {
-            // Replace optimistic message with server version
-            cachedMessages[channelId]?[index] = message
-            logger.notice("💬 SSE: Replaced temp message with server version (clientRequestId: \(clientRequestId.prefix(8), privacy: .public))")
-
-            // Update CoreData: remove temp, save real
-            let tempId = messages[index].id
-            _Concurrency.Task.detached { [weak self] in
-                guard let self = self else { return }
-                try? await self.coreDataManager.saveInBackground { context in
-                    // Delete the temp entry
-                    if let temp = try CDChatMessage.fetchById(tempId, context: context) {
-                        context.delete(temp)
-                    }
-                    // Save the real entry
-                    let cdMessage = CDChatMessage(context: context)
-                    cdMessage.id = message.id
-                    cdMessage.update(from: message)
-                    cdMessage.channelId = channelId
-                    cdMessage.syncStatus = "synced"
-                    cdMessage.lastSyncedAt = Date()
-                }
-                await self.updatePendingOperationsCount()
-            }
-            return
-        }
-
-        // Check if message already exists (avoid duplicates)
-        if let messages = cachedMessages[channelId],
-           messages.contains(where: { $0.id == message.id }) {
-            return
-        }
-
-        // Add new message
-        if cachedMessages[channelId] == nil {
-            cachedMessages[channelId] = []
-        }
-        cachedMessages[channelId]?.append(message)
-        cachedMessages[channelId]?.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-
-        // Save to CoreData
-        _Concurrency.Task.detached { [weak self] in
-            guard let self = self else { return }
-            try? await self.coreDataManager.saveInBackground { context in
-                let cdMessage = CDChatMessage(context: context)
-                cdMessage.id = message.id
-                cdMessage.update(from: message)
-                cdMessage.channelId = channelId
-                cdMessage.syncStatus = "synced"
-                cdMessage.lastSyncedAt = Date()
-            }
-        }
-    }
-
-    /// Handle a message update from SSE
-    func handleMessageUpdated(_ message: ChatMessage, channelId: String) {
-        if let messages = cachedMessages[channelId],
-           let index = messages.firstIndex(where: { $0.id == message.id }) {
-            cachedMessages[channelId]?[index] = message
-        }
-
-        _Concurrency.Task.detached { [weak self] in
-            guard let self = self else { return }
-            try? await self.coreDataManager.saveInBackground { context in
-                if let cdMessage = try CDChatMessage.fetchById(message.id, context: context) {
-                    cdMessage.update(from: message)
-                }
-            }
-        }
-    }
-
-    /// Handle a message deletion from SSE
-    func handleMessageDeleted(_ messageId: String, channelId: String) {
-        if let index = cachedMessages[channelId]?.firstIndex(where: { $0.id == messageId }) {
-            cachedMessages[channelId]?.remove(at: index)
-        }
-
-        _Concurrency.Task.detached { [weak self] in
-            guard let self = self else { return }
-            try? await self.coreDataManager.saveInBackground { context in
-                if let cdMessage = try CDChatMessage.fetchById(messageId, context: context) {
-                    context.delete(cdMessage)
-                }
-            }
-        }
-    }
-
-    // MARK: - Background Sync
-
-    private struct PendingMessageData {
-        let id: String
-        let channelId: String
-        let content: String
-        let type: String
-        let operation: String
-        let pendingFileId: String?
-        let replyToId: String?
-        let clientRequestId: String?
-        let createdAt: Date?
-    }
-
-    func syncPendingMessages() async throws {
-        guard networkMonitor.isConnected else { return }
-
-        let pendingData: [PendingMessageData] = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let messages = try CDChatMessage.fetchPending(context: context)
-                    let extracted = messages.map { cdMessage in
-                        PendingMessageData(
-                            id: cdMessage.id,
-                            channelId: cdMessage.channelId,
-                            content: cdMessage.content,
-                            type: cdMessage.type,
-                            operation: cdMessage.pendingOperation ?? "unknown",
-                            pendingFileId: cdMessage.pendingFileId,
-                            replyToId: cdMessage.replyToId,
-                            clientRequestId: cdMessage.clientRequestId,
-                            createdAt: cdMessage.createdAt
-                        )
-                    }
-                    continuation.resume(returning: extracted)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        guard !pendingData.isEmpty else { return }
-
-        for data in pendingData {
-            do {
-                switch data.operation {
-                case "create":
-                    // Creates are Outbox-owned; deletes stay legacy until they
-                    // get an Outbox kind.
-                    continue
-                case "delete":
-                    try await syncPendingDelete(data)
-                default:
-                    try await markAsFailed(id: data.id, error: "Unknown operation type")
-                }
-            } catch ChatSyncError.attachmentPending {
-                // Will retry automatically
-            } catch {
-                logger.error("Failed to sync chat \(data.operation, privacy: .public): \(error.localizedDescription, privacy: .public)")
-
-                let isPermanent: Bool
-                if case AstridAPIError.httpError(let code, _) = error, [403, 404, 410].contains(code) {
-                    isPermanent = true
-                } else {
-                    isPermanent = false
-                }
-
-                if isPermanent {
-                    try await markAsFailed(id: data.id, error: error.localizedDescription)
-                } else {
-                    try await markAsRetryable(id: data.id, error: error.localizedDescription)
-                }
-            }
-        }
-
-        await updatePendingOperationsCount()
-        NotificationCenter.default.post(name: .chatMessageDidSync, object: nil)
-    }
-
-    /// Reconcile a pending chat message once the Outbox `sendChatMessage` handler
-    /// succeeds. Looked up by clientRequestId (the temp message id and the
-    /// idempotency key differ for chat). Idempotent (resetSyncState leaves
-    /// clientRequestId intact, so a second call no-ops).
-    func reconcileOutboxSentMessage(clientRequestId: String, serverMessage: ChatMessage, channelId: String) async {
-        try? await coreDataManager.saveInBackground { context in
-            guard let cdMessage = try CDChatMessage.fetchByClientRequestId(clientRequestId, context: context) else { return }
-            cdMessage.id = serverMessage.id
-            cdMessage.resetSyncState()
-        }
-        if var channelMessages = cachedMessages[channelId],
-           let index = channelMessages.firstIndex(where: { $0.clientRequestId == clientRequestId }) {
-            channelMessages[index] = serverMessage
-            cachedMessages[channelId] = channelMessages
-        }
-    }
-
-    private func syncPendingDelete(_ data: PendingMessageData) async throws {
-        // Chat message deletion would go through a DELETE API endpoint
-        // For now, just remove from CoreData
-        let messageId = data.id
-        try await coreDataManager.saveInBackground { context in
-            guard let cdMessage = try CDChatMessage.fetchById(messageId, context: context) else { return }
-            context.delete(cdMessage)
-        }
-    }
-
-    private func markAsFailed(id: String, error: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            guard let cdMessage = try CDChatMessage.fetchById(id, context: context) else { return }
-            cdMessage.syncStatus = "failed"
-            cdMessage.syncAttempts = CDChatMessage.maxSyncAttempts
-            cdMessage.syncError = error
-        }
-    }
-
-    private func markAsRetryable(id: String, error: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            guard let cdMessage = try CDChatMessage.fetchById(id, context: context) else { return }
-            cdMessage.recordSyncFailure(error: error)
-        }
-    }
-}
-
-// MARK: - CoreData Persistence
-
-extension ChatService {
-    /// Build the pruning window for a fetch, or nil when the fetch cannot speak for one.
-    ///
-    /// `isFirstPage` means no `before` cursor was sent. Combined with `hasMore == false` that
-    /// makes the response the entire channel, which is the only case where absence anywhere is
-    /// evidence of deletion — see `ChatMessageCachePruner` (AITD-354).
-    private static func prunePage(_ messages: [ChatMessage],
-                                  isFirstPage: Bool,
-                                  hasMore: Bool) -> ChatMessageCachePruner.Page {
-        let dates = messages.compactMap(\.createdAt).sorted()
-        return ChatMessageCachePruner.Page(
-            ids: Set(messages.map(\.id)),
-            oldest: dates.first,
-            newest: dates.last,
-            coversWholeChannel: isFirstPage && !hasMore)
-    }
-
-    private func saveMessagesToCoreData(_ messages: [ChatMessage],
-                                        channelId: String,
-                                        prune page: ChatMessageCachePruner.Page? = nil) async throws {
-        await coreDataManager.waitForStoreLoad()
-
-        try await coreDataManager.saveInBackground { context in
-            let messageIds = messages.map { $0.id }
-            let fetchRequest = CDChatMessage.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id IN %@", messageIds)
-            let existing = try context.fetch(fetchRequest)
-
-            var existingDict = [String: CDChatMessage]()
-            for cdMessage in existing {
-                existingDict[cdMessage.id] = cdMessage
-            }
-
-            for message in messages {
-                if let existingMessage = existingDict[message.id] {
-                    if let existingUpdatedAt = existingMessage.updatedAt,
-                       let messageUpdatedAt = message.updatedAt,
-                       existingUpdatedAt == messageUpdatedAt {
-                        continue  // Skip unchanged
-                    }
-                    existingMessage.update(from: message)
-                    existingMessage.channelId = channelId
-                    existingMessage.syncStatus = "synced"
-                    existingMessage.lastSyncedAt = Date()
-                } else {
-                    let cdMessage = CDChatMessage(context: context)
-                    cdMessage.id = message.id
-                    cdMessage.update(from: message)
-                    cdMessage.channelId = channelId
-                    cdMessage.syncStatus = "synced"
-                    cdMessage.lastSyncedAt = Date()
-                }
-            }
-
-            // Drop what the server no longer has, in the same transaction as the upsert
-            // (AITD-354). The RULE is `ChatMessageCachePruner` rather than a condition written
-            // here, because the dangerous halves — never taking an undelivered write, and never
-            // taking history that is merely outside this page's window — are asserted there.
-            guard let page else { return }
-            let channelRequest = CDChatMessage.fetchRequest()
-            channelRequest.predicate = NSPredicate(format: "channelId == %@", channelId)
-            let cachedForChannel = try context.fetch(channelRequest)
-            let stale = Set(ChatMessageCachePruner.idsToPrune(
-                page: page,
-                cached: cachedForChannel.map {
-                    ChatMessageCachePruner.CachedRow(id: $0.id,
-                                                     syncStatus: $0.syncStatus,
-                                                     createdAt: $0.createdAt)
-                }))
-            guard !stale.isEmpty else { return }
-            for cdMessage in cachedForChannel where stale.contains(cdMessage.id) {
-                context.delete(cdMessage)
-            }
-        }
+        var command = CoreCommand(kind: "requestAstridResponse", [
+            "channelId": .value(channelId), "content": .value(content),
+        ])
+        command.set("messageId", messageId)
+        try await core.run(command)
     }
 }
 

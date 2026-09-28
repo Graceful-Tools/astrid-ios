@@ -29,7 +29,7 @@ enum MacWakeRecovery {
                 guard shouldReconnect(isAuthenticated: AuthManager.shared.isAuthenticated,
                                       isOfflineOnly: ConnectionModeManager.shared.isOfflineOnly) else { return }
                 AppLog.debug("☀️ [Wake] Reviving live updates after sleep")
-                await SSEClient.shared.reconnectNow()
+                AppCore.shared.reconnectStream()
                 try? await SyncManager.shared.performQuickSync()
             }
         }

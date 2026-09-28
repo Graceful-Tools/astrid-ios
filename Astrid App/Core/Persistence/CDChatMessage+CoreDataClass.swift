@@ -122,43 +122,6 @@ extension CDChatMessage {
         return try context.fetch(request).first
     }
 
-    static func fetchByChannelId(_ channelId: String, context: NSManagedObjectContext) throws -> [CDChatMessage] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "channelId == %@", channelId)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    static func fetchByClientRequestId(_ clientRequestId: String, context: NSManagedObjectContext) throws -> CDChatMessage? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "clientRequestId == %@", clientRequestId)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    /// Fetch all pending messages (create/delete operations; excludes permanently failed)
-    static func fetchPending(context: NSManagedObjectContext) throws -> [CDChatMessage] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "syncStatus IN %@",
-            ["pending", "pending_delete"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    /// Fetch pending messages for a specific channel (excludes permanently failed)
-    static func fetchPendingForChannel(_ channelId: String, context: NSManagedObjectContext) throws -> [CDChatMessage] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "channelId == %@ AND syncStatus IN %@",
-            channelId,
-            ["pending", "pending_delete"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
     // MARK: - Retry Policy
 
     /// Maximum retry attempts before giving up
@@ -181,16 +144,6 @@ extension CDChatMessage {
         guard !shouldGiveUp else { return false }
         guard let lastAttempt = lastSyncAttemptAt else { return true }
         return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Record a failed sync attempt
-    func recordSyncFailure(error: String) {
-        syncAttempts += 1
-        lastSyncAttemptAt = Date()
-        syncError = error
-        if shouldGiveUp {
-            syncStatus = "failed"
-        }
     }
 
     /// Reset retry state after successful sync

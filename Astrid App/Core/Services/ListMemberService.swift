@@ -1,17 +1,27 @@
-import Foundation
+import AstridCore
 import Combine
-import CoreData
+import Foundation
 
-/// Local-first service for managing list members
-/// Implements optimistic updates with background synchronization
-/// Follows the same pattern as CommentService (Phase 1)
+/// Who a list is shared with, and every way to change it — through astrid-core.
+///
+/// A membership change is a question the server answers (there may be no such person, or this
+/// account may not be allowed), so the core sends it at once and a refusal comes back as an error
+/// with nothing changed. Only when the network is what failed does the core queue it, show it in
+/// its cache, and send it when the connection returns — a queued invitation as a pending
+/// invitation, never as a member (astrid-core `services::members`, CONTRACTS D31).
+///
+/// The roster lives on the cached list (`TaskList.listMembers` / `invitations`); this service
+/// keeps the per-list rows the views bind to, drawn from there, plus the in-flight placeholder a
+/// view shows while the server is being asked (task 33fc21fc).
 @MainActor
 class ListMemberService: ObservableObject {
     static let shared = ListMemberService()
 
-    // Published state
-    @Published var members: [User] = [] // Legacy format for backward compatibility
-    @Published var membersByList: [String: [ListMember]] = [:] // New local-first cache
+    /// The people on whichever list was fetched last, for the older screens that read one roster.
+    @Published var members: [User] = []
+    /// listId → its rows: members, then invitations waiting (ids `invite_…`, or `temp_…` while an
+    /// invitation made offline is still queued).
+    @Published var membersByList: [String: [ListMember]] = [:]
     /// The caller's role per list, as the server reported it (Task 4a338b53). "viewer" means a
     /// non-member looking at a PUBLIC list, where the roster comes back EMPTY rather than 403 —
     /// so an empty list means "not shown to you", not "nobody here". See `ListMemberVisibility`.
@@ -21,230 +31,177 @@ class ListMemberService: ObservableObject {
     @Published var pendingOperationsCount: Int = 0
     @Published var failedOperationsCount: Int = 0
 
-    /// Which list the legacy flat `members` array currently reflects. An optimistic
-    /// edit to some OTHER list must not rewrite it — that would blank the roster on
-    /// whatever screen is open (task 33fc21fc).
+    /// Which list the flat `members` array reflects. An edit to some OTHER list must not rewrite
+    /// it — that would blank the roster on whatever screen is open (task 33fc21fc).
     private var membersReflectListId: String?
 
-    // Dependencies
-    private let apiClient = AstridAPIClient.shared
-    private let coreDataManager = CoreDataManager.shared
-    private let networkMonitor = NetworkMonitor.shared
-    private var networkObserver: NSObjectProtocol?
+    private var core: CoreSession { AppCore.shared.session }
 
-    private init() {
-        setupNetworkObserver()
+    private init() {}
 
-        _Concurrency.Task {
-            await updatePendingOperationsCount()
-        }
-    }
+    // MARK: - Reading
 
-    deinit {
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
-    // MARK: - Network Observer
-
-    private func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                AppLog.debug("🌐 [ListMemberService] Network restored, triggering sync...")
-                try? await self?.syncPendingOperations()
-            }
-        }
-    }
-
-    // MARK: - Pending Operations Count
-
-    private func updatePendingOperationsCount() async {
-        do {
-            let pending: [CDMember] = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let items = try CDMember.fetchPending(context: context)
-                        continuation.resume(returning: items)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-            pendingOperationsCount = pending.count
-            AppLog.debug("📊 [ListMemberService] Pending operations: \(pendingOperationsCount)")
-        } catch {
-            AppLog.debug("❌ [ListMemberService] Failed to count pending operations: \(error)")
-        }
-    }
-
-    // MARK: - Legacy Fetch (Blocking - for backward compatibility)
-
-    /// Legacy fetch method - loads from server and updates cache
-    /// Use fetchMembersLocalFirst() for new code
+    /// Ask the server for the roster, and show it. Offline, what the cache holds is shown and the
+    /// error is thrown.
     func fetchMembers(listId: String) async throws {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-
+        struct Roster: Decodable { let viewerRole: String? }
         do {
-            AppLog.debug("📡 [ListMemberService] Fetching members for list: \(listId)")
-            let response = try await apiClient.getListMembers(listId: listId)
-            if let role = response.userRole { viewerRoleByList[listId] = role }
-
-            // Filter out invite-type entries and deduplicate by ID
-            let activeMembers = response.members.filter { $0.type != "invite" }
-            var seenIds = Set<String>()
-            membersReflectListId = listId
-            members = activeMembers.compactMap { memberData -> User? in
-                guard seenIds.insert(memberData.id).inserted else {
-                    AppLog.debug("⚠️ [ListMemberService] Skipping duplicate member: \(memberData.name ?? "unknown") (id: \(memberData.id))")
-                    return nil
-                }
-                return User(
-                    id: memberData.id,
-                    email: memberData.email,
-                    name: memberData.name,
-                    image: memberData.image
-                )
-            }
-            AppLog.debug("👥 [ListMemberService] Members: \(members.map { "\($0.displayName) (id: \($0.id), email: \(AppLog.redact(email: $0.email)))" })")
-            let inviteCount = response.members.filter { $0.type == "invite" }.count
-            if inviteCount > 0 {
-                AppLog.debug("📨 [ListMemberService] Filtered out \(inviteCount) pending invitations")
-            }
-
-            // Convert to ListMember objects (new format)
-            let listMembers = response.members.map { memberData in
-                ListMember(
-                    id: memberData.id,
-                    listId: listId,
-                    userId: memberData.id,
-                    role: memberData.role,
-                    createdAt: nil,
-                    updatedAt: nil,
-                    user: User(
-                        id: memberData.id,
-                        email: memberData.email,
-                        name: memberData.name,
-                        image: memberData.image
-                    )
-                )
-            }
-
-            membersByList[listId] = listMembers
-
-            // Save to Core Data cache
-            try await saveToCache(listId: listId, members: listMembers)
-
-            AppLog.debug("✅ [ListMemberService] Fetched \(members.count) members")
+            let roster = try await core.run(
+                CoreCommand(kind: "refreshListMembers", ["listId": .value(listId)]), as: Roster.self)
+            if let role = roster.viewerRole { viewerRoleByList[listId] = role }
+            await show(listId: listId, reflect: true)
         } catch {
-            AppLog.debug("❌ [ListMemberService] Failed to fetch members: \(error)")
             errorMessage = error.localizedDescription
-
-            // Load from cache on error (offline support)
-            await loadFromCache(listId: listId)
+            await show(listId: listId, reflect: true)
             throw error
         }
     }
 
-    // MARK: - Local-First Fetch
-
-    /// Local-first fetch: Returns cached data immediately, syncs in background
+    /// The cache at once, then the server's roster in the background.
     func fetchMembersLocalFirst(listId: String) async {
-        AppLog.debug("⚡️ [ListMemberService] Local-first fetch for list: \(listId)")
+        await show(listId: listId, reflect: true)
+        _Concurrency.Task { try? await self.fetchMembers(listId: listId) }
+    }
 
-        // 1. Load from cache immediately
-        await loadFromCache(listId: listId)
-
-        // 2. Fetch from server in background (if online)
-        if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                do {
-                    try await self?.fetchMembers(listId: listId)
-                } catch {
-                    AppLog.debug("⚠️ [ListMemberService] Background fetch failed (non-critical): \(error)")
-                }
-            }
+    /// Draw `listId`'s rows from the core's cached list.
+    private func show(listId: String, reflect: Bool = false) async {
+        await ListService.shared.reload()
+        guard let list = ListService.shared.getList(id: listId) else { return }
+        let rows = Self.rows(for: list)
+        membersByList[listId] = rows
+        if reflect { membersReflectListId = listId }
+        if membersReflectListId == listId {
+            members = rows.filter { !Self.isInvitation($0.id) }.compactMap(\.user)
         }
     }
 
-    // MARK: - Cache Management
-
-    private func loadFromCache(listId: String) async {
-        do {
-            let cdMembers: [CDMember] = try await withCheckedThrowingContinuation { continuation in
-                coreDataManager.persistentContainer.performBackgroundTask { context in
-                    do {
-                        let request = CDMember.fetchRequest()
-                        request.predicate = NSPredicate(format: "listId == %@", listId)
-                        let results = try context.fetch(request)
-                        continuation.resume(returning: results)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-
-            let listMembers = cdMembers.map { $0.toDomainModel() }
-            membersByList[listId] = listMembers
-
-            // Update legacy members array (for backward compatibility)
-            membersReflectListId = listId
-            members = listMembers.compactMap { $0.user }
-
-            AppLog.debug("✅ [ListMemberService] Loaded \(listMembers.count) members from cache")
-        } catch {
-            AppLog.debug("❌ [ListMemberService] Failed to load from cache: \(error)")
+    /// A list's rows as the views draw them: its members, then the invitations waiting.
+    static func rows(for list: TaskList) -> [ListMember] {
+        let people = list.listMembers ?? []
+        let invited = (list.invitations ?? []).map { invite in
+            let id = ListMemberOptimistic.isPlaceholder(invite.id) ? invite.id : "invite_\(invite.id)"
+            return ListMember(id: id, listId: list.id, userId: id, role: invite.role,
+                              createdAt: invite.createdAt, updatedAt: nil,
+                              user: User(id: id, email: invite.email, name: nil, image: nil, isPending: true))
         }
+        return people + invited
     }
 
-    private func saveToCache(listId: String, members: [ListMember]) async throws {
-        try await coreDataManager.saveInBackground { context in
-            // Remove old cached members for this list
-            let fetchRequest = CDMember.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "listId == %@", listId)
-            let oldMembers = try context.fetch(fetchRequest)
-            oldMembers.forEach { context.delete($0) }
-
-            // Save new members
-            for member in members {
-                let cdMember = CDMember(context: context)
-                cdMember.id = member.id
-                cdMember.listId = member.listId ?? listId
-                cdMember.userId = member.userId
-                cdMember.role = member.role
-                cdMember.syncStatus = "synced"
-                cdMember.lastSyncedAt = Date()
-            }
-        }
-
-        AppLog.debug("💾 [ListMemberService] Saved \(members.count) members to cache")
+    private static func isInvitation(_ id: String) -> Bool {
+        id.hasPrefix("invite_") || ListMemberOptimistic.isPlaceholder(id)
     }
 
-    // MARK: - CRUD Operations (Optimistic)
+    // MARK: - Changing
 
-    // MARK: - Optimistic state plumbing (task 33fc21fc)
+    /// What the core answers a membership change with.
+    private struct Change: Decodable {
+        let queued: Bool
+        let member: ListMember?
+        let invitation: ListInvite?
+    }
 
-    /// Apply a membership edit to BOTH in-memory rosters and the cached list, so the
-    /// change is on screen before the network is asked about it.
+    /// Invite someone, or add them outright if they already have an account.
     ///
-    /// This is what the online paths were missing. They awaited the round-trip and
-    /// never touched `membersByList`, so adding or removing someone did nothing
-    /// visible until a later `fetchLists()` landed — which is the whole of task
-    /// 33fc21fc. `ListMemberOptimistic` owns what each edit means; this only decides
-    /// where the result is written.
-    private func applyMemberChange(listId: String, _ transform: ([ListMember]) -> [ListMember]) {
+    /// A placeholder row shows while the server is asked. The answer is the member it made, or a
+    /// stub for an invitation waiting (`invite_…`) or queued offline (`temp_…`); a refusal takes
+    /// the placeholder back off and is thrown.
+    func addMember(listId: String, email: String, role: String = "member") async throws -> ListMember {
+        let placeholderId = ListMemberOptimistic.newPlaceholderId()
+        let placeholder = ListMemberOptimistic.placeholder(id: placeholderId, listId: listId, email: email, role: role)
+        applyOptimistic(listId: listId) { ListMemberOptimistic.applyingAdd($0, member: placeholder) }
+
+        let change: Change
+        do {
+            change = try await core.run(
+                CoreCommand(kind: "inviteToList", [
+                    "listId": .value(listId), "email": .value(email), "role": .value(role),
+                ]),
+                as: Change.self)
+        } catch {
+            applyOptimistic(listId: listId) { ListMemberOptimistic.applyingRemoval($0, memberId: placeholderId) }
+            throw error
+        }
+        await show(listId: listId)
+        refreshOutboxCounts()
+        if let member = change.member { return member }
+        let stubId = change.queued
+            ? (change.invitation?.id ?? placeholderId)
+            : "invite_\(change.invitation?.id ?? placeholderId)"
+        return ListMember(id: stubId, listId: listId, userId: stubId, role: role,
+                          createdAt: Date(), updatedAt: Date(), user: placeholder.user)
+    }
+
+    /// Change a member's role — at once on screen, reverted if the server refuses.
+    func updateMemberRole(listId: String, userId: String, role: String) async throws {
+        try await change(listId: listId,
+                         optimistic: { ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: role) },
+                         CoreCommand(kind: "setMemberRole", [
+                            "listId": .value(listId), "userId": .value(userId), "role": .value(role),
+                         ]))
+    }
+
+    /// Remove a member — at once on screen, restored if the server refuses.
+    func removeMember(listId: String, userId: String) async throws {
+        try await change(listId: listId,
+                         optimistic: { ListMemberOptimistic.applyingRemoval($0, userId: userId) },
+                         CoreCommand(kind: "removeMember", ["listId": .value(listId), "userId": .value(userId)]))
+    }
+
+    /// Withdraw an invitation not yet accepted. Addressed by EMAIL: an unaccepted invitation has no
+    /// user to name (AITD-388).
+    func cancelInvitation(listId: String, invitationId: String, email: String) async throws {
+        try await change(listId: listId,
+                         optimistic: { $0.filter { !Self.isRow($0, invitation: invitationId) } },
+                         CoreCommand(kind: "cancelInvitation", ["listId": .value(listId), "email": .value(email)]))
+    }
+
+    /// Change an invitation's role before it is accepted — the invitation twin of
+    /// `updateMemberRole`, which addresses a member by user id an invitation does not have.
+    func updateInvitationRole(listId: String, invitationId: String, email: String, role: String) async throws {
+        try await change(listId: listId,
+                         optimistic: { rows in
+                             rows.map { row in
+                                 guard Self.isRow(row, invitation: invitationId) else { return row }
+                                 return ListMember(id: row.id, listId: row.listId, userId: row.userId, role: role,
+                                                   createdAt: row.createdAt, updatedAt: Date(), user: row.user)
+                             }
+                         },
+                         CoreCommand(kind: "setInvitationRole", [
+                            "listId": .value(listId), "email": .value(email), "role": .value(role),
+                         ]))
+    }
+
+    private static func isRow(_ row: ListMember, invitation invitationId: String) -> Bool {
+        row.id == invitationId || row.id == "invite_\(invitationId)"
+    }
+
+    /// One change: shown at once, then the core's answer — the cache it leaves behind, or the
+    /// rows as they were and the refusal thrown.
+    private func change(listId: String, optimistic: ([ListMember]) -> [ListMember], _ command: CoreCommand) async throws {
+        let before = membersByList[listId]
+        let listBefore = ListService.shared.getList(id: listId)
+        applyOptimistic(listId: listId, optimistic)
+        do {
+            _ = try await core.run(command, as: Change.self)
+        } catch {
+            if let before { membersByList[listId] = before }
+            if let listBefore { ListService.shared.restoreCachedList(listId: listId, from: listBefore) }
+            throw error
+        }
+        await show(listId: listId)
+        refreshOutboxCounts()
+    }
+
+    /// Show a change before anyone has answered: on this service's rows and on the cached list
+    /// every other screen reads.
+    private func applyOptimistic(listId: String, _ transform: ([ListMember]) -> [ListMember]) {
         let updated = transform(membersByList[listId] ?? [])
         membersByList[listId] = updated
-        // `members` is the legacy flat roster and belongs to whichever list was
-        // fetched last; refreshing it for a different list would blank that screen.
         if membersReflectListId == listId {
-            members = updated.compactMap { $0.user }
+            members = updated.filter { !Self.isInvitation($0.id) }.compactMap(\.user)
         }
         ListService.shared.applyMemberChange(listId: listId) { list in
             var mirrored = list
@@ -253,477 +210,29 @@ class ListMemberService: ObservableObject {
         }
     }
 
-    /// Add a member to a list.
-    ///
-    /// Optimistic in every case (task 33fc21fc): a placeholder row appears
-    /// immediately, then the server's answer replaces it — or, when the server
-    /// queued an invitation instead, the placeholder STAYS as the pending row. A
-    /// failure rolls the placeholder back off.
-    ///
-    /// Offline additionally writes a pending `CDMember` so the add survives a
-    /// relaunch and `syncPendingOperations` can finish it on reconnect.
-    ///
-    /// The earlier inline-CDMember variant had two problems, and neither is
-    /// reachable here because the reconciliation is in-memory only:
-    ///   1. Trying to update a pending CDMember's `id` and `userId` to the
-    ///      server-issued values could conflict with CoreData's identity
-    ///      model and surface as a throw *after* the API had already
-    ///      succeeded — so the user saw an error even though the add
-    ///      landed on the server.
-    ///   2. If that reconciliation throw triggered the rollback, the
-    ///      pending CDMember was deleted, masking a successful add.
-    func addMember(listId: String, email: String, role: String = "member") async throws -> ListMember {
-        AppLog.debug("⚡️ [ListMemberService] Adding member: \(AppLog.redact(email: email)) (online: \(networkMonitor.isConnected))")
+    // MARK: - Delivery
 
-        let placeholderId = ListMemberOptimistic.newPlaceholderId()
-        let placeholder = ListMemberOptimistic.placeholder(
-            id: placeholderId, listId: listId, email: email, role: role
-        )
-        applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingAdd($0, member: placeholder)
-        }
-        ListService.shared.applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingAdd($0, member: placeholder)
-        }
-
-        guard networkMonitor.isConnected else {
-            // Offline: the placeholder is the answer. Persist it so the add
-            // survives a relaunch.
-            try? await coreDataManager.saveInBackground { context in
-                let cdMember = CDMember(context: context)
-                cdMember.id = placeholderId
-                cdMember.listId = listId
-                cdMember.userId = placeholderId
-                cdMember.role = role
-                cdMember.syncStatus = "pending"
-                cdMember.pendingOperation = "create"
-                cdMember.syncAttempts = 0
-                cdMember.pendingRole = email
-            }
-            await updatePendingOperationsCount()
-            return placeholder
-        }
-
-        do {
-            let response = try await apiClient.addListMember(listId: listId, email: email, role: role)
-            let confirmed = response.member.map { memberData in
-                ListMember(
-                    id: memberData.id,
-                    listId: listId,
-                    userId: memberData.id,
-                    role: memberData.role,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    user: User(
-                        id: memberData.id,
-                        email: memberData.email,
-                        name: memberData.name,
-                        image: memberData.image
-                    )
-                )
-            }
-            applyMemberChange(listId: listId) {
-                ListMemberOptimistic.reconcilingAdd($0, placeholderId: placeholderId, confirmed: confirmed)
-            }
-            ListService.shared.applyMemberChange(listId: listId) {
-                ListMemberOptimistic.reconcilingAdd($0, placeholderId: placeholderId, confirmed: confirmed)
-            }
-            if let confirmed { return confirmed }
-
-            // Invitation-only response: the server queued an email but the person
-            // hasn't joined. The placeholder stays on screen as the pending row;
-            // `invite_` tells the caller it is not a real membership yet.
-            return ListMember(
-                id: "invite_\(placeholderId)", listId: listId, userId: placeholderId, role: role,
-                createdAt: Date(), updatedAt: Date(),
-                user: placeholder.user
-            )
-        } catch {
-            AppLog.debug("⚠️ [ListMemberService] Add failed, rolling back \(AppLog.redact(email: email)): \(error)")
-            applyMemberChange(listId: listId) {
-                ListMemberOptimistic.applyingRemoval($0, memberId: placeholderId)
-            }
-            ListService.shared.applyMemberChange(listId: listId) {
-                ListMemberOptimistic.applyingRemoval($0, memberId: placeholderId)
-            }
-            throw error
-        }
-    }
-
-    /// Update a member's role.
-    ///
-    /// The new role shows immediately and is reverted if the server refuses
-    /// (task 33fc21fc). Offline writes a pending CDMember so `syncPendingOperations`
-    /// can push the change on reconnect.
-    func updateMemberRole(listId: String, userId: String, role: String) async throws {
-        AppLog.debug("✏️ [ListMemberService] Updating member role: \(userId) → \(role) (online: \(networkMonitor.isConnected))")
-
-        let previousRole = membersByList[listId]?
-            .first { $0.userId == userId || $0.user?.id == userId }?.role
-        applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: role)
-        }
-        ListService.shared.applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: role)
-        }
-
-        guard networkMonitor.isConnected else {
-            // Offline: persist the pending role change.
-            try? await coreDataManager.saveInBackground { context in
-                guard let cdMember = try CDMember.fetchById(userId, context: context) else { return }
-                cdMember.pendingRole = role
-                cdMember.syncStatus = "pending_update"
-                cdMember.pendingOperation = "update"
-                cdMember.syncAttempts = 0
-            }
-            await updatePendingOperationsCount()
-            return
-        }
-
-        do {
-            _ = try await apiClient.updateListMember(listId: listId, userId: userId, role: role)
-        } catch {
-            AppLog.debug("⚠️ [ListMemberService] Role change failed, reverting \(userId): \(error)")
-            if let previousRole {
-                applyMemberChange(listId: listId) {
-                    ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: previousRole)
-                }
-                ListService.shared.applyMemberChange(listId: listId) {
-                    ListMemberOptimistic.applyingRoleChange($0, userId: userId, role: previousRole)
-                }
-            }
-            throw error
-        }
-    }
-
-    /// Remove a member from a list.
-    ///
-    /// The row disappears immediately and comes back if the server refuses
-    /// (task 33fc21fc). Offline marks the CDMember `pending_delete` so the removal
-    /// lands when the network returns.
-    func removeMember(listId: String, userId: String) async throws {
-        AppLog.debug("🗑️ [ListMemberService] Removing member: \(userId) (online: \(networkMonitor.isConnected))")
-
-        let removed = membersByList[listId]?
-            .first { $0.userId == userId || $0.user?.id == userId || $0.id == userId }
-        let originalList = ListService.shared.lists.first { $0.id == listId }
-        applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingRemoval($0, userId: userId)
-        }
-        ListService.shared.applyMemberChange(listId: listId) {
-            ListMemberOptimistic.applyingRemoval($0, userId: userId)
-        }
-
-        guard networkMonitor.isConnected else {
-            // Offline: mark pending_delete; syncPendingOperations finishes it.
-            try? await coreDataManager.saveInBackground { context in
-                guard let cdMember = try CDMember.fetchById(userId, context: context) else { return }
-                cdMember.syncStatus = "pending_delete"
-                cdMember.pendingOperation = "delete"
-                cdMember.syncAttempts = 0
-            }
-            await updatePendingOperationsCount()
-            return
-        }
-
-        do {
-            _ = try await apiClient.removeListMember(listId: listId, userId: userId)
-        } catch {
-            AppLog.debug("⚠️ [ListMemberService] Remove failed, restoring \(userId): \(error)")
-            if let removed {
-                applyMemberChange(listId: listId) {
-                    ListMemberOptimistic.applyingAdd($0, member: removed)
-                }
-            }
-            if let originalList {
-                ListService.shared.restoreCachedList(listId: listId, from: originalList)
-            }
-            throw error
-        }
-    }
-
-    /// Cancel a pending invitation by email (optimistic).
-    ///
-    /// Invitations live on the `List.invitations` collection, not in CDMember,
-    /// so the optimistic update is a cached-list edit rather than a CDMember
-    /// pending-op. On network failure the invitation is restored to the list.
-    ///
-    /// Returns immediately so the view can hide the invitation row without
-    /// waiting on the server.
-    func cancelInvitation(listId: String, invitationId: String, email: String) async throws {
-        AppLog.debug("🗑️ [ListMemberService] Cancelling invitation (optimistic): \(AppLog.redact(email: email))")
-
-        // 1. Capture the list snapshot for rollback.
-        guard let index = ListService.shared.lists.firstIndex(where: { $0.id == listId }) else {
-            // List not cached — just hit the API.
-            _ = try await apiClient.cancelInvitation(listId: listId, email: email)
-            return
-        }
-        let originalList = ListService.shared.lists[index]
-
-        // 2. Optimistic update.
-        var updatedList = originalList
-        updatedList.invitations?.removeAll { $0.id == invitationId }
-        ListService.shared.lists[index] = updatedList
-
-        // 3. API call in background; restore on failure.
-        do {
-            _ = try await apiClient.cancelInvitation(listId: listId, email: email)
-            AppLog.debug("✅ [ListMemberService] Invitation cancelled for \(AppLog.redact(email: email))")
-        } catch {
-            AppLog.debug("⚠️ [ListMemberService] Cancel failed, restoring invitation: \(error)")
-            if let idx = ListService.shared.lists.firstIndex(where: { $0.id == listId }) {
-                ListService.shared.lists[idx] = originalList
-            }
-            throw error
-        }
-    }
-
-    /// Change a pending invitation's role (optimistic).
-    ///
-    /// The invitation twin of `updateMemberRole`. It cannot reuse that one: a member is addressed
-    /// by `userId` at `/members/{userId}`, and an unaccepted invitation has no userId to address
-    /// — which is exactly the confusion that made the Mac's role picker call the wrong endpoint
-    /// for pending rows (AITD-388).
-    ///
-    /// Like `cancelInvitation`, the optimistic write is a cached-list edit rather than a CDMember
-    /// pending-op, because invitations live on `List.invitations`.
-    func updateInvitationRole(listId: String, invitationId: String, email: String, role: String) async throws {
-        AppLog.debug("✉️ [ListMemberService] Updating invitation role (optimistic): \(AppLog.redact(email: email)) → \(role)")
-
-        guard let index = ListService.shared.lists.firstIndex(where: { $0.id == listId }) else {
-            _ = try await apiClient.updateInvitationRole(listId: listId, email: email, role: role)
-            return
-        }
-        let originalList = ListService.shared.lists[index]
-
-        var updatedList = originalList
-        if let inviteIndex = updatedList.invitations?.firstIndex(where: { $0.id == invitationId }) {
-            let existing = updatedList.invitations![inviteIndex]
-            updatedList.invitations![inviteIndex] = ListInvite(
-                id: existing.id, listId: existing.listId, email: existing.email,
-                role: role, token: existing.token,
-                createdAt: existing.createdAt, createdBy: existing.createdBy)
-        }
-        ListService.shared.lists[index] = updatedList
-
-        do {
-            _ = try await apiClient.updateInvitationRole(listId: listId, email: email, role: role)
-        } catch {
-            AppLog.debug("⚠️ [ListMemberService] Invitation role change failed, restoring: \(error)")
-            if let idx = ListService.shared.lists.firstIndex(where: { $0.id == listId }) {
-                ListService.shared.lists[idx] = originalList
-            }
-            throw error
-        }
-    }
-
-    // MARK: - Background Sync
-
-    /// Sync all pending member operations with the server
+    /// Send what is queued now rather than at the delivery loop's next turn.
     func syncPendingOperations() async throws {
-        guard networkMonitor.isConnected else {
-            AppLog.debug("📵 [ListMemberService] Cannot sync - no network")
-            return
-        }
-
-        AppLog.debug("🔄 [ListMemberService] Starting pending operations sync...")
-
-        // Fetch pending operations
-        let pending: [CDMember] = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let items = try CDMember.fetchPending(context: context)
-                    continuation.resume(returning: items)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        AppLog.debug("📊 [ListMemberService] Found \(pending.count) pending operations")
-
-        // Process each pending operation
-        for cdMember in pending {
-            let operation = cdMember.pendingOperation ?? "unknown"
-
-            do {
-                switch operation {
-                case "create":
-                    try await syncPendingCreate(cdMember)
-                case "update":
-                    try await syncPendingUpdate(cdMember)
-                case "delete":
-                    try await syncPendingDelete(cdMember)
-                default:
-                    try await markAsFailed(cdMember, error: "Unknown operation: \(operation)")
-                }
-            } catch {
-                AppLog.debug("❌ [ListMemberService] Failed to sync \(operation): \(error)")
-                try await markAsFailed(cdMember, error: error.localizedDescription)
-            }
-        }
-
-        await updatePendingOperationsCount()
-        AppLog.debug("✅ [ListMemberService] Sync completed")
+        try await core.run(CoreCommand(kind: "drain"))
+        refreshOutboxCounts()
     }
 
-    private func syncPendingCreate(_ cdMember: CDMember) async throws {
-        AppLog.debug("⚡️ [ListMemberService] Syncing pending create: \(cdMember.id)")
-
-        guard let email = cdMember.pendingRole else {
-            throw ListMemberError.missingEmail
-        }
-
-        // Call API (email-based invitation)
-        let response = try await apiClient.addListMember(
-            listId: cdMember.listId,
-            email: email,
-            role: cdMember.role
-        )
-
-        // Update Core Data with server response
-        try await coreDataManager.saveInBackground { context in
-            guard let member = try CDMember.fetchById(cdMember.id, context: context) else {
-                return
-            }
-
-            // If member was created (user existed)
-            if let memberData = response.member {
-                member.id = memberData.id
-                member.userId = memberData.id
-                member.syncStatus = "synced"
-                member.lastSyncedAt = Date()
-                member.pendingOperation = nil
-                member.pendingRole = nil
-                member.syncAttempts = 0
-                member.syncError = nil
-            } else if response.invitation != nil {
-                // Invitation sent (user doesn't exist yet)
-                // Keep as pending until user accepts
-                member.syncStatus = "synced" // Invitation successfully sent
-                member.lastSyncedAt = Date()
-                member.pendingOperation = nil
-                member.syncAttempts = 0
-            }
-        }
-
-        AppLog.debug("✅ [ListMemberService] Marked as synced")
+    /// Give changes the server refused another go.
+    func retryFailedOperations() async {
+        _ = try? await core.run(CoreCommand(kind: "retryDeadLetters"))
+        refreshOutboxCounts()
     }
 
-    private func syncPendingUpdate(_ cdMember: CDMember) async throws {
-        AppLog.debug("⚡️ [ListMemberService] Syncing pending update: \(cdMember.id)")
-
-        guard let newRole = cdMember.pendingRole else {
-            throw ListMemberError.missingRole
-        }
-
-        // Call API
-        let response = try await apiClient.updateListMember(
-            listId: cdMember.listId,
-            userId: cdMember.userId,
-            role: newRole
-        )
-
-        // Update Core Data
-        try await coreDataManager.saveInBackground { context in
-            guard let member = try CDMember.fetchById(cdMember.id, context: context) else {
-                return
-            }
-
-            member.role = response.member.role
-            member.syncStatus = "synced"
-            member.lastSyncedAt = Date()
-            member.pendingOperation = nil
-            member.pendingRole = nil
-            member.syncAttempts = 0
-            member.syncError = nil
-        }
-
-        AppLog.debug("✅ [ListMemberService] Update synced")
-    }
-
-    private func syncPendingDelete(_ cdMember: CDMember) async throws {
-        AppLog.debug("⚡️ [ListMemberService] Syncing pending delete: \(cdMember.id)")
-
-        // Call API
-        _ = try await apiClient.removeListMember(
-            listId: cdMember.listId,
-            userId: cdMember.userId
-        )
-
-        // Remove from Core Data
-        try await coreDataManager.saveInBackground { context in
-            guard let member = try CDMember.fetchById(cdMember.id, context: context) else {
-                return
-            }
-
-            context.delete(member)
-        }
-
-        AppLog.debug("✅ [ListMemberService] Delete synced and removed from cache")
-    }
-
-    private func markAsFailed(_ cdMember: CDMember, error: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            guard let member = try CDMember.fetchById(cdMember.id, context: context) else {
-                return
-            }
-
-            member.syncStatus = "failed"
-            member.syncAttempts += 1
-            member.syncError = error
-
-            // Give up after 3 attempts
-            if member.syncAttempts >= 3 {
-                AppLog.debug("🛑 [ListMemberService] Giving up after 3 attempts: \(cdMember.id)")
-            }
+    private func refreshOutboxCounts() {
+        _Concurrency.Task {
+            guard let stats = await JournalStats.load() else { return }
+            pendingOperationsCount = stats.pending + stats.running
+            failedOperationsCount = stats.failed
         }
     }
-
-    // MARK: - Legacy Methods
 
     func getMember(id: String) -> User? {
-        return members.first { $0.id == id }
-    }
-
-    /// Retry all failed operations
-    func retryFailedOperations() async {
-        AppLog.debug("🔄 [ListMemberService] Retrying failed operations...")
-
-        do {
-            try await coreDataManager.saveInBackground { context in
-                let request = CDMember.fetchRequest()
-                request.predicate = NSPredicate(format: "syncStatus == %@", "failed")
-                let failedMembers = try context.fetch(request)
-                for member in failedMembers {
-                    member.syncAttempts = 0
-                    member.syncStatus = "pending"
-                    member.syncError = nil
-                }
-                AppLog.debug("📊 [ListMemberService] Reset \(failedMembers.count) failed members to pending")
-            }
-
-            // Trigger sync
-            try await syncPendingOperations()
-        } catch {
-            AppLog.debug("❌ [ListMemberService] Failed to retry operations: \(error)")
-        }
-    }
-}
-
-// MARK: - Errors
-
-enum ListMemberError: LocalizedError {
-    case missingEmail
-    case missingRole
-
-    var errorDescription: String? {
-        switch self {
-        case .missingEmail:
-            return "Email is required for adding member"
-        case .missingRole:
-            return "Role is required for updating member"
-        }
+        members.first { $0.id == id }
     }
 }

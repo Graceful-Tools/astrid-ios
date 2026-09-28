@@ -124,29 +124,6 @@ extension CDComment {
         return try context.fetch(request)
     }
 
-    /// Fetch all pending comments (create, update, delete operations; excludes permanently failed)
-    static func fetchPending(context: NSManagedObjectContext) throws -> [CDComment] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "syncStatus IN %@",
-            ["pending", "pending_update", "pending_delete"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    /// Fetch pending comments for a specific task (excludes permanently failed)
-    static func fetchPendingForTask(_ taskId: String, context: NSManagedObjectContext) throws -> [CDComment] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "taskId == %@ AND syncStatus IN %@",
-            taskId,
-            ["pending", "pending_update", "pending_delete"]
-        )
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
     // MARK: - Retry Policy
 
     /// Maximum retry attempts before giving up
@@ -169,16 +146,6 @@ extension CDComment {
         guard !shouldGiveUp else { return false }
         guard let lastAttempt = lastSyncAttemptAt else { return true }
         return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Record a failed sync attempt
-    func recordSyncFailure(error: String) {
-        syncAttempts += 1
-        lastSyncAttemptAt = Date()
-        syncError = error
-        if shouldGiveUp {
-            syncStatus = "failed"
-        }
     }
 
     /// Reset retry state after successful sync

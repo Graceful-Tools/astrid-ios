@@ -12,7 +12,7 @@ struct SettingsView: View {
     // Debug mode toggles (stored in UserDefaults like web app)
     @AppStorage("toast-debug-mode") private var toastDebugMode = false
     @AppStorage("reminder-debug-mode") private var reminderDebugMode = false
-    @State private var outboxStats: OutboxStats?
+    @State private var outboxStats: JournalStats?
     @StateObject private var featureFlags = FeatureFlagService.shared
     @StateObject private var serverCapabilities = ServerCapabilityService.shared
 
@@ -125,39 +125,37 @@ struct SettingsView: View {
                 }
 
                 Section("Outbox") {
-                    // Health readout: dead-lettered > 0 = a dropped write;
-                    // all-completed = the Outbox kept up.
+                    // Health readout from the core's journal: a refused write is a dropped one.
                     if let s = outboxStats {
                         HStack {
                             Image(systemName: s.isHealthy ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                                 .foregroundColor(s.isHealthy ? .green : .orange)
-                            Text("\(s.lifetimeCompleted) synced · \(s.pending + s.running) in-flight · \(s.lifetimeDeadLettered) dropped")
+                            Text("\(s.completed) synced · \(s.pending + s.running) in-flight · \(s.failed) dropped")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                             Spacer()
-                            Button("Refresh") { _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() } }
+                            Button("Refresh") { _Concurrency.Task { outboxStats = await JournalStats.load() } }
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(Theme.accent)
                         }
-                        .task { outboxStats = await OutboxManager.shared.stats() }
+                        .task { outboxStats = await JournalStats.load() }
 
-                        // Why did entries drop? The journal never prunes dead-letters,
-                        // so their kind + lastError are readable right here.
-                        ForEach(s.deadLetterDetails, id: \.self) { detail in
-                            Text(detail)
+                        // Why did entries drop? The journal keeps refused writes with their reason.
+                        ForEach(s.deadLetters, id: \.self) { letter in
+                            Text("\(letter.kind): \(letter.error ?? "unknown error")")
                                 .font(Theme.Typography.caption2())
                                 .foregroundColor(.orange)
                                 .lineLimit(3)
                                 .textSelection(.enabled)
                         }
 
-                        // Recovery: re-arm dropped writes (e.g. after an outage
-                        // that has since resolved).
-                        if s.lifetimeDeadLettered > 0 || s.failedPermanent > 0 {
+                        // Recovery: give refused writes another go (e.g. after an outage or a
+                        // permission that has since been fixed).
+                        if s.failed > 0 {
                             Button("Retry dropped writes") {
                                 _Concurrency.Task {
-                                    _ = await OutboxManager.shared.retryDeadLetters()
-                                    outboxStats = await OutboxManager.shared.stats()
+                                    await JournalStats.retryDropped()
+                                    outboxStats = await JournalStats.load()
                                 }
                             }
                             .font(Theme.Typography.caption2())
@@ -165,7 +163,7 @@ struct SettingsView: View {
                         }
                     } else {
                         Button("Load Outbox stats") {
-                            _Concurrency.Task { outboxStats = await OutboxManager.shared.stats() }
+                            _Concurrency.Task { outboxStats = await JournalStats.load() }
                         }
                         .font(Theme.Typography.caption2())
                         .foregroundColor(Theme.accent)

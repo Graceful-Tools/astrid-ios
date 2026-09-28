@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 import Combine
 
@@ -88,15 +89,7 @@ class UserSettingsService: ObservableObject {
             await fetchSettings()
         }
 
-        // Register for SSE updates from other devices
-        _Concurrency.Task { [weak self] in
-            guard let self = self else { return }
-            await SSEClient.shared.onUserSettingsUpdated { settings in
-                _Concurrency.Task { @MainActor [weak self] in
-                    self?.handleSSEUpdate(settings)
-                }
-            }
-        }
+        // Another device's change arrives as the core's `settings` change (AppCore).
     }
 
     /// Convenience accessor for smart task creation
@@ -105,12 +98,14 @@ class UserSettingsService: ObservableObject {
         set { updateSettings(UserSettings(smartTaskCreationEnabled: newValue)) }
     }
 
-    /// Fetch settings from the server via AstridAPIClient (the canonical
-    /// network entry point). UI already has the UserDefaults snapshot, so
-    /// failure here is non-fatal.
+    /// Fetch settings from the server through astrid-core. UI already has the UserDefaults
+    /// snapshot, so failure here is non-fatal.
     func fetchSettings() async {
+        struct Account: Decodable { let smartTasks: UserSettings }
         do {
-            let fetchedSettings = try await AstridAPIClient.shared.getSmartTaskSettings()
+            let fetchedSettings = try await AppCore.shared.session.run(
+                CoreCommand(kind: "refreshSettings"), as: Account.self
+            ).smartTasks
             self.settings = fetchedSettings
             self.hasLoadedFromServer = true
 
@@ -141,30 +136,18 @@ class UserSettingsService: ObservableObject {
             AppLog.debug("💾 [UserSettings] Saved to UserDefaults")
         }
 
-        // Debounced server push via AstridAPIClient so cookies/auth/retry
-        // flow through the same code path as every other network call.
+        // Debounced, then journalled by astrid-core: a change made offline goes when the network
+        // does, rather than failing once and being overwritten by the next fetch.
         updateTask = _Concurrency.Task {
             try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
-            guard !_Concurrency.Task.isCancelled else { return }
-
+            guard !_Concurrency.Task.isCancelled,
+                  let changes = try? JSONValue(encoding: merged) else { return }
             do {
-                try await AstridAPIClient.shared.updateSmartTaskSettings(merged)
-                AppLog.debug("✅ Updated user settings on server")
+                try await AppCore.shared.session.run(
+                    CoreCommand(kind: "updateSmartTaskSettings", ["changes": .value(changes)]))
             } catch {
                 AppLog.debug("❌ Error updating user settings: \(error)")
             }
-        }
-    }
-
-    /// Handle SSE update from another device
-    func handleSSEUpdate(_ newSettings: UserSettings) {
-        AppLog.debug("🔔 [SSE] User settings updated from another device")
-        self.settings = newSettings
-
-        // Save to UserDefaults for offline support
-        if let encoded = try? JSONEncoder().encode(newSettings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            AppLog.debug("💾 [UserSettings] Saved SSE update to UserDefaults")
         }
     }
 

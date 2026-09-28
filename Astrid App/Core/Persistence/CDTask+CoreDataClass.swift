@@ -202,12 +202,6 @@ extension CDTask {
         return try context.fetch(request).first
     }
     
-    static func fetchUnsyncedTasks(context: NSManagedObjectContext) throws -> [CDTask] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
-        return try context.fetch(request)
-    }
-
     // MARK: - Retry Policy
 
     /// Maximum retry attempts before giving up
@@ -232,14 +226,6 @@ extension CDTask {
         return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
     }
 
-    /// Record a failed sync attempt
-    func recordSyncFailure(error: String) {
-        syncAttempts += 1
-        lastSyncAttemptAt = Date()
-        lastSyncError = error
-        syncStatus = shouldGiveUp ? "failed" : "pending"
-    }
-
     /// Reset retry state after successful sync
     func resetSyncState() {
         syncAttempts = 0
@@ -247,24 +233,6 @@ extension CDTask {
         lastSyncError = nil
         syncStatus = "synced"
         lastSyncedAt = Date()
-    }
-
-    /// Fetch tasks that are ready to retry (respecting backoff)
-    static func fetchRetryableTasks(context: NSManagedObjectContext) throws -> [CDTask] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(
-            format: "(syncStatus == %@ OR syncStatus == %@) AND syncAttempts < %d",
-            "pending", "pending_delete", maxSyncAttempts
-        )
-        let tasks = try context.fetch(request)
-        return tasks.filter { $0.canRetryNow }
-    }
-
-    /// Fetch tasks that have permanently failed
-    static func fetchFailedTasks(context: NSManagedObjectContext) throws -> [CDTask] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "syncStatus == %@", "failed")
-        return try context.fetch(request)
     }
 
     // MARK: - Offline Search
@@ -305,18 +273,4 @@ extension CDTask {
         return try context.fetch(request)
     }
 
-    /// Rebuild search index for all tasks (run on migration or data repair)
-    static func rebuildSearchIndex(context: NSManagedObjectContext) throws {
-        let request = fetchRequest()
-        let allTasks = try context.fetch(request)
-
-        var updatedCount = 0
-        for task in allTasks {
-            task.updateSearchableText()
-            updatedCount += 1
-        }
-
-        try context.save()
-        AppLog.debug("🔍 [CDTask] Rebuilt search index for \(updatedCount) tasks")
-    }
 }

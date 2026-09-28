@@ -39,7 +39,7 @@ final class GitHubSyncService: ObservableObject {
         refreshObserver = NotificationCenter.default.addObserver(
             forName: .externalSyncRefresh, object: nil, queue: .main
         ) { [weak self] note in
-            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            let source = note.userInfo?[LocalMutation.sourceKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
@@ -54,9 +54,9 @@ final class GitHubSyncService: ObservableObject {
         // remote-apply writes tagged source: .github): re-arming a pass on those
         // creates a self-sustaining ~2s loop until the whole history is imported.
         mutationObserver = NotificationCenter.default.addObserver(
-            forName: OutboxManager.didEnqueueMutation, object: nil, queue: .main
+            forName: LocalMutation.didHappen, object: nil, queue: .main
         ) { [weak self] note in
-            let source = note.userInfo?[OutboxManager.mutationSourceUserInfoKey] as? String
+            let source = note.userInfo?[LocalMutation.sourceKey] as? String
             guard SyncMutationNudge.shouldSchedule(provider: .github, mutationSource: source) else { return }
             _Concurrency.Task { @MainActor [weak self] in self?.scheduleSync() }
         }
@@ -782,7 +782,7 @@ final class GitHubSyncService: ObservableObject {
                     content: CommentSyncPlanner.pulledContent(author: remoteComment.author, body: remoteComment.body),
                     type: .MARKDOWN,
                     authorId: AuthManager.shared.userId)
-                await OutboxManager.shared.drain()
+                await AppCore.shared.drainJournal()
                 let realId = CommentService.shared.mappedRealCommentId(for: created.id) ?? created.id
                 guard !realId.hasPrefix("temp_") else { continue }
                 entries.append(.init(remoteId: remoteComment.id, localId: realId, pushed: false))

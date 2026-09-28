@@ -1,6 +1,6 @@
 //  ChatPollingPolicy.swift
 //  When the chat panel's fallback poll should run — pure, so the rule is testable without a
-//  socket or a timer. Sibling of `SSEReconnectPolicy`.
+//  socket or a timer. The stream is astrid-core's; `AppCore.isStreamLive` is its state.
 //
 //  The panel used to start this poll from `loadChannel` unconditionally and describe it as an
 //  "SSE backup", but nothing gated it on the stream being down. It is a backup now.

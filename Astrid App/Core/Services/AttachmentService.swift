@@ -69,7 +69,7 @@ class AttachmentService: ObservableObject {
         ) { _ in
             _Concurrency.Task { @MainActor in
                 AppLog.debug("🔄 [AttachmentService] Network restored - draining outbox")
-                await OutboxManager.shared.drain()
+                await AppCore.shared.drainJournal()
             }
         }
     }

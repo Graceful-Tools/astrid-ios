@@ -59,9 +59,26 @@ enum SyncAdoptionSafety {
     }
 }
 
-/// Filters Outbox mutation notifications so a provider does not schedule a
-/// fresh pass for writes produced by its own active pass. Cross-provider and
-/// user edits still fan out normally.
+/// A task or list write this device made — what nudges the external mirrors (Google Tasks,
+/// GitHub) to push it rather than waiting for the next foreground.
+///
+/// `TaskService` and `ListService` post it on every write. It used to come from the Swift
+/// Outbox's enqueue; when the writes moved into astrid-core it went silent, and an edit reached
+/// Google only on the next foreground.
+enum LocalMutation {
+    static let didHappen = Notification.Name("astridLocalMutation")
+    /// The write's `SyncSource`, when a provider made it — so that provider can ignore its echo.
+    nonisolated static let sourceKey = "source"
+
+    @MainActor
+    static func note(source: SyncSource? = nil) {
+        NotificationCenter.default.post(
+            name: didHappen, object: nil, userInfo: source.map { [sourceKey: $0.rawValue] })
+    }
+}
+
+/// Filters local-mutation notices so a provider does not schedule a fresh pass for writes
+/// produced by its own active pass. Cross-provider and user edits still fan out normally.
 enum SyncMutationNudge {
     enum Provider: String, Sendable { case github, google }
 
@@ -176,17 +193,16 @@ struct BackfillAdoptionIndex: Sendable {
     }
 }
 
-/// Resolve an optimistic temp task id (from the Outbox-authoritative
-/// `createTask`) to its real server id. `ExternalTaskLink.astridTaskId` has a
-/// foreign key to the real Task row, so a link written with a temp id is
-/// silently rejected — which made every sync pass re-create pulled tasks.
-/// Draining the Outbox runs the createTask handler (sync only runs online),
-/// after which the temp→real map has the answer.
+/// Resolve an optimistic temp task id (a create still in the core's journal) to its real server
+/// id. `ExternalTaskLink.astridTaskId` has a foreign key to the real Task row, so a link written
+/// with a temp id is silently rejected — which made every sync pass re-create pulled tasks.
+/// Draining the journal sends the create (sync only runs online), after which the temp→real map
+/// has the answer.
 @MainActor
 func resolveRealSyncTaskId(_ id: String) async -> String? {
     guard id.hasPrefix("temp_") else { return id }
     for attempt in 0..<6 {
-        await OutboxManager.shared.drain()
+        await AppCore.shared.drainJournal()
         if let real = TaskService.shared.mappedRealTaskId(for: id), !real.hasPrefix("temp_") {
             return real
         }

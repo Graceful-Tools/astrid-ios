@@ -38,7 +38,7 @@ struct MacAuthGateView: View {
         .preferredColorScheme(themeMode.colorScheme)
         .animation(MacMotion.medium, value: themeMode)   // theme switch cross-fades (4c7b9f08)
         .task {
-            // Under XCTest, keep the host inert: these long-lived loops (Outbox/SSE/sync/hotkey)
+            // Under XCTest, keep the host inert: these long-lived loops (sync/hotkey)
             // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).
             guard !MacRuntime.isRunningTests else { return }
             // UI testing: start from a clean signed-out state with no network work, so the sign-in
@@ -48,7 +48,6 @@ struct MacAuthGateView: View {
                 auth.isAuthenticated = false
                 return
             }
-            OutboxManager.shared.start()          // start the write runner (drains queued writes)
             MacServiceProvider.register()          // Services menu "Add to Astrid" (Task 3b9883d0)
 
             // Local reminder notifications on Mac (Task 8b81fb9e): register + request permission,
@@ -67,10 +66,9 @@ struct MacAuthGateView: View {
             _Concurrency.Task {
                 if isAuth { await startSession() }
                 else {
-                    // Re-arm, or signing back in inside this process gets no SSE and no sync timer.
+                    // Re-arm, or signing back in inside this process starts nothing. The core drops
+                    // its live stream itself on sign-out.
                     MacSessionStart.release()
-                    await SSEClient.shared.disconnect()
-                    SyncManager.shared.stopAutoSync()
                 }
             }
         }
@@ -99,7 +97,7 @@ struct MacAuthGateView: View {
         }
     }
 
-    /// Post-auth service startup — mirrors AstridApp.swift (SSE real-time + sync workers).
+    /// Post-auth service startup — mirrors AstridApp.swift (live updates + sync workers).
     private func startSession() async {
         // Local-only mode has no server session — skip network services.
         //
@@ -113,7 +111,7 @@ struct MacAuthGateView: View {
         // next line. Both used to run, so every launch with a stored session pulled all lists and
         // all tasks twice and hit GitHub twice. Whoever gets here first owns the startup.
         guard MacSessionStart.claim() else { return }
-        await SSEClient.shared.connect()                 // live updates
+        AppCore.shared.reconnectStream()                 // live updates, now rather than on the retry
 
         // Full task+list sync via the SHARED SyncManager (same path as iOS): fetches every list
         // and every task (paginated) into the global stores, then keeps them fresh on a timer.

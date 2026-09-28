@@ -2,6 +2,12 @@
 
 *Owns the Outbox mechanism and the cache-invalidation rules. Rules and control points are in `ASTRID.md`; external sync is in `SYNC_ARCHITECTURE.md`.*
 
+> **Moved into astrid-core (2026-09-28).** The cache, the Outbox journal and runner, sync and the
+> live stream for tasks, lists, comments and chat are astrid-core's now — the same engine the
+> Windows app runs (`docs/CORE_MIGRATION.md`). The model below still describes the behaviour; the
+> Swift files it names under `Core/Outbox/` and the Core Data reconcile steps are history, except
+> the `outbox.json` reader `CoreUpgrade` uses once. The core's own `docs/` describe its journal.
+
 ## The model in one paragraph
 
 Every user action applies **optimistically** to in-memory state and CoreData first, then journals a write through the **unified Outbox**, which replays it against the server with retry/backoff, idempotency, and dependency ordering. Reads are cache-first (CoreData seeds memory; server fetches merge on top with deletion/dedup guards). External providers (Apple Reminders, Google Tasks, GitHub Issues) mirror content through the same canonical service layer.

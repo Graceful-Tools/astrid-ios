@@ -8,14 +8,11 @@ nonisolated enum OutboxStatus: String, Codable, Equatable, Sendable {
     case failedPermanent  // dead-lettered: auth/validation error or out of attempts
 }
 
-/// A single self-contained unit of offline-first work in the Outbox journal.
+/// One entry of the Swift Outbox's journal (`outbox.json`), as a pre-core build left it.
 ///
-/// The Outbox replaces the per-service pending queues (TaskService /
-/// CommentService / ChatService / AttachmentService) with one journal + one
-/// runner. Each entry carries everything needed to perform the write, an
-/// idempotency key so retries never duplicate server-side, and explicit
-/// `dependsOn` edges so e.g. a comment waits for its attachment upload by
-/// construction (instead of the old throw/observe/retry dance).
+/// Read once, by `CoreUpgrade`, which moves every still-queued write into astrid-core's journal;
+/// nothing writes these now. Kept in the shape the old runner persisted so any file still on a
+/// device decodes.
 nonisolated struct OutboxEntry: Identifiable, Codable, Equatable, Sendable {
     let id: String                 // UUID
     let kind: String               // handler key, e.g. "createComment"
