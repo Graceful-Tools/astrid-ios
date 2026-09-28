@@ -172,6 +172,10 @@ trap release_lock EXIT INT TERM
 # agent's own `acquire` would return 2 and it would stop before reading the
 # queue. fixall.md checks this variable and skips the acquire when it is set.
 export ASTRID_FIXALL_LOCK_HELD=1
+# One Ready task per run (docs/FIXALL_WORKFLOW.md → *One task per scheduled run*).
+# A run that takes the whole queue does not fit the watchdog; the next tick takes
+# the next task. Same rule as astrid-web/scripts/fixall-loop.sh.
+export ASTRID_FIXALL_MAX_TASKS="${FIXALL_MAX_TASKS:-1}"
 
 # ── Guard 2: never clobber work in progress ──────────────────────────────────
 # /fixstuff takes no lock, so an interactive session editing files here is
@@ -279,10 +283,50 @@ RUN_VERDICT=$(grep -E '^RESULT: ' "$RUN_OUT" 2>/dev/null | tail -1)
 #
 # Only when the guards confirmed the tree was clean going in — under FIXALL_FORCE
 # it may have been dirty all along, and blaming the run for that would be a lie.
+#
+# And the tree is then PUT BACK, whatever the exit. Reporting the mess was half a
+# fix: the next tick still skipped on it until a human came. astrid-web's loop
+# wedged that way twice on 2026-09-27 (AWTD-1024, AWTD-1025 — the second killed by
+# the watchdog mid-task). So uncommitted work is saved as a WIP commit on the task
+# branch — or a wip/ branch, never main — marked UNFINISHED so nobody ships it;
+# any branch the run is left on is pushed so the work is reviewable; and HEAD goes
+# back to main so the next tick can run. --no-verify because the work is by
+# definition unverified. Same guard as above: under FIXALL_FORCE the tree may have
+# held someone's work before the run, and that is not the loop's to commit.
 LEFT_DIRTY=""
-if [ "$STATUS" -eq 0 ] && [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ]; then
-  LEFT_DIRTY=$(git status --porcelain 2>/dev/null)
-  [ -n "$LEFT_DIRTY" ] && STATUS=90
+SAVED_BRANCH=""
+if [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ]; then
+  END_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  DIRTY_AFTER=$(git status --porcelain 2>/dev/null)
+  if [ -n "$DIRTY_AFTER" ]; then
+    if [ "$STATUS" -eq 0 ]; then
+      LEFT_DIRTY="$DIRTY_AFTER"
+      STATUS=90
+    fi
+    if [ "$END_BRANCH" = "main" ] || [ "$END_BRANCH" = "HEAD" ]; then
+      END_BRANCH="wip/fixall-ios-$(date +%Y%m%d-%H%M%S)"
+      git checkout -q -b "$END_BRANCH"
+    fi
+    if git add -A && git commit -q --no-verify -m "wip: scheduled /fixall run ended mid-task — UNFINISHED, UNVERIFIED
+
+Saved by scripts/fixall-loop.sh (claude exit $STATUS) so the checkout can return
+to main. The build and tests have not been run on this. Continue from here; do
+not ship it."; then
+      SAVED_BRANCH="$END_BRANCH"
+      echo "  run left uncommitted changes — saved as a WIP commit on $END_BRANCH"
+    else
+      echo "  ⚠️  run left $END_BRANCH with uncommitted changes and they could not be committed — leaving it for a human"
+    fi
+  fi
+  if [ "$END_BRANCH" != "main" ] && [ -z "$(git status --porcelain 2>/dev/null)" ]; then
+    if git push -q -u origin "$END_BRANCH" 2>/dev/null; then
+      echo "  run left $END_BRANCH — pushed it to origin for review"
+    else
+      echo "  ⚠️  run left $END_BRANCH and it could not be pushed"
+      post_to_list "**Scheduled /fixall left unpushed work on \`$END_BRANCH\`** — the push failed. The branch is still in $REPO; the loop has gone back to main."
+    fi
+    git checkout -q main && echo "  returned to main from $END_BRANCH"
+  fi
 fi
 
 # A run that SAYS it failed has failed, whatever it exits (AITD-440). On
@@ -324,15 +368,15 @@ if [ -n "$LEFT_DIRTY" ]; then
   REASON="run left the tree dirty"
   post_to_list "## Scheduled /fixall left work uncommitted
 
-The run exited cleanly but handed back a dirty tree, which is not a finished run — every tick from here will skip on it until someone puts it back (AITD-426).
+The run exited cleanly but handed back a dirty tree, which is not a finished run (AITD-426). ${SAVED_BRANCH:+The work is saved as an unverified WIP commit on \`$SAVED_BRANCH\` and the loop is back on main — pick the task up from that branch.}
 
-On branch \`$(git rev-parse --abbrev-ref HEAD 2>/dev/null)\`:
+Uncommitted at the end of the run:
 
 \`\`\`
 $(echo "$LEFT_DIRTY" | head -20)
 \`\`\`
 
-Nothing was pushed. Log: \`~/Library/Logs/astrid-fixall.log\`"
+Log: \`~/Library/Logs/astrid-fixall.log\`"
   echo "RESULT: FAILED — $REASON"
   exit 1
 fi
@@ -352,6 +396,11 @@ if [ "$STATUS" -ge 128 ]; then
 else
   REASON="claude exited $STATUS"
 fi
-post_to_list "**Scheduled /fixall did not finish** — $REASON. Nothing was pushed by this run. Log: ~/Library/Logs/astrid-fixall.log"
+if [ -n "$SAVED_BRANCH" ]; then
+  SAVED_NOTE="Its unfinished work is saved on \`$SAVED_BRANCH\` (WIP, unverified)."
+else
+  SAVED_NOTE="Nothing was pushed by this run."
+fi
+post_to_list "**Scheduled /fixall did not finish** — $REASON. $SAVED_NOTE Log: ~/Library/Logs/astrid-fixall.log"
 echo "RESULT: FAILED — $REASON"
 exit 1
