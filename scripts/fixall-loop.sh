@@ -44,7 +44,10 @@ WEB="$REPO/../astrid-web"
 TSX="${FIXALL_TSX:-$WEB/node_modules/.bin/tsx}"
 CLAUDE="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
 MODEL="${FIXALL_MODEL:-opus}"
-MAX_MINUTES="${FIXALL_MAX_MINUTES:-50}"
+# 75, not 50: on 2026-09-27 astrid-web's loop, capped at ONE task, still hit a 50m
+# watchdog. A killed run is now saved and harmless, but a task that never fits
+# would be killed on every attempt.
+MAX_MINUTES="${FIXALL_MAX_MINUTES:-75}"
 MAX_USD="${FIXALL_MAX_USD-10}"
 IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
 STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}"
@@ -273,7 +276,7 @@ fi
 # later tick until someone notices. macOS ships no `timeout`, hence the subshell.
 #
 # The budget catches one that stays BUSY — a task it cannot finish, retried
-# until the clock runs out — which the watchdog would not stop for 50 minutes.
+# until the clock runs out — which the watchdog would not stop for the whole window.
 # --max-budget-usd only works with -p, which is the mode this always runs in.
 BUDGET_ARGS=()
 [ -n "$MAX_USD" ] && BUDGET_ARGS=(--max-budget-usd "$MAX_USD")
