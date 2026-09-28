@@ -184,12 +184,8 @@ final class GoogleTasksSyncService: ObservableObject {
             metadata: ["excludedTasklists": excludedTasklistIds.joined(separator: ",")])
     }
 
-    /// Remember that `taskId` is mirrored by `remoteId` in `containerId`, so deleting the task can
-    /// find its twin before the server's link row cascades away with it.
-    func noteTaskLink(taskId: String, remoteId: String, containerId: String) {
-        taskLinkCache[taskId] = "\(remoteId)|\(containerId)"
-    }
-
+    /// Remember `taskId`'s twin, so deleting the task finds it after the link row cascades away.
+    func noteTaskLink(taskId: String, remoteId: String, containerId: String) { taskLinkCache[taskId] = "\(remoteId)|\(containerId)" }
     /// The user deleted a mirrored task: record the remote twin for deletion +
     /// permanent tombstone (the server-side link row cascades away with the task).
     func noteTaskDeleted(taskId: String) async {
