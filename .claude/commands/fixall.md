@@ -250,7 +250,7 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
   (AITD-426).
 
   **Never end a turn with uncommitted changes.** The tree you hand back is either committed
-  or it is not finished. If a gate is still running, wait for it — that is what the 50-minute
+  or it is not finished. If a gate is still running, wait for it — that is what the 75-minute
   watchdog and the budget cap are for, and a run that is killed by one of them is reported
   honestly, which is strictly better than one that exits 0 having left a mess. If you truly
   cannot finish, commit the work in progress on its branch and say so on the task, so the
