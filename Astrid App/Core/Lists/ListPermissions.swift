@@ -1,74 +1,67 @@
+import AstridCore
 import Foundation
 
-/// Who may change a list (Task da56d096).
-///
-/// This rule was written out three separate times — `ListMembershipTab.canEditSettings`,
-/// `ListSettingsModal.canEditSettings`, and Mac's `MacListMembersView.canManage` — and the Mac
-/// copy was not equivalent: it compared role STRINGS against a separately-fetched member roster,
-/// while iOS asked the shared model. Two sources of truth for one question, which is the shape of
-/// bug where a control appears for someone who cannot use it.
+/// Who may do what with a list (Task da56d096) — answered by astrid-core.
 ///
 /// Permission decisions are a cross-platform contract with Web (see astrid-web
-/// `docs/PRODUCT_CONTRACT.md`), so they belong in one place that both platforms read. This mirrors
-/// web's `canUserManageList`.
+/// `docs/PRODUCT_CONTRACT.md`): astrid-core's `permissions` runs web's own rules, locked by the
+/// contract fixture generated from `lib/list-permissions.ts`. This type is the Swift face of that
+/// answer and holds no rule of its own. The Swift copy it replaced matched roles case-sensitively
+/// and only on `userId`, so members written as `MEMBER` by an old endpoint were locked out on Apple
+/// only (astrid-core `docs/CONTRACTS.md` D6).
 enum ListPermissions {
 
-    /// May this user change the list's settings — name, image, defaults, filters, sharing?
-    ///
-    /// Owner or admin. A plain member can use the list but not reconfigure it, and a viewer of a
-    /// public list certainly cannot.
-    static func canEditSettings(_ list: TaskList, userId: String?) -> Bool {
-        guard let userId else { return false }
-        switch list.role(for: userId) {
-        case .owner, .admin: return true
-        default:             return false
+    /// Everything `userId` may do with `list`, and with `task` in it when one is given.
+    static func access(_ list: TaskList, userId: String?, task: Task? = nil) -> ListAccess {
+        CoreRules.listAccess(of: AccessFields(list), userId: userId,
+                             taskCreatorId: task?.effectiveCreatorId)
+    }
+
+    /// The part of a list that decides access, in its wire shape — all the core reads. A list can
+    /// carry its whole task array, and a row asks this once per task.
+    private struct AccessFields: Encodable {
+        struct Ref: Encodable { let id: String }
+        struct Member: Encodable {
+            let userId: String
+            let role: String?
+            let user: Ref?
+        }
+        let ownerId: String?
+        let owner: Ref?
+        let privacy: String?
+        let publicListType: String?
+        let listMembers: [Member]
+
+        init(_ list: TaskList) {
+            ownerId = list.ownerId
+            owner = list.owner.map { Ref(id: $0.id) }
+            privacy = list.privacy?.rawValue
+            publicListType = list.publicListType
+            listMembers = (list.listMembers ?? []).map {
+                Member(userId: $0.userId, role: $0.role, user: $0.user.map { Ref(id: $0.id) })
+            }
         }
     }
 
-    /// May this user delete the list?
-    ///
-    /// Deliberately its own question rather than an alias. Deleting a shared list destroys other
+    /// May this user change the list's settings — name, image, defaults, filters, sharing?
+    /// Owner or admin.
+    static func canEditSettings(_ list: TaskList, userId: String?) -> Bool {
+        access(list, userId: userId).canManage
+    }
+
+    /// May this user delete the list? The owner only: deleting a shared list destroys other
     /// people's work, so it stays with the owner even though an admin may edit everything else.
     static func canDelete(_ list: TaskList, userId: String?) -> Bool {
-        guard let userId else { return false }
-        return list.role(for: userId) == .owner
+        access(list, userId: userId).canDelete
     }
 
-    /// May this user add tasks to the list? Mirrors web's `canUserEditTasks`.
-    ///
-    /// A public copy-only list (the default for public) takes tasks only from its owner and
-    /// admins — members and viewers copy the list to work in it. A public collaborative list
-    /// takes them from anyone with a role, viewers included. Any other list: owner, admin, member.
+    /// May this user add tasks to the list? Web's `canUserEditTasks`.
     static func canAddTasks(_ list: TaskList, userId: String?) -> Bool {
-        guard let userId else { return false }
-        let role = list.role(for: userId)
-        if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
-            return role == .owner || role == .admin
-        }
-        if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
-            return role != nil
-        }
-        return role == .owner || role == .admin || role == .member
+        access(list, userId: userId).canEditTasks
     }
 
-    /// Is `task` read-only for this user in `list`? Mirrors web's `canUserEditTask`.
-    ///
-    /// The list's owner and admins edit everything. On a public copy-only list nobody else does;
-    /// on a public collaborative list the task's creator does too; on any other list every
-    /// member does. Lived inline in `TaskListView` (four role checks) until the 2026-09-13 pass.
+    /// Is `task` read-only for this user in `list`? Web's `canUserEditTask`, negated.
     static func isTaskReadOnly(_ task: Task, in list: TaskList, userId: String?) -> Bool {
-        guard let userId else { return true }
-        // Owner check by id first: a copied list carries its owner in `ownerId` / `owner` before
-        // its member roster is populated.
-        if (list.ownerId ?? list.owner?.id) == userId { return false }
-        let role = list.role(for: userId)
-        if role == .owner || role == .admin { return false }
-        if list.privacy == .PUBLIC && (list.publicListType == "copy_only" || list.publicListType == nil) {
-            return true
-        }
-        if list.privacy == .PUBLIC && list.publicListType == "collaborative" {
-            return !task.isCreatedBy(userId)
-        }
-        return role != .member
+        !access(list, userId: userId, task: task).canEditTask
     }
 }

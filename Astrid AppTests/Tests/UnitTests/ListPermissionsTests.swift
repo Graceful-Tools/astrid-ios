@@ -126,10 +126,13 @@ final class ListPermissionsTests: XCTestCase {
         return list
     }
 
-    func testCopyOnlyPublicListTakesTasksFromOwnerAndAdminOnly() {
+    /// A public copy-only list takes tasks from the people who belong to it — owner, admins and
+    /// members — and not from passers-by, who copy it instead. Web's answer (the permissions
+    /// fixture); Apple used to refuse members too (astrid-core `docs/CONTRACTS.md` D29).
+    func testCopyOnlyPublicListTakesTasksFromItsMembersNotItsViewers() {
         let list = list(privacy: .PUBLIC, member: "m")
         XCTAssertTrue(ListPermissions.canAddTasks(list, userId: "owner"))
-        XCTAssertFalse(ListPermissions.canAddTasks(list, userId: "m"))
+        XCTAssertTrue(ListPermissions.canAddTasks(list, userId: "m"))
         XCTAssertFalse(ListPermissions.canAddTasks(list, userId: "viewer"))
         XCTAssertFalse(ListPermissions.canAddTasks(list, userId: nil))
     }
@@ -152,8 +155,10 @@ final class ListPermissionsTests: XCTestCase {
 
         let copyOnly = list(privacy: .PUBLIC, member: "m")
         XCTAssertFalse(ListPermissions.isTaskReadOnly(theirs, in: copyOnly, userId: "owner"))
-        XCTAssertTrue(ListPermissions.isTaskReadOnly(mine, in: copyOnly, userId: "m"),
-                      "copy-only: even a member's own task is read-only — copy the list to edit")
+        XCTAssertFalse(ListPermissions.isTaskReadOnly(mine, in: copyOnly, userId: "m"),
+                       "copy-only: a member edits, as on the web (D29) — only passers-by copy")
+        XCTAssertTrue(ListPermissions.isTaskReadOnly(theirs, in: copyOnly, userId: "viewer"),
+                      "copy-only: a passer-by's view is read-only — copy the list to edit")
 
         let collaborative = list(privacy: .PUBLIC, publicListType: "collaborative")
         XCTAssertFalse(ListPermissions.isTaskReadOnly(mine, in: collaborative, userId: "m"))

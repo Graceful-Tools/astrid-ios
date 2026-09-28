@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 // Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
@@ -407,24 +408,10 @@ extension TaskList {
     /// True for list-shaped destinations users can navigate/file tasks into.
     var isDomainList: Bool { !isStatusList }
 
-    /// User's role on this list. Returns nil if user has no access.
-    /// Matches web's `getUserRoleInList`.
+    /// User's role on this list, or nil with no access — astrid-core's answer, web's
+    /// `getUserRoleInList` (see `ListPermissions`).
     func role(for userId: String) -> ListRole? {
-        if ownerId == userId || owner?.id == userId {
-            return .owner
-        }
-        if let listMembers = listMembers,
-           listMembers.contains(where: { $0.userId == userId && $0.role == "admin" }) {
-            return .admin
-        }
-        if let listMembers = listMembers,
-           listMembers.contains(where: { $0.userId == userId && $0.role == "member" }) {
-            return .member
-        }
-        if privacy == .PUBLIC {
-            return .viewer
-        }
-        return nil
+        ListPermissions.access(self, userId: userId).role.flatMap { ListRole(rawValue: $0.rawValue) }
     }
 
     /// Check if the current user can access settings for this list.
@@ -436,8 +423,7 @@ extension TaskList {
     /// Check if a user is a member of this list (owner, admin, or member).
     /// Used to determine if tasks in this list should be visible to the user.
     func isMember(userId: String) -> Bool {
-        let role = role(for: userId)
-        return role == .owner || role == .admin || role == .member
+        ListPermissions.access(self, userId: userId).hasExplicitRole
     }
 }
 
