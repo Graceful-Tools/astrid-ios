@@ -10,6 +10,7 @@
 //  opened. That failure would look like nothing at all in a log, so the conditions are pinned.
 
 import XCTest
+import AppKit
 @testable import Astrid_Mac
 
 final class MacStrayAutoFillPanelTests: XCTestCase {
@@ -118,5 +119,24 @@ final class MacStrayAutoFillPanelTests: XCTestCase {
         XCTAssertTrue(MacStrayAutoFillPanel.isWatching,
                       "A second focus — a reopened window — must be watched too")
         MacStrayAutoFillPanel.endWatch()
+    }
+
+    // MARK: - AITD-443: avoid the panel, not just close it
+
+    /// "[mac] Popover now closes on add task (which is good) but is there a more elegant fix to
+    /// avoid that showing up in the first place?" (AITD-443). The quick-add had NO content type,
+    /// and with `webcredentials:astrid.cc` declared an untyped field is a Password AutoFill
+    /// candidate. AITD-333 believed every `NSTextContentType` was a credential type; the macOS 14
+    /// SDK (our deployment target) also has non-AutoFill semantic types, so the field now says
+    /// what it is.
+    func testQuickAddDeclaresANonAutoFillContentType_AITD443() {
+        let type = MacStrayAutoFillPanel.quickAddContentType
+        let autoFill: [NSTextContentType] = [
+            .username, .password, .newPassword, .oneTimeCode,
+            .name, .givenName, .familyName, .emailAddress, .telephoneNumber, .fullStreetAddress,
+            .creditCardNumber, .creditCardName,
+        ]
+        XCTAssertFalse(autoFill.contains(type),
+                       "\(type.rawValue) is an AutoFill category — it would summon a picker, not stop one")
     }
 }

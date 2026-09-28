@@ -14,9 +14,16 @@
 //  offers the credential picker for that focused field, has nothing to put in it — and because the
 //  user has not touched anything, no interaction ever dismisses it. It just sits there.
 //
-//  WHY WE CLOSE IT RATHER THAN AVOID IT. Two other routes were measured and rejected:
-//    - `.textContentType(nil)`: no effect. It was already nil, and every `NSTextContentType`
-//      AppKit defines is a credential type, so there is no value meaning "not a credential".
+//  AVOIDING IT FIRST (AITD-443). The quick-add now declares `quickAddContentType`, a
+//  non-AutoFill semantic type, so the field is no longer an untyped credential candidate and the
+//  panel should not be summoned at all. The watch below stays as the backstop: if a macOS release
+//  offers the picker anyway, it still closes. Once builds show the panel never appears, the watch
+//  can go.
+//
+//  WHY THE WATCH CAME FIRST. Two routes were measured and rejected at the time:
+//    - `.textContentType(nil)`: no effect — it was already nil. AITD-333 read that as "every
+//      `NSTextContentType` is a credential type", which was true of the macOS 11 set only; the
+//      macOS 14 SDK (our deployment target) added non-AutoFill types such as `.dateTime`.
 //    - Waiting for the user's first interaction before focusing: it does remove the panel, but a
 //      local event monitor sees a key press BEFORE the responder chain does, while the focus change
 //      lands a render later — so the first character someone types on launch is delivered to the
@@ -61,6 +68,11 @@ enum MacStrayAutoFillPanel {
     /// Sampling interval. The panel stays put for the whole watch, so this decides how quickly it
     /// goes, not whether it is caught.
     static let pollInterval: TimeInterval = 0.25
+
+    /// What the quick-add field declares itself to be (AITD-443). Task titles carry dates ("call
+    /// Sam tomorrow") and `.dateTime` is not an AutoFill category — unlike the credential, contact
+    /// and card types, it summons no picker — so it answers "not a credential" truthfully.
+    static let quickAddContentType: NSTextContentType = .dateTime
 
     /// The window AutoFill parks on us — SafariPlatformSupport's `SPRoundedWindow`.
     static let autoFillWindowClassName = "SPRoundedWindow"
