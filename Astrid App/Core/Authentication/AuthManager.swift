@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 import Combine
 
@@ -568,6 +569,11 @@ class AuthManager: ObservableObject {
             AppLog.debug("Sign out API call failed: \(error)")
             // Continue with local cleanup even if API call fails
         }
+
+        // ===== THE CORE'S CACHE AND JOURNAL =====
+        // astrid-core holds the departing user's tasks, lists and unsent writes; replaying those
+        // writes under the next session would cross-post. Its sign-out wipes both, locally.
+        try? await AppCore.shared.session.run(CoreCommand(kind: "signOut"))
 
         // ===== KEYCHAIN CLEANUP =====
         // Clear ALL keychain items to prevent credential leakage

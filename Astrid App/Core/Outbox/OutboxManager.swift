@@ -26,15 +26,11 @@ final class OutboxManager {
         let runner = OutboxRunner(
             store: OutboxStore(fileURL: OutboxStore.defaultFileURL()),
             handlers: [
-                OutboxKind.createTask: { entry, _ in await CreateTaskOutboxHandler.handle(entry) },
                 OutboxKind.uploadAttachment: { entry, _ in await UploadAttachmentOutboxHandler.handle(entry) },
                 OutboxKind.createComment: { entry, context in await CreateCommentOutboxHandler.handle(entry, context) },
                 OutboxKind.sendChatMessage: { entry, context in await SendChatMessageOutboxHandler.handle(entry, context) },
-                OutboxKind.updateTask: { entry, _ in await UpdateTaskOutboxHandler.handle(entry) },
-                OutboxKind.deleteTask: { entry, _ in await DeleteTaskOutboxHandler.handle(entry) },
                 OutboxKind.updateComment: { entry, _ in await UpdateCommentOutboxHandler.handle(entry) },
-                OutboxKind.deleteComment: { entry, _ in await DeleteCommentOutboxHandler.handle(entry) },
-                OutboxKind.updateList: { entry, _ in await UpdateListOutboxHandler.handle(entry) }
+                OutboxKind.deleteComment: { entry, _ in await DeleteCommentOutboxHandler.handle(entry) }
             ]
         )
         self.runner = runner
@@ -121,11 +117,6 @@ final class OutboxManager {
         noteMutation(source: source)
     }
 
-    /// Enqueue an authoritative task creation entry.
-    func enqueueCreateTask(_ payload: CreateTaskOutboxPayload, clientRequestId: String) async {
-        await enqueue(kind: OutboxKind.createTask, payload: payload, clientRequestId: clientRequestId,
-                      tempId: payload.tempId, source: payload.source)
-    }
 
     /// Enqueue an authoritative chat message send entry.
     func enqueueChatMessage(_ payload: SendChatMessageOutboxPayload, clientRequestId: String) async {
@@ -146,17 +137,7 @@ final class OutboxManager {
                              attachment: attachment, attachmentClientRequestId: attachmentClientRequestId)
     }
 
-    /// Enqueue an authoritative task update entry.
-    func enqueueUpdateTask(_ payload: UpdateTaskOutboxPayload, clientRequestId: String) async {
-        await enqueue(kind: OutboxKind.updateTask, payload: payload, clientRequestId: clientRequestId,
-                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil,
-                      source: payload.source)
-    }
 
-    func enqueueDeleteTask(_ payload: DeleteTaskOutboxPayload, clientRequestId: String) async {
-        await enqueue(kind: OutboxKind.deleteTask, payload: payload, clientRequestId: clientRequestId,
-                      tempId: payload.taskId.hasPrefix("temp_") ? payload.taskId : nil)
-    }
 
     func enqueueUpdateComment(_ payload: UpdateCommentOutboxPayload, clientRequestId: String) async {
         await enqueue(kind: OutboxKind.updateComment, payload: payload, clientRequestId: clientRequestId)
@@ -166,11 +147,6 @@ final class OutboxManager {
         await enqueue(kind: OutboxKind.deleteComment, payload: payload, clientRequestId: clientRequestId)
     }
 
-    /// Enqueue a list settings update that failed against the server, so it is replayed on
-    /// reconnect instead of being silently dropped (AITD-410).
-    func enqueueUpdateList(_ payload: UpdateListOutboxPayload, clientRequestId: String) async {
-        await enqueue(kind: OutboxKind.updateList, payload: payload, clientRequestId: clientRequestId)
-    }
 
     /// Enqueue a comment, optionally with an attachment that must upload first.
     /// Builds the dependency chain (upload → comment) so the comment is created

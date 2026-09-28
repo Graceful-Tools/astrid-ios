@@ -65,7 +65,9 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
 | Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*`, view pipelines, `ProjectStatus`, `MacTaskSearch`, `FuzzyMatch` | with the data layer — they run over the whole task set, which the core already holds |
 | Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
-| Data layer: API client, Outbox, cache, sync, realtime, services | `Core/Networking`, `Core/Outbox`, `Core/Persistence`, `Core/Sync`, `Core/RealTime`, `Core/Services` | **in progress** — see the design below |
+| Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
+| Data layer — comments, attachments, chat, members, projects | `CommentService`, `AttachmentService`, `ChatService`, `ListMemberService`, `ProjectService`, the rest of the Outbox, Core Data, `SSEClient` | next |
+| Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | after that; Apple Reminders stays native |
 
 **Stays native regardless:** Apple Reminders (EventKit), Foundation Models, Sign in with Apple /
 passkeys / Google sign-in UI, UserNotifications scheduling, badge, BGTask, StoreKit review, address
@@ -115,6 +117,27 @@ paths — duplicates the core's `App` end to end. It moves as follows.
    reads on every request (`CoreCredentials`). Sign-out calls the core's `signOut`, which wipes its
    cache and journal, as the Swift sign-out does.
 6. **The platform is stated** — `ios-app` / `mac-app` in `x-platform`, as the Swift client did.
+
+## What the core had to learn from the Apple apps
+
+Moving the data layer surfaced behaviour the Swift layer had and the core — so Windows — did not.
+Each is fixed in astrid-core with a test, not papered over in Swift:
+
+- **Calendar steps in the person's zone** for timed tasks (D1, D3): "monthly at 2pm" across a
+  daylight-saving change, the third Tuesday on the person's calendar.
+- **A pull never resurrects a deletion made here** whose delete is still on its way, or just landed
+  under a fetch already in flight (Swift's `recentlyDeletedIds`).
+- **A pull never shows a new task twice**: the server's copy of a task made here replaces its
+  temporary row by the create's idempotency key.
+- **A full pass forgets what the server no longer has** — a list deleted on the web while the
+  device was away (Swift task 53071260) — except unsent rows and rows that moved after the pass
+  began (f07dff56).
+- **The live stream cannot undo a newer local edit** or bring back a task deleted here (Swift's
+  `LiveUpdatePolicy`).
+- **Settings a shell writes are all kept**: `updateList` silently dropped `defaultIsPrivate`,
+  `publicListType`, `projectId`, `aiAgentConfig` and more.
+- **Completion carries the task as the person sees it, the timer, and an inbound provider's source
+  and time**; creation carries repeat and privacy, and can skip list defaults a shell applied.
 
 ## Data-layer gaps in the core
 

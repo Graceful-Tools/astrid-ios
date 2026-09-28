@@ -36,8 +36,8 @@ final class TaskListStabilityTests: XCTestCase {
 
         // Two fetches whose payloads arrive in different orders (server
         // pagination, merge insertion history) must render identically.
-        let a = await TaskService.mergeAndSortTasksInBackground(newTasks: tasks, pendingTasks: [])
-        let b = await TaskService.mergeAndSortTasksInBackground(newTasks: tasks.reversed(), pendingTasks: [])
+        let a = tasks.sorted(by: TaskOrdering.isOrderedBefore)
+        let b = tasks.reversed().sorted(by: TaskOrdering.isOrderedBefore)
         XCTAssertEqual(a.map(\.id), b.map(\.id),
                        "tied sort keys must have a total order — arbitrary tie order shuffles rows on every background refresh")
     }
@@ -54,8 +54,7 @@ final class TaskListStabilityTests: XCTestCase {
                               createdAt: base.addingTimeInterval(100), updatedAt: base)
         let undatedOld = Task(id: "undated-old", title: "o", listIds: [],
                               createdAt: base, updatedAt: base)
-        let sorted = await TaskService.mergeAndSortTasksInBackground(
-            newTasks: [undatedOld, late, undatedNew, early], pendingTasks: [])
+        let sorted = [undatedOld, late, undatedNew, early].sorted(by: TaskOrdering.isOrderedBefore)
         XCTAssertEqual(sorted.map(\.id), ["z-early", "a-late", "undated-new", "undated-old"])
     }
 
@@ -74,28 +73,22 @@ final class TaskListStabilityTests: XCTestCase {
         XCTAssertEqual(task.completedSource, "google")
     }
 
-    func testNoOpServerRefreshDoesNotRepublishTasks() async {
+    func testNoOpServerRefreshDoesNotRepublishTasks() async throws {
         let service = TaskService.shared
-        let due = Date(timeIntervalSince1970: 1_800_000_000)
-        let created = Date(timeIntervalSince1970: 1_790_000_000)
-        let payload = (0..<25).map { tiedTask($0, due: due, created: created) }
-
-        await service.updateTasksFromSync(payload)
+        _ = try await service.createTask(listIds: [], title: "steady \(UUID().uuidString)")
+        await service.reloadAll()
 
         var republishes = 0
         let cancellable = service.$tasks.dropFirst().sink { _ in republishes += 1 }
         defer { cancellable.cancel() }
 
-        // Identical payload again — the background-sync steady state.
-        await service.updateTasksFromSync(payload)
+        // The same cache read again — the background-sync steady state.
+        await service.reloadAll()
         XCTAssertEqual(republishes, 0,
-                       "an unchanged server refresh must not republish the tasks array — every publish re-renders the whole list (the large-list flicker)")
+                       "an unchanged refresh must not republish the tasks array — every publish re-renders the whole list (the large-list flicker)")
 
         // A real change must still publish.
-        var changed = payload
-        changed[0].title = "renamed"
-        changed[0].updatedAt = Date(timeIntervalSince1970: 1_800_000_100)
-        await service.updateTasksFromSync(changed)
+        _ = try await service.createTask(listIds: [], title: "changed \(UUID().uuidString)")
         XCTAssertEqual(republishes, 1, "a real change must still publish")
     }
 

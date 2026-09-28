@@ -47,6 +47,21 @@ final class KeychainService: @unchecked Sendable {
         try delete(key: "oauth_access_token")
     }
 
+    // MARK: - Named values (astrid-core's credential store)
+
+    /// A value the shared core keeps at rest, under the same protection as the session cookie.
+    func getValue(forKey key: String) throws -> String {
+        try get(key: key)
+    }
+
+    func setValue(_ value: String, forKey key: String) throws {
+        try save(key: key, value: value)
+    }
+
+    func deleteValue(forKey key: String) throws {
+        try delete(key: key)
+    }
+
     // MARK: - Generic Keychain Operations
     
     /// Base query shared by every operation.

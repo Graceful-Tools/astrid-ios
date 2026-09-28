@@ -167,6 +167,22 @@ impl CoreClient {
         }
     }
 
+    /// Run one command and wait for its answer on the calling thread.
+    ///
+    /// For the one read that must finish before the first frame — the tasks and lists a launch
+    /// shows offline — and nothing else: everything else awaits `run`. Refuses rather than
+    /// deadlocks when called from one of the core's own threads (a change listener that forgot to
+    /// hop off it).
+    pub fn run_blocking(&self, request: String) -> String {
+        if tokio::runtime::Handle::try_current().is_ok() {
+            return Response::failed(Failure::bad_request(
+                "runBlocking was called from the core's own thread; await run instead",
+            ))
+            .to_json();
+        }
+        self.runtime.block_on(self.app.run_json(&request))
+    }
+
     /// Hear every change to the cache from now on. The app subscribes once, not per screen.
     pub fn subscribe(&self, listener: Arc<dyn ChangeListener>) {
         self.app
@@ -266,6 +282,18 @@ mod tests {
             heard.0.lock().unwrap().as_slice(),
             [r#"{"change":"task","id":"t1"}"#.to_string()]
         );
+    }
+
+    #[test]
+    fn a_blocking_read_answers_on_the_calling_thread() {
+        let core = CoreClient::start(
+            r#"{"cachePath":":memory:"}"#.into(),
+            Arc::new(MemoryCredentials::default()),
+            false,
+        )
+        .expect("starts");
+        let answer = core.run_blocking(r#"{"kind":"tasks"}"#.into());
+        assert_eq!(answer, r#"{"ok":true,"value":[]}"#);
     }
 
     #[test]

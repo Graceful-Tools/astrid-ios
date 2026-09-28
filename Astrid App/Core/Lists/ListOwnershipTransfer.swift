@@ -21,44 +21,29 @@
 //  That last case is why the control can ship before the web deploy lands: it appears exactly
 //  when the endpoint does, with no flag to flip afterwards.
 //
-//  Pure — no view, no network — so the interesting decision is testable on its own.
+//  The decision is astrid-core's (`services::list::transfer_availability`); this is its shape.
 
 import Foundation
 
 enum ListOwnershipTransfer {
 
-    /// What the leave control should offer an owner right now.
-    enum Availability: Equatable {
-        /// The route is not deployed, or the network failed. Show the existing explanation.
+    /// astrid-core's `TransferAvailability` — the core reads the probe (its
+    /// `transfer_availability`, tested there); this is what the leave control draws from.
+    enum Availability: Equatable, Decodable {
         case unavailable
-        /// The server says this caller is not the owner. Show nothing.
         case notPermitted
-        /// The caller may transfer, but there is nobody eligible to receive it.
         case noEligibleOwners
-        /// Hand the list to one of these.
         case available([User])
-    }
 
-    /// Read the probe.
-    ///
-    /// Takes the result rather than performing it so the mapping can be asserted without a
-    /// server: this is the whole decision, and it is the part that is easy to get wrong.
-    static func availability(from result: Result<[User], Error>) -> Availability {
-        switch result {
-        case .success(let owners):
-            // An empty array is a 200. "Nobody to hand it to" and "you may not do this" are
-            // different states and want different UI — the v1 contract says so explicitly.
-            return owners.isEmpty ? .noEligibleOwners : .available(owners)
+        private enum Keys: String, CodingKey { case availability, owners }
 
-        case .failure(let error):
-            guard case AstridAPIError.httpError(let statusCode, _) = error else {
-                // A transport failure is indistinguishable from an undeployed route from here,
-                // and both mean the same thing to the user: not now, use the web app.
-                return .unavailable
-            }
-            switch statusCode {
-            case 403: return .notPermitted
-            default: return .unavailable
+        init(from decoder: Decoder) throws {
+            let answer = try decoder.container(keyedBy: Keys.self)
+            switch try answer.decode(String.self, forKey: .availability) {
+            case "notPermitted": self = .notPermitted
+            case "noEligibleOwners": self = .noEligibleOwners
+            case "available": self = .available(try answer.decode([User].self, forKey: .owners))
+            default: self = .unavailable
             }
         }
     }

@@ -53,25 +53,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // "Recently completed" field went missing for a while (545812e6), which is the argument
         // for the extraction better than any line count is.
         "Astrid App/Views/Tasks/TaskListView.swift": 1640,
-        // Was 1674. AITD-410 added a 3-line `mappedRealListId` accessor so the `updateList`
-        // Outbox handler can retarget a queued settings change from an offline-created list's
-        // temp id onto the real one. The ratchet's question was asked and answered: the
-        // alternative was a SECOND temp→real list map owned by ListService, duplicating the one
-        // `onListSynced` already maintains here — more lines overall, in two places that could
-        // disagree. Nothing else in this file grew.
-        //
-        // Then 1683 → 1691 for AITD-415, which rejoins cached tasks with their lists on the way
-        // out of CoreData. The ratchet asked and the answer was a partial extraction: the three
-        // cache-load paths each repeated the same filter-map pair, so they now share
-        // `tasksFromCache`, and the lists lookup moved to `CDTaskList.cachedDomainModels`. That
-        // is why +8 and not +20. A FULL extraction — moving the whole cache-load block to a
-        // `TaskService+CacheLoad.swift` extension, the way AITD-388 moved the list-member
-        // endpoints out of AstridAPIClient — was measured and rejected: the block needs four
-        // `private` members (`cachedTasks`, `coreDataManager`, `recentlyDeletedIds`,
-        // `updatePendingOperationsCount`), and Swift would make every one of them internal to
-        // the whole app target. Widening the invariant-bearing task cache to buy back 8 lines is
-        // the wrong trade. Worth revisiting if this file needs extracting for its own sake.
-        "Astrid App/Core/Services/TaskService.swift": 1691,
+        // `TaskService.swift` left this list on 2026-09-28 at 536 lines, down from 1691: the cache,
+        // the write journal, the sync merge and the live-update rules it carried are astrid-core's
+        // now (docs/CORE_MIGRATION.md). Under the threshold, it needs no entry.
         // Was 1674. AITD-387 lifted the quick-add options popover out into
         // `MacDraftDefaultsPicker` so the global ⌥Space window could offer the same
         // choices instead of a second copy of them, and this was set to 1660 to lock that

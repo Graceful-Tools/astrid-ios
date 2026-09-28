@@ -542,6 +542,218 @@ fileprivate struct FfiConverterString: FfiConverter {
 
 
 /**
+ * Told when the cache moves: a colleague's edit arriving on the live stream, a sync pass, a
+ * reminder coming due. `change_json` is the core's own vocabulary — `{"change":"task","id":…}`,
+ * `{"change":"synced","taskIds":[…],"listIds":[…]}` and so on (`Change::to_json`).
+ *
+ * Called on one of the core's threads, never the main one: the app hops to where it draws.
+ */
+public protocol ChangeListener: AnyObject, Sendable {
+    
+    func onChange(changeJson: String) 
+    
+}
+/**
+ * Told when the cache moves: a colleague's edit arriving on the live stream, a sync pass, a
+ * reminder coming due. `change_json` is the core's own vocabulary — `{"change":"task","id":…}`,
+ * `{"change":"synced","taskIds":[…],"listIds":[…]}` and so on (`Change::to_json`).
+ *
+ * Called on one of the core's threads, never the main one: the app hops to where it draws.
+ */
+open class ChangeListenerImpl: ChangeListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_astrid_apple_fn_clone_changelistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_astrid_apple_fn_free_changelistener(handle, $0) }
+    }
+
+    
+
+    
+open func onChange(changeJson: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_astrid_apple_fn_method_changelistener_on_change(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(changeJson),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceChangeListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceChangeListener = UniffiVTableCallbackInterfaceChangeListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeChangeListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ChangeListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeChangeListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ChangeListener: handle missing in uniffiClone")
+            }
+        },
+        onChange: { (
+            uniffiHandle: UInt64,
+            changeJson: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeChangeListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onChange(
+                     changeJson: try FfiConverterString.lift(changeJson)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceChangeListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceChangeListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitChangeListener() {
+    uniffi_astrid_apple_fn_init_callback_vtable_changelistener(UniffiCallbackInterfaceChangeListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChangeListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ChangeListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ChangeListener
+
+    public static func lift(_ handle: UInt64) throws -> ChangeListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ChangeListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ChangeListener) -> UInt64 {
+         if let rustImpl = value as? ChangeListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChangeListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ChangeListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChangeListener_lift(_ handle: UInt64) throws -> ChangeListener {
+    return try FfiConverterTypeChangeListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChangeListener_lower(_ value: ChangeListener) -> UInt64 {
+    return FfiConverterTypeChangeListener.lower(value)
+}
+
+
+
+
+
+
+/**
  * A running client: the cache, the Outbox, and — when asked — the loops that keep them current.
  */
 public protocol CoreClientProtocol: AnyObject, Sendable {
@@ -555,9 +767,24 @@ public protocol CoreClientProtocol: AnyObject, Sendable {
     func run(request: String) async  -> String
     
     /**
+     * Run one command and wait for its answer on the calling thread.
+     *
+     * For the one read that must finish before the first frame — the tasks and lists a launch
+     * shows offline — and nothing else: everything else awaits `run`. Refuses rather than
+     * deadlocks when called from one of the core's own threads (a change listener that forgot to
+     * hop off it).
+     */
+    func runBlocking(request: String)  -> String
+    
+    /**
      * Ask the background loops to stop at their next check. Commands still run afterwards.
      */
     func stop() 
+    
+    /**
+     * Hear every change to the cache from now on. The app subscribes once, not per screen.
+     */
+    func subscribe(listener: ChangeListener) 
     
 }
 /**
@@ -659,12 +886,42 @@ open func run(request: String)async  -> String  {
 }
     
     /**
+     * Run one command and wait for its answer on the calling thread.
+     *
+     * For the one read that must finish before the first frame — the tasks and lists a launch
+     * shows offline — and nothing else: everything else awaits `run`. Refuses rather than
+     * deadlocks when called from one of the core's own threads (a change listener that forgot to
+     * hop off it).
+     */
+open func runBlocking(request: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_astrid_apple_fn_method_coreclient_run_blocking(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(request),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Ask the background loops to stop at their next check. Commands still run afterwards.
      */
 open func stop()  {try! rustCall() {
         uniffiCallStatus in
     uniffi_astrid_apple_fn_method_coreclient_stop(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Hear every change to the cache from now on. The app subscribes once, not per screen.
+     */
+open func subscribe(listener: ChangeListener)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_astrid_apple_fn_method_coreclient_subscribe(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeChangeListener_lower(listener),uniffiCallStatus
     )
 }
 }
@@ -1208,10 +1465,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_astrid_apple_checksum_func_run_rule() != 46327) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_astrid_apple_checksum_method_changelistener_on_change() != 58626) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_astrid_apple_checksum_method_coreclient_run() != 37189) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_astrid_apple_checksum_method_coreclient_run_blocking() != 6706) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_astrid_apple_checksum_method_coreclient_stop() != 34766) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_astrid_apple_checksum_method_coreclient_subscribe() != 5316) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_astrid_apple_checksum_method_credentialstore_get() != 24417) {
@@ -1227,6 +1493,7 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
 
+    uniffiCallbackInitChangeListener()
     uniffiCallbackInitCredentialStore()
     return InitializationResult.ok
 }()

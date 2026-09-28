@@ -1,368 +1,94 @@
+import AstridCore
 import Foundation
 import Combine
 
-/// Manages incremental syncing between iOS app and backend
-/// Tracks last sync timestamp and only fetches changes
-/// Now uses modern OAuth + RESTful API v1
+/// Pull what changed, on request — through astrid-core.
+///
+/// The sync pass itself is the core's: it sends what is waiting in the journal first, then pulls
+/// lists, tasks, comments and projects and merges them with any edit the server has not seen yet
+/// (docs/CORE_MIGRATION.md). It also runs on its own, every minute, and the live stream keeps the
+/// cache current between passes — so this is only the person-facing half: pull to refresh, the
+/// app coming back to the foreground, a sign-in.
 @MainActor
 class SyncManager: ObservableObject {
     static let shared = SyncManager()
 
     @Published var isSyncing = false
     @Published var lastSyncDate: Date?
-    @Published var hasCompletedInitialSync = false  // Track if initial network sync is done
-
-    // Per-entity sync timestamps for incremental sync
-    @Published var lastTaskSyncDate: Date?
-    @Published var lastListSyncDate: Date?
-    @Published var lastCommentSyncDate: Date?
-    @Published var lastProjectSyncDate: Date?
-
-    private let apiClient = AstridAPIClient.shared
-    /// The single auto-sync timer. Held so repeated startAutoSync() calls (each
-    /// pull-to-refresh / view re-appearance) can't stack another 60s full-sync
-    /// timer — which previously multiplied full getAllTasks() downloads.
-    private var autoSyncTimer: Timer?
-    private let taskService = TaskService.shared
-    private let listService = ListService.shared // Temp: for legacy methods
-    private let commentService = CommentService.shared
-    private let listMemberService = ListMemberService.shared
-    private let projectService = ProjectService.shared
-    private let reminderSettings = ReminderSettings.shared
+    @Published var hasCompletedInitialSync = false
 
     private let lastSyncKey = "last_sync_timestamp"
-    private let lastTaskSyncKey = "last_task_sync_timestamp"
-    private let lastListSyncKey = "last_list_sync_timestamp"
-    private let lastCommentSyncKey = "last_comment_sync_timestamp"
-    private let lastProjectSyncKey = "last_project_sync_timestamp"
+    private var core: CoreSession { AppCore.shared.session }
 
     private init() {
-        // Load last sync timestamps
-        if let timestamp = UserDefaults.standard.object(forKey: lastSyncKey) as? Date {
-            lastSyncDate = timestamp
-        }
-        if let timestamp = UserDefaults.standard.object(forKey: lastTaskSyncKey) as? Date {
-            lastTaskSyncDate = timestamp
-        }
-        if let timestamp = UserDefaults.standard.object(forKey: lastListSyncKey) as? Date {
-            lastListSyncDate = timestamp
-        }
-        if let timestamp = UserDefaults.standard.object(forKey: lastCommentSyncKey) as? Date {
-            lastCommentSyncDate = timestamp
-        }
-        if let timestamp = UserDefaults.standard.object(forKey: lastProjectSyncKey) as? Date {
-            lastProjectSyncDate = timestamp
-        }
+        lastSyncDate = UserDefaults.standard.object(forKey: lastSyncKey) as? Date
     }
 
-    // MARK: - Full Sync
+    // MARK: - Passes
 
-    /// Perform a full sync (initial sync or after long time)
-    /// - Parameter includeUserTasks: If true, also fetches user tasks (heavy operation, use sparingly)
-    /// - Parameter isUserInitiated: true when a person asked for it (pull to
-    ///   refresh). Such a pass WAITS for an in-flight one rather than returning
-    ///   silently — the old `guard !isSyncing` made a refresh that landed
-    ///   during the 60-second background pass fetch nothing at all, with only
-    ///   the spinner to suggest otherwise (Task: 3173727d).
+    /// Run a sync pass now.
+    ///
+    /// - Parameter isUserInitiated: true when a person asked for it (pull to refresh). Such a pass
+    ///   WAITS for an in-flight one rather than returning silently — a refresh that landed during
+    ///   the background pass used to fetch nothing, with only the spinner to suggest otherwise
+    ///   (Task: 3173727d).
     func performFullSync(includeUserTasks: Bool = false, isUserInitiated: Bool = true) async throws {
         switch SyncPassPolicy.admission(isSyncing: isSyncing, isUserInitiated: isUserInitiated) {
         case .start:
             break
         case .skip:
-            AppLog.debug("⏳ [SyncManager] Full sync already in progress, skipping")
             return
         case .waitForInFlight:
-            guard await waitForInFlightPass() else {
-                AppLog.debug("⏳ [SyncManager] In-flight sync outlasted the wait — refresh skipped")
-                return
-            }
+            guard await waitForInFlightPass() else { return }
         }
-        // No await between the check and the claim (@MainActor), so the slot
-        // cannot be taken twice.
         guard !isSyncing else { return }
         isSyncing = true
-        defer { isSyncing = false }
-
-        AppLog.debug("🔄 [SyncManager] Starting full sync with OAuth + API v1...")
+        defer {
+            isSyncing = false
+            // Mark as complete even on error, so a first launch offline does not block forever.
+            hasCompletedInitialSync = true
+        }
 
         do {
-            // CRITICAL: Push pending local operations FIRST, before fetching server data.
-            // This ensures edits/creates are on the server so the fetch returns correct data.
-            // Without this, server data overwrites pending local edits → edits lost or duplicates.
-            AppLog.debug("🔄 [SyncManager] Pushing pending operations before fetch...")
-            do {
-                try await taskService.syncPendingOperations()
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] Pending ops sync failed (continuing): \(error)")
-            }
-
-            // Fetch all lists using new API (network call - doesn't block main thread)
-            AppLog.debug("📋 [SyncManager] Fetching lists via API v1...")
-            let lists = try await apiClient.getLists()
-            AppLog.debug("✅ [SyncManager] Lists fetched: \(lists.count)")
-
-            // Hand the response to the service, which owns what a fetched collection means: drop
-            // what was deleted locally, keep unsynced lists on top, sort it the one way the
-            // sidebar sorts, and cache it. This pass used to do all of that itself (AITD-326) —
-            // from the RAW response, so a sync could put a list the user had just deleted back on
-            // screen, and with its own copy of the comparator `ListOrdering` exists to be the only
-            // one of. Caching happens here, ahead of the task fetch below, so a failure there
-            // cannot cost us the list cache (AITD-324).
-            listService.applyFetchedLists(lists)
-            AppLog.debug("✅ [SyncManager] Lists synced: \(listService.lists.count)")
-
-            // Cache user images in background (doesn't block UI)
-            _Concurrency.Task.detached(priority: .utility) {
-                await UserImageCache.shared.cacheFromLists(lists)
-            }
-
-            // Fetch all tasks using new API v1 (network call - doesn't block main thread)
-            AppLog.debug("📝 [SyncManager] Fetching all tasks via API v1 (with pagination)...")
-            let tasks: [Task]
-            do {
-                tasks = try await apiClient.getAllTasks()
-                AppLog.debug("  ✅ Fetched \(tasks.count) tasks from API v1")
-            } catch {
-                AppLog.debug("  ⚠️ Failed to fetch tasks: \(error)")
-                throw error
-            }
-
-            // Process tasks in background to avoid blocking main thread
-            let currentUserId = AuthManager.shared.userId
-            let (uniqueTasks, validationError) = await Self.processTasksInBackground(
-                serverTasks: tasks,
-                currentUserId: currentUserId
-            )
-
-            // Handle validation error if any
-            if let error = validationError {
-                taskService.clearCache()
-                listService.clearCache()
-                hasCompletedInitialSync = false
-                throw error
-            }
-
-            AppLog.debug("✅ [SyncManager] Total unique tasks: \(uniqueTasks.count)")
-
-            // Update TaskService with the fetched tasks
-            await taskService.updateTasksFromSync(uniqueTasks)
-            AppLog.debug("✅ [SyncManager] Tasks synced: \(taskService.tasks.count)")
-
-            // Cache user images in background (doesn't block UI)
-            _Concurrency.Task.detached(priority: .utility) {
-                await UserImageCache.shared.cacheFromTasks(uniqueTasks)
-            }
-
-            // Sync pending comments (local-first offline support)
-            AppLog.debug("🔄 [SyncManager] Syncing pending comments...")
-            do {
-                try await commentService.syncPendingComments()
-                AppLog.debug("✅ [SyncManager] Comments synced successfully")
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] Comment sync failed (non-critical): \(error)")
-            }
-
-            // Sync pending list member operations (local-first offline support)
-            AppLog.debug("🔄 [SyncManager] Syncing pending list member operations...")
-            do {
-                try await listMemberService.syncPendingOperations()
-                AppLog.debug("✅ [SyncManager] List members synced successfully")
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] List member sync failed (non-critical): \(error)")
-            }
-
-            // Sync pending reminder settings (local-first offline support)
-            AppLog.debug("🔄 [SyncManager] Syncing pending reminder settings...")
-            await reminderSettings.syncPendingChanges()
-
-            // Refresh projects (status boards) — non-critical, runs after
-            // lists/tasks so failure here doesn't poison the rest of the sync.
-            AppLog.debug("📊 [SyncManager] Refreshing projects via API v1...")
-            do {
-                let projects = try await projectService.refreshFromServer()
-                AppLog.debug("✅ [SyncManager] Projects synced: \(projects.count)")
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] Project sync failed (non-critical): \(error)")
-            }
-
-            // Update sync timestamps
-            let syncTime = Date()
-            lastSyncDate = syncTime
-            lastTaskSyncDate = syncTime
-            lastListSyncDate = syncTime
-            lastCommentSyncDate = syncTime
-            lastProjectSyncDate = syncTime
-            UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastTaskSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastListSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastCommentSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastProjectSyncKey)
-
-            AppLog.debug("✅ [SyncManager] Full sync completed: \(lists.count) lists, \(taskService.tasks.count) tasks")
-            hasCompletedInitialSync = true
+            try await core.run(CoreCommand(kind: "sync"))
         } catch {
-            AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
-            AppLog.debug("⚠️ [SyncManager] Error details: \(error.localizedDescription)")
-            AppLog.debug("📱 [SyncManager] Using cached data for offline support")
-            AppLog.debug("📊 [SyncManager] Available offline: \(listService.lists.count) lists, \(taskService.tasks.count) tasks")
-
-            // Mark as complete even on error to not block UI forever
-            hasCompletedInitialSync = true
-        }
-    }
-
-    // MARK: - Background Processing Helpers
-
-    /// Process tasks in background to avoid blocking main thread during sync
-    /// This handles deduplication and validation which can be slow with many tasks
-    private static nonisolated func processTasksInBackground(
-        serverTasks: [Task],
-        currentUserId: String?
-    ) async -> ([Task], SyncError?) {
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                // Deduplicate tasks using dictionary
-                var taskDict: [String: Task] = [:]
-                for task in serverTasks {
-                    taskDict[task.id] = task
-                }
-                let uniqueTasks = Array(taskDict.values)
-
-                // Validate data isolation if we have a current user
-                if let userId = currentUserId {
-                    let userOwnedTasks = uniqueTasks.filter { task in
-                        task.creatorId == userId || task.assigneeId == userId
-                    }
-
-                    // If we got tasks but none belong to the current user, flag error
-                    if !uniqueTasks.isEmpty && userOwnedTasks.isEmpty {
-                        AppLog.debug("🚨 [SyncManager] DATA ISOLATION ALERT: Received \(uniqueTasks.count) tasks but none belong to current user \(userId)")
-                        let error = SyncError.dataIsolationViolation(
-                            expectedUserId: userId,
-                            receivedTaskCount: uniqueTasks.count
-                        )
-                        continuation.resume(returning: ([], error))
-                        return
-                    }
-
-                    AppLog.debug("✅ [SyncManager] Data validation passed: \(userOwnedTasks.count)/\(uniqueTasks.count) tasks belong to current user")
-                }
-
-                continuation.resume(returning: (uniqueTasks, nil))
-            }
-        }
-    }
-
-    // MARK: - Incremental Sync
-
-    /// Perform an incremental sync (only fetch changes since last sync)
-    /// Uses client-side delta detection - fetches all data but only applies newer changes
-    func performIncrementalSync() async throws {
-        guard let lastSync = lastSyncDate else {
-            // No previous sync, do full sync (but don't throw on error)
-            do {
-                // A timer tick, not a person: never wait on an in-flight pass.
-                return try await performFullSync(isUserInitiated: false)
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
-                // Don't throw - allow offline mode
-                return
-            }
-        }
-
-        // If no data cached, force full sync even if we have a lastSyncDate
-        if listService.lists.isEmpty && taskService.tasks.isEmpty {
-            AppLog.debug("🔄 [SyncManager] No cached data - performing full sync instead")
-            do {
-                // A timer tick, not a person: never wait on an in-flight pass.
-                return try await performFullSync(isUserInitiated: false)
-            } catch {
-                AppLog.debug("⚠️ [SyncManager] Full sync failed (offline mode): \(error)")
-                // Don't throw - allow offline mode
-                return
-            }
-        }
-
-        // Background pass: the in-flight one is already doing this work.
-        guard SyncPassPolicy.admission(isSyncing: isSyncing, isUserInitiated: false) == .start else {
-            AppLog.debug("⏳ [SyncManager] Sync already in progress, skipping")
+            AppLog.debug("⚠️ [SyncManager] Sync pass failed (offline?): \(error)")
             return
         }
-        isSyncing = true
-        defer { isSyncing = false }
 
-        AppLog.debug("🔄 [SyncManager] Starting incremental sync (client-side delta)...")
-        AppLog.debug("   Last sync: \(lastSync)")
+        await ListService.shared.reload()
+        await TaskService.shared.reloadAll()
+        guardDataIsolation()
 
-        var stats = IncrementalSyncStats()
+        // Settings changed offline go up with the pass, as they always did.
+        await ReminderSettings.shared.syncPendingChanges()
 
-        do {
-            // CRITICAL: Push pending local operations FIRST, before fetching server data.
-            //
-            // Every push is best-effort and the fetch runs regardless. These
-            // were bare `try`s, so one stuck local write — a pending comment on
-            // a task the server kept rejecting — aborted the pass BEFORE it
-            // fetched, and remote changes silently stopped arriving until the
-            // app was relaunched (Task: 3173727d).
-            let failedPushes = await SyncPassPolicy.runPushSteps([
-                .init(name: "tasks", run: { [taskService] in try await taskService.syncPendingOperations() }),
-                .init(name: "comments", run: { [commentService] in try await commentService.syncPendingComments() }),
-                .init(name: "list members", run: { [listMemberService] in try await listMemberService.syncPendingOperations() }),
-            ])
-            if !failedPushes.isEmpty {
-                AppLog.debug("⚠️ [SyncManager] Pending pushes failed (fetching anyway): \(failedPushes.joined(separator: ", "))")
-            }
-
-            // Fetch all lists and apply only newer changes
-            let serverLists = try await apiClient.getLists()
-            stats.listsChecked = serverLists.count
-
-            for serverList in serverLists {
-                if let existingIndex = listService.lists.firstIndex(where: { $0.id == serverList.id }) {
-                    // Compare timestamps - only update if server is newer
-                    let existingList = listService.lists[existingIndex]
-                    let serverUpdated = serverList.updatedAt ?? serverList.createdAt ?? .distantPast
-                    let localUpdated = existingList.updatedAt ?? existingList.createdAt ?? .distantPast
-
-                    if serverUpdated > localUpdated {
-                        listService.lists[existingIndex] = serverList
-                        stats.listsUpdated += 1
-                    }
-                } else {
-                    // New list
-                    listService.lists.append(serverList)
-                    stats.listsCreated += 1
-                }
-            }
-
-            // Fetch all tasks and apply through unified sync path
-            // This handles dedup, pending deletes, and orphan cleanup
-            let serverTasks = try await apiClient.getAllTasks()
-            stats.tasksChecked = serverTasks.count
-            await taskService.updateTasksFromSync(serverTasks)
-
-            // Update timestamps
-            let syncTime = Date()
-            lastSyncDate = syncTime
-            lastTaskSyncDate = syncTime
-            lastListSyncDate = syncTime
-            UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastTaskSyncKey)
-            UserDefaults.standard.set(syncTime, forKey: lastListSyncKey)
-
-            AppLog.debug("✅ [SyncManager] Incremental sync completed:")
-            AppLog.debug("   Lists: \(stats.listsCreated) new, \(stats.listsUpdated) updated (checked \(stats.listsChecked))")
-            AppLog.debug("   Tasks: \(stats.tasksChecked) checked")
-
-        } catch {
-            AppLog.debug("⚠️ [SyncManager] Incremental sync failed (offline mode): \(error)")
-            // Don't throw - allow offline mode
+        // Pictures for the people on screen, off the critical path.
+        let lists = ListService.shared.lists
+        let tasks = TaskService.shared.tasks
+        _Concurrency.Task.detached(priority: .utility) {
+            await UserImageCache.shared.cacheFromLists(lists)
+            await UserImageCache.shared.cacheFromTasks(tasks)
         }
+
+        let syncTime = Date()
+        lastSyncDate = syncTime
+        UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
     }
 
-    /// Wait for an in-flight pass to finish so a user-initiated refresh can run.
-    /// Bounded: a refresh that cannot get the slot gives up rather than leaving
-    /// the spinner turning forever.
+    /// Same as a full pass: the core's pull asks only for what moved since the last one.
+    func performIncrementalSync() async throws {
+        try await performFullSync(isUserInitiated: false)
+    }
+
+    /// Push what is waiting in the journal now, without pulling — to get local changes out at
+    /// once without a full refresh.
+    func performQuickSync() async throws {
+        try await core.run(CoreCommand(kind: "drain"))
+        TaskService.shared.refreshOutboxCounts()
+    }
+
+    /// Wait for the in-flight pass to finish. False if it outlived the wait.
     private func waitForInFlightPass(timeout: TimeInterval = 15) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while isSyncing, Date() < deadline {
@@ -371,71 +97,38 @@ class SyncManager: ObservableObject {
         return !isSyncing
     }
 
-    /// Perform a quick sync - only syncs pending local operations without fetching server data
-    /// Useful for immediately pushing local changes without full refresh
-    func performQuickSync() async throws {
-        AppLog.debug("🔄 [SyncManager] Starting quick sync (pending operations only)...")
-
-        do {
-            try await taskService.syncPendingOperations()
-            try await commentService.syncPendingComments()
-            try await listMemberService.syncPendingOperations()
-            AppLog.debug("✅ [SyncManager] Quick sync completed")
-        } catch {
-            AppLog.debug("⚠️ [SyncManager] Quick sync failed: \(error)")
-            throw error
-        }
-    }
-
-    // MARK: - Auto Sync
-
-    /// Start automatic background syncing. Idempotent: a timer already running
-    /// is left in place instead of stacking another.
-    func startAutoSync(interval: TimeInterval = 60) {
-        guard autoSyncTimer == nil else { return }
-        autoSyncTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                do {
-                    try await self?.performIncrementalSync()
-                } catch {
-                    AppLog.debug("⚠️ [SyncManager] Auto-sync failed: \(error)")
-                }
-            }
-        }
-    }
-
-    /// Stop the auto-sync timer (sign-out / teardown).
-    func stopAutoSync() {
-        autoSyncTimer?.invalidate()
-        autoSyncTimer = nil
-    }
-
-    /// Reset sync state (useful after sign out or data corruption)
-    /// Clears all sync timestamps to ensure fresh data on next login
-    func resetSyncState() {
-        stopAutoSync()
-        lastSyncDate = nil
-        lastTaskSyncDate = nil
-        lastListSyncDate = nil
-        lastCommentSyncDate = nil
+    /// A pull that brought tasks none of which belong to the signed-in person is a server mixing
+    /// up accounts, not data to show. Hide it and say so; the next pass decides again.
+    private func guardDataIsolation() {
+        guard let userId = AuthManager.shared.userId else { return }
+        let tasks = TaskService.shared.tasks
+        guard !tasks.isEmpty,
+              !tasks.contains(where: { $0.creatorId == userId || $0.assigneeId == userId }) else { return }
+        AppLog.debug("❌ [SyncManager] \(SyncError.dataIsolationViolation(expectedUserId: userId, receivedTaskCount: tasks.count).localizedDescription)")
+        TaskService.shared.clearCache()
+        ListService.shared.clearCache()
         hasCompletedInitialSync = false
-
-        // Clear all persisted sync timestamps
-        UserDefaults.standard.removeObject(forKey: lastSyncKey)
-        UserDefaults.standard.removeObject(forKey: lastTaskSyncKey)
-        UserDefaults.standard.removeObject(forKey: lastListSyncKey)
-        UserDefaults.standard.removeObject(forKey: lastCommentSyncKey)
-
-        AppLog.debug("🔄 [SyncManager] Sync state fully reset (all timestamps cleared)")
     }
-}
 
-/// Statistics for incremental sync operations
-struct IncrementalSyncStats {
-    var listsChecked: Int = 0
-    var listsCreated: Int = 0
-    var listsUpdated: Int = 0
-    var tasksChecked: Int = 0
+    // MARK: - The background pass
+
+    /// The core runs its own pass every minute and keeps the live stream open; there is no timer
+    /// here to start. Kept so callers need not know.
+    func startAutoSync(interval: TimeInterval = 60) {}
+
+    func stopAutoSync() {}
+
+    /// Forget when the last pass ran (sign-out). The core resets its own cursor with its cache.
+    func resetSyncState() {
+        lastSyncDate = nil
+        hasCompletedInitialSync = false
+        UserDefaults.standard.removeObject(forKey: lastSyncKey)
+        // The per-entity stamps the Swift sync kept; a signed-out device holds none of them.
+        for key in ["last_task_sync_timestamp", "last_list_sync_timestamp",
+                    "last_comment_sync_timestamp", "last_project_sync_timestamp"] {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
 }
 
 // MARK: - Sync Errors

@@ -1,13 +1,18 @@
 import AstridCore
 import Foundation
 import Combine
-import CoreData
-#if canImport(UIKit)
-import UIKit
-#endif
 
-/// Task service using API v1 with offline support via CoreData
-/// Handles task operations and syncing across all user's lists
+/// The tasks the views draw, and every way to change one — through astrid-core.
+///
+/// astrid-core (the shared Rust core the Windows app runs on) is the cache, the write journal
+/// (Outbox), the sync pass and the live stream; see docs/CORE_MIGRATION.md. This service is the
+/// face the views bind to: it publishes the core's tasks as `[Task]` in the API wire shape the
+/// views have always read, turns each call into a core command, and reads back what the core says
+/// moved. It decides nothing the core decides — not what a completion does, not how a pull merges
+/// with an unsent edit, not when a write goes out.
+///
+/// Every write is local-first, exactly as before: the core updates its cache and journals the
+/// write before answering, so the row changes at once and the server hears about it when it can.
 @MainActor
 class TaskService: ObservableObject {
     static let shared = TaskService()
@@ -15,475 +20,174 @@ class TaskService: ObservableObject {
     @Published var tasks: [Task] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    /// Writes waiting to reach the server.
     @Published var pendingOperationsCount: Int = 0
+    /// Writes the server refused for good (dead-lettered).
     @Published var failedOperationsCount: Int = 0
     @Published var isSyncingPendingOperations = false
-    @Published var hasCompletedInitialLoad = false  // Track if initial data load is done
+    @Published var hasCompletedInitialLoad = false
 
-    private let apiClient = AstridAPIClient.shared
     private let notificationManager = NotificationManager.shared
     private let badgeManager = BadgeManager.shared
-    private let coreDataManager = CoreDataManager.shared
-    private let networkMonitor = NetworkMonitor.shared
     private var cachedTasks: [String: Task] = [:]
     /// O(1) id → task lookup (mirrors `tasks`). Lets callers avoid an O(n)
     /// `tasks.first(where:)` scan per lookup (e.g. subtask-depth walking).
     var tasksById: [String: Task] { cachedTasks }
-    private var syncTimer: Timer?
-    private var networkObserver: NSObjectProtocol?
 
-    /// Avoids `NSError.description` expansion in logs, which can traverse CoreData-backed
-    /// objects in `userInfo` and crash while formatting the error itself.
+    /// Temp ids the views may still hold, and the real ids they became. Learned from the core,
+    /// which keeps the authoritative mapping; kept here so a lookup is synchronous.
+    private var tempTaskIdMapping: [String: String] = [:]
+
+    private var core: CoreSession { AppCore.shared.session }
+
+    /// Avoids `NSError.description` expansion in logs.
     static func safeErrorSummary(_ error: Error) -> String {
         let nsError = error as NSError
         return "\(nsError.domain)(\(nsError.code)): \(nsError.localizedDescription)"
     }
 
-    /// Mapping of temp list IDs to their real server IDs (populated when lists sync)
-    private var tempListIdMapping: [String: String] = [:]
+    private init() {
+        // The tasks must be in memory before the first frame — offline, this is all there is to
+        // show — so this one read waits on the calling thread. It is a cache read: no network.
+        do {
+            let loaded = try core.runBlocking(CoreCommand.tasks(), as: [Task].self)
+            publish(loaded)
+        } catch {
+            AppLog.debug("❌ [TaskService] Failed to read cached tasks: \(Self.safeErrorSummary(error))")
+        }
+        hasCompletedInitialLoad = true
+        refreshOutboxCounts()
+    }
 
-    /// Mapping of temp task IDs to their real server IDs.
-    /// Used to redirect edits from stale task detail views that still hold the temp ID.
-    private var tempTaskIdMapping: [String: String] = TempTaskMappingStore.load()
+    // MARK: - Temp ids
 
-    /// Real server id for a temporary (offline-created) task id, once it has
-    /// synced; nil if the task hasn't been created on the server yet. Used by
-    /// CommentService so a photo/comment attached to an offline-created task is
-    /// posted to the real task instead of 404'ing against the temp id.
+    /// Real server id for a temporary (offline-created) task id, once it has synced; nil while it
+    /// is still only local.
     func mappedRealTaskId(for tempId: String) -> String? {
         tempTaskIdMapping[tempId]
     }
 
-    /// Real server id for a temporary (offline-created) LIST id, once its create has synced;
-    /// nil while it is still only local. `onListSynced` populates the mapping from both
-    /// temp→real transitions, so this answers for an online create and an offline replay alike.
-    /// Used by the `updateList` Outbox handler so a queued settings change made against an
-    /// offline-created list retargets onto the real list instead of blocking forever (AITD-410).
-    func mappedRealListId(for tempId: String) -> String? {
-        tempListIdMapping[tempId]
+    /// The id to act on: a temp id a view still holds, as the task it became.
+    private func resolved(_ id: String) -> String {
+        tempTaskIdMapping[id] ?? id
     }
 
-    /// Records that an offline-created task's temporary id now corresponds to a
-    /// real server id. MUST be called from every temp→real transition (online
-    /// create AND offline sync) so callers like CommentService can re-target
-    /// pending children (e.g. a photo-comment) onto the real task.
+    // MARK: - Reading back what the core says moved
+
+    /// A change from the core: re-read what it names. The core already applied it to its cache —
+    /// this only brings the published `[Task]` level with it.
+    func coreDidChange(_ change: CoreChange) {
+        switch change {
+        case .task(let id):
+            _Concurrency.Task { await self.reload(ids: [id]) }
+        case .synced(let taskIds, _) where !taskIds.isEmpty:
+            _Concurrency.Task { await self.reload(ids: taskIds) }
+        case .synced, .unknown:
+            _Concurrency.Task { await self.reloadAll() }
+        case .needsSync:
+            _Concurrency.Task { try? await self.core.run(CoreCommand(kind: "sync")) }
+        default:
+            break
+        }
+    }
+
+    /// Re-read the named tasks. One that is no longer in the cache was deleted — here or elsewhere;
+    /// a temporary id that became a real one reads as that task.
+    private func reload(ids: [String]) async {
+        let temps = ids.filter { $0.hasPrefix("temp_") }
+        let moved = temps.isEmpty
+            ? [:] : ((try? await core.run(CoreCommand.resolveIds(temps), as: [String: String].self)) ?? [:])
+        let wanted = ids.map { moved[$0] ?? $0 }
+        guard let found = try? await core.run(CoreCommand.tasks(ids: wanted), as: [Task].self) else { return }
+        let foundIds = Set(found.map(\.id))
+
+        var next = tasks
+        for (temp, real) in moved {
+            recordTempTaskMapping(tempId: temp, realId: real)
+            next.removeAll { $0.id == temp }
+        }
+        next.removeAll { wanted.contains($0.id) && !foundIds.contains($0.id) }
+        for task in found { upsert(task, into: &next) }
+        publish(next)
+        refreshOutboxCounts()
+    }
+
+    /// Read every cached task again: after a sync pass or a delivery that could not say what moved.
+    func reloadAll() async {
+        let temps = cachedTasks.keys.filter { $0.hasPrefix("temp_") }
+        if !temps.isEmpty,
+           let moved = try? await core.run(CoreCommand.resolveIds(Array(temps)), as: [String: String].self) {
+            for (temp, real) in moved { recordTempTaskMapping(tempId: temp, realId: real) }
+        }
+        guard let loaded = try? await core.run(CoreCommand.tasks(), as: [Task].self) else { return }
+        publish(loaded)
+        refreshOutboxCounts()
+    }
+
+    /// Records that an offline-created task's temporary id became a real one, and tells the views
+    /// that may hold it.
     func recordTempTaskMapping(tempId: String, realId: String) {
-        guard tempId.hasPrefix("temp_"), tempId != realId else { return }
-        // Persist durably so a relaunch between the task syncing and a child
-        // (photo/comment) syncing doesn't strand the child.
-        tempTaskIdMapping = TempTaskMappingStore.recording(tempTaskIdMapping, temp: tempId, real: realId)
-        TempTaskMappingStore.save(tempTaskIdMapping)
-        // Let pending children (e.g. a photo-comment queued offline) re-sync now
-        // that the parent task has a real id — closes the race where the
-        // attachment finished uploading before the task synced.
+        guard tempId.hasPrefix("temp_"), tempId != realId, tempTaskIdMapping[tempId] != realId else { return }
+        tempTaskIdMapping[tempId] = realId
         NotificationCenter.default.post(
-            name: .taskTempIdResolved,
-            object: nil,
-            userInfo: ["tempId": tempId, "realId": realId]
-        )
+            name: .taskTempIdResolved, object: nil, userInfo: ["tempId": tempId, "realId": realId])
     }
 
-    /// Reconcile the optimistic temp task with the server task once the Outbox
-    /// `createTask` handler succeeds — the Outbox-authoritative equivalent of the
-    /// post-server block in `createTask`. Owns: temp→real mapping, cache/`tasks`
-    /// swap, CoreData temp-delete + real-save (marked synced).
-    ///
-    /// Idempotent by design: during dual-write the legacy path usually reconciles
-    /// first (temp already gone), so this only ensures the mapping and returns.
-    func reconcileOutboxCreatedTask(tempId: String, serverTask: Task) async {
-        // Always ensure the mapping — a dependent comment/update may target it.
-        recordTempTaskMapping(tempId: tempId, realId: serverTask.id)
-        // WE created this and the server confirmed it. A fetch already in flight does not know
-        // that yet, and its silence must not be read as a delete (f07dff56).
-        recordRecentlyCreated(serverTask.id)
-
-        guard cachedTasks[tempId] != nil || tasks.contains(where: { $0.id == tempId }) else {
-            // A fetch merge already swapped temp→real in memory. It saved the
-            // real row but does NOT delete the temp CoreData row — left behind
-            // it stays syncStatus=="pending" forever (phantom pending count) and
-            // resurrects as a duplicate on the next launch. Delete it here.
-            try? await deleteTaskFromCoreData(tempId)
-            return
-        }
-        let temp = cachedTasks[tempId] ?? tasks.first(where: { $0.id == tempId })
-
-        // Carry forward client-side fields the server response may not echo.
-        var reconciled = serverTask
-        reconciled.clientRequestId = temp?.clientRequestId ?? serverTask.clientRequestId
-        var mergedListIds = serverTask.listIds ?? []
-        for id in temp?.listIds ?? [] where !mergedListIds.contains(id) { mergedListIds.append(id) }
-        reconciled.listIds = mergedListIds
-
-        // Overlay editable fields from the temp task: the create response only
-        // echoes what was enqueued — anything changed DURING the flight
-        // (completing a just-imported task, a quick title edit) lives on the
-        // temp task and has its own queued update. Without this overlay the
-        // reconcile visually reverts those changes (the Google "hundreds of
-        // completed tasks arrive open" bug).
-        if let temp {
-            reconciled.title = temp.title
-            reconciled.description = temp.description
-            reconciled.priority = temp.priority
-            reconciled.completed = temp.completed
-            reconciled.dueDateTime = temp.dueDateTime
-            reconciled.isAllDay = temp.isAllDay
-            reconciled.assigneeId = temp.assigneeId
-            reconciled.repeating = temp.repeating
-            reconciled.repeatingData = temp.repeatingData
-            reconciled.isPrivate = temp.isPrivate
-        }
-
-        // Swap temp → real in the in-memory caches.
-        cachedTasks.removeValue(forKey: tempId)
-        cachedTasks[serverTask.id] = reconciled
-        if let idx = tasks.firstIndex(where: { $0.id == tempId }) {
-            tasks[idx] = reconciled
-        }
-
-        // Persist: remove temp row, save real. If any list ids are still temp
-        // (offline-created list), keep it pending_list_sync like the legacy path.
-        let hasTempListIds = mergedListIds.contains { $0.hasPrefix("temp_") }
-        try? await deleteTaskFromCoreData(tempId)
-        try? await saveTaskToCoreData(reconciled, syncStatus: hasTempListIds ? "pending_list_sync" : "synced")
-    }
-
-    /// Finalize a task deletion once the Outbox `deleteTask` handler succeeds:
-    /// remove the pending_delete CoreData row. The recently-deleted guard is
-    /// intentionally RETAINED — a fetch that started before the server delete
-    /// can still deliver the task after confirmation, and clearing the guard
-    /// here let that stale response resurrect the task until restart. Task ids
-    /// are never reused, so retaining them (capped) is safe.
-    func finalizeOutboxDeletedTask(id: String, resolvedId: String) async {
-        try? await deleteTaskFromCoreData(id)
-        if resolvedId != id { try? await deleteTaskFromCoreData(resolvedId) }
-        updatePendingOperationsCount()
-        await badgeManager.updateBadge(with: self.tasks)
-    }
-
-    /// Mark a task's CoreData row synced once the Outbox `updateTask` handler
-    /// succeeds (the Outbox-authoritative equivalent of the post-PUT block in
-    /// `updateTask`). Uses the current in-memory task, so a newer optimistic edit
-    /// simply stays queued as its own Outbox entry and re-reconciles on success.
-    func reconcileOutboxUpdatedTask(taskId: String) async {
-        guard let task = cachedTasks[taskId] ?? tasks.first(where: { $0.id == taskId }) else { return }
-        try? await saveTaskToCoreData(task, syncStatus: "synced")
-        updatePendingOperationsCount()
-    }
-
-    /// IDs of tasks deleted locally. Persisted to UserDefaults so it survives app restarts.
-    /// Without persistence, closing the app after deleting tasks loses the delete tracking:
-    /// syncPendingOperations pushes the delete and clears CoreData, but if the server still
-    /// returns the task briefly, there's nothing left to filter it → deleted tasks reappear.
-    private static let recentlyDeletedIdsKey = "recentlyDeletedTaskIds"
-    private static let recentlyDeletedCap = 500
-    /// Ordered and capped so eviction drops the OLDEST ids — a Set round-trip evicts arbitrarily
-    /// and could drop the id just recorded.
-    ///
-    /// Held in memory and written through (AITD-342). It used to read and rebuild a 500-element
-    /// Set out of the defaults plist on every access, including the membership check in
-    /// `updateTask` that runs on every edit, completion and board move.
-    private let recentlyDeletedLedger = PersistedIdRing(key: TaskService.recentlyDeletedIdsKey,
-                                                        cap: TaskService.recentlyDeletedCap)
-    private var recentlyDeletedIds: Set<String> { recentlyDeletedLedger.ids }
-
-    /// Ids we created ourselves and the server has confirmed, kept briefly (Task f07dff56).
-    ///
-    /// The mirror image of `recentlyDeletedIds`. A fetch that started BEFORE our create returns a
-    /// snapshot without the new task; the merge read that absence as "deleted remotely" and
-    /// dropped the row, which is the task vanishing and coming back a minute later. For an id we
-    /// created and the server acknowledged, absence from an in-flight response is staleness, not
-    /// authority. In-memory only: the window is seconds, and a relaunch re-fetches anyway.
-    private var recentlyCreatedIds: [String: Date] = [:]
-
-    /// Long enough to cover a fetch in flight across a create, short enough that a genuine remote
-    /// delete is honoured almost immediately. Same window the create dedup already uses.
-    private static let recentlyCreatedWindow: TimeInterval = 60
-
-    private func recordRecentlyCreated(_ id: String) {
-        let now = Date()
-        recentlyCreatedIds[id] = now
-        recentlyCreatedIds = recentlyCreatedIds.filter {
-            now.timeIntervalSince($0.value) < Self.recentlyCreatedWindow
-        }
-    }
-
-    /// Ids still inside the window — everything else falls back to "absent from the server means
-    /// deleted", so this can never become "never delete anything".
-    private var protectedCreatedIds: Set<String> {
-        let now = Date()
-        return Set(recentlyCreatedIds.filter {
-            now.timeIntervalSince($0.value) < Self.recentlyCreatedWindow
-        }.keys)
-    }
-
-    private func recordRecentlyDeleted(_ ids: [String]) {
-        recentlyDeletedLedger.record(ids)
-    }
-
-    /// Pure ledger append: idempotent, ordered, oldest-first eviction at cap —
-    /// eviction must never drop the id just recorded (a Set round-trip would).
-    nonisolated static func appendingDeletedIds(_ existing: [String], _ ids: [String], cap: Int) -> [String] {
-        PersistedIdRing.appending(existing, ids, cap: cap)
-    }
-
-    private init() {
-        setupNetworkObserver()
-        startBackgroundSync()
-        // REMOVED: setupAppLifecycleObserver() - Saving all tasks to Core Data freezes the app
-
-        // Load cached tasks synchronously to ensure data is available before any UI renders
-        // This is CRITICAL for offline mode - tasks must be in memory before network calls fail
-        loadCachedTasks()
-
-        subscribeToLiveTaskUpdates()
-    }
-
-    // MARK: - Live Updates (SSE)
-
-    /// Subscribe to the `task_*` stream so a collaborator's edit shows up now rather than at the
-    /// next 60 s pull (AITD-314).
-    ///
-    /// Before this, `SSEClient` decoded every one of these events and delivered them to handler
-    /// arrays that nothing had ever subscribed to — the parse cost was paid and nothing changed on
-    /// screen. Everything here is CACHE-ONLY: no API call, no write back to the server. A live
-    /// event that triggered a write would be the ping-pong the web board has an open task about.
-    private func subscribeToLiveTaskUpdates() {
-        _Concurrency.Task {
-            let sse = SSEClient.shared
-
-            await sse.onTaskCreated { task in
-                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskUpsert(task) }
-            }
-            await sse.onTaskUpdated { task in
-                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskUpsert(task) }
-            }
-            await sse.onTaskDeleted { taskId in
-                _Concurrency.Task { @MainActor in TaskService.shared.applyLiveTaskDelete(taskId) }
-            }
-        }
-    }
-
-    /// Merge a task that arrived over SSE into the cache.
-    ///
-    /// `LiveUpdatePolicy` owns whether it may be applied — an event can arrive after a local edit
-    /// the server has not seen, or for a task the user just deleted, and blindly overwriting would
-    /// undo either. The rules match the 60 s pull's, so the two cannot disagree about a row.
-    func applyLiveTaskUpsert(_ task: Task) {
-        let decision = LiveUpdatePolicy.taskUpsert(
-            incoming: task,
-            cached: cachedTasks[task.id],
-            locallyDeletedIds: recentlyDeletedIds
-        )
-        guard decision == .apply else {
-            AppLog.debug("📡 [TaskService] Live task \(task.id) ignored: \(decision)")
-            return
-        }
-
-        cachedTasks[task.id] = task
-
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            let sortKeysChanged = TaskOrdering.isOrderedBefore(tasks[index], task)
-                || TaskOrdering.isOrderedBefore(task, tasks[index])
-            if sortKeysChanged {
-                // Due date or creation date moved — the row has to move with it, to the same
-                // place the next sync pull would put it.
-                tasks.remove(at: index)
-                tasks.insert(task, at: TaskOrdering.insertionIndex(for: task, in: tasks))
-            } else {
-                tasks[index] = task
-            }
+    private func upsert(_ task: Task, into list: inout [Task]) {
+        if let index = list.firstIndex(where: { $0.id == task.id }) {
+            list[index] = task
         } else {
-            tasks.insert(task, at: TaskOrdering.insertionIndex(for: task, in: tasks))
-        }
-
-        AppLog.debug("📡 [TaskService] Applied live task update: \(task.title)")
-    }
-
-    /// Remove a task that was deleted elsewhere.
-    func applyLiveTaskDelete(_ taskId: String) {
-        guard LiveUpdatePolicy.taskDelete(id: taskId) == .apply else { return }
-        guard cachedTasks[taskId] != nil || tasks.contains(where: { $0.id == taskId }) else { return }
-
-        cachedTasks.removeValue(forKey: taskId)
-        tasks.removeAll { $0.id == taskId }
-        AppLog.debug("📡 [TaskService] Applied live task delete: \(taskId)")
-    }
-
-    // MARK: - Initialization
-
-    /// Load cached tasks from CoreData on startup (synchronous, blocking)
-    /// CRITICAL: This must be synchronous to ensure tasks are loaded before UI renders
-    /// Without this, opening the app offline shows no tasks even though they're cached
-    private func loadCachedTasks() {
-        do {
-            // Only the ACTIVE (incomplete) tasks must be in memory before the
-            // first render for offline mode — that's the set the lists show.
-            // But converting a large active backlog to domain models on the
-            // main thread still janks launch. Map only a bounded FIRST PAGE
-            // synchronously (enough to fill the first screen offline); the rest
-            // of the active backlog and the completed history hydrate off the
-            // launch critical path.
-            let deletedIds = recentlyDeletedIds
-            let fetchRequest = CDTask.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "completed == NO")
-            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-            fetchRequest.fetchLimit = Self.initialActivePageSize
-            let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
-
-            // Convert to domain models, excluding tasks pending deletion — also those tracked
-            // in recentlyDeletedIds (UserDefaults), in case CoreData status was lost to an
-            // earlier bug — and rejoin each with its lists.
-            self.tasks = Self.tasksFromCache(cdTasks, deletedIds: deletedIds,
-                                             context: coreDataManager.viewContext)
-            for task in self.tasks {
-                cachedTasks[task.id] = task
-            }
-            updatePendingOperationsCount()
-            AppLog.debug("✅ [TaskService] Loaded \(tasks.count) active tasks (first page) from cache synchronously (\(pendingOperationsCount) pending)")
-            // Mark as loaded IMMEDIATELY so UI shows cached data right away
-            // This is critical for offline mode - user sees data even before network sync
-            self.hasCompletedInitialLoad = true
-
-            // Hydrate the rest of the active backlog off the main thread, then
-            // the completed history — both off the launch critical path.
-            _Concurrency.Task { @MainActor [weak self] in
-                await self?.hydrateRemainingActiveTasksFromCache()
-                self?.hydrateCompletedTasksFromCache()
-            }
-        } catch {
-            AppLog.debug("❌ [TaskService] Failed to load cached tasks: \(Self.safeErrorSummary(error))")
-            self.hasCompletedInitialLoad = true  // Mark as loaded even on error to not block UI
+            list.append(task)
         }
     }
 
-    /// CDTask rows → tasks, for all three cache-load paths: drop what is pending deletion, map,
-    /// and rejoin each task with its lists (AITD-415 — see `TaskListHydration`). The lists come
-    /// from the CALLER'S context, never `ListService.shared`, so hydration cannot depend on which
-    /// singleton loaded first. `nonisolated`: the background path runs it in `context.perform`.
-    nonisolated static func tasksFromCache(_ rows: [CDTask],
-                                           deletedIds: Set<String>,
-                                           context: NSManagedObjectContext) -> [Task] {
-        TaskListHydration.hydrated(
-            rows.filter { $0.syncStatus != "pending_delete" && !deletedIds.contains($0.id) }
-                .map { $0.toDomainModel() },
-            using: CDTaskList.cachedDomainModels(in: context))
+    /// Publish a new set: joined with the lists they belong to, in the order every list draws
+    /// from, and only when something actually changed — reassigning `@Published` re-renders every
+    /// observer even for identical content.
+    private func publish(_ next: [Task]) {
+        let hydrated = TaskListHydration.hydrated(next, using: ListService.shared.lists)
+        let sorted = hydrated.sorted(by: TaskOrdering.isOrderedBefore)
+        guard sorted != tasks else { return }
+        tasks = sorted
+        cachedTasks = Dictionary(sorted.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        _Concurrency.Task { await badgeManager.updateBadge(with: sorted) }
     }
 
-    /// Number of active tasks mapped synchronously at launch. Enough to fill the
-    /// first screen offline; the remaining active backlog hydrates off the main
-    /// thread in `hydrateRemainingActiveTasksFromCache`.
-    private static let initialActivePageSize = 100
-
-    /// Convert the active tasks beyond the first page on a background CoreData
-    /// context (keeps the potentially-expensive model mapping off the main
-    /// thread), then merge them into memory. Never overwrites a task already in
-    /// memory — a first-page entry or an in-flight edit wins. Runs off the
-    /// launch critical path (see `loadCachedTasks`).
-    private func hydrateRemainingActiveTasksFromCache() async {
-        let deletedIds = recentlyDeletedIds
-        let pageSize = Self.initialActivePageSize
-        let context = coreDataManager.newBackgroundContext()
-        let remaining: [Task] = await context.perform {
-            let request = CDTask.fetchRequest()
-            request.predicate = NSPredicate(format: "completed == NO")
-            request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
-            request.fetchOffset = pageSize
-            guard let cdTasks = try? context.fetch(request) else { return [] }
-            return TaskService.tasksFromCache(cdTasks, deletedIds: deletedIds, context: context)
-        }
-
-        let fresh = Self.freshActiveTasksToAppend(
-            remaining: remaining,
-            alreadyLoadedIds: Set(cachedTasks.keys)
-        )
-        guard !fresh.isEmpty else { return }
-        for task in fresh { cachedTasks[task.id] = task }
-        self.tasks.append(contentsOf: fresh)
-        updatePendingOperationsCount()
-        AppLog.debug("✅ [TaskService] Hydrated \(fresh.count) remaining active tasks from cache")
+    /// Join every task with its lists again — the lists changed under them.
+    func rejoinLists() {
+        publish(tasks)
     }
 
-    /// Pure dedup for remaining-active hydration: keep only tasks not already in
-    /// memory, so hydrating the backlog never double-inserts a first-page task
-    /// nor clobbers an edit that landed while the background fetch was running.
-    nonisolated static func freshActiveTasksToAppend(
-        remaining: [Task],
-        alreadyLoadedIds: Set<String>
-    ) -> [Task] {
-        remaining.filter { !alreadyLoadedIds.contains($0.id) }
+    /// Show a task the core just answered with, without waiting for its change to come round.
+    private func show(_ task: Task) {
+        var next = tasks
+        upsert(task, into: &next)
+        publish(next)
     }
 
-    /// Merge cached COMPLETED tasks into memory after the initial active-task
-    /// load. Runs off the launch critical path (see `loadCachedTasks`). Never
-    /// overwrites a task already in memory (an active-task edit in flight wins).
-    private func hydrateCompletedTasksFromCache() {
-        do {
-            let fetchRequest = CDTask.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "completed == YES")
-            let cdTasks = try coreDataManager.viewContext.fetch(fetchRequest)
-            let deletedIds = recentlyDeletedIds
-            let completed = Self.tasksFromCache(cdTasks, deletedIds: deletedIds,
-                                                context: coreDataManager.viewContext)
-                .filter { cachedTasks[$0.id] == nil }
-            guard !completed.isEmpty else { return }
-            for task in completed { cachedTasks[task.id] = task }
-            self.tasks.append(contentsOf: completed)
-            AppLog.debug("✅ [TaskService] Hydrated \(completed.count) completed tasks from cache")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to hydrate completed tasks: \(Self.safeErrorSummary(error))")
-        }
-    }
-
-    /// Setup network observer to sync when connection is restored
-    private func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                AppLog.debug("🔄 [TaskService] Network restored - syncing pending operations")
-                try? await self?.syncPendingOperations()
-            }
-        }
-    }
-
-    /// Start background sync timer (every 60 seconds)
-    private func startBackgroundSync() {
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                guard let self = self else { return }
-                // Only sync if we have pending operations and network is available
-                if self.pendingOperationsCount > 0 && self.networkMonitor.isConnected {
-                    try? await self.syncPendingOperations()
-                }
-            }
-        }
-    }
-
-    deinit {
-        syncTimer?.invalidate()
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
+    /// The Outbox's counts, for the "not synced yet" and "failed" indicators.
+    func refreshOutboxCounts() {
+        struct Stats: Decodable { let pending: Int; let running: Int; let failed: Int }
+        _Concurrency.Task {
+            guard let stats = try? await core.run(CoreCommand(kind: "outboxStats"), as: Stats.self) else { return }
+            pendingOperationsCount = stats.pending + stats.running
+            failedOperationsCount = stats.failed
         }
     }
 
     // MARK: - Task Operations
 
     func fetchTask(id: String, forceRefresh: Bool = false) async throws -> Task {
-        // Return cached if available and not forcing refresh
-        if !forceRefresh, let cached = cachedTasks[id] {
+        if !forceRefresh, let cached = cachedTasks[resolved(id)] {
             return cached
         }
-
-        let task = try await apiClient.getTask(id: id)
-        cachedTasks[id] = task
-
-        // Update in the tasks array if it exists there
-        if let index = tasks.firstIndex(where: { $0.id == id }) {
-            tasks[index] = task
+        if forceRefresh {
+            try? await core.run(CoreCommand(kind: "sync"))
         }
-
+        guard let task = try await core.run(CoreCommand.tasks(ids: [id]), as: [Task].self).first else {
+            throw NSError(domain: "TaskService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Task not found"])
+        }
+        show(task)
         return task
     }
 
@@ -492,8 +196,8 @@ class TaskService: ObservableObject {
         title: String,
         description: String? = nil,
         priority: Int? = nil,
-        whenDate: Date? = nil,     // The date (maps to backend 'when')
-        whenTime: Date? = nil,     // The time (maps to backend 'dueDateTime', nil for all-day)
+        whenDate: Date? = nil,     // The date (all-day)
+        whenTime: Date? = nil,     // The time (a timed task; nil for all-day)
         assigneeId: String? = nil,
         isPrivate: Bool? = nil,
         repeating: String? = nil,
@@ -501,111 +205,38 @@ class TaskService: ObservableObject {
         parentTaskId: String? = nil,
         statusRole: String? = nil,  // Board state when creating in a board column (task a2c58f53)
         source: SyncSource? = nil,  // Origin tag for provider echo suppression
-        presumeCompletedAt: Date? = nil  // Sync history imports: born completed+backdated so the optimistic temp never flashes as an open row (the caller still calls completeTask to enqueue the server-side completion)
+        presumeCompletedAt: Date? = nil  // Sync history imports: born completed and backdated
     ) async throws -> Task {
-        // OPTIMISTIC UPDATE: Create temporary task immediately
-        let tempId = "temp_\(UUID().uuidString)"
-        let clientRequestId = UUID().uuidString  // Idempotency key for server dedup
-        let currentUserId = AuthManager.shared.userId
-
-        // Determine dueDateTime and isAllDay based on provided dates
-        let dueDateTime: Date?
+        // A time makes it a timed task; a date alone, all-day; neither, no due date.
+        let dueDateTime: String?
         let isAllDay: Bool
-        if let whenTime = whenTime {
-            // Timed task - use time
-            dueDateTime = whenTime
+        if let whenTime {
+            dueDateTime = WireDate.dueDateString(from: whenTime)
             isAllDay = false
-        } else if let whenDate = whenDate {
-            // All-day task - use date
-            dueDateTime = whenDate
+        } else if let whenDate {
+            dueDateTime = WireDate.dueDateString(from: Self.utcStartOfDay(whenDate))
             isAllDay = true
         } else {
-            // No date set
             dueDateTime = nil
             isAllDay = false
         }
 
-        // List badges on the new row immediately, offline included — through the SHARED join
-        // (AITD-415), which this was one of four hand-rolled copies of.
-        let resolvedLists = TaskListHydration.lists(
-            forListIds: listIds, using: TaskListHydration.index(ListService.shared.lists))
+        var created = try await core.run(
+            CoreCommand.createTask(
+                title: title, description: description, listIds: listIds, priority: priority,
+                dueDateTime: dueDateTime, isAllDay: isAllDay, assigneeId: assigneeId,
+                parentTaskId: parentTaskId, statusRole: statusRole, repeating: repeating,
+                repeatingData: repeatingData, isPrivate: isPrivate),
+            as: Task.self)
+        show(created)
 
-        let optimisticTask = Task(
-            id: tempId,
-            title: title,
-            description: description ?? "",
-            assigneeId: assigneeId,
-            assignee: nil,
-            creatorId: currentUserId, // Set creator to current user for permission checks
-            creator: nil,
-            dueDateTime: dueDateTime,
-            isAllDay: isAllDay,
-            reminderTime: nil,
-            reminderSent: nil,
-            reminderType: nil,
-            repeating: repeating.flatMap { Task.Repeating(rawValue: $0) } ?? .never,
-            repeatingData: repeatingData,
-            priority: priority.flatMap { Task.Priority(rawValue: $0) } ?? .none,
-            lists: resolvedLists,
-            listIds: listIds,
-            isPrivate: isPrivate ?? true,
-            completed: presumeCompletedAt != nil,
-            completedAt: presumeCompletedAt,
-            completedSource: presumeCompletedAt != nil ? (source?.rawValue ?? "astrid") : nil,
-            statusRole: statusRole,
-            attachments: nil,
-            comments: nil,
-            createdAt: Date(),
-            updatedAt: Date(),
-            originalTaskId: nil,
-            sourceListId: nil,
-            clientRequestId: clientRequestId,
-            parentTaskId: parentTaskId
-        )
-
-        // Update UI immediately
-        cachedTasks[tempId] = optimisticTask
-        tasks.insert(optimisticTask, at: 0)
-        AppLog.debug("⚡️ [TaskService] Optimistically created task: \(title)")
-
-        // Save to CoreData with pending status for offline support (CRITICAL: await to ensure persistence)
-        // This blocks until save completes, preventing data loss on force close
-        // clientRequestId is persisted via CDTask.update(from:) since optimisticTask carries it
-        do {
-            try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
-            AppLog.debug("✅ [TaskService] Persisted new task to CoreData (clientRequestId: \(clientRequestId))")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to save to CoreData, but task is in memory: \(Self.safeErrorSummary(error))")
+        // A history import is born completed and backdated, so the row never flashes open.
+        if let presumeCompletedAt {
+            created = try await completeTask(
+                id: created.id, completed: true, source: source, completedAt: presumeCompletedAt)
         }
-
-        // CRITICAL: Filter out temp_ list IDs - server doesn't know about them.
-        // Tasks with temp list IDs will be synced later when lists get real IDs.
-        let serverListIds = listIds.filter { !$0.hasPrefix("temp_") }
-
-        // The Outbox is authoritative for creates: its handler does the server
-        // create + reconciliation (temp→real swap, mark synced) when it drains —
-        // online now, or on reconnect if offline.
-        await OutboxManager.shared.enqueueCreateTask(
-            CreateTaskOutboxPayload(
-                title: title,
-                listIds: serverListIds.isEmpty ? nil : serverListIds,
-                description: description,
-                priority: priority,
-                assigneeId: assigneeId,
-                dueDateTime: dueDateTime,
-                isAllDay: isAllDay,
-                isPrivate: isPrivate,
-                repeating: repeating,
-                repeatingData: repeatingData,
-                tempId: tempId,
-                parentTaskId: parentTaskId,
-                statusRole: statusRole,
-                source: source?.rawValue
-            ),
-            clientRequestId: clientRequestId
-        )
-
-        return optimisticTask
+        refreshOutboxCounts()
+        return created
     }
 
     func updateTask(
@@ -613,261 +244,95 @@ class TaskService: ObservableObject {
         title: String? = nil,
         description: String? = nil,
         priority: Int? = nil,
-        completed: Bool? = nil,
         when: Date? = nil,  // DEPRECATED: Use dueDateTime instead
         whenTime: Date? = nil,  // DEPRECATED: Use isAllDay instead
-        dueDateTime: Date? = nil,  // NEW: The due date/time
-        isAllDay: Bool? = nil,  // NEW: All-day task flag
-        assigneeId: String? = nil,
+        dueDateTime: Date? = nil,  // The due date/time; `Date.distantPast` clears it
+        isAllDay: Bool? = nil,  // All-day task flag
+        assigneeId: String? = nil,  // "" unassigns
         repeating: String? = nil,
         repeatingData: CustomRepeatingPattern? = nil,
         repeatFrom: String? = nil,
         timerDuration: Int? = nil,
         lastTimerValue: String? = nil,
         listIds: [String]? = nil,
-        task: Task? = nil,  // Optional: provide task if not in cache (e.g., from featured lists)
+        task: Task? = nil,  // Kept for callers that pass what they see; the core has the task
         source: SyncSource? = nil,
-        completedAt: Date? = nil,  // Origin tag for provider echo suppression (persisted on the Outbox payload)
-        parentTaskId: String? = nil,  // Reparent (drag-to-indent → subtask); nil = no change
+        parentTaskId: String? = nil,  // Reparent (drag-to-indent → subtask); "" promotes, nil = no change
         // Board status as a state on the task (AWTD-566). Empty string CLEARS it, which is
-        // how a card reaches Inbox or Done; nil leaves it untouched, as with every other
-        // optional here. Without this the board computed the new role and had nowhere to
-        // send it, so a card with a role could never leave its column.
+        // how a card reaches Inbox or Done; nil leaves it untouched.
         statusRole: String? = nil
     ) async throws -> Task {
-        // Resolve stale temp ID → real server ID.
-        // When a user opens a task detail view for a newly created task, the view
-        // captures the temp_ ID.  If createTask() completes and swaps to the real
-        // ID while the view is still open, subsequent edits arrive here with the
-        // old temp_ ID.  Without this resolution those edits would re-create the
-        // temp task in CoreData → duplicates on next sync.
-        let resolvedId = tempTaskIdMapping[taskId] ?? taskId
+        var changes = TaskEdit()
+        changes.set("title", title)
+        changes.set("description", description)
+        changes.set("priority", priority)
 
-        // OPTIMISTIC UPDATE: Store old task for rollback
-        // First check cache, then provided task parameter (for featured/public list tasks)
-        guard let originalTask = cachedTasks[resolvedId] ?? tasks.first(where: { $0.id == resolvedId }) ?? task else {
-            throw NSError(domain: "TaskService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Task not found"])
-        }
-
-        // Create optimistic updated task
-        var optimisticTask = originalTask
-        if let title = title { optimisticTask.title = title }
-        if let description = description { optimisticTask.description = description }
-        if let priority = priority { optimisticTask.priority = Task.Priority(rawValue: priority) ?? .none }
-        if let completed = completed {
-            optimisticTask.completed = completed
-            optimisticTask.completedAt = completed ? (completedAt ?? Date()) : nil
-            optimisticTask.completedSource = completed ? (source?.rawValue ?? "astrid") : nil
-        }
-
-        // Handle new dueDateTime + isAllDay OR legacy when/whenTime parameters
-        if let dueDateTime = dueDateTime {
-            optimisticTask.dueDateTime = (dueDateTime == Date.distantPast) ? nil : dueDateTime
-        } else if let whenTime = whenTime {
-            // Legacy: whenTime parameter (Date.distantPast means clear)
-            optimisticTask.dueDateTime = (whenTime == Date.distantPast) ? nil : whenTime
-            optimisticTask.isAllDay = false
-        } else if let when = when {
-            // Legacy: when parameter (date only, all-day)
-            optimisticTask.dueDateTime = (when == Date.distantPast) ? nil : when
-            optimisticTask.isAllDay = true
-        }
-
-        if let isAllDay = isAllDay {
-            optimisticTask.isAllDay = isAllDay
-        }
-        // Handle assigneeId: empty string means unassign, nil means don't update
-        if let assigneeId = assigneeId {
-            optimisticTask.assigneeId = assigneeId.isEmpty ? nil : assigneeId
-        }
-        if let repeating = repeating { optimisticTask.repeating = Task.Repeating(rawValue: repeating) }
-        if let repeatingData = repeatingData { optimisticTask.repeatingData = repeatingData }
-        if let repeatFrom = repeatFrom { optimisticTask.repeatFrom = Task.RepeatFromMode(rawValue: repeatFrom) }
-        if let timerDuration = timerDuration { optimisticTask.timerDuration = timerDuration }
-        if let lastTimerValue = lastTimerValue { optimisticTask.lastTimerValue = lastTimerValue }
-        if let listIds = listIds { optimisticTask.listIds = listIds }
-        if let statusRole = statusRole {
-            optimisticTask.statusRole = statusRole.isEmpty ? nil : statusRole
-            // `lists` is the hydrated mirror the board also reads through; leaving it
-            // stale lets the OLD membership resolve the column right back.
-            if let listIds = listIds {
-                optimisticTask.lists = optimisticTask.lists?.filter { listIds.contains($0.id) }
-            }
-        }
-        // Empty string CLEARS the parent, the same convention assigneeId uses above. It must
-        // become nil locally, not "": SubtaskSplicing reads any non-nil parent as still
-        // nested, so a just-promoted task would vanish from the top level (task 2ed0d0de).
-        if let parentTaskId = parentTaskId {
-            optimisticTask.parentTaskId = SubtaskPromotion.localParentId(forWireValue: parentTaskId)
-        }
-
-        // CRITICAL: Update updatedAt to current time for optimistic update
-        // This ensures completed tasks immediately pass the "recently completed" filter
-        // Without this, tasks disappear when completed and reappear when server responds
-        optimisticTask.updatedAt = Date()
-
-        // Update UI immediately
-        cachedTasks[resolvedId] = optimisticTask
-        if let index = tasks.firstIndex(where: { $0.id == resolvedId }) {
-            tasks[index] = optimisticTask
-        } else if !recentlyDeletedLedger.contains(resolvedId) {
-            // Add to tasks array if not already there (e.g., featured list tasks) —
-            // but never resurrect a deleted task (late queued updates / SSE echoes).
-            tasks.append(optimisticTask)
-            AppLog.debug("➕ [TaskService] Added task to tasks array: \(optimisticTask.title)")
-        }
-        AppLog.debug("⚡️ [TaskService] Optimistically updated task: \(optimisticTask.title)")
-
-        // Save to CoreData with pending status for offline support (CRITICAL: await to ensure persistence)
-        // This blocks until save completes, preventing data loss on force close
-        do {
-            try await saveTaskToCoreData(optimisticTask, syncStatus: "pending")
-            AppLog.debug("✅ [TaskService] Persisted update to CoreData")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to save to CoreData, but task is updated in memory: \(Self.safeErrorSummary(error))")
-        }
-
-        // Temp ids enqueue like any other update: UpdateTaskOutboxHandler
-        // resolves temp→real via the mapping and returns .blocked (no attempt
-        // burn) until the createTask entry drains. The old early return here
-        // dropped the server write entirely once legacy replay was deleted —
-        // completions of just-imported tasks (Google backfill) stayed open on
-        // the server and reverted locally on the next fetch.
-
-        // Build the update request and hand it to the Outbox
-        do {
-            // Convert date/time to ISO8601 string for API
-            // Backend expects:
-            // - 'dueDateTime' = datetime (UTC midnight for all-day, specific time for timed)
-            // - 'isAllDay' = boolean flag
-            var dueDateTimeString: String?
-            var isAllDayValue: Bool?
-
-            // CRITICAL: Use UTC calendar for all-day task normalization
-            var utcCalendar = Calendar.current
-            utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-            // Determine dueDateTime and isAllDay from either new or legacy parameters
-            if let dueDateTime = dueDateTime {
-                // New parameter path
-                if dueDateTime == Date.distantPast {
-                    // Clear due date
-                    dueDateTimeString = ""
-                    isAllDayValue = nil
-                } else {
-                    // Set due date (normalize to UTC midnight if all-day)
-                    if let isAllDay = isAllDay, isAllDay {
-                        let startOfDay = utcCalendar.startOfDay(for: dueDateTime)
-                        dueDateTimeString = WireDate.dueDateString(from: startOfDay)
-                    } else {
-                        dueDateTimeString = WireDate.dueDateString(from: dueDateTime)
-                    }
-                    isAllDayValue = isAllDay
-                }
-            } else if let when = when, when == Date.distantPast,
-                      let whenTime = whenTime, whenTime == Date.distantPast {
-                // Legacy: Clear both date and time
-                dueDateTimeString = ""
-                isAllDayValue = nil
-            } else if let when = when, when != Date.distantPast {
-                // Legacy: Set date (all-day task)
-                let startOfDay = utcCalendar.startOfDay(for: when)
-                dueDateTimeString = WireDate.dueDateString(from: startOfDay)
-
-                // Check if time component is also being set
-                if let whenTime = whenTime, whenTime != Date.distantPast {
-                    // Time is set - timed task
-                    dueDateTimeString = WireDate.dueDateString(from: whenTime)
-                    isAllDayValue = false
-                } else if let whenTime = whenTime, whenTime == Date.distantPast {
-                    // Explicitly clear time (all-day)
-                    isAllDayValue = true
-                } else {
-                    // All-day by default
-                    isAllDayValue = true
-                }
-            } else if let whenTime = whenTime, whenTime != Date.distantPast {
-                // Legacy: Only time provided (timed task)
-                dueDateTimeString = WireDate.dueDateString(from: whenTime)
-                isAllDayValue = false
+        // The due date: a new `dueDateTime`, or the legacy `when` / `whenTime` pair. An all-day
+        // date is UTC midnight, as every all-day date is stored.
+        if let dueDateTime {
+            if dueDateTime == Date.distantPast {
+                changes.clear("dueDateTime")
             } else {
-                // No date/time updates
-                dueDateTimeString = nil
-                isAllDayValue = nil
+                let normalized = isAllDay == true ? Self.utcStartOfDay(dueDateTime) : dueDateTime
+                changes.set("dueDateTime", WireDate.dueDateString(from: normalized))
             }
-
-            // An isAllDay-only edit (no date change) must still reach the wire.
-            if isAllDayValue == nil, let isAllDay = isAllDay {
-                isAllDayValue = isAllDay
+            changes.set("isAllDay", isAllDay)
+        } else if let when, when == Date.distantPast, let whenTime, whenTime == Date.distantPast {
+            changes.clear("dueDateTime")
+        } else if let when, when != Date.distantPast {
+            if let whenTime, whenTime != Date.distantPast {
+                changes.set("dueDateTime", WireDate.dueDateString(from: whenTime))
+                changes.set("isAllDay", false)
+            } else {
+                changes.set("dueDateTime", WireDate.dueDateString(from: Self.utcStartOfDay(when)))
+                changes.set("isAllDay", true)
             }
-
-            let updates = UpdateTaskRequest(
-                title: title,
-                description: description,
-                priority: priority,
-                repeating: repeating,
-                repeatingData: repeatingData,
-                repeatFrom: repeatFrom,
-                isPrivate: nil,
-                completed: completed,
-                dueDateTime: dueDateTimeString,
-                isAllDay: isAllDayValue,
-                reminderTime: nil,
-                reminderType: nil,
-                listIds: listIds,
-                assigneeId: assigneeId,
-                timerDuration: timerDuration,
-                lastTimerValue: lastTimerValue,
-                // Through WireDate so the milliseconds survive: a bare formatter truncated every
-                // completion to the whole second, colliding any two made inside one (AITD-369).
-                completedAt: (completed == true)
-                    ? WireDate.string(from: completedAt ?? Date()) : nil,
-                completedSource: (completed == true) ? (source?.rawValue ?? "astrid") : nil,
-                parentTaskId: parentTaskId,
-                statusRole: statusRole
-            )
-
-            // The Outbox is authoritative for updates: its handler performs the
-            // PUT and marks the row synced when it drains (online now, or on
-            // reconnect). The optimistic in-memory/CoreData update already
-            // happened above.
-            await OutboxManager.shared.enqueueUpdateTask(
-                UpdateTaskOutboxPayload(taskId: resolvedId, updates: updates, source: source?.rawValue),
-                clientRequestId: UUID().uuidString
-            )
-
-            updatePendingOperationsCount()
-            await badgeManager.updateBadge(with: self.tasks)
-            return optimisticTask
+        } else if let whenTime, whenTime != Date.distantPast {
+            changes.set("dueDateTime", WireDate.dueDateString(from: whenTime))
+            changes.set("isAllDay", false)
+        } else if let isAllDay {
+            // An isAllDay-only edit still reaches the wire.
+            changes.set("isAllDay", isAllDay)
         }
+
+        if let assigneeId {
+            assigneeId.isEmpty ? changes.clear("assigneeId") : changes.set("assigneeId", assigneeId)
+        }
+        changes.set("repeating", repeating)
+        changes.set("repeatingData", repeatingData)
+        changes.set("repeatFrom", repeatFrom)
+        changes.set("timerDuration", timerDuration)
+        changes.set("lastTimerValue", lastTimerValue)
+        changes.set("listIds", listIds)
+        if let parentTaskId {
+            parentTaskId.isEmpty ? changes.clear("parentTaskId") : changes.set("parentTaskId", parentTaskId)
+        }
+        if let statusRole {
+            statusRole.isEmpty ? changes.clear("statusRole") : changes.set("statusRole", statusRole)
+        }
+        return try await apply(changes, to: taskId)
+    }
+
+    /// One edit, through the core: its cache and journal first, the server when it can.
+    private func apply(_ changes: TaskEdit, to taskId: String) async throws -> Task {
+        let updated = try await core.run(
+            CoreCommand.updateTask(taskId: resolved(taskId), changes: changes), as: Task.self)
+        show(updated)
+        refreshOutboxCounts()
+        return updated
     }
 
     /// Apply a priority change to what the views read — RIGHT NOW, with nothing awaited.
     ///
-    /// Jon, testing the Mac app: "it seems like it might be waiting for the server call back and
-    /// not updating the UI optimistically for the priority update."
+    /// The core answers a write in microseconds, but it still answers after an `await`; a view that
+    /// shows a tap before starting the durable write calls this first. It does NOT replace
+    /// `updateTask` — the caller still makes that call.
     ///
-    /// The wait is real and it is not the server. This type is `@MainActor` and `updateTask` is
-    /// `async`: its optimistic write runs before any network, but AFTER the previous call's
-    /// awaits — `saveTaskToCoreData` and the Outbox journal persist, both disk. Tap several
-    /// priorities in a row and each tap's optimistic update queues behind the previous tap's
-    /// disk work on the main actor, and the journal it rewrites grows as you tap. So it is fine
-    /// for the first few and then visibly stuck, which is what "eventually it stalls" describes.
-    ///
-    /// This is the escape hatch: synchronous, so a view can show the tap before starting the
-    /// durable write. It does NOT replace `updateTask` — the caller still makes that call, which
-    /// is what reaches CoreData, the Outbox and the server. It only moves the moment the screen
-    /// changes to the moment of the tap.
-    ///
-    /// Returns false only when the task is unknown, so a caller can tell "nothing to show" from
-    /// "shown". Re-applying the priority a task already has still counts as applied: a caller
-    /// must not read `false` as "your tap did nothing".
+    /// Returns false only when the task is unknown.
     @discardableResult
     func applyOptimisticPriority(taskId: String, priority: Task.Priority) -> Bool {
-        let resolvedId = tempTaskIdMapping[taskId] ?? taskId
-        guard var task = cachedTasks[resolvedId] ?? tasks.first(where: { $0.id == resolvedId })
-        else { return false }
-
+        let resolvedId = resolved(taskId)
+        guard var task = cachedTasks[resolvedId] else { return false }
         task.priority = priority
         task.updatedAt = Date()
         cachedTasks[resolvedId] = task
@@ -877,111 +342,51 @@ class TaskService: ObservableObject {
         return true
     }
 
-    /// Put a task into the in-memory caches without touching disk or the network. Tests only:
-    /// the optimistic path needs a task to exist, and going through `createTask` would drag in
-    /// CoreData and the Outbox.
+    /// Put a task into what the views read without touching the core. Tests only.
     func adoptForTesting(_ task: Task) {
+        var next = tasks
+        upsert(task, into: &next)
+        tasks = next
         cachedTasks[task.id] = task
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) { tasks[index] = task }
-        else { tasks.append(task) }
     }
 
-    /// Server-first update for callers that cannot use the normal optimistic
-    /// flow because the view hierarchy is sensitive to intermediate state
-    /// changes. This keeps those exceptional paths inside TaskService instead
-    /// of letting views call AstridAPIClient directly.
-    func updateTaskOnServer(
-        taskId: String,
-        updates: UpdateTaskRequest
-    ) async throws -> Task {
-        let resolvedId = tempTaskIdMapping[taskId] ?? taskId
-        guard !resolvedId.hasPrefix("temp_") else {
-            throw NSError(
-                domain: "TaskService",
-                code: 400,
-                userInfo: [NSLocalizedDescriptionKey: "Cannot server-update a task before its temp ID is synced"]
-            )
-        }
-
-        var updatedTask = try await apiClient.updateTask(id: resolvedId, updates: updates)
-        // Device-monotonic stamp: the server clock can trail the device, and a
-        // server timestamp <= the sync watermark would suppress this edit's
-        // push to external providers.
-        updatedTask.updatedAt = Date()
-        updateTaskInCache(updatedTask)
-        // Server-first path skips the Outbox, so nudge the providers directly.
-        NotificationCenter.default.post(name: OutboxManager.didEnqueueMutation, object: nil)
-
-        do {
-            try await saveTaskToCoreData(updatedTask, syncStatus: "synced")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to persist server-first update: \(Self.safeErrorSummary(error))")
-        }
-
-        await badgeManager.updateBadge(with: self.tasks)
-        return updatedTask
+    /// An edit given as a whole request — the reminder and privacy edits the detail view makes.
+    /// Through the core like every other edit: cache and journal first, server when it can.
+    func updateTaskOnServer(taskId: String, updates: UpdateTaskRequest) async throws -> Task {
+        try await apply(TaskEdit(request: updates), to: taskId)
     }
 
-    /// Fetch tasks for a list through the v1 TaskService boundary. Used by
-    /// featured/public list views that need a network snapshot without
-    /// reaching into AstridAPIClient from SwiftUI.
+    /// A public or featured list's tasks, as the server has them right now — for browsing a list
+    /// that is not the reader's, which the cache does not hold.
     func fetchTasksForListFromServer(_ listId: String) async throws -> [Task] {
-        try await apiClient.getAllTasks(listId: listId)
+        try await AstridAPIClient.shared.getAllTasks(listId: listId)
     }
 
-    func completeTask(id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil, lastTimerValue: String? = nil, source: SyncSource? = nil, completedAt: Date? = nil) async throws -> Task {
-        // Get the current task - prefer the passed task (what user sees on screen) over cache
-        // The cache might be stale if the task was updated on web
-        guard let currentTask = task ?? cachedTasks[id] ?? tasks.first(where: { $0.id == id }) else {
+    /// Complete (or un-complete) a task — the only correct way to do either.
+    ///
+    /// What completing does is astrid-core's rule (`repeating::completion`): a repeating task rolls
+    /// forward to its next occurrence and stays open; a series at its end stays completed with its
+    /// repeat cleared. `task` is the task as the person sees it — pass it from any view that let
+    /// them edit the due date or repeat first, because the rollover anchors on those fields.
+    func completeTask(
+        id: String, completed: Bool, task: Task? = nil, timerDuration: Int? = nil,
+        lastTimerValue: String? = nil, source: SyncSource? = nil, completedAt: Date? = nil
+    ) async throws -> Task {
+        let taskId = resolved(id)
+        guard task != nil || cachedTasks[taskId] != nil || !taskId.isEmpty else {
             throw NSError(domain: "TaskService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Task not found"])
         }
-
-        // What completing does — toggle, roll a series forward, or end it — is astrid-core's
-        // rule, the same one every client applies. This only carries the answer out through the
-        // write path, exactly as the rolled-forward write always went out. A series rolls from
-        // now even when a provider backdates the completion; `completedAt` stamps the toggle.
-        switch completionOutcome(for: currentTask, completed: completed, at: Date()) {
-        case .seriesEnded:
-            AppLog.debug("🏁 [TaskService] Repeating series terminated")
-            // Series ended - keep completed, clear repeating
-            return try await updateTask(
-                taskId: id,
-                completed: true,
-                repeating: "never",
-                repeatingData: nil,
-                timerDuration: timerDuration,
+        let done = try await core.run(
+            CoreCommand.completeTask(
+                taskId: taskId, completed: completed, task: task, timerDuration: timerDuration,
                 lastTimerValue: lastTimerValue,
-                task: task,
-                source: source
-            )
-        case .rollForward(let nextDue, let isAllDay, _):
-            AppLog.debug("📅 [TaskService] Next occurrence: \(nextDue)")
-            return try await updateTask(
-                taskId: id,
-                completed: false,
-                dueDateTime: nextDue,
-                isAllDay: isAllDay,
-                timerDuration: timerDuration,
-                lastTimerValue: lastTimerValue,
-                task: task,
-                source: source
-            )
-        case .toggle:
-            // Non-repeating task or un-completing - use normal update
-            return try await updateTask(taskId: id, completed: completed, timerDuration: timerDuration, lastTimerValue: lastTimerValue, task: task, source: source, completedAt: completedAt)
-        }
-    }
-
-    /// Ask astrid-core what completing `task` does. A task the core cannot read — which would be
-    /// a bug in the wire encoding, not in the task — completes as a plain toggle rather than
-    /// losing the tap.
-    private func completionOutcome(for task: Task, completed: Bool, at now: Date) -> CompletionOutcome {
-        do {
-            return try CoreRules.completion(of: task, completed: completed, at: now)
-        } catch {
-            AppLog.debug("⚠️ [TaskService] astrid-core refused completion: \(error)")
-            return .toggle(completed: completed, clearClosedReason: false)
-        }
+                // Through WireDate so the milliseconds survive (AITD-369); the core keeps them.
+                completedAt: completedAt.map { WireDate.string(from: $0) },
+                source: source?.rawValue),
+            as: Task.self)
+        show(done)
+        refreshOutboxCounts()
+        return done
     }
 
     /// Where a repeating task goes next if it were completed now — the same answer
@@ -991,7 +396,7 @@ class TaskService: ObservableObject {
     func calculateNextOccurrence(for task: Task) -> (nextDate: Date?, shouldTerminate: Bool) {
         var open = task
         open.completed = false
-        switch completionOutcome(for: open, completed: true, at: Date()) {
+        switch (try? CoreRules.completion(of: open, completed: true, at: Date())) ?? .toggle(completed: true, clearClosedReason: false) {
         case .rollForward(let next, _, _): return (next, false)
         case .seriesEnded: return (nil, true)
         case .toggle: return (nil, false)
@@ -999,63 +404,29 @@ class TaskService: ObservableObject {
     }
 
     func updateTaskLists(taskId: String, listIds: [String]) async throws -> Task {
-        return try await updateTask(taskId: taskId, listIds: listIds)
+        try await updateTask(taskId: taskId, listIds: listIds)
     }
 
     func deleteTask(id: String, task: Task? = nil) async throws {
-        // Capture external sync links BEFORE the delete: the server cascades
-        // ExternalTaskLink rows away with the task, so providers must record
-        // the remote twin now (delete/close it next pass, tombstone forever).
-        let resolvedForSync = tempTaskIdMapping[id] ?? id
+        let resolvedId = resolved(id)
 
-        // Any open detail view for this task must close (deletes can also
-        // arrive from external sync, not just the view's own delete button).
+        // Any open detail view for this task must close (deletes can also arrive from external
+        // sync, not just the view's own delete button).
         NotificationCenter.default.post(
             name: .astridTaskDeleted, object: nil,
-            userInfo: ["taskId": id, "resolvedTaskId": resolvedForSync])
-        await GitHubSyncService.shared.noteTaskDeleted(taskId: resolvedForSync)
-        await GoogleTasksSyncService.shared.noteTaskDeleted(taskId: resolvedForSync)
-        await AppleRemindersService.shared.noteTaskDeleted(taskId: resolvedForSync)
+            userInfo: ["taskId": id, "resolvedTaskId": resolvedId])
+        // Providers that mirror tasks elsewhere note the twin before the task goes: the server
+        // cascades its link rows away with it. (Google's is the core's own, in its ledger.)
+        await GitHubSyncService.shared.noteTaskDeleted(taskId: resolvedId)
+        await AppleRemindersService.shared.noteTaskDeleted(taskId: resolvedId)
 
-        // Resolve stale temp ID → real server ID (same reason as updateTask)
-        let resolvedId = tempTaskIdMapping[id] ?? id
+        try await core.run(CoreCommand(kind: "deleteTask", taskId: resolvedId))
+        var next = tasks
+        next.removeAll { $0.id == resolvedId }
+        publish(next)
 
-        // OPTIMISTIC UPDATE: Store task for potential recovery
-        // Check cache first, then provided task parameter (for featured/public list tasks)
-        guard let deletedTask = cachedTasks[resolvedId] ?? tasks.first(where: { $0.id == resolvedId }) ?? task else {
-            throw NSError(domain: "TaskService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Task not found"])
-        }
-
-        // Remove from UI immediately and track for sync filtering
-        cachedTasks.removeValue(forKey: resolvedId)
-        tasks.removeAll { $0.id == resolvedId }
-        recordRecentlyDeleted([resolvedId])
-        AppLog.debug("⚡️ [TaskService] Optimistically deleted task: \(deletedTask.title)")
-
-        // Mark as deleted in CoreData for offline support (CRITICAL: await to ensure persistence)
-        // This blocks until save completes, preventing data loss on force close
-        do {
-            var deletedTaskCopy = deletedTask
-            deletedTaskCopy.completed = true  // Mark as completed for now
-            try await saveTaskToCoreData(deletedTaskCopy, syncStatus: "pending_delete")
-            AppLog.debug("✅ [TaskService] Persisted deletion to CoreData")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to save deletion to CoreData, but task is removed from memory: \(Self.safeErrorSummary(error))")
-        }
-
-        // Cancel notification
         await notificationManager.cancelNotification(for: resolvedId)
-
-        // Update app badge after task deletion
-        await badgeManager.updateBadge(with: self.tasks)
-
-        // The Outbox is authoritative for deletes: its handler owns the server
-        // delete (404/410 = already gone = success) and the CoreData
-        // finalization when it drains.
-        await OutboxManager.shared.enqueueDeleteTask(
-            DeleteTaskOutboxPayload(taskId: resolvedId),
-            clientRequestId: UUID().uuidString
-        )
+        refreshOutboxCounts()
     }
 
     func copyTask(
@@ -1065,43 +436,15 @@ class TaskService: ObservableObject {
         preserveDueDate: Bool = false,
         preserveAssignee: Bool = false
     ) async throws -> Task {
-        // Fetch the original task
-        AppLog.debug("📋 [TaskService] Fetching original task to copy: \(id)")
         let originalTask = try await fetchTask(id: id)
 
-        // Determine target list IDs
-        // Allow empty listIds for "My Tasks (only)" - tasks without lists are valid
-        let listIds: [String]
-        if let targetListId = targetListId, !targetListId.isEmpty {
-            // Specific list selected
-            listIds = [targetListId]
-        } else if targetListId == nil || targetListId == "" {
-            // "My Tasks (only)" selected - use empty array (no lists)
-            listIds = []
-        } else if let originalListIds = originalTask.listIds, !originalListIds.isEmpty {
-            // Fallback: Use original list IDs if available
-            listIds = originalListIds
-        } else {
-            // Default: No lists (My Tasks only)
-            listIds = []
-        }
+        // "My Tasks (only)" is no list at all; otherwise the chosen list.
+        let listIds: [String] = (targetListId?.isEmpty == false) ? [targetListId!] : []
 
-        // Determine assignee for copied task
-        // When copying to a list: make task unassigned
-        // When copying to "My Tasks (only)" (no lists): assign to current user
-        let copyAssigneeId: String?
-        if listIds.isEmpty {
-            // "My Tasks (only)" - always assign to current user so it appears in My Tasks
-            copyAssigneeId = AuthManager.shared.userId
-            AppLog.debug("📋 [TaskService] Copying to My Tasks (only) - assigning to current user")
-        } else {
-            // Copying to a list - make task unassigned
-            copyAssigneeId = nil
-            AppLog.debug("📋 [TaskService] Copying to list - making task unassigned")
-        }
+        // Copied to a list it arrives unassigned; to My Tasks (only) it is the copier's, so it
+        // shows up there.
+        let copyAssigneeId: String? = listIds.isEmpty ? AuthManager.shared.userId : nil
 
-        // Copy the task using createTask (no [copy] suffix, just copy as-is)
-        AppLog.debug("📋 [TaskService] Creating copy of task in list(s): \(listIds)")
         let copiedTask = try await createTask(
             listIds: listIds,
             title: originalTask.title,
@@ -1114,514 +457,77 @@ class TaskService: ObservableObject {
             repeating: originalTask.repeating?.rawValue
         )
 
-        AppLog.debug("✅ [TaskService] Task copied successfully: \(copiedTask.title)")
-
-        // Copy comments if requested
         if includeComments {
             do {
-                // Fetch comments from the original task
-                AppLog.debug("📋 [TaskService] Fetching comments for task: \(id)")
                 let comments = try await CommentService.shared.fetchComments(taskId: id)
-
-                if !comments.isEmpty {
-                    // Filter out system comments (authorId is nil)
-                    let userComments = comments.filter { $0.authorId != nil }
-
-                    if !userComments.isEmpty {
-                        AppLog.debug("📋 [TaskService] Copying \(userComments.count) user comments...")
-
-                        for comment in userComments {
-                            do {
-                                // Preserve the original comment author when copying
-                                _ = try await CommentService.shared.createComment(
-                                    taskId: copiedTask.id,
-                                    content: comment.content,
-                                    type: comment.type,
-                                    authorId: comment.authorId
-                                )
-                            } catch {
-                                AppLog.debug("⚠️ [TaskService] Failed to copy comment: \(Self.safeErrorSummary(error))")
-                                // Continue copying other comments even if one fails
-                            }
-                        }
-
-                        AppLog.debug("✅ [TaskService] Comments copied")
-                    } else {
-                        AppLog.debug("ℹ️ [TaskService] No user comments to copy")
-                    }
-                } else {
-                    AppLog.debug("ℹ️ [TaskService] No comments to copy")
+                // System comments (no author) stay with the original.
+                for comment in comments where comment.authorId != nil {
+                    _ = try? await CommentService.shared.createComment(
+                        taskId: copiedTask.id, content: comment.content, type: comment.type,
+                        authorId: comment.authorId)
                 }
             } catch {
                 AppLog.debug("⚠️ [TaskService] Failed to fetch comments for copying: \(Self.safeErrorSummary(error))")
-                // Don't fail the entire copy operation if comment copying fails
             }
         }
-
         return copiedTask
     }
 
     // MARK: - Filtering
 
     func getTasksForList(_ listId: String) -> [Task] {
-        return tasks.filter { task in
-            task.listIds?.contains(listId) == true ||
-            task.lists?.contains(where: { $0.id == listId }) == true
+        tasks.filter { task in
+            task.listIds?.contains(listId) == true || task.lists?.contains(where: { $0.id == listId }) == true
         }
     }
 
     func getCompletedTasks() -> [Task] {
-        return tasks.filter { $0.completed }
+        tasks.filter { $0.completed }
     }
 
     func getIncompleteTasks() -> [Task] {
-        return tasks.filter { !$0.completed }
+        tasks.filter { !$0.completed }
     }
 
-    // MARK: - CoreData Persistence
+    // MARK: - Delivery
 
-    /// Save multiple tasks to CoreData with optimized batch operations
-    private func saveTasksToCoreData(_ tasks: [Task]) async throws {
-        AppLog.debug("💾 [TaskService] Saving \(tasks.count) tasks to Core Data...")
-
-        try await coreDataManager.saveInBackground { context in
-            // Fetch all existing tasks in ONE batch query instead of 394 individual queries
-            let taskIds = tasks.map { $0.id }
-            let fetchRequest = CDTask.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id IN %@", taskIds)
-            let existingTasks = try context.fetch(fetchRequest)
-
-            // Create dictionary for O(1) lookup
-            var existingTasksDict = [String: CDTask]()
-            for cdTask in existingTasks {
-                existingTasksDict[cdTask.id] = cdTask
-            }
-
-            AppLog.debug("💾 [TaskService] Found \(existingTasks.count) existing tasks, creating \(tasks.count - existingTasks.count) new tasks")
-
-            // Update or create tasks
-            for task in tasks {
-                let existing = existingTasksDict[task.id]
-                let cdTask = existing ?? CDTask(context: context)
-                let existingStatus = existing?.syncStatus
-
-                // Don't overwrite tasks with pending local operations — those edits
-                // need to be pushed to the server first via syncPendingOperations()
-                if existingStatus == "pending" || existingStatus == "pending_delete" || existingStatus == "pending_list_sync" {
-                    continue
-                }
-
-                // Skip unchanged rows: a full sync pass re-hands every task here,
-                // but `update(from:)` touches ~30 attributes and marks the managed
-                // object dirty even when nothing changed, so an all-tasks save
-                // rewrites the whole table each pass. When the existing row is
-                // already synced and its server timestamp matches, it's identical
-                // to what we'd write — leave it untouched.
-                if let existing = existing,
-                   existingStatus == "synced",
-                   let incoming = task.updatedAt,
-                   let stored = existing.updatedAt,
-                   incoming == stored {
-                    continue
-                }
-
-                cdTask.id = task.id
-                cdTask.update(from: task)
-                cdTask.syncStatus = "synced"
-                cdTask.lastSyncedAt = Date()
-            }
-
-            // Clean up orphaned CDTasks: tasks the server no longer returns
-            // Delete "synced" tasks AND "pending_delete" tasks not on server
-            // (pending_delete tasks not on server = already deleted server-side, safe to clean up)
-            // Preserve "pending" and "pending_list_sync" (local edits not yet pushed)
-            let serverIds = Set(tasks.map { $0.id })
-            let orphanRequest = CDTask.fetchRequest()
-            orphanRequest.predicate = NSPredicate(
-                format: "NOT (id IN %@) AND (syncStatus == %@ OR syncStatus == %@)",
-                Array(serverIds), "synced", "pending_delete"
-            )
-            let orphanedTasks = try context.fetch(orphanRequest)
-            if !orphanedTasks.isEmpty {
-                for orphan in orphanedTasks {
-                    context.delete(orphan)
-                }
-                AppLog.debug("🧹 [TaskService] Removed \(orphanedTasks.count) orphaned tasks from CoreData")
-            }
-
-            AppLog.debug("💾 [TaskService] Core Data save completed")
-        }
-
-        AppLog.debug("✅ [TaskService] Successfully saved \(tasks.count) tasks to Core Data")
-    }
-
-    /// Save single task to CoreData with sync status
-    private func saveTaskToCoreData(_ task: Task, syncStatus: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            let cdTask = try CDTask.fetchById(task.id, context: context) ?? CDTask(context: context)
-            cdTask.id = task.id
-            cdTask.update(from: task)
-            cdTask.syncStatus = syncStatus
-            if syncStatus == "synced" {
-                cdTask.lastSyncedAt = Date()
-            }
-        }
-    }
-
-    /// Delete task from CoreData
-    private func deleteTaskFromCoreData(_ id: String) async throws {
-        try await coreDataManager.saveInBackground { context in
-            if let cdTask = try CDTask.fetchById(id, context: context) {
-                context.delete(cdTask)
-            }
-        }
-    }
-
-    /// Update pending operations count
-    private func updatePendingOperationsCount() {
-        do {
-            let context = coreDataManager.viewContext
-            let request = CDTask.fetchRequest()
-            request.predicate = NSPredicate(format: "syncStatus == %@ OR syncStatus == %@", "pending", "pending_delete")
-            let count = try context.count(for: request)
-            pendingOperationsCount = count
-            AppLog.debug("📊 [TaskService] Pending operations: \(count)")
-
-            // Also update failed count
-            updateFailedOperationsCount()
-        } catch {
-            AppLog.debug("❌ [TaskService] Failed to count pending operations: \(Self.safeErrorSummary(error))")
-        }
-    }
-
-    /// Update failed operations count
-    private func updateFailedOperationsCount() {
-        do {
-            let context = coreDataManager.viewContext
-            let request = CDTask.fetchRequest()
-            request.predicate = NSPredicate(format: "syncStatus == %@", "failed")
-            let count = try context.count(for: request)
-            failedOperationsCount = count
-        } catch {
-            AppLog.debug("❌ [TaskService] Failed to count failed operations: \(Self.safeErrorSummary(error))")
-        }
-    }
-
-    /// Get IDs of tasks that are pending deletion locally (not yet confirmed by server)
-    private func getPendingDeleteIds() -> Set<String> {
-        do {
-            let request = CDTask.fetchRequest()
-            request.predicate = NSPredicate(format: "syncStatus == %@", "pending_delete")
-            let cdTasks = try coreDataManager.viewContext.fetch(request)
-            return Set(cdTasks.map { $0.id })
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to fetch pending delete IDs: \(Self.safeErrorSummary(error))")
-            return []
-        }
-    }
-
-    /// Get IDs of tasks with pending local edits (non-temp, non-delete)
-    private func getPendingEditIds() -> Set<String> {
-        do {
-            let request = CDTask.fetchRequest()
-            request.predicate = NSPredicate(
-                format: "(syncStatus == %@ OR syncStatus == %@) AND NOT (id BEGINSWITH %@)",
-                "pending", "pending_list_sync", "temp_"
-            )
-            let cdTasks = try coreDataManager.viewContext.fetch(request)
-            return Set(cdTasks.map { $0.id })
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to fetch pending edit IDs: \(Self.safeErrorSummary(error))")
-            return []
-        }
-    }
-
-    /// Retry all failed operations
-    func retryFailedOperations() async {
-        AppLog.debug("🔄 [TaskService] Retrying failed operations...")
-
-        do {
-            try await coreDataManager.saveInBackground { context in
-                let failedTasks = try CDTask.fetchFailedTasks(context: context)
-                for task in failedTasks {
-                    task.syncAttempts = 0
-                    task.syncStatus = "pending"
-                    task.lastSyncError = nil
-                }
-                AppLog.debug("📊 [TaskService] Reset \(failedTasks.count) failed tasks to pending")
-            }
-
-            // Trigger sync
-            try await syncPendingOperations()
-        } catch {
-            AppLog.debug("❌ [TaskService] Failed to retry operations: \(Self.safeErrorSummary(error))")
-        }
-    }
-
-    // MARK: - Cache Management
-
-    /// Clear all in-memory task data (used on logout)
-    func clearCache() {
-        tasks = []
-        cachedTasks = [:]
-        recentlyDeletedLedger.removeAll()
-        pendingOperationsCount = 0
-        AppLog.debug("🗑️ [TaskService] In-memory task cache cleared")
-    }
-
-    /// Update a single task in the cache (used when bypassing normal update flow)
-    func updateTaskInCache(_ task: Task) {
-        cachedTasks[task.id] = task
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index] = task
-        }
-        AppLog.debug("📝 [TaskService] Updated task in cache: \(task.title)")
-    }
-
-    /// Update tasks from sync manager (used by list-based sync)
-    /// Awaitable — callers MUST await this to ensure data is fully committed
-    /// before continuing with other sync operations.
-    func updateTasksFromSync(_ newTasks: [Task]) async {
-        // Use ALL current in-memory tasks for merge (not just "pending" ones).
-        // The merge uses timestamp comparison to decide: if local is newer, keep it.
-        // This is resilient to syncPendingOperations marking edits as "synced" before
-        // the server fetch returns — stale server data can't overwrite newer local data.
-        let localTasks = self.tasks
-
-        // Filter out tasks deleted locally. Use BOTH CoreData pending_delete records
-        // AND the in-memory recentlyDeletedIds set (survives CoreData cleanup by syncPendingOps).
-        let pendingDeleteIds = getPendingDeleteIds().union(recentlyDeletedIds)
-        let filteredNewTasks = pendingDeleteIds.isEmpty ? newTasks : newTasks.filter { !pendingDeleteIds.contains($0.id) }
-
-        // Merge and sort (background CPU work, awaited)
-        let sortedTasks = await Self.mergeAndSortTasksInBackground(
-            newTasks: filteredNewTasks,
-            pendingTasks: localTasks,
-            protectedIds: protectedCreatedIds
-        )
-
-        // recentlyDeletedIds is intentionally NOT pruned on confirmation: a
-        // fetch that started before the server delete can still deliver the
-        // task after it, and pruning here let that stale response resurrect
-        // the deleted task until restart. Ids are never reused; storage is
-        // capped with oldest-first eviction.
-
-        // No-op refresh guard: reassigning the @Published array re-renders
-        // every observer even when the content is identical — on a large list
-        // each background sync pass showed as a flicker. Skip the publish (and
-        // the badge/CoreData churn) when nothing actually changed.
-        if sortedTasks == self.tasks {
-            return
-        }
-
-        // Update UI on main actor
-        self.tasks = sortedTasks
-        self.cachedTasks = Dictionary(uniqueKeysWithValues: sortedTasks.map { ($0.id, $0) })
-        AppLog.debug("✅ [TaskService] Updated \(self.tasks.count) tasks from sync")
-
-        // Update app badge
-        await self.badgeManager.updateBadge(with: self.tasks)
-
-        // Save to CoreData (awaited — no detached fire-and-forget)
-        do {
-            let tasksToSave = self.tasks.filter { !$0.id.hasPrefix("temp_") }
-            try await self.saveTasksToCoreData(tasksToSave)
-            AppLog.debug("✅ [TaskService] Saved \(tasksToSave.count) synced tasks to CoreData for offline use")
-        } catch {
-            AppLog.debug("⚠️ [TaskService] Failed to save synced tasks to CoreData: \(Self.safeErrorSummary(error))")
-        }
-    }
-
-    /// Merge and sort tasks in background to avoid blocking main thread
-    /// `protectedIds` are tasks WE created and the server acknowledged moments ago. A fetch that
-    /// started before that create returns a snapshot without them, and treating that absence as a
-    /// remote delete is what made a new task vanish and come back (f07dff56).
-    static nonisolated func mergeAndSortTasksInBackground(
-        newTasks: [Task],
-        pendingTasks: [Task],
-        protectedIds: Set<String> = []
-    ) async -> [Task] {
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                // Merge server tasks with pending tasks using dictionary
-                var mergedDict: [String: Task] = [:]
-                for task in newTasks {
-                    mergedDict[task.id] = task
-                }
-
-                // Only keep pending tasks that DON'T already have a server counterpart.
-                // Primary match: clientRequestId (survives title edits during create flight).
-                // Fallback match: same title + listIds + createdAt within 60 seconds.
-                let deduplicationWindow: TimeInterval = 60
-
-                for task in pendingTasks {
-                    // Non-temp tasks: compare timestamps to decide local vs server.
-                    // If local is newer → keep local (edit not yet reflected on server).
-                    // If server is newer or same → keep server (server has latest data).
-                    // This is resilient to syncPendingOperations marking edits as "synced"
-                    // before the server fetch returns stale data.
-                    if !task.id.hasPrefix("temp_") {
-                        if let serverVersion = mergedDict[task.id] {
-                            let localUpdated = task.updatedAt ?? Date.distantPast
-                            let serverUpdated = serverVersion.updatedAt ?? Date.distantPast
-                            if localUpdated > serverUpdated {
-                                mergedDict[task.id] = task
-                            }
-                        } else if protectedIds.contains(task.id) {
-                            // We created this and the server confirmed it — this response simply
-                            // predates it. Silence here is staleness, not a delete (f07dff56).
-                            mergedDict[task.id] = task
-                        }
-                        // Otherwise not on the server → deleted remotely; don't re-add it.
-                        continue
-                    }
-
-                    // Primary: match by clientRequestId (robust even when title is edited)
-                    if let pendingCRID = task.clientRequestId, !pendingCRID.isEmpty {
-                        if let matchingServer = newTasks.first(where: { $0.clientRequestId == pendingCRID }) {
-                            // Server confirmed this task — overlay local edits if newer
-                            let localUpdated = task.updatedAt ?? Date.distantPast
-                            let serverUpdated = matchingServer.updatedAt ?? Date.distantPast
-                            if localUpdated > serverUpdated {
-                                // Local has edits the server doesn't know about yet — preserve them
-                                var merged = matchingServer
-                                merged.title = task.title
-                                merged.description = task.description
-                                merged.priority = task.priority
-                                merged.dueDateTime = task.dueDateTime
-                                merged.isAllDay = task.isAllDay
-                                merged.assigneeId = task.assigneeId
-                                merged.repeating = task.repeating
-                                merged.repeatingData = task.repeatingData
-                                merged.completed = task.completed
-                                merged.isPrivate = task.isPrivate
-                                if let editedListIds = task.listIds {
-                                    merged.listIds = editedListIds
-                                }
-                                mergedDict[matchingServer.id] = merged
-                            }
-                            // Either way, don't also add the temp_ version
-                            continue
-                        }
-                    }
-
-                    // Fallback: title + listIds + createdAt window (for tasks without clientRequestId)
-                    let pendingTitle = task.title.lowercased()
-                    let pendingLists = Set(task.listIds ?? [])
-                    let pendingDate = task.createdAt ?? Date()
-
-                    let hasServerMatch = newTasks.first { serverTask in
-                        guard serverTask.title.lowercased() == pendingTitle else { return false }
-                        let serverLists = Set(serverTask.listIds ?? [])
-                        guard !pendingLists.isEmpty && !pendingLists.isDisjoint(with: serverLists) else { return false }
-                        let serverDate = serverTask.createdAt ?? Date()
-                        return abs(pendingDate.timeIntervalSince(serverDate)) < deduplicationWindow
-                    }
-
-                    if let matchingServer = hasServerMatch {
-                        // Server confirmed this task — overlay local edits if newer
-                        let localUpdated = task.updatedAt ?? Date.distantPast
-                        let serverUpdated = matchingServer.updatedAt ?? Date.distantPast
-                        if localUpdated > serverUpdated {
-                            var merged = matchingServer
-                            merged.title = task.title
-                            merged.description = task.description
-                            merged.priority = task.priority
-                            merged.dueDateTime = task.dueDateTime
-                            merged.isAllDay = task.isAllDay
-                            merged.assigneeId = task.assigneeId
-                            merged.repeating = task.repeating
-                            merged.repeatingData = task.repeatingData
-                            merged.completed = task.completed
-                            merged.isPrivate = task.isPrivate
-                            if let editedListIds = task.listIds {
-                                merged.listIds = editedListIds
-                            }
-                            mergedDict[matchingServer.id] = merged
-                        }
-                        continue
-                    }
-                    mergedDict[task.id] = task // Truly pending, keep it
-                }
-
-                // Sort by due date, then creation date, then id. The id
-                // tie-break makes the order a TOTAL order: dictionary values
-                // come out in arbitrary order and sort ties keep that order,
-                // so without it, rows with equal keys (a batch of all-day
-                // tasks due the same day) shuffled on every background
-                // refresh — visible flicker on large lists.
-                let sorted = Array(mergedDict.values).sorted(by: TaskOrdering.isOrderedBefore)
-
-                continuation.resume(returning: sorted)
-            }
-        }
-    }
-
-    // MARK: - Offline Sync
-
-    /// Sync pending operations. Every task write is Outbox-owned now, so this
-    /// simply drains the Outbox journal (create/update/delete replay lives in
-    /// the kind handlers, with retry/backoff and dead-lettering).
+    /// Send what is waiting now rather than at the delivery loop's next turn — pull to refresh,
+    /// the network coming back.
     func syncPendingOperations() async throws {
         guard !isSyncingPendingOperations else { return }
         isSyncingPendingOperations = true
         defer { isSyncingPendingOperations = false }
-        await OutboxManager.shared.drain()
-        updatePendingOperationsCount()
+        try await core.run(CoreCommand(kind: "drain"))
+        refreshOutboxCounts()
     }
 
-    // MARK: - Temp List ID Resolution
-
-    /// Called by ListService when a temp list ID gets its real server ID
-    /// Updates all tasks that reference the temp ID to use the real ID
-    func onListSynced(tempListId: String, realListId: String) async {
-        AppLog.debug("🔄 [TaskService] List synced: \(tempListId) → \(realListId)")
-
-        // Store the mapping for future reference
-        tempListIdMapping[tempListId] = realListId
-
-        // Find all tasks that have the temp list ID
-        var tasksToUpdate: [Task] = []
-        for task in tasks {
-            if let listIds = task.listIds, listIds.contains(tempListId) {
-                tasksToUpdate.append(task)
-            }
-        }
-
-        if tasksToUpdate.isEmpty {
-            AppLog.debug("ℹ️ [TaskService] No tasks found with temp list ID: \(tempListId)")
-            return
-        }
-
-        AppLog.debug("📝 [TaskService] Found \(tasksToUpdate.count) tasks to update with new list ID")
-
-        // Update each task
-        for task in tasksToUpdate {
-            // Replace temp ID with real ID in listIds
-            var updatedListIds = task.listIds ?? []
-            updatedListIds = updatedListIds.map { $0 == tempListId ? realListId : $0 }
-
-            // Remove any duplicates (in case real ID was already there)
-            updatedListIds = Array(Set(updatedListIds))
-
-            do {
-                // Update task on server with new list ID
-                let updatedTask = try await updateTask(taskId: task.id, listIds: updatedListIds)
-                AppLog.debug("✅ [TaskService] Updated task '\(updatedTask.title)' with real list ID")
-            } catch {
-                AppLog.debug("⚠️ [TaskService] Failed to update task '\(task.title)' with real list ID: \(Self.safeErrorSummary(error))")
-                // Task stays with the updated local listIds, will retry on next sync
-            }
-        }
+    /// Give writes the server refused another go. The core dead-letters only what the server
+    /// refused for good, so this sends them again rather than resetting a counter.
+    func retryFailedOperations() async {
+        try? await syncPendingOperations()
     }
 
-    private func resolveListIds(_ listIds: [String]) -> [String] {
-        return listIds.map { listId in
-            if listId.hasPrefix("temp_"), let realId = tempListIdMapping[listId] {
-                return realId
-            }
-            return listId
-        }
+    // MARK: - Cache
+
+    /// Clear what the views read (sign-out; the core wipes its own cache there too).
+    func clearCache() {
+        tasks = []
+        cachedTasks = [:]
+        tempTaskIdMapping = [:]
+        pendingOperationsCount = 0
+        failedOperationsCount = 0
+    }
+
+    /// Show a task exactly as given — for a caller that already holds the core's answer.
+    func updateTaskInCache(_ task: Task) {
+        show(task)
+    }
+
+    /// All-day dates are UTC midnight of the chosen day.
+    private static func utcStartOfDay(_ date: Date) -> Date {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        return utc.startOfDay(for: date)
     }
 }
 

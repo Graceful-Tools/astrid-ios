@@ -206,17 +206,6 @@ nonisolated enum OutboxScheduler {
         if let tempId = entry.tempId { return "task:\(tempId)" }
         let decoder = JSONDecoder()
         switch entry.kind {
-        case "createTask":
-            if let payload = try? decoder.decode(CreateTaskOutboxPayload.self, from: entry.payload),
-               let tempId = payload.tempId { return "task:\(tempId)" }
-        case "updateTask":
-            if let payload = try? decoder.decode(UpdateTaskOutboxPayload.self, from: entry.payload) {
-                return "task:\(payload.taskId)"
-            }
-        case "deleteTask":
-            if let payload = try? decoder.decode(DeleteTaskOutboxPayload.self, from: entry.payload) {
-                return "task:\(payload.taskId)"
-            }
         case "createComment":
             if let payload = try? decoder.decode(CreateCommentOutboxPayload.self, from: entry.payload) {
                 return "task-comments:\(payload.taskId)"
@@ -232,12 +221,6 @@ nonisolated enum OutboxScheduler {
         case "sendChatMessage":
             if let payload = try? decoder.decode(SendChatMessageOutboxPayload.self, from: entry.payload) {
                 return "channel:\(payload.channelId)"
-            }
-        case "updateList":
-            // Repeated settings writes to one list must stay FIFO: dispatched concurrently,
-            // the older body can land last and quietly undo the newer edit (AITD-410).
-            if let payload = try? decoder.decode(UpdateListOutboxPayload.self, from: entry.payload) {
-                return "list:\(payload.listId)"
             }
         case "uploadAttachment":
             if let payload = try? decoder.decode(UploadAttachmentOutboxPayload.self, from: entry.payload) {

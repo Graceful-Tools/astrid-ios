@@ -26,14 +26,13 @@ final class IOSSilentWriteGuardTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
-    /// Writes with no Outbox behind them that ALSO surface their failure to the caller. A
+    /// Writes with no journal behind them that ALSO surface their failure to the caller. A
     /// swallowed failure on one of these is gone: nothing queued, nothing retried, nothing said.
     ///
-    /// `createList` and `updateListAdvanced` are deliberately absent — see
-    /// `testAITD406_TwoListWritesSwallowTheirOwnFailure`. They never throw on a server failure,
-    /// so a `try?` on them is not hiding anything the caller could have acted on.
+    /// List writes left this list when lists moved into astrid-core's journal (docs/
+    /// CORE_MIGRATION.md): like task writes, they are local-first and a server refusal is a
+    /// dead-lettered entry, not a thrown error — see `testListWritesAreTheCoresJournaledWrites`.
     private let throwingDirectAPIWrites = [
-        "updateList", "deleteList",
         "addMember", "removeMember", "updateMemberRole",
     ]
 
@@ -91,32 +90,19 @@ final class IOSSilentWriteGuardTests: XCTestCase {
                       "a refused deleteList must say so — it rolls back into view otherwise, unexplained")
     }
 
-    /// THE CORRECTION. AITD-406 first converted two `updateListAdvanced` catches as well, on the
-    /// reading that they were dropping server writes. They were not, and could not: that method
-    /// CATCHES its own API failure, keeps the optimistic value and returns it
-    /// (ListService.swift:621-628). The only thing those catches can ever see is the local 404
-    /// raised before any write happens — a programming error, not a lost edit. Reporting
-    /// "Couldn't save your changes" there would be the same mistake as banner-ing the
-    /// Outbox-backed task writes: a message for a case that is not the user's problem.
-    ///
-    /// The real defect is one level down and is filed as AITD-410: nothing retries these, so the
-    /// "will sync when online" the service logs is a promise nothing keeps.
-    func testAITD406_TwoListWritesSwallowTheirOwnFailure() throws {
+    /// List writes are astrid-core's journaled writes now, as task writes are: the edit is in the
+    /// cache the moment it is made and the server hears about it when it can. A server refusal
+    /// dead-letters in the journal (and counts in `failedOperationsCount`); it does not throw at
+    /// the call site. So a `try?` on them hides nothing the caller could have acted on — which is
+    /// AITD-406's reasoning for the task writes, now true of lists too (it closes AITD-410).
+    func testListWritesAreTheCoresJournaledWrites() throws {
         let lists = try source("Astrid App/Core/Services/ListService.swift")
-
-        // Both swallow-and-return. If either ever starts throwing, its call sites become real
-        // candidates for the banner and this decision should be revisited.
-        XCTAssertTrue(lists.contains("// Return the optimistic list instead of throwing"),
-                      "updateListAdvanced still swallows its server failure")
-        XCTAssertTrue(lists.contains("// Return the optimistic list so UI shows it"),
-                      "createList still swallows its server failure")
-
-        // So no view should claim to report one of them.
-        for (path, context) in [("Astrid App/Views/Tasks/TaskListView.swift", "Save list settings"),
-                                ("Astrid App/Views/Lists/ListSortFiltersTab.swift", "Save list filters")] {
-            XCTAssertFalse(try source(path).contains("AppErrorCenter.shared.report(\"\(context)\""),
-                           "\(path) catches only a local 404 — see AITD-410 for the real failure")
+        for command in ["createList", "updateList", "deleteList", "setListFavorite", "setManualOrder"] {
+            XCTAssertTrue(lists.contains(#"CoreCommand(kind: "\#(command)""#),
+                          "\(command) goes through the core's journal")
         }
+        XCTAssertFalse(lists.contains("AstridAPIClient"),
+                       "ListService writes nothing to the server itself")
     }
 
     /// And no NEW silent one appears. Scoped to the direct-API writes on purpose: see below for
@@ -162,9 +148,10 @@ final class IOSSilentWriteGuardTests: XCTestCase {
     /// in which the answer above changes.
     func testAITD406_TheWritesDeliberatelyLeftSilentAreTheOutboxBackedOnes() throws {
         let tasks = try source("Astrid App/Core/Services/TaskService.swift")
-        for enqueue in ["enqueueCreateTask", "enqueueUpdateTask", "enqueueDeleteTask"] {
-            XCTAssertTrue(tasks.contains("OutboxManager.shared.\(enqueue)"),
-                          "task writes must stay Outbox-backed — that is why they are not banner-ed")
+        for command in ["CoreCommand.createTask", "CoreCommand.updateTask", "CoreCommand.completeTask",
+                        #"CoreCommand(kind: "deleteTask""#] {
+            XCTAssertTrue(tasks.contains(command),
+                          "task writes must stay journaled (astrid-core) — that is why they are not banner-ed")
         }
 
         let comments = try source("Astrid App/Core/Services/CommentService.swift")

@@ -64,3 +64,21 @@ final class CoreRulesTests: XCTestCase {
         XCTAssertLessThan(perCall, .milliseconds(1))
     }
 }
+
+final class CoreCommandTests: XCTestCase {
+    /// Absent leaves a field alone; null clears it. Both have to survive encoding.
+    func testAClearedFieldIsNullAndAnUnsetOneIsAbsent() throws {
+        var changes = CoreFields()
+        changes.set("title", "Buy milk")
+        changes.clear("dueDateTime")
+        changes.set("priority", Optional<Int>.none)
+        let command = CoreCommand(kind: "updateTask", ["taskId": .value("t1"), "changes": .value(changes)])
+        let json = try CoreJSON.encode(command)
+        let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
+        XCTAssertEqual(object["kind"] as? String, "updateTask")
+        let sent = object["changes"] as! [String: Any]
+        XCTAssertEqual(sent["title"] as? String, "Buy milk")
+        XCTAssertTrue(sent["dueDateTime"] is NSNull)
+        XCTAssertNil(sent["priority"])
+    }
+}

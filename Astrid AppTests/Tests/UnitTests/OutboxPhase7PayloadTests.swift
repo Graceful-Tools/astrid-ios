@@ -15,22 +15,4 @@ final class OutboxPhase7PayloadTests: XCTestCase {
             SendChatMessageOutboxPayload.self, from: JSONEncoder().encode(p))
         XCTAssertEqual(decoded, p)
     }
-
-    func testUpdateTaskPayloadRoundTripsAndPreservesOnlySetFields() throws {
-        // Only `completed` + `priority` set — the encoder must emit just those.
-        let updates = UpdateTaskRequest(priority: 3, completed: true)
-        let p = UpdateTaskOutboxPayload(taskId: "temp_1", updates: updates)
-
-        let data = try JSONEncoder().encode(p)
-        let decoded = try JSONDecoder().decode(UpdateTaskOutboxPayload.self, from: data)
-
-        XCTAssertEqual(decoded.taskId, "temp_1")
-        XCTAssertEqual(decoded.updates, updates, "the update body must replay identically")
-
-        // The replayed body must not invent fields the caller didn't set.
-        let bodyJSON = String(decoding: try JSONEncoder().encode(decoded.updates), as: UTF8.self)
-        XCTAssertTrue(bodyJSON.contains("\"completed\""))
-        XCTAssertTrue(bodyJSON.contains("\"priority\""))
-        XCTAssertFalse(bodyJSON.contains("\"title\""), "unset fields must not appear in the PUT body")
-    }
 }

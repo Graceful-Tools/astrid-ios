@@ -69,7 +69,7 @@ final class WireDatePrecisionTests: XCTestCase {
 
         // Matched on the expression rather than the line: the write wraps across two lines, and
         // a line-shaped assertion would go quietly green the next time someone reformatted it.
-        XCTAssertTrue(source.contains("WireDate.string(from: completedAt"),
+        XCTAssertTrue(source.contains("completedAt.map { WireDate.string(from: $0) }"),
                       "completedAt must be stamped through WireDate")
         XCTAssertFalse(source.contains("ISO8601DateFormatter().string(from: completedAt"),
                        "completedAt must not be stamped with a bare formatter — that truncates to "

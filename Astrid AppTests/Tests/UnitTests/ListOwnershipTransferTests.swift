@@ -37,45 +37,38 @@ final class ListOwnershipTransferTests: XCTestCase {
     }
 
     // MARK: - The four answers
+    //
+    // Reading the probe is astrid-core's (`services::list::transfer_availability`, tested there
+    // against a 200, an empty 200, a 403, a 404 and no network). These pin that the four answers
+    // it gives arrive here as four different states — the whole risk this feature carries.
 
-    func testPeopleComingBackOffersThePicker() {
-        let successors = [user("ada"), user("grace")]
-        XCTAssertEqual(ListOwnershipTransfer.availability(from: .success(successors)),
-                       .available(successors))
+    private func decode(_ json: String) throws -> ListOwnershipTransfer.Availability {
+        try JSONDecoder().decode(ListOwnershipTransfer.Availability.self, from: Data(json.utf8))
+    }
+
+    func testPeopleComingBackOffersThePicker() throws {
+        let answer = try decode(#"{"availability":"available","owners":[{"id":"ada","email":"ada@example.com","name":"Ada"}]}"#)
+        guard case .available(let owners) = answer else { return XCTFail("the picker") }
+        XCTAssertEqual(owners.map(\.id), ["ada"])
     }
 
     /// The distinction the v1 contract calls out by name.
-    func testAnEmptyListIsNobodyToHandItToAndNotARefusal() {
-        XCTAssertEqual(ListOwnershipTransfer.availability(from: .success([])),
-                       .noEligibleOwners,
+    func testAnEmptyListIsNobodyToHandItToAndNotARefusal() throws {
+        XCTAssertEqual(try decode(#"{"availability":"noEligibleOwners"}"#), .noEligibleOwners,
                        "an empty array is a 200 — 'nobody yet' and 'you may not' want different UI")
-        XCTAssertNotEqual(ListOwnershipTransfer.availability(from: .success([])),
-                          .notPermitted)
+        XCTAssertNotEqual(try decode(#"{"availability":"noEligibleOwners"}"#), .notPermitted)
     }
 
-    func testA403IsTheServerSayingYouAreNotTheOwner() {
-        let forbidden = AstridAPIError.httpError(statusCode: 403, message: "Forbidden")
-        XCTAssertEqual(ListOwnershipTransfer.availability(from: .failure(forbidden)),
-                       .notPermitted)
+    func testA403IsTheServerSayingYouAreNotTheOwner() throws {
+        XCTAssertEqual(try decode(#"{"availability":"notPermitted"}"#), .notPermitted)
     }
 
-    /// The reason this can ship before astrid-web's manual deploy.
-    func testA404MeansTheRouteIsNotDeployedYetAndKeepsTheOldExplanation() {
-        let missing = AstridAPIError.httpError(statusCode: 404, message: "Not Found")
-        XCTAssertEqual(ListOwnershipTransfer.availability(from: .failure(missing)),
-                       .unavailable,
+    /// The reason this can ship before astrid-web's manual deploy: an undeployed route, a server
+    /// fault and no network are all "not now", and so is an answer a newer core adds.
+    func testAnythingElseIsJustNotNowAndKeepsTheOldExplanation() throws {
+        XCTAssertEqual(try decode(#"{"availability":"unavailable"}"#), .unavailable,
                        "an undeployed route must not become a broken button")
-    }
-
-    func testATransportFailureIsAlsoJustNotNow() {
-        struct Offline: Error {}
-        XCTAssertEqual(ListOwnershipTransfer.availability(from: .failure(Offline())),
-                       .unavailable)
-        XCTAssertEqual(
-            ListOwnershipTransfer.availability(
-                from: .failure(AstridAPIError.httpError(statusCode: 500, message: "Internal Server Error"))),
-            .unavailable,
-            "a server fault is not a statement about this user's rights")
+        XCTAssertEqual(try decode(#"{"availability":"somethingLater"}"#), .unavailable)
     }
 
     // MARK: - One call, not two
@@ -111,11 +104,8 @@ final class ListOwnershipTransferTests: XCTestCase {
         let rest = service[start.upperBound...]
         let body = rest.range(of: "\n    /// ").map { String(rest[..<$0.lowerBound]) } ?? String(rest)
 
-        for teardown in ["cachedLists.removeValue", "lists.removeAll", "deleteListFromCoreData"] {
-            XCTAssertTrue(body.contains(teardown),
-                          "\(teardown) is part of how leaveList makes a list go away — "
-                          + "a transferred list is just as gone")
-        }
+        XCTAssertTrue(body.contains("forget(listId)"),
+                      "forgetting the list is how leaveList makes it go away — a transferred list is just as gone")
     }
 
     // MARK: - The views ask the service, never the client (ASTRID.md §0 rule 1)

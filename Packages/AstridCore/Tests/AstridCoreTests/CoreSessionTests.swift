@@ -77,3 +77,19 @@ final class CoreSessionTests: XCTestCase {
         XCTAssertLessThan(times.min()!, .milliseconds(500), "a shape change, not a percentage")
     }
 }
+
+final class CoreChangeTests: XCTestCase {
+    func testTheCoresWordsReadAsChanges() {
+        XCTAssertEqual(CoreChange(json: #"{"change":"task","id":"t1"}"#), .task(id: "t1"))
+        XCTAssertEqual(CoreChange(json: #"{"change":"synced","taskIds":[],"listIds":["l1"]}"#),
+                       .synced(taskIds: [], listIds: ["l1"]))
+        XCTAssertEqual(CoreChange(json: #"{"change":"agentTyping","channelId":"c","active":true}"#),
+                       .agentTyping(channelId: "c", active: true))
+    }
+
+    func testSomethingNewerIsUnknownNotACrash() {
+        guard case .unknown = CoreChange(json: #"{"change":"somethingLater"}"#) else {
+            return XCTFail("unknown")
+        }
+    }
+}

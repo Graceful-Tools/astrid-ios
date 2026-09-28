@@ -1,44 +1,5 @@
 import Foundation
 
-// MARK: - Delete task
-
-/// Self-contained payload for a `deleteTask` Outbox entry.
-nonisolated struct DeleteTaskOutboxPayload: Codable, Equatable {
-    var taskId: String
-}
-
-/// Deletes the task server-side. 404/410 count as success (already gone —
-/// deletes are naturally idempotent). A temp id waits (.blocked) until the
-/// offline create resolves it.
-enum DeleteTaskOutboxHandler {
-    static func handle(_ entry: OutboxEntry) async -> OutboxResult {
-        guard let payload = try? JSONDecoder().decode(DeleteTaskOutboxPayload.self, from: entry.payload) else {
-            return .permanent("deleteTask: undecodable payload")
-        }
-        var taskId = payload.taskId
-        if taskId.hasPrefix("temp_") {
-            if let real = TaskService.shared.mappedRealTaskId(for: taskId) {
-                taskId = real
-            } else {
-                return .blocked("deleteTask: task not yet synced")
-            }
-        }
-        do {
-            try await AstridAPIClient.shared.deleteTask(id: taskId)
-        } catch let apiError as AstridAPIError {
-            if case .httpError(let status, _) = apiError, status == 404 || status == 410 {
-                // Already deleted server-side — success.
-            } else {
-                return OutboxResultMapper.classify(apiError)
-            }
-        } catch {
-            return OutboxResultMapper.classify(error)
-        }
-        await TaskService.shared.finalizeOutboxDeletedTask(id: payload.taskId, resolvedId: taskId)
-        return .success([:])
-    }
-}
-
 // MARK: - Update comment
 
 /// Self-contained payload for an `updateComment` Outbox entry.

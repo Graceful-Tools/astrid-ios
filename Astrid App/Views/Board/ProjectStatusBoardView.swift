@@ -353,10 +353,14 @@ struct ProjectStatusBoardView: View {
         _Concurrency.Task {
             do {
                 // Persist the task move first so list-membership / completion
-                // is correct before the order is interpreted.
+                // is correct before the order is interpreted. Completion goes through
+                // `completeTask` — the only path that rolls a repeating task over (ASTRID.md
+                // rule 2), as the Mac board's move already does.
+                if reorder.completed != task.completed {
+                    _ = try await taskService.completeTask(id: task.id, completed: reorder.completed, task: task)
+                }
                 _ = try await taskService.updateTask(
                     taskId: task.id,
-                    completed: reorder.completed,
                     listIds: reorder.listIds,
                     // "" CLEARS the role — Inbox and Done carry no status. Omitting this is
                     // what pinned cards to their column: the board prefers `statusRole` when

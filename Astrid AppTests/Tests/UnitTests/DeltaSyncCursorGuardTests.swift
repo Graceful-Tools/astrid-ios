@@ -116,15 +116,18 @@ final class DeltaSyncCursorGuardTests: XCTestCase {
         }
     }
 
-    /// And the sync path really is the full fetch this all rests on. If someone swaps
-    /// `getAllTasks()` for a delta call, the parameter guard above catches the cursor — but only
-    /// if the cursor is spelled one of the four ways it knows. This catches the swap itself.
-    func testAITD427_TheIncrementalPassFetchesEverything() throws {
+    /// The pass itself is astrid-core's now (docs/CORE_MIGRATION.md), and it does carry a cursor —
+    /// with BOTH halves this file demands: a stamp beside it, and a full fetch when the stamp is
+    /// older than a day (`max_delta_age`, 30x inside DELETION_LOG_RETENTION_DAYS — web's own
+    /// MAX_CURSOR_AGE). A full pass learns deletions by absence (astrid-core
+    /// `a_full_pass_forgets_what_the_server_no_longer_has_and_nothing_else`), so an app that sat
+    /// unlaunched for months still misses none. Both are tested in astrid-core; what is pinned
+    /// here is that the Swift side has no pass of its own that could skip them.
+    func testAITD427_TheIncrementalPassIsTheCoresCappedPass() throws {
         let syncManager = try RepositoryLocator.source(at: "Astrid App/Core/Services/SyncManager.swift")
-        XCTAssertTrue(syncManager.contains("apiClient.getAllTasks()"),
-                      "the incremental pass must fetch the full task set and diff locally; a "
-                      + "server-side delta would depend on tombstones that now expire (AITD-427)")
-        XCTAssertTrue(syncManager.contains("apiClient.getLists()"),
-                      "same for lists — /api/v1/lists attaches deletedIds only to a cursored request")
+        XCTAssertTrue(syncManager.contains(#"CoreCommand(kind: "sync")"#),
+                      "the pass is the core's, whose cursor is capped at a day (AITD-427)")
+        XCTAssertFalse(syncManager.contains("apiClient.getAllTasks") || syncManager.contains("getLists()"),
+                       "no Swift fetch of its own beside it")
     }
 }
