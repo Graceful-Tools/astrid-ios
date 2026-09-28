@@ -158,7 +158,12 @@ chmod +x "$SANDBOX/repo/scripts/fixall-loop.sh"
   # which would otherwise delete the very script under test.
   git add -A
   git commit -q -m init
+  # A bare origin, so the loop's end-of-run push has somewhere real to go.
+  git init -q --bare -b main "$SANDBOX/origin.git"
+  git remote add origin "$SANDBOX/origin.git"
+  git push -q -u origin main
 ) >/dev/null 2>&1
+sgit() { git -C "$SANDBOX/repo" "$@"; }
 
 # A claude that does what the 17:30 run did: edits a file, then ends its turn anyway.
 cat > "$TMP/bin/claude-leaves-mess" <<'STUB'
@@ -258,6 +263,67 @@ called "…and its wake keys get a strike, not a mute" \
        "agent-queue-status.ts" "--mark-seen" "--failed"
 posted "…and it says so on the board, since the run cannot report for itself" \
        "left work uncommitted" "leftover.txt"
+
+# --- …and the tree is PUT BACK, so the next tick is not wedged on it -----------------
+# astrid-web 2026-09-27: reporting the mess was not enough — every later tick skipped on
+# it until a human came. The work is saved as a WIP commit (never on main) and HEAD
+# returns to main.
+if [ "$(sgit rev-parse --abbrev-ref HEAD)" = "main" ] && [ -z "$(sgit status --porcelain)" ]; then ok
+else bad "a dirty run is put back on a clean main" "$(sgit status)"; fi
+if [ "$(sgit log -1 --format=%s main)" = "init" ]; then ok
+else bad "…without committing anything to main" "$(sgit log --oneline -3 main)"; fi
+WIP=$(sgit branch -r --list 'origin/wip/fixall-ios-*' | tr -d ' ' | head -1)
+if [ -n "$WIP" ] && sgit show "$WIP:leftover.txt" >/dev/null 2>&1 \
+   && sgit log -1 --format=%s "$WIP" | grep -q "UNFINISHED, UNVERIFIED"; then ok
+else bad "…the leftover work is pushed as a WIP commit on a wip/ branch" "$(sgit branch -a)"; fi
+posted "…and the board is told where it went" "saved as an unverified WIP commit"
+clean_sandbox
+
+# A run the watchdog kills mid-task, on its task branch: the work lands on THAT branch.
+cat > "$TMP/bin/claude-killed-mid-task" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+git checkout -q -b fix/aitd-9-half-done
+echo "half" > half.txt
+exit 143
+STUB
+chmod +x "$TMP/bin/claude-killed-mid-task"
+rm -f "$STALL_STATE"
+run_sandbox "$TMP/bin/claude-killed-mid-task"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED — killed'; then ok
+else bad "a killed run still reports FAILED" "$OUT"; fi
+if [ "$(sgit rev-parse --abbrev-ref HEAD)" = "main" ] && [ -z "$(sgit status --porcelain)" ] \
+   && sgit show origin/fix/aitd-9-half-done:half.txt >/dev/null 2>&1 \
+   && sgit log -1 --format=%s origin/fix/aitd-9-half-done | grep -q "UNFINISHED"; then ok
+else bad "a killed run's work is saved on its task branch, pushed, and HEAD is back on main" "$OUT
+$(sgit branch -a)"; fi
+posted "…and the board hears where its work went" "saved on \`fix/aitd-9-half-done\`"
+
+# A run that committed its work but ended on its task branch: push it, go back to main.
+cat > "$TMP/bin/claude-leaves-branch" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+git checkout -q -b fix/aitd-10-done
+echo "done" > done.txt
+git add done.txt && git commit -q -m "fix: done"
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-leaves-branch"
+run_sandbox "$TMP/bin/claude-leaves-branch"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: OK' && [ "$(sgit rev-parse --abbrev-ref HEAD)" = "main" ] \
+   && sgit rev-parse -q --verify origin/fix/aitd-10-done >/dev/null; then ok
+else bad "a clean task branch is pushed and the loop returns to main" "$OUT"; fi
+
+# One task per scheduled run: the cap reaches the session.
+cat > "$TMP/bin/claude-env" <<'STUB'
+#!/bin/bash
+echo "claude MAX_TASKS=$ASTRID_FIXALL_MAX_TASKS" >> "$CALLS"
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-env"
+run_sandbox "$TMP/bin/claude-env"
+if grep -q "claude MAX_TASKS=1" "$CALLS"; then ok
+else bad "the session is told to take one task (ASTRID_FIXALL_MAX_TASKS=1)" "$(cat "$CALLS")"; fi
 clean_sandbox
 
 # --- A run that SAYS it failed is a failed run, whatever it exits (AITD-440) ---------
