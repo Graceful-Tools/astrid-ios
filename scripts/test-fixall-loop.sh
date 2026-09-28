@@ -367,6 +367,34 @@ if echo "$OUT" | tail -1 | grep -q '^RESULT: OK'; then ok
 else bad "a run whose LAST RESULT: line is OK is still OK" "$OUT"; fi
 clean_sandbox
 
+# --- The loop runs what is MERGED, not what someone last pulled (2026-09-27) ---------
+# A merged loop fix sat unused here until a human pulled it. Each tick that passes the
+# guards fast-forwards main; if the loop script itself changed, it restarts on the new one.
+UPSTREAM="$TMP/upstream"
+git clone -q "$SANDBOX/origin.git" "$UPSTREAM" 2>/dev/null
+git -C "$UPSTREAM" config user.email t@example.com; git -C "$UPSTREAM" config user.name Test
+push_upstream() {  # push_upstream <file> <line>
+  echo "$2" >> "$UPSTREAM/$1"
+  git -C "$UPSTREAM" pull -q --ff-only origin main 2>/dev/null
+  git -C "$UPSTREAM" add -A && git -C "$UPSTREAM" commit -q -m "upstream: $1" && git -C "$UPSTREAM" push -q origin main 2>/dev/null
+}
+sgit fetch -q origin 2>/dev/null
+push_upstream NOTES.md "merged elsewhere"
+run_sandbox
+if [ "$(sgit rev-parse HEAD)" = "$(git -C "$UPSTREAM" rev-parse HEAD)" ] && echo "$OUT" | grep -q "updated main"; then ok
+else bad "a tick fast-forwards main to origin/main" "$OUT"; fi
+if echo "$OUT" | grep -q "restarting"; then bad "…and does not restart when the loop itself did not change" "$OUT"; else ok; fi
+
+push_upstream scripts/fixall-loop.sh "# a change to the loop itself"
+run_sandbox
+if echo "$OUT" | grep -q "restarting on the new version" \
+   && [ "$(grep -c "restarting on the new version" "$TMP/out.txt")" = 1 ] \
+   && echo "$OUT" | tail -1 | grep -q '^RESULT: OK'; then ok
+else bad "a changed loop restarts itself once, on the new version, and finishes" "$OUT"; fi
+if tail -1 "$SANDBOX/repo/scripts/fixall-loop.sh" | grep -q "a change to the loop itself"; then ok
+else bad "…and the checkout now holds the new loop" "$(tail -2 "$SANDBOX/repo/scripts/fixall-loop.sh")"; fi
+clean_sandbox
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1
