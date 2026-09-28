@@ -1,0 +1,14 @@
+# The bindings generator, pinned to the same UniFFI as the library it reads. A crate of its own so
+# its command-line dependencies never reach the static library the apps link.
+[package]
+name = "uniffi-bindgen"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "main.rs"
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }

@@ -11,6 +11,8 @@
 		CB5DE3932EBDCC160056928E /* Astrid.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB5DE3892EBDCC150056928E /* Astrid.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CBB1360B2EAB284400D41E86 /* AstridApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB1360A2EAB284400D41E86 /* AstridApp.swift */; };
 		DCA6E9C682DE48EF8A1490EC /* AstridApp.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */; };
+		CBC0DE000000000000000001 /* AstridCore in Frameworks */ = {isa = PBXBuildFile; productRef = CBC0DE000000000000000011 /* AstridCore */; };
+		CBC0DE000000000000000002 /* AstridCore in Frameworks */ = {isa = PBXBuildFile; productRef = CBC0DE000000000000000012 /* AstridCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -274,6 +276,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBC0DE000000000000000002 /* AstridCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -295,6 +298,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBC0DE000000000000000001 /* AstridCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,6 +398,7 @@
 			);
 			name = "Astrid Mac";
 			packageProductDependencies = (
+				CBC0DE000000000000000012 /* AstridCore */,
 			);
 			productName = "Astrid Mac";
 			productReference = CB8DEFD13005D591003E5617 /* Astrid.app */;
@@ -467,6 +472,7 @@
 			);
 			name = "Astrid App";
 			packageProductDependencies = (
+				CBC0DE000000000000000011 /* AstridCore */,
 			);
 			productName = "Astrid App";
 			productReference = CBB135842EAB27CD00D41E86 /* Astrid App.app */;
@@ -578,6 +584,7 @@
 			mainGroup = CBB1357B2EAB27CD00D41E86;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				CBC0DE000000000000000021 /* XCLocalSwiftPackageReference "Packages/AstridCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CBB135852EAB27CD00D41E86 /* Products */;
@@ -1296,6 +1303,26 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CBC0DE000000000000000021 /* XCLocalSwiftPackageReference "Packages/AstridCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/AstridCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CBC0DE000000000000000011 /* AstridCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CBC0DE000000000000000021 /* XCLocalSwiftPackageReference "Packages/AstridCore" */;
+			productName = AstridCore;
+		};
+		CBC0DE000000000000000012 /* AstridCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CBC0DE000000000000000021 /* XCLocalSwiftPackageReference "Packages/AstridCore" */;
+			productName = AstridCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		234F2E7A9036495089832F1E /* AstridApp.xcdatamodeld */ = {

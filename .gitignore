@@ -122,3 +122,7 @@ Astrid AppUITests/UITestSession.plist
 *.certSigningRequest
 *.mobileprovision
 *.provisionprofile
+
+# astrid-core: the locally built framework (scripts/core/build-xcframework.sh) and the Rust build
+Packages/AstridCore/AstridCoreFFI.xcframework/
+core/target/

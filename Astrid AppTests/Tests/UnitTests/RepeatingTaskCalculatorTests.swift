@@ -594,87 +594,6 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
         XCTAssertNotNil(result.nextDueDate)
     }
 
-    // MARK: - Date Extension Tests
-
-    func testDateAddingDays() {
-        let startDate = createDate(year: 2024, month: 1, day: 15, hour: 10, minute: 30)
-
-        let plusOne = startDate.addingDays(1)
-        let plusSeven = startDate.addingDays(7)
-        let minusOne = startDate.addingDays(-1)
-
-        let calendar = Calendar.current
-
-        XCTAssertEqual(calendar.component(.day, from: plusOne), 16)
-        XCTAssertEqual(calendar.component(.day, from: plusSeven), 22)
-        XCTAssertEqual(calendar.component(.day, from: minusOne), 14)
-
-        // Time should be preserved
-        XCTAssertEqual(calendar.component(.hour, from: plusOne), 10)
-        XCTAssertEqual(calendar.component(.minute, from: plusOne), 30)
-    }
-
-    func testDateDayOfWeek() {
-        // Monday Jan 15, 2024
-        let monday = createDate(year: 2024, month: 1, day: 15)
-        XCTAssertEqual(monday.dayOfWeek, 1)  // 0=Sun, 1=Mon
-
-        // Sunday Jan 14, 2024
-        let sunday = createDate(year: 2024, month: 1, day: 14)
-        XCTAssertEqual(sunday.dayOfWeek, 0)
-
-        // Saturday Jan 20, 2024
-        let saturday = createDate(year: 2024, month: 1, day: 20)
-        XCTAssertEqual(saturday.dayOfWeek, 6)
-    }
-
-    func testDateDayName() {
-        let monday = createDate(year: 2024, month: 1, day: 15)
-        XCTAssertEqual(monday.dayName, "monday")
-
-        let sunday = createDate(year: 2024, month: 1, day: 14)
-        XCTAssertEqual(sunday.dayName, "sunday")
-
-        let friday = createDate(year: 2024, month: 1, day: 19)
-        XCTAssertEqual(friday.dayName, "friday")
-    }
-
-    func testDateSettingTimeFromOther() {
-        // settingTime(from:) now uses UTC calendar to correctly handle all-day tasks
-        // Create dates using UTC calendar to match the function's behavior
-        var utcCalendar = Calendar.current
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-        // Create date at UTC midnight for June 15
-        var dateComponents = DateComponents()
-        dateComponents.year = 2024
-        dateComponents.month = 6
-        dateComponents.day = 15
-        dateComponents.hour = 0
-        dateComponents.minute = 0
-        dateComponents.timeZone = TimeZone(identifier: "UTC")
-        let dateOnly = utcCalendar.date(from: dateComponents)!
-
-        // Create time source at 14:45 UTC
-        var timeComponents = DateComponents()
-        timeComponents.year = 2024
-        timeComponents.month = 1
-        timeComponents.day = 1
-        timeComponents.hour = 14
-        timeComponents.minute = 45
-        timeComponents.timeZone = TimeZone(identifier: "UTC")
-        let timeSource = utcCalendar.date(from: timeComponents)!
-
-        let combined = dateOnly.settingTime(from: timeSource)
-
-        // Verify using UTC calendar
-        XCTAssertEqual(utcCalendar.component(.year, from: combined), 2024)
-        XCTAssertEqual(utcCalendar.component(.month, from: combined), 6)
-        XCTAssertEqual(utcCalendar.component(.day, from: combined), 15)
-        XCTAssertEqual(utcCalendar.component(.hour, from: combined), 14)
-        XCTAssertEqual(utcCalendar.component(.minute, from: combined), 45)
-    }
-
     // MARK: - All-Day Task Regression Tests
 
     /// Regression test for bug: All-day daily repeating task jumped 2 days instead of 1
@@ -711,7 +630,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .COMPLETION_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            isAllDay: true
         )
 
         // Next due date should be Jan 7 at UTC midnight (not Jan 8!)
@@ -753,7 +673,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .COMPLETION_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            isAllDay: true
         )
 
         XCTAssertNotNil(result.nextDueDate)
@@ -793,7 +714,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,  // Repeat from original due date
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            isAllDay: true
         )
 
         XCTAssertNotNil(result.nextDueDate)

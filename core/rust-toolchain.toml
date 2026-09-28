@@ -1,0 +1,8 @@
+# Pinned so every machine and CI runner builds the same core.
+# Bump deliberately; a toolchain bump is a PR of its own.
+#
+# No targets: the core builds for the host, and each client pins the targets it ships on
+# (astrid-windows its two MSVC triples, the Apple apps theirs).
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

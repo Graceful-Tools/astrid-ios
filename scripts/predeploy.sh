@@ -74,12 +74,12 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=9
+    TOTAL_STEPS=10
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
-    TOTAL_STEPS=5
+    TOTAL_STEPS=6
 fi
 
 # Print the numbered banner for the next step.
@@ -149,13 +149,23 @@ gate "Localization checks passed" "Localization checks failed" "$SCRIPT_DIR/chec
 step "Checking brand literals..."
 gate "Brand checks passed" "Brand checks failed" "$SCRIPT_DIR/check-brand.sh"
 
-# Step 5: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
+# Step 5: The astrid-core framework (docs/CORE_MIGRATION.md)
+# The apps link a prebuilt Rust framework: a local build when one is present, the pinned release
+# otherwise, which is all Xcode Cloud ever sees. Testing against a local build of some other core
+# revision would test an app nobody will install, so the two must be the same revision — and
+# there must be a release at all, or Xcode Cloud cannot resolve the package.
+step "Checking the astrid-core framework..."
+gate "astrid-core framework matches the pinned release" \
+    "astrid-core framework mismatch — see the message above" \
+    "$SCRIPT_DIR/core/check-framework.sh"
+
+# Step 6: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
 if [[ "$SKIP_BUILD" != "true" ]]; then
     step "Verifying build compiles..."
     gate "Build verification passed" "Build failed" build_ios
 fi
 
-# Step 6: Partner brand audit (unless quick mode)
+# Step 7: Partner brand audit (unless quick mode)
 # Its own gate for the same reason as the web's brand matrix: a whitelabel regression
 # should be reported as itself. This is the ONLY gate that can see one — on an Astrid
 # build every brand assertion is vacuous, because a reverted literal still compares
@@ -165,7 +175,7 @@ if [[ "$QUICK_MODE" != "true" ]]; then
     gate "Brand audit passed" "Brand audit failed" "$SCRIPT_DIR/check-brands.sh"
 fi
 
-# Step 7: Unit tests (unless quick mode)
+# Step 8: Unit tests (unless quick mode)
 if [[ "$QUICK_MODE" != "true" ]]; then
     step "Running unit tests..."
     gate "Unit tests passed" "Unit tests failed" "$SCRIPT_DIR/run-tests.sh"
@@ -178,13 +188,13 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-fixall-loop.sh"
 fi
 
-# Step 8: UI tests (only with --full)
+# Step 9: UI tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     step "Running UI tests..."
     gate "UI tests passed" "UI tests failed" "$SCRIPT_DIR/run-tests.sh" --ui --no-unit
 fi
 
-# Step 9: Mac tests (only with --full)
+# Step 10: Mac tests (only with --full)
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     step "Running Mac tests..."
     gate "Mac tests passed" "Mac tests failed" "$SCRIPT_DIR/run-mac-tests.sh"
