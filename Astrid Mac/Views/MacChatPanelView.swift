@@ -31,6 +31,11 @@ struct MacChatPanelView: View {
         guard let cid = channelId else { return [] }
         return chat.cachedMessages[cid] ?? []
     }
+    /// Task ids in chat link (AITD-439); `#N` means the list's board, when it is on one.
+    private var identifierLinks: TaskIdentifiers.LinkContext {
+        let listId: String? = if case .list(let id) = source { id } else { nil }
+        return .forList(listId: listId, lists: ListService.shared.lists, projects: ProjectService.shared.projects)
+    }
     private var hasMore: Bool { channelId.flatMap { chat.hasMore[$0] } ?? false }
 
     var body: some View {
@@ -215,6 +220,7 @@ struct MacChatPanelView: View {
                 // single-paragraph message, which is nearly all of them, parses to one block and
                 // draws exactly as it did. `fillsWidth: false` is the bubble's hug-your-text mode.
                 MacMarkdownText(source: m.content, fillsWidth: false)
+                    .environment(\.taskIdentifierLinks, identifierLinks)
                     .padding(.horizontal, 10).padding(.vertical, 7)
                     .background(MacChatBubbleStyle.fill(isMine: mine, isAgent: agent))
                     .clipShape(RoundedRectangle(cornerRadius: 10))

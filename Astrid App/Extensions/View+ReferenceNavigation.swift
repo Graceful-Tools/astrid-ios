@@ -12,6 +12,21 @@ struct ReferenceNavigationModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.openURL, OpenURLAction { url in
+                // An autolinked task id (AITD-439): open it here when it resolves — a loaded task
+                // with that id, or the server's answer for it — and on the web otherwise.
+                if let identifier = TaskIdentifiers.identifier(inLink: url) {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    _Concurrency.Task {
+                        if let task = taskService.tasks.first(where: { $0.identifier == identifier }) {
+                            await MainActor.run { navigateToTask = task }
+                        } else if let task = try? await taskService.fetchTask(id: identifier) {
+                            await MainActor.run { navigateToTask = task }
+                        } else {
+                            await MainActor.run { UIApplication.shared.open(url) }
+                        }
+                    }
+                    return .handled
+                }
                 guard url.scheme == "astrid", let host = url.host else {
                     return .systemAction
                 }

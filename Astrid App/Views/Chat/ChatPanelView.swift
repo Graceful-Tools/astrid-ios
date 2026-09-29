@@ -145,6 +145,9 @@ struct ChatPanelView: View {
                             replyingTo = message
                         }
                     )
+                    // Task ids in chat link (AITD-439); `#N` means this list's board.
+                    .environment(\.taskIdentifierLinks, TaskIdentifiers.LinkContext.forList(
+                        listId: listId, lists: ListService.shared.lists, projects: ProjectService.shared.projects))
                 }
 
                 // Agent typing indicator

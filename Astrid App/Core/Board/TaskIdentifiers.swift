@@ -118,6 +118,55 @@ enum TaskIdentifiers {
         return links.sorted { $0.range.location < $1.range.location }
     }
 
+    // MARK: - Wiring the autolink into comments and chat (AITD-439)
+
+    /// What the reader can see, which decides what links. astrid-core's `LinkContext`, and what
+    /// its comment and chat rows are rendered with.
+    struct LinkContext: Equatable {
+        /// The board the text belongs to — a task's, or the chat's list's. Enables `#N`.
+        var projectKey: String?
+        /// Keys of every project the reader can see.
+        var keys: [String]
+        var hidden: [String] = []
+
+        /// A task's comments: `#N` means the key of the first board the task sits on.
+        static func forTask(_ task: Task, lists: [TaskList], projects: [Project]) -> LinkContext {
+            let known = Dictionary(lists.map { ($0.id, $0.projectId) }, uniquingKeysWith: { first, _ in first })
+            let projectId = taskListMembershipIdsInOrder(task).lazy.compactMap { id in
+                known[id] ?? task.lists?.first(where: { $0.id == id })?.projectId
+            }.first
+            return LinkContext(projectKey: key(of: projectId, in: projects), keys: keys(of: projects))
+        }
+
+        /// A list's chat: `#N` means the key of the list's board, if it is on one.
+        static func forList(listId: String?, lists: [TaskList], projects: [Project]) -> LinkContext {
+            let projectId = lists.first(where: { $0.id == listId })?.projectId
+            return LinkContext(projectKey: key(of: projectId, in: projects), keys: keys(of: projects))
+        }
+
+        private static func keys(of projects: [Project]) -> [String] {
+            projects.compactMap { $0.key }.filter { !$0.isEmpty }
+        }
+
+        private static func key(of projectId: String?, in projects: [Project]) -> String? {
+            projectId.flatMap { id in projects.first(where: { $0.id == id })?.key }
+        }
+    }
+
+    /// Where an id links: the web's `/t/KEY-N`, which resolves and redirects. The app opens it
+    /// in place when it can (`identifier(inLink:)`); anywhere else it still lands on the task.
+    static func url(for identifier: String) -> URL {
+        URL(string: "\(Brand.productionBaseURL)/t/\(identifier)")!
+    }
+
+    /// The id a tapped link names, when it is one of ours — `nil` for any other URL.
+    static func identifier(inLink url: URL) -> String? {
+        guard url.scheme == "https", let host = url.host, Brand.webHosts.contains(host) else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count == 2, parts[0] == "t", let parsed = parse(parts[1]) else { return nil }
+        return "\(parsed.key)-\(parsed.sequence)"
+    }
+
     // MARK: - Patterns — web's, character for character
 
     private static let identifierPattern = try! NSRegularExpression(pattern: "^([A-Za-z][A-Za-z0-9]{1,4})-(\\d+)$")

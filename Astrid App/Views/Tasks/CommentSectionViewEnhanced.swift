@@ -331,6 +331,17 @@ struct CommentSectionViewEnhanced: View {
 
 
     var body: some View {
+        content.environment(\.taskIdentifierLinks, identifierLinks)
+    }
+
+    /// Which task ids in these comments link: the reader's board keys, and this task's board for
+    /// `#N` (AITD-439).
+    private var identifierLinks: TaskIdentifiers.LinkContext? {
+        guard let task = TaskService.shared.tasks.first(where: { $0.id == taskId }) else { return nil }
+        return .forTask(task, lists: ListService.shared.lists, projects: ProjectService.shared.projects)
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Theme.spacing16) {
             // Header (show even when offline)
             HStack {

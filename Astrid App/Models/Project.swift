@@ -14,6 +14,10 @@ nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
     var description: String?
     var color: String?
     var imageUrl: String?
+    /// The prefix this project's task ids carry — `AWTD` in `AWTD-1007` (AITD-439). Nil for a
+    /// project made before ids existed. Read only to know which keys the reader can see, which
+    /// is what decides whether an id in a comment or chat links (`TaskIdentifiers.LinkContext`).
+    var key: String?
     var ownerId: String?
     var owner: User?
     var members: [ProjectMember]?
@@ -32,6 +36,7 @@ nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
         description: String? = nil,
         color: String? = nil,
         imageUrl: String? = nil,
+        key: String? = nil,
         ownerId: String? = nil,
         owner: User? = nil,
         members: [ProjectMember]? = nil,
@@ -45,6 +50,7 @@ nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
         self.description = description
         self.color = color
         self.imageUrl = imageUrl
+        self.key = key
         self.ownerId = ownerId
         self.owner = owner
         self.members = members
@@ -67,6 +73,7 @@ nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
         description = try c.decodeIfPresent(String.self, forKey: .description)
         color = try c.decodeIfPresent(String.self, forKey: .color)
         imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
+        key = try c.decodeIfPresent(String.self, forKey: .key)
         ownerId = try c.decodeIfPresent(String.self, forKey: .ownerId)
         owner = try c.decodeIfPresent(User.self, forKey: .owner)
         members = try c.decodeIfPresent([ProjectMember].self, forKey: .members)
@@ -77,7 +84,7 @@ nonisolated struct Project: Identifiable, Codable, Equatable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, description, color, imageUrl, ownerId, owner, members, lists
+        case id, name, description, color, imageUrl, key, ownerId, owner, members, lists
         case customStates, createdAt, updatedAt
     }
 

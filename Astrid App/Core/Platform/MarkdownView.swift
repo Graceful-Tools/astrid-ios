@@ -34,6 +34,8 @@ struct MarkdownStyle {
 struct MarkdownView: View {
     let blocks: [MarkdownBlock]
     let style: MarkdownStyle
+    /// Set by a comment thread or a chat (AITD-439); everywhere else task ids stay text.
+    @Environment(\.taskIdentifierLinks) private var identifiers
 
     init(source: String, style: MarkdownStyle) {
         self.init(blocks: CoreRules.markdown(source), style: style)
@@ -81,7 +83,8 @@ struct MarkdownView: View {
     }
 
     private func inline(_ inlines: [MarkdownInline]) -> Text {
-        Text(MarkdownRendering.attributed(inlines, defaultColor: style.text, referenceFont: nil))
+        Text(MarkdownRendering.attributed(inlines, defaultColor: style.text, referenceFont: nil,
+                                          identifiers: identifiers))
     }
 
     /// A list row keeps its marker in a column of its own, so wrapped text lines up under itself
@@ -152,6 +155,19 @@ private extension MarkdownStyle {
     }
 }
 
+private struct TaskIdentifierLinksKey: EnvironmentKey {
+    static let defaultValue: TaskIdentifiers.LinkContext? = nil
+}
+
+extension EnvironmentValues {
+    /// Which task ids link in the markdown below (AITD-439). A comment thread sets it from its
+    /// task, a chat from its list; `nil` — the default — links none.
+    var taskIdentifierLinks: TaskIdentifiers.LinkContext? {
+        get { self[TaskIdentifierLinksKey.self] }
+        set { self[TaskIdentifierLinksKey.self] = newValue }
+    }
+}
+
 /// The inline half: runs and references as one attributed string. Shared by the block view and
 /// by the surfaces that draw a whole text as a single `Text` (the inline editor's preview).
 enum MarkdownRendering {
@@ -185,8 +201,12 @@ enum MarkdownRendering {
     /// - Parameter referenceFont: the font to stamp on a reference, or `nil` to leave it to the
     ///   surrounding view. A block renderer must pass `nil` (AITD-390): stamping `.body` inside a
     ///   heading draws the reference at body size while the words either side stay heading-sized.
+    /// - Parameter identifiers: link task ids (`AWTD-12`, `#12`) in prose (AITD-439); `nil` links
+    ///   none. Only plain runs are scanned: a code span, a link and a pill are already separate
+    ///   inlines here, which is the masking the rule asks for.
     static func attributed(_ inlines: [MarkdownInline], defaultColor: Color,
-                           referenceFont: Font?) -> AttributedString {
+                           referenceFont: Font?,
+                           identifiers: TaskIdentifiers.LinkContext? = nil) -> AttributedString {
         var result = AttributedString()
         for inline in inlines {
             switch inline {
@@ -199,7 +219,11 @@ enum MarkdownRendering {
                 if run.strike { intent.insert(.strikethrough) }
                 if run.code { intent.insert(.code) }
                 if !intent.isEmpty { piece.inlinePresentationIntent = intent }
-                if let link = run.link { piece.link = URL(string: link) }
+                if let link = run.link {
+                    piece.link = URL(string: link)
+                } else if let identifiers, !run.code {
+                    linkIdentifiers(in: &piece, text: run.text, context: identifiers)
+                }
                 result += piece
             case .reference(let kind, let label, let id):
                 var reference = AttributedString(trigger(for: kind) + label)
@@ -212,6 +236,17 @@ enum MarkdownRendering {
             }
         }
         return result
+    }
+
+    private static func linkIdentifiers(in piece: inout AttributedString, text: String,
+                                        context: TaskIdentifiers.LinkContext) {
+        for link in TaskIdentifiers.links(in: text, projectKey: context.projectKey,
+                                          keys: context.keys, hidden: context.hidden) {
+            guard let range = Range(link.range, in: text),
+                  let lower = AttributedString.Index(range.lowerBound, within: piece),
+                  let upper = AttributedString.Index(range.upperBound, within: piece) else { continue }
+            piece[lower..<upper].link = TaskIdentifiers.url(for: link.identifier)
+        }
     }
 
     /// A whole text as one attributed string: each block on its own line, a list item with its

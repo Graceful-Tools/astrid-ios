@@ -115,6 +115,11 @@ class DeepLinkManager {
             if pathComponents.count > 1, APIPathSafety.isValidIdentifier(pathComponents[1]) {
                 TaskPresenter.shared.showTask(taskId: pathComponents[1])
             }
+        case "t":
+            // `/t/AWTD-12` — an autolinked task id (AITD-439).
+            if let identifier = TaskIdentifiers.identifier(inLink: url) {
+                TaskPresenter.shared.showTask(taskId: identifier)
+            }
         case "lists":
             if pathComponents.count > 1, APIPathSafety.isValidIdentifier(pathComponents[1]) {
                 ListPresenter.shared.showList(listId: pathComponents[1])

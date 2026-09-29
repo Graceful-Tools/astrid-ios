@@ -361,6 +361,12 @@ struct MacCommentThreadList: View {
 
     @State private var expandedStreaks: Set<String> = []
 
+    /// Task ids in these comments link (AITD-439); `#N` means this task's board.
+    private var identifierLinks: TaskIdentifiers.LinkContext? {
+        guard let task = TaskService.shared.tasks.first(where: { $0.id == taskId }) else { return nil }
+        return .forTask(task, lists: ListService.shared.lists, projects: ProjectService.shared.projects)
+    }
+
     var body: some View {
         if comments.isEmpty {
             Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
@@ -401,6 +407,7 @@ struct MacCommentThreadList: View {
                         // are usually read in (AITD-389) — same renderer, hugging its text so the
                         // bubble stays the size of what was said.
                         MacMarkdownText(source: c.content, fillsWidth: false)
+                            .environment(\.taskIdentifierLinks, identifierLinks)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
