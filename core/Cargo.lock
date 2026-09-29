@@ -109,7 +109,7 @@ dependencies = [
 [[package]]
 name = "astrid-core"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=f1a1d30b03e67886ef91a9ab5c5a5b09a02d561f#f1a1d30b03e67886ef91a9ab5c5a5b09a02d561f"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=89e490a177b07173e2eb73f15e5f7cd7dec1dbca#89e490a177b07173e2eb73f15e5f7cd7dec1dbca"
 dependencies = [
  "async-trait",
  "base64 0.22.1",

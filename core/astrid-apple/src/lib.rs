@@ -228,7 +228,7 @@ impl CoreClient {
     }
 }
 
-/// The loops a running app keeps going on its own — the same set the Windows shell starts.
+/// The loops a running app keeps going on its own: sync, delivery and the live stream.
 fn start_loops(runtime: &tokio::runtime::Runtime, app: &Arc<App>, running: &Arc<AtomicBool>) {
     let keep_going = |running: &Arc<AtomicBool>| {
         let running = running.clone();
@@ -244,11 +244,8 @@ fn start_loops(runtime: &tokio::runtime::Runtime, app: &Arc<App>, running: &Arc<
         keep_going(running),
         app.outbox_nudge().clone(),
     ));
-    runtime.spawn(background::reminder_loop(
-        app.clone(),
-        keep_going(running),
-        background::REMINDER_INTERVAL,
-    ));
+    // No reminder loop: the Apple apps schedule their own notifications with UserNotifications,
+    // and a loop announcing reminders nothing listens for is work for nothing.
     let (app, keep) = (app.clone(), keep_going(running));
     runtime.spawn(async move { background::realtime_loop(app, &keep).await });
 }
