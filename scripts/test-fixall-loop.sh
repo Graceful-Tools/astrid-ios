@@ -395,6 +395,30 @@ if tail -1 "$SANDBOX/repo/scripts/fixall-loop.sh" | grep -q "a change to the loo
 else bad "…and the checkout now holds the new loop" "$(tail -2 "$SANDBOX/repo/scripts/fixall-loop.sh")"; fi
 clean_sandbox
 
+# --- Doing must not be a dead end (2026-09-28) ------------------------------------
+# A claim whose run died sat in Doing forever. Each tick releases abandoned claims
+# BEFORE deciding whether there is work, and each run's own claims are released after it.
+cat > "$TMP/bin/claude-claims" <<'STUB'
+#!/bin/bash
+echo "claude CLAIMS=$ASTRID_FIXALL_CLAIMS_FILE" >> "$CALLS"
+[ -n "$ASTRID_FIXALL_CLAIMS_FILE" ] && echo "AITD-7" >> "$ASTRID_FIXALL_CLAIMS_FILE"
+exit 0
+STUB
+chmod +x "$TMP/bin/claude-claims"
+run_sandbox "$TMP/bin/claude-claims"
+STALE_LINE=$(grep -n "release-stuck-doing.ts --agent claude --list aa41c1a3" "$CALLS" | head -1 | cut -d: -f1)
+QUEUE_LINE=$(grep -n "agent-queue-status.ts" "$CALLS" | grep -v mark-seen | head -1 | cut -d: -f1)
+CLAUDE_LINE=$(grep -n "^claude CLAIMS=" "$CALLS" | head -1 | cut -d: -f1)
+CLAIMS_LINE=$(grep -n "release-stuck-doing.ts --agent claude --claims-file" "$CALLS" | head -1 | cut -d: -f1)
+if [ -n "$STALE_LINE" ] && [ -n "$QUEUE_LINE" ] && [ "$STALE_LINE" -lt "$QUEUE_LINE" ] \
+   && grep "release-stuck-doing.ts --agent claude --list" "$CALLS" | grep -q -- "--stale-minutes 180"; then ok
+else bad "abandoned Doing claims are released at tick start, before the queue check" "$(cat "$CALLS")"; fi
+if grep -q "^claude CLAIMS=/" "$CALLS"; then ok
+else bad "the session is given a claims file to record into" "$(cat "$CALLS")"; fi
+if [ -n "$CLAIMS_LINE" ] && [ -n "$CLAUDE_LINE" ] && [ "$CLAIMS_LINE" -gt "$CLAUDE_LINE" ]; then ok
+else bad "the run's own claims are released after it" "$(cat "$CALLS")"; fi
+clean_sandbox
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1
