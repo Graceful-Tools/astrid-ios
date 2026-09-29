@@ -136,14 +136,7 @@ class ConnectionModeManager: ObservableObject {
 
         AppLog.debug("🌐 [ConnectionModeManager] Network restored - transitioning to online")
         currentMode = .online
-
-        // Trigger sync of pending operations AND revive the live stream. Syncing alone left the
-        // app fetching on a timer with no live updates, because SSE had already exhausted its
-        // retries while the network was down.
-        _Concurrency.Task {
-            try? await SyncManager.shared.performQuickSync()
-            AppCore.shared.reconnectStream()
-        }
+        // Sending what waited and reviving the stream is AppCore's, on the same notification.
     }
 
     private func handleNetworkLost() {
@@ -237,66 +230,19 @@ class ConnectionModeManager: ObservableObject {
 
         AppLog.debug("🔄 [ConnectionModeManager] Transitioning from offline-only to online...")
 
-        // 1. Get all local tasks and lists (those with local_ or temp_ prefixes)
-        let localTasks = TaskService.shared.tasks.filter {
-            $0.id.hasPrefix("temp_") || $0.id.hasPrefix("local_")
+        // What was made without an account is already queued in astrid-core's journal, waiting for
+        // a session; it goes now, with this account's. Creating it again here made every task and
+        // list twice. Each was assigned to the placeholder user, which the server has never heard
+        // of (the core leaves that assignee off the create); it becomes this account's, as the
+        // re-creation used to make it — an edit queued behind the create.
+        let unowned = TaskService.shared.tasks.filter {
+            $0.assigneeId?.hasPrefix(AuthManager.localUserIdPrefix) == true
+                || ($0.assigneeId == nil && ($0.listIds ?? []).isEmpty)
         }
-        let localLists = ListService.shared.lists.filter {
-            $0.id.hasPrefix("temp_") || $0.id.hasPrefix("local_")
+        for task in unowned {
+            _ = try? await TaskService.shared.updateTask(taskId: task.id, assigneeId: userId)
         }
-
-        AppLog.debug("📤 [ConnectionModeManager] Uploading \(localTasks.count) tasks and \(localLists.count) lists...")
-
-        // 2. Upload lists first (tasks may depend on list IDs)
-        var listIdMapping: [String: String] = [:]
-        for list in localLists {
-            do {
-                let serverList = try await AstridAPIClient.shared.createList(
-                    name: list.name,
-                    description: list.description ?? "",
-                    color: list.color,
-                    privacy: list.privacy?.rawValue ?? "PRIVATE"
-                )
-                listIdMapping[list.id] = serverList.id
-                AppLog.debug("  ✅ Uploaded list: \(list.name) -> \(serverList.id)")
-            } catch {
-                AppLog.debug("  ⚠️ Failed to upload list \(list.name): \(error)")
-                // Continue with other lists
-            }
-        }
-
-        // 3. Upload tasks with mapped list IDs
-        for task in localTasks {
-            do {
-                // Map local list IDs to server list IDs
-                let serverListIds = (task.listIds ?? []).compactMap { localId -> String? in
-                    if let serverId = listIdMapping[localId] {
-                        return serverId
-                    }
-                    // If not a local ID, keep as-is (might be a real server ID)
-                    if !localId.hasPrefix("local_") && !localId.hasPrefix("temp_") {
-                        return localId
-                    }
-                    return nil
-                }
-
-                _ = try await AstridAPIClient.shared.createTask(
-                    title: task.title,
-                    listIds: serverListIds.isEmpty ? nil : serverListIds,
-                    description: task.description.isEmpty ? nil : task.description,
-                    priority: task.priority.rawValue,
-                    assigneeId: userId,  // Assign to the newly authenticated user
-                    dueDateTime: task.dueDateTime,
-                    isAllDay: task.isAllDay,
-                    isPrivate: task.isPrivate,
-                    repeating: task.repeating?.rawValue
-                )
-                AppLog.debug("  ✅ Uploaded task: \(task.title)")
-            } catch {
-                AppLog.debug("  ⚠️ Failed to upload task \(task.title): \(error)")
-                // Continue with other tasks
-            }
-        }
+        AppCore.shared.networkRestored()
 
         // 4. Clear offline-only mode flags
         UserDefaults.standard.set(false, forKey: Self.offlineOnlyModeKey)

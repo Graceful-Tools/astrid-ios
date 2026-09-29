@@ -739,6 +739,7 @@
 "comments.add_placeholder" = "Добавить комментарий...";
 "comments.delete_comment" = "Удалить комментарий";
 "comments.upload_error" = "Ошибка загрузки";
+"comments.send_error" = "Комментарий не отправлен";
 "comments.pending_offline" = "Ожидание - Офлайн";
 "comments.tap_to_sync" = "Нажмите для синхронизации";
 

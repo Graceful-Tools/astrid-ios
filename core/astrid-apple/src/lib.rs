@@ -23,7 +23,7 @@
 //! 3. **Nothing platform-specific is decided here.** Credentials arrive through
 //!    [`CredentialStore`], which the app implements over the Keychain.
 
-use std::panic::catch_unwind;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -47,6 +47,15 @@ pub fn run_rule(request: String) -> String {
         Response::failed(Failure::bad_request("the core panicked answering a rule")).to_json()
     })
 }
+
+/// The commands `run_blocking` answers: they read or write this machine's cache and nothing else.
+const BLOCKING_KINDS: &[&str] = &[
+    "tasks",
+    "lists",
+    "projects",
+    "seedCache",
+    "importJournalEntry",
+];
 
 /// Credentials at rest, implemented by the app over the Keychain.
 ///
@@ -173,6 +182,11 @@ impl CoreClient {
     /// shows offline — and nothing else: everything else awaits `run`. Refuses rather than
     /// deadlocks when called from one of the core's own threads (a change listener that forgot to
     /// hop off it).
+    ///
+    /// Only the commands that stay on this machine — cache reads, and the local-only writes of the
+    /// first launch after an upgrade. Anything that could wait on the network is refused: it would
+    /// hold the main thread for as long as the network took. A panic in the core answers as a
+    /// failure rather than taking the app down with it.
     pub fn run_blocking(&self, request: String) -> String {
         if tokio::runtime::Handle::try_current().is_ok() {
             return Response::failed(Failure::bad_request(
@@ -180,7 +194,25 @@ impl CoreClient {
             ))
             .to_json();
         }
-        self.runtime.block_on(self.app.run_json(&request))
+        let kind = serde_json::from_str::<serde_json::Value>(&request)
+            .ok()
+            .and_then(|value| value.get("kind")?.as_str().map(str::to_string))
+            .unwrap_or_default();
+        if !BLOCKING_KINDS.contains(&kind.as_str()) {
+            return Response::failed(Failure::bad_request(format!(
+                "{kind} may reach the network; await run instead of runBlocking"
+            )))
+            .to_json();
+        }
+        catch_unwind(AssertUnwindSafe(|| {
+            self.runtime.block_on(self.app.run_json(&request))
+        }))
+        .unwrap_or_else(|_| {
+            Response::failed(Failure::bad_request(
+                "the core panicked answering a command",
+            ))
+            .to_json()
+        })
     }
 
     /// Hear every change to the cache from now on. The app subscribes once, not per screen.
@@ -196,7 +228,7 @@ impl CoreClient {
     }
 }
 
-/// The loops a running app keeps going on its own — the same set the Windows shell starts.
+/// The loops a running app keeps going on its own: sync, delivery and the live stream.
 fn start_loops(runtime: &tokio::runtime::Runtime, app: &Arc<App>, running: &Arc<AtomicBool>) {
     let keep_going = |running: &Arc<AtomicBool>| {
         let running = running.clone();
@@ -212,11 +244,8 @@ fn start_loops(runtime: &tokio::runtime::Runtime, app: &Arc<App>, running: &Arc<
         keep_going(running),
         app.outbox_nudge().clone(),
     ));
-    runtime.spawn(background::reminder_loop(
-        app.clone(),
-        keep_going(running),
-        background::REMINDER_INTERVAL,
-    ));
+    // No reminder loop: the Apple apps schedule their own notifications with UserNotifications,
+    // and a loop announcing reminders nothing listens for is work for nothing.
     let (app, keep) = (app.clone(), keep_going(running));
     runtime.spawn(async move { background::realtime_loop(app, &keep).await });
 }
@@ -309,5 +338,23 @@ mod tests {
             .unwrap()
             .block_on(core.run(r#"{"kind":"lists"}"#.into()));
         assert!(answer.starts_with(r#"{"ok":true"#), "{answer}");
+    }
+
+    /// Only what stays on this machine may hold the calling thread: a command that could wait on
+    /// the network is refused rather than freezing the main thread for as long as it takes.
+    #[test]
+    fn a_blocking_call_that_could_reach_the_network_is_refused() {
+        let core = CoreClient::start(
+            r#"{"cachePath":":memory:","baseUrl":"https://astrid.cc","platform":"ios-app"}"#
+                .to_string(),
+            Arc::new(MemoryCredentials::default()),
+            false,
+        )
+        .expect("starts");
+        let answer = core.run_blocking(r#"{"kind":"sync"}"#.to_string());
+        assert!(answer.contains(r#""ok":false"#), "{answer}");
+        assert!(answer.contains("await run"), "{answer}");
+        let projects = core.run_blocking(r#"{"kind":"projects"}"#.to_string());
+        assert!(projects.contains(r#""ok":true"#), "{projects}");
     }
 }

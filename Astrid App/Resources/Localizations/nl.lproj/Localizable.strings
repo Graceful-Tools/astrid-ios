@@ -739,6 +739,7 @@
 "comments.add_placeholder" = "Opmerking toevoegen...";
 "comments.delete_comment" = "Reactie verwijderen";
 "comments.upload_error" = "Uploadfout";
+"comments.send_error" = "Opmerking niet verzonden";
 "comments.pending_offline" = "In afwachting - Offline";
 "comments.tap_to_sync" = "Tik om te synchroniseren";
 

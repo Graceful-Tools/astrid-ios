@@ -739,6 +739,7 @@
 "comments.add_placeholder" = "添加评论...";
 "comments.delete_comment" = "删除评论";
 "comments.upload_error" = "上传错误";
+"comments.send_error" = "评论未发送";
 "comments.pending_offline" = "待处理 - 离线";
 "comments.tap_to_sync" = "点击同步";
 

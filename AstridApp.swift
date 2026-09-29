@@ -181,12 +181,6 @@ struct AstridApp: App {
                         BackgroundSyncHandler.shared.scheduleBackgroundSync()
                     }
                 }
-                .onReceive(NotificationCenter.default.publisher(for: .networkDidBecomeAvailable)) { _ in
-                    // The network is back: do not wait out a backoff chosen while it was gone.
-                    _Concurrency.Task {
-                        await reviveLiveUpdates()
-                    }
-                }
                 .alert("Enable Push Notifications", isPresented: $notificationPromptManager.showPromptAlert) {
                     Button("Not Now", role: .cancel) { }
                     Button("Enable") {
@@ -486,7 +480,8 @@ struct AstridApp: App {
         guard (try? KeychainService.shared.getSessionCookie()) != nil else { return }
 
         // The core keeps its live stream connected while signed in; this only says "now".
-        AppCore.shared.reconnectStream()
+        // Writes queued before signing in, or across an expiry, go now; the stream starts over.
+        AppCore.shared.networkRestored()
     }
 
     /// Updates all UIKit windows to use the specified user interface style

@@ -773,6 +773,11 @@ public protocol CoreClientProtocol: AnyObject, Sendable {
      * shows offline — and nothing else: everything else awaits `run`. Refuses rather than
      * deadlocks when called from one of the core's own threads (a change listener that forgot to
      * hop off it).
+     *
+     * Only the commands that stay on this machine — cache reads, and the local-only writes of the
+     * first launch after an upgrade. Anything that could wait on the network is refused: it would
+     * hold the main thread for as long as the network took. A panic in the core answers as a
+     * failure rather than taking the app down with it.
      */
     func runBlocking(request: String)  -> String
     
@@ -892,6 +897,11 @@ open func run(request: String)async  -> String  {
      * shows offline — and nothing else: everything else awaits `run`. Refuses rather than
      * deadlocks when called from one of the core's own threads (a change listener that forgot to
      * hop off it).
+     *
+     * Only the commands that stay on this machine — cache reads, and the local-only writes of the
+     * first launch after an upgrade. Anything that could wait on the network is refused: it would
+     * hold the main thread for as long as the network took. A panic in the core answers as a
+     * failure rather than taking the app down with it.
      */
 open func runBlocking(request: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -1471,7 +1481,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_astrid_apple_checksum_method_coreclient_run() != 37189) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_coreclient_run_blocking() != 6706) {
+    if (uniffi_astrid_apple_checksum_method_coreclient_run_blocking() != 27478) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_astrid_apple_checksum_method_coreclient_stop() != 34766) {

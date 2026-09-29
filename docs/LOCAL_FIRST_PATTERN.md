@@ -2,70 +2,102 @@
 
 *Owns the Outbox mechanism and the cache-invalidation rules. Rules and control points are in `ASTRID.md`; external sync is in `SYNC_ARCHITECTURE.md`.*
 
-> **Moved into astrid-core (2026-09-28).** The cache, the Outbox journal and runner, sync and the
-> live stream for tasks, lists, comments and chat are astrid-core's now — the same engine the
-> Windows app runs (`docs/CORE_MIGRATION.md`). The model below still describes the behaviour; the
-> Swift files it names under `Core/Outbox/` and the Core Data reconcile steps are history, except
-> the `outbox.json` reader `CoreUpgrade` uses once. The core's own `docs/` describe its journal.
-
 ## The model in one paragraph
 
-Every user action applies **optimistically** to in-memory state and CoreData first, then journals a write through the **unified Outbox**, which replays it against the server with retry/backoff, idempotency, and dependency ordering. Reads are cache-first (CoreData seeds memory; server fetches merge on top with deletion/dedup guards). External providers (Apple Reminders, Google Tasks, GitHub Issues) mirror content through the same canonical service layer.
+Every user action is applied to astrid-core's SQLite cache and journaled as a write; the core's Outbox replays it against the server with backoff, idempotency, lanes and
+dependency ordering. Reads come from the cache; a sync pass and the live stream merge the server's
+rows on top, guarded so neither undoes a newer local edit or brings back a local deletion. The
+Swift services are faces over `CoreSession` (`AppCore.shared.session`): they send commands and
+redraw their `@Published` state when the core reports a change. It is the same engine the Windows
+app runs — see `docs/CORE_MIGRATION.md` for the move and astrid-core's own `docs/` for the
+journal's internals.
 
-## The unified Outbox (`Astrid App/Core/Outbox/`)
+## The Outbox (astrid-core `outbox/`)
 
-The Outbox is the **only** client write path for tasks, comments, chat sends, and attachment uploads.
+The journal is the **only** client write path for tasks, lists, comments, chat, attachments,
+members, blockers and settings. A Swift service never calls `AstridAPIClient` for any of those.
 
 | Piece | Role |
 |---|---|
-| `OutboxEntry` | One journaled write: kind, JSON payload, `clientRequestId` (server idempotency key), `attempts` + `nextAttemptAt` backoff, `dependsOn` edges, `result` output |
-| `OutboxStore` | Durable journal (`Application Support/outbox.json`) — survives relaunch |
-| `OutboxRunner` | Drains runnable entries; schedules retries; dead-letters on permanent errors |
-| `OutboxManager` | Enqueue API + `drain()` (pull-to-refresh / "sync now" / reconnect entry point) |
-| Per-kind handlers | Perform the server call and reconcile local state (temp→real id swaps, mark synced) |
+| `journal` | Durable entries in the cache: kind, payload, `clientRequestId` (the server's idempotency key), attempts, next attempt, the temp id an entry produces |
+| `scheduler` | What may run now: the oldest entry of each lane (`serialization_key` — one lane per task, list, comment…), and never a write that names a temp id an older entry has yet to produce |
+| `runner` | Drains what the scheduler allows, one drain at a time, inside the session (below) |
+| `handlers` | One per kind: the request, then the cache reconciled (temp → real id, mapping kept for queued edits) |
 
-**Kinds (9):** `createTask`, `updateTask`, `deleteTask`, `createComment`, `updateComment`, `deleteComment`, `sendChatMessage`, `uploadAttachment`, `updateList`.
+What each outcome means:
 
-Key behaviors:
-- **Idempotency**: every entry carries a `clientRequestId`; the server dedupes, so retries can't double-create.
-- **Dependency chains**: a comment/chat message with a staged attachment gets a `dependsOn` edge on its `uploadAttachment` entry and reads the real fileId from the dependency's `result`. A dependency's permanent failure propagates to dependents.
-- **`.blocked` vs `.retryable`**: waits on local state (e.g., a temp task id not yet resolved) return `.blocked` and don't burn attempts.
-- **Dead letters** are never pruned; Settings → Outbox shows kind + lastError for any dropped write.
-- **Mutation nudge**: every enqueue posts `OutboxManager.didEnqueueMutation`, which the external sync providers observe (debounced) so edits push out within seconds.
-- **Sign-out wipes the journal** (`clearAllForSignOut`) — queued writes belong to the departing user.
+- **Done** — the entry goes; anything it produced (a real id) is recorded for the entries after it.
+- **Offline** — no network, or no session (a 401). The entry is parked for 30 s *without* using an
+  attempt, and is woken at once by `networkRestored`. Before 2026-09-28 both burned attempts, so a
+  write made on a plane was dead-lettered four minutes in, and a lapsed session dead-lettered
+  every queued write.
+- **Retry** — the server failed (5xx, an unreadable answer): exponential backoff, then dead.
+- **Dead** — refused for good (4xx). Dead letters are kept; `retryDeadLetters` revives the last
+  seven days' worth, except deletes, and nudges delivery. `outboxStats` names the newest few and
+  why.
+
+When the Swift side calls in:
+
+- `AppCore.networkRestored()` — on `.networkDidBecomeAvailable`, on sign-in and session start, and
+  on wake (Mac). Wakes parked writes, drains, and restarts the live stream.
+- The stream coming back up runs one `sync`: whatever happened while it was down reached nobody.
+- `drain` — pull-to-refresh / "Sync now" (`SyncManager.performQuickSync`).
+
+**Sign-out** closes the core's session gate first: nothing new starts, a sync pass, drain or
+stream frame already in flight is waited for (bounded), and only then are the cache, the journal,
+the attachment cache and the credential wiped. Without it a pass that was mid-flight wrote the
+departing account's rows into the cache the next person saw.
 
 ### Adding a new write operation
 
-1. Define a payload struct + kind string; register a handler with `OutboxManager`.
-2. In the service: apply optimistically (memory + CoreData `syncStatus: "pending"`), then `enqueue`.
-3. Handler: perform the server call with the entry's `clientRequestId`, then call the service's `reconcileOutbox*` helper (temp→real swap, mark `synced`).
-4. Never give views direct `AstridAPIClient` access — the service layer is the canonical control point (see CLAUDE.md).
-5. If the operation adds any new per-user persisted sync key, add it to `SyncStateReset.userDefaultsKeys` in the same change and cover it in `SyncStateResetTests`.
+1. Add the kind, its handler and its lane in astrid-core, with a test there. Mirror the web's
+   wire shape — the web is canonical.
+2. Add a `Command` for it and dispatch it; answer with the optimistic row.
+3. In Swift, add a method on the service that runs the command (`core.run(CoreCommand(...))`).
+   Views call the service; nothing calls `AstridAPIClient` for it.
+4. Rebuild the framework (`scripts/core/build-xcframework.sh --core ../astrid-core`), and pin the
+   core revision when it ships.
+5. Any new per-user key Swift persists goes into `SyncStateReset.userDefaultsKeys` in the same
+   change (`SyncStateResetTests`).
 
-### Still on the legacy per-service pattern
+### What is deliberately not queued
 
-`ListService.syncPendingLists` (list **creates** only), `ListMemberService.syncPendingOperations`, and chat **deletes** (`ChatService.syncPendingMessages` delete branch) — these have no Outbox kinds yet. `TaskService.syncPendingOperations` and `CommentService.syncPendingComments` still exist but are thin wrappers over `OutboxManager.drain()`.
+- **My Tasks filters** (`setMyTasksFilters`): a filter replayed a week later would move a screen
+  under whoever is looking at it. It is remembered locally and sent once.
+- **Membership changes and blockers** are sent at once so a refusal ("no such person", "that would
+  be a cycle") is shown; only a failed network queues them (CONTRACTS D31, D32).
 
-**Lists are split on purpose (AITD-410).** List *updates* are an Outbox kind (`updateList`); list *creates* are still the legacy sweep. Updates were the silent-data-loss case: `updateListAdvanced` swallowed the failure, logged "will sync when online", and nothing retried it — `CDTaskList.update(from:)` never marks the row pending, so the sweep's `syncStatus` predicate could not see it, and the next `fetchLists()` reverted the change. Creates already replayed (network-restore observer + 60s timer); their bug was that a failed attempt wrote `syncStatus = "failed"` while the predicate selected only `"pending"`, so one lost attempt stranded the list forever. `ListSyncStatus.unsynced` now owns that selection.
+### Upgrading from the Swift layer (`CoreUpgrade`)
 
-Two things to know before extending this:
-
-- The update payload is journaled as **JSON text, not a typed struct**. `updateListAdvanced` takes `[String: Any]` because `NSNull()` ("clear this field") has to stay distinct from an absent key ("leave it alone") — see `ListSettingsPayload`. A `Codable` struct of optionals cannot express that difference.
-- `updateList` has its own **serialization lane** (`list:<id>`) in `OutboxScheduler.serializationKey`. Without one the default is `entry:<id>`, and two queued updates to the same list can run concurrently and land out of order — the user's last edit silently replaced by the one before it.
+On the first launch of a core build, Core Data seeds the core's cache and every entry left in the
+Swift `outbox.json` (and Core Data's pending member rows) is imported into the core's journal,
+deduplicated by `clientRequestId`. The upgrade is marked done only when every entry was carried
+over; one that could not be is kept for the next launch, and an upload whose comment is gone is
+dropped rather than sent.
 
 ## Reads and merges
 
-- CoreData seeds memory at launch; server fetches merge via `TaskService.mergeAndSortTasksInBackground` (timestamp-based: newer local wins).
-- **Deletion guard**: `recentlyDeletedTaskIds` (ordered, capped at 500, oldest-first eviction) filters every merge and is **retained after the server confirms the delete** — a fetch that started before the delete can still deliver the task after it. Cleared only on sign-out.
-- Dedup: `clientRequestId` matching prevents a pending create and its server echo from coexisting.
+- The cache is the read. A full pass replaces what moved and forgets what the server no longer
+  has — except unsent rows, rows that moved after the pass began, and (for tasks) anything it
+  cannot confirm gone: a task missing from a pass is fetched on its own before it is dropped, up to
+  50 a pass, and nothing is pruned from a pass that skipped a row it could not read.
+- **Deletions made here stay deleted**: neither a pass nor the stream brings back a row whose
+  delete is queued or just landed.
+- **The live stream carries references, not rows.** A task or list event is the id beside a lean
+  projection; the core fetches the row and applies that (403/404/410 → it is gone — how this
+  account learns it was removed from a list). An agent's reply arrives as a preview; the thread is
+  fetched. Frames are cut as bytes, so a character split across reads is not garbled.
+- **Pending edits win.** A server row that arrives while an edit to it is still queued has the
+  edit applied over it.
+- **Dedup**: the server's copy of a row made here replaces the temporary one by `clientRequestId`.
 
 ## External sync providers (`Astrid App/Core/Sync/`)
 
 Apple Reminders, Google Tasks and GitHub Issues mirror content through the same canonical
 service layer. Every write goes in via `TaskService` (`completeTask` for completions, with
 `completedAt` / `completedSource` so imported history is backdated rather than flashing as
-open). Provider workers wake on `.externalSyncRefresh` (server SSE nudge) and
-`OutboxManager.didEnqueueMutation` (local write nudge), plus foreground, pull-to-refresh and
+open). Provider workers wake on `.externalSyncRefresh` (the core's `needsSync` change, from a
+server webhook) and `LocalMutation.didHappen` (every service write), plus foreground, pull-to-refresh and
 "Sync now". Planners, ledgers, cursors and the sign-out reset contract are in
 [SYNC_ARCHITECTURE.md](./SYNC_ARCHITECTURE.md).
 
@@ -76,28 +108,17 @@ on the clients and explicitly does not want performance compromised. What was
 missing is the *invalidation* rules, which are the part that rots silently: a
 wrong one is invisible until a user sees stale data.
 
-### `TaskService.cachedTasks` / `.tasks`
+### `TaskService.cachedTasks` / `.tasks`, `ListService.lists`
 
 | | |
 |---|---|
-| what it is | `[String: Task]` by id, plus the published array the UI binds to |
-| filled by | the initial Core Data load, every fetch, and every optimistic write |
-| cleared by | **only** `clearCache()` — sign-out (`AuthManager`) and a failed sync validation (`SyncManager`) |
-| NOT cleared by | switching lists, backgrounding, or a normal sync pass |
+| what it is | the core's cache, read into `[String: Task]` / `[TaskList]` for the views to bind to |
+| filled by | `reload` after every core change (`CoreChange.task` / `.list` / `.synced`) and every write the service makes |
+| cleared by | sign-out (the core wipes its cache; the services clear theirs), and a failed data-isolation check in `SyncManager`, which also runs the core's `clearCache` so the next read cannot bring the rows straight back |
+| NOT cleared by | switching lists, backgrounding, or a sync pass |
 
-A sync pass *replaces* entries rather than clearing the dictionary, so a task the
-server no longer returns stays in memory until a full clear. That is intentional
-for offline (a task created offline must survive a pass that cannot see it yet),
-and it is the same shape that let lists deleted on web reappear until
-`SyncOrphanPrune` was added — the equivalent prune for tasks does not exist.
-
-### `ListService.cachedLists` / `.lists`
-
-Same shape and the same two clear points. `SyncOrphanPrune` handles the
-server-deleted case for lists specifically: a cached list that the server no
-longer returns is dropped, but only when it is `synced` or `pending_delete` and
-not a `temp_` local id, so an offline-created list is never pruned before it
-syncs.
+What a pass forgets, and what it keeps, is decided in the core — see "Reads and merges" above.
+The Swift arrays never prune on their own; a row leaves them when it leaves the core's cache.
 
 ### `ImageCache` (memory + disk)
 
@@ -112,10 +133,9 @@ Two things to know:
 - The cache is keyed by URL, so a *new* image at a *new* URL is never stale. The
   failure mode is the opposite one: the same URL with different bytes, which is
   why `clearSecureFilesCache()` exists for uploads.
-- `clearMemoryCache()` documents itself as "call this when app becomes active to
-  refresh images from server" and **is never called** from anywhere. Either the
-  foreground refresh it describes should be wired up, or the method should go —
-  right now it reads as a behaviour the app has and does not.
+- `clearMemoryCache()` runs when the app becomes active (`AstridApp`), so a
+  foreground re-reads images from disk or the server rather than serving a stale
+  in-memory copy for the whole session.
 
 ### `ProfileCache`, `UserImageCache`
 

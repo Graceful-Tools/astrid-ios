@@ -780,6 +780,7 @@
 "comments.add_placeholder" = "Add a comment...";
 "comments.delete_comment" = "Delete Comment";
 "comments.upload_error" = "Upload Error";
+"comments.send_error" = "Comment Not Sent";
 "comments.pending_offline" = "Pending - Offline";
 "comments.tap_to_sync" = "Tap to sync";
 

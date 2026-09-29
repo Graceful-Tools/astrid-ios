@@ -28,7 +28,8 @@ class ProjectService: ObservableObject {
     /// Read the cached boards again — after a sync pass, or anything the core could not describe.
     func coreDidChange(_ change: CoreChange) {
         switch change {
-        case .synced, .unknown, .needsSync:
+        // Not `.needsSync`: that asks for a pass, and the pass's own `.synced` brings the boards.
+        case .synced, .unknown:
             _Concurrency.Task { await self.reload() }
         default:
             break

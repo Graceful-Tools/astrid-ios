@@ -741,6 +741,7 @@
 "comments.add_placeholder" = "新增評論...";
 "comments.delete_comment" = "刪除留言";
 "comments.upload_error" = "上傳錯誤";
+"comments.send_error" = "留言未送出";
 "comments.pending_offline" = "待處理 - 離線";
 "comments.tap_to_sync" = "點擊同步";
 

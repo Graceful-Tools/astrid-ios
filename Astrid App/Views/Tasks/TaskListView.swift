@@ -1358,9 +1358,6 @@ struct TaskListView: View {
         if isViewingFromFeatured, let listId = selectedListId {
             await loadFeaturedListTasks(listId: listId)
         }
-
-        // Start auto-sync in background (every 60 seconds) - uses incremental sync
-        syncManager.startAutoSync()
     }
 
     private func deleteTasks(at offsets: IndexSet) {

@@ -739,6 +739,7 @@
 "comments.add_placeholder" = "コメントを追加...";
 "comments.delete_comment" = "コメントを削除";
 "comments.upload_error" = "アップロードエラー";
+"comments.send_error" = "コメントを送信できませんでした";
 "comments.pending_offline" = "保留中 - オフライン";
 "comments.tap_to_sync" = "タップして同期";
 

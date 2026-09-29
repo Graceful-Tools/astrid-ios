@@ -68,6 +68,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
+| Settings writes | `ReminderSettings`' own pending flag, `MyTasksPreferencesService`'s API calls | **done** — reminder settings journaled; My Tasks filters sent through the core, not queued |
 | Data layer — attachments (download/replace/delete), account/settings/agents/connections, Core Data | `AttachmentService` network, the settings services, Core Data | next |
 | Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | after that; Apple Reminders stays native |
 
@@ -193,21 +194,88 @@ projects now, which every sync pass refreshes. The Swift live-stream client also
 `needsSync` and `settings` changes to the same places. And a smart-task setting changed offline
 was pushed once, failed, and was then overwritten by the next fetch; it is journalled now.
 
+## After the cut-over: the first assessment (2026-09-28)
+
+A review of the moved data layer, against the web as canonical, found the cut-over had carried
+some bugs over and made a few new ones. All fixed with tests — in astrid-core unless marked Swift.
+Most of them hit Windows too.
+
+**Offline and sessions**
+- **A write made offline was dead-lettered four minutes in.** A transport error used an attempt
+  like a 500 did. No network is now `Offline`: parked, attempts untouched, woken by
+  `networkRestored` (Swift calls it on network return, sign-in and wake).
+- **A lapsed session dead-lettered every queued write** (a 401 is a 4xx). It waits for a session.
+- **The scheduler could spin, and reorder a lane**: `runnable` and `next_wakeup` disagreed about
+  what could run. One rule now — the oldest entry of each lane, never a write naming a temp id
+  still to be produced — and one drain at a time.
+- **Refused writes can come back**: `retryDeadLetters` revives the last seven days, not deletes.
+- Swift: **signing in from offline-only mode made everything twice** — the local tasks and lists
+  were re-created through the API client while the same creates sat in the journal. The journal
+  sends them; the placeholder `local_` assignee is left off the create and the task assigned to
+  the account with an edit queued behind it.
+- Swift: **`CoreUpgrade` marked itself done after a partial import**; an entry it could not carry
+  was lost. It is done only when every entry went, re-imports are deduplicated by
+  `clientRequestId`, and an upload whose comment is gone is dropped.
+
+**Sign-out**
+- **A pass in flight at sign-out wrote the departing account's rows into the cleared cache.** A
+  session gate: sign-out stops new passes, waits (bounded) for running ones, moves the stream's
+  epoch on, then wipes — the attachment cache included — and reopens.
+- The credential is deleted before the cache, so nothing in between can sign a request with it.
+
+**The live stream**
+- **Task and list events are references**, a lean projection beside the id. Applied as the row it
+  wiped the assignee, repeat and lists; the core fetches the row. A refused fetch is a deletion —
+  how removal from a list arrives now. `task_deleted` / `list_deleted` are read by the web's field
+  names, `list_member_*` events are handled, and an agent's reply preview fetches the thread.
+- **Frames are cut as bytes** (the Swift `SSEFrameBuffer`, ported with its tests): a character
+  split across two reads was garbled.
+- Swift: the stream coming back runs one `sync`; the stream going down clears "agent is typing".
+
+**Sync**
+- **A pass pruned tasks it merely failed to read.** A task missing from a pass is fetched before it
+  is dropped (≤ 50 a pass); a pass that skipped an unreadable row prunes nothing. Lists honour the
+  server's `deletedIds`; a list's `defaultDueTime` survives; a queued edit is applied over the
+  server's copy of its list.
+
+**Wire shapes that did not match the web**
+- A manual reorder sent the whole task; it patches the order. A reminder snoozed here is not undone
+  by the PUT's answer. An invitation already sent is done, not dead. Uploads carry their
+  `clientRequestId`. Comments carry `createdAt`. Agent saves are `PUT`, deletes carry a body. The
+  GitHub repo list is `repos`. User search carries the task and lists it is for.
+- Member changes and blockers on a list or task made offline resolve the temp id, or queue.
+- Chat: forgetting an unsent message withdraws only what is still pending; a channel the account
+  cannot open (403–405) is no channel, not an error.
+
+**Apple bindings (`core/astrid-apple`)**
+- `runBlocking` answers only commands that read or write the cache — a network command there froze
+  the main thread — and a panic in the core answers as a failure instead of taking the app down.
+- The core's reminder loop is not started: UserNotifications schedules Apple's reminders.
+
+**Swift, besides**
+- Reminder settings had a second queue of their own that retried only on a network notification,
+  and could not turn quiet hours off (a `nil` was left out of the body). They are journaled, with
+  `null` for off. My Tasks filters go through the core.
+- A comment the core refused left a row on screen that existed nowhere; it is taken back and the
+  text returned.
+- A data-isolation failure cleared the arrays but not the core's cache, so the next read brought
+  the rows back.
+- Dead Swift paths removed: 16 `AstridAPIClient` methods (two extension files among them), the Swift
+  temp-id map, the no-op auto-sync timer, and service methods nothing called.
+
 ## Data-layer gaps in the core
 
-What the core must grow before the Swift data layer can go (from the 2026-09-28 mapping). Done:
-a configurable platform header (`Config.platform`), change events as JSON (`Change::to_json`),
-chat (above). A first launch after the upgrade that is offline has no chat channels or messages
-until it is online once: the upgrade seeds tasks, lists and comments, not chat.
+What the core must grow before the rest of the Swift data layer can go. Done since the mapping:
+the platform header, change events, chat, members and invitations (queued offline), boards,
+blockers, the upgrade seed, completion and creation carrying what the Swift calls sent, reminder
+settings. A first launch after the upgrade that is offline has no chat channels or messages until
+it is online once: the upgrade seeds tasks, lists and comments, not chat.
 Still to do:
-`completeTask` carrying the on-screen task, the timer, an inbound source and `completedAt`;
-`createTask` carrying repeat, privacy and reminder; a bulk wire-shape read of cached tasks; a cache
-seed for the upgrade; project create/delete and "create board for list", shortcode
-resolve, AI assistant settings and available agents (the core has them; the Swift chat service
-still asks the API client), attachment delete and replace, invitation cancel and role change, `updateCustomAgent`, the Copilot
-cloud-agent token, contacts upload / search / recommended, app-version check, local (no account)
-mode, a client-side GitHub sync pass, offline-queued member operations, and a read that returns
-every cached task in the wire shape (the Swift views filter `[Task]` themselves today).
+shortcode resolve, AI assistant settings and available agents (the core has them; the Swift chat
+service still asks the API client), attachment delete and replace, `updateCustomAgent`, the
+Copilot cloud-agent token, contacts upload / search / recommended, app-version check, local (no
+account) mode as a core concept, a client-side GitHub sync pass, and a read that returns every
+cached task in the wire shape (the Swift views filter `[Task]` themselves today).
 
 ## Google Tasks sync: stays on the Swift pass (for now)
 

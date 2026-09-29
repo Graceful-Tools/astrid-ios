@@ -101,6 +101,14 @@ class TaskService: ObservableObject {
         guard let found = try? await core.run(CoreCommand.tasks(ids: wanted), as: [Task].self) else { return }
         let foundIds = Set(found.map(\.id))
 
+        // The echo of a write this service already showed: nothing to hydrate, sort or publish —
+        // on a large account that is the whole task list, twice per write.
+        let gone = wanted.filter { !foundIds.contains($0) && cachedTasks[$0] != nil }
+        if moved.isEmpty, gone.isEmpty, found.allSatisfy({ cachedTasks[$0.id] == $0 }) {
+            refreshOutboxCounts()
+            return
+        }
+
         var next = tasks
         for (temp, real) in moved {
             recordTempTaskMapping(tempId: temp, realId: real)
@@ -113,16 +121,29 @@ class TaskService: ObservableObject {
     }
 
     /// Read every cached task again: after a sync pass or a delivery that could not say what moved.
+    ///
+    /// A full read is slow on a large account, and a write shown while it was out is newer than
+    /// what it read. When that happens it reads again, rather than publishing the older snapshot
+    /// over the newer rows.
     func reloadAll() async {
         let temps = cachedTasks.keys.filter { $0.hasPrefix("temp_") }
         if !temps.isEmpty,
            let moved = try? await core.run(CoreCommand.resolveIds(Array(temps)), as: [String: String].self) {
             for (temp, real) in moved { recordTempTaskMapping(tempId: temp, realId: real) }
         }
-        guard let loaded = try? await core.run(CoreCommand.tasks(), as: [Task].self) else { return }
-        publish(loaded)
+        for _ in 0..<3 {
+            let startedAt = publishCount
+            guard let loaded = try? await core.run(CoreCommand.tasks(), as: [Task].self) else { return }
+            if publishCount == startedAt {
+                publish(loaded)
+                break
+            }
+        }
         refreshOutboxCounts()
     }
+
+    /// How many times `tasks` has been replaced — what `reloadAll` checks its read against.
+    private var publishCount = 0
 
     /// Records that an offline-created task's temporary id became a real one, and tells the views
     /// that may hold it.
@@ -148,6 +169,7 @@ class TaskService: ObservableObject {
         let hydrated = TaskListHydration.hydrated(next, using: ListService.shared.lists)
         let sorted = hydrated.sorted(by: TaskOrdering.isOrderedBefore)
         guard sorted != tasks else { return }
+        publishCount += 1
         tasks = sorted
         cachedTasks = Dictionary(sorted.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         _Concurrency.Task { await badgeManager.updateBadge(with: sorted) }
@@ -487,14 +509,6 @@ class TaskService: ObservableObject {
         }
     }
 
-    func getCompletedTasks() -> [Task] {
-        tasks.filter { $0.completed }
-    }
-
-    func getIncompleteTasks() -> [Task] {
-        tasks.filter { !$0.completed }
-    }
-
     // MARK: - Delivery
 
     /// Send what is waiting now rather than at the delivery loop's next turn — pull to refresh,
@@ -522,11 +536,6 @@ class TaskService: ObservableObject {
         tempTaskIdMapping = [:]
         pendingOperationsCount = 0
         failedOperationsCount = 0
-    }
-
-    /// Show a task exactly as given — for a caller that already holds the core's answer.
-    func updateTaskInCache(_ task: Task) {
-        show(task)
     }
 
     /// All-day dates are UTC midnight of the chosen day.

@@ -219,20 +219,12 @@ final class CanonicalControlPointsTests: XCTestCase {
     @MainActor
     func testAstridAPIClient_HasPreferenceMethods() {
         let client = AstridAPIClient.shared
-        let getMT: () async throws -> MyTasksPreferences = {
-            try await client.getMyTasksPreferences()
-        }
-        let updateMT: (MyTasksPreferences) async throws -> Void = { prefs in
-            try await client.updateMyTasksPreferences(prefs)
-        }
         let getST: () async throws -> UserSettings = {
             try await client.getSmartTaskSettings()
         }
         let updateST: (UserSettings) async throws -> Void = { s in
             try await client.updateSmartTaskSettings(s)
         }
-        XCTAssertNotNil(getMT)
-        XCTAssertNotNil(updateMT)
         XCTAssertNotNil(getST)
         XCTAssertNotNil(updateST)
     }

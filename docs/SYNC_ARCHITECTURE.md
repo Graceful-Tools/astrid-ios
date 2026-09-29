@@ -10,12 +10,14 @@ Each provider worker (`Core/Sync/GoogleTasksSyncService`,
 `GitHubSyncService`, and `Core/Services/AppleRemindersService`) self-schedules a
 debounced pass off two triggers:
 
-- **`.externalSyncRefresh`** — a server SSE nudge (GitHub webhook → SSE).
-- **`OutboxManager.didEnqueueMutation`** — any local write, so pushes don't wait
-  for foreground/refresh.
+- **`.externalSyncRefresh`** — a server nudge (GitHub webhook → the live stream). astrid-core
+  reports it as a `needsSync` change and `AppCore` posts the notification.
+- **`LocalMutation.didHappen`** — every write `TaskService` / `ListService` makes, tagged with its
+  sync source, so pushes don't wait for foreground/refresh and a provider ignores its own writes.
 
-> Name clash: `Core/Services/SyncManager` is unrelated — it's the Astrid-backend
-> 60s pull, not an external-sync coordinator.
+> Name clash: `Core/Services/SyncManager` is unrelated — it asks astrid-core for an Astrid-backend
+> pass, not an external-sync coordinator. astrid-core's own external-sync loop is **not** started
+> on Apple, so there is never a second pass (see `docs/CORE_MIGRATION.md`, Google Tasks sync).
 
 ## My Tasks ↔ Google default list
 

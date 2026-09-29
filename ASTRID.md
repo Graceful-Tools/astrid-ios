@@ -81,12 +81,13 @@ loss bug.
 | Tasks (CRUD) | `TaskService` | `createTask`, `updateTask`, `deleteTask`, `copyTask` | astrid-core: cache, journal, sync. Every write posts `LocalMutation` (nudges Google/GitHub). |
 | Task completion (incl. repeat rollover) | `TaskService.completeTask` | See §4 for all entry points. | MUST go through this — never `updateTask(completed: true)`. |
 | Lists | `ListService` | `createList`, `updateList`, `deleteList`, `toggleFavorite`, `fetchLists` | astrid-core; every list edit is journaled. |
-| List members (add / role / remove) | `ListMemberService` | `addMember`, `updateMemberRole`, `removeMember`, `cancelInvitation` | Offline queue via CDMember. |
+| List members (add / role / remove) | `ListMemberService` | `addMember`, `updateMemberRole`, `removeMember`, `cancelInvitation` | astrid-core; sent at once so a refusal shows, queued only when the network fails (D31). |
 | Comments | `CommentService` | `createComment`, `updateComment`, `deleteComment` | astrid-core; a picture's upload and its comment are one journaled chain. |
 | Chat | `ChatService` | `sendMessage`, `deleteMessage`, `getAIAssistantSettings`, `postAgentResponse` | astrid-core for channels, messages, sends and paging; AI-assistant helpers cached (60s TTL). |
 | Attachments | `AttachmentService` | `saveLocallyAndUploadAsync`, … | |
 | User smart-task settings | `UserSettingsService` ↔ `AstridAPIClient.getSmartTaskSettings` / `updateSmartTaskSettings` | `/api/v1/users/me/settings` | UserDefaults-first, 300ms debounce to server. |
-| My Tasks preferences | `MyTasksPreferencesService` ↔ `AstridAPIClient.getMyTasksPreferences` / `updateMyTasksPreferences` | `/api/v1/users/me/my-tasks-preferences` | UserDefaults-first, 300ms debounce to server. |
+| My Tasks preferences | `MyTasksPreferencesService` → core `refreshMyTasks` / `setMyTasksFilters` | `/api/v1/users/me/my-tasks-preferences` | UserDefaults-first, 300ms debounce; deliberately not queued offline. |
+| Reminder settings | `ReminderSettings.save` → core `updateReminderSettings` | `/api/v1/users/me/settings` | UserDefaults-first, journaled; quiet hours off are sent as `null`. |
 | Reminder/notification completion | `ReminderPresenter` → `TaskService.completeTask(task:)` | Pass `task:` so rollover doesn't depend on cache state. |
 | Apple Reminders sync | `AppleRemindersService` → `TaskService.completeTask(task:)` | |
 | On-device AI complete action | `AppleFoundationModelService` → `TaskService.completeTask` | Must NOT use `updateTask(completed: true)`. |
@@ -138,19 +139,23 @@ Until then both clients exist, but only one of them grows.
 
 ## 3. The Outbox (the only write path)
 
-All backend writes for **tasks, lists, comments, chat sends and attachment uploads** journal
+All backend writes for **tasks, lists, comments, chat sends, attachment uploads, members,
+blockers and settings** journal
 through astrid-core's Outbox (`outbox::journal` / `runner` / `handlers` in
 https://github.com/Graceful-Tools/astrid-core), reached through the services. The Swift runner
 is gone; `Core/Outbox/` keeps only the reader `CoreUpgrade` uses to move a pre-core
 `outbox.json` into the core's journal on first launch.
 
 - Entries carry a `clientRequestId` (server-side idempotency), retry with backoff, and
-  dead-letter on permanent errors (surfaced in Settings → Outbox, with a retry).
+  dead-letter on permanent errors (surfaced in Settings → Outbox, with a retry). No network and
+  no session (401) are neither: the write waits, attempts untouched, until
+  `AppCore.networkRestored()` — which the app calls on network return, sign-in and wake.
 - A write waits for an older entry that has still to produce a temporary id it names (a photo
   comment for its upload, a comment for its offline-created task).
 - The core's SQLite cache is the reconcile store for everything it journals; Core Data remains
-  only for what has not moved yet (members, projects) and the one-time upgrade seed.
-- Sign-out wipes the journal and drops the live stream.
+  only as the one-time upgrade seed.
+- Sign-out closes the core's session first (in-flight passes finish or are cut off), then wipes
+  the cache, the journal and the attachment cache, and drops the live stream.
 
 Details: `docs/LOCAL_FIRST_PATTERN.md`.
 
@@ -238,7 +243,7 @@ Details: `docs/SYNC_ARCHITECTURE.md`.
 Every list (including My Tasks) has a chat channel via the header chat toggle. Chat
 supports @mentions (`@[Name](id)`), #list / !task refs (`#[Name](id)`, `![Name](id)`),
 file attachments (offline-queued), AI agent responses (@mention Astrid or a configured
-agent; server-side `processAstridMessage`), and real-time updates (SSE + 3s polling fallback).
+agent; server-side `processAstridMessage`), and real-time updates (astrid-core's live stream; `ChatPollingPolicy` polls a panel only while the stream is down).
 
 **Key files:**
 

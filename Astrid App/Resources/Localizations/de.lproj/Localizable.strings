@@ -739,6 +739,7 @@
 "comments.add_placeholder" = "Kommentar hinzufügen...";
 "comments.delete_comment" = "Kommentar löschen";
 "comments.upload_error" = "Upload-Fehler";
+"comments.send_error" = "Kommentar nicht gesendet";
 "comments.pending_offline" = "Ausstehend - Offline";
 "comments.tap_to_sync" = "Zum Synchronisieren tippen";
 

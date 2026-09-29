@@ -40,6 +40,13 @@ final class AppCore: ObservableObject {
                 platform: Self.platform, credentials: CoreCredentials(), background: !testing)
         }
         session.subscribe(relay)
+        // The one answer to the network coming back: writes that waited for it go now, delivery
+        // wakes, and the live stream starts over rather than waiting out a backoff chosen offline.
+        networkObserver = NotificationCenter.default.addObserver(
+            forName: .networkDidBecomeAvailable, object: nil, queue: .main
+        ) { _ in
+            _Concurrency.Task { @MainActor in AppCore.shared.networkRestored() }
+        }
         // The first launch after the move: carry Core Data's cache and the Swift Outbox's unsent
         // task and list writes over before anything reads the cache.
         if !testing {
@@ -76,6 +83,7 @@ final class AppCore: ObservableObject {
         CommentService.shared.coreDidChange(change)
         ChatService.shared.coreDidChange(change)
         ProjectService.shared.coreDidChange(change)
+        ListMemberService.shared.coreDidChange(change)
         switch change {
         case .settings:
             // Another device changed a setting, or the deployment its feature flags: the stream
@@ -90,6 +98,14 @@ final class AppCore: ObservableObject {
             NotificationCenter.default.post(name: .externalSyncRefresh, object: nil)
         case .stream(let live):
             isStreamLive = live
+            if live {
+                // What happened while the stream was down reached no one: one pass catches up.
+                _Concurrency.Task { _ = try? await session.run(CoreCommand(kind: "sync")) }
+            } else {
+                // Nobody will say a reply finished while nothing is listening.
+                ChatService.shared.typingAgent = [:]
+                CommentService.shared.typingAgent = [:]
+            }
         default:
             break
         }
@@ -101,6 +117,13 @@ final class AppCore: ObservableObject {
     /// Send what is waiting in the core's journal now, rather than at its delivery loop's next turn.
     func drainJournal() async {
         _ = try? await session.run(CoreCommand(kind: "drain"))
+    }
+
+    private var networkObserver: NSObjectProtocol?
+
+    /// The device is back online: send what waited for the network, and restart the stream.
+    func networkRestored() {
+        _Concurrency.Task { _ = try? await session.run(CoreCommand(kind: "networkRestored")) }
     }
 
     /// Drop the live stream and connect again now: the machine woke, the network came back, or
