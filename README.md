@@ -37,8 +37,9 @@ fails on click (see `MacSignInOptions`).
 - **Passkeys** (WebAuthn; email/password sign-in was removed in 2026-04)
 - Task management (create, edit, complete, delete)
 - List management with colors and privacy
-- Real-time sync via Server-Sent Events
-- Offline storage with Core Data
+- Offline-first on [astrid-core](https://github.com/Graceful-Tools/astrid-core), the Rust engine the
+  Windows app shares: a local cache, a journal that sends every change when the network returns,
+  sync and the live update stream (`docs/CORE_MIGRATION.md`)
 - iPad optimized layouts
 - **Share Extension** - Create tasks from Photos, Files, Safari
 - **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents
@@ -83,11 +84,12 @@ astrid-ios/
 ├── Astrid App/
 │   ├── Core/
 │   │   ├── Authentication/    # Apple/Google OAuth
-│   │   ├── Networking/        # API client
-│   │   ├── Persistence/       # Core Data stack
-│   │   ├── Services/          # Business logic
+│   │   ├── Networking/        # API client (what has not moved into astrid-core)
+│   │   ├── Platform/          # AppCore (the astrid-core session), CoreUpgrade
+│   │   ├── Persistence/       # Core Data models, read once by CoreUpgrade; file caches
+│   │   ├── Services/          # The service layer — faces over astrid-core
 │   │   ├── Notifications/     # Push notifications
-│   │   └── Sync/              # Data synchronization
+│   │   └── Sync/              # External sync (Google Tasks, GitHub, Apple Reminders)
 │   ├── Models/                # Data models
 │   ├── Views/                 # SwiftUI views
 │   ├── ViewModels/            # View models
@@ -97,6 +99,8 @@ astrid-ios/
 │       └── Localizations/     # 12 language translations
 ├── Astrid Mac/                # macOS app shell (shares Astrid App/Core)
 ├── Shared/                    # Files compiled into the app and the share extension
+├── Packages/AstridCore/       # Swift facade over astrid-core (+ generated UniFFI bindings)
+├── core/astrid-apple/         # The Rust bindings crate; pins the astrid-core revision
 ├── Astrid/                    # Share extension target
 ├── Astrid AppTests/, Astrid AppUITests/, Astrid MacTests/, Astrid MacUITests/
 ├── docs/                      # Technical documentation

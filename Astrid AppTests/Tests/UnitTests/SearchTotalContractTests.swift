@@ -46,12 +46,12 @@ final class SearchTotalContractTests: XCTestCase {
 
     /// Who calls the endpoint. AITD-321 verified there was nobody; the "Waiting on" picker
     /// (AITD-429 / AITD-430) became the first caller, and it decodes only `tasks` — no `total`
-    /// at all — so the contract below holds for it without opting in.
+    /// at all. That picker now asks astrid-core, so the Swift side is back to nobody.
     ///
     /// If this fails, the failure is not the bug — calling /api/v1/search is fine. It is a
     /// prompt to satisfy `testAnyCallerOfTheSearchEndpointHandlesAnAbsentTotal` below, and then
     /// to name the new caller here.
-    private static let knownCallers = ["Astrid App/AstridAPIClient+Blockers.swift"]
+    private static let knownCallers: [String] = []
 
     func testOnlyTheKnownCallersUseTheV1SearchEndpoint() throws {
         let callers = try appSources()

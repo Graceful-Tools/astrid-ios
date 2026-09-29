@@ -111,13 +111,12 @@ struct MacAuthGateView: View {
         // next line. Both used to run, so every launch with a stored session pulled all lists and
         // all tasks twice and hit GitHub twice. Whoever gets here first owns the startup.
         guard MacSessionStart.claim() else { return }
-        AppCore.shared.reconnectStream()                 // live updates, now rather than on the retry
+        AppCore.shared.networkRestored()                 // queued writes and live updates, now
 
         // Full task+list sync via the SHARED SyncManager (same path as iOS): fetches every list
-        // and every task (paginated) into the global stores, then keeps them fresh on a timer.
+        // and every task (paginated) into the global stores; astrid-core keeps them fresh after.
         // This is why lists / My Tasks now show everything instead of only opened lists.
         try? await SyncManager.shared.performFullSync(includeUserTasks: true)
-        SyncManager.shared.startAutoSync()
 
         // Honor remote feature rollouts before scheduling gated providers (Task b0048881).
         await FeatureFlagService.shared.refreshIfStale()

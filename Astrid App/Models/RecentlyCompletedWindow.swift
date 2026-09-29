@@ -14,7 +14,7 @@ import Foundation
 /// - `{ "kind": "since-day-of-month", "day": 1...31 }`
 /// - `{ "kind": "since-date", "date": "YYYY-MM-DD" }`
 // Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
-// notably SSEClient's event decode, which runs off the main actor (AITD-320). It holds only
+// notably where astrid-core's answers are decoded, off the main actor (AITD-320). It holds only
 // value-type fields, so it is inherently thread-safe.
 nonisolated enum RecentlyCompletedWindow: Equatable, Hashable, Codable {
     enum DurationUnit: String, Codable, Equatable, Hashable {

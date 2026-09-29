@@ -2,6 +2,7 @@
 //  Moved out of Views/Settings/ReminderSettingsView.swift so the shared
 //  notification/sync services can use it on macOS (it is a settings model, not a view).
 
+import AstridCore
 import Foundation
 import Combine
 import UserNotifications
@@ -46,28 +47,56 @@ class ReminderSettings: ObservableObject {
 
     @Published var isSyncing: Bool = false
     @Published var lastSyncError: String?
-    @Published var hasPendingChanges: Bool = false // Track pending sync
     private var lastFetchTime: Date?
 
     private let apiClient = RemoteResourceService.shared
-    private let networkMonitor = NetworkMonitor.shared
-    private var networkObserver: NSObjectProtocol?
 
-    /// Save settings (optimistic, local-first)
-    /// Saves to UserDefaults immediately, syncs to server in background
+    /// The previous build's own queue: set on every save, cleared once the server had it.
+    private static let legacyPendingKey = "reminderSettingsPending"
+
+    /// Save settings: in UserDefaults at once, and into astrid-core's journal, which sends them
+    /// when there is a network and a session — the same Outbox every other write uses, rather
+    /// than a pending flag of this screen's own that only a network notification retried.
     func save() async {
-        // 1. Save to UserDefaults immediately (instant local persistence)
         saveToUserDefaults()
+        await send()
+    }
 
-        // 2. Mark as having pending changes
-        hasPendingChanges = true
-
-        // 3. Trigger background sync (fire-and-forget)
-        if networkMonitor.isConnected {
-            _Concurrency.Task.detached { [weak self] in
-                await self?.syncPendingChanges()
-            }
+    /// Every field, as the server names it. Quiet hours switched off go as `null`: the server
+    /// merges, so leaving them out left them on.
+    func serverChanges() -> CoreFields {
+        var changes = CoreFields()
+        changes.set("enablePushReminders", pushEnabled)
+        changes.set("enableEmailReminders", emailEnabled)
+        changes.set("defaultReminderTime", defaultReminderOffset.rawValue)
+        changes.set("enableDailyDigest", dailyDigestEnabled)
+        changes.set("dailyDigestTime", formatTime(dailyDigestTime))
+        changes.set("dailyDigestTimezone", timezone)
+        if quietHoursEnabled {
+            changes.set("quietHoursStart", formatTime(quietHoursStart))
+            changes.set("quietHoursEnd", formatTime(quietHoursEnd))
+        } else {
+            changes.clear("quietHoursStart")
+            changes.clear("quietHoursEnd")
         }
+        return changes
+    }
+
+    private func send() async {
+        do {
+            try await AppCore.shared.session.run(
+                CoreCommand(kind: "updateReminderSettings", ["changes": .value(serverChanges())]))
+        } catch {
+            AppLog.debug("❌ [ReminderSettings] Could not queue settings: \(error)")
+            lastSyncError = error.localizedDescription
+        }
+    }
+
+    /// A save the previous build had not delivered goes into the journal, once.
+    func handOverLegacyPendingChanges() async {
+        guard UserDefaults.standard.bool(forKey: Self.legacyPendingKey) else { return }
+        await send()
+        UserDefaults.standard.removeObject(forKey: Self.legacyPendingKey)
     }
 
     private func saveToUserDefaults() {
@@ -80,7 +109,6 @@ class ReminderSettings: ObservableObject {
         UserDefaults.standard.set(quietHoursEnabled, forKey: "quietHoursEnabled")
         UserDefaults.standard.set(quietHoursStart, forKey: "quietHoursStart")
         UserDefaults.standard.set(quietHoursEnd, forKey: "quietHoursEnd")
-        UserDefaults.standard.set(true, forKey: "reminderSettingsPending") // Track pending state
     }
 
     func fetch(force: Bool = false) async {
@@ -138,49 +166,6 @@ class ReminderSettings: ObservableObject {
         isSyncing = false
     }
 
-    /// Sync pending changes to server (called by SyncManager or network observer)
-    func syncPendingChanges() async {
-        guard hasPendingChanges else {
-            AppLog.debug("⏭️ [ReminderSettings] No pending changes to sync")
-            return
-        }
-
-        guard networkMonitor.isConnected else {
-            AppLog.debug("📵 [ReminderSettings] Cannot sync - no network")
-            return
-        }
-
-        AppLog.debug("🔄 [ReminderSettings] Syncing pending settings changes...")
-
-        do {
-            let update = ReminderSettingsUpdate(
-                enablePushReminders: pushEnabled,
-                enableEmailReminders: emailEnabled,
-                defaultReminderTime: defaultReminderOffset.rawValue,
-                enableDailyDigest: dailyDigestEnabled,
-                dailyDigestTime: formatTime(dailyDigestTime),
-                dailyDigestTimezone: timezone,
-                quietHoursStart: quietHoursEnabled ? formatTime(quietHoursStart) : nil,
-                quietHoursEnd: quietHoursEnabled ? formatTime(quietHoursEnd) : nil
-            )
-
-            _ = try await apiClient.updateUserSettings(reminderSettings: update)
-
-            // Mark as synced
-            await MainActor.run {
-                hasPendingChanges = false
-                UserDefaults.standard.set(false, forKey: "reminderSettingsPending")
-            }
-
-            AppLog.debug("✅ [ReminderSettings] Settings synced successfully")
-        } catch {
-            AppLog.debug("❌ [ReminderSettings] Failed to sync settings: \(error)")
-            await MainActor.run {
-                lastSyncError = error.localizedDescription
-            }
-        }
-    }
-
     private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -201,34 +186,11 @@ class ReminderSettings: ObservableObject {
     private init() {
         loadFromUserDefaults()
 
-        // Setup network observer for auto-sync
-        setupNetworkObserver()
-
         // Fetch from server in background (skip in test mode)
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
             _Concurrency.Task {
+                await handOverLegacyPendingChanges()
                 await fetch()
-            }
-        }
-    }
-
-    deinit {
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
-    // MARK: - Network Observer
-
-    private func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            _Concurrency.Task { @MainActor in
-                AppLog.debug("🌐 [ReminderSettings] Network restored, syncing pending changes...")
-                await self?.syncPendingChanges()
             }
         }
     }
@@ -252,9 +214,6 @@ class ReminderSettings: ObservableObject {
         if let end = UserDefaults.standard.object(forKey: "quietHoursEnd") as? Date {
             quietHoursEnd = end
         }
-
-        // Load pending state (local-first)
-        hasPendingChanges = UserDefaults.standard.bool(forKey: "reminderSettingsPending")
 
         lastFetchTime = nil
         isSyncing = false

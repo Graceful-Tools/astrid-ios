@@ -33,6 +33,8 @@ struct CommentSectionViewEnhanced: View {
     @State private var attachedFiles: [AttachedFileInfo] = []
     @State private var isUploadingFile = false
     @State private var uploadError: String?
+    /// A comment the core refused outright — never journaled, so nothing will send it later.
+    @State private var sendError: String?
 
     // Autocomplete state — @mentions, #lists, !tasks (matches ChatInputView)
     @State private var activeTrigger: AutocompleteItem.AutocompleteType?
@@ -632,6 +634,14 @@ struct CommentSectionViewEnhanced: View {
             }
             .ignoresSafeArea()
         }
+        .alert(NSLocalizedString("comments.send_error", comment: "Comment Not Sent"), isPresented: .init(
+            get: { sendError != nil },
+            set: { if !$0 { sendError = nil } }
+        )) {
+            Button("OK", role: .cancel) { sendError = nil }
+        } message: {
+            Text(sendError ?? "")
+        }
         .alert(NSLocalizedString("comments.upload_error", comment: "Upload Error"), isPresented: .init(
             get: { uploadError != nil },
             set: { if !$0 { uploadError = nil } }
@@ -792,9 +802,9 @@ struct CommentSectionViewEnhanced: View {
 
         isSubmitting = true
 
-        // Create each comment via the service — CoreData write plus background sync.
-        // Each send is caught individually: one failure must not abandon the attachments
-        // after it. A failed one stays pending in CoreData and syncs on retry.
+        // Create each comment via the service, which puts it in astrid-core's journal — offline
+        // included; the journal sends it later. Each send is caught individually: one failure
+        // must not abandon the attachments after it.
         for (index, draft) in drafts.enumerated() {
             do {
                 _ = try await commentService.createComment(
@@ -808,9 +818,13 @@ struct CommentSectionViewEnhanced: View {
                 )
                 AppLog.debug("✅ [CommentSection] Comment created (file: \(draft.fileId ?? "none")), sync in progress...")
             } catch {
-                // DON'T remove the comment - CommentService already saved it as pending.
-                // It will sync when network is restored or the user triggers a retry.
-                AppLog.debug("❌ [CommentSection] Failed to create comment: \(error) — kept as pending")
+                // A throw is a refusal, not the network: the core journals offline sends and
+                // answers them. Nothing was queued, so the row on screen would be a comment that
+                // exists nowhere. Take it back, give the text back, and say so.
+                AppLog.debug("❌ [CommentSection] Comment refused: \(error)")
+                comments = CommentThread.remove(id: optimisticIds[index], from: comments)
+                if newCommentText.isEmpty, !draft.content.isEmpty { newCommentText = trimmedText }
+                sendError = error.localizedDescription
             }
         }
 

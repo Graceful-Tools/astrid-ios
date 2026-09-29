@@ -21,17 +21,27 @@ import Foundation
 enum CoreUpgrade {
     static let doneKey = "core.upgrade.v1"
 
-    /// Carry the Swift layer's cache and unsent writes into the core, the first time only.
+    /// Carry the Swift layer's cache and unsent writes into the core — once it has all gone.
+    ///
+    /// Marked done only when the seed was taken and no queued write was left behind: a launch
+    /// that could not move something tries again next time (the core imports each write once, and
+    /// seeds only an empty cache), rather than leaving it in `outbox.json` for good.
     static func runIfNeeded(_ session: CoreSession) {
         guard !UserDefaults.standard.bool(forKey: doneKey) else { return }
-        seed(session)
-        importJournal(session)
-        UserDefaults.standard.set(true, forKey: doneKey)
+        let seeded = seed(session)
+        let leftBehind = importJournal(session)
+        if seeded && leftBehind == 0 {
+            UserDefaults.standard.set(true, forKey: doneKey)
+        } else {
+            AppLog.debug("⚠️ [CoreUpgrade] Not finished (seeded: \(seeded), left behind: \(leftBehind)); trying again next launch")
+        }
     }
 
     // MARK: - The cache
 
-    private static func seed(_ session: CoreSession) {
+    /// Whether the seed was taken — or there was nothing to seed, or the cache already had it.
+    @discardableResult
+    private static func seed(_ session: CoreSession) -> Bool {
         let context = CoreDataManager.shared.viewContext
         let lists = ((try? CDTaskList.fetchAll(context: context)) ?? []).map { $0.toDomainModel() }
         let taskRows = (try? context.fetch(CDTask.fetchRequest())) ?? []
@@ -40,7 +50,7 @@ enum CoreUpgrade {
         let comments = commentRows
             .filter { !$0.id.isEmpty && $0.syncStatus != "pending_delete" }
             .map { $0.toDomainModel() }
-        guard !tasks.isEmpty || !lists.isEmpty else { return }
+        guard !tasks.isEmpty || !lists.isEmpty else { return true }
         let projects = ((try? CDProject.fetchAll(context: context)) ?? []).map { $0.toDomainModel() }
         let channels = ((try? CDChatChannel.fetchAll(context: context)) ?? []).map { $0.toDomainModel() }
         let messages = ((try? context.fetch(CDChatMessage.fetchRequest())) ?? [])
@@ -56,6 +66,7 @@ enum CoreUpgrade {
         struct Seeded: Decodable { let seeded: Bool }
         let seeded = try? session.runBlocking(command, as: Seeded.self)
         AppLog.debug("📦 [CoreUpgrade] Seeded the core's cache from Core Data: \(seeded?.seeded ?? false) (\(tasks.count) tasks, \(lists.count) lists)")
+        return seeded != nil
     }
 
     // MARK: - The journal
@@ -67,7 +78,9 @@ enum CoreUpgrade {
         "createComment", "updateComment", "deleteComment", "sendChatMessage",
     ]
 
-    private static func importJournal(_ session: CoreSession) {
+    /// Move the Swift Outbox's queued writes; answers how many had to be left behind.
+    @discardableResult
+    private static func importJournal(_ session: CoreSession) -> Int {
         let store = OutboxStore(fileURL: OutboxStore.defaultFileURL())
         let entries = store.load()
         var kept: [OutboxEntry] = []
@@ -95,11 +108,25 @@ enum CoreUpgrade {
         }
         // Pending lists created offline never reached the Swift Outbox — ListService re-sent them
         // from Core Data. Their create moves into the core's journal the same way.
-        kept.removeAll { consumedUploads.contains($0.id) }
+        kept = leftBehind(kept, consumedUploads: consumedUploads)
         moved += importOfflineLists(session)
         moved += importQueuedMemberChanges(session)
-        if moved > 0 { try? store.save(kept) }
-        AppLog.debug("📦 [CoreUpgrade] Moved \(moved) queued writes into the core's journal")
+        if kept.isEmpty {
+            try? FileManager.default.removeItem(at: OutboxStore.defaultFileURL())
+        } else if moved > 0 {
+            try? store.save(kept)
+        }
+        AppLog.debug("📦 [CoreUpgrade] Moved \(moved) queued writes into the core's journal, \(kept.count) left behind")
+        return kept.count
+    }
+
+    /// What stays in `outbox.json` once the moved writes are gone: not an upload a moved write took
+    /// with it, and not an upload no write that stayed still waits on — alone it has nothing to
+    /// attach to, and would keep the upgrade from ever finishing.
+    static func leftBehind(_ kept: [OutboxEntry], consumedUploads: Set<String>) -> [OutboxEntry] {
+        let remaining = kept.filter { !consumedUploads.contains($0.id) }
+        let stillNeeded = Set(remaining.flatMap(\.dependsOn))
+        return remaining.filter { $0.kind != "uploadAttachment" || stillNeeded.contains($0.id) }
     }
 
     /// The core's journal entry for one of the Swift Outbox's, in the core's payload shape.
@@ -248,8 +275,10 @@ enum CoreUpgrade {
             default:
                 continue
             }
+            // Keyed by the row and the change, so an upgrade that runs again imports it once.
             let command = journalCommand(kind: kind, payload: payload,
-                                         clientRequestId: "temp_\(UUID().uuidString)", tempId: nil)
+                                         clientRequestId: "cdmember-\(member.listId)-\(member.id)-\(kind)",
+                                         tempId: nil)
             if (try? session.runBlocking(command, as: JSONValue.self)) != nil { moved += 1 }
         }
         return moved

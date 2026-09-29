@@ -252,11 +252,6 @@ class ListService: ObservableObject {
             .sorted { ($0.favoriteOrder ?? Int.max) < ($1.favoriteOrder ?? Int.max) }
     }
 
-    /// Whether a user has a real role in a list (owner, admin, or member).
-    func isUserMemberOfList(userId: String, listId: String) -> Bool {
-        getList(id: listId)?.isMember(userId: userId) ?? false
-    }
-
     /// Clear what the views read (sign-out; the core wipes its own cache there too).
     func clearCache() {
         lists = []

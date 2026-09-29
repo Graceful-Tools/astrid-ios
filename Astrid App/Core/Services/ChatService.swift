@@ -191,12 +191,6 @@ class ChatService: ObservableObject {
         refreshOutboxCounts()
     }
 
-    /// Send what is waiting now rather than at the delivery loop's next turn.
-    func syncPendingMessages() async throws {
-        try await core.run(CoreCommand(kind: "drain"))
-        refreshOutboxCounts()
-    }
-
     private func refreshOutboxCounts() {
         struct Stats: Decodable { let pending: Int; let running: Int }
         _Concurrency.Task {

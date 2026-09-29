@@ -29,8 +29,8 @@ enum MacWakeRecovery {
                 guard shouldReconnect(isAuthenticated: AuthManager.shared.isAuthenticated,
                                       isOfflineOnly: ConnectionModeManager.shared.isOfflineOnly) else { return }
                 AppLog.debug("☀️ [Wake] Reviving live updates after sleep")
-                AppCore.shared.reconnectStream()
-                try? await SyncManager.shared.performQuickSync()
+                // Writes waiting for the network go, and the stream starts over.
+                AppCore.shared.networkRestored()
             }
         }
     }

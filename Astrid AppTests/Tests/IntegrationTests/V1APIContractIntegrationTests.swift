@@ -42,13 +42,14 @@ final class V1APIContractIntegrationTests: XCTestCase {
 
     /// The atomic Create Board flow must hit the single-request v1 endpoint
     /// `POST /api/v1/projects/from-list` rather than the old two-step
-    /// project-then-list-PUT flow that could orphan a project.
+    /// project-then-list-PUT flow that could orphan a project. The request is astrid-core's
+    /// (`createBoardForList` → `PROJECTS_FROM_LIST`); the service must ask for it in one command.
     func testCreateBoardUsesAtomicV1Endpoint() throws {
         let root = try RepositoryLocator.repositoryRoot()
-        let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
-        let source = try String(contentsOf: clientURL)
-        XCTAssertTrue(source.contains("/api/v1/projects/from-list"),
-                      "client should call the atomic /api/v1/projects/from-list endpoint")
+        let serviceURL = root.appendingPathComponent("Astrid App/Core/Services/ProjectService.swift")
+        let source = try String(contentsOf: serviceURL)
+        XCTAssertTrue(source.contains("\"createBoardForList\""),
+                      "a board for a list should be one core command, not a create then a list update")
     }
 
     /// `resolveShortcode` was the one core endpoint still on a non-v1 path

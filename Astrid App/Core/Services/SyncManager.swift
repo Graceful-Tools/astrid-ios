@@ -60,9 +60,6 @@ class SyncManager: ObservableObject {
         await TaskService.shared.reloadAll()
         guardDataIsolation()
 
-        // Settings changed offline go up with the pass, as they always did.
-        await ReminderSettings.shared.syncPendingChanges()
-
         // Pictures for the people on screen, off the critical path.
         let lists = ListService.shared.lists
         let tasks = TaskService.shared.tasks
@@ -74,11 +71,6 @@ class SyncManager: ObservableObject {
         let syncTime = Date()
         lastSyncDate = syncTime
         UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
-    }
-
-    /// Same as a full pass: the core's pull asks only for what moved since the last one.
-    func performIncrementalSync() async throws {
-        try await performFullSync(isUserInitiated: false)
     }
 
     /// Push what is waiting in the journal now, without pulling — to get local changes out at
@@ -105,18 +97,15 @@ class SyncManager: ObservableObject {
         guard !tasks.isEmpty,
               !tasks.contains(where: { $0.creatorId == userId || $0.assigneeId == userId }) else { return }
         AppLog.debug("❌ [SyncManager] \(SyncError.dataIsolationViolation(expectedUserId: userId, receivedTaskCount: tasks.count).localizedDescription)")
+        // The rows are in the core's cache, not only on screen: clearing the arrays alone let the
+        // next change read them straight back. The core forgets them and the next pass is full.
+        _Concurrency.Task { _ = try? await core.run(CoreCommand(kind: "clearCache")) }
         TaskService.shared.clearCache()
         ListService.shared.clearCache()
         hasCompletedInitialSync = false
     }
 
     // MARK: - The background pass
-
-    /// The core runs its own pass every minute and keeps the live stream open; there is no timer
-    /// here to start. Kept so callers need not know.
-    func startAutoSync(interval: TimeInterval = 60) {}
-
-    func stopAutoSync() {}
 
     /// Forget when the last pass ran (sign-out). The core resets its own cursor with its cache.
     func resetSyncState() {

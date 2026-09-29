@@ -741,6 +741,7 @@
 "comments.add_placeholder" = "댓글 추가...";
 "comments.delete_comment" = "댓글 삭제";
 "comments.upload_error" = "업로드 오류";
+"comments.send_error" = "댓글을 보내지 못했습니다";
 "comments.pending_offline" = "대기 중 - 오프라인";
 "comments.tap_to_sync" = "탭하여 동기화";
 

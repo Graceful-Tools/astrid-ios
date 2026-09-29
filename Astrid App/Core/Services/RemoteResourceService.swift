@@ -26,10 +26,6 @@ final class RemoteResourceService {
         try await apiClient.getUserSettings()
     }
 
-    func updateUserSettings(reminderSettings: ReminderSettingsUpdate) async throws -> UserSettingsResponse {
-        try await apiClient.updateUserSettings(reminderSettings: reminderSettings)
-    }
-
     // MARK: - App version (AITD-383)
 
     func getAppVersion(platform: String) async throws -> AppVersionResponse {

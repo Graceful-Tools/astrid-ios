@@ -317,15 +317,6 @@ class AstridAPIClient {
         return allTasks
     }
 
-    /// Get a single task by ID
-    func getTask(id: String) async throws -> Task {
-        let response: TaskResponse = try await request(
-            method: "GET",
-            path: "/api/v1/tasks/\(id)"
-        )
-        return response.task
-    }
-
     /// Builds the `CreateTaskRequest` wire body.
     ///
     /// Extracted from `createTask` so the request shape — in particular that a
@@ -507,17 +498,6 @@ class AstridAPIClient {
         return response.list
     }
 
-    /// Update a list with raw dictionary (supports NSNull for explicit null values)
-    /// Use this when you need to clear fields by sending null (e.g., defaultAssigneeId = null for "Task Creator")
-    func updateListWithDictionary(id: String, updates: [String: Any]) async throws -> TaskList {
-        let response: ListResponse = try await requestWithDictionary(
-            method: "PUT",
-            path: "/api/v1/lists/\(id)",
-            body: updates
-        )
-        return response.list
-    }
-
     /// Delete a list
     func deleteList(id: String) async throws {
         struct EmptyResponse: Codable {}
@@ -542,16 +522,6 @@ class AstridAPIClient {
     // status lists on the server (Ready / Doing / Waiting); Inbox + Done
     // remain virtual columns derived from task state. See
     // docs/product/project-status-board.md in astrid-web for the spec.
-
-    /// List every project the caller owns or is a member of.
-    /// Requires the `projects:read` OAuth scope.
-    func getProjects() async throws -> [Project] {
-        let response: ProjectsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/projects"
-        )
-        return response.projects
-    }
 
     /// Create a project + seed Ready/Doing/Waiting status lists.
     /// Requires the `projects:write` OAuth scope.
@@ -579,20 +549,6 @@ class AstridAPIClient {
     /// is unit-testable without a network round-trip.
     nonisolated static func makeCreateBoardFromListRequest(listId: String) -> CreateBoardFromListRequest {
         CreateBoardFromListRequest(listId: listId)
-    }
-
-    /// Atomically turn a list into a project board in a single request: the
-    /// server creates the project AND attaches the list in one transaction, so a
-    /// mid-flight failure can't leave an orphan project (the bug the old two-step
-    /// POST-project-then-PUT-list flow caused). Requires the `projects:write` scope.
-    func createProjectFromList(listId: String) async throws -> Project {
-        let body = Self.makeCreateBoardFromListRequest(listId: listId)
-        let response: ProjectResponse = try await request(
-            method: "POST",
-            path: "/api/v1/projects/from-list",
-            body: body
-        )
-        return response.project
     }
 
     /// Delete a project (owner only). Detaches domain lists, cascade-deletes
@@ -634,14 +590,6 @@ class AstridAPIClient {
     }
 
     // MARK: - Comment Operations
-
-    /// Get all comments for a task
-    func getTaskComments(taskId: String) async throws -> CommentsListResponse {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/tasks/\(taskId)/comments"
-        )
-    }
 
     /// Create a new comment on a task.
     /// - Parameter clientRequestId: Idempotency key — when iOS replays a queued
@@ -703,21 +651,6 @@ class AstridAPIClient {
         )
     }
 
-    /// Update current user's settings
-    func updateUserSettings(reminderSettings: ReminderSettingsUpdate) async throws -> UserSettingsResponse {
-        struct UpdateSettingsRequest: Codable {
-            let reminderSettings: ReminderSettingsUpdate
-        }
-
-        let body = UpdateSettingsRequest(reminderSettings: reminderSettings)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/users/me/settings",
-            body: body
-        )
-    }
-
     // MARK: - User Preferences (app-level settings)
     //
     // These target `/api/v1/users/me/smart-tasks` and
@@ -743,24 +676,6 @@ class AstridAPIClient {
             method: "PATCH",
             path: "/api/v1/users/me/smart-tasks",
             body: settings
-        )
-    }
-
-    /// Fetch the user's My Tasks filter/sort preferences.
-    func getMyTasksPreferences() async throws -> MyTasksPreferences {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/users/me/my-tasks-preferences"
-        )
-    }
-
-    /// Patch the user's My Tasks preferences.
-    func updateMyTasksPreferences(_ preferences: MyTasksPreferences) async throws {
-        struct EmptyResponse: Codable {}
-        let _: EmptyResponse = try await request(
-            method: "PATCH",
-            path: "/api/v1/users/me/my-tasks-preferences",
-            body: preferences
         )
     }
 
@@ -1046,46 +961,7 @@ class AstridAPIClient {
 
     // MARK: - Chat Channels
 
-    /// Get or create a chat channel for a list
-    func getOrCreateChatChannel(listId: String) async throws -> ChatChannel {
-        let body = CreateChatChannelRequest(listId: listId)
-        let response: ChatChannelResponse = try await request(
-            method: "POST",
-            path: "/api/v1/chat/channels",
-            body: body
-        )
-        return response.channel
-    }
-
-    /// Get or create a virtual chat channel
-    func getOrCreateVirtualChannel(virtualKey: String) async throws -> ChatChannel {
-        let body = CreateChatChannelRequest(virtualKey: virtualKey)
-        let response: ChatChannelResponse = try await request(
-            method: "POST",
-            path: "/api/v1/chat/channels",
-            body: body
-        )
-        return response.channel
-    }
-
     // MARK: - Chat Messages
-
-    /// Get paginated messages for a channel (cursor-based, newest first)
-    func getChatMessages(channelId: String, before: Date? = nil, limit: Int = 50) async throws -> ChatMessagesResponse {
-        var queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "limit", value: String(limit))
-        ]
-        if let before = before {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            queryItems.append(URLQueryItem(name: "before", value: formatter.string(from: before)))
-        }
-        return try await request(
-            method: "GET",
-            path: "/api/v1/chat/channels/\(channelId)/messages",
-            queryItems: queryItems
-        )
-    }
 
     /// Send a message to a channel
     func sendChatMessage(
@@ -1369,17 +1245,6 @@ struct UserSettingsData: Codable {
 }
 
 struct ReminderSettingsData: Codable {
-    let enablePushReminders: Bool
-    let enableEmailReminders: Bool
-    let defaultReminderTime: Int
-    let enableDailyDigest: Bool
-    let dailyDigestTime: String
-    let dailyDigestTimezone: String
-    let quietHoursStart: String?
-    let quietHoursEnd: String?
-}
-
-struct ReminderSettingsUpdate: Codable {
     let enablePushReminders: Bool
     let enableEmailReminders: Bool
     let defaultReminderTime: Int

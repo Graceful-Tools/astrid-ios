@@ -22,8 +22,6 @@ class AttachmentService: ObservableObject {
     private let cacheDirectory: URL  // For pending uploads
     /// Downloaded/viewed attachments: bounded, LRU-evicted (AITD-344).
     private let downloadCache: DownloadedAttachmentCache
-    private let networkMonitor = NetworkMonitor.shared
-    private var networkObserver: NSObjectProtocol?
 
     // Map temp fileIds to real fileIds after upload
     private var fileIdMapping: [String: String] = [:]
@@ -46,32 +44,9 @@ class AttachmentService: ObservableObject {
         AppLog.debug("📦 [AttachmentService] Pending cache: \(cacheDirectory.path)")
         AppLog.debug("📦 [AttachmentService] Download cache: \(downloadCacheDirectory.path)")
 
-        // Load any pending uploads from previous session
+        // Load any pending uploads from previous session. Queued uploads are astrid-core's to
+        // send; `AppCore.networkRestored` wakes them when the connection returns.
         loadPendingUploads()
-
-        // Setup network observer to sync when connection is restored
-        setupNetworkObserver()
-    }
-
-    deinit {
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
-    /// Setup network observer: on reconnect, drain the Outbox so queued
-    /// upload→comment/send chains run.
-    private func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable,
-            object: nil,
-            queue: .main
-        ) { _ in
-            _Concurrency.Task { @MainActor in
-                AppLog.debug("🔄 [AttachmentService] Network restored - draining outbox")
-                await AppCore.shared.drainJournal()
-            }
-        }
     }
 
     // MARK: - Local File Cache
@@ -170,15 +145,6 @@ class AttachmentService: ObservableObject {
         return fileIdMapping[tempFileId] ?? pendingUploads[tempFileId]?.realFileId
     }
 
-    /// Check if a fileId is a temp ID that's still pending
-    func isPendingUpload(_ fileId: String) -> Bool {
-        guard fileId.hasPrefix("temp_") else { return false }
-        if let pending = pendingUploads[fileId] {
-            return pending.uploadStatus != .completed
-        }
-        return false
-    }
-
     /// Get local file data for a temp fileId
     func getLocalFileData(for tempFileId: String) -> Data? {
         guard let pending = pendingUploads[tempFileId] else { return nil }
@@ -194,8 +160,6 @@ class AttachmentService: ObservableObject {
     func getCachedDownload(for fileId: String) -> Data? { downloadCache.data(for: fileId) }
 
     func cacheDownload(fileId: String, data: Data) { downloadCache.store(data, for: fileId) }
-
-    func hasDownloadCached(for fileId: String) -> Bool { downloadCache.contains(fileId) }
 
     /// Get cached file URL for QuickLook preview
     func getCachedFileURL(for fileId: String, fileName: String) -> URL? {

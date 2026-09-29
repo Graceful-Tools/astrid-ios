@@ -2,7 +2,7 @@ import AstridCore
 import Foundation
 
 // Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
-// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// notably where astrid-core's answers are decoded, off the main actor (AITD-320). The struct
 // holds only value-type fields, so it is inherently thread-safe.
 nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     let id: String
@@ -308,7 +308,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
 /// `{ enabledTypes, defaultAgentId }` — the shape the server stores and, since 2026-08-29,
 /// emits as `aiAgentConfig` beside the plain `aiAgentsEnabled` array.
 // Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
-// notably SSEClient's event decode, which runs off the main actor (AITD-320). It holds only
+// notably where astrid-core's answers are decoded, off the main actor (AITD-320). It holds only
 // value-type fields, so it is inherently thread-safe.
 nonisolated struct ListAgentConfig: Codable, Equatable, Hashable {
     var enabledTypes: [String]

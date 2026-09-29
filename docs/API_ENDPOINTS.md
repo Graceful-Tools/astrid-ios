@@ -13,8 +13,13 @@ disagree, which is the only reason to trust a generated list at all.
 
 Regenerate: see the test — it prints the expected list on failure.
 
+**Most of the app's traffic is not here.** Tasks, lists, comments, chat, members, blockers,
+settings and the live stream go through astrid-core, whose paths are in
+`astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
+is what the Swift client still calls itself.
 
-## Current client — `AstridAPIClient` (51 paths)
+
+## Current client — `AstridAPIClient` (46 paths)
 
 
 ### `/api/v1/app-version`
@@ -27,7 +32,6 @@ Regenerate: see the test — it prints the expected list on failure.
 
 ### `/api/v1/chat`
 
-- `/api/v1/chat/channels`
 - `/api/v1/chat/channels/{id}/agent-response`
 - `/api/v1/chat/channels/{id}/astrid-response`
 - `/api/v1/chat/channels/{id}/messages`
@@ -63,10 +67,7 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/lists`
 - `/api/v1/lists/{id}`
 - `/api/v1/lists/{id}/copy`
-- `/api/v1/lists/{id}/invitations`
 - `/api/v1/lists/{id}/leave`
-- `/api/v1/lists/{id}/members`
-- `/api/v1/lists/{id}/members/{id}`
 - `/api/v1/lists/{id}/transfer-ownership`
 
 ### `/api/v1/oauth`
@@ -77,16 +78,11 @@ Regenerate: see the test — it prints the expected list on failure.
 ### `/api/v1/projects`
 
 - `/api/v1/projects`
-- `/api/v1/projects/from-list`
 - `/api/v1/projects/{id}`
 
 ### `/api/v1/public`
 
 - `/api/v1/public/lists`
-
-### `/api/v1/search`
-
-- `/api/v1/search`
 
 ### `/api/v1/shortcodes`
 
@@ -97,8 +93,6 @@ Regenerate: see the test — it prints the expected list on failure.
 
 - `/api/v1/tasks`
 - `/api/v1/tasks/{id}`
-- `/api/v1/tasks/{id}/blockers`
-- `/api/v1/tasks/{id}/blockers/{id}`
 - `/api/v1/tasks/{id}/comments`
 
 ### `/api/v1/users`
@@ -113,7 +107,6 @@ Regenerate: see the test — it prints the expected list on failure.
 - `/api/v1/users/me/connections/{id}/{id}`
 - `/api/v1/users/me/delete`
 - `/api/v1/users/me/export`
-- `/api/v1/users/me/my-tasks-preferences`
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/me/verify-email`

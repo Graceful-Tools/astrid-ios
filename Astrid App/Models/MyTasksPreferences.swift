@@ -1,10 +1,10 @@
+import AstridCore
 import Foundation
 import Combine
 
 /// My Tasks filter preferences synced across devices
-// Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
-// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
-// holds only value-type fields, so it is inherently thread-safe.
+// Marked `nonisolated` so its Codable conformance is usable off the main actor, where
+// astrid-core's answers are decoded (AITD-320). Only value-type fields, so thread-safe.
 nonisolated struct MyTasksPreferences: Codable {
     var filterPriority: [Int]?
     var filterAssignee: [String]?
@@ -58,49 +58,46 @@ class MyTasksPreferencesService: ObservableObject {
         }
     }
 
-    /// Fetch preferences from the server via AstridAPIClient (the canonical
-    /// network entry point — handles cookies/auth/retry centrally). UI has
-    /// already loaded the UserDefaults snapshot synchronously, so this call
-    /// only refreshes; a failure here is non-fatal.
+    /// Fetch them from the account through astrid-core, which remembers the answer in its cache
+    /// too. The UserDefaults snapshot has already drawn the screen, so a failure here is not one.
     func fetchPreferences() async {
         do {
-            let fetchedPrefs = try await AstridAPIClient.shared.getMyTasksPreferences()
-            self.preferences = fetchedPrefs
-
-            if let encoded = try? JSONEncoder().encode(fetchedPrefs) {
-                UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-                AppLog.debug("✅ [MyTasksPrefs] Loaded from server and saved to UserDefaults")
-            }
+            let fetched = try await AppCore.shared.session.run(
+                CoreCommand(kind: "refreshMyTasks"), as: MyTasksPreferences.self)
+            remember(fetched)
         } catch {
             AppLog.debug("❌ [MyTasksPrefs] Error fetching preferences: \(error)")
         }
     }
 
-    /// Update preferences.
-    /// Optimistic: writes to local state + UserDefaults synchronously so the
-    /// UI reflects the change instantly and survives app restart. The server
-    /// update is debounced 300ms and routed through AstridAPIClient.
+    /// Change them: on screen and in UserDefaults at once, to the account 300 ms after the last
+    /// change. Not queued when offline — a filter replayed a week later would move a screen under
+    /// whoever is looking at it (astrid-core `set_my_tasks_preferences`).
     func updatePreferences(_ updates: MyTasksPreferences) async {
         updateTask?.cancel()
-
-        // Optimistic local state + durable UserDefaults snapshot.
-        self.preferences = updates
-        if let encoded = try? JSONEncoder().encode(updates) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            AppLog.debug("💾 [MyTasksPrefs] Saved to UserDefaults")
-        }
-
-        // Debounced network push.
+        remember(updates)
         updateTask = _Concurrency.Task {
             try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000)
             guard !_Concurrency.Task.isCancelled else { return }
-
+            var command = CoreCommand(kind: "setMyTasksFilters")
+            command.set("filterPriority", updates.filterPriority)
+            command.set("filterAssignee", updates.filterAssignee)
+            command.set("filterDueDate", updates.filterDueDate)
+            command.set("filterCompletion", updates.filterCompletion)
+            command.set("sortBy", updates.sortBy)
+            command.set("manualSortOrder", updates.manualSortOrder)
             do {
-                try await AstridAPIClient.shared.updateMyTasksPreferences(updates)
-                AppLog.debug("✅ Updated My Tasks preferences on server")
+                try await AppCore.shared.session.run(command)
             } catch {
                 AppLog.debug("❌ Error updating My Tasks preferences: \(error)")
             }
+        }
+    }
+
+    private func remember(_ preferences: MyTasksPreferences) {
+        self.preferences = preferences
+        if let encoded = try? JSONEncoder().encode(preferences) {
+            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
         }
     }
 

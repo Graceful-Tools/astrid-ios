@@ -1,8 +1,8 @@
 import XCTest
 @testable import Astrid_App
 
-/// Integration tests for ReminderSettings local-first behaviour: optimistic save, the
-/// pending flag, and UserDefaults round-trips. The sync-path cases that needed an injected
+/// Integration tests for ReminderSettings local-first behaviour: optimistic save, what is sent
+/// to the account, and UserDefaults round-trips. The sync-path cases that needed an injected
 /// API client were never runnable (the services are singletons) and were removed rather
 /// than kept permanently skipped.
 @MainActor
@@ -60,31 +60,35 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderEmailEnabled"))
     }
 
-    func testOptimisticSave_MarksPendingChanges() async throws {
-        // Given: Clean state
-        settings.hasPendingChanges = false
+    /// Turning quiet hours off has to reach the account as `null`. The old body was a Codable
+    /// struct whose nil fields were left out, and the server merges: quiet hours switched off here
+    /// stayed on everywhere else.
+    func testTurningQuietHoursOff_SendsThemAsNull() throws {
+        settings.quietHoursEnabled = false
+        let changes = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(settings.serverChanges())) as? [String: Any]
 
-        // When: Saving settings
-        settings.pushEnabled = true
-        await settings.save()
-
-        // Then: Should mark as having pending changes
-        XCTAssertTrue(settings.hasPendingChanges)
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderSettingsPending"))
+        XCTAssertTrue(changes?["quietHoursStart"] is NSNull)
+        XCTAssertTrue(changes?["quietHoursEnd"] is NSNull)
+        XCTAssertNotNil(changes?["enablePushReminders"])
+        XCTAssertNotNil(changes?["dailyDigestTimezone"])
     }
 
-    // MARK: - Background Sync Tests
+    func testQuietHoursOn_SendsTheirTimes() throws {
+        settings.quietHoursEnabled = true
+        settings.quietHoursStart = Calendar.current.date(from: DateComponents(hour: 22, minute: 30))!
+        let changes = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(settings.serverChanges())) as? [String: Any]
 
-    func testBackgroundSync_SkipsWhenNoPendingChanges() async throws {
-        // Given: No pending changes
-        settings.hasPendingChanges = false
+        XCTAssertEqual(changes?["quietHoursStart"] as? String, "22:30")
+    }
 
-        // When: Attempting to sync
-        await settings.syncPendingChanges()
-
-        // Then: Should skip (no API call made)
-        // This is validated by no errors and instant return
-        XCTAssertFalse(settings.hasPendingChanges)
+    /// A save the previous build left pending (its own queue) is not lost on upgrade: it goes
+    /// into the core's journal once, and the old flag is cleared.
+    func testALegacyPendingFlag_IsClearedOnceHandedOver() async throws {
+        UserDefaults.standard.set(true, forKey: "reminderSettingsPending")
+        await settings.handOverLegacyPendingChanges()
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "reminderSettingsPending"))
     }
 
     // MARK: - Load from UserDefaults Tests
@@ -108,17 +112,6 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         XCTAssertTrue(settings.dailyDigestEnabled)
         XCTAssertEqual(settings.timezone, "America/New_York")
         XCTAssertTrue(settings.quietHoursEnabled)
-    }
-
-    func testLoadFromUserDefaults_LoadsPendingState() throws {
-        // Given: Pending state in UserDefaults
-        UserDefaults.standard.set(true, forKey: "reminderSettingsPending")
-
-        // When: Loading from UserDefaults
-        settings.loadFromUserDefaults()
-
-        // Then: Should load pending state
-        XCTAssertTrue(settings.hasPendingChanges)
     }
 
     // MARK: - All Settings Fields Tests
@@ -159,6 +152,5 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
 
         // Then: Last state should be persisted
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderPushEnabled"))
-        XCTAssertTrue(settings.hasPendingChanges)
     }
 }

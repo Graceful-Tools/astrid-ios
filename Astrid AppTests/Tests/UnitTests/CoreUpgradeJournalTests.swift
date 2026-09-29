@@ -63,4 +63,41 @@ final class CoreUpgradeJournalTests: XCTestCase {
         XCTAssertEqual(command["content"] as? String, "on my way")
         XCTAssertNil(command["path"])
     }
+
+    // MARK: - What is left behind
+
+    /// An upload whose comment is gone (moved, or never there) has nothing to attach to. Kept, it
+    /// held the upgrade open on every launch, and the upgrade never finished.
+    func testAnUploadNothingWaitsOnIsNotLeftBehind() throws {
+        let orphan = try entry("u1", kind: "uploadAttachment", payload: upload)
+        XCTAssertTrue(CoreUpgrade.leftBehind([orphan], consumedUploads: []).isEmpty)
+    }
+
+    func testAnUploadAWriteThatStayedWaitsOnIsKeptWithIt() throws {
+        let file = try entry("u1", kind: "uploadAttachment", payload: upload)
+        let waiting = try entry("x1", kind: "someFutureKind", payload: ["a": "b"], dependsOn: ["u1"])
+        let left = CoreUpgrade.leftBehind([file, waiting], consumedUploads: [])
+        XCTAssertEqual(left.map(\.id), ["u1", "x1"])
+    }
+
+    func testAnUploadAMovedWriteTookIsNotLeftBehind() throws {
+        let file = try entry("u1", kind: "uploadAttachment", payload: upload)
+        XCTAssertTrue(CoreUpgrade.leftBehind([file], consumedUploads: ["u1"]).isEmpty)
+    }
+
+    // MARK: - The core's outbox numbers
+
+    /// `outboxStats` as astrid-core answers it — with fields Swift does not read, and a dead
+    /// letter whose error is null. A decode that failed would show the Outbox screen as empty.
+    func testJournalStatsReadsTheCoresAnswer() throws {
+        let answer = Data("""
+        {"pending":2,"running":1,"completed":9,"failed":1,"hasUnsentWork":true,
+         "deadLetters":[{"kind":"createTask","error":null,"id":"e1"}]}
+        """.utf8)
+        let stats = try JSONDecoder().decode(JournalStats.self, from: answer)
+        XCTAssertEqual(stats.pending, 2)
+        XCTAssertEqual(stats.failed, 1)
+        XCTAssertFalse(stats.isHealthy)
+        XCTAssertEqual(stats.deadLetters, [JournalStats.DeadLetter(kind: "createTask", error: nil)])
+    }
 }

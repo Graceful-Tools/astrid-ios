@@ -1,7 +1,7 @@
 import Foundation
 
 // Marked `nonisolated` so its Codable conformance is usable from nonisolated contexts —
-// notably SSEClient's event decode, which runs off the main actor (AITD-320). The struct
+// notably where astrid-core's answers are decoded, off the main actor (AITD-320). The struct
 // holds only value-type fields, so it is inherently thread-safe.
 nonisolated struct User: Identifiable, Codable, Equatable, Hashable {
     let id: String

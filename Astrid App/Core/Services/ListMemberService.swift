@@ -60,12 +60,6 @@ class ListMemberService: ObservableObject {
         }
     }
 
-    /// The cache at once, then the server's roster in the background.
-    func fetchMembersLocalFirst(listId: String) async {
-        await show(listId: listId, reflect: true)
-        _Concurrency.Task { try? await self.fetchMembers(listId: listId) }
-    }
-
     /// Draw `listId`'s rows from the core's cached list.
     private func show(listId: String, reflect: Bool = false) async {
         await ListService.shared.reload()
@@ -92,6 +86,21 @@ class ListMemberService: ObservableObject {
 
     private static func isInvitation(_ id: String) -> Bool {
         id.hasPrefix("invite_") || ListMemberOptimistic.isPlaceholder(id)
+    }
+
+    /// A list whose rows a screen is showing moved — its roster changed elsewhere, or a change
+    /// queued here was delivered: draw them again from the cached list.
+    func coreDidChange(_ change: CoreChange) {
+        switch change {
+        case .list(let id) where membersByList[id] != nil:
+            _Concurrency.Task { await self.show(listId: id) }
+        case .synced, .unknown:
+            for id in membersByList.keys {
+                _Concurrency.Task { await self.show(listId: id) }
+            }
+        default:
+            break
+        }
     }
 
     // MARK: - Changing
@@ -232,7 +241,4 @@ class ListMemberService: ObservableObject {
         }
     }
 
-    func getMember(id: String) -> User? {
-        members.first { $0.id == id }
-    }
 }
