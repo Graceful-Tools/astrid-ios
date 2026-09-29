@@ -77,12 +77,20 @@ struct AstridMacApp: App {
         }
     }
 
-    /// UI tests restore whatever window frame the last run saved — which can be TALLER than the
-    /// screen, leaving bottom UI (quick-add) off-screen and "not hittable". Clamp the main window
-    /// to the visible screen and bring it frontmost so XCUITest coordinates are always on-screen.
+    /// UI tests restore whatever windows the last run saved. A restored task window is closed; the
+    /// main window's saved frame can be TALLER than the screen, leaving bottom UI (quick-add)
+    /// off-screen and "not hittable". Clamp the main window to the visible screen and bring it
+    /// frontmost so XCUITest coordinates are always on-screen.
     private static func normalizeWindowForUITestingIfNeeded() {
         guard MacUITestArgs.isUITesting else { return }
         DispatchQueue.main.async {
+            // A task window a previous run left open is restored too — the monkey opens them and
+            // can take one full screen, where it covers the sign-in in a Space of its own and
+            // every later test fails to reach the shell. A UI test starts from the main window.
+            for window in NSApp.windows where window.identifier?.rawValue.hasPrefix("task-") == true {
+                if window.styleMask.contains(.fullScreen) { window.toggleFullScreen(nil) }
+                window.close()
+            }
             guard let win = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) else { return }
             let vis = win.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
                 ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
