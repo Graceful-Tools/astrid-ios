@@ -62,6 +62,10 @@ fi
 # file (sandbox + network only) and disable the hardened runtime so the ad-hoc-signed test
 # host builds, launches, and runs the unit suite. (Do NOT run this ad-hoc config on a dev
 # machine: a foreign signing identity triggers blocking keychain prompts.)
+#
+# The entitlements path is ABSOLUTE: a command-line setting reaches every target, the AstridCore
+# package's included, and each resolves a relative path from its own folder — where the file is
+# not. That failed every Mac build from the astrid-core move on (scripts/test-ci-scripts.sh).
 RC_MAC=0
 if [ "${RUN_MAC}" -eq 1 ]; then
 echo "── ci_post_xcodebuild: macOS build + tests (Astrid Mac) ──"
@@ -70,7 +74,7 @@ xcodebuild test \
   -destination "platform=macOS" \
   -only-testing:"Astrid MacTests" \
   CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES \
-  CODE_SIGN_ENTITLEMENTS="ci_scripts/AstridMacCI.entitlements" \
+  CODE_SIGN_ENTITLEMENTS="$PWD/ci_scripts/AstridMacCI.entitlements" \
   ENABLE_HARDENED_RUNTIME=NO
 RC_MAC=$?
 echo "macOS test exit code: ${RC_MAC}"

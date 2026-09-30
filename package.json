@@ -15,7 +15,7 @@
     "check:localizations": "./scripts/check-localizations.sh",
     "check:version": "./scripts/check-version.sh all",
     "check:app-version": "./scripts/check-app-version-table.sh",
-    "test:scripts": "./scripts/test-check-version.sh && ./scripts/test-check-app-version-table.sh && ./scripts/test-fixall-loop.sh && ./scripts/test-prod-branches.sh && node --test scripts/test-close-built-tasks.mjs",
+    "test:scripts": "./scripts/test-check-version.sh && ./scripts/test-check-app-version-table.sh && ./scripts/test-fixall-loop.sh && ./scripts/test-prod-branches.sh && ./scripts/test-ci-scripts.sh && node --test scripts/test-close-built-tasks.mjs",
     "prod:sync": "./scripts/sync-prod-branches.sh",
     "check:brand": "./scripts/check-brand.sh",
     "check:brands": "./scripts/check-brands.sh",
