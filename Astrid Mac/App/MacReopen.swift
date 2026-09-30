@@ -52,6 +52,26 @@ enum MacReopen {
         openWindow = action
     }
 
+    /// A launch with no saved window state opens no window at all — measured 2026-09-30: `open
+    /// Astrid.app --args -ApplePersistenceIgnoreState YES` leaves the app running, frontmost, with
+    /// zero windows, and so does a first launch on a Mac that has never run it. Only a launch that
+    /// RESTORED a window showed one, which is why it looked fine on a machine in daily use. When
+    /// SwiftUI has had its turn and there is still no main window, open one.
+    ///
+    /// `openWindow` is captured from the App when its scenes are built, before any window exists.
+    /// (AppKit's `newWindowForTab:` is not answered here — the File menu's New item is replaced.)
+    @MainActor
+    static func ensureMainWindowAtLaunch() {
+        let hasMain = NSApp.windows.contains { window in
+            window.identifier?.rawValue.hasPrefix("\(mainWindowID)-") == true && window.isVisible
+        }
+        guard !hasMain else { return }
+        // Not `restoreMainWindow()`: that fronts any key-capable window, and at launch the only
+        // one may be a helper window of SwiftUI's own with nothing in it.
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow?(id: mainWindowID)
+    }
+
     /// Bring the app back to a usable state: a window, in front.
     ///
     /// Ordering matters. Activating first means the new window arrives in an already-frontmost
@@ -70,9 +90,19 @@ enum MacReopen {
     }
 }
 
-/// Exists for one callback. Kept minimal on purpose: an app delegate in a SwiftUI app is a place
-/// where behaviour accumulates quietly, and this one has a single job.
+/// Kept minimal on purpose: an app delegate in a SwiftUI app is a place where behaviour
+/// accumulates quietly. It has two jobs: reopen, and — under UI testing only —
+/// keeping one test's windows from being restored into the next (`MacUITestWindows`).
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !MacRuntime.isRunningTests else { return }
+        MainActor.assumeIsolated {
+            if MacUITestArgs.isUITesting { MacUITestWindows.stopSavingWindowState() }
+            // Give SwiftUI its turn to open or restore windows first.
+            DispatchQueue.main.async { MainActor.assumeIsolated { MacReopen.ensureMainWindowAtLaunch() } }
+        }
+    }
 
     /// Dock click, Finder open, `open`, or a second launch attempt while running.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {

@@ -45,9 +45,7 @@ final class MacMonkeyUITests: XCTestCase {
 
         for step in 1...actionCount {
             let action = MacMonkeyAction.random(using: &rng)
-            let started = Date()
-            perform(action, on: app, using: &rng)
-            let elapsed = Date().timeIntervalSince(started)
+            let elapsed = perform(action, on: app, using: &rng)
 
             journal.append(String(format: "%3d. %@ (%.2fs)", step, action.description, elapsed))
             if elapsed > slowest.1 { slowest = (action.description, elapsed) }
@@ -78,8 +76,15 @@ final class MacMonkeyUITests: XCTestCase {
         print("MONKEY_SUMMARY actions=\(actionCount) seed=\(seed) slowest=\(String(format: "%.2f", slowest.1))s action=\(slowest.0) windows=\(app.windows.count)")
     }
 
+    /// Performs the action and returns how long the APP took to absorb it.
+    ///
+    /// The clock starts once the harness has chosen what to do, as in the iOS monkey. Choosing a
+    /// button used to ask `exists` and `isHittable` of every button in every window — two
+    /// accessibility round trips each — and with a few windows open that alone took 10–15 s,
+    /// reported as a hang the app never had (2026-09-29).
     @MainActor
-    private func perform(_ action: MacMonkeyAction, on app: XCUIApplication, using rng: inout SeededGenerator) {
+    private func perform(_ action: MacMonkeyAction, on app: XCUIApplication, using rng: inout SeededGenerator) -> TimeInterval {
+        var started = Date()
         // Coordinates are taken from the WINDOW, never from the application element. On macOS
         // XCUIApplication has no meaningful frame, so a normalised offset against it resolves to
         // INFINITY and XCTest traps with "Invalid parameter not satisfying: point.x != INFINITY".
@@ -90,26 +95,44 @@ final class MacMonkeyUITests: XCTestCase {
 
         switch action {
         case .click(let x, let y):
-            guard hasWindow else { return }
+            guard hasWindow else { break }
             window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).click()
         case .rightClick(let x, let y):
-            guard hasWindow else { return }
+            guard hasWindow else { break }
             window.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).rightClick()
         case .clickRandomButton:
-            // Window controls excluded: closing the window is not a crash, but every action
-            // after it would land on nothing and the run would report a wedged app.
-            let buttons = app.windows.buttons.allElementsBoundByIndex.filter {
-                $0.exists && $0.isHittable && !["close", "minimize", "zoom"].contains($0.identifier)
+            // One snapshot of the front window, not a query per button. Window controls are
+            // excluded — their identifiers are `_XCUI:CloseWindow`, `_XCUI:MinimizeWindow`,
+            // `_XCUI:FullScreenWindow`, which the old `close`/`minimize`/`zoom` list never matched.
+            // Clicking them is not a crash, but the monkey then closed, minimised and full-screened
+            // windows, macOS restored that mess at the next launch, and a restored window covered
+            // the sign-in for the tests after it.
+            guard hasWindow, let snapshot = try? window.snapshot() else { break }
+            let windowFrame = snapshot.frame
+            let buttons = Self.buttons(in: snapshot).filter { button in
+                button.isEnabled && !button.identifier.hasPrefix("_XCUI:")
+                    && !button.frame.isEmpty && windowFrame.contains(CGPoint(x: button.frame.midX, y: button.frame.midY))
             }
-            if let target = buttons.randomElement(using: &rng) { target.click() }
+            if let target = buttons.randomElement(using: &rng) {
+                let point = window.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
+                    dx: target.frame.midX - windowFrame.minX, dy: target.frame.midY - windowFrame.minY))
+                started = Date()
+                point.click()
+            }
         case .type(let text):
             app.typeText(text)
         case .escape:
             app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
         case .scroll(let delta):
-            guard hasWindow else { return }
+            guard hasWindow else { break }
             window.scroll(byDeltaX: 0, deltaY: delta)
         }
+        return Date().timeIntervalSince(started)
+    }
+
+    private static func buttons(in snapshot: XCUIElementSnapshot) -> [XCUIElementSnapshot] {
+        let own = snapshot.elementType == .button ? [snapshot] : []
+        return own + snapshot.children.flatMap { buttons(in: $0) }
     }
 
     @MainActor
