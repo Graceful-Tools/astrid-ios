@@ -417,6 +417,10 @@ if grep -q "^claude CLAIMS=/" "$CALLS"; then ok
 else bad "the session is given a claims file to record into" "$(cat "$CALLS")"; fi
 if [ -n "$CLAIMS_LINE" ] && [ -n "$CLAUDE_LINE" ] && [ "$CLAIMS_LINE" -gt "$CLAUDE_LINE" ]; then ok
 else bad "the run's own claims are released after it" "$(cat "$CALLS")"; fi
+PRS_LINE=$(grep -n "open-fixall-prs.ts --claims-file" "$CALLS" | head -1 | cut -d: -f1)
+if [ -n "$PRS_LINE" ] && [ "$PRS_LINE" -gt "$CLAUDE_LINE" ] && [ "$PRS_LINE" -lt "$CLAIMS_LINE" ] \
+   && grep "open-fixall-prs.ts" "$CALLS" | grep -q -- "--repo .*/sandbox/repo$"; then ok
+else bad "completed work gets its PR opened after the run, against this repo, before claims are released" "$(cat "$CALLS")"; fi
 clean_sandbox
 
 echo ""

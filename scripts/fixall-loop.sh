@@ -387,6 +387,18 @@ if [ "$STATUS" -eq 0 ] && [[ "$RUN_VERDICT" == "RESULT: FAILED"* ]]; then
   STATUS=91
 fi
 
+# A completed task's branch gets a PR. `gh` is denied inside the session, so
+# finished work sat on pushed branches nobody was asked to review (astrid-web,
+# 2026-09-29). The runner can run gh; --repo points it at THIS repo's origin.
+PR_OUT=$( cd "$WEB" && "$TSX" scripts/open-fixall-prs.ts --claims-file "$CLAIMS_FILE" --repo "$REPO" 2>&1 )
+PR_STATUS=$?
+[ -n "$PR_OUT" ] && echo "$PR_OUT" | sed 's/^/ /'
+if [ "$PR_STATUS" -eq 3 ]; then
+  post_to_list "**Scheduled /fixall finished work but could not open its PR** — open it by hand so it gets reviewed:
+
+$(echo "$PR_OUT" | grep 'PR: FAILED')"
+fi
+
 # A finished task is completed, a blocked one is in Waiting: anything this run
 # claimed that is STILL in Doing was abandoned mid-task. Release it after the
 # branch above is pushed, so its comment can point at the work.
