@@ -15,6 +15,10 @@ struct LoginView: View {
     @State private var passkeyEmail = ""
     @State private var isCreatingLocalUser = false
 
+    /// Only the methods the connected deployment supports — a partner without Google or
+    /// Apple sign-in must not show buttons that fail on tap (SignInMethods).
+    private var signInMethods: SignInMethods { .offered(by: serverCapabilities.capabilities.auth) }
+
     #if DEBUG
     @State private var showingServerSettings = false
     #endif
@@ -78,66 +82,72 @@ struct LoginView: View {
 
                         // OAuth/Passkey Buttons - Order: Google (blue), Passkey (white), Apple (black)
                         VStack(spacing: Theme.spacing12) {
-                            // 1. Google button - Most prominent (blue)
-                            Button {
-                                _Concurrency.Task { await signInWithGoogle() }
-                            } label: {
-                                HStack(spacing: Theme.spacing12) {
-                                    Image(systemName: "globe")
-                                        .font(Theme.Typography.headline())
-                                    Text(NSLocalizedString("auth.continue_with_google", comment: ""))
-                                        .font(Theme.Typography.headline())
+                            if signInMethods.google {
+                                // 1. Google button - Most prominent (blue)
+                                Button {
+                                    _Concurrency.Task { await signInWithGoogle() }
+                                } label: {
+                                    HStack(spacing: Theme.spacing12) {
+                                        Image(systemName: "globe")
+                                            .font(Theme.Typography.headline())
+                                        Text(NSLocalizedString("auth.continue_with_google", comment: ""))
+                                            .font(Theme.Typography.headline())
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
+                                .buttonStyle(.plain)
+                                .background(Theme.accent)
+                                .foregroundColor(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                                .disabled(isLoading)
+                                .opacity(isLoading ? 0.6 : 1.0)
                             }
-                            .buttonStyle(.plain)
-                            .background(Theme.accent)
-                            .foregroundColor(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                            .disabled(isLoading)
-                            .opacity(isLoading ? 0.6 : 1.0)
 
-                            // 2. Passkey button - Opens dialog with New/Returning options
-                            Button {
-                                passkeyEmail = ""
-                                showPasskeyEmailSheet = true
-                            } label: {
-                                HStack(spacing: Theme.spacing12) {
-                                    Image(systemName: "person.badge.key.fill")
-                                        .font(Theme.Typography.headline())
-                                    Text(NSLocalizedString("auth.continue_with_passkey", comment: ""))
-                                        .font(Theme.Typography.headline())
+                            if signInMethods.passkey {
+                                // 2. Passkey button - Opens dialog with New/Returning options
+                                Button {
+                                    passkeyEmail = ""
+                                    showPasskeyEmailSheet = true
+                                } label: {
+                                    HStack(spacing: Theme.spacing12) {
+                                        Image(systemName: "person.badge.key.fill")
+                                            .font(Theme.Typography.headline())
+                                        Text(NSLocalizedString("auth.continue_with_passkey", comment: ""))
+                                            .font(Theme.Typography.headline())
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
+                                .buttonStyle(.plain)
+                                .background(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
+                                .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                                .disabled(isLoading)
+                                .opacity(isLoading ? 0.6 : 1.0)
                             }
-                            .buttonStyle(.plain)
-                            .background(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
-                            .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                            .disabled(isLoading)
-                            .opacity(isLoading ? 0.6 : 1.0)
 
-                            // 3. Apple button - Least prominent (black)
-                            Button {
-                                _Concurrency.Task { await signInWithApple() }
-                            } label: {
-                                HStack(spacing: Theme.spacing12) {
-                                    Image(systemName: "apple.logo")
-                                        .font(Theme.Typography.headline())
-                                    Text(NSLocalizedString("auth.continue_with_apple", comment: ""))
-                                        .font(Theme.Typography.headline())
+                            if signInMethods.apple {
+                                // 3. Apple button - Least prominent (black)
+                                Button {
+                                    _Concurrency.Task { await signInWithApple() }
+                                } label: {
+                                    HStack(spacing: Theme.spacing12) {
+                                        Image(systemName: "apple.logo")
+                                            .font(Theme.Typography.headline())
+                                        Text(NSLocalizedString("auth.continue_with_apple", comment: ""))
+                                            .font(Theme.Typography.headline())
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
+                                .buttonStyle(.plain)
+                                .background(Color.black)
+                                .foregroundColor(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                                .disabled(isLoading)
+                                .opacity(isLoading ? 0.6 : 1.0)
                             }
-                            .buttonStyle(.plain)
-                            .background(Color.black)
-                            .foregroundColor(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                            .disabled(isLoading)
-                            .opacity(isLoading ? 0.6 : 1.0)
 
                             // Divider
                             HStack {
