@@ -147,6 +147,12 @@ struct MacLoginView: View {
     /// instead of greeting the user with the nearby-device QR (AITD-298).
     @State private var showPasskeyAlternatives = false
 
+    /// Only the methods the connected deployment supports, and Apple only when this build is
+    /// entitled to it (SignInMethods).
+    private var signInMethods: SignInMethods {
+        .offered(by: serverCapabilities.capabilities.auth, appleEntitled: MacSignInOptions.showsAppleSignIn)
+    }
+
     private var emailValid: Bool {
         let e = email.trimmingCharacters(in: .whitespaces)
         return e.contains("@") && e.contains(".")
@@ -172,21 +178,25 @@ struct MacLoginView: View {
                 // Passkey — primary sign-in (discoverable credential; no email needed). Local
                 // credentials first: iCloud Keychain and enabled password managers, never the
                 // nearby-device QR as the opening move (AITD-298).
-                Button { signInWithPasskey(PasskeySignInPlan.initialPresentation(isMac: true)) } label: {
-                    Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
-                .accessibilityIdentifier("login.passkey")
+                if signInMethods.passkey {
+                    Button { signInWithPasskey(PasskeySignInPlan.initialPresentation(isMac: true)) } label: {
+                        Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
+                    .accessibilityIdentifier("login.passkey")
 
-                if showPasskeyAlternatives {
-                    passkeyAlternatives
+                    if showPasskeyAlternatives {
+                        passkeyAlternatives
+                    }
                 }
 
-                secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
-                // Hidden in the direct-download build: Developer ID profiles cannot carry the
-                // Sign In with Apple entitlement, so the button would fail on tap (MacSignInOptions).
-                if MacSignInOptions.showsAppleSignIn {
+                if signInMethods.google {
+                    secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
+                }
+                // Apple needs BOTH the deployment to offer it and this build to be entitled: the
+                // Developer ID profile cannot carry Sign In with Apple (MacSignInOptions).
+                if signInMethods.apple {
                     secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
                 }
             }

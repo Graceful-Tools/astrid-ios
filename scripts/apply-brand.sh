@@ -47,6 +47,61 @@ BRAND_PLIST_KEYS=(
     BrandAccentColor BrandAccentHoverColor BrandAccentTextColor
 )
 
+# Associated domains are part of the brand too: a native passkey is bound to its relying
+# party's domain, and the OS only lets this app use one for a domain its entitlements name
+# (webcredentials:) AND whose apple-app-site-association lists this app. astrid-web serves
+# that file on every deployment, so a partner domain needs only the entitlement. Without it,
+# passkey sign-in against a partner deployment fails before the server is ever asked.
+# iOS also gets applinks: so the partner's task links open the app.
+ENTITLEMENTS=(
+    "$PROJECT_DIR/Astrid App/Astrid App.entitlements"
+    "$PROJECT_DIR/Astrid Mac/Astrid Mac.entitlements"
+    "$PROJECT_DIR/Astrid Mac/Astrid Mac Direct.entitlements"
+)
+
+# set_brand_domains <host|""> — drop every associated domain a previous brand added, then
+# add this brand's. Astrid's own entries are never touched. Empty host = reset.
+set_brand_domains() {
+    local host="$1"
+    for entitlements in "${ENTITLEMENTS[@]}"; do
+        [[ -f "$entitlements" ]] || continue
+        python3 - "$entitlements" "$host" "$DRY_RUN" <<'PY'
+import re, sys
+# Text-level edit of the one array, so everything else in the file — including the
+# explanatory comments the Mac entitlements carry — is left byte-for-byte alone.
+path, host, dry = sys.argv[1], sys.argv[2].strip().lower(), sys.argv[3] == "true"
+ASTRID = {"astrid.cc", "www.astrid.cc"}
+text = open(path, encoding="utf-8").read()
+m = re.search(r"(<key>com\.apple\.developer\.associated-domains</key>\s*<array>)(.*?)(\n?(\s*)</array>)", text, re.S)
+name = path.split("/")[-1]
+if not m:
+    print(f"  {name}: no associated domains — left alone")
+    sys.exit(0)
+domains = re.findall(r"<string>([^<]*)</string>", m.group(2))
+kept = [d for d in domains if d.split(":", 1)[-1].split("?", 1)[0] in ASTRID]
+added = []
+if host and host not in ASTRID:
+    added.append(f"webcredentials:{host}")
+    if any(d.startswith("applinks:") for d in domains):   # iOS carries applinks; the Macs do not
+        added.append(f"applinks:{host}")
+new = kept + added
+if new == domains:
+    print(f"  {name}: associated domains unchanged")
+    sys.exit(0)
+if dry:
+    print(f"  {name}: would set associated domains to {new}")
+    sys.exit(0)
+# Reuse the file's own indentation for each entry.
+entry_indent = re.search(r"\n(\s*)<string>", m.group(2))
+indent = entry_indent.group(1) if entry_indent else m.group(4) + "\t"
+body = "".join(f"\n{indent}<string>{d}</string>" for d in new)
+text = text[: m.start(2)] + body + text[m.end(2):]
+open(path, "w", encoding="utf-8").write(text)
+print(f"  {name}: associated domains → {', '.join(new)}")
+PY
+    done
+}
+
 DRY_RUN=false
 PROFILE=""
 RESET=false
@@ -81,6 +136,7 @@ if [[ "$RESET" == "true" ]]; then
             echo -e "${GREEN}  ✓ cleared $(basename "$(dirname "$plist")")/Info.plist${NC}"
         fi
     done
+    set_brand_domains ""
     exit 0
 fi
 
@@ -168,6 +224,11 @@ for plist in "${PLISTS[@]}"; do
     done <<< "$MAPPED"
     echo ""
 done
+
+BRAND_DOMAIN=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("env") or {}).get("NEXT_PUBLIC_BRAND_DOMAIN","").strip())' "$PROFILE_PATH")
+echo -e "${BLUE}Entitlements${NC}"
+set_brand_domains "$BRAND_DOMAIN"
+echo ""
 
 if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "${YELLOW}Dry run — nothing written.${NC}"

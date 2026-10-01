@@ -40,7 +40,11 @@ NC='\033[0m'
 
 cd "$PROJECT_DIR"
 
-PLISTS=("Info.plist" "Info-Debug.plist" "Astrid Mac/Info.plist")
+# The entitlements are restored with the plists: apply-brand.sh writes a partner's domain
+# into their associated domains, and a branded entitlement left behind would ship.
+PLISTS=("Info.plist" "Info-Debug.plist" "Astrid Mac/Info.plist"
+        "Astrid App/Astrid App.entitlements" "Astrid Mac/Astrid Mac.entitlements"
+        "Astrid Mac/Astrid Mac Direct.entitlements")
 
 # ALWAYS restore, however this exits — an interrupted run must never leave a partner's
 # brand written into the working tree, where the next build would silently pick it up.
