@@ -417,6 +417,9 @@ if grep -q "^claude CLAIMS=/" "$CALLS"; then ok
 else bad "the session is given a claims file to record into" "$(cat "$CALLS")"; fi
 if [ -n "$CLAIMS_LINE" ] && [ -n "$CLAUDE_LINE" ] && [ "$CLAIMS_LINE" -gt "$CLAUDE_LINE" ]; then ok
 else bad "the run's own claims are released after it" "$(cat "$CALLS")"; fi
+# Waiting must come back on its own: the preflight sweeps the iOS board's lanes.
+if grep "agent-queue-status.ts" "$CALLS" | grep -v mark-seen | grep -q -- "--board ios"; then ok
+else bad "the preflight sweeps the iOS lanes (--board ios), so due/unblocked Waiting tasks return" "$(cat "$CALLS")"; fi
 PRS_LINE=$(grep -n "open-fixall-prs.ts --claims-file" "$CALLS" | head -1 | cut -d: -f1)
 if [ -n "$PRS_LINE" ] && [ "$PRS_LINE" -gt "$CLAUDE_LINE" ] && [ "$PRS_LINE" -lt "$CLAIMS_LINE" ] \
    && grep "open-fixall-prs.ts" "$CALLS" | grep -q -- "--repo .*/sandbox/repo$"; then ok

@@ -263,7 +263,13 @@ fi
 # Exit 1 means "could not tell" (network, auth) and must NOT be read as empty:
 # a queue we cannot see is a reason to run and let the agent report properly,
 # not a reason to skip quietly forever.
-QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --include-unassigned --no-write-seen 2>&1 )
+#
+# `--board ios` runs the lane sweep first (astrid-web/scripts/ready-tasks.ts, as
+# claude-code): a Waiting task whose date arrived or whose blockers are done goes
+# back to Ready, and RECHECK/REVIEW items count as work. Without it — until
+# 2026-09-30 — the iOS board was never swept: nothing parked in Waiting ever came
+# back on its own, and the RECHECK/REVIEW work fixall.md asks for never surfaced.
+QUEUE_OUT=$( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --board ios --include-unassigned --no-write-seen 2>&1 )
 QUEUE_STATUS=$?
 QUEUE_LINES=$(echo "$QUEUE_OUT" | grep -E '^(QUEUE|LANES|SEEN):')
 QUEUE_KEYS=$(echo "$QUEUE_OUT" | sed -n 's/^KEYS: //p' | head -1)
