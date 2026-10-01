@@ -7,6 +7,13 @@ this does not ask which task to work on — it takes them in the order the queue
 keeps going until nothing is left. It stops on its own when the queue is clear, so a scheduled
 re-run that finds an empty queue is a no-op, not busywork.
 
+**Waiting comes back on its own.** Every scheduled tick sweeps this board's lanes first
+(`--board ios` in `scripts/fixall-loop.sh`): a `Waiting` task whose date has arrived, or whose
+blockers are all done, returns to `Ready`; one waiting on an external condition surfaces as
+`RECHECK`. An interactive run gets the same sweep with
+`cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios --harness claude-code`. Until 2026-09-30
+the iOS loop never swept, so nothing parked here ever came back by itself.
+
 `READY_EMPTY` with a non-empty `RECHECK` or `REVIEW` section is **not a finished run**. Those
 are work: a `RECHECK` task's blocking condition has to be re-verified, and a `REVIEW` task is
 one sitting in `Waiting` with no date and no marker, which means nobody knows what it is waiting
