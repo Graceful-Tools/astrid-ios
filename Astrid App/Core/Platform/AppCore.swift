@@ -21,11 +21,12 @@ final class AppCore: ObservableObject {
 
     private init() {
         let testing = Self.isRunningUnitTests
+        let cachePath = Self.cachePath(unitTesting: testing, uiTesting: UITestSession.isUITesting)
         do {
             session = try CoreSession(
                 // A unit-test run gets a throwaway cache and no background loops, so no test can
-                // reach the network or someone's real data.
-                cachePath: testing ? ":memory:" : Self.cacheURL.path,
+                // reach the network or someone's real data. A UI-test run gets a scratch file.
+                cachePath: cachePath,
                 baseURL: Constants.API.baseURL,
                 platform: Self.platform,
                 credentials: CoreCredentials(),
@@ -34,9 +35,9 @@ final class AppCore: ObservableObject {
             // The cache could not be opened — a corrupt file, a full disk. Starting over is better
             // than a data layer that is not there: the server has everything but unsent writes.
             AppLog.debug("❌ [AppCore] could not open the cache (\(error)); starting a fresh one")
-            try? FileManager.default.removeItem(at: Self.cacheURL)
+            try? FileManager.default.removeItem(atPath: cachePath)
             session = try! CoreSession(
-                cachePath: Self.cacheURL.path, baseURL: Constants.API.baseURL,
+                cachePath: cachePath, baseURL: Constants.API.baseURL,
                 platform: Self.platform, credentials: CoreCredentials(), background: !testing)
         }
         session.subscribe(relay)
@@ -49,14 +50,43 @@ final class AppCore: ObservableObject {
         }
         // The first launch after the move: carry Core Data's cache and the Swift Outbox's unsent
         // task and list writes over before anything reads the cache.
-        if !testing {
+        if Self.runsUpgrade(unitTesting: testing, uiTesting: UITestSession.isUITesting) {
             CoreUpgrade.runIfNeeded(session)
         }
     }
 
+    /// Which cache a run opens (AITD-448).
+    ///
+    /// **A UI-test run never opens the user's.** UI tests share the shipping bundle id, so
+    /// `cacheURL` is the user's own cache — journal included. Core Data and the Swift Outbox each
+    /// gave a `-uiTesting` run a throwaway store; when the data layer moved here that isolation
+    /// was left behind, and the offline Mac UI suite's list creates waited in the real journal
+    /// until the user's signed-in app delivered them to the user's account. A scratch FILE rather
+    /// than `:memory:`, because a UI-test run keeps the core's background loops running.
+    nonisolated static func cachePath(unitTesting: Bool, uiTesting: Bool) -> String {
+        if unitTesting { return ":memory:" }
+        if uiTesting { return uiTestCacheURL.path }
+        return cacheURL.path
+    }
+
+    /// The upgrade seeds from Core Data — a throwaway store under test — and then records that it
+    /// is done in the REAL UserDefaults, which would mark the user's own upgrade finished.
+    nonisolated static func runsUpgrade(unitTesting: Bool, uiTesting: Bool) -> Bool {
+        !unitTesting && !uiTesting
+    }
+
+    /// One scratch cache per UI-test process, in the temp directory: every service reaches the
+    /// same one, and nothing a run writes outlives it. Attachments land in `attachments/` beside it.
+    nonisolated static let uiTestCacheURL: URL = {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AstridCore-uitest-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base.appendingPathComponent("cache.sqlite")
+    }()
+
     /// Where the cache lives: Application Support, beside nothing else, so deleting the folder is a
     /// complete reset. Attachments the core downloads go in `attachments/` next to it.
-    static var cacheURL: URL {
+    nonisolated static var cacheURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("AstridCore", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
