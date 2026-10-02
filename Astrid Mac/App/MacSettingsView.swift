@@ -14,9 +14,11 @@ struct MacSettingsView: View {
     // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
     // wants the system behaviour.
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
+    // Stored so a deep link can choose the tab before opening the window (AITD-452).
+    @AppStorage(MacSettingsTab.defaultsKey) private var tab: MacSettingsTab = .general
 
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             Form {
                 Section(NSLocalizedString("appearance", comment: "")) {
                     Picker(NSLocalizedString("settings.appearance.theme", comment: ""), selection: $themeMode) {
@@ -73,26 +75,47 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped).macThemedSurface()
             .tabItem { Label(NSLocalizedString("mac.general", comment: ""), systemImage: "gearshape") }
+                .tag(MacSettingsTab.general)
 
             MacReminderSettingsView()
                 .tabItem { Label(NSLocalizedString("reminders", comment: ""), systemImage: "bell") }
+                .tag(MacSettingsTab.reminders)
 
             MacSyncSettingsView()
                 .tabItem { Label(NSLocalizedString("sync", comment: ""), systemImage: "arrow.triangle.2.circlepath") }
+                .tag(MacSettingsTab.sync)
 
             MacAgentHubView()
                 .tabItem { Label(NSLocalizedString("mac.ai", comment: ""), systemImage: "sparkles") }
+                .tag(MacSettingsTab.ai)
 
             MacLanguageSettingsView()
                 .tabItem { Label(NSLocalizedString("language", comment: ""), systemImage: "globe") }
+                .tag(MacSettingsTab.language)
 
             MacConnectionSettingsView()
                 .tabItem { Label(NSLocalizedString("Connection", comment: ""), systemImage: "network") }
+                .tag(MacSettingsTab.connection)
 
             MacAccountView()
                 .tabItem { Label(NSLocalizedString("account", comment: ""), systemImage: "person.circle") }
+                .tag(MacSettingsTab.account)
         }
         .frame(width: 500, height: 380)
+    }
+}
+
+/// The Settings window's tabs, stored so a link can pick one (AITD-452).
+enum MacSettingsTab: String {
+    case general, reminders, sync, ai, language, connection, account
+
+    static let defaultsKey = "macSettingsTab"
+
+    /// The tab a web settings page lives on. Agents is the AI tab (MacAgentHubView).
+    init(page: MacSettingsPage) {
+        switch page {
+        case .agents: self = .ai
+        }
     }
 }
 #endif

@@ -17,6 +17,7 @@ struct MacAuthGateView: View {
     @AppStorage("mac.hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showOnboarding = false
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
@@ -78,12 +79,10 @@ struct MacAuthGateView: View {
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: QuickEntryHotKeyController.windowID)
         }
-        // Route astrid:// / https://astrid.cc task & list deep links to the main window (Task 84993a68).
+        // Route astrid:// / https://astrid.cc task, list and settings deep links (Tasks 84993a68, AITD-452).
         .onOpenURL { url in
-            switch MacDeepLink.parse(url) {
-            case .task(let id): MacAppModel.shared.openTask(listId: nil, taskId: id)
-            case .list(let id): MacAppModel.shared.openList(id)
-            case .none: break
+            if let link = MacDeepLink.parse(url) {
+                MacDeepLinkRouter.route(link, openSettings: openSettings)
             }
         }
         .onChange(of: auth.isCheckingAuth) { _, checking in

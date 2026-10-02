@@ -22,9 +22,20 @@ struct MacMarkdownText: View {
     /// right-aligned "mine" layout that says at a glance whose comment it is.
     var fillsWidth: Bool = true
 
+    @Environment(\.openSettings) private var openSettings
+
     var body: some View {
         MarkdownView(source: source, style: style)
             .textSelection(.enabled)
+            .environment(\.openURL, OpenURLAction { url in
+                // Server-written copy links within the app the way web does — Astrid's "set up
+                // a model" reply says `/settings/agents` (AITD-452). Root-relative, so the system
+                // had nowhere to send it. Every other link keeps going to the system as before.
+                guard let resolved = AppRelativeLink.resolve(url) else { return .systemAction }
+                guard let link = MacDeepLink.parse(chatLink: url) else { return .systemAction(resolved) }
+                MacDeepLinkRouter.route(link, openSettings: openSettings)
+                return .handled
+            })
             .frame(maxWidth: Self.maxWidth(fillsWidth: fillsWidth), alignment: .leading)
     }
 
