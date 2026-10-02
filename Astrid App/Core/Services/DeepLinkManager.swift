@@ -39,6 +39,18 @@ class DeepLinkManager {
         topController.present(safariVC, animated: true)
     }
     
+    /// A root-relative link (`/settings/agents`) as the brand-origin URL the router understands,
+    /// or nil for anything else (AITD-451).
+    ///
+    /// Server-written chat copy links within the web app the way web does — the "set up a model"
+    /// prompt says `[Settings > AI Agents](/settings/agents)`. With no scheme and no host, that
+    /// reached the system as a URL it could not open, so the prompt was a dead tap in the app.
+    /// A protocol-relative `//host/…` names a host and is NOT one of these.
+    static func appURL(forRelativeLink url: URL) -> URL? {
+        guard url.scheme == nil, url.host == nil, url.path.hasPrefix("/") else { return nil }
+        return URL(string: Brand.productionBaseURL + url.absoluteString)
+    }
+
     /// Entry point for handling incoming URLs
     func handleURL(_ url: URL) {
         AppLog.debug("🔗 [DeepLinkManager] Handling URL: \(url.absoluteString)")

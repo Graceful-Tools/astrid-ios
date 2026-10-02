@@ -27,6 +27,12 @@ struct ReferenceNavigationModifier: ViewModifier {
                     }
                     return .handled
                 }
+                // A server-written in-app link — the "set up a model" prompt's
+                // `/settings/agents` (AITD-451) — routes like the web link it stands for.
+                if let appURL = DeepLinkManager.appURL(forRelativeLink: url) {
+                    DeepLinkManager.shared.handleURL(appURL)
+                    return .handled
+                }
                 guard url.scheme == "astrid", let host = url.host else {
                     return .systemAction
                 }
