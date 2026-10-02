@@ -21,8 +21,9 @@ enum MacUITestLaunch {
     /// Reach the app shell from wherever launch landed.
     ///
     /// The offline choice persists in the shared container, so a second run may launch straight
-    /// into the shell; the app may also already be signed in (it reads the real keychain). Take
-    /// whichever screen shows up. Returns the My Tasks sidebar row, whose `exists` says whether
+    /// into the shell. Take whichever screen shows up. Never the user's account: under
+    /// `-uiTesting` the keychain is blanked and astrid-core opens a scratch cache, so nothing this
+    /// suite writes can be delivered as the user (AITD-448). Returns the My Tasks sidebar row, whose `exists` says whether
     /// the shell was reached within `timeout`.
     @MainActor
     @discardableResult
