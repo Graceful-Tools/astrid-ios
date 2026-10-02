@@ -58,8 +58,33 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "openai": return "ai-openai"
         case "gemini": return "ai-gemini"
         case "openclaw": return "ai-openclaw"
+        case "copilot": return "ai-copilot"
         default: return nil
         }
+    }
+
+    enum AvatarSource: Equatable {
+        case bundled(String)
+        case remote(URL)
+        case placeholder
+    }
+
+    /// What to draw for this agent (AITD-450).
+    ///
+    /// **A bundled brand mark wins.** The server image is only for agents the app has no mark
+    /// for — a custom OpenClaw agent. The picker used to try the server first, with `.svg`
+    /// rewritten to `.png` because AsyncImage cannot draw SVG; `copilot.png` does not exist, so
+    /// Copilot fell through to a generic glyph while the real Copilot mark was in the bundle.
+    var avatarSource: AvatarSource {
+        if let asset = serviceImageAsset { return .bundled(asset) }
+        guard let image, !image.isEmpty else { return .placeholder }
+        // AsyncImage can't render SVG — ask for the PNG beside it.
+        let path = image.hasSuffix(".svg")
+            ? image.replacingOccurrences(of: ".svg", with: ".png")
+            : image
+        if path.hasPrefix("http") { return URL(string: path).map(AvatarSource.remote) ?? .placeholder }
+        let baseURL = Constants.API.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return URL(string: baseURL + path).map(AvatarSource.remote) ?? .placeholder
     }
 }
 

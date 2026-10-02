@@ -201,26 +201,10 @@ struct DefaultAgentPickerView: View {
         }
     }
 
-    /// Resolve agent image URL: handles relative paths, prefers PNG over SVG for iOS
-    private func resolvedAgentImageURL(_ agent: AvailableAgent) -> URL? {
-        guard let image = agent.image, !image.isEmpty else { return nil }
-
-        var path = image
-        // iOS can't render SVG via AsyncImage — use PNG version instead
-        if path.hasSuffix(".svg") {
-            path = path.replacingOccurrences(of: ".svg", with: ".png")
-        }
-        // Resolve relative paths against API base URL
-        if !path.hasPrefix("http") {
-            let baseURL = Constants.API.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            return URL(string: baseURL + path)
-        }
-        return URL(string: path)
-    }
-
     @ViewBuilder
     private func agentAvatar(_ agent: AvailableAgent) -> some View {
-        if let url = resolvedAgentImageURL(agent) {
+        switch agent.avatarSource {
+        case .remote(let url):
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let img):
@@ -232,7 +216,7 @@ struct DefaultAgentPickerView: View {
                     defaultAgentIcon(agent)
                 }
             }
-        } else {
+        case .bundled, .placeholder:
             defaultAgentIcon(agent)
         }
     }
