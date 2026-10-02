@@ -32,7 +32,15 @@ final class BrandAuditTests: XCTestCase {
         try requirePartnerBuild()
 
         XCTAssertNotEqual(Brand.appName, "Astrid")
-        XCTAssertNotEqual(Brand.host, "astrid.cc")
+
+        // Against the profile, not against "not astrid.cc": the whitelabel profile keeps
+        // astrid.cc on purpose (AITD-453), and comparing with what the plist actually says
+        // is the stronger check anyway — a mistyped key in Brand.swift reads nil and falls
+        // back to the default, which no longer equals the configured value.
+        for (key, value) in brandValuesByPlistKey {
+            guard let expected = configured(key) else { continue }
+            XCTAssertEqual(value, expected, "Brand does not reflect Info.plist \(key)")
+        }
     }
 
     /// Nothing Astrid may survive into a partner's build.
@@ -52,7 +60,25 @@ final class BrandAuditTests: XCTestCase {
             ("productionBaseURL", Brand.productionBaseURL),
         ]
 
+        // A partner may keep astrid.cc as its DOMAIN — the whitelabel profile does, to
+        // share the .astrid.cc sign-in cookie (AITD-453) — so a domain-bearing value is
+        // allowed to say astrid when it is exactly what the profile configured. What it
+        // may never be is Astrid's DEFAULT surviving an unconfigured key. The name stays
+        // strict whatever the domain: no profile configures "Astrid" as its name.
+        let configuredDomainValues: [String: String?] = [
+            "host": configured("BrandHost"),
+            "agentEmailDomain": configured("BrandAgentEmailDomain"),
+            "supportEmail": configured("BrandSupportEmail"),
+            "inboundTaskEmail": configured("BrandInboundTaskEmail"),
+            "productionBaseURL": configured("BrandHost").map { "https://\($0)" },
+        ]
+
         for (name, value) in surface {
+            if let expected = configuredDomainValues[name] ?? nil, value == expected {
+                XCTAssertFalse(value.contains("Astrid"),
+                               "Brand.\(name) names Astrid: \(value)")
+                continue
+            }
             XCTAssertFalse(value.lowercased().contains("astrid"),
                            "Brand.\(name) still carries an Astrid value: \(value)")
         }
@@ -123,8 +149,14 @@ final class BrandAuditTests: XCTestCase {
 
         XCTAssertTrue(Brand.isBrandCookieDomain(Brand.host))
         XCTAssertTrue(Brand.isBrandCookieDomain(".\(Brand.host)"))
-        XCTAssertFalse(Brand.isBrandCookieDomain("astrid.cc"))
         XCTAssertFalse(Brand.isBrandCookieDomain("evil-\(Brand.host)"))
+
+        // Only a partner on its own domain must disown astrid.cc. One that keeps astrid.cc
+        // (whitelabel, AITD-453) depends on exactly that cookie for Google sign-in.
+        let host = Brand.host.lowercased()
+        if host != "astrid.cc" && !host.hasSuffix(".astrid.cc") {
+            XCTAssertFalse(Brand.isBrandCookieDomain("astrid.cc"))
+        }
     }
 
     /// The on-device assistant must introduce itself as the partner's.
@@ -134,5 +166,30 @@ final class BrandAuditTests: XCTestCase {
         let instructions = AppleFoundationModelService.personaInstructions(today: "2026-07-28")
         XCTAssertTrue(instructions.contains(Brand.agentName))
         XCTAssertFalse(instructions.lowercased().contains("you are astrid"))
+    }
+
+    // MARK: - What the applied profile configured
+
+    /// The value the applied profile wrote into Info.plist for `key`, or nil when the
+    /// profile leaves it to the Brand.swift default. Read with the literal key apply-brand.sh
+    /// writes — deliberately not through Brand, which is the thing under test.
+    private func configured(_ key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else { return nil }
+        return trimmed
+    }
+
+    private var brandValuesByPlistKey: [(String, String)] {
+        [
+            ("BrandName", Brand.appName),
+            ("BrandHost", Brand.host),
+            ("BrandAgentEmailDomain", Brand.agentEmailDomain),
+            ("BrandSupportEmail", Brand.supportEmail),
+            ("BrandInboundTaskEmail", Brand.inboundTaskEmail),
+            ("BrandWordmark", Brand.wordmark),
+            ("BrandSlogan", Brand.slogan),
+            ("BrandAgentName", Brand.agentName),
+        ]
     }
 }

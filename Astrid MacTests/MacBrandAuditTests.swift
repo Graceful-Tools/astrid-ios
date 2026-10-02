@@ -27,9 +27,27 @@ final class MacBrandAuditTests: XCTestCase {
         try requirePartnerBuild()
 
         XCTAssertNotEqual(Brand.appName, "Astrid")
-        XCTAssertNotEqual(Brand.host, "astrid.cc")
         XCTAssertFalse(Brand.wordmark.lowercased().contains("astrid"))
-        XCTAssertFalse(Brand.productionBaseURL.contains("astrid.cc"))
+
+        // The host is checked against what the Mac plist says, not against "not
+        // astrid.cc": the whitelabel profile keeps astrid.cc on purpose (AITD-453). Only a
+        // host the profile did NOT configure — Astrid's default surviving — is a failure.
+        if let host = configured("BrandHost") {
+            XCTAssertEqual(Brand.host, host, "the Mac build ignored Info.plist BrandHost")
+            XCTAssertEqual(Brand.productionBaseURL, "https://\(host)")
+        } else {
+            XCTAssertNotEqual(Brand.host, "astrid.cc")
+            XCTAssertFalse(Brand.productionBaseURL.contains("astrid.cc"))
+        }
+    }
+
+    /// What the applied profile wrote into the Mac Info.plist, read with the literal key
+    /// apply-brand.sh writes rather than through Brand, which is the thing under test.
+    private func configured(_ key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else { return nil }
+        return trimmed
     }
 
     /// macOS resolves the base theme tokens through `themed(...)` per mode, so the accent
