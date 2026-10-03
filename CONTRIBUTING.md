@@ -96,16 +96,16 @@ Follow the AAA pattern (Arrange-Act-Assert):
 
 ```swift
 @MainActor
-func testTaskCompletion() {
+func testCompletingWeeklyTaskRollsItForward() async throws {
     // Arrange
-    let task = TestHelpers.createTestTask(completed: false)
+    let task = TestHelpers.createTestTask(completed: false, dueDateTime: Date(), repeating: .weekly)
 
-    // Act
-    task.markAsCompleted()
+    // Act — completion always goes through the service (ASTRID.md §0 rule 2)
+    let next = try await TaskService.shared.completeTask(id: task.id, completed: true, task: task)
 
     // Assert
-    XCTAssertTrue(task.completed)
-    XCTAssertNotNil(task.completedAt)
+    XCTAssertFalse(next.completed)
+    XCTAssertGreaterThan(next.dueDateTime!, task.dueDateTime!)
 }
 ```
 
@@ -158,12 +158,14 @@ Models/         # Data models
 Core/
   Services/     # Business logic (TaskService, ListService)
   Networking/   # API client
-  Persistence/  # Core Data
+  Persistence/  # Core Data upgrade seed (read once by CoreUpgrade) + file caches
 ```
 
-### No External Dependencies
+### No Third-Party Dependencies
 
-The app uses only system frameworks. Do not add external packages unless absolutely necessary.
+Beyond our own astrid-core (the `Packages/AstridCore` SwiftPM package, see
+[docs/CORE_MIGRATION.md](./docs/CORE_MIGRATION.md)), the app uses only system frameworks. Do not
+add external packages unless absolutely necessary.
 
 ## API Compatibility
 

@@ -31,7 +31,8 @@ Violating any of these has caused a shipped regression. If you read nothing else
    `astrid-web/types/repeating.ts` first, then astrid-core, then the pinned core. (See §4.)
 5. **Preserve offline behavior.** Every write journals through astrid-core's Outbox (via the
    services); local-first caching and dedup must keep working. Don't bypass it. (See §3.)
-6. **All API paths are versioned `/api/v1/...`.** There are no `/api/user/...` or
+6. **All API paths are versioned `/api/v1/...`** (sole exception: passkeys'
+   `/api/auth/webauthn/*`, which has no v1 route). There are no `/api/user/...` or
    `/api/chat/...` paths in this app — those are dead. (See §7 for the list.)
 7. **TDD for bug fixes:** write a RED regression test naming the task id, watch it
    fail, then make it green. Run `npm run predeploy` before declaring a task done.
@@ -163,14 +164,14 @@ Details: `docs/LOCAL_FIRST_PATTERN.md`.
 
 ## 4. Repeating Tasks
 
-**Single source of truth for next-occurrence math:**
-`Astrid App/Utilities/RepeatingTaskHandler.swift` (`RepeatingTaskCalculator`). Mirrors
-`astrid-web/types/repeating.ts` + `astrid-web/lib/repeating-task-handler.ts` and must
-stay behavior-compatible.
+**Single source of truth for next-occurrence math:** astrid-core's `repeating` module,
+fixture-locked against `astrid-web/types/repeating.ts` + `astrid-web/lib/repeating-task-handler.ts`.
+`RepeatingTaskCalculator` (`Astrid App/Utilities/RepeatingTaskHandler.swift`) is a thin Swift
+facade over `CoreRules` and holds no pattern logic of its own.
 
-**Production entry point:** `TaskService.completeTask(...)` → `calculateNextOccurrence`
-→ `RepeatingTaskCalculator`. `TaskService.calculateNextOccurrence(for:)` is a **thin
-delegator** — do NOT inline pattern math there. A prior inline version ignored
+**Production entry point:** `TaskService.completeTask(...)` → the core's `completeTask` command
+(rule `repeating::completion`). `TaskService.calculateNextOccurrence(for:)` asks
+`CoreRules.completion` and is a **thin delegator** — do NOT inline pattern math there. A prior inline version ignored
 `weekdays`, `monthRepeatType`, `monthWeekday`, and yearly `month`/`day`, breaking
 weekly M/W/F rollover.
 
@@ -190,19 +191,22 @@ weekly M/W/F rollover.
 | GitHub Issues inbound (pull / drift / backfill) | `Core/Sync/GitHubSyncService.swift` |
 
 **When changing pattern logic:**
-1. Update `RepeatingTaskCalculator` only.
-2. Mirror the change in `astrid-web/types/repeating.ts`.
-3. Add tests at BOTH levels:
+1. Change `astrid-web/types/repeating.ts` first (web is canonical).
+2. Regenerate astrid-core's fixtures and port the change there, test-first.
+3. Bump the pinned core (`core/Cargo.toml`) and rebuild the XCFramework
+   (`docs/CORE_MIGRATION.md` §Commands).
+4. Add tests at BOTH levels:
    - `RepeatingTaskCalculatorTests` / `CustomRepeatingPatternTests` — calculator in isolation.
    - `testTaskService_*` cases in `CustomRepeatingPatternTests` — the production completion
      path, so isolation-only tests don't mask a broken wire-up.
-4. Multi-step progression tests (walk 6+ completions) surface bugs single-step tests miss.
+5. Multi-step progression tests (walk 6+ completions) surface bugs single-step tests miss.
 
 **Key files:**
 
 | File | Purpose |
 |------|---------|
-| `Astrid App/Utilities/RepeatingTaskHandler.swift` | Canonical `RepeatingTaskCalculator` |
+| astrid-core `crates/astrid-core/src/repeating/` | The math (canonical on Apple, Windows) |
+| `Astrid App/Utilities/RepeatingTaskHandler.swift` | `RepeatingTaskCalculator` — facade over `CoreRules` |
 | `Astrid App/Core/Services/TaskService.swift` (`calculateNextOccurrence`) | Production entry point — delegates only |
 | `Astrid App/Models/Task.swift` (`CustomRepeatingPattern`) | Pattern model; `nonisolated` so Codable round-trips through `CDTask` |
 | `Astrid AppTests/Tests/UnitTests/RepeatingTaskCalculatorTests.swift` | Calculator unit tests |
@@ -288,7 +292,7 @@ local-only (chat has no server delete) and withdraws a message not yet sent.
 
 | Contract | Canonical (web) | iOS mirror | Test |
 |---|---|---|---|
-| Repeating task rollover | `astrid-web/types/repeating.ts` | `Utilities/RepeatingTaskHandler.swift` (`RepeatingTaskCalculator`) | `CustomRepeatingPatternTests`, `RepeatingTaskCalculatorTests` |
+| Repeating task rollover | `astrid-web/types/repeating.ts` | astrid-core `repeating`, via `RepeatingTaskCalculator` / `CoreRules` (facade) | `CustomRepeatingPatternTests`, `RepeatingTaskCalculatorTests` |
 | All-day task date handling (UTC midnight, Google Calendar / RFC 5545) | `astrid-web/lib/date-comparison.ts`, `date-filter-utils.ts` | `Task.isDueToday` / `Task.isOverdue` in `BadgeManager.swift` + `TaskListView.applyDateFilter` | `AllDayTimezoneTests` |
 | List role / permission (listMembers is source of truth — legacy `admins[]`/`members[]` arrays are NOT populated by the endpoints iOS consumes and must NOT be branched on) | `astrid-web/lib/list-permissions.ts` (`getUserRoleInList`) | `TaskList.role(for:)`, `TaskList.isMember(userId:)`, `TaskList.canUserSaveServerSettings()`, `ListPermissions` | `ListPermissionsContractTests` |
 | My Tasks empty-state message (single string per list type, no completed-task threshold) | `astrid-web/components/ui/astrid-empty-state.tsx` | `TaskListView.getMyTasksEmptyMessage` | `EmptyStateMessageTests` |
@@ -303,8 +307,9 @@ to consume it. For breaking changes, add a new API/app version and keep the old 
 ## 9. macOS app (Astrid Mac)
 
 A native macOS target (`Astrid Mac`) shares the iOS **service layer** — it compiles
-`Astrid App/{Core,Models,Extensions,Utilities}` (TaskService, Outbox, Persistence, Sync,
-Networking, Auth, the repeating-task engine) into the Mac target. **Everything in this file
+`Astrid App/{Core,Models,Extensions,Utilities}` (the services, Networking, Auth, Sync, the
+CoreUpgrade seed readers) into the Mac target and links `Packages/AstridCore`. The engine —
+cache, Outbox, sync, the live stream, the rules — is astrid-core (`docs/CORE_MIGRATION.md`). **Everything in this file
 applies verbatim to Mac**: same Canonical Control Points (§2), same Outbox (§3), same repeating
 contract (§4). Mac adds **no** business logic — Mac-only code is the app shell + presentation.
 
@@ -319,7 +324,8 @@ contract (§4). Mac adds **no** business logic — Mac-only code is the app shel
 - **Signing, Sign in with Apple, passkeys:** `docs/MAC_SIGNING.md`; release channels: `docs/MAC_DISTRIBUTION.md`.
   The original plan and M0 notes are in `docs/archive/`.
 - **Known debt:** the exclusion list is brittle (a new iOS View breaks the Mac build until
-  excluded) — the planned fix is extracting shared code into an `AstridCore` Swift package.
+  excluded) — the planned fix is a separate shared-Swift package. (`Packages/AstridCore` is the
+astrid-core bridge — XCFramework, UniFFI bindings, `CoreSession`/`CoreRules` — not that package.)
 
 ---
 
@@ -332,6 +338,8 @@ contract (§4). Mac adds **no** business logic — Mac-only code is the app shel
 - `docs/API_CONTRACT.md` — wire shapes, SSE events, errors
 - `docs/LOCAL_FIRST_PATTERN.md` — offline-first / Outbox architecture
 - `docs/SYNC_ARCHITECTURE.md` — external sync providers
+- `docs/CORE_MIGRATION.md` — moving the Apple apps onto astrid-core: state, findings, what's left
+- `docs/MAC_SIGNING.md`, `docs/MAC_DISTRIBUTION.md` — Mac signing / passkeys; release channels
 - `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md`
 - `astrid-web/docs/FIXALL_WORKFLOW.md` — canonical cross-repo per-task process
 - `astrid-web/ASTRID.md` — web-side project context

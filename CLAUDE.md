@@ -26,7 +26,7 @@ completion, repeating tasks, the Outbox, sync, chat, list members, or an API cal
    `repeating`, `repeatingData`, `repeatFrom`) into the `task:` argument first.
 4. **Next-occurrence math lives ONLY in astrid-core** (reached via `RepeatingTaskCalculator`) —
    never inline it; a change goes to `astrid-web/types/repeating.ts`, then astrid-core.
-5. **API paths are `/api/v1/...` only** — `/api/user/...` and `/api/chat/...` are dead.
+5. **API paths are `/api/v1/...` only** (passkeys' `/api/auth/webauthn/*` excepted) — `/api/user/...` and `/api/chat/...` are dead.
 6. **Preserve Outbox / offline behavior.** For breaking API changes, add a new version.
 7. **Bug fixes are TDD:** RED regression test (name the task id) → green → `npm run predeploy`.
 8. **Reuse before you write.** Never inline permission checks or hardcode user-facing
@@ -210,6 +210,7 @@ each task's completion comment, and the terminal gets one `RESULT:` line. See
 | `docs/API_CONTRACT.md` | Wire shapes, SSE events, errors, versioning policy |
 | `docs/LOCAL_FIRST_PATTERN.md` | Outbox mechanism + cache invalidation |
 | `docs/SYNC_ARCHITECTURE.md` | External sync providers |
+| `docs/CORE_MIGRATION.md` | Moving the Apple apps onto astrid-core: state, findings, what's left |
 | `docs/MAC_SIGNING.md`, `docs/MAC_DISTRIBUTION.md` | Mac signing / passkeys; release channels |
 | `docs/archive/` | Point-in-time reviews and the original Mac plan; history only |
 | [`../astrid-web/docs/WEEKLY_DEEP_REVIEW.md`](../astrid-web/docs/WEEKLY_DEEP_REVIEW.md) | Weekly cross-repo deep review — driven from this board by a repeating Astrid task (`/weekly-deep-review`) |

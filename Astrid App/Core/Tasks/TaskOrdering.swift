@@ -31,19 +31,4 @@ nonisolated enum TaskOrdering {
 
         return task1.id < task2.id
     }
-
-    /// The index at which `task` belongs in an array already in this order.
-    static func insertionIndex(for task: Task, in sorted: [Task]) -> Int {
-        var low = 0
-        var high = sorted.count
-        while low < high {
-            let mid = (low + high) / 2
-            if isOrderedBefore(sorted[mid], task) {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-        return low
-    }
 }
