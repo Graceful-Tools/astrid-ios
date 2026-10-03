@@ -186,6 +186,8 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-check-app-version-table.sh"
     gate "fixall loop script tests passed" "fixall loop script tests failed" \
         "$SCRIPT_DIR/test-fixall-loop.sh"
+    gate "iOS destination script tests passed" "iOS destination script tests failed" \
+        "$SCRIPT_DIR/test-ios-destination.sh"
 fi
 
 # Step 9: UI tests (only with --full)
