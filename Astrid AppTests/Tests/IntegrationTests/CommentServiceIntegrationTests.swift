@@ -24,11 +24,9 @@ final class CommentServiceIntegrationTests: XCTestCase {
     // MARK: - Test Helpers
 
     private func clearTestData() async throws {
-        try await coreDataManager.saveInBackground { context in
-            let fetchRequest = CDComment.fetchRequest()
-            let comments = try context.fetch(fetchRequest)
-            comments.forEach { context.delete($0) }
-        }
+        let context = coreDataManager.viewContext
+        try context.fetch(CDComment.fetchRequest()).forEach { context.delete($0) }
+        if context.hasChanges { try context.save() }
     }
 
     // MARK: - Optimistic Create Tests

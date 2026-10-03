@@ -7,11 +7,6 @@ struct SignUpPasswordlessRequest: Codable {
     let name: String?
 }
 
-struct SignUpResponse: Codable {
-    let success: Bool
-    let message: String?
-}
-
 struct AppleSignInRequest: Codable {
     let identityToken: String
     let authorizationCode: String
@@ -28,10 +23,6 @@ struct UpdateAccountRequest: Codable {
     var name: String?
     var email: String?
     var image: String?
-}
-
-struct DeleteAccountRequest: Codable {
-    let confirmationText: String
 }
 
 struct CreateTaskRequest: Codable {
@@ -338,10 +329,6 @@ struct TasksResponseMeta: Codable {
 
 struct ListsResponse: Codable {
     var lists: [TaskList]
-}
-
-struct CommentsResponse: Codable {
-    var comments: [Comment]
 }
 
 struct SessionResponse: Codable {

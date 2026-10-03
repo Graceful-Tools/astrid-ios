@@ -10,15 +10,6 @@ enum SyncSource: String, Codable, Sendable {
     case github   // GitHub Issues (Phase 2)
 }
 
-/// Where a provider's sync logic executes.
-enum SyncPlacement: Sendable {
-    /// On this device (Apple Reminders — EventKit is device-local).
-    case clientDevice
-    /// Via the astrid.cc `/api/v1/sync` proxy with server-stored credentials
-    /// (GitHub Issues, Google Tasks). The client is still the sync worker.
-    case serverProxied
-}
-
 /// Tracks whether every required mutation from an incremental pull was
 /// durably applied. A cursor is an acknowledgement, not a best-effort
 /// watermark: one failed task mutation or link write must keep the entire

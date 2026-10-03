@@ -237,11 +237,6 @@ class CommentService: ObservableObject {
 
 // MARK: - Response Models
 
-struct CommentsListResponse: Codable {
-    let comments: [Comment]
-    let meta: MetaInfo
-}
-
 struct CommentResponse: Codable {
     let comment: Comment
     let meta: MetaInfo

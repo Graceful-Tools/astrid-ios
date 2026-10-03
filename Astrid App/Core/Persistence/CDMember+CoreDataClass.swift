@@ -32,16 +32,6 @@ public class CDMember: NSManagedObject {
             user: nil // Populate from separate fetch if needed
         )
     }
-
-    // MARK: - Update from Domain Model
-
-    func update(from member: ListMember) {
-        self.role = member.role
-        self.userId = member.userId
-        self.listId = member.listId ?? ""
-        self.createdAt = member.createdAt
-        self.updatedAt = member.updatedAt ?? Date()
-    }
 }
 
 extension CDMember {
@@ -54,56 +44,5 @@ extension CDMember {
         let request = fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         return try context.fetch(request)
-    }
-
-    /// Fetch member by ID
-    static func fetchById(_ id: String, context: NSManagedObjectContext) throws -> CDMember? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    /// Fetch all members for a specific list
-    static func fetchByListId(_ listId: String, context: NSManagedObjectContext) throws -> [CDMember] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "listId == %@", listId)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    // MARK: - Retry Policy
-
-    /// Maximum retry attempts before giving up
-    static let maxSyncAttempts: Int16 = 10
-
-    /// Calculate next retry delay using exponential backoff
-    var nextRetryDelay: TimeInterval {
-        let baseDelay: TimeInterval = 1
-        let maxDelay: TimeInterval = 32
-        return min(baseDelay * pow(2, Double(syncAttempts)), maxDelay)
-    }
-
-    /// Whether we should give up on syncing
-    var shouldGiveUp: Bool {
-        syncAttempts >= CDMember.maxSyncAttempts
-    }
-
-    /// Whether we can retry now (respects backoff delay)
-    var canRetryNow: Bool {
-        guard !shouldGiveUp else { return false }
-        guard let lastAttempt = lastSyncAttemptAt else { return true }
-        return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Reset retry state after successful sync
-    func resetSyncState() {
-        syncAttempts = 0
-        lastSyncAttemptAt = nil
-        syncError = nil
-        syncStatus = "synced"
-        lastSyncedAt = Date()
-        pendingOperation = nil
-        pendingRole = nil
     }
 }

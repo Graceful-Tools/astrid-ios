@@ -74,88 +74,10 @@ public class CDComment: NSManagedObject {
             secureFiles: secureFiles
         )
     }
-
-    // MARK: - Update from Domain Model
-
-    func update(from comment: Comment) {
-        self.content = comment.content
-        self.type = comment.type.rawValue
-        self.authorId = comment.authorId
-        self.authorName = comment.author?.name
-        self.authorImage = comment.author?.image
-        self.taskId = comment.taskId
-        self.createdAt = comment.createdAt
-        self.updatedAt = comment.updatedAt ?? Date()
-
-        // Serialize secureFiles to JSON
-        if let secureFiles = comment.secureFiles, !secureFiles.isEmpty {
-            if let jsonData = try? JSONEncoder().encode(secureFiles),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                self.secureFilesData = jsonString
-            }
-        } else {
-            self.secureFilesData = nil
-        }
-    }
 }
 
 extension CDComment {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<CDComment> {
         return NSFetchRequest<CDComment>(entityName: "CDComment")
-    }
-
-    static func fetchAll(context: NSManagedObjectContext) throws -> [CDComment] {
-        let request = fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    static func fetchById(_ id: String, context: NSManagedObjectContext) throws -> CDComment? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    static func fetchByTaskId(_ taskId: String, context: NSManagedObjectContext) throws -> [CDComment] {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "taskId == %@", taskId)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    // MARK: - Retry Policy
-
-    /// Maximum retry attempts before giving up
-    static let maxSyncAttempts: Int16 = 10
-
-    /// Calculate next retry delay using exponential backoff
-    var nextRetryDelay: TimeInterval {
-        let baseDelay: TimeInterval = 1
-        let maxDelay: TimeInterval = 32
-        return min(baseDelay * pow(2, Double(syncAttempts)), maxDelay)
-    }
-
-    /// Whether we should give up on syncing
-    var shouldGiveUp: Bool {
-        syncAttempts >= CDComment.maxSyncAttempts
-    }
-
-    /// Whether we can retry now (respects backoff delay)
-    var canRetryNow: Bool {
-        guard !shouldGiveUp else { return false }
-        guard let lastAttempt = lastSyncAttemptAt else { return true }
-        return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Reset retry state after successful sync
-    func resetSyncState() {
-        syncAttempts = 0
-        lastSyncAttemptAt = nil
-        syncError = nil
-        syncStatus = "synced"
-        lastSyncedAt = Date()
-        pendingOperation = nil
-        pendingContent = nil
     }
 }

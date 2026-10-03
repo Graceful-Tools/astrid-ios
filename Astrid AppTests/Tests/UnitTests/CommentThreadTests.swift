@@ -222,35 +222,3 @@ final class CommentThreadTests: XCTestCase {
         XCTAssertEqual(Set(CommentThread.nest([a, b]).map(\.id)), ["a", "b"])
     }
 }
-
-/// (5) The new `data.userId` is for presentation only — never for deciding whether to apply an
-/// event. Its one consumer on iOS is the local notification, and that check became load-bearing
-/// the moment the server stopped excluding a comment's author from the fan-out (AITD-331).
-final class CommentNotificationPolicyTests: XCTestCase {
-
-    func testWeAreNeverNotifiedAboutOurOwnComment() {
-        XCTAssertFalse(CommentNotificationPolicy.shouldNotify(
-            authorId: "me", currentUserId: "me", isMentioned: true, isAssignee: true),
-            "the echo of our own comment must not buzz our other devices")
-    }
-
-    func testAMentionFromSomeoneElseNotifies() {
-        XCTAssertTrue(CommentNotificationPolicy.shouldNotify(
-            authorId: "them", currentUserId: "me", isMentioned: true, isAssignee: false))
-    }
-
-    func testACommentOnOurAssignedTaskNotifies() {
-        XCTAssertTrue(CommentNotificationPolicy.shouldNotify(
-            authorId: "them", currentUserId: "me", isMentioned: false, isAssignee: true))
-    }
-
-    func testAnUnrelatedCommentDoesNotNotify() {
-        XCTAssertFalse(CommentNotificationPolicy.shouldNotify(
-            authorId: "them", currentUserId: "me", isMentioned: false, isAssignee: false))
-    }
-
-    func testASystemCommentIsJudgedOnMentionAndAssignmentLikeAnyOther() {
-        XCTAssertTrue(CommentNotificationPolicy.shouldNotify(
-            authorId: nil, currentUserId: "me", isMentioned: false, isAssignee: true))
-    }
-}

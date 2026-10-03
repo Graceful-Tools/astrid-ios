@@ -101,52 +101,6 @@ public class CDTaskList: NSManagedObject {
               let data = json.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(RecentlyCompletedWindow.self, from: data)
     }
-
-    // MARK: - Update from Domain Model
-
-    func update(from list: TaskList) {
-        self.name = list.name
-        self.listDescription = list.description
-        self.color = list.color
-        self.imageUrl = list.imageUrl
-        self.privacy = list.privacy?.rawValue ?? "PRIVATE"  // Default to PRIVATE if not specified
-        self.ownerId = list.ownerId ?? list.owner?.id ?? ""  // Use owner.id if ownerId not available
-        self.isFavorite = list.isFavorite ?? false
-        self.favoriteOrder = Int32(list.favoriteOrder ?? 0)
-        self.defaultAssigneeId = list.defaultAssigneeId
-        self.defaultPriority = Int16(list.defaultPriority ?? 0)
-        self.defaultRepeating = list.defaultRepeating
-        self.defaultIsPrivate = list.defaultIsPrivate ?? false
-        self.defaultDueDate = list.defaultDueDate
-        self.defaultDueTime = list.defaultDueTime
-        self.sortBy = list.sortBy
-        self.filterCompletion = list.filterCompletion
-        self.filterPriority = list.filterPriority
-        self.filterDueDate = list.filterDueDate
-        self.filterAssignee = list.filterAssignee
-        self.filterRepeating = list.filterRepeating
-        self.projectId = list.projectId
-        self.listType = list.listType
-        self.statusRole = list.statusRole
-        self.statusOrder = list.statusOrder.map(NSNumber.init(value:))
-        self.statusDescription = list.statusDescription
-        self.statusCompleted = list.statusCompleted.map(NSNumber.init(value:))
-        self.showSubtasks = list.showSubtasks.map(NSNumber.init(value:))
-        // LAST KNOWN ROSTER WINS. A list can reach the cache unhydrated — an optimistic local
-        // create, a minimal API response — and letting that blank the roster would restore the
-        // empty offline picker on the next launch (AITD-413). nil means leave what you had.
-        if let rosterJSON = ListRosterCache.encode(owner: list.owner, members: list.listMembers) {
-            self.listRosterJSON = rosterJSON
-        }
-        if let window = list.recentlyCompletedWindow,
-           let data = try? JSONEncoder().encode(window),
-           let json = String(data: data, encoding: .utf8) {
-            self.recentlyCompletedWindowJSON = json
-        } else {
-            self.recentlyCompletedWindowJSON = nil
-        }
-        self.updatedAt = list.updatedAt ?? Date()
-    }
 }
 
 extension CDTaskList {
@@ -159,12 +113,4 @@ extension CDTaskList {
         request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
         return try context.fetch(request)
     }
-    
-    static func fetchById(_ id: String, context: NSManagedObjectContext) throws -> CDTaskList? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-    
 }
