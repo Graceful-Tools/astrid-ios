@@ -38,6 +38,9 @@ PLISTS=(
     "$PROJECT_DIR/Info-Debug.plist"     # Astrid App — Debug
     "$PROJECT_DIR/Astrid Mac/Info.plist"
 )
+# scripts/make-brand-variant.sh points this at a variant's COPIES instead (colon-separated),
+# so a brand can be built as its own app without touching the files Astrid builds from.
+if [[ -n "${BRAND_PLISTS:-}" ]]; then IFS=: read -r -a PLISTS <<< "$BRAND_PLISTS"; fi
 
 # Keep in step with BrandProfile.keyMap. The Swift test parses Brand.swift and fails if
 # a key it reads has no mapping, so the two cannot silently diverge.
@@ -58,6 +61,7 @@ ENTITLEMENTS=(
     "$PROJECT_DIR/Astrid Mac/Astrid Mac.entitlements"
     "$PROJECT_DIR/Astrid Mac/Astrid Mac Direct.entitlements"
 )
+if [[ -n "${BRAND_ENTITLEMENTS:-}" ]]; then IFS=: read -r -a ENTITLEMENTS <<< "$BRAND_ENTITLEMENTS"; fi
 
 # set_brand_domains <host|""> — drop every associated domain a previous brand added, then
 # add this brand's. Astrid's own entries are never touched. Empty host = reset.

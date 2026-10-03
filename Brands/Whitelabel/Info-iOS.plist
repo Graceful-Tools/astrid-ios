@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AppGroupIdentifier</key>
+	<string>group.gracefultools.whitelabel</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>cc.astrid.app.sync</string>
+	</array>
+	<key>BrandAccentColor</key>
+	<string>#0969da</string>
+	<key>BrandAgentEmailDomain</key>
+	<string>tasks.gracefultools.com</string>
+	<key>BrandAgentName</key>
+	<string>Whitelabel Assistant</string>
+	<key>BrandHost</key>
+	<string>tasks.gracefultools.com</string>
+	<key>BrandInboundTaskEmail</key>
+	<string>tasks@tasks.gracefultools.com</string>
+	<key>BrandName</key>
+	<string>Whitelabel</string>
+	<key>BrandSlogan</key>
+	<string>Build together.</string>
+	<key>BrandSupportEmail</key>
+	<string>support@tasks.gracefultools.com</string>
+	<key>BrandWordmark</key>
+	<string>whitelabel</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Whitelabel</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>cc.astrid.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>astrid</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Astrid uses your camera so you can take a photo and attach it to a task or comment.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Astrid can suggest collaborators from your contacts when sharing lists. Your contacts are encrypted and never shared with third parties.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Astrid needs access to your photos to attach them to tasks and comments, and to detect which photos are stored on your device so they can be attached while you're offline.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Board card</string>
+			<key>UTTypeIdentifier</key>
+			<string>cc.astrid.board-card</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
+</dict>
+</plist>

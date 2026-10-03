@@ -15,7 +15,13 @@ class ShareDataManager {
     /// logged `container_create_or_lookup_app_group_path_by_app_group_identifier: client is not
     /// entitled` and shared content never arrived. The app's group is the registered one, so the
     /// extension moved to it. `ShareExtensionAppGroupTests` guards the pair now.
-    static let appGroupIdentifier = "group.gracefultools.astrid"
+    ///
+    /// Read from the target's Info.plist (`AppGroupIdentifier`) so a brand built as its own app
+    /// (the Whitelabel configuration) uses ITS group; absent, Astrid's.
+    static let appGroupIdentifier =
+        (Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String)
+            .flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+        ?? "group.gracefultools.astrid"
 
     private var sharedContainerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier)
