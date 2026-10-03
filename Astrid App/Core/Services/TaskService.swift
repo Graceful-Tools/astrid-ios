@@ -82,7 +82,12 @@ class TaskService: ObservableObject {
             _Concurrency.Task { await self.reload(ids: [id]) }
         case .synced(let taskIds, _) where !taskIds.isEmpty:
             _Concurrency.Task { await self.reload(ids: taskIds) }
-        case .synced, .unknown:
+        case .delivered(let delivery) where !delivery.undescribed:
+            // What a write touched, and only that (AITD-454): the echo of an edit this service
+            // already showed costs one read of one task. The counts came with the change.
+            guard !delivery.taskIds.isEmpty else { return }
+            _Concurrency.Task { await self.reload(ids: delivery.taskIds, refreshingCounts: false) }
+        case .synced, .unknown, .delivered:
             _Concurrency.Task { await self.reloadAll() }
         case .needsSync:
             _Concurrency.Task { try? await self.core.run(CoreCommand(kind: "sync")) }
@@ -93,11 +98,15 @@ class TaskService: ObservableObject {
 
     /// Re-read the named tasks. One that is no longer in the cache was deleted — here or elsewhere;
     /// a temporary id that became a real one reads as that task.
-    private func reload(ids: [String]) async {
+    ///
+    /// `refreshingCounts: false` when the change already carried the journal's counts.
+    private func reload(ids: [String], refreshingCounts: Bool = true) async {
         let temps = ids.filter { $0.hasPrefix("temp_") }
         let moved = temps.isEmpty
             ? [:] : ((try? await core.run(CoreCommand.resolveIds(temps), as: [String: String].self)) ?? [:])
-        let wanted = ids.map { moved[$0] ?? $0 }
+        // A delivered create names its temporary id and its real one, which resolve to the same.
+        var seen = Set<String>()
+        let wanted = ids.map { moved[$0] ?? $0 }.filter { seen.insert($0).inserted }
         guard let found = try? await core.run(CoreCommand.tasks(ids: wanted), as: [Task].self) else { return }
         let foundIds = Set(found.map(\.id))
 
@@ -105,7 +114,7 @@ class TaskService: ObservableObject {
         // on a large account that is the whole task list, twice per write.
         let gone = wanted.filter { !foundIds.contains($0) && cachedTasks[$0] != nil }
         if moved.isEmpty, gone.isEmpty, found.allSatisfy({ cachedTasks[$0.id] == $0 }) {
-            refreshOutboxCounts()
+            if refreshingCounts { refreshOutboxCounts() }
             return
         }
 
@@ -114,7 +123,7 @@ class TaskService: ObservableObject {
         var next = tasks.filter { !dropped.contains($0.id) }
         upsert(found, into: &next)
         publish(next)
-        refreshOutboxCounts()
+        if refreshingCounts { refreshOutboxCounts() }
     }
 
     /// Read every cached task again: after a sync pass or a delivery that could not say what moved.
@@ -194,6 +203,12 @@ class TaskService: ObservableObject {
     }
 
     /// The Outbox's counts, for the "not synced yet" and "failed" indicators.
+    /// Counts the core already gave (a delivery carries them), shown without asking again.
+    func showOutboxCounts(pending: Int, failed: Int) {
+        if pending != pendingOperationsCount { pendingOperationsCount = pending }
+        if failed != failedOperationsCount { failedOperationsCount = failed }
+    }
+
     func refreshOutboxCounts() {
         struct Stats: Decodable { let pending: Int; let running: Int; let failed: Int }
         _Concurrency.Task {

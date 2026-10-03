@@ -42,7 +42,7 @@ class ListService: ObservableObject {
 
     func coreDidChange(_ change: CoreChange) {
         switch change {
-        case .list, .synced, .unknown, .settings:
+        case .list, .synced, .delivered, .unknown, .settings:
             _Concurrency.Task { await self.reload() }
         default:
             break

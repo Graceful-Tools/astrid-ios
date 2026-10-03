@@ -16,6 +16,9 @@ public enum CoreChange: Equatable, Sendable {
     /// A pass nobody asked for brought these into the cache. Both empty means it could not say
     /// which, and whatever is on screen should be read again.
     case synced(taskIds: [String], listIds: [String])
+    /// The Outbox settled some writes — delivered, or refused for good — and these are what they
+    /// touched, with the journal's counts (AITD-454).
+    case delivered(CoreDelivery)
     case notifications
     /// The live stream connected (`true`) or dropped.
     case stream(live: Bool)
@@ -34,6 +37,12 @@ public enum CoreChange: Equatable, Sendable {
             let taskIds: [String]?
             let listIds: [String]?
             let live: Bool?
+            let commentTaskIds: [String]?
+            let channelIds: [String]?
+            let undescribed: Bool?
+            let pending: Int?
+            let running: Int?
+            let failed: Int?
         }
         guard let wire = try? JSONDecoder().decode(Wire.self, from: Data(json.utf8)) else {
             self = .unknown(json)
@@ -51,9 +60,44 @@ public enum CoreChange: Equatable, Sendable {
         case "remindersDue": self = .remindersDue
         case "needsSync": self = .needsSync
         case "synced": self = .synced(taskIds: wire.taskIds ?? [], listIds: wire.listIds ?? [])
+        case "delivered":
+            self = .delivered(CoreDelivery(
+                taskIds: wire.taskIds ?? [], listIds: wire.listIds ?? [],
+                commentTaskIds: wire.commentTaskIds ?? [], channelIds: wire.channelIds ?? [],
+                // A delivery that names nothing it touched and does not say it touched nothing
+                // came from a core this build does not understand: read everything again.
+                undescribed: wire.undescribed ?? true,
+                pending: wire.pending ?? 0, running: wire.running ?? 0, failed: wire.failed ?? 0))
         case "notifications": self = .notifications
         case "stream": self = .stream(live: wire.live ?? false)
         default: self = .unknown(json)
         }
+    }
+}
+
+/// What one Outbox drain settled (`astrid_core::outbox::Delivery`), and the journal's counts after it.
+public struct CoreDelivery: Equatable, Sendable {
+    /// Tasks written, temporary and real ids both for a create.
+    public var taskIds: [String]
+    public var listIds: [String]
+    /// Tasks whose comment threads moved.
+    public var commentTaskIds: [String]
+    public var channelIds: [String]
+    /// Something settled that the core could not describe: refresh everything shown.
+    public var undescribed: Bool
+    public var pending: Int
+    public var running: Int
+    public var failed: Int
+
+    public init(taskIds: [String], listIds: [String], commentTaskIds: [String], channelIds: [String],
+                undescribed: Bool, pending: Int, running: Int, failed: Int) {
+        self.taskIds = taskIds
+        self.listIds = listIds
+        self.commentTaskIds = commentTaskIds
+        self.channelIds = channelIds
+        self.undescribed = undescribed
+        self.pending = pending
+        self.running = running
+        self.failed = failed
     }
 }

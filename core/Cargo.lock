@@ -109,8 +109,9 @@ dependencies = [
 [[package]]
 name = "astrid-core"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=4de60a742716eb11630db7af1d5e635d15a9ec3e#4de60a742716eb11630db7af1d5e635d15a9ec3e"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=cac4465aadc468d8393a1f89cb08ff02bfa4408a#cac4465aadc468d8393a1f89cb08ff02bfa4408a"
 dependencies = [
+ "astrid-rules",
  "async-trait",
  "base64 0.22.1",
  "chrono",
@@ -118,7 +119,6 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "iana-time-zone",
- "pulldown-cmark",
  "reqwest",
  "rusqlite",
  "serde",
@@ -129,6 +129,18 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "astrid-rules"
+version = "0.1.0"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=cac4465aadc468d8393a1f89cb08ff02bfa4408a#cac4465aadc468d8393a1f89cb08ff02bfa4408a"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

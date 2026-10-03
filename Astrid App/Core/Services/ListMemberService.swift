@@ -94,7 +94,16 @@ class ListMemberService: ObservableObject {
         switch change {
         case .list(let id) where membersByList[id] != nil:
             _Concurrency.Task { await self.show(listId: id) }
-        case .synced, .unknown:
+        case .synced(_, let listIds) where !listIds.isEmpty:
+            for id in listIds where membersByList[id] != nil {
+                _Concurrency.Task { await self.show(listId: id) }
+            }
+        case .delivered(let delivery) where !delivery.undescribed:
+            // The rosters of the lists a delivery touched, of those a screen is showing (AITD-454).
+            for id in delivery.listIds where membersByList[id] != nil {
+                _Concurrency.Task { await self.show(listId: id) }
+            }
+        case .synced, .unknown, .delivered:
             for id in membersByList.keys {
                 _Concurrency.Task { await self.show(listId: id) }
             }
@@ -231,6 +240,12 @@ class ListMemberService: ObservableObject {
     func retryFailedOperations() async {
         _ = try? await core.run(CoreCommand(kind: "retryDeadLetters"))
         refreshOutboxCounts()
+    }
+
+    /// Counts the core already gave (a delivery carries them), shown without asking again.
+    func showOutboxCounts(pending: Int, failed: Int) {
+        if pending != pendingOperationsCount { pendingOperationsCount = pending }
+        if failed != failedOperationsCount { failedOperationsCount = failed }
     }
 
     private func refreshOutboxCounts() {

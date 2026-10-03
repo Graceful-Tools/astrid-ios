@@ -76,10 +76,11 @@ final class MarkdownTextTests: XCTestCase {
     }
 
     /// An unterminated fence still has to render as code rather than swallowing the rest of the
-    /// message — a truncated agent comment is exactly when this happens.
+    /// message — a truncated agent comment is exactly when this happens. It ends in the one newline
+    /// every code block carries, closed or not (astrid-core's fixture-locked markdown, D38).
     func testAnUnclosedFenceStillClosesAtTheEnd() {
         XCTAssertEqual(CoreRules.markdown("```\nnpm run predeploy"),
-                       [.code(language: nil, text: "npm run predeploy")])
+                       [.code(language: nil, text: "npm run predeploy\n")])
     }
 
     // MARK: - References still linkify

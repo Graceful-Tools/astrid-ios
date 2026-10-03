@@ -138,7 +138,12 @@ class ChatService: ObservableObject {
             _Concurrency.Task { await self.read(channelId: channelId) }
         case .agentTyping(let channelId?, _, let agentName, let active):
             typingAgent[channelId] = active ? (agentName ?? "Agent") : nil
-        case .synced, .unknown:
+        case .delivered(let delivery) where !delivery.undescribed:
+            // The channels a delivery touched, of those a panel is showing (AITD-454).
+            for channelId in delivery.channelIds where cachedMessages[channelId] != nil {
+                _Concurrency.Task { await self.read(channelId: channelId) }
+            }
+        case .synced, .unknown, .delivered:
             for channelId in cachedMessages.keys {
                 _Concurrency.Task { await self.read(channelId: channelId) }
             }
@@ -189,6 +194,11 @@ class ChatService: ObservableObject {
         cachedMessages[channelId]?.removeAll { $0.id == id }
         try await core.run(CoreCommand(kind: "forgetChatMessage", ["messageId": .value(id)]))
         refreshOutboxCounts()
+    }
+
+    /// Counts the core already gave (a delivery carries them), shown without asking again.
+    func showOutboxCounts(pending: Int, failed _: Int) {
+        if pending != pendingOperationsCount { pendingOperationsCount = pending }
     }
 
     private func refreshOutboxCounts() {
