@@ -113,7 +113,7 @@ wrong one is invisible until a user sees stale data.
 | | |
 |---|---|
 | what it is | the core's cache, read into `[String: Task]` / `[TaskList]` for the views to bind to |
-| filled by | `reload` after every core change (`CoreChange.task` / `.list` / `.synced`) and every write the service makes |
+| filled by | `reload` after every core change (`CoreChange.task` / `.list` / `.synced` / `.delivered`) and every write the service makes. `AppCore.audiences(for:)` decides which services hear a change: a delivered write names the rows it touched, so only those rows are read again (AITD-454). Only a change the core cannot describe reaches every service |
 | cleared by | sign-out (the core wipes its cache; the services clear theirs), and a failed data-isolation check in `SyncManager`, which also runs the core's `clearCache` so the next read cannot bring the rows straight back |
 | NOT cleared by | switching lists, backgrounding, or a sync pass |
 

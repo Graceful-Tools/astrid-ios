@@ -89,7 +89,12 @@ class CommentService: ObservableObject {
             _Concurrency.Task { await self.read(taskId: taskId) }
         case .agentTyping(_, let taskId?, let agentName, let active):
             typingAgent[taskId] = active ? (agentName ?? "Agent") : nil
-        case .synced, .unknown:
+        case .delivered(let delivery) where !delivery.undescribed:
+            // The threads a delivery touched, of those a view is showing (AITD-454).
+            for taskId in delivery.commentTaskIds where cachedComments[taskId] != nil {
+                _Concurrency.Task { await self.read(taskId: taskId) }
+            }
+        case .synced, .unknown, .delivered:
             // A delivery or a pass that could not say what moved: the open threads, again.
             for taskId in cachedComments.keys {
                 _Concurrency.Task { await self.read(taskId: taskId) }
@@ -215,6 +220,12 @@ class CommentService: ObservableObject {
     /// Give writes the server refused another go.
     func retryFailedOperations() async {
         try? await syncPendingComments()
+    }
+
+    /// Counts the core already gave (a delivery carries them), shown without asking again.
+    func showOutboxCounts(pending: Int, failed: Int) {
+        if pending != pendingOperationsCount { pendingOperationsCount = pending }
+        if failed != failedOperationsCount { failedOperationsCount = failed }
     }
 
     private func refreshOutboxCounts() {
