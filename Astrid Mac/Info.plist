@@ -2,6 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BrandAccentColor</key>
+	<string>#0969da</string>
+	<key>BrandAgentEmailDomain</key>
+	<string>astrid.cc</string>
+	<key>BrandAgentName</key>
+	<string>Whitelabel Assistant</string>
+	<key>BrandHost</key>
+	<string>astrid.cc</string>
+	<key>BrandInboundTaskEmail</key>
+	<string>whitelabel-tasks@astrid.cc</string>
+	<key>BrandName</key>
+	<string>Whitelabel</string>
+	<key>BrandSlogan</key>
+	<string>Build together.</string>
+	<key>BrandSupportEmail</key>
+	<string>whitelabel-support@astrid.cc</string>
+	<key>BrandWordmark</key>
+	<string>whitelabel</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSServices</key>
@@ -26,14 +44,14 @@
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>cc.astrid.board-card</string>
-			<key>UTTypeDescription</key>
-			<string>Board card</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>Board card</string>
+			<key>UTTypeIdentifier</key>
+			<string>cc.astrid.board-card</string>
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
