@@ -29,7 +29,7 @@ class ProjectService: ObservableObject {
     func coreDidChange(_ change: CoreChange) {
         switch change {
         // Not `.needsSync`: that asks for a pass, and the pass's own `.synced` brings the boards.
-        case .synced, .unknown:
+        case .synced, .delivered, .unknown:
             _Concurrency.Task { await self.reload() }
         default:
             break

@@ -91,6 +91,18 @@ final class CoreChangeTests: XCTestCase {
         XCTAssertEqual(CoreChange(json: #"{"change":"stream","live":true}"#), .stream(live: true))
     }
 
+    /// AITD-454: a delivery names what it touched and carries the journal's counts.
+    func testADeliveryReadsWithWhatItTouched_AITD454() {
+        let json = #"{"change":"delivered","taskIds":["temp_1","t1"],"listIds":[],"commentTaskIds":["t9"],"channelIds":[],"undescribed":false,"pending":2,"running":1,"failed":0}"#
+        XCTAssertEqual(CoreChange(json: json), .delivered(CoreDelivery(
+            taskIds: ["temp_1", "t1"], listIds: [], commentTaskIds: ["t9"], channelIds: [],
+            undescribed: false, pending: 2, running: 1, failed: 0)))
+        // Missing fields are not a reason to drop it: what it cannot say, it says it cannot.
+        XCTAssertEqual(CoreChange(json: #"{"change":"delivered"}"#), .delivered(CoreDelivery(
+            taskIds: [], listIds: [], commentTaskIds: [], channelIds: [],
+            undescribed: true, pending: 0, running: 0, failed: 0)))
+    }
+
     func testSomethingNewerIsUnknownNotACrash() {
         guard case .unknown = CoreChange(json: #"{"change":"somethingLater"}"#) else {
             return XCTFail("unknown")

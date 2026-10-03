@@ -106,15 +106,71 @@ final class AppCore: ObservableObject {
             && !UITestSession.isUITesting
     }
 
-    /// Where a change goes: the services the views bind to, each reading back what it holds.
-    fileprivate func route(_ change: CoreChange) {
-        ListService.shared.coreDidChange(change)
-        TaskService.shared.coreDidChange(change)
-        CommentService.shared.coreDidChange(change)
-        ChatService.shared.coreDidChange(change)
-        ProjectService.shared.coreDidChange(change)
-        ListMemberService.shared.coreDidChange(change)
+    /// The services a change can concern.
+    enum Audience: CaseIterable, Hashable {
+        case lists, tasks, comments, chat, projects, members
+    }
+
+    /// Which services a change concerns (AITD-454).
+    ///
+    /// Every change used to go to all six, and a delivered task edit — announced as "something
+    /// moved" — made every one of them re-read everything it held. Now a change goes only where it
+    /// can matter. What the core cannot describe (`.unknown`, an undescribed delivery, an empty
+    /// `.synced`) still reaches everyone, which is what every change did before.
+    nonisolated static func audiences(for change: CoreChange) -> Set<Audience> {
         switch change {
+        case .task, .needsSync:
+            return [.tasks]
+        case .list:
+            return [.lists, .members]
+        case .comments:
+            return [.comments]
+        case .chat:
+            return [.chat]
+        case .agentTyping:
+            return [.comments, .chat]
+        case .settings:
+            return [.lists]
+        case .synced(let taskIds, let listIds):
+            if taskIds.isEmpty && listIds.isEmpty { return Set(Audience.allCases) }
+            // The boards ride on every pass: their sync reports no ids.
+            var audiences: Set<Audience> = [.projects]
+            if !taskIds.isEmpty { audiences.insert(.tasks) }
+            if !listIds.isEmpty { audiences.formUnion([.lists, .members]) }
+            return audiences
+        case .delivered(let delivery):
+            if delivery.undescribed { return Set(Audience.allCases) }
+            var audiences: Set<Audience> = []
+            if !delivery.taskIds.isEmpty { audiences.insert(.tasks) }
+            if !delivery.listIds.isEmpty { audiences.formUnion([.lists, .members, .projects]) }
+            if !delivery.commentTaskIds.isEmpty { audiences.insert(.comments) }
+            if !delivery.channelIds.isEmpty { audiences.insert(.chat) }
+            return audiences
+        case .unknown:
+            return Set(Audience.allCases)
+        case .remindersDue, .notifications, .stream:
+            return []
+        }
+    }
+
+    /// Where a change goes: the services it concerns, each reading back what it holds.
+    fileprivate func route(_ change: CoreChange) {
+        let audiences = Self.audiences(for: change)
+        if audiences.contains(.lists) { ListService.shared.coreDidChange(change) }
+        if audiences.contains(.tasks) { TaskService.shared.coreDidChange(change) }
+        if audiences.contains(.comments) { CommentService.shared.coreDidChange(change) }
+        if audiences.contains(.chat) { ChatService.shared.coreDidChange(change) }
+        if audiences.contains(.projects) { ProjectService.shared.coreDidChange(change) }
+        if audiences.contains(.members) { ListMemberService.shared.coreDidChange(change) }
+        switch change {
+        case .delivered(let delivery) where !delivery.undescribed:
+            // The journal's counts came with the change: one answer for every badge, rather than
+            // each service asking the core for the same numbers.
+            let pending = delivery.pending + delivery.running
+            TaskService.shared.showOutboxCounts(pending: pending, failed: delivery.failed)
+            CommentService.shared.showOutboxCounts(pending: pending, failed: delivery.failed)
+            ChatService.shared.showOutboxCounts(pending: pending, failed: delivery.failed)
+            ListMemberService.shared.showOutboxCounts(pending: pending, failed: delivery.failed)
         case .settings:
             // Another device changed a setting, or the deployment its feature flags: the stream
             // says that something moved, not what.
