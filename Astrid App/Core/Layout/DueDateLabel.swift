@@ -71,11 +71,9 @@ enum DueDateLabel {
         if let name = relativeDayName(for: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
             return name
         }
-        let formatter = DateFormatter()
         // A localized TEMPLATE, not a literal pattern, so the field order follows the locale.
-        formatter.setLocalizedDateFormatFromTemplate("MMM d")
-        formatter.timeZone = displayTimeZone(isAllDay: isAllDay)
-        return formatter.string(from: date)
+        return DateFormatterCache.formatter(.template("MMM d"), timeZone: displayTimeZone(isAllDay: isAllDay))
+            .string(from: date)
     }
 
     /// Fuller text for a task row that has room: a day name, else a medium date, plus the time of
@@ -88,21 +86,16 @@ enum DueDateLabel {
         if isAllDay {
             time = ""
         } else {
-            let timeFormatter = DateFormatter()
-            timeFormatter.dateStyle = .none
-            timeFormatter.timeStyle = .short
-            time = " " + timeFormatter.string(from: date)
+            time = " " + DateFormatterCache.formatter(.styles(date: .none, time: .short)).string(from: date)
         }
 
         if let name = relativeDayName(for: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
             return name + time
         }
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        formatter.timeZone = displayTimeZone(isAllDay: isAllDay)
-        return formatter.string(from: date) + time
+        return DateFormatterCache.formatter(.styles(date: .medium, time: .none),
+                                            timeZone: displayTimeZone(isAllDay: isAllDay))
+            .string(from: date) + time
     }
 
     /// The heading over a day's worth of chat messages: "Today", "Yesterday", else the weekday and
@@ -116,9 +109,7 @@ enum DueDateLabel {
            name != NSLocalizedString("time.tomorrow", comment: "Tomorrow") {
             return name
         }
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("EEEE MMM d")
-        return formatter.string(from: date)
+        return DateFormatterCache.formatter(.template("EEEE MMM d")).string(from: date)
     }
 
     /// A single chat message's timestamp: the time alone if it is from today, "Yesterday", else
@@ -129,20 +120,14 @@ enum DueDateLabel {
         let offset = dayOffset(to: date, isAllDay: false, now: now, localCalendar: localCalendar)
 
         if offset == 0 {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .none
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
+            return DateFormatterCache.formatter(.styles(date: .none, time: .short)).string(from: date)
         }
         if offset == -1 {
             return NSLocalizedString("time.yesterday", comment: "Yesterday")
         }
 
-        let formatter = DateFormatter()
         // .medium + .short joins them the way the locale does, rather than with an English "at".
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return DateFormatterCache.formatter(.styles(date: .medium, time: .short)).string(from: date)
     }
 
     /// Whole days from today to `date`, counted in whichever calendar the date
@@ -164,8 +149,7 @@ enum DueDateLabel {
 
         // Stored at UTC midnight. Take TODAY as the user sees it, re-express that
         // calendar day as UTC midnight, and compare like with like.
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
+        let utc = DateFormatterCache.utcCalendar
 
         let todayLocal = localCalendar.dateComponents([.year, .month, .day], from: now)
         var todayComponents = DateComponents()
@@ -195,9 +179,7 @@ enum DueDateLabel {
     /// All-day dates format in UTC for the same reason they compare in it —
     /// otherwise a 25 December task prints as the 24th west of UTC.
     private static func formatted(_ date: Date, isAllDay: Bool) -> String {
-        let formatter = DateFormatter()
-        formatter.setLocalizedDateFormatFromTemplate("EEE MMM d yyyy")
-        if isAllDay { formatter.timeZone = TimeZone(identifier: "UTC") }
-        return formatter.string(from: date)
+        DateFormatterCache.formatter(.template("EEE MMM d yyyy"), timeZone: displayTimeZone(isAllDay: isAllDay))
+            .string(from: date)
     }
 }

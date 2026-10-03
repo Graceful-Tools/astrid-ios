@@ -19,6 +19,9 @@ struct ListSidebarView: View {
     @State private var publicLists: [TaskList] = []
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
 
+    // The badges, recomputed only when tasks, lists or the user change (AITD-455).
+    @State private var badgesMemo = Memo<BadgesKey, Badges>()
+
     // Cached filtered lists to avoid recomputation on every render
     @State private var _cachedCollaborativeLists: [TaskList] = []
     @State private var _cachedSuggestedLists: [TaskList] = []
@@ -263,7 +266,7 @@ struct ListSidebarView: View {
                 ForEach(favoriteLists) { list in
                     ListRowView(
                         list: list,
-                        taskCount: getTaskCount(for: list),
+                        taskCount: badges.lists[list.id] ?? 0,
                         isSelected: selectedListId == list.id,
                         onTap: {
                             selectedListId = list.id
@@ -286,7 +289,7 @@ struct ListSidebarView: View {
             ForEach(regularLists) { list in
                 ListRowView(
                     list: list,
-                    taskCount: getTaskCount(for: list),
+                    taskCount: badges.lists[list.id] ?? 0,
                     isSelected: selectedListId == list.id,
                     onTap: {
                         selectedListId = list.id
@@ -318,7 +321,7 @@ struct ListSidebarView: View {
                 ForEach(collaborativePublicLists.prefix(2)) { list in
                     ListRowView(
                         list: list,
-                        taskCount: getTaskCount(for: list),
+                        taskCount: badges.lists[list.id] ?? 0,
                         isSelected: selectedListId == list.id,
                         onTap: {
                             AppLog.debug("🎯 [Collaborative] Tapped: \(list.name)")
@@ -359,7 +362,7 @@ struct ListSidebarView: View {
                 ForEach(suggestedPublicLists.prefix(2)) { list in
                     ListRowView(
                         list: list,
-                        taskCount: getTaskCount(for: list),
+                        taskCount: badges.lists[list.id] ?? 0,
                         isSelected: selectedListId == list.id,
                         onTap: {
                             AppLog.debug("🎯 [Suggested] Tapped: \(list.name)")
@@ -441,7 +444,7 @@ struct ListSidebarView: View {
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
 
                 // Count of tasks assigned to current user (always show, even when 0)
-                Text("\(myTasksCount)")
+                Text("\(badges.myTasks)")
                     .font(Theme.Typography.caption1())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     .padding(.horizontal, Theme.spacing8)
@@ -472,27 +475,37 @@ struct ListSidebarView: View {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    private var myTasksCount: Int {
-        // Count only tasks assigned to current user
-        guard let currentUserId = authManager.userId else {
-            return 0
-        }
-        return taskService.tasks.filter { !$0.completed && $0.assigneeId == currentUserId }.count
+    private struct BadgesKey: Equatable {
+        let tasks: [Task]
+        let lists: [TaskList]
+        let publicLists: [TaskList]
+        let userId: String?
     }
 
-    // MARK: - Helper Methods
+    private struct Badges {
+        let lists: [String: Int]
+        let myTasks: Int
+    }
 
-    /// The sidebar badge, through the SHARED rule (AITD-414).
+    /// Every badge in the sidebar, through the SHARED rule (AITD-414), in ONE pass (AITD-455).
     ///
-    /// This used to be ~140 lines here: a membership test that asked only `task.lists`, plus a
-    /// private third copy of the saved-filter pipeline. `CDTask` restores `listIds` and leaves
-    /// `lists` nil, so offline the membership test matched nothing and every list badged 0 —
-    /// and the filter copy had drifted from `filterTasksForList` besides. `ListTaskCount` is
-    /// the Mac's implementation, moved where both platforms compile it.
-    private func getTaskCount(for list: TaskList) -> Int {
-        ListTaskCount.count(taskService.tasks, list: list, currentUserId: authManager.userId)
+    /// Each row used to call `ListTaskCount.count` itself, which is O(lists × tasks) on every
+    /// redraw — and a virtual list re-runs the whole filter pipeline. The Mac memoizes
+    /// `ListTaskCount.counts`; this does the same, keyed on what the counts are made of.
+    private var badges: Badges {
+        let userId = authManager.userId
+        let key = BadgesKey(tasks: taskService.tasks, lists: listService.lists,
+                            publicLists: publicLists, userId: userId)
+        return badgesMemo.value(for: key) {
+            let tasks = key.tasks
+            // Public lists badge too. Your own copy of a list goes last so it wins when a list is
+            // in both — that is the copy its own row used to count.
+            let counts = ListTaskCount.counts(tasks, lists: key.publicLists + key.lists, currentUserId: userId)
+            // Count only tasks assigned to current user
+            let myTasks = userId.map { id in tasks.filter { !$0.completed && $0.assigneeId == id }.count } ?? 0
+            return Badges(lists: counts, myTasks: myTasks)
+        }
     }
-
 
     private func loadData() async {
         do {

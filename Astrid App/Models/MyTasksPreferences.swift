@@ -5,7 +5,7 @@ import Combine
 /// My Tasks filter preferences synced across devices
 // Marked `nonisolated` so its Codable conformance is usable off the main actor, where
 // astrid-core's answers are decoded (AITD-320). Only value-type fields, so thread-safe.
-nonisolated struct MyTasksPreferences: Codable {
+nonisolated struct MyTasksPreferences: Codable, Equatable {
     var filterPriority: [Int]?
     var filterAssignee: [String]?
     var filterDueDate: String?

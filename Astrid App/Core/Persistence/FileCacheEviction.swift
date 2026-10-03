@@ -10,14 +10,14 @@
 //  unbounded directory cache (`ImageCache`, task AITD-345) rather than being written twice.
 import Foundation
 
-struct FileCacheEntry: Equatable {
+nonisolated struct FileCacheEntry: Equatable {
     let id: String
     let size: Int
     /// Last access where the platform records it, falling back to modification date.
     let lastAccess: Date
 }
 
-enum FileCacheEviction {
+nonisolated enum FileCacheEviction {
 
     /// The ids to delete so the total falls to `cap` or below, least-recently-accessed first.
     ///

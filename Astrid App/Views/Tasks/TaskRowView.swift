@@ -481,15 +481,11 @@ struct TaskRowView: View {
     /// Used when task has a specific time set (not all-day)
     /// Date+time uses local timezone (user's timezone) since it represents a specific moment
     private func formatDateTimeShort(_ date: Date) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM d"
-        // Use local timezone for date+time (represents specific moment in user's timezone)
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateStyle = .none
-        timeFormatter.timeStyle = .short  // e.g., "6:26 PM"
-
-        return "\(dateFormatter.string(from: date)) \(timeFormatter.string(from: date))"
+        // Local timezone (nil): a timed date is a specific moment in the user's zone. Cached, not
+        // built per row per redraw (AITD-455).
+        let day = DateFormatterCache.formatter(.pattern("MMM d")).string(from: date)
+        let time = DateFormatterCache.formatter(.styles(date: .none, time: .short)).string(from: date)  // e.g., "6:26 PM"
+        return "\(day) \(time)"
     }
 
 

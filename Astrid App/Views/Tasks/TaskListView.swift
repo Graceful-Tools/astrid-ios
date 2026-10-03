@@ -70,6 +70,7 @@ struct TaskListView: View {
     /// having no overlays at all.
     @State private var draggingTaskId: String?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
+    @State private var rowsMemo = Memo<RowsKey, [Task]>()  // see filteredTasks (AITD-455)
     /// Which view the user picked from the unified List/Board/Messages
     /// rotator button. Defaults to `.list`; auto-flips to `.board` when
     /// the selected list has a project board attached (so the board
@@ -889,6 +890,40 @@ struct TaskListView: View {
     /// "under_parent" mode hides subtasks from lists entirely (detail only), and a list can turn
     /// its own subtasks off (ba1deb9d) — both decided by the SHARED ListSubtaskVisibility rule.
     private var filteredTasks: [Task] {
+        rowsMemo.value(for: rowsKey) { computeFilteredTasks() }
+    }
+
+    /// Everything the row pipeline reads. A body is re-evaluated on every selection, drag hover
+    /// and sheet; the pipeline filters, sorts and splices EVERY task, so it now runs only when
+    /// one of these changes (AITD-455). The minute is in the key because the due-date and
+    /// recently-completed filters read the clock.
+    private struct RowsKey: Equatable {
+        let tasks: [Task]
+        let featuredListTasks: [Task]
+        let selectedListId: String?
+        let selectedList: TaskList?
+        let isViewingFromFeatured: Bool
+        let searchText: String
+        let myTasksPreferences: MyTasksPreferences
+        let subtaskDisplay: String?
+        let userId: String?
+        let minute: Int
+    }
+
+    private var rowsKey: RowsKey {
+        RowsKey(tasks: taskService.tasks,
+                featuredListTasks: featuredListTasks,
+                selectedListId: selectedListId,
+                selectedList: selectedList,
+                isViewingFromFeatured: isViewingFromFeatured,
+                searchText: searchText,
+                myTasksPreferences: myTasksPreferences.preferences,
+                subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay,
+                userId: AuthManager.shared.userId,
+                minute: Int(Date().timeIntervalSince1970 / 60))
+    }
+
+    private func computeFilteredTasks() -> [Task] {
         let top = topLevelFilteredTasks
         guard ListSubtaskVisibility.shouldSplice(
             listShowSubtasks: selectedList?.showSubtasks,

@@ -36,12 +36,27 @@ final class URLLoadCoordinator<Value> {
 }
 
 /// In-memory and disk image cache for fast loading
-class ImageCache {
+///
+/// `nonisolated` (AITD-455): under the target's MainActor default this class was main-actor
+/// isolated, so `getAsync` read the file and decoded the image on main. NSCache and
+/// FileManager.default are thread-safe, the directory is a `let`, and the one counter is locked.
+nonisolated final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
 
     private let memoryCache = NSCache<NSURL, PlatformImage>()
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
+
+    /// Bytes written since the directory was last swept, and how many sweeps have run (tests).
+    private let sweepLock = NSLock()
+    private var bytesSinceSweep = 0
+    private var sweeps = 0
+    var sweepCount: Int { sweepLock.withLock { sweeps } }
+
+    /// How much may be written before the directory is scanned again (AITD-455). Every store used
+    /// to list and stat the whole directory; the cap is a budget, not an exact line, so it may run
+    /// over by this much between sweeps.
+    static let sweepEveryBytes = diskByteLimit / 10
 
     /// How much disk the image cache may occupy (AITD-345). The memory cache has always been
     /// bounded; the disk one only ever shrank on sign-out.
@@ -79,6 +94,10 @@ class ImageCache {
     /// Same policy as the attachment cache — `FileCacheEviction`, written once and shared
     /// (AITD-344 built it for exactly this).
     func enforceDiskLimit(cap: Int = ImageCache.diskByteLimit) {
+        sweepLock.lock()
+        bytesSinceSweep = 0
+        sweeps += 1
+        sweepLock.unlock()
         let removed = FileCacheEviction.sweep(directory: cacheDirectory, cap: cap, fileManager: fileManager)
         guard removed > 0 else { return }
         AppLog.debug("🧹 [ImageCache] Evicted \(removed) images over the \(cap) byte cap")
@@ -106,7 +125,7 @@ class ImageCache {
         if let data = try? Data(contentsOf: fileURL),
            let image = PlatformImage(data: data) {
             // Store in memory cache for next time
-            memoryCache.setObject(image, forKey: url as NSURL)
+            remember(image, for: url)
             AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
             return image
         }
@@ -114,9 +133,12 @@ class ImageCache {
         return nil
     }
 
-    /// Get image from cache asynchronously - safe to call from background
-    /// Returns nil if not in cache, otherwise loads from disk on background and creates PlatformImage on main thread
-    func getAsync(url: URL) async -> PlatformImage? {
+    /// Memory, then the disk read and decode — OFF the main actor (`@concurrent`, AITD-455).
+    ///
+    /// This used to hop to `MainActor.run` to build the image, and because the class itself was
+    /// main-actor isolated the file read happened there too. Decoding from data is thread-safe;
+    /// on iOS the bitmap is also prepared here, so the first draw on main does not decode lazily.
+    @concurrent func getAsync(url: URL) async -> PlatformImage? {
         // Check memory cache first (thread-safe)
         if let cached = memoryCache.object(forKey: url as NSURL) {
             AppLog.debug("✅ [ImageCache] Memory hit: \(url.lastPathComponent)")
@@ -129,13 +151,36 @@ class ImageCache {
             return nil
         }
 
-        // Create PlatformImage on main thread to avoid "visual style disabled" warning
-        return await MainActor.run {
-            guard let image = PlatformImage(data: data) else { return nil as PlatformImage? }
-            memoryCache.setObject(image, forKey: url as NSURL)
-            AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
-            return image
+        guard let decoded = PlatformImage(data: data) else { return nil }
+        #if canImport(UIKit)
+        let image = decoded.preparingForDisplay() ?? decoded
+        #else
+        let image = decoded
+        #endif
+        remember(image, for: url)
+        AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
+        return image
+    }
+
+    /// What an image costs NSCache: its decoded bitmap, not its file size (AITD-455).
+    ///
+    /// Without a cost every image counted as zero, so `totalCostLimit` never evicted anything —
+    /// only the 100-image count did, however large those images were.
+    static func decodedCost(of image: PlatformImage) -> Int {
+        #if canImport(UIKit)
+        if let cg = image.cgImage { return cg.bytesPerRow * cg.height }
+        let pixels = image.size.width * image.scale * image.size.height * image.scale
+        return Int(pixels) * 4
+        #else
+        if let rep = image.representations.first {
+            return rep.pixelsWide * rep.pixelsHigh * 4
         }
+        return Int(image.size.width * image.size.height) * 4
+        #endif
+    }
+
+    private func remember(_ image: PlatformImage, for url: URL) {
+        memoryCache.setObject(image, forKey: url as NSURL, cost: Self.decodedCost(of: image))
     }
 
     /// Store an image and the bytes it was decoded from.
@@ -145,10 +190,16 @@ class ImageCache {
     /// multi-megabyte PNG, and the encode ran on the main actor. The original response bytes are
     /// both smaller and free, and they are already in hand at the one call site.
     func store(_ data: Data, image: PlatformImage, for url: URL) {
-        memoryCache.setObject(image, forKey: url as NSURL)
+        remember(image, for: url)
         try? data.write(to: diskCacheURL(for: url))
         AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
-        enforceDiskLimit()
+
+        // Sweep once enough has been written to matter, not after every store (AITD-455).
+        sweepLock.lock()
+        bytesSinceSweep += data.count
+        let due = bytesSinceSweep >= Self.sweepEveryBytes
+        sweepLock.unlock()
+        if due { enforceDiskLimit() }
     }
 
 
