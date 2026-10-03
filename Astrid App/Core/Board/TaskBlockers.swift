@@ -40,13 +40,6 @@ struct TaskBlockersResponse: Codable {
     let dependentIds: [String]
 }
 
-/// `POST` / `DELETE` on the blockers route (web `V1BlockerMutationResponse`).
-struct TaskBlockerMutationResponse: Codable {
-    let taskId: String
-    let blockingTaskId: String
-    let blockedBy: [TaskBlocker]
-}
-
 /// A task as the v1 search endpoint returns it — only what the picker needs.
 struct BlockerSearchHit: Codable, Identifiable, Equatable {
     struct ListRef: Codable, Equatable {

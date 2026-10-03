@@ -441,4 +441,40 @@ final class UserImageCacheTests: DefaultsTestCase {
         // Then
         XCTAssertEqual(UserImageCache.shared.getImageURL(userId: "author-1"), "https://example.com/author.jpg")
     }
+
+    // MARK: - Batched persistence
+
+    /// Counts writes so the batch paths can be held to one save per call.
+    private final class CountingDefaults: UserDefaults {
+        var writes = 0
+        override func set(_ value: Any?, forKey defaultName: String) {
+            writes += 1
+            super.set(value, forKey: defaultName)
+        }
+    }
+
+    /// A sync hands every task to `cacheFromTasks`; it used to write the whole URL dictionary to
+    /// UserDefaults once per assignee, creator and comment author, on the main actor.
+    @MainActor
+    func testCacheFromTasksPersistsOncePerBatchAndNotAtAllWhenUnchanged() throws {
+        let suite = "UserImageCacheTests.batch.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(CountingDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let cache = UserImageCache(defaults: defaults)
+
+        let alice = TestHelpers.createTestUser(id: "alice", image: "https://example.com/a.png")
+        let bob = TestHelpers.createTestUser(id: "bob", image: "https://example.com/b.png")
+        let tasks = (0..<50).map { _ in TestHelpers.createTestTask(assignee: alice, creator: bob) }
+
+        cache.cacheFromTasks(tasks)
+        XCTAssertEqual(defaults.writes, 1, "one save for the whole batch")
+        XCTAssertEqual(cache.getImageURL(userId: "alice"), "https://example.com/a.png")
+        XCTAssertEqual(cache.getImageURL(userId: "bob"), "https://example.com/b.png")
+
+        cache.cacheFromTasks(tasks)
+        XCTAssertEqual(defaults.writes, 1, "nothing changed, nothing saved")
+
+        // Still survives a cold launch.
+        XCTAssertEqual(UserImageCache(defaults: defaults).getImageURL(userId: "alice"), "https://example.com/a.png")
+    }
 }

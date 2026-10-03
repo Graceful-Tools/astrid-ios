@@ -143,7 +143,7 @@ struct MacChatPanelView: View {
 
     private func apply(_ s: MacAutocomplete.Suggestion) {
         guard let hit = activeHit else { return }
-        text = MacAutocomplete.insert(label: s.label, into: text, hit: hit)
+        text = MacAutocomplete.insert(label: s.label, id: s.id, into: text, hit: hit)
         suggestions = []; activeHit = nil
     }
 

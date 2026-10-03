@@ -17,19 +17,4 @@ enum ListOrdering {
         }
         return list1.name.localizedCaseInsensitiveCompare(list2.name) == .orderedAscending
     }
-
-    /// The index at which `list` belongs in an array already in this order.
-    static func insertionIndex(for list: TaskList, in sorted: [TaskList]) -> Int {
-        var low = 0
-        var high = sorted.count
-        while low < high {
-            let mid = (low + high) / 2
-            if isOrderedBefore(sorted[mid], list) {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-        return low
-    }
 }

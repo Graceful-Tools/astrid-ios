@@ -569,7 +569,7 @@ struct MacRootView: View {
                 try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
                 debouncedSearchQuery = taskSearchQuery
             }
-            let results = MacTaskSearch.matches(taskService.tasks, query: debouncedSearchQuery)
+            let results = TaskSearch.results(taskService.tasks, query: debouncedSearchQuery)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                 // Branded Astrid empty states, like every other empty surface — search was the
                 // last place still showing system ContentUnavailableView chrome.

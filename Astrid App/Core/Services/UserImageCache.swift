@@ -27,19 +27,30 @@ class UserImageCache {
 
     /// Store image URL for a user
     func setImageURL(_ imageURL: String?, for userId: String) {
-        guard let imageURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !imageURL.isEmpty else {
-            cache.removeValue(forKey: userId)
-            persist()
-            return
-        }
-        cache[userId] = imageURL
-        persist()
+        if store(imageURL, for: userId) { persist() }
     }
 
     /// Update cache from a User object
     func cacheUser(_ user: User) {
         setImageURL(user.image, for: user.id)
+    }
+
+    /// Update the in-memory cache only; says whether anything changed. The batch entry points
+    /// call this per user and persist once — a sync used to write the whole dictionary to
+    /// UserDefaults once per assignee, creator and comment author, on the main actor.
+    @discardableResult
+    private func store(_ imageURL: String?, for userId: String) -> Bool {
+        guard let imageURL = imageURL?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !imageURL.isEmpty else {
+            return cache.removeValue(forKey: userId) != nil
+        }
+        guard cache[userId] != imageURL else { return false }
+        cache[userId] = imageURL
+        return true
+    }
+
+    private func store(_ user: User) -> Bool {
+        store(user.image, for: user.id)
     }
 
     /// Prepare the locally restored session user's avatar before cached task rows render.
@@ -56,47 +67,35 @@ class UserImageCache {
 
     /// Update cache from list member data (called during list sync)
     func cacheFromLists(_ lists: [TaskList]) {
-        var count = 0
-
+        var changed = false
         for list in lists {
-            // Cache owner
             if let owner = list.owner {
-                cacheUser(owner)
-                count += 1
+                changed = store(owner) || changed
             }
-
-            // Cache from listMembers — canonical member source (legacy
-            // admins/members arrays are no longer populated).
-            if let listMembers = list.listMembers {
-                for listMember in listMembers {
-                    if let user = listMember.user {
-                        cacheUser(user)
-                        count += 1
-                    }
-                }
+            // listMembers is the canonical member source (legacy admins/members arrays are no
+            // longer populated).
+            for user in (list.listMembers ?? []).compactMap(\.user) {
+                changed = store(user) || changed
             }
         }
-
-        // Silently cache - no logging needed during normal sync
+        if changed { persist() }
     }
 
     /// Update cache from task data (assignee, creator, comment authors)
     func cacheFromTasks(_ tasks: [Task]) {
+        var changed = false
         for task in tasks {
             if let assignee = task.assignee {
-                cacheUser(assignee)
+                changed = store(assignee) || changed
             }
             if let creator = task.creator {
-                cacheUser(creator)
+                changed = store(creator) || changed
             }
-            if let comments = task.comments {
-                for comment in comments {
-                    if let author = comment.author {
-                        cacheUser(author)
-                    }
-                }
+            for author in (task.comments ?? []).compactMap(\.author) {
+                changed = store(author) || changed
             }
         }
+        if changed { persist() }
     }
 
     /// Clear all cached user images

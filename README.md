@@ -212,6 +212,7 @@ cutting a second release or it collides with the previous tag.
 - [ASTRID.md](./ASTRID.md) - Architecture rules and cross-platform contracts (read first)
 - [docs/API_ENDPOINTS.md](./docs/API_ENDPOINTS.md) - Every API path the app calls
 - [docs/API_CONTRACT.md](./docs/API_CONTRACT.md) - Wire shapes, SSE events, errors
+- [docs/CORE_MIGRATION.md](./docs/CORE_MIGRATION.md) - Moving the Apple apps onto astrid-core
 - [docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) - Outbox and caching
 - [docs/SYNC_ARCHITECTURE.md](./docs/SYNC_ARCHITECTURE.md) - External sync providers
 - [docs/MAC_SIGNING.md](./docs/MAC_SIGNING.md), [docs/MAC_DISTRIBUTION.md](./docs/MAC_DISTRIBUTION.md) - Mac signing and release channels
@@ -232,7 +233,7 @@ reads are cache-first. [ASTRID.md](./ASTRID.md) holds the rules and control poin
 - **SwiftUI** for all views
 - **Async/await** for asynchronous operations
 - **MVVM-like** architecture (Views + Services)
-- **No external dependencies** (system frameworks only)
+- **No third-party dependencies** beyond our own astrid-core (`Packages/AstridCore`)
 
 ## Related Repositories
 

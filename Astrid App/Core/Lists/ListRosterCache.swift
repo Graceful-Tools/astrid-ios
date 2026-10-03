@@ -21,7 +21,8 @@ enum ListRosterCache {
     }
 
     /// Returns nil when there is nothing worth remembering, which callers must treat as
-    /// "leave what you had" rather than "forget" — see `CDTaskList.update(from:)`. A list can
+    /// "leave what you had" rather than "forget". (Core Data is now only read, by the one-time
+    /// `CoreUpgrade` seed; the writer is gone and this half survives for the tests.) A list can
     /// reach the cache unhydrated (an optimistic local create, a minimal API response), and
     /// letting that erase a good roster would reintroduce the bug on the next relaunch.
     static func encode(owner: User?, members: [ListMember]?) -> String? {

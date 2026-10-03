@@ -17,8 +17,8 @@ struct InlineListsPicker: View {
     @State private var wasCancelled = false
 
     var filteredLists: [TaskList] {
-        // Filter out virtual lists (saved filters) - users can't add tasks to these
-        let realLists = availableLists.filter { $0.isVirtual != true }
+        // Virtual lists (saved filters) own no tasks — the SHARED rule the Mac picker uses too (D28)
+        let realLists = ListFilingTargets.lists(availableLists)
 
         if searchText.isEmpty {
             return realLists

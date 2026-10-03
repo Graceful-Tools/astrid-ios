@@ -1,5 +1,12 @@
 # Astrid API Contract
 
+This document defines the stable API contract between the Astrid web backend and its native clients (iOS/Mac and Windows, both through astrid-core). Changes to these endpoints follow strict versioning and deprecation policies.
+
+## API Versioning
+
+Versioning is **path-based**: all current endpoints live under `/api/v1/...`. There is no version header. Legacy unversioned `/api/...` routes remain server-side for old clients and must not be removed, but new client code always targets `/api/v1`.
+
+
 ## Effective feature configuration
 
 `GET /api/v1/features` is an additive, authenticated endpoint shared by web
@@ -12,14 +19,6 @@ launches render cached/default values first and refresh after initial render,
 with invalidation delivered over the existing `feature_flags_updated` SSE
 event. Existing API endpoints and wire shapes remain unchanged.
 
-
-This document defines the stable API contract between the Astrid web backend and mobile clients (iOS, Android). Changes to these endpoints follow strict versioning and deprecation policies.
-
-## API Versioning
-
-Versioning is **path-based**: all current endpoints live under `/api/v1/...`. There is no version header. Legacy unversioned `/api/...` routes remain server-side for old clients and must not be removed, but new client code always targets `/api/v1`.
-
-
 ## Endpoints
 
 The paths the app calls are listed in [API_ENDPOINTS.md](./API_ENDPOINTS.md), generated from
@@ -29,24 +28,19 @@ policy.
 
 ---
 
-## Deletion: learned by absence, never by tombstone
+## Deletion: a capped cursor, then tombstones
 
-iOS **never sends an `updatedSince` cursor** on any request. `SyncManager`'s incremental pass is
-a client-side delta over a *full* fetch — `getLists()` and `getAllTasks()`, the latter paging
-until the server is exhausted — and a remote deletion is learned by the row's **absence** from
-that set.
+Sync is astrid-core's (`crates/astrid-core/src/sync/mod.rs`). A pass sends `updatedSince` and
+applies the server's `deletedIds`, but once its stamp is older than 24 hours
+(`sync::max_delta_age`, matching web's own cursor cap) it pulls everything instead and learns a
+deletion by the row's absence.
 
-This is a contract, not an accident. The server attaches `deletedIds` only to a request that
-carries a valid `updatedSince`, and web now expires deletion tombstones after 30 days
-(`DELETION_LOG_RETENTION_DAYS`, AWTD-993). A cursor older than that yields a delta that no longer
-mentions the deletion, and the local copy stays visible forever with nothing raising anything —
-only a full fetch repairs it. Sending no cursor is what keeps the app immune at any age, which
-matters more here than on web: an iOS app can sit unlaunched for months.
-
-Adding a delta cursor therefore needs both halves — a persisted `lastSync` stamp, and a full-fetch
-fallback once it is older than a threshold comfortably under 30 days (web uses 24h,
-`MAX_CURSOR_AGE`). `DeltaSyncCursorGuardTests` fails the build if a cursor appears without them.
-See AITD-427.
+The cap is the contract. The server attaches `deletedIds` only to a request that carries a valid
+`updatedSince`, and web expires deletion tombstones after 30 days (`DELETION_LOG_RETENTION_DAYS`,
+AWTD-993). A cursor older than that would yield a delta that no longer mentions the deletion, and
+the local copy would stay visible forever with nothing raising anything. An Apple app can sit
+unlaunched for months, so the full-pull fallback is not optional. `DeltaSyncCursorGuardTests` only
+keeps Swift code from adding a second, uncapped cursor beside the core's. See AITD-427.
 
 ---
 
@@ -55,14 +49,7 @@ See AITD-427.
 ### GET `/api/v1/sse`
 Server-Sent Events endpoint for real-time updates.
 
-**Events:**
-- `task_created` - New task created
-- `task_updated` - Task modified
-- `task_deleted` - Task removed
-- `list_created` - New list created
-- `list_updated` - List modified
-- `list_deleted` - List removed
-- `comment_created` - New comment added
+Event names: see §SSE events (current) below.
 
 ---
 
@@ -185,5 +172,5 @@ Endpoint: `GET /api/v1/sse`. Event names use underscores: `task_created`, `task_
 - **Uploads**: `/api/v1/secure-upload/request-upload` (<4MB), `/api/v1/secure-upload/get-upload-url` + direct blob (≥4MB)
 - **GitHub (coding agent)**: `/api/v1/github/status`, `/api/v1/github/repositories`
 - **OAuth**: `/api/v1/oauth/token` (client credentials)
-- **Passkeys**: `/api/auth/webauthn/*`
+- **Passkeys**: `/api/auth/webauthn/*` — the one unversioned path, on purpose (no v1 route)
 - **External sync proxy**: `/api/v1/integrations` (+ `github|google/authorize`, `callback`), `/api/v1/sync/github/{repos, links, issues, task-links, comments}`, `/api/v1/sync/google/{tasklists, links, tasks, task-links}` — thin authenticated proxies; provider tokens never leave the server.

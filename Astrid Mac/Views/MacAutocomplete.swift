@@ -40,10 +40,13 @@ enum MacAutocomplete {
         return best
     }
 
-    /// Replace the active trigger token with "<trigger><label> " (trailing space ends the token).
-    static func insert(label: String, into text: String, hit: MacAutocompleteHit) -> String {
+    /// Replace the active trigger token with the reference iOS sends — `@[Name](id) ` (the
+    /// trailing space ends the token). This wrote plain `@label`, which draws no pill and notifies
+    /// nobody (CONTRACTS D23); Jon 2026-10-03: on disagreement follow iOS. The markup is shared.
+    static func insert(label: String, id: String, into text: String, hit: MacAutocompleteHit) -> String {
         let start = text.index(text.startIndex, offsetBy: hit.triggerOffset)
-        return String(text[..<start]) + String(hit.kind.trigger) + label + " "
+        return String(text[..<start])
+            + ReferenceMarkup.reference(trigger: hit.kind.trigger, name: label, id: id) + " "
     }
 
     struct Suggestion: Identifiable, Equatable {

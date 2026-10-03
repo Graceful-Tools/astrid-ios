@@ -8,7 +8,7 @@ core, [astrid-core](https://github.com/Graceful-Tools/astrid-core). Architecture
 
 Every rule the apps enforce exists three times: on the web (canonical), in astrid-core (which the
 Windows app runs on), and in Swift here. The copies drift — astrid-core's `docs/CONTRACTS.md`
-records seventeen divergences, several of them bugs that cost real users something (D6 locks
+records its divergences (D1–D32), several of them bugs that cost real users something (D6 locks
 people out of private lists on Apple). The goal is one implementation: the core decides, the
 Swift apps render and dispatch.
 
@@ -18,7 +18,7 @@ Swift apps render and dispatch.
 Astrid App / Astrid Mac (Swift)
         │  import AstridCore                         Packages/AstridCore (SwiftPM)
         ├── CoreRules.ask(...)      sync, stateless ─┐   Sources/AstridCore        hand-written facade
-        └── CoreClient.run(...)     async, stateful ─┤   Sources/AstridCoreBindings  generated (UniFFI)
+        └── CoreSession.run(...)    async, stateful ─┤   Sources/AstridCoreBindings  generated (UniFFI)
                                                      │   AstridCoreFFI.xcframework   the Rust static lib
                                      core/astrid-apple (Rust, UniFFI)
                                                      │
@@ -63,7 +63,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
-| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*`, view pipelines, `ProjectStatus`, `MacTaskSearch`, `FuzzyMatch` | with the data layer — they run over the whole task set, which the core already holds |
+| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*` (incl. `TaskSearch`, `MyTasksScope`), view pipelines, `ProjectStatus`, `FuzzyMatch` | **not started** — the core has every one (`rowsForList`, `searchTasks`, `board`, `palette`, `myTasksList`), but Swift calls none of them yet. Blocked on one core read that returns every cached task in the wire shape |
 | Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
@@ -88,13 +88,25 @@ or filed.
   made on the web. The core's `completion` rule now counts locally; the server-side fix is filed.
 - **Swift never cleared a "won't do" reason on reopen** — moot on Apple today (Swift has no
   `closedReason`), and the core's rule does.
-- Found by the mapping pass (2026-09-28), not yet in `CONTRACTS.md`: the completion-filter values
-  mean different things (Swift `completed`/`incomplete` vs core `hide`); Mac mentions insert a
-  plain `@label` instead of `@[Name](id)`; snooze moves `dueDateTime` on Apple but `reminderTime`
-  in the core, with different choices; iOS My Tasks is "assigned to me" where the Mac and core
+- Found by the mapping pass (2026-09-28), since recorded as CONTRACTS D22–D28: the
+  completion-filter values mean different things (Swift `completed`/`incomplete` vs core `hide`);
+  Mac mentions insert a plain `@label` instead of `@[Name](id)`; snooze moves `dueDateTime` on
+  Apple but `reminderTime` in the core; iOS My Tasks is "assigned to me" where the Mac and core
   include unassigned; due-date quick picks have no "No due date" on Apple; priority labels are
-  off by one between Apple and the core; each Apple list picker applies half of
-  `is_destination`; CONTRACTS D8 is stale (the Mac already uses the shared assignee builder).
+  off by one between Apple and the core; each Apple list picker applies half of `is_destination`.
+  (D8 is resolved — the Mac uses the shared assignee builder, AITD-401.)
+- **On disagreement the Mac follows iOS** (Jon, 2026-10-03). Where the two Apple apps disagreed
+  with each other, the Mac now does what iOS does, through one shared Swift helper both call:
+  D23 — a Mac mention inserts the `@[Name](id)` reference (`ReferenceMarkup`); D25 — My Tasks is
+  "assigned to me" on both (`MyTasksScope`); D28 — both list pickers leave out virtual lists and
+  only those (`ListFilingTargets`); search is iOS's on both (`TaskSearch`); and iOS's private
+  subtask splice gave way to the shared `spliceSubtasks` (the same rule — the "8 vs 10" was the
+  depth walk's cap against the splice's, not a disagreement). D26 and D27 were already alike on
+  the two apps. Apple-vs-core differences (D22, D24, the unassigned half of D25, the status half
+  of D28, D26, D27) stand until settled against the web.
+- **"Recently completed" sort never reached a list.** Task c6e87fb8 added `completedAt` to a copy
+  of the sort nothing called (`Core/Board/TaskSort.swift`), so its tests passed while both apps
+  sorted such a list as auto. The case is now in `sortTasksByListSetting`, and the copy is gone.
 
 ## The data layer: design
 

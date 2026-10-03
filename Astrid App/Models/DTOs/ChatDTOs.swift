@@ -1,16 +1,5 @@
 import Foundation
 
-// MARK: - Chat Channel DTOs
-
-struct ChatChannelResponse: Codable {
-    let channel: ChatChannel
-}
-
-struct CreateChatChannelRequest: Codable {
-    var listId: String?
-    var virtualKey: String?
-}
-
 // MARK: - Chat Message DTOs
 
 struct ChatMessagesResponse: Codable {

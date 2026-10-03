@@ -181,7 +181,9 @@ func reconstructReferencesInText(_ text: String, references: [InsertedReference]
     var result = text
     let sorted = references.sorted { $0.displayText.count > $1.displayText.count }
     for ref in sorted {
-        let fullRef = "\(ref.displayText.prefix(1))[\(ref.displayText.dropFirst())](\(ref.id))"
+        guard let trigger = ref.displayText.first else { continue }
+        // The SHARED markup (Core/Tasks/ReferenceMarkup) — the Mac inserts the same (D23).
+        let fullRef = ReferenceMarkup.reference(trigger: trigger, name: String(ref.displayText.dropFirst()), id: ref.id)
         if let range = result.range(of: ref.displayText) {
             result = result.replacingCharacters(in: range, with: fullRef)
         }

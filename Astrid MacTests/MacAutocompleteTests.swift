@@ -32,9 +32,12 @@ final class MacAutocompleteTests: XCTestCase {
         XCTAssertNil(MacAutocomplete.detectTrigger(in: "issue#42"))
     }
 
+    /// The token becomes the reference iOS sends, not plain "#Work" — a plain label draws no pill
+    /// and reaches nobody (CONTRACTS D23; Jon 2026-10-03: on disagreement follow iOS).
     func testInsertReplacesToken() {
         let hit = MacAutocomplete.detectTrigger(in: "hey #wor")!
-        XCTAssertEqual(MacAutocomplete.insert(label: "Work", into: "hey #wor", hit: hit), "hey #Work ")
+        XCTAssertEqual(MacAutocomplete.insert(label: "Work", id: "l-work", into: "hey #wor", hit: hit),
+                       "hey #[Work](l-work) ")
     }
 
     // Shared suggestion builder (chat + task-detail comments) — Task eda86d23.

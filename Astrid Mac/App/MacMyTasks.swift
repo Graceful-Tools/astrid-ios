@@ -1,10 +1,9 @@
 //  MacMyTasks.swift
 //  Astrid for Mac — pure filter for the virtual "My Tasks" sidebar entry (Task d0306aab).
 //
-//  The universal "My Tasks" view: every task that is mine or unassigned, de-duplicated across
-//  lists. (iOS scopes My Tasks to assignee == me; on Mac we also include unassigned tasks so the
-//  universal list isn't empty when the user hasn't explicitly assigned tasks to themselves.
-//  Tasks assigned to OTHER people are excluded.)
+//  The universal "My Tasks" view: every task assigned to me, de-duplicated across lists. The Mac
+//  used to include unassigned tasks as well while iOS did not (CONTRACTS D25); Jon 2026-10-03: on
+//  disagreement follow iOS. The scope is now the shared `MyTasksScope`, which iOS calls too.
 //
 //  THE SAVED FILTERS APPLY HERE TOO (task ebdf94a1). This used to hardcode "incomplete", which
 //  meant the completion filter could not even be expressed, and priority and due date were
@@ -30,11 +29,7 @@ enum MacMyTasks {
                        userId: String?,
                        preferences: MyTasksPreferences) -> [Task] {
         // Scope first: whose tasks these are is not a filter the user can change here.
-        var seen = Set<String>()
-        var result = tasks.filter { task in
-            let mineOrUnassigned = task.assigneeId == nil || task.assigneeId == userId
-            return mineOrUnassigned && seen.insert(task.id).inserted
-        }
+        var result = MyTasksScope.tasks(tasks, userId: userId)
 
         // Completion. No per-list recently-completed window applies to the virtual list, so the
         // window is nil and the shared helper falls back to its plain behaviour.

@@ -1284,25 +1284,6 @@ struct ListMemberData: Codable {
     var type: String? = nil  // "member" or "invite" — invite entries have id prefixed with "invite_"
 }
 
-struct AddMemberResponse: Codable {
-    let message: String
-    let member: ListMemberData?  // nil when invitation is sent to non-existing user
-    let invitation: InvitationData?  // Present when user doesn't exist yet
-    let meta: MetaInfo
-}
-
-struct InvitationData: Codable {
-    let email: String
-    let role: String
-    let status: String
-}
-
-struct UpdateMemberResponse: Codable {
-    let message: String
-    let member: ListMemberData
-    let meta: MetaInfo
-}
-
 // MARK: - Public List Types
 
 struct PublicListsResponse: Codable {

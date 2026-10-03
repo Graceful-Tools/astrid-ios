@@ -58,12 +58,6 @@ class CoreDataManager {
         persistentContainer.viewContext
     }
 
-    func newBackgroundContext() -> NSManagedObjectContext {
-        let context = persistentContainer.newBackgroundContext()
-        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        return context
-    }
-
     // MARK: - Store Loading Management
 
     private func markStoreAsLoaded() {
@@ -75,45 +69,6 @@ class CoreDataManager {
             continuation.resume()
         }
         storeLoadContinuations.removeAll()
-    }
-    
-    // MARK: - Save
-    
-    func save(context: NSManagedObjectContext? = nil) throws {
-        let context = context ?? viewContext
-        
-        guard context.hasChanges else { return }
-        
-        do {
-            try context.save()
-        } catch {
-            AppLog.debug("❌ Failed to save Core Data context: \(error)")
-            throw error
-        }
-    }
-    
-    func saveInBackground(_ block: @escaping (NSManagedObjectContext) throws -> Void) async throws {
-        let context = newBackgroundContext()
-        
-        try await context.perform {
-            try block(context)
-            try self.save(context: context)
-        }
-    }
-    
-    // MARK: - Fetch
-    
-    func fetch<T: NSManagedObject>(_ request: NSFetchRequest<T>, context: NSManagedObjectContext? = nil) throws -> [T] {
-        let context = context ?? viewContext
-        return try context.fetch(request)
-    }
-    
-    // MARK: - Delete
-    
-    func delete(_ object: NSManagedObject, context: NSManagedObjectContext? = nil) throws {
-        let context = context ?? viewContext
-        context.delete(object)
-        try save(context: context)
     }
     
     // MARK: - Clear All Data

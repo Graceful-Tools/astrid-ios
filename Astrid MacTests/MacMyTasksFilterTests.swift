@@ -13,10 +13,9 @@
 //  implementation of "what "today" means" is how two platforms start disagreeing about a due
 //  date (ASTRID.md rule 8).
 //
-//  WHAT DELIBERATELY DOES NOT CHANGE: Mac includes UNASSIGNED tasks in My Tasks while iOS scopes
-//  to assignee == me (task d0306aab, and the reasoning is in MacMyTasks). This task is about the
-//  filters, not about that scope, so the scope is left alone and pinned below — otherwise
-//  "just like iOS" quietly becomes a second, unasked-for change.
+//  THE SCOPE: this task left the Mac's "mine or unassigned" scope alone. It has since moved to
+//  iOS's "assigned to me" (CONTRACTS D25) — Jon 2026-10-03: on disagreement follow iOS — and is
+//  pinned below.
 
 #if os(macOS)
 import XCTest
@@ -51,15 +50,15 @@ final class MacMyTasksFilterTests: XCTestCase {
                            manualSortOrder: nil)
     }
 
-    // MARK: - The scope, which this task does not change
+    // MARK: - The scope (iOS's, since D25)
 
-    func testMineAndUnassignedAreIncludedAndOtherPeopleAreNot() {
+    func testOnlyMineIsIncluded() {
         let tasks = [task("a", assignee: me),
                      task("b", assignee: nil),
                      task("c", assignee: someoneElse)]
         let ids = MacMyTasks.filter(tasks, userId: me, preferences: defaults()).map(\.id)
-        XCTAssertEqual(ids.sorted(), ["a", "b"],
-                       "Mac deliberately includes unassigned tasks — see task d0306aab")
+        XCTAssertEqual(ids.sorted(), ["a"],
+                       "My Tasks is what is assigned to me, as on iOS (D25) — not unassigned")
     }
 
     // MARK: - Completion

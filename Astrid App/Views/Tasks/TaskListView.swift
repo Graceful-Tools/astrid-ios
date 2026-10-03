@@ -749,32 +749,6 @@ struct TaskListView: View {
         // The merge happens in filteredTasks computed property
     }
 
-    // MARK: - Search Logic
-
-    private func applySearchFilter(_ tasks: [Task], query: String) -> [Task] {
-        let lowercaseQuery = query.lowercased()
-
-        return tasks.filter { task in
-            // Search in title
-            if task.title.lowercased().contains(lowercaseQuery) {
-                return true
-            }
-
-            // Search in description
-            if task.description.lowercased().contains(lowercaseQuery) {
-                return true
-            }
-
-            // Search in assignee name (if available)
-            if let assigneeName = task.assignee?.displayName,
-               assigneeName.lowercased().contains(lowercaseQuery) {
-                return true
-            }
-
-            return false
-        }
-    }
-
     // MARK: - List Settings Sheet
 
     @ViewBuilder
@@ -818,7 +792,7 @@ struct TaskListView: View {
     /// One definition, used by both the padding that draws it and the drop zone that has to
     /// cover it. Two copies would drift, and the drift would be a dead strip beside the row.
     private func rowIndent(for task: Task) -> CGFloat {
-        CGFloat(min(subtaskDepth(task), 4)) * 16
+        CGFloat(min(subtaskDepth(task, byId: taskService.tasksById), 4)) * 16
     }
 
     // MARK: - Re-nesting by drag
@@ -919,38 +893,11 @@ struct TaskListView: View {
         guard ListSubtaskVisibility.shouldSplice(
             listShowSubtasks: selectedList?.showSubtasks,
             subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay) else { return top }
-        var byParent: [String: [Task]] = [:]
-        for t in taskService.tasks {
-            if let parentId = t.parentTaskId { byParent[parentId, default: []].append(t) }
-        }
-        guard !byParent.isEmpty else { return top }
-        // Depth-first: nested subtasks (subtasks of subtasks, any depth) all
-        // render, each following the SAME completion settings as the list.
-        // Depth cap of 10 guards against bad-data cycles.
-        var out: [Task] = []
-        func appendSubtree(_ task: Task, depth: Int) {
-            out.append(task)
-            guard depth < 10, let subs = byParent[task.id] else { return }
-            let visible = applyContextCompletionFilter(subs)
-                .sorted { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
-            for sub in visible { appendSubtree(sub, depth: depth + 1) }
-        }
-        for t in top { appendSubtree(t, depth: 0) }
-        return out
-    }
-
-    /// Nesting depth of a task (0 = top-level), walking parentTaskId with a
-    /// cycle-safe cap. O(1) parent lookups via tasksById (was an O(n) scan per
-    /// ancestor step → O(depth×n) per row → O(n²) across the list).
-    private func subtaskDepth(_ task: Task) -> Int {
-        let byId = taskService.tasksById
-        var depth = 0
-        var parentId = task.parentTaskId
-        while let pid = parentId, depth < 8 {
-            depth += 1
-            parentId = byId[pid]?.parentTaskId
-        }
-        return depth
+        // Depth-first splice via the SHARED implementation (Core/Filters/SubtaskSplicing, used by
+        // Mac too): nested subtasks render at any depth, each following the SAME completion
+        // settings as the list.
+        return spliceSubtasks(topLevel: top, allTasks: taskService.tasks, indented: true,
+                              subtaskVisible: { !applyContextCompletionFilter([$0]).isEmpty })
     }
 
     /// The completion filter the CURRENT view context applies to its rows —
@@ -987,12 +934,9 @@ struct TaskListView: View {
 
         // If search is active, show ALL matching tasks across all lists (ignore list selection)
         if !searchText.isEmpty {
-            tasks = applySearchFilter(tasks, query: searchText)
-            // Apply default completion filter (hide completed by default)
-            tasks = applyCompletionFilter(tasks, filterCompletion: "default")
-            // Sort by priority
-            tasks = applySorting(tasks, sortBy: "priority")
-            return tasks
+            // The SHARED search (Core/Filters/TaskSearch, used by Mac too): the query as one
+            // phrase, default completion filter, highest priority first.
+            return TaskSearch.results(tasks, query: searchText)
         }
 
         // If viewing from featured, merge featuredListTasks with user's own tasks
@@ -1038,14 +982,9 @@ struct TaskListView: View {
 
         // Handle special "my-tasks" virtual list
         if selectedListId == "my-tasks" {
-            // Filter to show tasks assigned to current user ONLY
-            if let currentUserId = AuthManager.shared.userId {
-                tasks = tasks.filter { task in
-                    task.assigneeId == currentUserId
-                }
-            } else {
-                tasks = []
-            }
+            // Tasks assigned to the current user ONLY — the SHARED scope (Core/Filters/MyTasksScope),
+            // which the Mac uses too (CONTRACTS D25).
+            tasks = MyTasksScope.tasks(tasks, userId: AuthManager.shared.userId)
 
             // Apply user's saved filter preferences (synced across devices)
             let completion = myTasksPreferences.preferences.filterCompletion ?? "default"

@@ -109,13 +109,10 @@ class TaskService: ObservableObject {
             return
         }
 
-        var next = tasks
-        for (temp, real) in moved {
-            recordTempTaskMapping(tempId: temp, realId: real)
-            next.removeAll { $0.id == temp }
-        }
-        next.removeAll { wanted.contains($0.id) && !foundIds.contains($0.id) }
-        for task in found { upsert(task, into: &next) }
+        for (temp, real) in moved { recordTempTaskMapping(tempId: temp, realId: real) }
+        let dropped = Set(moved.keys).union(wanted.filter { !foundIds.contains($0) })
+        var next = tasks.filter { !dropped.contains($0.id) }
+        upsert(found, into: &next)
         publish(next)
         refreshOutboxCounts()
     }
@@ -155,10 +152,19 @@ class TaskService: ObservableObject {
     }
 
     private func upsert(_ task: Task, into list: inout [Task]) {
-        if let index = list.firstIndex(where: { $0.id == task.id }) {
-            list[index] = task
-        } else {
-            list.append(task)
+        upsert([task], into: &list)
+    }
+
+    /// One index pass, not a linear search per task.
+    private func upsert(_ tasks: [Task], into list: inout [Task]) {
+        var index = Dictionary(list.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for task in tasks {
+            if let at = index[task.id] {
+                list[at] = task
+            } else {
+                index[task.id] = list.count
+                list.append(task)
+            }
         }
     }
 
@@ -192,8 +198,11 @@ class TaskService: ObservableObject {
         struct Stats: Decodable { let pending: Int; let running: Int; let failed: Int }
         _Concurrency.Task {
             guard let stats = try? await core.run(CoreCommand(kind: "outboxStats"), as: Stats.self) else { return }
-            pendingOperationsCount = stats.pending + stats.running
-            failedOperationsCount = stats.failed
+            // This runs after every reload, echoes included; `@Published` fires on every
+            // assignment, so an unchanged count would still redraw every observer.
+            let pending = stats.pending + stats.running
+            if pending != pendingOperationsCount { pendingOperationsCount = pending }
+            if stats.failed != failedOperationsCount { failedOperationsCount = stats.failed }
         }
     }
 

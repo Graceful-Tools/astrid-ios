@@ -75,84 +75,10 @@ public class CDChatMessage: NSManagedObject {
             updatedAt: updatedAt
         )
     }
-
-    // MARK: - Update from Domain Model
-
-    func update(from message: ChatMessage) {
-        self.channelId = message.channelId
-        self.content = message.content
-        self.type = message.type.rawValue
-        self.authorId = message.authorId
-        self.authorName = message.author?.name
-        self.authorImage = message.author?.image
-        self.authorIsAIAgent = message.author?.isAIAgent ?? false
-        self.authorAIAgentType = message.author?.aiAgentType
-        self.replyToId = message.replyToId
-        self.clientRequestId = message.clientRequestId
-        self.createdAt = message.createdAt
-        self.updatedAt = message.updatedAt ?? Date()
-
-        // Serialize secureFiles to JSON
-        if let secureFiles = message.secureFiles, !secureFiles.isEmpty {
-            if let jsonData = try? JSONEncoder().encode(secureFiles),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                self.secureFilesData = jsonString
-            }
-        } else {
-            self.secureFilesData = nil
-        }
-    }
 }
 
 extension CDChatMessage {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<CDChatMessage> {
         return NSFetchRequest<CDChatMessage>(entityName: "CDChatMessage")
-    }
-
-    static func fetchAll(context: NSManagedObjectContext) throws -> [CDChatMessage] {
-        let request = fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        return try context.fetch(request)
-    }
-
-    static func fetchById(_ id: String, context: NSManagedObjectContext) throws -> CDChatMessage? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
-    }
-
-    // MARK: - Retry Policy
-
-    /// Maximum retry attempts before giving up
-    static let maxSyncAttempts: Int16 = 10
-
-    /// Calculate next retry delay using exponential backoff
-    var nextRetryDelay: TimeInterval {
-        let baseDelay: TimeInterval = 1
-        let maxDelay: TimeInterval = 32
-        return min(baseDelay * pow(2, Double(syncAttempts)), maxDelay)
-    }
-
-    /// Whether we should give up on syncing
-    var shouldGiveUp: Bool {
-        syncAttempts >= CDChatMessage.maxSyncAttempts
-    }
-
-    /// Whether we can retry now (respects backoff delay)
-    var canRetryNow: Bool {
-        guard !shouldGiveUp else { return false }
-        guard let lastAttempt = lastSyncAttemptAt else { return true }
-        return Date().timeIntervalSince(lastAttempt) >= nextRetryDelay
-    }
-
-    /// Reset retry state after successful sync
-    func resetSyncState() {
-        syncAttempts = 0
-        lastSyncAttemptAt = nil
-        syncError = nil
-        syncStatus = "synced"
-        lastSyncedAt = Date()
-        pendingOperation = nil
     }
 }

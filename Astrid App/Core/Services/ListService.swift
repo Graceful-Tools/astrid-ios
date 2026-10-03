@@ -58,7 +58,9 @@ class ListService: ObservableObject {
     /// Publish a new set in the one sidebar order, only when something changed.
     private func publish(_ next: [TaskList]) {
         let sorted = next.sorted(by: ListOrdering.isOrderedBefore)
-        pendingListsCount = sorted.filter { $0.id.hasPrefix("temp_") }.count
+        // `@Published` fires on every assignment, equal or not — and every list row observes this.
+        let pending = sorted.filter { $0.id.hasPrefix("temp_") }.count
+        if pending != pendingListsCount { pendingListsCount = pending }
         guard sorted != lists else { return }
         lists = sorted
         cachedLists = Dictionary(sorted.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })

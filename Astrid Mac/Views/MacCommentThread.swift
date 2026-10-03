@@ -44,7 +44,7 @@ final class MacCommentDraft: ObservableObject {
 
     func applySuggestion(_ s: MacAutocomplete.Suggestion) {
         guard let hit else { return }
-        text = MacAutocomplete.insert(label: s.label, into: text, hit: hit)
+        text = MacAutocomplete.insert(label: s.label, id: s.id, into: text, hit: hit)
         clearSuggestions()
     }
 

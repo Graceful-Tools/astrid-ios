@@ -1,9 +1,13 @@
 //  DeltaSyncCursorGuardTests.swift
 //  AITD-427 — "Confirm the app never sends an updatedSince cursor older than 30 days."
 //
-//  The answer, verified 2026-09-23: it never sends one AT ALL, so there is no age to cap.
-//  These tests exist so that stays true, because the day it stops being true is the day the
-//  question becomes a silent data-loss bug rather than a design note.
+//  UPDATE (2026-10-02): sync now lives in astrid-core, which DOES send `updatedSince` and caps
+//  it at 24h (`sync::max_delta_age` in crates/astrid-core/src/sync/mod.rs), falling back to a
+//  full pull past that — the same guard web uses. The "never sends one" analysis below describes
+//  the retired Swift SyncManager; these tests now only keep Swift code from adding a SECOND,
+//  uncapped cursor beside the core's. docs/API_CONTRACT.md §Deletion is the current contract.
+//
+//  The answer, verified 2026-09-23 (Swift sync): it never sent one AT ALL.
 //
 //  WHAT CHANGED ON THE SERVER. Web now expires deletion tombstones (AWTD-993):
 //  `DELETION_LOG_RETENTION_DAYS = 30` in `lib/deletion-log.ts` had existed for months with

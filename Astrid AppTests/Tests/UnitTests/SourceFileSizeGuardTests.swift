@@ -51,8 +51,10 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // `ListSettingsPayload`, where it is a pure function with tests instead of a wall of
         // near-identical `if`s inside the third-largest file in the repo. That wall is where the
         // "Recently completed" field went missing for a while (545812e6), which is the argument
-        // for the extraction better than any line count is.
-        "Astrid App/Views/Tasks/TaskListView.swift": 1640,
+        // for the extraction better than any line count is. 1569 on 2026-10-03: its private copies
+        // of search, the subtask splice and the My Tasks scope became shared helpers the Mac
+        // calls too (on disagreement follow iOS).
+        "Astrid App/Views/Tasks/TaskListView.swift": 1569,
         // `TaskService.swift` left this list on 2026-09-28 at 536 lines, down from 1691: the cache,
         // the write journal, the sync merge and the live-update rules it carried are astrid-core's
         // now (docs/CORE_MIGRATION.md). Under the threshold, it needs no entry.
@@ -69,7 +71,8 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
         // `AstridAPIClient+ListMembers.swift`, so the number goes DOWN rather than up again.
         // Was 1578. Two methods nothing called (getList, getAvailableModels) left on 2026-09-13.
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1559,
+        // 1405 on 2026-10-03: three member-response DTOs nothing decoded were deleted.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1405,
         "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1233,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,

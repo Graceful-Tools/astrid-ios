@@ -2,38 +2,14 @@ import XCTest
 import CoreData
 @testable import Astrid_App
 
-/// Round-trip tests for the new board-related Core Data attributes:
-/// project-related fields on CDTaskList + the new CDProject entity.
+/// The read side of the board-related Core Data attributes — what the one-time `CoreUpgrade`
+/// seed reads back: project fields on CDTaskList and the CDProject entity. (The write side,
+/// `update(from:)`, went with the Swift data layer.)
 ///
 /// Uses the in-memory container from `InMemoryCoreDataTestCase`, pointed at the production model.
 final class CoreDataBoardFieldsTests: InMemoryCoreDataTestCase {
 
     // MARK: - CDTaskList board fields
-
-    func testCDTaskList_persistsAllBoardFields() throws {
-        let cdList = CDTaskList(context: context)
-        cdList.id = "l-ready"
-        cdList.name = "Ready"
-        cdList.privacy = "SHARED"
-        cdList.ownerId = "u1"
-        cdList.syncStatus = "synced"
-        cdList.projectId = "p1"
-        cdList.listType = "status"
-        cdList.statusRole = "ready"
-        cdList.statusOrder = NSNumber(value: 0)
-        cdList.statusDescription = "Time to get to work!"
-        cdList.statusCompleted = NSNumber(value: false)
-
-        try context.save()
-
-        let fetched = try XCTUnwrap(CDTaskList.fetchById("l-ready", context: context))
-        XCTAssertEqual(fetched.projectId, "p1")
-        XCTAssertEqual(fetched.listType, "status")
-        XCTAssertEqual(fetched.statusRole, "ready")
-        XCTAssertEqual(fetched.statusOrder?.intValue, 0)
-        XCTAssertEqual(fetched.statusDescription, "Time to get to work!")
-        XCTAssertEqual(fetched.statusCompleted?.boolValue, false)
-    }
 
     func testCDTaskList_toDomainModel_includesBoardFields() throws {
         let cdList = CDTaskList(context: context)
@@ -54,97 +30,7 @@ final class CoreDataBoardFieldsTests: InMemoryCoreDataTestCase {
         XCTAssertEqual(domain.statusOrder, 1)
     }
 
-    func testCDTaskList_updateFromDomain_persistsRecentlyCompletedWindow() throws {
-        let cdList = CDTaskList(context: context)
-        cdList.id = "l-1"
-        cdList.name = "Test"
-        cdList.privacy = "PRIVATE"
-        cdList.ownerId = "u1"
-        cdList.syncStatus = "synced"
-
-        var domain = TaskList(id: "l-1", name: "Test")
-        domain.ownerId = "u1"
-        domain.privacy = .PRIVATE
-        domain.recentlyCompletedWindow = .duration(amount: 7, unit: .day)
-
-        cdList.update(from: domain)
-        try context.save()
-
-        let fetched = try XCTUnwrap(CDTaskList.fetchById("l-1", context: context))
-        XCTAssertNotNil(fetched.recentlyCompletedWindowJSON)
-
-        let roundTrip = fetched.toDomainModel()
-        XCTAssertEqual(roundTrip.recentlyCompletedWindow, .duration(amount: 7, unit: .day))
-    }
-
-    func testCDTaskList_nilRecentlyCompletedWindow_persistsAsNull() throws {
-        let cdList = CDTaskList(context: context)
-        cdList.id = "l-legacy"
-        cdList.name = "Legacy"
-        cdList.privacy = "PRIVATE"
-        cdList.ownerId = "u1"
-        cdList.syncStatus = "synced"
-
-        var domain = TaskList(id: "l-legacy", name: "Legacy")
-        domain.ownerId = "u1"
-        domain.privacy = .PRIVATE
-        // recentlyCompletedWindow stays nil
-        cdList.update(from: domain)
-        try context.save()
-
-        let fetched = try XCTUnwrap(CDTaskList.fetchById("l-legacy", context: context))
-        XCTAssertNil(fetched.recentlyCompletedWindowJSON)
-        XCTAssertNil(fetched.toDomainModel().recentlyCompletedWindow)
-    }
-
     // MARK: - CDProject
-
-    func testCDProject_persistsAndRoundTrips() throws {
-        let cdProject = CDProject(context: context)
-        cdProject.id = "p1"
-        cdProject.name = "Astrid Dev"
-        cdProject.projectDescription = "Internal board"
-        cdProject.color = "#3b82f6"
-        cdProject.ownerId = "u1"
-        cdProject.syncStatus = "synced"
-        cdProject.createdAt = Date()
-        cdProject.updatedAt = Date()
-
-        try context.save()
-
-        let fetched = try XCTUnwrap(CDProject.fetchById("p1", context: context))
-        XCTAssertEqual(fetched.name, "Astrid Dev")
-        XCTAssertEqual(fetched.ownerId, "u1")
-        XCTAssertEqual(fetched.projectDescription, "Internal board")
-
-        let domain = fetched.toDomainModel()
-        XCTAssertEqual(domain.id, "p1")
-        XCTAssertEqual(domain.name, "Astrid Dev")
-        XCTAssertEqual(domain.description, "Internal board")
-    }
-
-    func testCDProject_updateFromDomain() throws {
-        let cdProject = CDProject(context: context)
-        cdProject.id = "p1"
-        cdProject.name = "Old Name"
-        cdProject.ownerId = "u1"
-        cdProject.syncStatus = "synced"
-
-        let domain = Project(
-            id: "p1",
-            name: "New Name",
-            description: "Updated",
-            color: "#ff0000",
-            ownerId: "u1"
-        )
-        cdProject.update(from: domain)
-        try context.save()
-
-        let fetched = try XCTUnwrap(CDProject.fetchById("p1", context: context))
-        XCTAssertEqual(fetched.name, "New Name")
-        XCTAssertEqual(fetched.projectDescription, "Updated")
-        XCTAssertEqual(fetched.color, "#ff0000")
-    }
 
     func testCDProject_fetchAll_returnsCreatedProjects() throws {
         for i in 0..<3 {

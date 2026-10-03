@@ -44,16 +44,6 @@ public class CDProject: NSManagedObject {
             updatedAt: updatedAt
         )
     }
-
-    func update(from project: Project) {
-        self.name = project.name
-        self.projectDescription = project.description
-        self.color = project.color
-        self.imageUrl = project.imageUrl
-        self.ownerId = project.ownerId ?? project.owner?.id ?? ""
-        self.createdAt = project.createdAt ?? self.createdAt ?? Date()
-        self.updatedAt = project.updatedAt ?? Date()
-    }
 }
 
 extension CDProject {
@@ -65,12 +55,5 @@ extension CDProject {
         let request = fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         return try context.fetch(request)
-    }
-
-    static func fetchById(_ id: String, context: NSManagedObjectContext) throws -> CDProject? {
-        let request = fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id)
-        request.fetchLimit = 1
-        return try context.fetch(request).first
     }
 }
