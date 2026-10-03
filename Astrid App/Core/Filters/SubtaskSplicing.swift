@@ -1,7 +1,8 @@
 //  SubtaskSplicing.swift
 //  Astrid — SHARED subtask display logic for the flat task list (Task 3c945236).
 //
-//  Mirrors iOS TaskListView's inline splice so Mac and iOS render subtasks identically:
+//  The one splice: iOS TaskListView and the Mac both call it (iOS kept a private copy until
+//  2026-10-03), so the two render subtasks identically:
 //  in "indented" mode each visible parent's subtasks are spliced depth-first directly after it;
 //  in "under_parent" mode subtasks are hidden from lists (shown only in the parent's detail).
 //  Pure: the caller supplies which subtasks are visible (usually a completion check).
@@ -35,7 +36,7 @@ func spliceSubtasks(topLevel: [Task], allTasks: [Task], indented: Bool,
 }
 
 /// Nesting depth of a task (0 = top-level), walking parentTaskId with a cycle-safe cap and O(1)
-/// parent lookups. Mirrors iOS `subtaskDepth`.
+/// parent lookups. Used by iOS and Mac row indentation.
 func subtaskDepth(_ task: Task, byId: [String: Task]) -> Int {
     var depth = 0
     var parentId = task.parentTaskId

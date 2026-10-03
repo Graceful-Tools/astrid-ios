@@ -23,10 +23,11 @@ struct MacListPicker: View {
         selectedIds.compactMap { id in lists.first { $0.id == id } }
     }
 
-    /// Status lists are the board's columns, not places you file a task by hand —
-    /// the same filtering the rest of the app applies when offering lists.
-    private var selectableLists: [TaskList] {
-        lists.filter { $0.listType != "status" }
+    /// The lists a task can be filed in — iOS's rule, shared (`ListFilingTargets`, CONTRACTS D28).
+    /// This used to leave out board-status lists and offer saved filters, the opposite half of
+    /// iOS's rule; Jon 2026-10-03: on disagreement follow iOS. Internal for `MacFollowsIOSTests`.
+    var selectableLists: [TaskList] {
+        ListFilingTargets.lists(lists)
     }
 
     var body: some View {

@@ -1,6 +1,7 @@
 //  MacMyTasksTests.swift
-//  Regression for task d0306aab — the universal "My Tasks" set: incomplete tasks that are mine
-//  or unassigned (not assigned to other people), de-duplicated across lists.
+//  Regression for task d0306aab — the universal "My Tasks" set: incomplete tasks assigned to me,
+//  de-duplicated across lists. Unassigned tasks used to be included too; iOS never had them, and
+//  Jon 2026-10-03: on disagreement follow iOS (CONTRACTS D25, `MacFollowsIOSTests`).
 
 import XCTest
 @testable import Astrid_Mac
@@ -16,7 +17,7 @@ final class MacMyTasksTests: XCTestCase {
     /// These predate the saved filters (task ebdf94a1) and assert the SCOPE, which the filters
     /// did not change. `MyTasksPreferences()` is the untouched default — hide completed, all
     /// priorities, all due dates — so they keep testing exactly what they used to.
-    func testIncludesMineAndUnassignedExcludesOthersAndCompleted() {
+    func testIncludesMineExcludesUnassignedOthersAndCompleted() {
         let tasks = [
             task("mine", assignee: "me"),
             task("unassigned", assignee: nil),
@@ -24,7 +25,7 @@ final class MacMyTasksTests: XCTestCase {
             task("mineDone", assignee: "me", completed: true),
         ]
         let ids = Set(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).map { $0.id })
-        XCTAssertEqual(ids, ["mine", "unassigned"])
+        XCTAssertEqual(ids, ["mine"], "unassigned left with D25 — iOS never showed it")
     }
 
     func testDeduplicatesAcrossLists() {

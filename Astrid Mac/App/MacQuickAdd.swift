@@ -32,7 +32,7 @@ enum MacQuickAdd {
     /// - Parameter selectionIsVirtual: true for My Tasks (and saved filters). A virtual selection
     ///   is NOT a real list, so it must never be attached as a list id — iOS does the same: a task
     ///   added from My Tasks belongs to no list unless the text names one with #list, and shows up
-    ///   there because My Tasks lists what is mine or unassigned.
+    ///   there because it is assigned to its creator and My Tasks lists what is assigned to me.
     /// - Parameter priorityOverride: what the user picked on the quick-add checkbox. It beats the
     ///   list default; typed text beats it in turn, so the last thing the user expressed wins.
     static func makeArgs(rawText: String, selectedListId: String?, lists: [TaskList],
@@ -129,7 +129,7 @@ enum MacQuickAdd {
     ///
     /// MY TASKS IS NOT A REAL LIST, so the task is created with NO list ids — the same thing
     /// `makeArgs` does for a virtual selection, and the same thing iOS does. It appears in My
-    /// Tasks because that view is "mine or unassigned" (`MacMyTasks.filter`), not because it was
+    /// Tasks because it starts assigned to you and that view is "assigned to me" (`MyTasksScope`), not because it was
     /// filed anywhere. It is also where the Mac already lands at launch
     /// (`MacLaunchSelection.landingListId`), so the default destination is now the view you are
     /// most likely looking at rather than an alphabetical accident.
