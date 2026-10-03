@@ -167,11 +167,15 @@ func getRecentlyCompletedCutoff(
         components.second = 0
         components.nanosecond = 0
         if currentDay < day {
-            // Roll back one month
-            if let firstOfThisMonth = calendar.date(from: components),
-               let previous = calendar.date(byAdding: .month, value: -1, to: firstOfThisMonth) {
-                return previous
-            }
+            // Last month's `day`, clamped to its length. Building this month's `day` first and
+            // stepping back broke when this month lacks it: 31 September reads as 1 October,
+            // so 9 September "since the 31st" gave 1 September, not 31 August (D36).
+            components.day = 1
+            guard let firstOfThisMonth = calendar.date(from: components),
+                  let firstOfLastMonth = calendar.date(byAdding: .month, value: -1, to: firstOfThisMonth),
+                  let daysInLastMonth = calendar.range(of: .day, in: .month, for: firstOfLastMonth)?.count
+            else { return now }
+            return calendar.date(byAdding: .day, value: min(day, daysInLastMonth) - 1, to: firstOfLastMonth) ?? now
         }
         return calendar.date(from: components) ?? now
 

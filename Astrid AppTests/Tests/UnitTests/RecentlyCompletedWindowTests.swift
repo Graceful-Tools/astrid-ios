@@ -156,6 +156,22 @@ final class RecentlyCompletedWindowTests: XCTestCase {
         XCTAssertEqual(cutoff, expected)
     }
 
+    /// D36 (astrid-core docs/CONTRACTS.md), decided 2026-10-03: on 9 September "since the 31st"
+    /// means 31 August, the date the setting names — as web and the core say. Building 31 September
+    /// and letting Foundation read it as 1 October, then stepping back a month, gave 1 September.
+    func testCutoff_sinceDayOfMonth_D36_thisMonthLacksTheDay_meansLastMonthsDay() {
+        let nineSeptember = ISO8601DateFormatter().date(from: "2026-09-09T12:00:00Z")!
+        let cutoff = getRecentlyCompletedCutoff(.sinceDayOfMonth(day: 31), now: nineSeptember, calendar: calendar)
+        XCTAssertEqual(cutoff, ISO8601DateFormatter().date(from: "2026-08-31T00:00:00Z")!)
+    }
+
+    /// D36: when last month lacks the day, clamp to its last day (9 March, "since the 31st" → 28 Feb).
+    func testCutoff_sinceDayOfMonth_D36_lastMonthLacksTheDay_clampsToItsLastDay() {
+        let nineMarch = ISO8601DateFormatter().date(from: "2026-03-09T12:00:00Z")!
+        let cutoff = getRecentlyCompletedCutoff(.sinceDayOfMonth(day: 31), now: nineMarch, calendar: calendar)
+        XCTAssertEqual(cutoff, ISO8601DateFormatter().date(from: "2026-02-28T00:00:00Z")!)
+    }
+
     // MARK: - getRecentlyCompletedCutoff: since-date
 
     func testCutoff_sinceDate_parsesYYYYMMDDAsLocalMidnight() {
