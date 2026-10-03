@@ -154,6 +154,20 @@ func sortTasksByListSetting(_ tasks: [Task], sortBy: String, manualOrder: [Strin
         }
     case "createdAt":
         return tasks.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+    case "completedAt":
+        // Web's "Recently completed" (task c6e87fb8, `lib/task-sort.ts`): completed tasks LEAD,
+        // most recently completed first; the open half keeps auto ordering. `completedAt` is the
+        // real stamp, `updatedAt` the legacy fallback, and a task with neither sorts last.
+        // This case once lived only in an unused copy of the sort, so both apps sorted it as auto.
+        let open = sortTasksByListSetting(tasks.filter { !$0.completed }, sortBy: "auto", manualOrder: nil)
+        let done = tasks.filter(\.completed).sorted { t1, t2 in
+            switch (t1.completedAt ?? t1.updatedAt, t2.completedAt ?? t2.updatedAt) {
+            case let (d1?, d2?): return d1 > d2
+            case (_?, nil):      return true
+            default:             return false
+            }
+        }
+        return done + open
     case "manual":
         guard let order = manualOrder, !order.isEmpty else {
             return tasks.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }

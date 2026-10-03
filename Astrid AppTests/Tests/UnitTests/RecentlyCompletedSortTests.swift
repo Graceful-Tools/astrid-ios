@@ -3,7 +3,7 @@ import XCTest
 
 /// Task c6e87fb8 — the "Recently completed" sort (`sortBy = "completedAt"`).
 ///
-/// Web shipped it; iOS had no `case "completedAt"` in `compareTasksBySort`, so the
+/// Web shipped it; iOS had no `case "completedAt"` in its sort, so the
 /// value fell through `default:` to auto ordering. The field already round-trips
 /// through `PUT /api/v1/lists/:id`, which is the quiet part: a list web had already
 /// switched to this sort just rendered in auto order on the phone, with nothing to
@@ -11,6 +11,11 @@ import XCTest
 ///
 /// Semantics are `astrid-web/lib/task-sort.ts` verbatim — this is a cross-platform
 /// contract, and one platform sorting differently is a bug on whichever moved.
+///
+/// 2026-10-03: these tests used to exercise `sortTasksForList` in `Core/Board/TaskSort.swift`,
+/// which nothing in either app called — the case was added there, the tests went green, and
+/// the lists (iOS `applySorting`, Mac `MacRowPipeline`, both via `sortTasksByListSetting`)
+/// still sorted "completedAt" as auto. They now drive the sort the apps use.
 final class RecentlyCompletedSortTests: XCTestCase {
 
     private let sort = "completedAt"
@@ -32,7 +37,7 @@ final class RecentlyCompletedSortTests: XCTestCase {
     }
 
     private func sorted(_ tasks: [Task]) -> [String] {
-        sortTasksForList(tasks, sortBy: sort).map(\.id)
+        sortTasksByListSetting(tasks, sortBy: sort, manualOrder: nil).map(\.id)
     }
 
     // MARK: - The sort itself
@@ -109,21 +114,8 @@ final class RecentlyCompletedSortTests: XCTestCase {
         let tasks = [task("done", completed: true, completedAt: 100), task("open")]
 
         XCTAssertEqual(sorted(tasks), ["done", "open"])
-        XCTAssertEqual(sortTasksForList(tasks, sortBy: "auto").map(\.id), ["open", "done"],
+        XCTAssertEqual(sortTasksByListSetting(tasks, sortBy: "auto", manualOrder: nil).map(\.id), ["open", "done"],
                        "fixture check: auto puts completed last, so the two orders must differ")
-    }
-
-    func testCompletedAtIsAKnownSortCase() {
-        XCTAssertEqual(TaskSortBy(rawValue: "completedAt"), .completedAt)
-    }
-
-    func testTheComparatorIsAntisymmetric() {
-        let a = task("a", completed: true, completedAt: 100)
-        let b = task("b", completed: true, completedAt: 200)
-
-        XCTAssertEqual(compareTasksBySort(a, b, sortBy: sort), 1)
-        XCTAssertEqual(compareTasksBySort(b, a, sortBy: sort), -1)
-        XCTAssertEqual(compareTasksBySort(a, a, sortBy: sort), 0)
     }
 }
 
