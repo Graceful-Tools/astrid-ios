@@ -70,7 +70,7 @@ struct TaskListView: View {
     /// having no overlays at all.
     @State private var draggingTaskId: String?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
-    @State private var rowsMemo = Memo<RowsKey, [Task]>()  // see filteredTasks (AITD-455)
+    @State private var rowsMemo = Memo<TaskListRowsKey, [Task]>()  // see filteredTasks (AITD-455)
     /// Which view the user picked from the unified List/Board/Messages
     /// rotator button. Defaults to `.list`; auto-flips to `.board` when
     /// the selected list has a project board attached (so the board
@@ -890,37 +890,11 @@ struct TaskListView: View {
     /// "under_parent" mode hides subtasks from lists entirely (detail only), and a list can turn
     /// its own subtasks off (ba1deb9d) — both decided by the SHARED ListSubtaskVisibility rule.
     private var filteredTasks: [Task] {
-        rowsMemo.value(for: rowsKey) { computeFilteredTasks() }
-    }
-
-    /// Everything the row pipeline reads. A body is re-evaluated on every selection, drag hover
-    /// and sheet; the pipeline filters, sorts and splices EVERY task, so it now runs only when
-    /// one of these changes (AITD-455). The minute is in the key because the due-date and
-    /// recently-completed filters read the clock.
-    private struct RowsKey: Equatable {
-        let tasks: [Task]
-        let featuredListTasks: [Task]
-        let selectedListId: String?
-        let selectedList: TaskList?
-        let isViewingFromFeatured: Bool
-        let searchText: String
-        let myTasksPreferences: MyTasksPreferences
-        let subtaskDisplay: String?
-        let userId: String?
-        let minute: Int
-    }
-
-    private var rowsKey: RowsKey {
-        RowsKey(tasks: taskService.tasks,
-                featuredListTasks: featuredListTasks,
-                selectedListId: selectedListId,
-                selectedList: selectedList,
-                isViewingFromFeatured: isViewingFromFeatured,
-                searchText: searchText,
-                myTasksPreferences: myTasksPreferences.preferences,
-                subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay,
-                userId: AuthManager.shared.userId,
-                minute: Int(Date().timeIntervalSince1970 / 60))
+        let key = TaskListRowsKey(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
+                                  selectedListId: selectedListId, selectedList: selectedList,
+                                  isViewingFromFeatured: isViewingFromFeatured, searchText: searchText,
+                                  myTasksPreferences: myTasksPreferences.preferences)
+        return rowsMemo.value(for: key) { computeFilteredTasks() }   // AITD-455
     }
 
     private func computeFilteredTasks() -> [Task] {
@@ -982,28 +956,8 @@ struct TaskListView: View {
                 return []
             }
 
-            // Get user's own tasks for this list from taskService (source of truth)
-            // This includes optimistic tasks, edits, etc. - just like regular lists
-            let userTasks = taskService.tasks.filter { task in
-                task.listIds?.contains(listId) == true
-            }
-
-            // Start with other users' tasks from featuredListTasks
-            // (tasks we don't own that were fetched from the public list API)
-            let currentUserId = AuthManager.shared.userId
-            let otherUsersTasks = featuredListTasks.filter { task in
-                // Keep tasks we don't own (other users' public tasks)
-                task.creatorId != currentUserId && task.assigneeId != currentUserId
-            }
-
-            // Merge: user's tasks take precedence (they're more up-to-date)
-            tasks = userTasks
-            for otherTask in otherUsersTasks {
-                // Only add if not already in user's tasks (avoid duplicates)
-                if !tasks.contains(where: { $0.id == otherTask.id }) {
-                    tasks.append(otherTask)
-                }
-            }
+            tasks = TaskListRows.mergeFeatured(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
+                                               listId: listId, currentUserId: AuthManager.shared.userId)
 
             // Apply list filters if we have a selected list
             if let selectedList = selectedList {
