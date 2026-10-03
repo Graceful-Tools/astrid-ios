@@ -28,11 +28,11 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
         XCTAssertEqual(codex.identityMailbox(for: .off), "openai")
     }
 
-    /// Muse Code is a local CLI (Meta, August 2026) — there is no Meta API Astrid calls, so the
-    /// row is HARNESS-ONLY: no credential, no server executor, no webhook to push to. Web has
-    /// had it since AWTD-937 (lib/ai/harness-agents.ts); mobile listed four agents and not this
-    /// one, which is the whole of task d0b5f7ae.
-    func testTask_d0b5f7aeMuseIsAnAgentInSettingsAndIsHarnessOnly() throws {
+    /// Muse was harness-only here (task d0b5f7ae): Muse Code, Meta's CLI, was the only way to
+    /// run it. Meta's Model API now serves the same models, so `muse@` is one identity with two
+    /// runtimes, like `claude@`: the CLI polls it, or Astrid runs it on the user's Meta key
+    /// (AITD-449, web AWTD-1053).
+    func testTask_d0b5f7aeMuseIsAnAgentInSettings() throws {
         let muse = try XCTUnwrap(
             AgentRuntimeRow.all.first { $0.id == "muse" },
             "Muse must be one of the agents the hub lists"
@@ -42,29 +42,38 @@ final class AIAgentRuntimeSettingsTests: XCTestCase {
         XCTAssertEqual(muse.modeMailbox, "muse")
         XCTAssertEqual(muse.pollMailbox, "muse")
         XCTAssertEqual(muse.service, "muse")
-        XCTAssertFalse(muse.usesOAuth, "Muse authenticates in its own CLI, not through Astrid")
+        XCTAssertFalse(muse.usesOAuth, "Muse takes a Meta key, not an OAuth connection")
 
-        // Unlike the Codex row — openai@ under Astrid, codex@ when polling — Muse has only ever
-        // one identity, because only one runtime can ever run it.
+        // Unlike the Codex row — openai@ under Astrid, codex@ when polling — Muse keeps one
+        // identity in every mode, as web's identityFor does.
         for mode in AgentExecutionMode.allCases {
             XCTAssertEqual(muse.identityMailbox(for: mode), "muse", "\(mode.rawValue) must stay muse@")
         }
+    }
 
-        // The point of the flag: "Astrid runs it" is a button whose PUT the server rejects, and
-        // under "I run it" there is exactly one transport, so neither picker should offer more.
-        XCTAssertTrue(muse.isHarnessOnly)
-        XCTAssertEqual(muse.availableOwnerships, [.user, .off])
-        XCTAssertEqual(muse.availableTransports, [.polling])
+    /// AITD-449: Muse can power Astrid's assistant. The hub offers "Astrid runs it", the key
+    /// manager takes a Meta key, and the assistant-model picker lists Muse.
+    func testTask_AITD449MuseCanBeAstridsModel() throws {
+        let muse = try XCTUnwrap(AgentRuntimeRow.all.first { $0.id == "muse" })
+        XCTAssertFalse(muse.isHarnessOnly, "the server can run muse@ on a Meta Model API key")
+        XCTAssertEqual(muse.availableOwnerships, AgentOwnership.allCases)
+        XCTAssertEqual(muse.availableTransports, AgentSelfTransport.allCases)
+        XCTAssertTrue(AgentRuntimeRow.all.filter { $0.isHarnessOnly }.isEmpty)
 
-        // Every provider-backed row keeps all three choices — locking is per agent, not global.
-        for row in AgentRuntimeRow.all where !row.isHarnessOnly {
-            XCTAssertEqual(row.availableOwnerships, AgentOwnership.allCases, "\(row.id)")
-            XCTAssertEqual(row.availableTransports, AgentSelfTransport.allCases, "\(row.id)")
-        }
-        XCTAssertEqual(
-            AgentRuntimeRow.all.filter { $0.isHarnessOnly }.map(\.id), ["muse"],
-            "the Codex row is NOT harness-only — its mode mailbox is openai, which has an executor"
-        )
+        let service = try XCTUnwrap(AIService(rawValue: "muse"), "Muse needs a key entry")
+        XCTAssertEqual(service.imageAsset, "ai-muse")
+        XCTAssertEqual(service.documentationURL?.host, "developer.meta.com")
+
+        let model = try XCTUnwrap(BuiltInModel(rawValue: "muse"), "the model picker must list Muse")
+        XCTAssertEqual(model.displayName, "Muse")
+        XCTAssertEqual(model.imageAsset, "ai-muse")
+        XCTAssertNotNil(AIService(rawValue: model.rawValue), "tapping it opens Muse key entry")
+
+        let agent = AvailableAgent(id: "m", name: "Muse", email: "muse@astrid.cc",
+                                   image: nil, service: "muse")
+        XCTAssertTrue(agent.isBuiltIn)
+        XCTAssertEqual(agent.serviceDisplayName, "Muse")
+        XCTAssertEqual(agent.avatarSource, .bundled("ai-muse"))
     }
 
     /// Muse parses options on the SUBCOMMAND rather than the root, so its cron line is not

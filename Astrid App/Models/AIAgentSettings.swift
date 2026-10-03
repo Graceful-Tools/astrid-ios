@@ -23,7 +23,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
 
     /// Whether this is a built-in service agent (vs OpenClaw/custom)
     var isBuiltIn: Bool {
-        ["claude", "openai", "gemini", Self.defaultAssistantService].contains(service)
+        ["claude", "openai", "gemini", "muse", Self.defaultAssistantService].contains(service)
     }
 
     /// The `service` value the server uses for the default assistant identity.
@@ -44,6 +44,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "claude": return "Claude"
         case "openai": return "OpenAI"
         case "gemini": return "Gemini"
+        case "muse": return "Muse"
         case "openclaw": return "OpenClaw"
         case Self.defaultAssistantService: return Brand.appName
         case "apple-fm": return "Apple Intelligence"
@@ -59,6 +60,7 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         case "gemini": return "ai-gemini"
         case "openclaw": return "ai-openclaw"
         case "copilot": return "ai-copilot"
+        case "muse": return "ai-muse"
         default: return nil
         }
     }
@@ -95,12 +97,14 @@ enum BuiltInModel: String, CaseIterable {
     case claude = "claude"
     case openai = "openai"
     case gemini = "gemini"
+    case muse = "muse"
 
     var displayName: String {
         switch self {
         case .claude: return "Claude"
         case .openai: return "OpenAI"
         case .gemini: return "Gemini"
+        case .muse: return "Muse"
         }
     }
 
@@ -109,6 +113,7 @@ enum BuiltInModel: String, CaseIterable {
         case .claude: return "Anthropic"
         case .openai: return "OpenAI"
         case .gemini: return "Google"
+        case .muse: return "Meta"
         }
     }
 
@@ -117,6 +122,7 @@ enum BuiltInModel: String, CaseIterable {
         case .claude: return "ai-claude"
         case .openai: return "ai-openai"
         case .gemini: return "ai-gemini"
+        case .muse: return "ai-muse"
         }
     }
 }
@@ -239,9 +245,8 @@ enum BuiltInModel: String, CaseIterable {
                 usesOAuth: false,
                 isHarnessOnly: false
             ),
-            // Muse Code is Meta's terminal coding agent (August 2026) — a CLI the user runs, not
-            // an API Astrid calls, so it has no key field and its identity never changes with the
-            // mode. Web has it in lib/ai/harness-agents.ts (AWTD-937).
+            // One identity, two runtimes, like Claude: Muse Code (Meta's CLI) polls muse@, or
+            // Astrid runs it on a Meta Model API key (AITD-449, web AWTD-1053).
             AgentRuntimeRow(
                 id: "muse",
                 label: "Muse",
@@ -251,7 +256,7 @@ enum BuiltInModel: String, CaseIterable {
                 imageAsset: "ai-muse",
                 fallbackSystemImage: "terminal",
                 usesOAuth: false,
-                isHarnessOnly: true
+                isHarnessOnly: false
             ),
             AgentRuntimeRow(
                 id: "copilot",
