@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BrandAccentColor</key>
+	<string>#0969da</string>
+	<key>BrandAgentEmailDomain</key>
+	<string>tasks.gracefultools.com</string>
+	<key>BrandAgentName</key>
+	<string>Whitelabel Assistant</string>
+	<key>BrandHost</key>
+	<string>tasks.gracefultools.com</string>
+	<key>BrandInboundTaskEmail</key>
+	<string>tasks@tasks.gracefultools.com</string>
+	<key>BrandName</key>
+	<string>Whitelabel</string>
+	<key>BrandSlogan</key>
+	<string>Build together.</string>
+	<key>BrandSupportEmail</key>
+	<string>support@tasks.gracefultools.com</string>
+	<key>BrandWordmark</key>
+	<string>whitelabel</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Add to Astrid</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>addToAstrid</string>
+			<key>NSPortName</key>
+			<string>Astrid</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+				<string>NSStringPboardType</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Board card</string>
+			<key>UTTypeIdentifier</key>
+			<string>cc.astrid.board-card</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
+</dict>
+</plist>
