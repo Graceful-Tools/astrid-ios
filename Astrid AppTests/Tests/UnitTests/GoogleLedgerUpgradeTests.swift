@@ -50,14 +50,14 @@ final class GoogleLedgerUpgradeTests: XCTestCase {
     }
 
     /// Against the real core: it must accept the command, and only then is the upgrade done.
-    func testTheCoreAcceptsTheImportAndTheUpgradeRunsOnce_AITD463() throws {
+    func testTheCoreAcceptsTheImportAndTheUpgradeRunsOnce_AITD463() async throws {
         seedSwiftLedger()
-        GoogleLedgerUpgrade.runIfNeeded(AppCore.shared.session, defaults: defaults)
+        await GoogleLedgerUpgrade.runIfNeeded(AppCore.shared.session, defaults: defaults)
         XCTAssertTrue(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
     }
 
-    func testAnEmptySwiftLedgerStillCompletes_AITD463() throws {
-        GoogleLedgerUpgrade.runIfNeeded(AppCore.shared.session, defaults: defaults)
+    func testAnEmptySwiftLedgerStillCompletes_AITD463() async throws {
+        await GoogleLedgerUpgrade.runIfNeeded(AppCore.shared.session, defaults: defaults)
         XCTAssertTrue(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
     }
 }

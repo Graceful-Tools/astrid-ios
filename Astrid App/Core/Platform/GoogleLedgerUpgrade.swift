@@ -18,19 +18,31 @@ import Foundation
 enum GoogleLedgerUpgrade {
     static let doneKey = "core.upgrade.googleLedger.v1"
 
+    /// The launch's import, for a Google pass to wait on.
+    private static var inFlight: _Concurrency.Task<Void, Never>?
+
+    /// Start the import at launch. Awaited, not `runBlocking`: the core refuses a command that may
+    /// reach the network on the blocking path, and this one is not on its local-only list.
+    static func start(_ session: CoreSession) {
+        inFlight = _Concurrency.Task { await runIfNeeded(session) }
+    }
+
+    /// What a Google pass waits for first, so no pass reads a ledger the import has not reached.
+    static func finished() async {
+        await inFlight?.value
+    }
+
     /// Import once. Marked done only when the core says the import worked, so a launch that could
     /// not import tries again next time. The import is idempotent.
-    static func runIfNeeded(_ session: CoreSession, defaults: UserDefaults = .standard) {
+    static func runIfNeeded(_ session: CoreSession, defaults: UserDefaults = .standard) async {
         guard !defaults.bool(forKey: doneKey) else { return }
         do {
-            try session.runBlocking(command(defaults: defaults), as: Imported.self)
+            try await session.run(command(defaults: defaults))
             defaults.set(true, forKey: doneKey)
         } catch {
             AppLog.debug("⚠️ [GoogleLedgerUpgrade] Import failed (\(error)); trying again next launch")
         }
     }
-
-    private struct Imported: Decodable {}
 
     nonisolated struct Pending: Encodable, Equatable, Sendable { let remoteId: String; let containerId: String }
     nonisolated struct Link: Encodable, Equatable, Sendable { let taskId: String; let remoteId: String; let containerId: String }

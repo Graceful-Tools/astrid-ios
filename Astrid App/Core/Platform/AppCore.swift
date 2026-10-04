@@ -52,7 +52,7 @@ final class AppCore: ObservableObject {
         // task and list writes over before anything reads the cache.
         if Self.runsUpgrade(unitTesting: testing, uiTesting: UITestSession.isUITesting) {
             CoreUpgrade.runIfNeeded(session)
-            GoogleLedgerUpgrade.runIfNeeded(session)
+            GoogleLedgerUpgrade.start(session)
         }
     }
 

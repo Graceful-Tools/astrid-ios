@@ -244,6 +244,9 @@ final class GoogleTasksSyncService: ObservableObject {
         }
         // The pass is the core's (AITD-463): auto-link, every linked list, then My Tasks against
         // Google's default list. One list failing is reported without stopping the others.
+        // The first launch after the move imports the Swift ledger; a pass before it lands could
+        // miss a queued deletion or bring a deleted task back.
+        await GoogleLedgerUpgrade.finished()
         do {
             let report = try await core.run(CoreCommand(kind: "syncExternal"), as: CorePassReport.self)
             lastError = report.firstError
