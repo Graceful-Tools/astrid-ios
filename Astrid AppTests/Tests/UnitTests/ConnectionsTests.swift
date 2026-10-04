@@ -309,9 +309,9 @@ final class ConnectionsTests: XCTestCase {
                        "api-access must open Connections, not the AI-provider key manager")
         XCTAssertFalse(presenter.contains("AIAssistantSettingsView()"),
                        "agents must open the Agent Hub, which replaced AIAssistantSettingsView")
-        XCTAssertTrue(presenter.contains("case connections"))
-        XCTAssertNotNil(SettingsPresenter.SettingsPage(rawValue: "connections"))
-        XCTAssertNotNil(SettingsPresenter.SettingsPage(rawValue: "api-access"), "old links keep working")
+        XCTAssertTrue(try source("Astrid App/Core/Services/SettingsPage.swift").contains("case connections"))
+        XCTAssertNotNil(SettingsPage(rawValue: "connections"))
+        XCTAssertNotNil(SettingsPage(rawValue: "api-access"), "old links keep working")
     }
 
     func testNativeNoLongerSendsAnyoneToTheRetiredAPIAccessPage() throws {

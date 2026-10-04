@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 
 struct MainTabView: View {
@@ -86,6 +87,16 @@ struct MainTabView: View {
                 showSidebar = false
             }
             selectedListId = "settings"
+        }
+        // Settings deep links (AITD-458). The request is held by the presenter, so one that
+        // arrived before this view existed — a cold launch from an email link — is taken on
+        // appear. Received on the next main-queue turn: @Published emits before it stores.
+        .onReceive(SettingsPresenter.shared.$request.compactMap { $0 }.receive(on: DispatchQueue.main)) { _ in
+            guard let panel = SettingsPresenter.shared.takeRequest() else { return }
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                showSidebar = false
+            }
+            selectedListId = panel
         }
         .onReceive(NotificationCenter.default.publisher(for: .closeSettings)) { _ in
             selectedListId = "my-tasks"
