@@ -94,15 +94,6 @@ class ConnectionModeManager: ObservableObject {
         return .online
     }
 
-    /// Refresh the current mode (call after auth changes)
-    func refreshMode() {
-        let newMode = determineMode()
-        if newMode != currentMode {
-            AppLog.debug("🔄 [ConnectionModeManager] Mode changed: \(currentMode.displayName) -> \(newMode.displayName)")
-            currentMode = newMode
-        }
-    }
-
     // MARK: - Network Observer
 
     private func setupNetworkObserver() {

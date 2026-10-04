@@ -78,10 +78,6 @@ class NetworkMonitor: ObservableObject {
         monitor.start(queue: queue)
     }
 
-    func stopMonitoring() {
-        monitor.cancel()
-    }
-
     private func updateConnectionType(_ path: NWPath) {
         if path.usesInterfaceType(.wifi) {
             connectionType = .wifi

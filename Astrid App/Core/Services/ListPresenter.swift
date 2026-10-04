@@ -27,14 +27,6 @@ class ListPresenter: ObservableObject {
         self.listIdToShow = listId
     }
 
-    /// Navigate to a public/featured list
-    func showFeaturedList(_ list: TaskList) {
-        AppLog.debug("🔄 [ListPresenter] Navigating to featured list: \(list.name)")
-        self.featuredListToShow = list
-        self.isShowingFeaturedList = true
-        self.listIdToShow = list.id
-    }
-
     /// Navigate to a public list by ID and name (creates minimal TaskList for display)
     func showPublicList(listId: String, name: String) {
         AppLog.debug("🔄 [ListPresenter] Navigating to public list: \(name) (\(listId))")

@@ -95,15 +95,6 @@ class ContactsService: ObservableObject {
 
     // MARK: - Fetch Device Contacts
 
-    /// Fetch all contacts with email addresses from the device
-    /// - Returns: Array of contacts with at least one email address
-    func fetchDeviceContacts() throws -> [DeviceContact] {
-        guard hasPermission else {
-            throw ContactsError.notAuthorized
-        }
-        return try Self.enumerateContacts(store: store)
-    }
-
     /// Enumerate contacts from a CNContactStore — safe to call off main thread
     private nonisolated static func enumerateContacts(store: CNContactStore) throws -> [DeviceContact] {
         let keysToFetch: [CNKeyDescriptor] = [

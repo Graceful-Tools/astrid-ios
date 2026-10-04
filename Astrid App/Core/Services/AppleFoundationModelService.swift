@@ -6,16 +6,6 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "AppleFM")
 /// Sentinel ID used to identify the on-device Apple Foundation Model in settings
 let kAppleFoundationModelId = "apple-foundation-model"
 
-/// Result of AI-powered task parsing via Apple Foundation Models
-struct AITaskParseResult {
-    let title: String
-    let description: String?
-    let dueDate: Date?
-    let priority: Int?       // 0-3
-    let repeating: String?   // "daily"|"weekly"|"monthly"|"yearly"
-    let listHint: String?    // e.g., "shopping" (from #shopping)
-}
-
 /// Service wrapping Apple's Foundation Models framework (iOS 26+) for on-device AI task management.
 /// Provides free, private, on-device inference with no API keys or server costs.
 @MainActor
@@ -35,19 +25,6 @@ final class AppleFoundationModelService {
         }
         #endif
         return false
-    }
-
-    // MARK: - Task Parsing
-
-    /// Parse natural language input into structured task data using on-device AI.
-    func parseTask(_ input: String) async -> AITaskParseResult? {
-        #if canImport(FoundationModels)
-        if #available(iOS 26, macOS 26, *) {
-            return await _parseTask(input)
-        }
-        #endif
-        logger.warning("Foundation Models not available on this device")
-        return nil
     }
 
     // MARK: - Chat Response with Task Management
@@ -74,22 +51,6 @@ import FoundationModels
 extension AppleFoundationModelService {
 
     // MARK: - Generable Schemas
-
-    @Generable
-    struct TaskParseSchema {
-        /// The cleaned task title with metadata keywords removed
-        var title: String
-        /// Optional task description or additional details
-        var description: String?
-        /// ISO 8601 date string for when the task is due
-        var dueDateISO: String?
-        /// Priority level: 0 = none, 1 = low, 2 = medium, 3 = high
-        var priority: Int?
-        /// Repeating pattern: "daily", "weekly", "monthly", or "yearly"
-        var repeating: String?
-        /// List hint extracted from hashtags (e.g., "shopping" from #shopping)
-        var listHint: String?
-    }
 
     /// Structured response from the on-device model for chat messages
     @Generable
@@ -290,50 +251,6 @@ extension AppleFoundationModelService {
             logger.notice("On-device AI updated task \(taskId) \(field)=\(value)")
         } catch {
             logger.error("On-device AI failed to update task \(taskId): \(error.localizedDescription)")
-        }
-    }
-
-    // MARK: - Task Parsing
-
-    private func _parseTask(_ input: String) async -> AITaskParseResult? {
-        do {
-            let session = LanguageModelSession(
-                instructions: """
-                You are a task management assistant. Parse the user's natural language input into structured task data.
-                Extract: a clean title (remove date/priority/repeating keywords), due date (as ISO 8601), \
-                priority (0=none, 1=low, 2=medium, 3=high), repeating pattern, and any list hints from #hashtags.
-                Only include fields you can confidently extract. For dates, interpret relative terms like \
-                "today", "tomorrow", "next week" relative to the current time.
-                """
-            )
-
-            let response = try await session.respond(
-                to: input,
-                generating: TaskParseSchema.self
-            )
-
-            let result = response.content
-            let dueDate = result.dueDateISO.flatMap { parseISODate($0) }
-
-            var priority = result.priority
-            if let p = priority, p < 0 || p > 3 { priority = nil }
-
-            let validRepeating = ["daily", "weekly", "monthly", "yearly"]
-            let repeating = result.repeating.flatMap { validRepeating.contains($0.lowercased()) ? $0.lowercased() : nil }
-
-            logger.notice("Parsed task: title='\(result.title)', dueDate=\(dueDate?.description ?? "nil"), priority=\(priority ?? -1)")
-
-            return AITaskParseResult(
-                title: result.title.isEmpty ? input : result.title,
-                description: result.description,
-                dueDate: dueDate,
-                priority: priority,
-                repeating: repeating,
-                listHint: result.listHint
-            )
-        } catch {
-            logger.error("Foundation Model task parsing failed: \(error.localizedDescription)")
-            return nil
         }
     }
 

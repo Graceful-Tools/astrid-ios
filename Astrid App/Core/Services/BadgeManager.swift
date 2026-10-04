@@ -61,19 +61,6 @@ class BadgeManager {
             AppLog.debug("❌ [BadgeManager] Failed to set badge count: \(error)")
         }
     }
-
-    /// Clear the app badge (set to 0)
-    func clearBadge() async {
-        await setBadgeCount(0)
-    }
-
-    // MARK: - Permission Check
-
-    /// Check if badge permission is granted
-    func hasBadgePermission() async -> Bool {
-        let settings = await center.notificationSettings()
-        return settings.badgeSetting == .enabled
-    }
 }
 
 // MARK: - Task Extensions for Due/Overdue Logic
