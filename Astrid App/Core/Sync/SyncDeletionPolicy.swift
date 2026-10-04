@@ -164,7 +164,8 @@ enum SyncStateReset {
             + ["githubTaskLinkCache", "googleTaskLinkCache",
                "recentlyDeletedTaskIds", "recentlyDeletedListIds", "pendingAttachments",
                "tempTaskIdMapping", "tempCommentIdMapping",
-               "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"]
+               "AppleReminders.linkedLists", "AppleReminders.lastSyncDate",
+               GoogleLedgerUpgrade.doneKey]
     }
 
     static func clearAll(defaults: UserDefaults = .standard) {

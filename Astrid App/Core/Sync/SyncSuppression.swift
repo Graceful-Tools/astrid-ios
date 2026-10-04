@@ -50,45 +50,6 @@ enum SyncSuppression {
     }
 }
 
-/// Google Tasks' lossy `due` mapping: Google stores DATE-ONLY due values
-/// (RFC3339 at UTC midnight — matching Astrid's all-day convention), so a
-/// timed Astrid due must never be clobbered by the date-only mirror.
-enum GoogleDueMapping {
-    static let formatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.timeZone = TimeZone(identifier: "UTC")
-        return f
-    }()
-
-    /// Wire string for pushing a local due to Google (date-only).
-    /// - All-day dues are STORED at UTC midnight — their UTC day is the day.
-    /// - Timed dues are instants — the user's LOCAL day is the day (an 8pm due
-    ///   west of UTC is "tomorrow" in UTC terms but must not shift a date).
-    static func pushDueString(for due: Date, isAllDay: Bool, localTimeZone: TimeZone = .current) -> String {
-        var utc = Calendar.current
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        if isAllDay {
-            return formatter.string(from: utc.startOfDay(for: due))
-        }
-        var local = Calendar.current
-        local.timeZone = localTimeZone
-        let day = local.dateComponents([.year, .month, .day], from: due)
-        var comps = DateComponents()
-        comps.year = day.year; comps.month = day.month; comps.day = day.day
-        return formatter.string(from: utc.date(from: comps) ?? due)
-    }
-
-    /// The due date to adopt locally from Google's date-only `due`, or nil to
-    /// leave the local task untouched. Rules: never clobber a TIMED local due
-    /// (the time can't round-trip through Google), and skip no-op writes.
-    static func adoptedDue(remoteDue: Date?, localDue: Date?, localIsAllDay: Bool) -> Date? {
-        guard let remoteDue else { return nil }
-        guard localIsAllDay || localDue == nil else { return nil }
-        guard localDue != remoteDue else { return nil }
-        return remoteDue
-    }
-}
-
 /// RFC3339 parsing tolerant of fractional seconds — Google Tasks emits
 /// `2026-07-03T00:00:00.000Z`, which a plain ISO8601DateFormatter rejects
 /// (silently killing due-date import and the pull watermark).

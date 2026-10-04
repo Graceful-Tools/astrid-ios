@@ -116,39 +116,6 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertNil(index.takeUniqueTaskId(title: "Same"))
     }
 
-    // MARK: - Push-side same-title twin (AITD-462, astrid-core CONTRACTS D39)
-
-    private func googleItem(_ id: String, _ title: String, deleted: Bool = false) -> GoogleTaskItemDTO {
-        GoogleTaskItemDTO(remoteId: "list:\(id)", title: title, notes: nil, completed: false,
-                          dueDate: nil, remoteUpdatedAt: "2026-09-01T00:00:00.000Z",
-                          metadata: deleted ? ["deleted": "1"] : nil)
-    }
-
-    /// AITD-462 / D39: "Buy milk" deleted in Google once must not swallow the "Buy milk" added
-    /// here — adopting it links the task to a deleted twin, and absence deletion then deletes it.
-    func testPushTwin_aDeletedRemoteItemIsNotAdopted_AITD462() {
-        let twin = GooglePushTwin.find(
-            title: "Buy milk", in: [googleItem("r1", "Buy milk", deleted: true)],
-            isLinked: { _ in false }, tombstoned: [])
-        XCTAssertNil(twin)
-    }
-
-    func testPushTwin_aTombstonedRemoteItemIsNotAdopted_AITD462() {
-        let twin = GooglePushTwin.find(
-            title: "Buy milk", in: [googleItem("r1", "Buy milk")],
-            isLinked: { _ in false }, tombstoned: ["list:r1"])
-        XCTAssertNil(twin)
-    }
-
-    func testPushTwin_skipsDeletedAndLinkedAndAdoptsTheLiveUnlinkedOne_AITD462() {
-        let twin = GooglePushTwin.find(
-            title: "Buy milk",
-            in: [googleItem("r1", "Buy milk", deleted: true), googleItem("r2", "Buy milk"),
-                 googleItem("r3", "Buy milk"), googleItem("r4", "Bread")],
-            isLinked: { $0 == "list:r2" }, tombstoned: [])
-        XCTAssertEqual(twin?.remoteId, "list:r3")
-    }
-
     // MARK: - PULL suppression (remoteUpdatedAt vs remote watermark)
 
     func testPull_remoteNewerThanWatermark_applies() {
@@ -228,72 +195,6 @@ final class SyncProviderLogicTests: XCTestCase {
             watermark: SyncSuppression.pullWatermark(taskUpdatedAt: t0)))
     }
 
-    // MARK: - Google date-only due mapping
-
-    private var utcMidnight: Date {
-        var utc = Calendar.current
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        return utc.startOfDay(for: t0)
-    }
-
-    func testDue_adoptWhenLocalHasNoDue() {
-        XCTAssertEqual(
-            GoogleDueMapping.adoptedDue(remoteDue: utcMidnight, localDue: nil, localIsAllDay: false),
-            utcMidnight
-        )
-    }
-
-    func testDue_adoptWhenLocalIsAllDayAndDiffers() {
-        let localAllDay = utcMidnight.addingTimeInterval(-86_400)
-        XCTAssertEqual(
-            GoogleDueMapping.adoptedDue(remoteDue: utcMidnight, localDue: localAllDay, localIsAllDay: true),
-            utcMidnight
-        )
-    }
-
-    func testDue_neverClobbersTimedLocalDue() {
-        // Google is date-only; the local task holds a TIME. Adopting would
-        // silently erase the time — must be skipped.
-        let timedLocal = utcMidnight.addingTimeInterval(9 * 3600)  // 09:00
-        XCTAssertNil(
-            GoogleDueMapping.adoptedDue(remoteDue: utcMidnight, localDue: timedLocal, localIsAllDay: false)
-        )
-    }
-
-    func testDue_noOpWhenAlreadyEqual() {
-        XCTAssertNil(
-            GoogleDueMapping.adoptedDue(remoteDue: utcMidnight, localDue: utcMidnight, localIsAllDay: true)
-        )
-    }
-
-    func testDue_nilRemoteAdoptsNothing() {
-        XCTAssertNil(GoogleDueMapping.adoptedDue(remoteDue: nil, localDue: nil, localIsAllDay: true))
-    }
-
-    func testDue_allDayPushKeepsItsUTCDay_regardlessOfLocalZone() {
-        // All-day dues are stored AT UTC midnight — the wire string must be
-        // that same instant even when the device sits west of UTC (where the
-        // local day is the previous date).
-        let s = GoogleDueMapping.pushDueString(
-            for: utcMidnight, isAllDay: true, localTimeZone: TimeZone(secondsFromGMT: -7 * 3600)!)
-        XCTAssertEqual(GoogleDueMapping.formatter.date(from: s), utcMidnight)
-    }
-
-    func testDue_timedPushUsesTheLocalDay() {
-        // 03:00Z on day N = 20:00 the PREVIOUS day at UTC-7 — the user sees
-        // the earlier date, so that's the date-only value Google must get.
-        let threeAMUTC = utcMidnight.addingTimeInterval(3 * 3600)
-        let s = GoogleDueMapping.pushDueString(
-            for: threeAMUTC, isAllDay: false, localTimeZone: TimeZone(secondsFromGMT: -7 * 3600)!)
-        XCTAssertEqual(
-            GoogleDueMapping.formatter.date(from: s),
-            utcMidnight.addingTimeInterval(-86_400))
-        // And in a UTC household the same instant keeps day N.
-        let sUTC = GoogleDueMapping.pushDueString(
-            for: threeAMUTC, isAllDay: false, localTimeZone: TimeZone(secondsFromGMT: 0)!)
-        XCTAssertEqual(GoogleDueMapping.formatter.date(from: sUTC), utcMidnight)
-    }
-
     // MARK: - Completed backfill (history trickles in, never delays live sync)
 
     private func cand(_ id: String, completed: Bool = true, deleted: Bool = false, at: String) -> CompletedBackfill.Candidate {
@@ -354,20 +255,5 @@ final class SyncProviderLogicTests: XCTestCase {
     func testOrdering_cycleEmitsEverything() {
         let ordered = order([Item(id: "a", parent: "b"), Item(id: "b", parent: "a")])
         XCTAssertEqual(Set(ordered), ["a", "b"])
-    }
-
-    func testDue_pushAndAdoptRoundTripIsStable() {
-        // Push a local all-day due to Google, parse it back, and re-adopt:
-        // must be a no-op in ANY timezone (the loop-avoidance property).
-        for offset in [-7, 0, 9] {
-            let s = GoogleDueMapping.pushDueString(
-                for: utcMidnight, isAllDay: true,
-                localTimeZone: TimeZone(secondsFromGMT: offset * 3600)!)
-            let parsedBack = GoogleDueMapping.formatter.date(from: s)
-            XCTAssertNil(
-                GoogleDueMapping.adoptedDue(remoteDue: parsedBack, localDue: utcMidnight, localIsAllDay: true),
-                "round-trip drifted at UTC\(offset >= 0 ? "+" : "")\(offset)"
-            )
-        }
     }
 }

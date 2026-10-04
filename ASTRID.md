@@ -187,7 +187,7 @@ weekly M/W/F rollover.
 | Board card checkbox | `Views/Board/BoardTaskCardView.swift` |
 | Apple Reminders two-way sync | `Core/Services/AppleRemindersService.swift` |
 | On-device AI "complete" AND "update→completed" actions | `Core/Services/AppleFoundationModelService.swift` (`executeCompleteAction` and `executeUpdateAction`'s `completed` case — never `updateTask(completed:)`) |
-| Google Tasks inbound (pull / drift / backfill) | `Core/Sync/GoogleTasksSyncService.swift` |
+| Google Tasks inbound (pull / drift / backfill) | astrid-core's `syncExternal` pass (AITD-463), scheduled by `Core/Sync/GoogleTasksSyncService.swift` |
 | GitHub Issues inbound (pull / drift / backfill) | `Core/Sync/GitHubSyncService.swift` |
 
 **When changing pattern logic:**
@@ -231,8 +231,11 @@ weekly M/W/F rollover.
 ## 6. External sync providers
 
 `Astrid App/Core/Sync/` mirrors content two-way with **Apple Reminders, Google Tasks,
-and GitHub Issues** (client-side workers; server stores links/tokens and proxies via
+and GitHub Issues** (client-side passes; server stores links/tokens and proxies via
 `astrid-web /api/v1/sync/*`; GitHub webhook → SSE `external_sync_refresh` nudge).
+**Google's pass is astrid-core's** (`syncExternal`, AITD-463), with its deletion ledger:
+`GoogleTasksSyncService` only owns the connection, links and mode and decides when a pass
+runs. GitHub and Apple Reminders are still Swift workers.
 
 All decision logic lives in pure, unit-tested planners (the list is in
 `docs/SYNC_ARCHITECTURE.md` §Pure, tested planners). Sign-out resets all provider state
