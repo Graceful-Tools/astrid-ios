@@ -63,7 +63,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
-| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*` (incl. `TaskSearch`, `MyTasksScope`), view pipelines, `ProjectStatus`, `FuzzyMatch` | **not started** — the core has every one (`rowsForList`, `searchTasks`, `board`, `palette`, `myTasksList`), but Swift calls none of them yet. Blocked on one core read that returns every cached task in the wire shape |
+| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*` (incl. `TaskSearch`, `MyTasksScope`), view pipelines, `ProjectStatus`, `FuzzyMatch` | **not started** — the core has every one (`rowsForList`, `searchTasks`, `board`, `palette`, `myTasksList`), but Swift calls none of them yet. The cached-task read they waited on exists (`tasks`). Search goes first, because the core's search still differs from iOS's (see Findings); then list rows and My Tasks, then the board and pickers |
 | Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
@@ -107,6 +107,12 @@ or filed.
 - **"Recently completed" sort never reached a list.** Task c6e87fb8 added `completedAt` to a copy
   of the sort nothing called (`Core/Board/TaskSort.swift`), so its tests passed while both apps
   sorted such a list as auto. The case is now in `sortTasksByListSetting`, and the copy is gone.
+
+- **The core's search is not yet iOS's** (found 2026-10-03, AITD-456). `services/search.rs` needs
+  two characters (iOS one), includes completed tasks (iOS uses the default completion window) and
+  subtasks (iOS top-level only), and sorts by title match then recency (iOS by priority). Those
+  move toward iOS in the core before `TaskSearch` can delegate. Expect the same of the other
+  projections: run the Swift tests against the core before deleting a copy, not after.
 
 ## The data layer: design
 
