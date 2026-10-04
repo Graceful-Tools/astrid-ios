@@ -673,9 +673,9 @@ final class GoogleTasksSyncService: ObservableObject {
                         fullListingUnavailable = true
                     }
                 }
-                let candidate = fullRemoteItems?.first(where: {
-                    byRemoteId[$0.remoteId] == nil && $0.title == task.title
-                })
+                let candidate = fullRemoteItems.flatMap { GooglePushTwin.find(
+                    title: task.title, in: $0, isLinked: { byRemoteId[$0] != nil },
+                    tombstoned: deletionLedger.tombstonedRemoteIds) }
                 if let candidate {
                     try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                         astridTaskId: task.id, remoteId: candidate.remoteId,
@@ -1054,9 +1054,9 @@ final class GoogleTasksSyncService: ObservableObject {
                     // Never CREATE a remote twin for an already-completed local
                     // task — only live items belong in the mirror going forward.
                     if task.completed { continue }
-                    if let candidate = fullRemoteItems.first(where: {
-                        byRemoteId[$0.remoteId] == nil && $0.title == task.title
-                    }) {
+                    if let candidate = GooglePushTwin.find(
+                        title: task.title, in: fullRemoteItems, isLinked: { byRemoteId[$0] != nil },
+                        tombstoned: deletionLedger.tombstonedRemoteIds) {
                         try? await apiClient.upsertGoogleTaskLink(ExternalTaskLinkUpsertRequest(
                             astridTaskId: task.id, remoteId: candidate.remoteId,
                             remoteContainerId: tasklistId,
