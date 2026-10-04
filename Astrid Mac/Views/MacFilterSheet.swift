@@ -4,7 +4,7 @@
 //  Previously Mac filters were READ-ONLY (the empty state told users to "adjust filters on iOS or
 //  the web"). This writes the saved sort/filter fields through the canonical service
 //  (ListService.updateListAdvanced → optimistic + offline + server), and the SHARED
-//  filterTasksForList immediately reflects them in the task list — same result as iOS/web.
+//  astrid-core's rowsForList immediately reflects them in the task list — same result as iOS.
 //
 //  Those fields are the VIEWER's since AITD-394: the server keys them (userId, listId) and
 //  overlays them onto the list payload on read. The wire contract is unchanged, so nothing here

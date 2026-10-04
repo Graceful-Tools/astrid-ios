@@ -1,8 +1,8 @@
 //  MacListFilter.swift
 //  Astrid for Mac — pure option model for the list filter editor (Task a2bf6ccb).
 //
-//  The option VALUES are the exact strings the SHARED reader (Core/Filters/ListTaskFiltering +
-//  RecentlyCompletedPresets) understands, so editing them on Mac produces the same filtered set
+//  The option VALUES are the exact strings the SHARED reader (astrid-core's `rowsForList`, since
+//  AITD-460) understands, so editing them on Mac produces the same filtered set
 //  as iOS/web. Pure + testable; the sheet is just presentation over this.
 
 #if os(macOS)
@@ -16,7 +16,7 @@ enum MacListFilter {
         init(_ value: String, _ label: String) { self.value = value; self.label = label }
     }
 
-    /// Completion — matches applyCompletionFilterWithWindow ("default"/"all"/"completed"/"incomplete").
+    /// Completion — the values the core's completion filter reads ("default"/"all"/"completed"/"incomplete").
     // Every option below mirrors iOS's ListSortFiltersTab EXACTLY — same values (the
     // cross-platform contract) AND the same localized keys, so both apps read identically in every
     // language. Mac previously invented its own wording ("Show", "Active only", "Any priority")

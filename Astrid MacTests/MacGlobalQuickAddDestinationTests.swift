@@ -12,7 +12,7 @@
 //  launch (`MacLaunchSelection.landingListId`). My Tasks is a VIRTUAL selection, not a real list,
 //  so the task is created with NO list ids at all — the same thing `makeArgs` does for a virtual
 //  selection, and the same thing iOS does. It shows up in My Tasks because it starts assigned to its
-//  creator and that view is "assigned to me" (`MyTasksScope`), not because it was filed anywhere.
+//  creator and that view is "assigned to me" (CONTRACTS D25), not because it was filed anywhere.
 //
 //  The parser is untouched: "#Work" still sends a task to Work, and the list's defaults still
 //  follow it there (Task 3d47cb62). The only thing that changed is what happens when you name

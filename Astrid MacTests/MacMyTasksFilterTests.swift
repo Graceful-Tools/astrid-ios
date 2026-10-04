@@ -8,8 +8,8 @@
 //  three, saved in `MyTasksPreferences` and synced, so someone who set a filter on their phone
 //  saw it do nothing on the desktop.
 //
-//  The filtering itself is NOT reimplemented here. `filterTasksForList` and its helpers are
-//  shared and already mirror iOS; reusing them is the whole point, because a second
+//  The filtering itself is NOT reimplemented here. It is astrid-core's `rowsForList` (AITD-460),
+//  which iOS asks too; one implementation is the whole point, because a second
 //  implementation of "what "today" means" is how two platforms start disagreeing about a due
 //  date (ASTRID.md rule 8).
 //
@@ -56,7 +56,7 @@ final class MacMyTasksFilterTests: XCTestCase {
         let tasks = [task("a", assignee: me),
                      task("b", assignee: nil),
                      task("c", assignee: someoneElse)]
-        let ids = MacMyTasks.filter(tasks, userId: me, preferences: defaults()).map(\.id)
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me, preferences: defaults()).map(\.id)
         XCTAssertEqual(ids.sorted(), ["a"],
                        "My Tasks is what is assigned to me, as on iOS (D25) — not unassigned")
     }
@@ -66,7 +66,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     /// The default hides completed work, as before.
     func testCompletedTasksAreHiddenByDefault() {
         let tasks = [task("open", assignee: me), task("done", assignee: me, completed: true)]
-        let ids = MacMyTasks.filter(tasks, userId: me, preferences: defaults()).map(\.id)
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me, preferences: defaults()).map(\.id)
         XCTAssertEqual(ids, ["open"])
     }
 
@@ -74,14 +74,14 @@ final class MacMyTasksFilterTests: XCTestCase {
     /// everything did nothing at all.
     func testTheAllFilterShowsCompletedTasksToo() {
         let tasks = [task("open", assignee: me), task("done", assignee: me, completed: true)]
-        let ids = MacMyTasks.filter(tasks, userId: me,
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me,
                                     preferences: defaults(completion: "all")).map(\.id)
         XCTAssertEqual(ids.sorted(), ["done", "open"])
     }
 
     func testTheCompletedFilterShowsOnlyCompletedTasks() {
         let tasks = [task("open", assignee: me), task("done", assignee: me, completed: true)]
-        let ids = MacMyTasks.filter(tasks, userId: me,
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me,
                                     preferences: defaults(completion: "completed")).map(\.id)
         XCTAssertEqual(ids, ["done"])
     }
@@ -91,7 +91,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     func testAPriorityFilterKeepsOnlyThatPriority() {
         let tasks = [task("high", assignee: me, priority: .high),
                      task("low", assignee: me, priority: .low)]
-        let ids = MacMyTasks.filter(tasks, userId: me,
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me,
                                     preferences: defaults(priority: [Task.Priority.high.rawValue])).map(\.id)
         XCTAssertEqual(ids, ["high"])
     }
@@ -101,7 +101,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     func testAnEmptyPriorityListMeansAll() {
         let tasks = [task("high", assignee: me, priority: .high),
                      task("low", assignee: me, priority: .low)]
-        let ids = MacMyTasks.filter(tasks, userId: me, preferences: defaults(priority: [])).map(\.id)
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me, preferences: defaults(priority: [])).map(\.id)
         XCTAssertEqual(ids.sorted(), ["high", "low"])
     }
 
@@ -112,7 +112,7 @@ final class MacMyTasksFilterTests: XCTestCase {
         let tasks = [task("today", assignee: me, due: Date()),
                      task("later", assignee: me, due: farFuture),
                      task("none", assignee: me, due: nil)]
-        let ids = MacMyTasks.filter(tasks, userId: me,
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me,
                                     preferences: defaults(dueDate: "today")).map(\.id)
         XCTAssertFalse(ids.contains("later"), "A task due in 90 days is not due today")
         XCTAssertFalse(ids.contains("none"), "A task with no due date is not due today")
@@ -123,7 +123,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     /// A task in two lists appeared twice before de-duplication; that must survive filtering.
     func testATaskInTwoListsAppearsOnce() {
         let duplicated = task("same", assignee: me)
-        let ids = MacMyTasks.filter([duplicated, duplicated], userId: me, preferences: defaults()).map(\.id)
+        let ids = CoreRowsFixture.myTasksTasks([duplicated, duplicated], userId: me, preferences: defaults()).map(\.id)
         XCTAssertEqual(ids, ["same"])
     }
 
@@ -158,7 +158,7 @@ final class MacMyTasksFilterTests: XCTestCase {
     /// the worst possible response — the same rule the repeating filter already follows.
     func testAnUnrecognisedFilterValueDoesNotEmptyTheView() {
         let tasks = [task("a", assignee: me)]
-        let ids = MacMyTasks.filter(tasks, userId: me,
+        let ids = CoreRowsFixture.myTasksTasks(tasks, userId: me,
                                     preferences: defaults(completion: "sometime-next-decade")).map(\.id)
         XCTAssertEqual(ids, ["a"])
     }

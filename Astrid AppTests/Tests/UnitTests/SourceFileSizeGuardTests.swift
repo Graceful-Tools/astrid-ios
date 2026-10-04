@@ -53,8 +53,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // "Recently completed" field went missing for a while (545812e6), which is the argument
         // for the extraction better than any line count is. 1569 on 2026-10-03: its private copies
         // of search, the subtask splice and the My Tasks scope became shared helpers the Mac
-        // calls too (on disagreement follow iOS).
-        "Astrid App/Views/Tasks/TaskListView.swift": 1569,
+        // calls too (on disagreement follow iOS). 1466 for AITD-460: the list's filtering,
+        // sorting and splicing went to astrid-core's `rowsForList`, asked through `ListRowsModel`.
+        "Astrid App/Views/Tasks/TaskListView.swift": 1466,
         // `TaskService.swift` left this list on 2026-09-28 at 536 lines, down from 1691: the cache,
         // the write journal, the sync merge and the live-update rules it carried are astrid-core's
         // now (docs/CORE_MIGRATION.md). Under the threshold, it needs no entry.
@@ -65,7 +66,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // outranks the window override — 1660 was a tighter number than the extraction had
         // actually earned. Still well below where the day started. Then 1465 for AITD-431: the
         // quick-add bar moved out to `MacQuickAddBar` so every board column could draw it too.
-        "Astrid Mac/App/MacRootView.swift": 1465,
+        // 1463 for AITD-460: the rows became astrid-core's, and the question asked of it and the
+        // sidebar counts live in `MacRowPipeline` rather than growing this file.
+        "Astrid Mac/App/MacRootView.swift": 1463,
         // Was 1625, then 1639, and the second raise in one day is what this ratchet exists to
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to

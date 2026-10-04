@@ -65,42 +65,5 @@ func presetForValue(_ id: RecentlyCompletedPresetId) -> RecentlyCompletedWindow?
     return RECENTLY_COMPLETED_PRESETS.first { $0.id == id }?.window
 }
 
-/// Pure helper that applies a list's completion filter to a task array,
-/// honoring the list's per-list `recentlyCompletedWindow`. Mirrors the
-/// web's `shouldShowCompletedByFilter` wiring in `hooks/useFilterState.ts`.
-///
-/// - Parameters:
-///   - tasks: candidates
-///   - filter: "all" | "completed" | "incomplete" | "default" (default
-///     is "default" — show incomplete + tasks completed inside the
-///     window)
-///   - window: the list's per-list recently-completed window; nil falls
-///     back to the legacy 24-hour default
-///   - now: injectable clock for tests
-func applyCompletionFilterWithWindow(
-    _ tasks: [Task],
-    filter: String,
-    window: RecentlyCompletedWindow?,
-    now: Date = Date()
-) -> [Task] {
-    switch filter {
-    case "all":
-        return tasks
-    case "completed":
-        return tasks.filter { $0.completed }
-    case "incomplete":
-        return tasks.filter { !$0.completed }
-    case "default":
-        return tasks.filter { task in
-            shouldShowCompletedByFilter(
-                filterMode: task.completed ? "default" : "show",
-                completedAt: task.completedAt ?? task.updatedAt,
-                updatedAt: task.updatedAt,
-                window: window,
-                now: now
-            )
-        }
-    default:
-        return applyCompletionFilterWithWindow(tasks, filter: "default", window: window, now: now)
-    }
-}
+// Applying the completion filter itself — with the list's window — is astrid-core's
+// `rowsForList` since AITD-460 (`filters::shown_by_completion`).
