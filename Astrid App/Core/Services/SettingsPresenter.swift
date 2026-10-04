@@ -4,77 +4,61 @@ import Combine
 /**
  * SettingsPresenter
  *
- * Manages programmatic navigation to settings sub-pages.
- * Used for deep linking and internal navigation.
+ * Carries a request to show Settings — from a deep link — to the main panel, which owns where
+ * Settings is drawn (AITD-458). The panel takes the request (`takeRequest()`), switches itself to
+ * Settings, and the settings stack pushes `page`.
+ *
+ * It used to set a presented flag for a sheet modifier that nothing applied any more, so
+ * every settings link — the web's Connections and Agent Hub links among them — opened nothing.
  */
 @MainActor
-class SettingsPresenter: ObservableObject {
+final class SettingsPresenter: ObservableObject {
     static let shared = SettingsPresenter()
-    
-    enum SettingsPage: String, Hashable, Identifiable {
-        case account
-        case profile
-        case reminders
-        case agents
-        /// Retired name kept for old deep links; opens Connections.
-        case apiAccess = "api-access"
-        case connections
-        case chatgpt
-        case contacts
-        case appearance
-        case debug
-        case language
-        case about
-        
-        var id: String { self.rawValue }
+
+    /// The main panel's selection that shows Settings.
+    static let panelId = "settings"
+
+    struct Request: Equatable {
+        /// The page to push on Settings, or nil for Settings itself.
+        let page: SettingsPage?
     }
-    
-    @Published var isSettingsPresented: Bool = false
-    @Published var path = NavigationPath()
-    
+
+    /// A request not yet taken by the main panel. Held, not fired, so a link that arrives before
+    /// the panel exists (a cold launch from an email) is still taken when it appears.
+    @Published private(set) var request: Request?
+
+    /// The page the settings stack shows on top of Settings; SettingsView binds to it.
+    @Published var page: SettingsPage?
+
     private init() {}
-    
+
     func navigateTo(page: SettingsPage) {
-        self.isSettingsPresented = true
-        self.path.append(page)
+        request = Request(page: page)
     }
-    
+
     func openSettings() {
-        self.isSettingsPresented = true
+        request = Request(page: nil)
     }
-    
-    func dismiss() {
-        self.isSettingsPresented = false
-        self.path = NavigationPath()
+
+    /// Takes the pending request: sets the page to push and answers the panel to show, once.
+    func takeRequest() -> String? {
+        guard let request else { return nil }
+        self.request = nil
+        page = request.page
+        return Self.panelId
+    }
+
+    func reset() {
+        request = nil
+        page = nil
     }
 }
 
-struct SettingsPresentationModifier: ViewModifier {
-    @ObservedObject var presenter = SettingsPresenter.shared
-    
-    func body(content: Content) -> some View {
-        content
-            .sheet(isPresented: $presenter.isSettingsPresented) {
-                SettingsRootView()
-            }
-    }
-}
+/// The screen for a settings page a link names.
+struct SettingsPageView: View {
+    let page: SettingsPage
 
-struct SettingsRootView: View {
-    @ObservedObject var presenter = SettingsPresenter.shared
-    @EnvironmentObject var authManager: AuthManager
-    
     var body: some View {
-        NavigationStack(path: $presenter.path) {
-            SettingsView()
-                .navigationDestination(for: SettingsPresenter.SettingsPage.self) { page in
-                    destinationView(for: page)
-                }
-        }
-    }
-    
-    @ViewBuilder
-    func destinationView(for page: SettingsPresenter.SettingsPage) -> some View {
         switch page {
         case .account, .profile:
             AccountSettingsView()
@@ -101,11 +85,5 @@ struct SettingsRootView: View {
             Text(Brand.localized("debug.app_version", Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"))
                 .navigationTitle(NSLocalizedString("about", comment: "About"))
         }
-    }
-}
-
-extension View {
-    func withSettingsPresentation() -> some View {
-        self.modifier(SettingsPresentationModifier())
     }
 }

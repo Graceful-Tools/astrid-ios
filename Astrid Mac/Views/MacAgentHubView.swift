@@ -18,6 +18,8 @@ struct MacAgentHubView: View {
     @State private var showCustomAgents = false
     @State private var showCopilotCloud = false
     @State private var showConnections = false
+    /// A Connections deep link asks for the sheet through this (AITD-458).
+    @AppStorage(MacSettingsTab.connectionsRequestKey) private var connectionsRequested = false
 
     private var origin: String { Constants.API.baseURL }
 
@@ -91,6 +93,11 @@ struct MacAgentHubView: View {
         }
         .sheet(isPresented: $showConnections) {
             MacAgentHubSheet(title: ConnectionsScreen.title, height: 560) { ConnectionsScreen() }
+        }
+        .onChange(of: connectionsRequested, initial: true) { _, requested in
+            guard requested else { return }
+            connectionsRequested = false
+            showConnections = true
         }
         // OAuth completes in the browser; re-poll on focus so a new Copilot grant shows up.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

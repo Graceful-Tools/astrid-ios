@@ -89,7 +89,7 @@ class DeepLinkManager {
             }
         case "settings":
             let page = url.lastPathComponent
-            if page != "settings", let settingsPage = SettingsPresenter.SettingsPage(rawValue: page) {
+            if page != "settings", let settingsPage = SettingsPage(rawValue: page) {
                 SettingsPresenter.shared.navigateTo(page: settingsPage)
             } else {
                 SettingsPresenter.shared.openSettings()
@@ -132,7 +132,7 @@ class DeepLinkManager {
             }
         case "settings":
             if pathComponents.count > 1 {
-                if let settingsPage = SettingsPresenter.SettingsPage(rawValue: pathComponents[1]) {
+                if let settingsPage = SettingsPage(rawValue: pathComponents[1]) {
                     SettingsPresenter.shared.navigateTo(page: settingsPage)
                 } else {
                     // Unknown settings page - open in-app browser
