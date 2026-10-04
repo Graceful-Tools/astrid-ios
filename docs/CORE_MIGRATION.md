@@ -70,7 +70,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
 | Settings writes | `ReminderSettings`' own pending flag, `MyTasksPreferencesService`'s API calls | **done** — reminder settings journaled; My Tasks filters sent through the core, not queued |
 | Data layer — attachments (download/replace/delete), account/settings/agents/connections, Core Data | `AttachmentService` network, the settings services, Core Data | next |
-| Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | after that; Apple Reminders stays native |
+| Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | Google **done** (AITD-463, the core's `syncExternal`); GitHub and the API client after that; Apple Reminders stays native |
 
 **Stays native regardless:** Apple Reminders (EventKit), Foundation Models, Sign in with Apple /
 passkeys / Google sign-in UI, UserNotifications scheduling, badge, BGTask, StoreKit review, address
@@ -295,20 +295,24 @@ Copilot cloud-agent token, contacts upload / search / recommended, app-version c
 account) mode as a core concept, a client-side GitHub sync pass, and a read that returns every
 cached task in the wire shape (the Swift views filter `[Task]` themselves today).
 
-## Google Tasks sync: stays on the Swift pass (for now)
+## Google Tasks sync: on the core
 
-A parity audit of the Swift pass (`Core/Sync/GoogleTasksSyncService.swift` and helpers) against the
-core's (`services/external.rs`, `external/*`) found the core's not fit to replace it. It reads task
-links as `taskLinks`/`taskId` where the server answers `links`/`astridTaskId`, and it reads
-`deleted`/`parent` at the top level where the server nests them in `metadata`. As a result it would
-create duplicate Google tasks, turn timed tasks all-day after one round trip, un-nest subtasks,
-import completed items as open tasks, and overwrite a pending local edit. It also lacks the Swift
-pass's watermarks, same-title adoption, absence deletion, drift repair and completed backfill. The
-full list is filed as a task on the Windows board ("astrid-core Google Tasks sync reads the wrong
-wire shapes…"), since Windows runs that pass today.
+Since AITD-463 the Google pass is the core's `syncExternal`, the same pass Windows runs. It covers
+auto-link, every linked list, and My Tasks against Google's default list. astrid-core 126596f
+(AWTD2-56) brought it to parity with the Swift pass: dual watermarks, same-title adoption that
+skips deleted and tombstoned items (D39), absence deletion, drift repair and completed backfill.
+`GoogleTasksSyncService` keeps what is about the account: connect, links, mode (`setGoogleSyncMode`)
+and when a pass runs (debounce, floor, the `LocalMutation` nudge). The Swift engine is deleted.
 
-The Apple bindings do not start the core's `external_loop`, so there is no double sync. Moving
-Google onto the core waits for that task.
+The deletion ledger is the core's as well. Its `deleteTask` records a mirrored task's twin itself.
+`GoogleLedgerUpgrade` ran once on the first launch after the switch. It moved the Swift
+`SyncDeletionLedger("google")` (pending deletions, local and server tombstones) and the
+`googleTaskLinkCache` into the core's ledger through `importExternalLedger`, so a deletion queued
+before the update still reaches Google. The first pass re-sent each linked task once, because the
+old links carry no agreement timestamps.
+
+The Apple bindings still do not start the core's `external_loop`: the Swift service decides when a
+pass runs, so there is never a second one.
 
 GitHub is different. The server runs a cron every 15 minutes; the Swift client pass pushes 2s after
 an edit. Dropping the client pass would delay edits reaching GitHub by up to 15 minutes, so it

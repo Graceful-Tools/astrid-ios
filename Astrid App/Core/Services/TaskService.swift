@@ -465,9 +465,8 @@ class TaskService: ObservableObject {
             name: .astridTaskDeleted, object: nil,
             userInfo: ["taskId": id, "resolvedTaskId": resolvedId])
         // Providers that mirror tasks elsewhere note the twin before the task goes: the server
-        // cascades its link rows away with it. Google included — its pass is still the Swift one
-        // (docs/CORE_MIGRATION.md), which reads its own ledger, not the core's.
-        await GoogleTasksSyncService.shared.noteTaskDeleted(taskId: resolvedId)
+        // cascades its link rows away with it. Not Google — its pass is the core's, and the
+        // core's `deleteTask` records the twin itself (AITD-463).
         await GitHubSyncService.shared.noteTaskDeleted(taskId: resolvedId)
         await AppleRemindersService.shared.noteTaskDeleted(taskId: resolvedId)
 

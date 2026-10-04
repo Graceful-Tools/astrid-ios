@@ -73,19 +73,4 @@ final class CoreTaskServiceTests: XCTestCase {
 
         XCTAssertEqual(sources, [nil, "google", nil, nil])
     }
-
-    /// Deleting a task mirrored to Google Tasks queues the deletion of its Google twin. The call
-    /// was dropped when task writes moved into the core (on the assumption that the core's own
-    /// ledger covered it — but the Google pass the Apple apps run reads this one), so a deleted
-    /// task's twin stayed in Google.
-    func testDeletingAGoogleMirroredTaskQueuesItsTwinsDeletion() async throws {
-        let task = try await TaskService.shared.createTask(listIds: [], title: "Mirrored \(UUID().uuidString)")
-        let remoteId = "g-\(UUID().uuidString)"
-        GoogleTasksSyncService.shared.noteTaskLink(taskId: task.id, remoteId: remoteId, containerId: "tl1")
-        let ledger = SyncDeletionLedger(provider: "google")
-        defer { ledger.clearPending(remoteId: remoteId) }
-
-        try await TaskService.shared.deleteTask(id: task.id)
-        XCTAssertEqual(ledger.pending[remoteId], "tl1")
-    }
 }

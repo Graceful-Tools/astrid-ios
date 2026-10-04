@@ -19,23 +19,13 @@ debounced pass off two triggers:
 > pass, not an external-sync coordinator. astrid-core's own external-sync loop is **not** started
 > on Apple, so there is never a second pass (see `docs/CORE_MIGRATION.md`, Google Tasks sync).
 
-## My Tasks ↔ Google default list
-
-Unlisted tasks assigned to the current user mirror against Google's default
-tasklist. Only active in the all-lists modes.
-
-- `GoogleSyncAPI` exposes the default list's real id via `tasklists.defaultId`
-  (the `@default` alias resolved server-side).
-- `GoogleAutoLink.myTasksPhaseActive(...)` gates the phase; it's skipped when a
-  legacy setup already list-linked the default tasklist, and the default
-  tasklist is excluded from list auto-linking.
-- `GoogleTasksSyncService.syncMyTasks(tasklistId:)` runs the full pipeline in
-  "direct" mode (no `ExternalListLink` row → always a full pull, per-item
-  watermarks) against `pullGoogleTasksDirect` / the `tasklistId` push variant.
+**Google's pass is astrid-core's** (`syncExternal`, AITD-463). `GoogleTasksSyncService` only
+schedules it and owns the connection, links and mode. The rest of this file describes the Swift
+passes that remain: GitHub and Apple Reminders.
 
 ## Deletion ledgers & tombstones (`SyncDeletionLedger`)
 
-Per-provider UserDefaults ledgers, captured **at delete time** (before the
+Per-provider UserDefaults ledgers (GitHub; Google's is the core's), captured **at delete time** (before the
 server link row cascades away):
 
 - `pending` (remoteId → containerId): remote deletions to execute next pass.
@@ -49,8 +39,7 @@ server link row cascades away):
 ## Client-acknowledged cursor
 
 Incremental pulls send `deferCursor=1`: the server returns the next cursor but
-does **not** persist it on GET. The client commits it (`commitGoogleCursor` /
-`commitGitHubCursor`) only after a fully-applied pass, so a kill mid-pass
+does **not** persist it on GET. The client commits it (`commitGitHubCursor`) only after a fully-applied pass, so a kill mid-pass
 re-pulls the window (idempotent via dual watermarks) instead of skipping remote
 edits. Backward-compatible — omitting the param restores GET-time advance.
 
@@ -71,6 +60,6 @@ to `SyncStateReset` (locked by `SyncStateResetTests`).
 ## Pure, tested planners
 
 Decision logic is extracted and unit-tested: `SyncSuppression`,
-`GoogleDueMapping`, `SyncPullOrdering`, `GoogleAutoLink`, `CommentSyncPlanner`,
+`SyncPullOrdering`, `CommentSyncPlanner`,
 `SyncDeletionPolicy` / `SyncDeletionLedger`, `CompletionDriftPolicy`,
 `CompletedBackfill`, `SyncContainerGuard`, `AppleExportPlanner`, `RFC3339`.

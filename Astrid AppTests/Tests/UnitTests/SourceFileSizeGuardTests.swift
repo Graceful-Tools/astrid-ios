@@ -73,7 +73,6 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // Was 1578. Two methods nothing called (getList, getAvailableModels) left on 2026-09-13.
         // 1405 on 2026-10-03: three member-response DTOs nothing decoded were deleted.
         "Astrid App/Core/Networking/AstridAPIClient.swift": 1405,
-        "Astrid App/Core/Sync/GoogleTasksSyncService.swift": 1233,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,
     ]
