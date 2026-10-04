@@ -16,7 +16,8 @@ import Foundation
 
 @MainActor
 enum GoogleLedgerUpgrade {
-    static let doneKey = "core.upgrade.googleLedger.v1"
+    /// Cleared at sign-out with the other per-user sync keys (`SyncStateReset`).
+    nonisolated static let doneKey = "core.upgrade.googleLedger.v1"
 
     /// The launch's import, for a Google pass to wait on.
     private static var inFlight: _Concurrency.Task<Void, Never>?
@@ -35,10 +36,21 @@ enum GoogleLedgerUpgrade {
     /// Import once. Marked done only when the core says the import worked, so a launch that could
     /// not import tries again next time. The import is idempotent.
     static func runIfNeeded(_ session: CoreSession, defaults: UserDefaults = .standard) async {
+        await runIfNeeded(defaults: defaults) { try await session.run($0) }
+    }
+
+    /// The Swift pass's stores this import reads. Removed once the core holds them: the core merges
+    /// an import, so a stale copy imported a second time would put back links and deletions it has
+    /// since moved past.
+    static let swiftKeys = SyncDeletionLedger(provider: "google").storageKeys + ["googleTaskLinkCache"]
+
+    static func runIfNeeded(defaults: UserDefaults = .standard,
+                            run: (CoreCommand) async throws -> Void) async {
         guard !defaults.bool(forKey: doneKey) else { return }
         do {
-            try await session.run(command(defaults: defaults))
+            try await run(command(defaults: defaults))
             defaults.set(true, forKey: doneKey)
+            for key in swiftKeys { defaults.removeObject(forKey: key) }
         } catch {
             AppLog.debug("⚠️ [GoogleLedgerUpgrade] Import failed (\(error)); trying again next launch")
         }

@@ -335,14 +335,22 @@ Since AITD-463 the Google pass is the core's `syncExternal`, the same pass Windo
 auto-link, every linked list, and My Tasks against Google's default list. astrid-core 126596f
 (AWTD2-56) brought it to parity with the Swift pass: dual watermarks, same-title adoption that
 skips deleted and tombstoned items (D39), absence deletion, drift repair and completed backfill.
+The cases the retired Swift D39 guard (`GooglePushTwin.find`, AITD-462) was tested for are core
+tests now (astrid-core 0be2e3a, `aitd463_*`): a tombstoned item, deleted and linked items passed
+over for the live unlinked one, and the My Tasks push.
 `GoogleTasksSyncService` keeps what is about the account: connect, links, mode (`setGoogleSyncMode`)
 and when a pass runs (debounce, floor, the `LocalMutation` nudge). The Swift engine is deleted.
 
 The deletion ledger is the core's as well. Its `deleteTask` records a mirrored task's twin itself.
-`GoogleLedgerUpgrade` ran once on the first launch after the switch. It moved the Swift
+`GoogleLedgerUpgrade` runs once on the first launch after the switch. It moves the Swift
 `SyncDeletionLedger("google")` (pending deletions, local and server tombstones) and the
 `googleTaskLinkCache` into the core's ledger through `importExternalLedger`, so a deletion queued
-before the update still reaches Google. The first pass re-sent each linked task once, because the
+before the update still reaches Google. Every Google pass waits for it. The import is local, so it
+works offline. It is marked done only when the core accepts it; a failure leaves the Swift keys for
+the next launch. On success the Swift keys are removed, because the core merges an import and a
+stale copy imported again would put back links the core has moved past. Sign-out clears the done
+flag with the other per-user sync keys (`SyncStateReset`). Excluded tasklists need no import: the
+core reads them from the integration's metadata on the server. The first pass re-sent each linked task once, because the
 old links carry no agreement timestamps.
 
 The Apple bindings still do not start the core's `external_loop`: the Swift service decides when a

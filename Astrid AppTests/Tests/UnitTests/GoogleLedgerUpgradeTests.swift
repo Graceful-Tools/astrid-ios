@@ -56,6 +56,46 @@ final class GoogleLedgerUpgradeTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
     }
 
+    /// Offline, or the core busy: a failed import is not done, and the Swift ledger stays for the
+    /// next launch to try again.
+    func testAFailedImportIsRetriedNextLaunchWithTheLedgerIntact_AITD463() async throws {
+        seedSwiftLedger()
+        struct Refused: Error {}
+        await GoogleLedgerUpgrade.runIfNeeded(defaults: defaults) { _ in throw Refused() }
+        XCTAssertFalse(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
+        XCTAssertEqual(defaults.dictionary(forKey: "syncPendingRemoteDeletes.google") as? [String: String],
+                       ["g-pending": "tl1"])
+
+        var imported = 0
+        await GoogleLedgerUpgrade.runIfNeeded(defaults: defaults) { _ in imported += 1 }
+        XCTAssertEqual(imported, 1)
+        XCTAssertTrue(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
+    }
+
+    /// Once the core holds it, the Swift copy goes. Imported again later (the done flag cleared at
+    /// sign-out), a stale copy would put back links and deletions the core has since moved past.
+    func testASuccessfulImportDropsTheSwiftLedger_AITD463() async throws {
+        seedSwiftLedger()
+        await GoogleLedgerUpgrade.runIfNeeded(defaults: defaults) { _ in }
+        for key in GoogleLedgerUpgrade.swiftKeys {
+            XCTAssertNil(defaults.object(forKey: key), "\(key) outlived the import")
+        }
+    }
+
+    func testTheUpgradeRunsOnlyOnce_AITD463() async throws {
+        var imported = 0
+        await GoogleLedgerUpgrade.runIfNeeded(defaults: defaults) { _ in imported += 1 }
+        await GoogleLedgerUpgrade.runIfNeeded(defaults: defaults) { _ in imported += 1 }
+        XCTAssertEqual(imported, 1)
+    }
+
+    /// Sign-out forgets that the import ran, like every other per-user sync key.
+    func testSignOutClearsTheImportedFlag_AITD463() {
+        defaults.set(true, forKey: GoogleLedgerUpgrade.doneKey)
+        SyncStateReset.clearAll(defaults: defaults)
+        XCTAssertNil(defaults.object(forKey: GoogleLedgerUpgrade.doneKey))
+    }
+
     func testAnEmptySwiftLedgerStillCompletes_AITD463() async throws {
         await GoogleLedgerUpgrade.runIfNeeded(AppCore.shared.session, defaults: defaults)
         XCTAssertTrue(defaults.bool(forKey: GoogleLedgerUpgrade.doneKey))
