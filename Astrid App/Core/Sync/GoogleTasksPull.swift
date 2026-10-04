@@ -52,3 +52,20 @@ enum GoogleTasksPull {
         return "\(containerId):\(rawParent)"
     }
 }
+
+/// The remote item a push links to instead of creating a duplicate: the one unlinked Google item
+/// with the local task's title.
+///
+/// A deleted (`metadata.deleted == "1"`, from `showDeleted=true`) or tombstoned item is never a
+/// twin (AITD-462, astrid-core CONTRACTS D39). Linking to one made the next pass's absence
+/// deletion — which reads a deleted item as absent — delete the local task: somebody who once
+/// deleted "Buy milk" in Google lost every "Buy milk" they added here.
+enum GooglePushTwin {
+    static func find(title: String, in items: [GoogleTaskItemDTO],
+                     isLinked: (String) -> Bool, tombstoned: Set<String>) -> GoogleTaskItemDTO? {
+        items.first {
+            $0.title == title && $0.metadata?["deleted"] != "1"
+                && !tombstoned.contains($0.remoteId) && !isLinked($0.remoteId)
+        }
+    }
+}

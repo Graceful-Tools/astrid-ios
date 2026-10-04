@@ -116,6 +116,39 @@ final class SyncProviderLogicTests: XCTestCase {
         XCTAssertNil(index.takeUniqueTaskId(title: "Same"))
     }
 
+    // MARK: - Push-side same-title twin (AITD-462, astrid-core CONTRACTS D39)
+
+    private func googleItem(_ id: String, _ title: String, deleted: Bool = false) -> GoogleTaskItemDTO {
+        GoogleTaskItemDTO(remoteId: "list:\(id)", title: title, notes: nil, completed: false,
+                          dueDate: nil, remoteUpdatedAt: "2026-09-01T00:00:00.000Z",
+                          metadata: deleted ? ["deleted": "1"] : nil)
+    }
+
+    /// AITD-462 / D39: "Buy milk" deleted in Google once must not swallow the "Buy milk" added
+    /// here — adopting it links the task to a deleted twin, and absence deletion then deletes it.
+    func testPushTwin_aDeletedRemoteItemIsNotAdopted_AITD462() {
+        let twin = GooglePushTwin.find(
+            title: "Buy milk", in: [googleItem("r1", "Buy milk", deleted: true)],
+            isLinked: { _ in false }, tombstoned: [])
+        XCTAssertNil(twin)
+    }
+
+    func testPushTwin_aTombstonedRemoteItemIsNotAdopted_AITD462() {
+        let twin = GooglePushTwin.find(
+            title: "Buy milk", in: [googleItem("r1", "Buy milk")],
+            isLinked: { _ in false }, tombstoned: ["list:r1"])
+        XCTAssertNil(twin)
+    }
+
+    func testPushTwin_skipsDeletedAndLinkedAndAdoptsTheLiveUnlinkedOne_AITD462() {
+        let twin = GooglePushTwin.find(
+            title: "Buy milk",
+            in: [googleItem("r1", "Buy milk", deleted: true), googleItem("r2", "Buy milk"),
+                 googleItem("r3", "Buy milk"), googleItem("r4", "Bread")],
+            isLinked: { $0 == "list:r2" }, tombstoned: [])
+        XCTAssertEqual(twin?.remoteId, "list:r3")
+    }
+
     // MARK: - PULL suppression (remoteUpdatedAt vs remote watermark)
 
     func testPull_remoteNewerThanWatermark_applies() {
