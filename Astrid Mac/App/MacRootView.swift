@@ -1358,12 +1358,7 @@ struct MacRootView: View {
             guard let id, id != Self.myTasksId else { return }
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
-        .onChange(of: selectedTaskIds, initial: true) { _, ids in
-            appModel.selectedTaskIds = ids
-            // Closing a full-screen task returns the next one to the pop-out (AITD-464).
-            detailFullScreen = MacDetailPresentation.fullScreen(current: detailFullScreen,
-                                                                selectionCount: ids.count)
-        }
+        .modifier(MacDetailSelectionSync(selection: selectedTaskIds, appModel: appModel))
         // Apply selection requested by the command palette, then clear the request (Task 5003c622).
         // A list without a board must not leave the pane showing one the picker is hiding.
         .onChange(of: selectedListId) { _, _ in

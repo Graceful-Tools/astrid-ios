@@ -67,4 +67,21 @@ enum MacDetailPresentation {
         isFullScreen ? "board.exit_full_screen" : "board.full_screen"
     }
 }
+
+/// What a selection change means outside the content area: menu commands read the selection
+/// from the app model, and closing the detail ends its full screen (AITD-464). Lives here rather
+/// than in `MacRootView` so the root stays under its size ceiling.
+struct MacDetailSelectionSync: ViewModifier {
+    let selection: Set<String>
+    let appModel: MacAppModel
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
+
+    func body(content: Content) -> some View {
+        content.onChange(of: selection, initial: true) { _, ids in
+            appModel.selectedTaskIds = ids
+            detailFullScreen = MacDetailPresentation.fullScreen(current: detailFullScreen,
+                                                                selectionCount: ids.count)
+        }
+    }
+}
 #endif
