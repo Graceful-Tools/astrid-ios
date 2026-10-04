@@ -9,16 +9,12 @@
 #if os(macOS)
 import SwiftUI
 
-/// A settings page a link can open. Named as the web routes them (`/settings/<page>`).
-enum MacSettingsPage: String, Equatable {
-    case agents
-}
-
 enum MacDeepLink: Equatable {
     case task(String)
     case list(String)
-    /// `/settings/agents` — the target of Astrid's "set up a model" chat reply (AITD-452).
-    case settings(MacSettingsPage)
+    /// `/settings/<page>` — Astrid's "set up a model" chat reply (AITD-452), the web's
+    /// Connections and Agent Hub links (AITD-458). The pages are iOS's (`SettingsPage`).
+    case settings(SettingsPage)
 
     /// Parse a link tapped inside rendered chat or comment text. Server-written copy uses
     /// root-relative links (`/settings/agents`) the way the web does; those resolve against the
@@ -37,7 +33,7 @@ enum MacDeepLink: Equatable {
             guard let host = url.host else { return nil }
             let id = url.lastPathComponent
             guard id != host, APIPathSafety.isValidIdentifier(id) else { return nil }
-            if host == "settings" { return MacSettingsPage(rawValue: id).map { .settings($0) } }
+            if host == "settings" { return SettingsPage(rawValue: id).map { .settings($0) } }
             switch host {
             case "tasks": return .task(id)
             case "lists": return .list(id)
@@ -49,7 +45,7 @@ enum MacDeepLink: Equatable {
         if url.scheme == "https", let host = url.host, Brand.webHosts.contains(host) {
             let parts = url.pathComponents.filter { $0 != "/" }
             guard parts.count >= 2, APIPathSafety.isValidIdentifier(parts[1]) else { return nil }
-            if parts[0] == "settings" { return MacSettingsPage(rawValue: parts[1]).map { .settings($0) } }
+            if parts[0] == "settings" { return SettingsPage(rawValue: parts[1]).map { .settings($0) } }
             switch parts[0] {
             case "tasks": return .task(parts[1])
             case "lists": return .list(parts[1])
@@ -69,11 +65,18 @@ enum MacDeepLinkRouter {
         case .task(let id): MacAppModel.shared.openTask(listId: nil, taskId: id)
         case .list(let id): MacAppModel.shared.openList(id)
         case .settings(let page):
-            // Select the tab first: the Settings window reads it through @AppStorage, so this
-            // also switches a window that is already open.
-            UserDefaults.standard.set(MacSettingsTab(page: page).rawValue, forKey: MacSettingsTab.defaultsKey)
+            select(page)
             openSettings()
         }
+    }
+
+    /// Choose what the Settings window shows for a page. Select the tab first: the window reads
+    /// it through @AppStorage, so this also switches a window that is already open. Connections
+    /// is a sheet on the AI tab; asking for it is a flag the Agent Hub takes (AITD-458).
+    static func select(_ page: SettingsPage) {
+        let defaults = UserDefaults.standard
+        defaults.set(MacSettingsTab(page: page).rawValue, forKey: MacSettingsTab.defaultsKey)
+        defaults.set(MacSettingsTab.opensConnections(page), forKey: MacSettingsTab.connectionsRequestKey)
     }
 }
 #endif

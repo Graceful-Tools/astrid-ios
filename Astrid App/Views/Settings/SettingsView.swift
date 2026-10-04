@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var outboxStats: JournalStats?
     @StateObject private var featureFlags = FeatureFlagService.shared
     @StateObject private var serverCapabilities = ServerCapabilityService.shared
+    /// The page a settings deep link asked for (AITD-458).
+    @ObservedObject private var presenter = SettingsPresenter.shared
 
 
     var body: some View {
@@ -329,6 +331,10 @@ struct SettingsView: View {
             }
         }
         .navigationBarHidden(true)
+        // A settings deep link's page, pushed on this stack (AITD-458).
+        .navigationDestination(item: $presenter.page) { page in
+            SettingsPageView(page: page)
+        }
         .simultaneousGesture(
             DragGesture(minimumDistance: 20)
                 .onEnded { value in

@@ -110,12 +110,24 @@ enum MacSettingsTab: String {
     case general, reminders, sync, ai, language, connection, account
 
     static let defaultsKey = "macSettingsTab"
+    /// Set by a Connections link; the Agent Hub opens its Connections sheet and clears it (AITD-458).
+    static let connectionsRequestKey = "macSettingsOpenConnections"
 
-    /// The tab a web settings page lives on. Agents is the AI tab (MacAgentHubView).
-    init(page: MacSettingsPage) {
+    /// The tab a web settings page lives on. Agents and Connections are the AI tab
+    /// (MacAgentHubView); pages the Mac has no screen for open General.
+    init(page: SettingsPage) {
         switch page {
-        case .agents: self = .ai
+        case .agents, .chatgpt, .connections, .apiAccess: self = .ai
+        case .reminders: self = .reminders
+        case .account, .profile: self = .account
+        case .language: self = .language
+        case .appearance, .contacts, .debug, .about: self = .general
         }
+    }
+
+    /// Whether the page is the Connections sheet on the AI tab.
+    static func opensConnections(_ page: SettingsPage) -> Bool {
+        page == .connections || page == .apiAccess
     }
 }
 #endif
