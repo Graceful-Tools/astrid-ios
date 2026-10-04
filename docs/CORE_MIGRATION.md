@@ -64,7 +64,8 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
 | Search | `Core/Filters/TaskSearch.swift` | **done** (AITD-459) — the core's `searchTasks` answers as iOS's search did; both apps ask it through `TaskSearchModel`, asynchronously, and the old Swift tests run against the core |
-| Filters, sort, subtasks, recently completed, My Tasks, board, palette | `Core/Filters/*` (incl. `MyTasksScope`), view pipelines, `ProjectStatus`, `FuzzyMatch` | **not started** — the core has every one (`rowsForList`, `board`, `palette`, `myTasksList`), but Swift calls none of them yet. Search set the pattern (move the core to iOS first, then delegate); list rows and My Tasks next, then the board and pickers |
+| List rows: filters, sort, subtasks, recently completed, My Tasks, saved-filter counts | `ListTaskFiltering`, `SubtaskSplicing`, `MyTasksScope`, `applyCompletionFilterWithWindow`, `MacMyTasks`, the iOS and Mac row pipelines | **done** (AITD-460) — the core's `rowsForList` (ids only) answers as iOS's list did; both apps ask it through `ListRowsModel`, asynchronously, with the inputs they hold ahead of the cache; the sidebar's saved-filter badges come from `listCounts`; iOS's search splices through `searchTasks` |
+| Board, pickers, palette | `ProjectStatus`, the due / list / assignee pickers, `EditingSession` options, `FuzzyMatch` | **not started** — the core has them (`board`, `dueDateOptions`, `assigneeOptions`, `listPicks`, `palette`); the board and pickers are next (AITD-461) |
 | Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
@@ -118,6 +119,14 @@ or filed.
   untrimmed, unsplit); `TaskSearch.swift` is gone. Left as a superset: the web's search grammar
   and identifier hits. One deliberate difference: an assignee with neither name nor email no
   longer matches "Unknown User".
+- **The core's list rows were not iOS's either** (found 2026-10-03, AITD-460, by comparing iOS's
+  pipeline with `rowsForList`; afterwards a differential test over 1,200 random lists — real,
+  saved-filter, My Tasks and the everything view — agreed row for row). Four ways, all moved toward
+  iOS in the core (CONTRACTS D40–D42): a list with no `sortBy` is manual on iOS (auto in the
+  core, the Mac and web); a spliced subtask obeys only the view's completion filter, and comes
+  from every task, not just the list's members; and ties in every sort fall in iOS's store order
+  (`TaskOrdering`) rather than the cache's. The Mac, which drew through the same Swift copies with
+  its own sort default and subtask rule, follows iOS on all four now.
 
 ## The data layer: design
 

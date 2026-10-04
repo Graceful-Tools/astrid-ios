@@ -20,6 +20,15 @@ final class TaskSearchModel: ObservableObject {
     @Published private(set) var resultIds: [String] = []
     /// The query the results are for, or are being fetched for.
     private(set) var query = ""
+    /// How subtasks are spliced under the results — iOS draws them there (AITD-460); nil, the
+    /// Mac's flat results.
+    private(set) var splice: Splice?
+
+    /// iOS's subtask settings for a search: the account's display mode and the open list's own.
+    nonisolated struct Splice: Equatable, Sendable {
+        var subtaskDisplay: String?
+        var listShowSubtasks: Bool?
+    }
 
     private let session: CoreSession
     private var running: _Concurrency.Task<Void, Never>?
@@ -39,15 +48,17 @@ final class TaskSearchModel: ObservableObject {
     }
 
     /// Search for `query`. An empty query finds nothing at once: search is intentional.
-    func update(query: String) {
-        guard query != self.query else { return }
+    func update(query: String, splice: Splice? = nil) {
+        guard query != self.query || splice != self.splice else { return }
         self.query = query
+        self.splice = splice
         refresh()
     }
 
     /// Search for `query` and wait for the answer.
-    func search(_ query: String) async {
+    func search(_ query: String, splice: Splice? = nil) async {
         self.query = query
+        self.splice = splice
         refresh()
         await running?.value
     }
@@ -66,18 +77,26 @@ final class TaskSearchModel: ObservableObject {
             running = nil
             return
         }
+        let splice = self.splice
         running = _Concurrency.Task { [session] in
-            let ids = await Self.resultIds(for: query, session: session)
+            let ids = await Self.resultIds(for: query, splice: splice, session: session)
             guard !_Concurrency.Task.isCancelled, query == self.query else { return }
             if ids != self.resultIds { self.resultIds = ids }
         }
     }
 
     /// The core's `searchTasks`, read as the ids of the rows it answers with.
-    nonisolated static func resultIds(for query: String, session: CoreSession) async -> [String] {
+    nonisolated static func resultIds(for query: String, splice: Splice? = nil,
+                                      session: CoreSession) async -> [String] {
         guard !query.isEmpty else { return [] }
         var command = CoreCommand(kind: "searchTasks")
         command.set("query", query)
+        if let splice {
+            // The display mode decides whether subtasks are spliced at all; "indented" is the
+            // account default when the settings have not said.
+            command.set("subtaskDisplay", splice.subtaskDisplay ?? "indented")
+            command.set("showSubtasks", splice.listShowSubtasks)
+        }
         struct Found: Decodable {
             struct Row: Decodable { let id: String }
             let rows: [Row]

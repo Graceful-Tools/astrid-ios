@@ -129,7 +129,7 @@ enum MacQuickAdd {
     ///
     /// MY TASKS IS NOT A REAL LIST, so the task is created with NO list ids — the same thing
     /// `makeArgs` does for a virtual selection, and the same thing iOS does. It appears in My
-    /// Tasks because it starts assigned to you and that view is "assigned to me" (`MyTasksScope`), not because it was
+    /// Tasks because it starts assigned to you and that view is "assigned to me" (CONTRACTS D25), not because it was
     /// filed anywhere. It is also where the Mac already lands at launch
     /// (`MacLaunchSelection.landingListId`), so the default destination is now the view you are
     /// most likely looking at rather than an alphabetical accident.

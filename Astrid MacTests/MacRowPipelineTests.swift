@@ -1,7 +1,8 @@
 //  MacRowPipelineTests.swift
 //  Astrid for Mac — Task 0b1ee8f7: the previously-untested view-composition glue, now pure.
-//  Covers: sort-override fallback, splice completion mapping + top-level prefilter, and the
-//  j/k selection index math (clamping + empty-selection entry points).
+//  Covers: sort-override fallback, and the j/k selection index math (clamping + empty-selection
+//  entry points). The rows themselves — the override's sort, the splice — are astrid-core's since
+//  AITD-460; their tests here ask the core what the Mac now draws.
 
 #if os(macOS)
 import XCTest
@@ -62,41 +63,37 @@ final class MacRowPipelineTests: XCTestCase {
         return l
     }
 
-    func testVirtualSelectionSortsWithOverride() {
-        // No list (My Tasks/Search): override applies, priority ordering enforced.
-        let rows = MacRowPipeline.displayed(base: [task("low", priority: .low), task("high", priority: .high)],
-                                            list: nil, override: "priority", currentUserId: "me")
-        XCTAssertEqual(rows.map(\.id), ["high", "low"])
+    func testVirtualSelectionSortsWithOverride() throws {
+        // My Tasks with the window's sort: the override is what the core sorts by (AITD-460).
+        var low = task("low", priority: .low), high = task("high", priority: .high)
+        low.assigneeId = "me"; high.assigneeId = "me"
+        let query = ListRowsModel.Query(listId: ListRowsModel.myTasksId, myTasks: MyTasksPreferences(),
+                                        subtaskDisplay: "under_parent", sortBy: "priority", currentUserId: "me")
+        XCTAssertEqual(try CoreRowsFixture.answer([low, high], query: query).ids, ["high", "low"])
     }
 
-    // MARK: splice completion mapping + prefilter (G2)
+    // MARK: the splice (G2) — iOS's, through the core (AITD-460)
 
-    func testShowsCompletedSubtasksMapping() {
-        XCTAssertTrue(MacRowPipeline.showsCompletedSubtasks(filterCompletion: "all"))
-        XCTAssertTrue(MacRowPipeline.showsCompletedSubtasks(filterCompletion: "completed"))
-        XCTAssertFalse(MacRowPipeline.showsCompletedSubtasks(filterCompletion: "default"))
-        XCTAssertFalse(MacRowPipeline.showsCompletedSubtasks(filterCompletion: "incomplete"))
-        XCTAssertFalse(MacRowPipeline.showsCompletedSubtasks(filterCompletion: nil))
-    }
-
-    func testRenderedSplicesAndPrefiltersTopLevel() {
-        let parent = task("p"), subDone = task("s1", parent: "p", completed: true, created: 1)
-        let subOpen = task("s2", parent: "p", created: 2)
-        // A subtask sneaking into `displayed` must be prefiltered (only top-level rows splice).
-        let displayed = [parent, subOpen]
+    /// A subtask shows under its parent by the list's COMPLETION filter, as iOS draws it — the
+    /// Mac's own "completed only under all/completed" mapping gave way to iOS's (AITD-460). Only
+    /// top-level rows lead; a subtask filed in the list still sits under its parent.
+    func testRenderedSplicesAndPrefiltersTopLevel_AITD460() throws {
+        var parent = task("p"), subDone = task("s1", parent: "p", completed: true, created: 1)
+        var subOpen = task("s2", parent: "p", created: 2)
+        parent.listIds = ["l1"]; subOpen.listIds = ["l1"]   // the done subtask is not filed there
         let all = [parent, subDone, subOpen]
+        var l = list(sortBy: "auto")
 
-        let defaultRows = MacRowPipeline.rendered(displayed: displayed, allTasks: all,
-                                                  indented: true, filterCompletion: "default")
-        XCTAssertEqual(defaultRows.map(\.id), ["p", "s2"], "Completed subtask hidden under 'default'")
+        l.filterCompletion = "default"
+        XCTAssertEqual(try CoreRowsFixture.rows(all, list: l, subtaskDisplay: "indented"), ["p", "s2"],
+                       "Completed subtask hidden under 'default'")
 
-        let allRows = MacRowPipeline.rendered(displayed: displayed, allTasks: all,
-                                              indented: true, filterCompletion: "all")
-        XCTAssertEqual(allRows.map(\.id), ["p", "s1", "s2"], "'all' shows the completed subtask")
+        l.filterCompletion = "all"
+        XCTAssertEqual(try CoreRowsFixture.rows(all, list: l, subtaskDisplay: "indented"), ["p", "s1", "s2"],
+                       "'all' shows the completed subtask")
 
-        let underParent = MacRowPipeline.rendered(displayed: displayed, allTasks: all,
-                                                  indented: false, filterCompletion: "all")
-        XCTAssertEqual(underParent.map(\.id), ["p"], "under_parent mode hides subtasks from the list")
+        XCTAssertEqual(try CoreRowsFixture.rows(all, list: l, subtaskDisplay: "under_parent"), ["p"],
+                       "under_parent mode hides subtasks from the list")
     }
 
     // MARK: j/k selection math (G7)

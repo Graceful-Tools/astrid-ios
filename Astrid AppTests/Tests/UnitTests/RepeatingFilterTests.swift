@@ -1,7 +1,8 @@
 //  RepeatingFilterTests.swift
 //  The list-level "Repeating" filter was DEAD everywhere: iOS, Mac and web all showed the control
 //  and persisted `filterRepeating`, but no filtering code ever read it, so choosing "Weekly" (or
-//  "Not Repeating") changed nothing. These pin the behaviour in the shared engine.
+//  "Not Repeating") changed nothing. These pin the behaviour in the shared engine — astrid-core's
+//  `rowsForList` since AITD-460; `filterTasksForList` below is the old signature, asking it.
 
 import XCTest
 @testable import Astrid_App
@@ -28,6 +29,16 @@ final class RepeatingFilterTests: XCTestCase {
     }
 
     private func ids(_ tasks: [Task]) -> Set<String> { Set(tasks.map(\.id)) }
+
+    /// What the list shows from `tasks`, asked of the core (AITD-460).
+    /// Over exactly `tasks`, as the old function filtered them: a saved filter, which draws from
+    /// every task rather than the list's members.
+    private func filterTasksForList(_ tasks: [Task], list: TaskList, currentUserId: String?) -> [Task] {
+        var filter = list
+        filter.isVirtual = true
+        let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        return ((try? CoreRowsFixture.rows(tasks, list: filter, currentUserId: currentUserId)) ?? []).compactMap { byId[$0] }
+    }
 
     func testAllKeepsEveryTask() {
         let out = filterTasksForList(sample, list: list("all"), currentUserId: nil)

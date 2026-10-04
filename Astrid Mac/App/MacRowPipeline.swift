@@ -1,7 +1,8 @@
 //  MacRowPipeline.swift
-//  Astrid for Mac — the PURE row-composition pipeline extracted from MacRootView (Task 0b1ee8f7)
-//  so the previously-untested view glue (sort-override fallback, splice completion mapping,
-//  keyboard-navigation index math) has direct regression tests. MacRootView delegates here.
+//  Astrid for Mac — the PURE row glue extracted from MacRootView (Task 0b1ee8f7) so the
+//  previously-untested parts (sort-override fallback, keyboard-navigation index math) have direct
+//  regression tests. The rows themselves — filter, sort, splice — are astrid-core's `rowsForList`
+//  since AITD-460, asked through `ListRowsModel` exactly as iOS asks.
 
 #if os(macOS)
 import Foundation
@@ -28,32 +29,46 @@ enum MacRowPipeline {
         return override.isEmpty ? "auto" : override
     }
 
-    /// Filter+sort for the current selection — the exact composition MacRootView renders.
-    /// `list` nil = virtual selection (My Tasks / Search / no list): auto/override sort only.
-    static func displayed(base: [Task], list: TaskList?, override: String, currentUserId: String?) -> [Task] {
-        if let list {
-            let filtered = filterTasksForList(base, list: list, currentUserId: currentUserId)
-            return sortTasksByListSetting(filtered,
-                                          sortBy: effectiveSortKey(override: override, list: list),
-                                          manualOrder: list.manualSortOrder)
+    /// What the core is asked for a selection's rows (AITD-460): the same `rowsForList` iOS
+    /// asks, with the selection's inputs as this window holds them. nil for no selection and for
+    /// Search, whose rows are `TaskSearchModel`'s.
+    @MainActor
+    static func rowsQuery(selection id: String?, myTasksId: String, searchId: String, lists: [TaskList],
+                          myTasks: MyTasksPreferences, override: String, userId: String?,
+                          tasksInList: (String) -> [Task], publicListTasks: [String: [Task]]) -> ListRowsModel.Query? {
+        guard let id, id != searchId else { return nil }
+        let display = UserSettingsService.shared.settings.subtaskDisplay ?? "indented"
+        // The window's own sort, for the selections that have no list row to save one on.
+        let override = override.isEmpty ? nil : override
+        if id == myTasksId {
+            return .init(listId: ListRowsModel.myTasksId, myTasks: myTasks, subtaskDisplay: display,
+                         sortBy: override, currentUserId: userId)
         }
-        return sortTasksByListSetting(base,
-                                      sortBy: effectiveSortKey(override: override, list: nil),
-                                      manualOrder: nil)
+        // A list of yours — real or saved filter: its own filters and sort, always (AITD-389).
+        if let list = lists.first(where: { $0.id == id }) {
+            return .init(listId: id, list: list, subtaskDisplay: display, currentUserId: userId)
+        }
+        // A public list you only view (dfb037c7): no filters of yours to apply, the window's sort,
+        // and its tasks from the on-demand fetch, which the cache does not hold.
+        var shape = TaskList(id: id, name: "")
+        shape.filterCompletion = "all"
+        shape.sortBy = override ?? "auto"
+        let mine = tasksInList(id)
+        return .init(listId: id, list: shape, tasks: mine.isEmpty ? publicListTasks[id] : nil,
+                     subtaskDisplay: display, currentUserId: userId)
     }
 
-    /// Completed subtasks show only when the list's completion filter includes completed.
-    static func showsCompletedSubtasks(filterCompletion: String?) -> Bool {
-        ["all", "completed"].contains(filterCompletion ?? "default")
-    }
-
-    /// Rows to render: top-level displayed tasks with subtasks spliced under them.
-    static func rendered(displayed: [Task], allTasks: [Task], indented: Bool,
-                         filterCompletion: String?) -> [Task] {
-        let showCompleted = showsCompletedSubtasks(filterCompletion: filterCompletion)
-        return spliceSubtasks(topLevel: displayed.filter { $0.parentTaskId == nil },
-                              allTasks: allTasks, indented: indented,
-                              subtaskVisible: { showCompleted || !$0.completed })
+    /// The sidebar's numbers (AITD-460): a list's own from membership, a saved filter's and My
+    /// Tasks' from astrid-core — two calls, `listCounts` and one `rowsForList` — by the rules their
+    /// rows are drawn with. `myTasks` is nil when the core could not answer.
+    @MainActor
+    static func counts(_ tasks: [Task], lists: [TaskList], myTasks: MyTasksPreferences,
+                       userId: String?) async -> (lists: [String: Int], myTasks: Int?) {
+        let session = AppCore.shared.session
+        let virtual = await ListTaskCount.virtualCounts(lists: lists, currentUserId: userId, session: session)
+        let mine = await ListRowsModel.matched(
+            for: .init(listId: ListRowsModel.myTasksId, myTasks: myTasks, currentUserId: userId), session: session)
+        return (MacListCount.counts(tasks, lists: lists, virtualCounts: virtual), mine)
     }
 
     /// j/k / ↑↓ selection movement over the rendered order: clamped at the ends; with no current

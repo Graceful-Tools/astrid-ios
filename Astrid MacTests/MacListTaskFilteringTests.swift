@@ -1,6 +1,8 @@
 //  MacListTaskFilteringTests.swift
-//  Regression for the SHARED per-list filtering/sorting business logic (Core/Filters/
-//  ListTaskFiltering) — the single implementation iOS and Mac both call, so their lists match.
+//  Regression for the SHARED per-list filtering/sorting business logic — once the Swift
+//  Core/Filters/ListTaskFiltering, astrid-core's `rowsForList` since AITD-460 — the single
+//  implementation iOS and Mac both call, so their lists match. The two helpers below keep the
+//  old functions' signatures and ask the core, so the tests read as they always did.
 
 import XCTest
 @testable import Astrid_Mac
@@ -15,6 +17,22 @@ final class MacListTaskFilteringTests: XCTestCase {
         t.isAllDay = false
         t.createdAt = created
         return t
+    }
+
+    /// The old `applyListDueDateFilter`, asked of the core: a saved filter over just `tasks`.
+    private func applyListDueDateFilter(_ tasks: [Task], filter: String) -> [Task] {
+        var shape = TaskList(id: "due", name: "")
+        shape.isVirtual = true
+        shape.filterCompletion = "all"
+        shape.filterDueDate = filter
+        let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        return ((try? CoreRowsFixture.rows(tasks, list: shape)) ?? []).compactMap { byId[$0] }
+    }
+
+    /// The old `sortTasksByListSetting`, asked of the core.
+    private func sortTasksByListSetting(_ tasks: [Task], sortBy: String, manualOrder: [String]?) -> [Task] {
+        let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        return ((try? CoreRowsFixture.sorted(tasks, sortBy: sortBy, manualOrder: manualOrder)) ?? []).compactMap { byId[$0] }
     }
 
     // MARK: due-date filter

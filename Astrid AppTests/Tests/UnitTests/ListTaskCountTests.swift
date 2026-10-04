@@ -39,7 +39,7 @@ final class ListTaskCountTests: XCTestCase {
     func testAITD414TaskWithOnlyListIdsIsCounted() {
         let offlineShape = [task("a", listIds: ["list-1"]), task("b", listIds: ["list-1"])]
 
-        XCTAssertEqual(ListTaskCount.count(offlineShape, list: list(), currentUserId: nil), 2,
+        XCTAssertEqual(ListTaskCount.count(offlineShape, list: list()), 2,
                        "offline every list in the sidebar badged 0 — the whole task")
     }
 
@@ -47,15 +47,15 @@ final class ListTaskCountTests: XCTestCase {
     /// (some API responses embed `lists` only) must not vanish from the badge either.
     func testATaskWithOnlyHydratedListsIsCounted() {
         XCTAssertEqual(
-            ListTaskCount.count([task("a", lists: [list()])], list: list(), currentUserId: nil), 1)
+            ListTaskCount.count([task("a", lists: [list()])], list: list()), 1)
     }
 
     /// Both representations on one task is the COMMON case online — count it once.
     func testATaskCarryingBothRepresentationsCountsOnce() {
         let both = task("a", listIds: ["list-1"], lists: [list()])
 
-        XCTAssertEqual(ListTaskCount.count([both], list: list(), currentUserId: nil), 1)
-        XCTAssertEqual(ListTaskCount.counts([both], lists: [list()], currentUserId: nil)["list-1"], 1,
+        XCTAssertEqual(ListTaskCount.count([both], list: list()), 1)
+        XCTAssertEqual(ListTaskCount.counts([both], lists: [list()], virtualCounts: [:])["list-1"], 1,
                        "the batch pass double-counted a task that carried both")
     }
 
@@ -66,13 +66,13 @@ final class ListTaskCountTests: XCTestCase {
         let tasks = [task("a", listIds: ["list-1"]),
                      task("b", listIds: ["list-1"], completed: true)]
 
-        XCTAssertEqual(ListTaskCount.count(tasks, list: list(), currentUserId: nil), 1)
+        XCTAssertEqual(ListTaskCount.count(tasks, list: list()), 1)
     }
 
     func testIgnoresTasksInOtherLists() {
         let tasks = [task("a", listIds: ["list-1"]), task("b", listIds: ["other"])]
 
-        XCTAssertEqual(ListTaskCount.count(tasks, list: list(), currentUserId: nil), 1)
+        XCTAssertEqual(ListTaskCount.count(tasks, list: list()), 1)
     }
 
     /// A public list's membership is not fully local, so the server's number wins.
@@ -81,23 +81,25 @@ final class ListTaskCountTests: XCTestCase {
         publicList.privacy = .PUBLIC
         publicList.taskCount = 42
 
-        XCTAssertEqual(ListTaskCount.count([], list: publicList, currentUserId: nil), 42)
+        XCTAssertEqual(ListTaskCount.count([], list: publicList), 42)
     }
 
-    /// A saved-filter list counts whatever its filters admit — through the SHARED
-    /// `filterTasksForList`, not the sidebar's old private copy, which had drifted.
-    func testAVirtualListCountsWhatItsFiltersAdmit() {
+    /// A saved-filter list counts whatever its filters admit — asked of astrid-core (AITD-460),
+    /// whose rows the list draws, not the sidebar's old private copy, which had drifted.
+    func testAVirtualListCountsWhatItsFiltersAdmit() throws {
         var smart = list(virtual: true)
         smart.filterCompletion = "incomplete"
         let tasks = [task("a", listIds: ["anywhere"]),
                      task("b", listIds: ["anywhere"], completed: true)]
 
-        XCTAssertEqual(ListTaskCount.count(tasks, list: smart, currentUserId: nil), 1)
+        let virtual = try CoreRowsFixture.counts(tasks, lists: [smart], currentUserId: nil)
+        XCTAssertEqual(virtual[smart.id], 1)
+        XCTAssertEqual(ListTaskCount.counts(tasks, lists: [smart], virtualCounts: virtual)[smart.id], 1)
     }
 
     /// The drift the old private copy had: it applied no repeating filter at all, so a list
     /// filtered to repeating tasks badged every task it could see.
-    func testAVirtualListHonoursTheRepeatingFilterTheOldCopyIgnored() {
+    func testAVirtualListHonoursTheRepeatingFilterTheOldCopyIgnored() throws {
         var repeatingOnly = list(virtual: true)
         repeatingOnly.isVirtual = true
         repeatingOnly.filterRepeating = "daily"
@@ -105,8 +107,13 @@ final class ListTaskCountTests: XCTestCase {
         daily.repeating = .daily
         let oneOff = task("b", listIds: ["anywhere"])
 
-        XCTAssertEqual(ListTaskCount.count([daily, oneOff], list: repeatingOnly, currentUserId: nil), 1,
+        XCTAssertEqual(try CoreRowsFixture.counts([daily, oneOff], lists: [repeatingOnly], currentUserId: nil)[repeatingOnly.id], 1,
                        "the sidebar's private filter copy ignored filterRepeating entirely")
+    }
+
+    /// Before the core has answered, a saved filter has no badge rather than a wrong 0.
+    func testAVirtualListTheCoreHasNotAnsweredForHasNoBadge_AITD460() {
+        XCTAssertNil(ListTaskCount.counts([task("a")], lists: [list(virtual: true)], virtualCounts: [:])["list-1"])
     }
 
     func testTheBatchPassAgreesWithTheSingleCount() {
@@ -114,13 +121,13 @@ final class ListTaskCountTests: XCTestCase {
                      task("c", listIds: ["work"], completed: true)]
         let work = list("work"), home = list("home")
 
-        let batch = ListTaskCount.counts(tasks, lists: [work, home], currentUserId: nil)
+        let batch = ListTaskCount.counts(tasks, lists: [work, home], virtualCounts: [:])
 
-        XCTAssertEqual(batch["work"], ListTaskCount.count(tasks, list: work, currentUserId: nil))
-        XCTAssertEqual(batch["home"], ListTaskCount.count(tasks, list: home, currentUserId: nil))
+        XCTAssertEqual(batch["work"], ListTaskCount.count(tasks, list: work))
+        XCTAssertEqual(batch["home"], ListTaskCount.count(tasks, list: home))
     }
 
     func testNoTasksIsZeroNotAMissingBadge() {
-        XCTAssertEqual(ListTaskCount.count([], list: list(), currentUserId: nil), 0)
+        XCTAssertEqual(ListTaskCount.count([], list: list()), 0)
     }
 }

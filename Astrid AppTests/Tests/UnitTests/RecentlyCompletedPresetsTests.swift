@@ -64,6 +64,26 @@ final class RecentlyCompletedPresetsTests: XCTestCase {
         TestHelpers.createTestTask(id: id, title: id, completed: completed, isAllDay: false, updatedAt: updatedAt)
     }
 
+    /// The completion filter — astrid-core's since AITD-460 — asked with the old signature. The
+    /// core reads the real clock, so the tasks are moved by however far `now` is from it: the
+    /// windows these tests use are durations, which a shift leaves exactly as they were.
+    private func applyCompletionFilterWithWindow(_ tasks: [Task], filter: String,
+                                                 window: RecentlyCompletedWindow?, now: Date) -> [Task] {
+        let shift = Date().timeIntervalSince(now)
+        let moved = tasks.map { task -> Task in
+            var t = task
+            t.completedAt = t.completedAt?.addingTimeInterval(shift)
+            t.updatedAt = t.updatedAt?.addingTimeInterval(shift)
+            return t
+        }
+        var list = TaskList(id: "window", name: "")
+        list.isVirtual = true
+        list.filterCompletion = filter
+        list.recentlyCompletedWindow = window
+        let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        return ((try? CoreRowsFixture.rows(moved, list: list)) ?? []).compactMap { byId[$0] }
+    }
+
     func test_default_withSevenDayWindow_keepsCompletedFromThreeDaysAgo() {
         let now = ISO8601DateFormatter().date(from: "2026-05-11T12:00:00Z")!
         let threeDaysAgo = now.addingTimeInterval(-3 * 24 * 60 * 60)

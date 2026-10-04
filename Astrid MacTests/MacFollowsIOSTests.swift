@@ -46,7 +46,7 @@ final class MacFollowsIOSTests: XCTestCase {
         unassigned.creatorId = "me"
         var theirs = Task(id: "theirs", title: "theirs", completed: false); theirs.assigneeId = "you"
 
-        let ids = MacMyTasks.filter([mine, unassigned, theirs], userId: "me",
+        let ids = CoreRowsFixture.myTasksTasks([mine, unassigned, theirs], userId: "me",
                                     preferences: MyTasksPreferences()).map(\.id)
 
         XCTAssertEqual(ids, ["mine"])
@@ -55,7 +55,7 @@ final class MacFollowsIOSTests: XCTestCase {
     /// iOS shows nothing when nobody is signed in; the Mac showed every unassigned task.
     func testD25_noSignedInUserMeansAnEmptyMyTasks() {
         let unassigned = Task(id: "u", title: "u", completed: false)
-        XCTAssertTrue(MacMyTasks.filter([unassigned], userId: nil, preferences: MyTasksPreferences()).isEmpty)
+        XCTAssertTrue(CoreRowsFixture.myTasksTasks([unassigned], userId: nil, preferences: MyTasksPreferences()).isEmpty)
     }
 
     // MARK: - D28: the list picker offers what iOS offers
