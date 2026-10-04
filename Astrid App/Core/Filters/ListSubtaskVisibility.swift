@@ -20,23 +20,13 @@ import Foundation
 /// as does any response that omits it. Defaulting to hide would silently empty all of them.
 enum ListSubtaskVisibility {
 
-    /// The user-level display mode that means "detail view only".
-    static let detailOnlyDisplay = "under_parent"
-
     /// True unless the list has explicitly turned subtasks off.
     static func listShowsSubtasks(_ showSubtasks: Bool?) -> Bool {
         showSubtasks != false
     }
 
-    /// Whether the task list should splice subtasks in under their parents.
-    ///
-    /// Anything other than `under_parent` — including nil, and a mode a future build introduces
-    /// that this one has never heard of — means inline display is wanted. Treating an unknown
-    /// mode as "hide" would blank out every list on the older client.
-    static func shouldSplice(listShowSubtasks: Bool?, subtaskDisplay: String?) -> Bool {
-        guard subtaskDisplay != detailOnlyDisplay else { return false }
-        return listShowsSubtasks(listShowSubtasks)
-    }
+    // Whether a list splices them — this setting together with the account's `subtaskDisplay` —
+    // is astrid-core's `should_splice`, applied by `rowsForList` (AITD-460).
 
     /// What to PUT for `showSubtasks`, or nil to leave the key out of the payload entirely.
     ///

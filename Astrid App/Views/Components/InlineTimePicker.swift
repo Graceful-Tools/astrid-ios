@@ -20,9 +20,12 @@ struct InlineTimePicker: View {
     @State private var pickerMinute: Int = 0
     @State private var pickerPeriod: Int = 0 // 0 = AM, 1 = PM
 
-    // Quick time options — from the SHARED source, same reason as the date picker (ea4f5124).
+    // Quick time options — astrid-core's (`dueDateOptions`, AITD-461), the set the Mac reads too.
+    // Only the names and hours: this picker holds a time, not the day it goes on.
+    @ObservedObject private var duePicks = DuePicks.shared
     private var quickOptions: [(String, Int)] {
-        DueDateQuickPicks.timeOptions.map { (NSLocalizedString($0.titleKey, comment: ""), $0.hour) }
+        (DuePicks.options(nil, isAllDay: true)?.times ?? [])
+            .map { (NSLocalizedString($0.titleKey, comment: ""), $0.hour) }
     }
 
     var body: some View {
@@ -65,6 +68,7 @@ struct InlineTimePicker: View {
             }
             .presentationDetents([.large])
         }
+        .task { await DuePicks.ask(nil, isAllDay: true) }
     }
 
     @ViewBuilder private var editor: some View {

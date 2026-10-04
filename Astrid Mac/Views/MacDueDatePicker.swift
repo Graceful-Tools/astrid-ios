@@ -27,6 +27,11 @@ struct MacDueDatePicker: View {
     /// around a hand-picked number (task d4f663a3); the estimate covers the first pass.
     @State private var calendarWidth = MacFieldPicker.calendarNaturalEstimate.width
                                      * MacFieldPicker.calendarScale
+    /// The quick picks, from the core (AITD-461), asked as the trigger appears.
+    @ObservedObject private var duePicks = DuePicks.shared
+    private var quickPicks: [DueOptions.DatePick] {
+        DuePicks.options(date, isAllDay: isAllDay)?.dates ?? []
+    }
 
     /// Accept a typed date, or leave the field showing what is actually set.
     private func commitTyped() {
@@ -49,7 +54,7 @@ struct MacDueDatePicker: View {
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
-                ForEach(Array(MacDueDatePopover.rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(MacDueDatePopover.rows(quickPicks).enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .typedEntry:
                         // OUR field, not NSDatePicker's. `.field` types but drags
@@ -89,12 +94,13 @@ struct MacDueDatePicker: View {
                         }
                     case .quickPick(let option):
                         MacPickerRow(title: NSLocalizedString(option.titleKey, comment: ""),
-                                     isChecked: isOn(daysFromToday: option.daysFromToday)) {
-                            // The quick pick names a DAY, counted from today —
-                            // never from the task's existing date, or "Today" on
-                            // a task due in March would mean March.
-                            select(localDay: DueDateQuickPicks.date(daysFromToday: option.daysFromToday,
-                                                                    from: Date()))
+                                     isChecked: option.isSelected) {
+                            // The quick pick names a DAY, counted from today, and is stored as
+                            // iOS stores it: an all-day date at UTC midnight (CONTRACTS D48).
+                            guard let picked = option.date else { return }
+                            isAllDay = true
+                            date = picked
+                            onCommit()
                             isPresented = false
                         }
                     case .calendar:
@@ -119,6 +125,7 @@ struct MacDueDatePicker: View {
             // 208.5pt scaled grid floating with dead space down both sides (task d4f663a3).
             .frame(width: MacFieldPicker.popoverWidth(forCalendarWidth: calendarWidth))
         }
+        .task(id: DuePicks.key(date, isAllDay: isAllDay)) { await DuePicks.ask(date, isAllDay: isAllDay) }
     }
 
     /// What the calendar shows and sets — always a LOCAL day, converted to and
@@ -149,10 +156,6 @@ struct MacDueDatePicker: View {
         onCommit()
     }
 
-    private func isOn(daysFromToday days: Int) -> Bool {
-        guard let date else { return false }
-        return DueDateLabel.dayOffset(to: date, isAllDay: isAllDay) == days
-    }
 }
 
 /// The time control. Clearing the time is what makes a task all-day, which is
@@ -165,6 +168,11 @@ struct MacDueTimePicker: View {
     let onCommit: () -> Void
 
     @State private var isPresented = false
+    /// The quick times, from the core (AITD-461): each that hour on the task's own day.
+    @ObservedObject private var duePicks = DuePicks.shared
+    private var quickPicks: [DueOptions.TimePick] {
+        DuePicks.options(due, isAllDay: isAllDay)?.times ?? []
+    }
 
     /// nil while the task is all-day.
     private var time: Date? { isAllDay ? nil : due }
@@ -204,7 +212,7 @@ struct MacDueTimePicker: View {
         .macPointingHand()
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(alignment: .center, spacing: MacFieldPicker.rowSpacing) {
-                ForEach(Array(MacDueTimePopover.rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(MacDueTimePopover.rows(quickPicks).enumerated()), id: \.offset) { _, row in
                     switch row {
                     case .clear:
                         MacPickerRow(title: NSLocalizedString("picker.all_day", comment: ""),
@@ -216,8 +224,8 @@ struct MacDueTimePicker: View {
                     case .quickPick(let option):
                         MacPickerRow(title: NSLocalizedString(option.titleKey, comment: ""),
                                      isChecked: isOn(hour: option.hour)) {
-                            setTime(DueDateQuickPicks.applying(hour: option.hour,
-                                                               to: time ?? Date()))
+                            guard let picked = option.date else { return }
+                            setTime(picked)
                             isPresented = false
                         }
                     case .clock:
@@ -235,6 +243,7 @@ struct MacDueTimePicker: View {
             .padding(MacFieldPicker.padding)
             .frame(width: MacFieldPicker.narrowPopoverWidth)
         }
+        .task(id: DuePicks.key(due, isAllDay: isAllDay)) { await DuePicks.ask(due, isAllDay: isAllDay) }
     }
 
     private func isOn(hour: Int) -> Bool {

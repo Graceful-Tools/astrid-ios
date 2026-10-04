@@ -13,17 +13,21 @@ export const AWAITING_BUILD = /\*\*Awaiting build:\*\*\s*`([0-9a-f]{7,40})`/i;
 /**
  * The fix commit this task is waiting on, or null when it should be left alone.
  *
- * Only the NEWEST marker from `agentId` counts, and only when it is newer than the task's last
- * completion: a reopened task still carries the marker for the fix that missed, and closing it
- * on that build would undo the reopen before anyone had worked it.
+ * Only the NEWEST marker counts, and only when it is newer than the task's last completion: a
+ * reopened task still carries the marker for the fix that missed, and closing it on that build
+ * would undo the reopen before anyone had worked it.
+ *
+ * Any author's marker counts unless `authorId` is given. Interactive sessions post through the
+ * astrid MCP or the OAuth comment script, and both write as Jon, so an agent-only rule left
+ * their tasks in Doing after the build was VALID (AITD-454/458/459, 2026-10-04).
  */
-export function awaitingSha(comments, agentId) {
+export function awaitingSha(comments, authorId) {
   const at = c => Date.parse(c.createdAt) || 0;
   const lastCompleted = Math.max(0, ...comments
     .filter(c => c.systemEventType === 'COMPLETED')
     .map(at));
   const markers = comments
-    .filter(c => c.authorId === agentId && AWAITING_BUILD.test(c.content ?? ''))
+    .filter(c => (authorId == null || c.authorId === authorId) && AWAITING_BUILD.test(c.content ?? ''))
     .sort((a, b) => at(b) - at(a));
   const newest = markers[0];
   if (!newest || at(newest) <= lastCompleted) return null;

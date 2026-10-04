@@ -6,7 +6,7 @@ import Foundation
 /// `CDTaskList` persisted a list's settings, filters and board role but not its `owner` or its
 /// `listMembers`, so a list rehydrated from CoreData came back knowing nobody. Online that never
 /// showed: `fetchLists()` re-hydrated the in-memory copy within a second. Offline it is the only
-/// copy there is, and `AssigneeOptions` derives the assignee picker's roster from exactly those
+/// copy there is, and the assignee picker (the core's `assigneeOptions`) reads its roster from exactly those
 /// two fields — so the picker came up empty and a task could not be assigned to anyone.
 ///
 /// Stored as JSON in one attribute rather than as Core Data relations, matching how

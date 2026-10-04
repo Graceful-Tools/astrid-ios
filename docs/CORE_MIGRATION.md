@@ -63,8 +63,12 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
-| Filters, sort, subtasks, recently completed, My Tasks, board, search, palette | `Core/Filters/*` (incl. `TaskSearch`, `MyTasksScope`), view pipelines, `ProjectStatus`, `FuzzyMatch` | **not started** — the core has every one (`rowsForList`, `searchTasks`, `board`, `palette`, `myTasksList`), but Swift calls none of them yet. The cached-task read they waited on exists (`tasks`). Search goes first, because the core's search still differs from iOS's (see Findings); then list rows and My Tasks, then the board and pickers |
-| Mentions, keyboard table, editing session, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `EditingSession`, `Core/Layout/*` | planned |
+| Search | `Core/Filters/TaskSearch.swift` | **done** (AITD-459) — the core's `searchTasks` answers as iOS's search did; both apps ask it through `TaskSearchModel`, asynchronously, and the old Swift tests run against the core |
+| List rows: filters, sort, subtasks, recently completed, My Tasks, saved-filter counts | `ListTaskFiltering`, `SubtaskSplicing`, `MyTasksScope`, `applyCompletionFilterWithWindow`, `MacMyTasks`, the iOS and Mac row pipelines | **done** (AITD-460) — the core's `rowsForList` (ids only) answers as iOS's list did; both apps ask it through `ListRowsModel`, asynchronously, with the inputs they hold ahead of the cache; the sidebar's saved-filter badges come from `listCounts`; iOS's search splices through `searchTasks` |
+| Board and pickers | `ProjectStatus` (columns, cards, moves, drops), `ProjectStatePicker`, `ProjectStateMove`, `MacBoardMove`, `ListFilingTargets`, `DueDateQuickPicks`, `AssigneeOptions` | **done** (AITD-461) — the core's `board`, `dropBoardCard`, `moveTaskToColumn` / `setTaskStatus` and `taskStatusOptions` answer as iOS's board did; `listPicks` (`asToggles`), `assigneeOptions` and `dueDateOptions` as its pickers did (D43–D50). Both apps ask through `BoardModel` / `TaskStatusOptions` and `PickerAnswers` (`ListPicks`, `DuePicks`, `AssigneePicks`), asynchronously, with each answer kept and shown until the next lands |
+| Stays Swift from that group | `EditingSession`, `CustomRepeatSummary`, `AssigneeResolver`, the repeat presets (`Task.Repeating`) | `EditingSession` is the "resigning saves" focus policy: an `ObservableObject` the views bind to synchronously; the core's `editing` module states the same rule, but routing focus changes through an async door buys nothing. `CustomRepeatSummary` words a custom repeat in English, and the core answers parts with keys iOS has no strings for (D49) — moving it means twelve languages of new copy. `AssigneeResolver` names the face on every row while it draws. The repeat picker lists its own enum, now under the same `repeating.*` keys the core uses (D49) |
+| Palette | `FuzzyMatch` (Mac) | not started — the core has `palette` |
+| Mentions, keyboard table, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `Core/Layout/*` | planned |
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
@@ -113,6 +117,36 @@ or filed.
   subtasks (iOS top-level only), and sorts by title match then recency (iOS by priority). Those
   move toward iOS in the core before `TaskSearch` can delegate. Expect the same of the other
   projections: run the Swift tests against the core before deleting a copy, not after.
+  **Resolved (AITD-459):** the core moved to iOS on all four (and takes a plain query as typed —
+  untrimmed, unsplit); `TaskSearch.swift` is gone. Left as a superset: the web's search grammar
+  and identifier hits. One deliberate difference: an assignee with neither name nor email no
+  longer matches "Unknown User".
+- **The core's list rows were not iOS's either** (found 2026-10-03, AITD-460, by comparing iOS's
+  pipeline with `rowsForList`; afterwards a differential test over 1,200 random lists — real,
+  saved-filter, My Tasks and the everything view — agreed row for row). Four ways, all moved toward
+  iOS in the core (CONTRACTS D40–D42): a list with no `sortBy` is manual on iOS (auto in the
+  core, the Mac and web); a spliced subtask obeys only the view's completion filter, and comes
+  from every task, not just the list's members; and ties in every sort fall in iOS's store order
+  (`TaskOrdering`) rather than the cache's. The Mac, which drew through the same Swift copies with
+  its own sort default and subtask rule, follows iOS on all four now.
+
+- **The board and the pickers were not iOS's either** (found 2026-10-03, AITD-461, by running the
+  Swift board and picker tests against the core — then a differential test over 1,200 random boards,
+  every column and a drop per board, agreed card for card). All moved toward iOS in the core
+  (CONTRACTS D43–D50): the board drew subtasks as cards, in cache order, every finished task forever
+  and at most 50 a column; never named a default column from a cached status row; wrote an edit of
+  nothing when a card was moved to its own column, un-completed last, and offered Done in the state
+  menu; had no drop that rearranges a column. Not in the earlier scope check: the board's Done reads
+  the list's filter its own way (`hide` hides, absent is the window) and times a card by `updatedAt`,
+  never `completedAt`; a time pick on an all-day task landed on the day before west of UTC; and iOS's
+  own drop placed the card against a column computed without the board's custom states and with
+  subtasks counted — the core places it against the column the board drew. The pickers: the
+  assignee rule differed five ways (D47), a quick date pick on a timed task keeps no time on iOS
+  (D48), the repeat presets used keys iOS lacks (D49), and the list picker hid the task's own lists,
+  sorted by name and capped at ten (D50). The Mac, which had its own board grouping (no Done window,
+  no manual order, subtasks as cards), its own assignee builder (unhydrated members and the holder
+  offered) and kept a timed task's time on a quick date, follows iOS on all of it now; its assignee
+  trigger still names a holder from outside the list.
 
 ## The data layer: design
 

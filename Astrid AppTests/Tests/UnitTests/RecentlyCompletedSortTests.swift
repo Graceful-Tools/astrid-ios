@@ -15,7 +15,8 @@ import XCTest
 /// 2026-10-03: these tests used to exercise `sortTasksForList` in `Core/Board/TaskSort.swift`,
 /// which nothing in either app called — the case was added there, the tests went green, and
 /// the lists (iOS `applySorting`, Mac `MacRowPipeline`, both via `sortTasksByListSetting`)
-/// still sorted "completedAt" as auto. They now drive the sort the apps use.
+/// still sorted "completedAt" as auto. They now drive the sort the apps use — astrid-core's
+/// `rowsForList` since AITD-460.
 final class RecentlyCompletedSortTests: XCTestCase {
 
     private let sort = "completedAt"
@@ -38,6 +39,12 @@ final class RecentlyCompletedSortTests: XCTestCase {
 
     private func sorted(_ tasks: [Task]) -> [String] {
         sortTasksByListSetting(tasks, sortBy: sort, manualOrder: nil).map(\.id)
+    }
+
+    /// The sort the apps use — astrid-core's since AITD-460, asked with the old signature.
+    private func sortTasksByListSetting(_ tasks: [Task], sortBy: String, manualOrder: [String]?) -> [Task] {
+        let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        return ((try? CoreRowsFixture.sorted(tasks, sortBy: sortBy, manualOrder: manualOrder)) ?? []).compactMap { byId[$0] }
     }
 
     // MARK: - The sort itself

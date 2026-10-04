@@ -3,21 +3,15 @@
 
 import Foundation
 
-/// Everything TaskListView's row pipeline reads. A body is re-evaluated on every selection, drag
-/// hover and sheet; the pipeline filters, sorts and splices EVERY task, so it runs only when one
-/// of these changes. The minute is in the key because the due-date and recently-completed
-/// filters read the clock.
+/// Everything TaskListView's rows are made of. A body is re-evaluated on every selection, drag
+/// hover and sheet; the rows are looked up only when one of these changes. The filtering, the
+/// sort and the splice are astrid-core's (AITD-460) and search's (AITD-459), answered into `ids`
+/// asynchronously — so the key is the answer and the tasks it is drawn with, not their inputs.
 struct TaskListRowsKey: Equatable {
     let tasks: [Task]
     let featuredListTasks: [Task]
-    let selectedListId: String?
-    let selectedList: TaskList?
-    let isViewingFromFeatured: Bool
-    let searchText: String
-    let myTasksPreferences: MyTasksPreferences
-    var subtaskDisplay: String? = UserSettingsService.shared.settings.subtaskDisplay
-    var userId: String? = AuthManager.shared.userId
-    var minute = Int(Date().timeIntervalSince1970 / 60)
+    /// The core's answer for what is on screen; nil when it has not answered for this list yet.
+    let ids: [String]?
 }
 
 enum TaskListRows {

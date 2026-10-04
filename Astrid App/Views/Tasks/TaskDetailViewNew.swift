@@ -463,7 +463,7 @@ struct TaskDetailViewNew: View {
                     TwoColumnRow(label: NSLocalizedString("board.project_state", comment: ""),
                                  icon: "square.grid.2x2") {
                         // The SAME chips the project-mode quick changer offers, whose move goes
-                        // through `planProjectColumnMove`, so this row and the board cannot come
+                        // through the core's board move, so this row and the board cannot come
                         // to disagree about which states exist or what moving to Done means.
                         ProjectStateQuickPicker(task: task, onMoved: {},
                                                 onTaskUpdated: { self.task = $0 })

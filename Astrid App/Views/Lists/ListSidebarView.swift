@@ -20,7 +20,10 @@ struct ListSidebarView: View {
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
 
     // The badges, recomputed only when tasks, lists or the user change (AITD-455).
-    @State private var badgesMemo = Memo<BadgesKey, Badges>()
+    @State private var badgesMemo = Memo<BadgesMemoKey, Badges>()
+    /// What each saved filter keeps, answered by astrid-core (AITD-460); asked again whenever
+    /// the badges' inputs change.
+    @State private var virtualCounts: [String: Int] = [:]
 
     // Cached filtered lists to avoid recomputation on every render
     @State private var _cachedCollaborativeLists: [TaskList] = []
@@ -91,6 +94,13 @@ struct ListSidebarView: View {
                 NavigationStack {
                     ListEditView()
                 }
+            }
+            // The saved filters' badges come from the core, off the main thread (AITD-460).
+            .task(id: badgesKey) {
+                let counts = await ListTaskCount.virtualCounts(
+                    lists: badgesKey.publicLists + badgesKey.lists, currentUserId: badgesKey.userId,
+                    session: AppCore.shared.session)
+                if counts != virtualCounts { virtualCounts = counts }
             }
             .task {
                 // Only load data once on initial appearance to prevent infinite loop
@@ -482,6 +492,11 @@ struct ListSidebarView: View {
         let userId: String?
     }
 
+    private struct BadgesMemoKey: Equatable {
+        let inputs: BadgesKey
+        let virtualCounts: [String: Int]
+    }
+
     private struct Badges {
         let lists: [String: Int]
         let myTasks: Int
@@ -492,15 +507,20 @@ struct ListSidebarView: View {
     /// Each row used to call `ListTaskCount.count` itself, which is O(lists × tasks) on every
     /// redraw — and a virtual list re-runs the whole filter pipeline. The Mac memoizes
     /// `ListTaskCount.counts`; this does the same, keyed on what the counts are made of.
+    private var badgesKey: BadgesKey {
+        BadgesKey(tasks: taskService.tasks, lists: listService.lists,
+                  publicLists: publicLists, userId: authManager.userId)
+    }
+
     private var badges: Badges {
-        let userId = authManager.userId
-        let key = BadgesKey(tasks: taskService.tasks, lists: listService.lists,
-                            publicLists: publicLists, userId: userId)
-        return badgesMemo.value(for: key) {
+        let key = badgesKey
+        let userId = key.userId
+        return badgesMemo.value(for: BadgesMemoKey(inputs: key, virtualCounts: virtualCounts)) {
             let tasks = key.tasks
             // Public lists badge too. Your own copy of a list goes last so it wins when a list is
             // in both — that is the copy its own row used to count.
-            let counts = ListTaskCount.counts(tasks, lists: key.publicLists + key.lists, currentUserId: userId)
+            let counts = ListTaskCount.counts(tasks, lists: key.publicLists + key.lists,
+                                              virtualCounts: virtualCounts)
             // Count only tasks assigned to current user
             let myTasks = userId.map { id in tasks.filter { !$0.completed && $0.assigneeId == id }.count } ?? 0
             return Badges(lists: counts, myTasks: myTasks)

@@ -629,7 +629,7 @@ struct ListAdminTab: View {
                 // Create the project AND attach this list to it as the
                 // regular (domain) list. Without the second step the
                 // board's Inbox column stays empty because
-                // getProjectDomainTasks finds no list with the projectId.
+                // the core's board finds no list with the projectId.
                 _ = try await ProjectService.shared.createBoardForList(list)
                 await MainActor.run {
                     boardOperationInFlight = false

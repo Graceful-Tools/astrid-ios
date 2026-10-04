@@ -24,17 +24,17 @@ final class MacMyTasksTests: XCTestCase {
             task("theirs", assignee: "you"),
             task("mineDone", assignee: "me", completed: true),
         ]
-        let ids = Set(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).map { $0.id })
+        let ids = Set(CoreRowsFixture.myTasksTasks(tasks, userId: "me", preferences: MyTasksPreferences()).map { $0.id })
         XCTAssertEqual(ids, ["mine"], "unassigned left with D25 — iOS never showed it")
     }
 
     func testDeduplicatesAcrossLists() {
         let tasks = [task("1", assignee: "me"), task("1", assignee: "me")]
-        XCTAssertEqual(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).count, 1)
+        XCTAssertEqual(CoreRowsFixture.myTasksTasks(tasks, userId: "me", preferences: MyTasksPreferences()).count, 1)
     }
 
     func testExcludesTasksAssignedToOthers() {
         let tasks = [task("a", assignee: "other1"), task("b", assignee: "other2")]
-        XCTAssertTrue(MacMyTasks.filter(tasks, userId: "me", preferences: MyTasksPreferences()).isEmpty)
+        XCTAssertTrue(CoreRowsFixture.myTasksTasks(tasks, userId: "me", preferences: MyTasksPreferences()).isEmpty)
     }
 }

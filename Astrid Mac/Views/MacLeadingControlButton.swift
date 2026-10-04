@@ -148,11 +148,7 @@ struct MacLeadingControlButton: View {
                         Text(NSLocalizedString("tasks.assignee", comment: ""))
                             .font(MacTypography.label).foregroundStyle(Theme.textMuted)
                         MacAssigneePicker(
-                            options: MacAssigneeOptions.build(
-                                members: members,
-                                currentUserId: AuthManager.shared.userId,
-                                taskAssignee: task.assignee),
-                            selectedId: task.assigneeId,
+                            task: task,
                             priority: priority,
                             onSelect: { onAssignee($0); isPresented = false }
                         )
@@ -195,36 +191,24 @@ struct MacLeadingControlButton: View {
 /// leading control: both the board card and the detail panel build that control, and neither
 /// of them has anything to add to this decision.
 ///
-/// It does NOT invent a list of states. The columns come from `getProjectBoardColumns`, the
-/// same derivation the board itself uses, so a renamed "Ready" reads the same in both places —
-/// and the write goes through `MacBoardMove.plan`, so dropping a task on Done from here
-/// completes it exactly as dragging it there does. A second implementation of "what moving to
-/// Done means" is how the two surfaces start disagreeing about completion.
+/// It does NOT invent a list of states. The columns are the core's `taskStatusOptions` — the
+/// task's own board, named as the board names them, never Done (CONTRACTS D46) — and the write is
+/// the core's move (`TaskService.moveToBoardColumn`), so dropping a task on a state from here does
+/// exactly what dragging its card does. A second implementation of "what moving to Done means" is
+/// how the two surfaces start disagreeing about completion.
 struct MacProjectStateSection: View {
     let task: Task
     let onMoved: () -> Void
 
-    @StateObject private var listService = ListService.shared
-    @StateObject private var taskService = TaskService.shared
-    /// Observed so the chips redraw when the projects finish loading — see the
-    /// same field on iOS's ProjectStateQuickPicker.
-    @StateObject private var projectService = ProjectService.shared
+    /// The task's columns and which one it is in, from the core — the same answer iOS's picker
+    /// reads (AITD-461).
+    @ObservedObject private var options = TaskStatusOptions.shared
 
-    /// The custom columns of the board THIS task is on (AITD-379), so the
-    /// picker and the board cannot disagree about what states exist.
-    private var customStates: [ProjectCustomState]? {
-        projectService.customStates(forTask: task, lists: listService.lists)
-    }
-
-    /// Every state EXCEPT Done (task 7574067b) — the same filter iOS uses, so the two
-    /// pickers cannot come to disagree about what a state is.
-    private var columns: [ProjectBoardColumn] {
-        ProjectStatePicker.columns(
-            from: getProjectBoardColumns(listService.lists, customStates: customStates))
-    }
-
-    private var currentColumnId: String {
-        getTaskProjectColumnId(task, lists: listService.lists, customStates: customStates)
+    private var answer: TaskStatusOptions.Answer? { options.answers[task.id] }
+    private var columns: [ProjectBoardColumn] { answer?.columns.map(\.column) ?? [] }
+    private var currentColumnId: String? { answer?.current }
+    private var askKey: String {
+        "\(task.id)|\(task.statusRole ?? "")|\(task.completed)|\(task.listIds ?? [])"
     }
 
     var body: some View {
@@ -247,28 +231,17 @@ struct MacProjectStateSection: View {
                 .accessibilityLabel(column.name)
             }
         }
+        .task(id: askKey) { await options.refresh(task.id) }
     }
 
     private func move(to column: ProjectBoardColumn) {
         onMoved()
-        guard column.id != currentColumnId else { return }
-        let plan = planProjectColumnMove(task: task, column: column,
-                                         lists: listService.lists, customStates: customStates)
         AppActions.perform("Move task") {
-            // Same sequencer as the iOS picker (AITD-352), including ASTRID.md rule 2 —
-            // completion only ever through `completeTask`. The Mac discards the returned task:
-            // its detail view is handed one derived from the observed `TaskService` and redraws
-            // on its own, which is exactly why this bug was iOS-only.
-            _ = try await ProjectStateMove.apply(
-                plan: plan,
-                update: { ids, role in
-                    try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                     task: task, statusRole: role)
-                },
-                complete: { flag in
-                    try await taskService.completeTask(id: task.id, completed: flag, task: task)
-                }
-            )
+            // The core's move, the task's own board: nothing when it is already there, completion
+            // only ever through the completion service (ASTRID.md rule 2). The Mac's detail redraws
+            // from the observed `TaskService`, so the returned task is not needed here.
+            try await TaskService.shared.moveToBoardColumn(taskId: task.id, columnId: column.id)
+            await options.refresh(task.id)
         }
     }
 }

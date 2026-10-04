@@ -48,6 +48,13 @@ enum MacDetailPresentation {
         style == .fullScreen ? .center : .trailing
     }
 
+    /// Full screen belongs to the task it was opened for (AITD-464). The flag is persisted, and
+    /// closing the detail — the close button, Escape, switching lists — only clears the
+    /// selection, so without this every task opened afterwards came up full screen as well.
+    static func fullScreen(current: Bool, selectionCount: Int) -> Bool {
+        selectionCount == 0 ? false : current
+    }
+
     // MARK: - The affordance, shared by both places that offer it
 
     /// The glyph, so the board card and the detail header cannot drift into two different icons.
@@ -58,6 +65,23 @@ enum MacDetailPresentation {
 
     static func fullScreenTooltipKey(isFullScreen: Bool) -> String {
         isFullScreen ? "board.exit_full_screen" : "board.full_screen"
+    }
+}
+
+/// What a selection change means outside the content area: menu commands read the selection
+/// from the app model, and closing the detail ends its full screen (AITD-464). Lives here rather
+/// than in `MacRootView` so the root stays under its size ceiling.
+struct MacDetailSelectionSync: ViewModifier {
+    let selection: Set<String>
+    let appModel: MacAppModel
+    @AppStorage("macDetailFullScreen") private var detailFullScreen = false
+
+    func body(content: Content) -> some View {
+        content.onChange(of: selection, initial: true) { _, ids in
+            appModel.selectedTaskIds = ids
+            detailFullScreen = MacDetailPresentation.fullScreen(current: detailFullScreen,
+                                                                selectionCount: ids.count)
+        }
     }
 }
 #endif

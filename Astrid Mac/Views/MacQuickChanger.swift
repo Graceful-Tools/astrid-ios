@@ -23,7 +23,6 @@ struct MacQuickChanger: View {
 
     @StateObject private var taskService = TaskService.shared
     @State private var priority: Task.Priority
-    @State private var members: [ListMember] = []
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -52,10 +51,7 @@ struct MacQuickChanger: View {
                 Text(NSLocalizedString("tasks.assignee", comment: ""))
                     .font(MacTypography.label).foregroundStyle(Theme.textMuted)
                 MacAssigneePicker(
-                    options: MacAssigneeOptions.build(members: members,
-                                                      currentUserId: AuthManager.shared.userId,
-                                                      taskAssignee: task.assignee),
-                    selectedId: task.assigneeId,
+                    task: task,
                     priority: priority,
                     onSelect: { newId in
                         onDismiss()
@@ -97,8 +93,8 @@ struct MacQuickChanger: View {
         .frame(width: 240)
         .task(id: task.id) {
             guard let listId = task.listIds?.first else { return }
+            // Refreshes the roster the core answers the assignee picker from.
             try? await ListMemberService.shared.fetchMembers(listId: listId)
-            members = ListMemberService.shared.membersByList[listId] ?? []
         }
     }
 }

@@ -88,8 +88,9 @@ final class AITD455ViewMemoizationTests: XCTestCase {
 
     func testAITD455ListRowsAreMemoized() throws {
         let text = try source("Astrid App/Views/Tasks/TaskListView.swift")
-        let start = try XCTUnwrap(text.range(of: "private var filteredTasks: [Task] {"))
-        let body = String(text[start.upperBound...].prefix(600))
+        // Since AITD-460 the rows are astrid-core's answer; what is memoized is looking it up.
+        let start = try XCTUnwrap(text.range(of: "private var answeredRows: [Task]? {"))
+        let body = String(text[start.upperBound...].prefix(1200))
         XCTAssertTrue(body.contains("rowsMemo.value("),
                       "filteredTasks filtered, sorted and spliced every task on every redraw")
     }

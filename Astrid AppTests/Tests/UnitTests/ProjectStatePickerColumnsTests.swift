@@ -8,21 +8,22 @@
 //  popover offered the same action twice, and the chip version was the one that gave no hint it
 //  would finish the task.
 //
-//  The board keeps Done. Only the picker drops it, and it drops it through a shared filter so
-//  iOS and Mac cannot disagree about what "the states you can pick" means.
+//  The board keeps Done. Only the picker drops it — since AITD-461 in astrid-core's
+//  `taskStatusOptions` (CONTRACTS D46), which both the iOS and Mac pickers read, so they cannot
+//  disagree about what "the states you can pick" means.
 
 import XCTest
 @testable import Astrid_App
 
 final class ProjectStatePickerColumnsTests: XCTestCase {
 
-    private var allColumns: [ProjectBoardColumn] { getProjectBoardColumns([]) }
+    private var allColumns: [ProjectBoardColumn] { CoreBoardFixture.columns([]) }
 
     // MARK: - The ask
 
     /// THE BUG: Done was one of the chips.
     func testThePickerDoesNotOfferDone() {
-        let offered = ProjectStatePicker.columns(from: allColumns)
+        let offered = CoreBoardFixture.pickerColumns()
         XCTAssertFalse(offered.contains { $0.kind == .done },
                        "Done is what the Complete button is for — a chip that silently "
                        + "completes the task is the trapdoor this removes")
@@ -30,7 +31,7 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
 
     /// And it drops ONLY that. Losing Inbox or a status would take away somewhere to move to.
     func testThePickerKeepsEveryOtherState() {
-        let offered = ProjectStatePicker.columns(from: allColumns)
+        let offered = CoreBoardFixture.pickerColumns()
         XCTAssertEqual(offered.map(\.id), allColumns.filter { $0.kind != .done }.map(\.id))
         XCTAssertTrue(offered.contains { $0.kind == .inbox }, "Inbox is still somewhere to move to")
         XCTAssertTrue(offered.contains { $0.kind == .status }, "the real statuses are the point")
@@ -45,9 +46,8 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
     /// A custom state named "Done" is a STATUS, not the virtual Done column, and must survive.
     /// Filtering by name rather than by kind is the obvious wrong way to write this.
     func testACustomStateNamedDoneIsNotDropped() {
-        let custom = ProjectBoardColumn(id: "custom-done", name: "Done",
-                                        description: "", kind: .status)
-        let offered = ProjectStatePicker.columns(from: [custom] + allColumns)
+        let offered = CoreBoardFixture.pickerColumns(
+            customStates: [ProjectCustomState(role: "custom-done", name: "Done", order: 0)])
         XCTAssertTrue(offered.contains { $0.id == "custom-done" },
                       "a project's own column called Done is a state, not the completion column")
     }
@@ -70,13 +70,13 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
 
     func testTheIOSPickerAsksTheSharedFilter() throws {
         XCTAssertTrue(try source("Astrid App/Views/Components/ProjectStateQuickPicker.swift")
-                        .contains("ProjectStatePicker.columns"),
-                      "the iOS picker must filter through the shared rule")
+                        .contains("TaskStatusOptions"),
+                      "the iOS picker must read the core's answer")
     }
 
     func testTheMacPickerAsksTheSharedFilter() throws {
         XCTAssertTrue(try source("Astrid Mac/Views/MacLeadingControlButton.swift")
-                        .contains("ProjectStatePicker.columns"),
-                      "the Mac picker must filter through the same rule, or the two drift")
+                        .contains("TaskStatusOptions"),
+                      "the Mac picker must read the same answer, or the two drift")
     }
 }

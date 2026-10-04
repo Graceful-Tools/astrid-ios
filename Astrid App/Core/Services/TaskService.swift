@@ -438,6 +438,45 @@ class TaskService: ObservableObject {
         return done
     }
 
+    /// Put a task in a board column — the move a dragged card or a state chip makes (AITD-461).
+    ///
+    /// The core decides what that writes (CONTRACTS D45): nothing when the card is already there;
+    /// leaving Done un-completes first; Done completes through the completion service, so a
+    /// repeating card rolls forward (ASTRID.md rule 2). With `listId` the columns are the board
+    /// that list belongs to (a board's drag); without it, the task's own board (its state menu).
+    /// Returns the task as it now is, for a view holding a snapshot (AITD-352).
+    @discardableResult
+    func moveToBoardColumn(taskId: String, columnId: String, listId: String? = nil) async throws -> Task {
+        var command = CoreCommand(kind: listId == nil ? "setTaskStatus" : "moveTaskToColumn")
+        command.set("taskId", resolved(taskId))
+        command.set("columnId", columnId)
+        command.set("listId", listId)
+        let moved = try await core.run(command, as: Task.self)
+        show(moved)
+        LocalMutation.note()
+        refreshOutboxCounts()
+        return moved
+    }
+
+    /// Drop a card at a slot in a board column (AITD-461): the move, then the card's new place in
+    /// the board list's manual order — what iOS's board has always written on a drop. A drop onto
+    /// the card's own column still rearranges it.
+    @discardableResult
+    func dropOnBoard(taskId: String, columnId: String, listId: String, index: Int) async throws -> Task {
+        var command = CoreCommand(kind: "dropBoardCard")
+        command.set("taskId", resolved(taskId))
+        command.set("columnId", columnId)
+        command.set("listId", listId)
+        command.set("index", index)
+        struct Dropped: Decodable { let task: Task; let list: TaskList }
+        let dropped = try await core.run(command, as: Dropped.self)
+        show(dropped.task)
+        ListService.shared.adopt(dropped.list)
+        LocalMutation.note()
+        refreshOutboxCounts()
+        return dropped.task
+    }
+
     /// Where a repeating task goes next if it were completed now — the same answer
     /// `completeTask` acts on, from astrid-core. Holds no pattern math.
     ///

@@ -19,8 +19,18 @@ test('no marker leaves the task alone', () => {
   assert.equal(awaitingSha([c('2026-09-27T10:00:00Z', '## Strategy')], AGENT), null);
 });
 
-test('a marker from someone else does not count', () => {
-  assert.equal(awaitingSha([c('2026-09-27T10:00:00Z', marker('abc1234'), { authorId: 'person' })], AGENT), null);
+// An interactive session posts through the astrid MCP or the OAuth comment script, and both
+// write as Jon, not as the agent. Requiring the agent's id left AITD-454/458/459 in Doing after
+// their builds were VALID, logging "no Awaiting build marker" every tick (2026-10-04).
+test('a marker counts whoever posted it', () => {
+  assert.equal(awaitingSha([c('2026-09-27T10:00:00Z', marker('abc1234'), { authorId: 'person' })]), 'abc1234');
+});
+
+test('a person\'s newer marker wins over the agent\'s older one', () => {
+  assert.equal(awaitingSha([
+    c('2026-09-27T10:00:00Z', marker('aaaaaaa')),
+    c('2026-09-27T12:00:00Z', marker('bbbbbbb'), { authorId: 'person' }),
+  ]), 'bbbbbbb');
 });
 
 test('the newest marker wins', () => {

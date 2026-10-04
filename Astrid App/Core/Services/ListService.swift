@@ -69,6 +69,9 @@ class ListService: ObservableObject {
         if isReady { TaskService.shared.rejoinLists() }
     }
 
+    /// Show a list another service's core command answered with — a board drop's reordered list.
+    func adopt(_ list: TaskList) { show(list) }
+
     /// Show a list the core just answered with, without waiting for its change to come round.
     private func show(_ list: TaskList) {
         var next = lists

@@ -13,12 +13,12 @@
 import Foundation
 
 enum MacListCount {
-    static func counts(_ tasks: [Task], lists: [TaskList], currentUserId: String?) -> [String: Int] {
-        ListTaskCount.counts(tasks, lists: lists, currentUserId: currentUserId)
+    static func counts(_ tasks: [Task], lists: [TaskList], virtualCounts: [String: Int]) -> [String: Int] {
+        ListTaskCount.counts(tasks, lists: lists, virtualCounts: virtualCounts)
     }
 
-    static func count(_ tasks: [Task], list: TaskList, currentUserId: String?) -> Int {
-        ListTaskCount.count(tasks, list: list, currentUserId: currentUserId)
+    static func count(_ tasks: [Task], list: TaskList, virtualCount: Int? = nil) -> Int {
+        ListTaskCount.count(tasks, list: list, virtualCount: virtualCount)
     }
 }
 #endif

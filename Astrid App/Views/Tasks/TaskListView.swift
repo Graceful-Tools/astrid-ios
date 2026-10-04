@@ -70,7 +70,7 @@ struct TaskListView: View {
     /// having no overlays at all.
     @State private var draggingTaskId: String?
     @State private var hasLoadedInitialData = false  // Prevent infinite .task loop
-    @State private var rowsMemo = Memo<TaskListRowsKey, [Task]>()  // see filteredTasks (AITD-455)
+    @State private var rowsMemo = Memo<TaskListRowsKey, [Task]?>()  // see answeredRows (AITD-455)
     /// Which view the user picked from the unified List/Board/Messages
     /// rotator button. Defaults to `.list`; auto-flips to `.board` when
     /// the selected list has a project board attached (so the board
@@ -85,6 +85,10 @@ struct TaskListView: View {
 
     // My Tasks filter preferences (synced across devices via server)
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
+    /// The search box, answered by astrid-core (AITD-459) — the same model the Mac uses.
+    @StateObject private var search = TaskSearchModel()
+    /// The list's rows, answered by astrid-core (AITD-460) — the same model the Mac uses.
+    @StateObject private var listRows = ListRowsModel()
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
@@ -594,11 +598,12 @@ struct TaskListView: View {
                             } else {
                                 // Compute the filtered rows ONCE per body eval
                                 // (was computed twice: here and in taskList).
-                                let rows = filteredTasks
-                                if rows.isEmpty {
+                                if let rows = answeredRows, rows.isEmpty {
                                     emptyState
                                 } else {
-                                    taskList(rows: rows)
+                                    // Unanswered is not empty: an empty list for the moment the
+                                    // core takes, never "No tasks" (AITD-460).
+                                    taskList(rows: answeredRows ?? [])
                                 }
                             }
                         }
@@ -715,6 +720,11 @@ struct TaskListView: View {
             GitHubSyncService.shared.scheduleSync()
             GoogleTasksSyncService.shared.scheduleSync()
         })
+        // Ask the core for the search box's results; the rows follow when they land (AITD-459).
+        // iOS draws each result's subtasks under it, so the core splices them in (AITD-460).
+        .task(id: searchSplice) { search.update(query: searchText, splice: searchSplice.splice) }
+        // Ask the core for the list's rows; they follow when they land (AITD-460).
+        .task(id: rowsQuery) { if let rowsQuery { listRows.update(rowsQuery) } }
         .onChange(of: isViewingFromFeatured) { _, newValue in
             if newValue, let listId = selectedListId {
                 _Concurrency.Task {
@@ -885,151 +895,73 @@ struct TaskListView: View {
         .animation(nil, value: selectedTaskForPanel?.id)
     }
 
-    /// Rows to render: top-level pipeline, plus (in the default "indented"
-    /// display mode) each visible parent's subtasks spliced directly after it.
-    /// "under_parent" mode hides subtasks from lists entirely (detail only), and a list can turn
-    /// its own subtasks off (ba1deb9d) — both decided by the SHARED ListSubtaskVisibility rule.
-    private var filteredTasks: [Task] {
-        let key = TaskListRowsKey(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
-                                  selectedListId: selectedListId, selectedList: selectedList,
-                                  isViewingFromFeatured: isViewingFromFeatured, searchText: searchText,
-                                  myTasksPreferences: myTasksPreferences.preferences)
-        return rowsMemo.value(for: key) { computeFilteredTasks() }   // AITD-455
-    }
-
-    private func computeFilteredTasks() -> [Task] {
-        let top = topLevelFilteredTasks
-        guard ListSubtaskVisibility.shouldSplice(
-            listShowSubtasks: selectedList?.showSubtasks,
-            subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay) else { return top }
-        // Depth-first splice via the SHARED implementation (Core/Filters/SubtaskSplicing, used by
-        // Mac too): nested subtasks render at any depth, each following the SAME completion
-        // settings as the list.
-        return spliceSubtasks(topLevel: top, allTasks: taskService.tasks, indented: true,
-                              subtaskVisible: { !applyContextCompletionFilter([$0]).isEmpty })
-    }
-
-    /// The completion filter the CURRENT view context applies to its rows —
-    /// mirrors the branches of `topLevelFilteredTasks` so spliced subtasks obey
-    /// the exact same visibility rule as their surroundings.
-    private func applyContextCompletionFilter(_ tasks: [Task]) -> [Task] {
-        if !searchText.isEmpty {
-            return applyCompletionFilter(tasks, filterCompletion: "default")
-        }
-        if selectedListId == "my-tasks" {
-            let completion = myTasksPreferences.preferences.filterCompletion ?? "default"
-            return applyCompletionFilter(tasks, filterCompletion: completion)
-        }
-        if let list = selectedList {
-            return applyCompletionFilterWithWindow(
-                tasks,
-                filter: list.filterCompletion ?? "default",
-                window: list.recentlyCompletedWindow
-            )
-        }
-        return applyCompletionFilter(tasks, filterCompletion: "default")
-    }
-
-    private var topLevelFilteredTasks: [Task] {
-        // Search mode with no query — show empty state
+    /// Rows to render, in order, subtasks spliced under their parents — astrid-core's answer
+    /// (AITD-460): `rowsForList` for a list, My Tasks or everything, `searchTasks` while
+    /// searching (AITD-459). Both are asked asynchronously (see `rowsQuery`); this only looks the
+    /// answered ids up in the service's tasks, and only when they or the tasks change. `nil`
+    /// until the core has answered for this list at least once.
+    private var answeredRows: [Task]? {
+        let ids: [String]?
         if selectedListId == "search" && searchText.isEmpty {
-            return []
-        }
-
-        var tasks = taskService.tasks
-
-        // Subtasks render inside their parent's detail, not as top-level rows.
-        tasks = tasks.filter { $0.parentTaskId == nil }
-
-        // If search is active, show ALL matching tasks across all lists (ignore list selection)
-        if !searchText.isEmpty {
-            // The SHARED search (Core/Filters/TaskSearch, used by Mac too): the query as one
-            // phrase, default completion filter, highest priority first.
-            return TaskSearch.results(tasks, query: searchText)
-        }
-
-        // If viewing from featured, merge featuredListTasks with user's own tasks
-        // This mirrors how regular lists work: taskService.tasks is the source of truth
-        // for the user's tasks, featuredListTasks provides other users' public tasks
-        if isViewingFromFeatured {
-            guard let listId = selectedListId else {
-                return []
-            }
-
-            tasks = TaskListRows.mergeFeatured(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
-                                               listId: listId, currentUserId: AuthManager.shared.userId)
-
-            // Apply list filters if we have a selected list
-            if let selectedList = selectedList {
-                tasks = applyListFilters(tasks, list: selectedList)
-                // Apply sorting based on list's sortBy setting
-                tasks = applySorting(tasks, sortBy: selectedList.sortBy ?? "manual")
-            }
-
-            return tasks
-        }
-
-        // Handle special "my-tasks" virtual list
-        if selectedListId == "my-tasks" {
-            // Tasks assigned to the current user ONLY — the SHARED scope (Core/Filters/MyTasksScope),
-            // which the Mac uses too (CONTRACTS D25).
-            tasks = MyTasksScope.tasks(tasks, userId: AuthManager.shared.userId)
-
-            // Apply user's saved filter preferences (synced across devices)
-            let completion = myTasksPreferences.preferences.filterCompletion ?? "default"
-            let priority = myTasksPreferences.preferences.filterPriority ?? []
-            let dueDate = myTasksPreferences.preferences.filterDueDate ?? "all"
-            let sortBy = myTasksPreferences.preferences.sortBy ?? "auto"
-
-            tasks = applyCompletionFilter(tasks, filterCompletion: completion)
-
-            if !priority.isEmpty {
-                tasks = tasks.filter { priority.contains($0.priority.rawValue) }
-            }
-
-            if dueDate != "all" {
-                tasks = applyDueDateFilter(tasks, filter: dueDate)
-            }
-
-            // Apply user's saved sorting preference
-            tasks = applySorting(tasks, sortBy: sortBy)
-            return tasks
-        }
-
-        // Filter by selected list
-        if let selectedList = selectedList {
-            // Check if list is virtual (saved filter)
-            if selectedList.isVirtual == true {
-                // Apply all filters for virtual list
-                tasks = applyListFilters(tasks, list: selectedList)
-            } else {
-                // Regular list - filter by membership first
-                tasks = tasks.filter { task in
-                    // Check both lists array and listIds array
-                    let hasInLists = task.lists?.contains(where: { $0.id == selectedList.id }) ?? false
-                    let hasInListIds = task.listIds?.contains(selectedList.id) ?? false
-                    return hasInLists || hasInListIds
-                }
-
-                // Then apply list filters (completion, priority, assignee, etc.)
-                tasks = applyListFilters(tasks, list: selectedList)
-            }
-
-            // Apply sorting based on list's sortBy setting
-            tasks = applySorting(tasks, sortBy: selectedList.sortBy ?? "manual")
+            ids = []   // search mode with no query: nothing yet
+        } else if !searchText.isEmpty {
+            ids = search.resultIds
         } else {
-            // No list selected - show all tasks but still apply default completion filter
-            tasks = applyCompletionFilter(tasks, filterCompletion: "default")
-            // Apply default sorting
-            tasks = applySorting(tasks, sortBy: "priority")
+            ids = rowsQuery.flatMap { listRows.ids(for: $0.listId) }
         }
-
-        return tasks
+        let key = TaskListRowsKey(tasks: taskService.tasks, featuredListTasks: featuredListTasks, ids: ids)
+        return rowsMemo.value(for: key) {   // AITD-455
+            guard let ids else { return nil }
+            if !searchText.isEmpty { return search.results(in: taskService.tasksById) }
+            return listRows.rows(ids, in: taskService.tasksById)
+        }
     }
 
-    private func applyListFilters(_ tasks: [Task], list: TaskList) -> [Task] {
-        // Delegates to the SHARED Core/Filters implementation (used by Mac too).
-        filterTasksForList(tasks, list: list, currentUserId: AuthManager.shared.userId)
+    private var filteredTasks: [Task] { answeredRows ?? [] }
+
+    /// The search box's question: the text, and how iOS splices subtasks under the results.
+    private struct SearchQuestion: Equatable {
+        let text: String
+        let splice: TaskSearchModel.Splice
+    }
+
+    private var searchSplice: SearchQuestion {
+        SearchQuestion(text: searchText,
+                       splice: .init(subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay,
+                                     listShowSubtasks: selectedList?.showSubtasks))
+    }
+
+    /// What the core is asked for the rows on screen (AITD-460) — every input of iOS's list as
+    /// this view holds it, so the answer is for what is showing rather than what the cache last
+    /// heard. `nil` while searching: those rows are `search`'s.
+    private var rowsQuery: ListRowsModel.Query? {
+        if !searchText.isEmpty || selectedListId == "search" { return nil }
+        let display = UserSettingsService.shared.settings.subtaskDisplay ?? "indented"   // nil splices, as it always did
+        let userId = AuthManager.shared.userId
+
+        // A featured public list: your own tasks in it plus other people's public ones, which the
+        // cache does not hold, so they travel with the question.
+        if isViewingFromFeatured {
+            guard let listId = selectedListId else { return nil }
+            let merged = TaskListRows.mergeFeatured(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
+                                                    listId: listId, currentUserId: userId)
+            var shown = selectedList ?? TaskList(id: listId, name: "")
+            if selectedList == nil { shown.filterCompletion = "all" }   // nothing to filter by
+            return .init(listId: listId, list: shown, tasks: merged, subtaskDisplay: display,
+                         currentUserId: userId)
+        }
+        // My Tasks: what is assigned to me (CONTRACTS D25), by the filters synced across devices.
+        if selectedListId == "my-tasks" {
+            return .init(listId: ListRowsModel.myTasksId, myTasks: myTasksPreferences.preferences,
+                         subtaskDisplay: display, currentUserId: userId)
+        }
+        if let selectedList {
+            return .init(listId: selectedList.id, list: selectedList, subtaskDisplay: display,
+                         currentUserId: userId)
+        }
+        // No list: every task, the default completion window, highest priority first.
+        return .init(listId: ListRowsModel.everythingId, list: ListRowsModel.everything,
+                     subtaskDisplay: display, currentUserId: userId)
     }
 
     /// Check if manual sorting is enabled for the current list
@@ -1110,30 +1042,6 @@ struct TaskListView: View {
             } catch {
             }
         }
-    }
-
-    private func applyCompletionFilter(_ tasks: [Task], filterCompletion: String) -> [Task] {
-        // Delegate to the shared pure helper (nil window = legacy 24h default).
-        // It keys the recently-completed window on completedAt — the real
-        // completion time, backdatable by sync — falling back to updatedAt.
-        // A private updatedAt-based copy here once made every Google-backfill
-        // import (completed 2010, row written just now) visible in My Tasks:
-        // hundreds of rows inserting above the viewport as the backfill
-        // drained — the "list flickers up and down" bug.
-        applyCompletionFilterWithWindow(tasks, filter: filterCompletion, window: nil)
-    }
-
-    private func applyDueDateFilter(_ tasks: [Task], filter: String) -> [Task] {
-        // Delegates to the SHARED Core/Filters implementation (used by Mac too).
-        applyListDueDateFilter(tasks, filter: filter)
-    }
-
-    private func applySorting(_ tasks: [Task], sortBy: String) -> [Task] {
-        // Delegates to the SHARED Core/Filters implementation (used by Mac too).
-        let manualOrder: [String]? = (selectedListId == "my-tasks")
-            ? myTasksPreferences.preferences.manualSortOrder
-            : selectedList?.manualSortOrder
-        return sortTasksByListSetting(tasks, sortBy: sortBy, manualOrder: manualOrder)
     }
 
     // MARK: - Empty State

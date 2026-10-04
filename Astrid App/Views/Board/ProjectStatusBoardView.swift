@@ -55,8 +55,9 @@ struct ProjectStatusBoardView: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Observed so the board redraws when a project's custom columns arrive (AITD-379).
-    @StateObject private var projectService = ProjectService.shared
+    /// The columns and their cards, as astrid-core draws them (AITD-461): asked off the main
+    /// thread, re-asked when tasks, lists or projects change, the last answer kept on screen.
+    @StateObject private var board = BoardModel()
     @State private var dropError: String? = nil
     /// Tracks the currently-snapped column for haptic feedback on change.
     @State private var visibleColumnId: String?
@@ -78,15 +79,14 @@ struct ProjectStatusBoardView: View {
     /// One advance per entry; the drag must leave and re-enter for another.
     @State private var hasAdvancedForThisEntry = false
 
-    /// The board's own custom columns (AITD-379). They live on the project, so
-    /// this board renders only its own — a custom column cannot leak onto
-    /// another board because it was never in a shared pool to begin with.
-    private var customStates: [ProjectCustomState]? {
-        projectService.customStates(projectId: projectId)
+    /// What the core is asked for: the board's list, whose manual order and Done window arrange
+    /// the cards, or the project alone when this client has no list of it yet.
+    private var boardQuery: BoardModel.Query {
+        BoardModel.Query(listId: projectDomainList?.id, projectId: projectId)
     }
 
     private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists, customStates: customStates)
+        board.columns.map(\.column)
     }
 
     /// The project's regular (domain) list. Cached lookup so the per-
@@ -97,23 +97,11 @@ struct ProjectStatusBoardView: View {
         listService.lists.first { $0.projectId == projectId && $0.listType != "status" }
     }
 
-    private var domainTasks: [Task] {
-        // Subtasks render inside their parent's detail, not as board cards.
-        getProjectDomainTasks(taskService.tasks, lists: listService.lists, projectId: projectId)
-            .filter { $0.parentTaskId == nil }
-    }
-
+    /// A column's cards: the core's ids, drawn from the service's own tasks. Subtasks are not
+    /// cards and Done holds recent work only — the core's decisions (CONTRACTS D43).
     private func tasksFor(_ column: ProjectBoardColumn) -> [Task] {
-        boardColumnTasksSorted(
-            domainTasks,
-            projectId: projectId,
-            column: column,
-            lists: listService.lists,
-            customStates: customStates,
-            manualOrder: projectDomainList?.manualSortOrder,
-            recentlyCompletedWindow: projectDomainList?.recentlyCompletedWindow,
-            completionFilter: projectDomainList?.filterCompletion
-        )
+        guard let answered = board.columns.first(where: { $0.id == column.id }) else { return [] }
+        return BoardModel.cards(answered, in: taskService.tasksById)
     }
 
     /// Top inset between the header chrome and the board's first row.
@@ -182,9 +170,10 @@ struct ProjectStatusBoardView: View {
                 // Default to virtual Inbox when the board first appears
                 // so the user doesn't start mid-board.
                 if visibleColumnId == nil {
-                    visibleColumnId = columns.first?.id
+                    visibleColumnId = columns.first?.id ?? VIRTUAL_INBOX_COLUMN_ID
                 }
             }
+            .task(id: boardQuery) { board.update(boardQuery) }
             .onDisappear {
                 // A drag can be interrupted by navigation; don't leave a pending
                 // advance to scroll a board nobody is looking at.
@@ -199,17 +188,14 @@ struct ProjectStatusBoardView: View {
             // When a task opens in the side panel, scroll the board to the column
             // that holds it so the user sees its context.
             .onChange(of: selectedTaskId) { _, newId in
-                guard let newId,
-                      let column = columns.first(where: { col in
-                          tasksFor(col).contains { $0.id == newId }
-                      }) else { return }
+                guard let newId, let columnId = board.columnId(of: newId) else { return }
                 // Scroll imperatively every time. The scrollPosition binding no-ops
                 // when the target column is unchanged (e.g. tapping a second task in
                 // the same Done column), which left that column stuck under the
                 // overlay. scrollTo always re-scrolls, so it behaves the same on the
                 // first tap and every tap after.
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    proxy.scrollTo(column.id, anchor: .leading)
+                    proxy.scrollTo(columnId, anchor: .leading)
                 }
             }
             // At the left-most column a left-to-right swipe can't scroll further,
@@ -325,61 +311,20 @@ struct ProjectStatusBoardView: View {
     private func handleDrop(payload: BoardCardPayload,
                             into column: ProjectBoardColumn,
                             at targetIndex: Int) {
-        let taskId = payload.taskId
-        guard let task = taskService.tasks.first(where: { $0.id == taskId }) else {
-            return
-        }
-        guard let domainList = projectDomainList else {
-            return
-        }
-
-        // Compute the new task state AND the new manual sort order so a
-        // drop at index N lands the card at that visual position.
-        let reorder = resolveBoardReorder(
-            task: task,
-            targetColumn: column,
-            targetIndex: targetIndex,
-            projectId: projectId,
-            lists: listService.lists,
-            allTasks: taskService.tasks,
-            currentManualOrder: domainList.manualSortOrder ?? [],
-            recentlyCompletedWindow: domainList.recentlyCompletedWindow,
-            completionFilter: domainList.filterCompletion
-        )
+        guard taskService.tasksById[payload.taskId] != nil,
+              let domainList = projectDomainList else { return }
 
         // Light haptic to confirm the drop registered.
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
+        // The move and the card's new place in the list's manual order, in one core command
+        // (AITD-461): completion first through the completion service (a repeating card dropped
+        // on Done rolls forward — ASTRID.md rule 2), then the column, then the order, with the
+        // list's sort set to manual so the order shows.
         _Concurrency.Task {
             do {
-                // Persist the task move first so list-membership / completion
-                // is correct before the order is interpreted. Completion goes through
-                // `completeTask` — the only path that rolls a repeating task over (ASTRID.md
-                // rule 2), as the Mac board's move already does.
-                if reorder.completed != task.completed {
-                    _ = try await taskService.completeTask(id: task.id, completed: reorder.completed, task: task)
-                }
-                _ = try await taskService.updateTask(
-                    taskId: task.id,
-                    listIds: reorder.listIds,
-                    // "" CLEARS the role — Inbox and Done carry no status. Omitting this is
-                    // what pinned cards to their column: the board prefers `statusRole` when
-                    // resolving, so dropping the membership alone changed nothing (AWTD-566).
-                    statusRole: reorder.statusRole ?? ""
-                )
-                // Then persist the new manualSortOrder on the project's
-                // domain list so the order survives across launches.
-                // We also auto-set the list's sortBy to "manual" if it
-                // wasn't already, so the rendering respects the order.
-                var listUpdate = UpdateListRequest()
-                listUpdate.manualSortOrder = reorder.newManualOrder
-                if domainList.sortBy != "manual" {
-                    listUpdate.sortBy = "manual"
-                }
-                _ = try await ListService.shared.updateListOnServer(
-                    listId: domainList.id,
-                    updates: listUpdate
-                )
+                try await taskService.dropOnBoard(taskId: payload.taskId, columnId: column.id,
+                                                  listId: domainList.id, index: targetIndex)
             } catch {
                 await MainActor.run {
                     self.dropError = error.localizedDescription

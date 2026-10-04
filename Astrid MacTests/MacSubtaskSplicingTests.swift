@@ -1,5 +1,7 @@
 //  MacSubtaskSplicingTests.swift
 //  Astrid for Mac — Task 3c945236: the SHARED subtask splice (indented vs under-parent) + depth.
+//  The splice is astrid-core's since AITD-460 (`rowsForList`, as iOS draws it): these ask it for a
+//  saved filter over the given tasks, whose completion setting is what decides a subtask.
 
 #if os(macOS)
 import XCTest
@@ -14,28 +16,32 @@ final class MacSubtaskSplicingTests: XCTestCase {
         return t
     }
 
-    func testIndentedSplicesSubtasksUnderParent() {
+    /// The rows a saved filter over `tasks` draws, subtasks spliced or not.
+    private func rows(_ tasks: [Task], indented: Bool, completion: String) throws -> [String] {
+        var shape = TaskList(id: "all", name: "")
+        shape.isVirtual = true
+        shape.filterCompletion = completion
+        shape.sortBy = "auto"
+        return try CoreRowsFixture.rows(tasks, list: shape, subtaskDisplay: indented ? "indented" : "under_parent")
+    }
+
+    func testIndentedSplicesSubtasksUnderParent() throws {
         let a = task("a"); let b = task("b")
         let a1 = task("a1", parent: "a", created: 1); let a2 = task("a2", parent: "a", created: 2)
-        let out = spliceSubtasks(topLevel: [a, b], allTasks: [a, b, a1, a2],
-                                 indented: true, subtaskVisible: { !$0.completed })
-        XCTAssertEqual(out.map(\.id), ["a", "a1", "a2", "b"])
+        XCTAssertEqual(try rows([a, b, a1, a2], indented: true, completion: "incomplete"), ["a", "a1", "a2", "b"])
     }
 
-    func testUnderParentHidesSubtasks() {
+    func testUnderParentHidesSubtasks() throws {
         let a = task("a"); let a1 = task("a1", parent: "a")
-        let out = spliceSubtasks(topLevel: [a], allTasks: [a, a1], indented: false, subtaskVisible: { _ in true })
-        XCTAssertEqual(out.map(\.id), ["a"])
+        XCTAssertEqual(try rows([a, a1], indented: false, completion: "all"), ["a"])
     }
 
-    func testSubtaskVisibilityFilter() {
+    func testSubtaskVisibilityFilter() throws {
         let a = task("a"); let a1 = task("a1", parent: "a", completed: true)
         // Completed subtask hidden when the filter excludes completed.
-        let hidden = spliceSubtasks(topLevel: [a], allTasks: [a, a1], indented: true, subtaskVisible: { !$0.completed })
-        XCTAssertEqual(hidden.map(\.id), ["a"])
+        XCTAssertEqual(try rows([a, a1], indented: true, completion: "incomplete"), ["a"])
         // Shown when the filter includes completed.
-        let shown = spliceSubtasks(topLevel: [a], allTasks: [a, a1], indented: true, subtaskVisible: { _ in true })
-        XCTAssertEqual(shown.map(\.id), ["a", "a1"])
+        XCTAssertEqual(try rows([a, a1], indented: true, completion: "all"), ["a", "a1"])
     }
 
     func testDepth() {

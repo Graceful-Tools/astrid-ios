@@ -130,7 +130,7 @@ struct MacTaskFieldsView: View {
 
     /// The SAME chips the leading control's popover offers, so the two surfaces cannot come to
     /// disagree about which states exist or what moving to one does — the move goes through
-    /// `MacBoardMove.plan` either way (ASTRID.md §0 rule 8).
+    /// the core's board move either way (ASTRID.md §0 rule 8).
     private var projectStateRow: some View {
         MacProjectStateSection(task: task, onMoved: {})
     }
@@ -149,11 +149,7 @@ struct MacTaskFieldsView: View {
 
     private var assigneeRow: some View {
         MacAssigneePicker(
-            options: MacAssigneeOptions.build(
-                members: members,
-                currentUserId: AuthManager.shared.userId,
-                taskAssignee: task.assignee),
-            selectedId: task.assigneeId,
+            task: task,
             priority: priority,
             onSelect: { setAssignee($0) }
         )

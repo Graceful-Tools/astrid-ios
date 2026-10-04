@@ -18,7 +18,6 @@ struct MacRootView: View {
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
-    @StateObject private var projectService = ProjectService.shared   // board custom columns (AITD-379)
     @StateObject private var appModel = MacAppModel.shared
     @StateObject private var auth = AuthManager.shared
     @StateObject private var network = NetworkMonitor.shared
@@ -38,7 +37,8 @@ struct MacRootView: View {
     @State private var editingTaskTitle = ""
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var taskSearchQuery = ""
-    @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
+    @StateObject private var search = TaskSearchModel()   // astrid-core's search, as iOS (AITD-459)
+    @StateObject private var listRows = ListRowsModel()   // astrid-core's list rows, as iOS (AITD-460)
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
     @State private var lastDueSignature = 0
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
@@ -89,10 +89,8 @@ struct MacRootView: View {
     /// How many columns the board would draw. Only asked in board mode — off a board the chat
     /// rule never reaches the measurement, so the list scan is not paid for.
     private var boardColumnCount: Int {
-        guard contentMode == .board else { return 0 }
-        let board = getProjectIdForBoard(listService.lists, selectedListId: selectedListId)
-        return getProjectBoardColumns(listService.lists,
-                                      customStates: projectService.customStates(projectId: board)).count
+        guard contentMode == .board, let listId = selectedListId else { return 0 }
+        return BoardModel.columnCount(listId: listId)
     }
     @Environment(\.openWindow) private var openWindow
     /// The window's undo manager — handed to MacUndoCoordinator so ⌘Z / Edit ▸ Undo reverse
@@ -126,15 +124,26 @@ struct MacRootView: View {
         selectedListId != nil && selectedListId != Self.myTasksId
     }
 
-    /// Tasks shown for the current selection — applies the SAME shared filter + sort business
-    /// logic as iOS/web (Core/Filters). For a real list it honors that list's saved filters and
-    /// sortBy; My Tasks / no-list get the assignee filter (in tasksForSelection) + auto sort.
-    private var displayedTasks: [Task] {
-        // Composition lives in the PURE MacRowPipeline (0b1ee8f7) so it's directly tested.
-        let list = (selectedListId != Self.myTasksId)
-            ? listService.lists.first(where: { $0.id == selectedListId }) : nil
-        return MacRowPipeline.displayed(base: tasksForSelection, list: list,
-                                        override: taskSortOverride, currentUserId: auth.userId)
+    /// What the core is asked for the selection's rows (AITD-460) — see `MacRowPipeline.rowsQuery`.
+    private var rowsQuery: ListRowsModel.Query? {
+        MacRowPipeline.rowsQuery(selection: selectedListId, myTasksId: Self.myTasksId, searchId: Self.searchId,
+                                 lists: listService.lists, myTasks: myTasksPreferences.preferences,
+                                 override: taskSortOverride, userId: auth.userId,
+                                 tasksInList: taskService.getTasksForList, publicListTasks: publicListTasks)
+    }
+
+    /// The core's rows as the service's tasks — nil until it has answered once, which is not empty.
+    private var answeredRows: [Task]? {
+        guard let query = rowsQuery else { return [] }
+        return listRows.ids(for: query.listId).map { listRows.rows($0, in: taskService.tasksById) }
+    }
+
+    /// The sidebar's numbers, the saved filters' and My Tasks' from the core (AITD-460).
+    private func refreshCounts(_ tasks: [Task]) async {
+        let counts = await MacRowPipeline.counts(tasks, lists: listService.lists,
+                                                 myTasks: myTasksPreferences.preferences, userId: auth.userId)
+        listCounts = counts.lists
+        if let mine = counts.myTasks { myTasksCount = mine }
     }
 
     /// Cross-list move (C3): move the given tasks into another list via the canonical service.
@@ -393,16 +402,13 @@ struct MacRootView: View {
         listService.lists.filter { $0.isDomainList && !($0.isFavorite ?? false) }
     }
 
+    /// The tasks the selection draws from, before its filters — what a row action finds the
+    /// selected ids in, and what tells "nothing here" from "all filtered out".
     private var tasksForSelection: [Task] {
         guard let id = selectedListId else { return [] }
-        if id == Self.myTasksId {
-            // Virtual My Tasks: incomplete tasks assigned to me across ALL lists (from the global
-            // task store, so it's populated even for lists not individually opened).
-            return MacMyTasks.filter(taskService.tasks, userId: auth.userId, preferences: myTasksPreferences.preferences)
-        }
-        // Saved-filter / virtual lists (isVirtual) filter across ALL tasks — the shared
-        // filterTasksForList in displayedTasks then applies their saved filters (efd05e56),
-        // exactly like iOS. A real list uses just its own tasks.
+        // My Tasks' scope is its filter: its rows are everything it has.
+        if id == Self.myTasksId { return renderedTasks }
+        // Saved-filter / virtual lists (isVirtual) filter across ALL tasks (efd05e56), like iOS.
         if listService.lists.first(where: { $0.id == id })?.isVirtual == true {
             return taskService.tasks
         }
@@ -564,12 +570,12 @@ struct MacRootView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
             .padding(.horizontal, MacLayout.rowTrailingGap)
             .padding(.vertical, 10)
-            // Debounce: matches() runs on the debounced query (~200ms), not every keystroke (6042bde0).
+            // Debounce: the core is asked ~200ms after the last keystroke, not on every one (6042bde0).
             .task(id: taskSearchQuery) {
-                try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
-                debouncedSearchQuery = taskSearchQuery
+                guard (try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)) != nil else { return }
+                search.update(query: taskSearchQuery)
             }
-            let results = TaskSearch.results(taskService.tasks, query: debouncedSearchQuery)
+            let results = search.results(in: taskService.tasksById)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                 // Branded Astrid empty states, like every other empty surface — search was the
                 // last place still showing system ContentUnavailableView chrome.
@@ -605,7 +611,7 @@ struct MacRootView: View {
     @ViewBuilder private var taskTable: some View {
         // Compute the row pipeline ONCE per body eval (4e0ce183) — previously displayedTasks/
         // tasksForSelection/renderedTasks were each re-run per reference (3–5 full passes).
-        let rows = renderedTasks
+        let answered = answeredRows, rows = answered ?? []
         let showsQuickAdd = MacAddTaskBar.isVisible(isVirtualSelection: selectionIsVirtual,
                                                     hasSelection: selectedListId != nil,
                                                     isMyTasks: selectedListId == Self.myTasksId)
@@ -615,8 +621,8 @@ struct MacRootView: View {
             if showsQuickAdd, MacAddTaskBar.placement == .top {
                 quickAddBar
             }
-            if rows.isEmpty {
-                // Branded Astrid empty states (1c3562e9) — character + speech bubble, not system chrome.
+            if answered?.isEmpty == true {
+                // Branded Astrid empty states (1c3562e9) — for an empty ANSWER only (AITD-460).
                 MacEmptyState(copy: tasksForSelection.isEmpty ? .noTasks : .filteredOut)
             } else {
                 taskTableBody(rows)
@@ -751,16 +757,8 @@ struct MacRootView: View {
         (selectedTaskIds.contains(task.id) && selectedTaskIds.count > 1) ? selectedTaskIds : [task.id]
     }
 
-    /// The rows to render — top-level tasks with subtasks spliced/indented under them via the SHARED
-    /// splice helper (same as iOS), honoring the Sub-tasks display setting (3c945236).
-    private var renderedTasks: [Task] {
-        // Splice composition lives in the PURE MacRowPipeline (0b1ee8f7).
-        MacRowPipeline.rendered(displayed: displayedTasks, allTasks: taskService.tasks,
-                                indented: ListSubtaskVisibility.shouldSplice(
-                                    listShowSubtasks: currentRealList?.showSubtasks,
-                                    subtaskDisplay: UserSettingsService.shared.settings.subtaskDisplay),
-                                filterCompletion: currentRealList?.filterCompletion)
-    }
+    /// The rows to render, subtasks spliced under their parents, as astrid-core answers iOS.
+    private var renderedTasks: [Task] { answeredRows ?? [] }
 
     private func indentLevel(_ task: Task) -> Int {
         subtaskDepth(task, byId: taskService.tasksById)
@@ -1323,9 +1321,10 @@ struct MacRootView: View {
         }
         // Adding/removing a list, or editing a smart list's filters, changes the badges too.
         .onChange(of: listService.lists.map(\.id)) { _, _ in
-            listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
-                                             currentUserId: auth.userId)
+            _Concurrency.Task { await refreshCounts(taskService.tasks) }
         }
+        // Ask the core for the selection's rows; they follow when they land (AITD-460).
+        .task(id: rowsQuery) { if let rowsQuery { listRows.update(rowsQuery) } }
         // Measure the WINDOW, not the content area: the content shrinks when the sidebar opens,
         // which used to drop the window under the 3-column threshold and close the chat column.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { windowWidth = $0 }
@@ -1339,9 +1338,7 @@ struct MacRootView: View {
         }
         .task {
             // Seed the memoized badge (onChange only fires on later mutations — c38b177b).
-            myTasksCount = MacMyTasks.filter(taskService.tasks, userId: auth.userId, preferences: myTasksPreferences.preferences).count
-            listCounts = MacListCount.counts(taskService.tasks, lists: listService.lists,
-                                             currentUserId: auth.userId)
+            await refreshCounts(taskService.tasks)
             // No list fetch here (AITD-324). `startSession()` has already run
             // `performFullSync(includeUserTasks: true)`, which pulls the whole list collection and
             // — since AITD-324 — caches it. Local-only mode never reaches that sync, but it does
@@ -1358,7 +1355,7 @@ struct MacRootView: View {
             guard let id, id != Self.myTasksId else { return }
             _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
         }
-        .onChange(of: selectedTaskIds) { _, ids in appModel.selectedTaskIds = ids }
+        .modifier(MacDetailSelectionSync(selection: selectedTaskIds, appModel: appModel))
         // Apply selection requested by the command palette, then clear the request (Task 5003c622).
         // A list without a board must not leave the pane showing one the picker is hiding.
         .onChange(of: selectedListId) { _, _ in
@@ -1380,7 +1377,7 @@ struct MacRootView: View {
             case .selectAdjacent(let dir): moveSelection(by: dir)
             case .cycleList:               cycleList()
             case .beginRename:
-                if let id = selectedTaskIds.first, let t = displayedTasks.first(where: { $0.id == id }) {
+                if let id = selectedTaskIds.first, let t = renderedTasks.first(where: { $0.id == id }) {
                     beginInlineEdit(t)
                 }
             case .openWindow:
@@ -1410,9 +1407,7 @@ struct MacRootView: View {
                 try? await _Concurrency.Task.sleep(nanoseconds: MacSideEffects.coalesceNanos)
                 guard !_Concurrency.Task.isCancelled else { return }
                 let tasks = taskService.tasks
-                myTasksCount = MacMyTasks.filter(tasks, userId: auth.userId, preferences: myTasksPreferences.preferences).count
-                listCounts = MacListCount.counts(tasks, lists: listService.lists,
-                                                 currentUserId: auth.userId)
+                await refreshCounts(tasks)
                 await BadgeManager.shared.updateBadge(with: tasks)
                 let sig = MacSideEffects.dueSignature(tasks)
                 if sig != lastDueSignature {

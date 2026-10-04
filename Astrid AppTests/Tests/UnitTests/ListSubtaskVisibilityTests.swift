@@ -36,15 +36,30 @@ final class ListSubtaskVisibilityTests: XCTestCase {
 
     // MARK: - Combined with the user setting
 
+    /// Whether a list draws a parent's subtask under it — astrid-core's rule since AITD-460
+    /// (`filters::subtasks::should_splice`), asked through `rowsForList` as the views ask it: a
+    /// display mode the settings have not set is sent as "indented", as both apps send it.
+    private func shouldSplice(listShowSubtasks: Bool?, subtaskDisplay: String?) -> Bool {
+        let parent = Task(id: "p", title: "p")
+        var child = Task(id: "c", title: "c")
+        child.parentTaskId = "p"
+        var list = TaskList(id: "everything", name: "")
+        list.isVirtual = true
+        list.showSubtasks = listShowSubtasks
+        let rows = (try? CoreRowsFixture.rows([parent, child], list: list,
+                                              subtaskDisplay: subtaskDisplay ?? "indented")) ?? []
+        return rows.contains("c")
+    }
+
     /// The default combination: nothing set anywhere, subtasks splice inline as they always have.
     func testDefaultsSpliceInline() {
-        XCTAssertTrue(ListSubtaskVisibility.shouldSplice(listShowSubtasks: nil, subtaskDisplay: nil))
-        XCTAssertTrue(ListSubtaskVisibility.shouldSplice(listShowSubtasks: nil, subtaskDisplay: "indented"))
+        XCTAssertTrue(shouldSplice(listShowSubtasks: nil, subtaskDisplay: nil))
+        XCTAssertTrue(shouldSplice(listShowSubtasks: nil, subtaskDisplay: "indented"))
     }
 
     /// A list can opt OUT.
     func testAListCanTurnItsOwnSubtasksOff() {
-        XCTAssertFalse(ListSubtaskVisibility.shouldSplice(listShowSubtasks: false, subtaskDisplay: "indented"))
+        XCTAssertFalse(shouldSplice(listShowSubtasks: false, subtaskDisplay: "indented"))
     }
 
     /// A list CANNOT opt back in over a detail-only user — the more restrictive setting wins, and
@@ -52,7 +67,7 @@ final class ListSubtaskVisibilityTests: XCTestCase {
     func testAListCannotOverrideADetailOnlyUser() {
         for listSetting: Bool? in [nil, true, false] {
             XCTAssertFalse(
-                ListSubtaskVisibility.shouldSplice(listShowSubtasks: listSetting,
+                shouldSplice(listShowSubtasks: listSetting,
                                                    subtaskDisplay: "under_parent"),
                 "under_parent wins whatever the list says (list=\(String(describing: listSetting)))")
         }
@@ -61,8 +76,8 @@ final class ListSubtaskVisibilityTests: XCTestCase {
     /// A display mode this build does not recognise must behave like 'indented', not like hidden —
     /// a future mode must not blank out every list on an older client.
     func testAnUnrecognisedDisplayModeStillSplices() {
-        XCTAssertTrue(ListSubtaskVisibility.shouldSplice(listShowSubtasks: nil, subtaskDisplay: "some_future_mode"))
-        XCTAssertTrue(ListSubtaskVisibility.shouldSplice(listShowSubtasks: true, subtaskDisplay: ""))
+        XCTAssertTrue(shouldSplice(listShowSubtasks: nil, subtaskDisplay: "some_future_mode"))
+        XCTAssertTrue(shouldSplice(listShowSubtasks: true, subtaskDisplay: ""))
     }
 
     // MARK: - What goes on the wire
