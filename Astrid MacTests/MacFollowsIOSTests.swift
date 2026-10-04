@@ -70,10 +70,10 @@ final class MacFollowsIOSTests: XCTestCase {
         var status = TaskList(id: "status", name: "Doing", privacy: .PRIVATE)
         status.listType = "status"
 
-        let picker = MacListPicker(selectedIds: [], lists: [real, saved, status],
-                                   onToggle: { _ in }, isPresented: .constant(false))
-
-        XCTAssertEqual(picker.selectableLists.map(\.id), ["real", "status"])
+        // Both pickers read the core's `listPicks` since AITD-461 — in the sidebar's order.
+        let session = try! CoreBoardFixture.session(lists: [real, saved, status], projects: [])
+        let offered = try! CoreRowsFixture.wait(session, ListPicks.command(""), as: ListToggles.self)
+        XCTAssertEqual(offered.options.map(\.id), ["status", "real"])
     }
 
     // MARK: - Search runs iOS's search — answered by astrid-core since AITD-459

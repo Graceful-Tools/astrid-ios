@@ -15,15 +15,14 @@ struct InlineListsPicker: View {
     @State private var searchText = ""
     @State private var isSaving = false
     @State private var wasCancelled = false
+    /// The last rows the core gave, drawn while a new search is out — never an empty flash.
+    @State private var lastFiltered: [TaskList] = []
+    @ObservedObject private var picks = ListPicks.shared
 
+    /// Every list a task can be filed in that matches the search, in the sidebar's order — the
+    /// core's answer (`listPicks`, CONTRACTS D28/D50), shared with the Mac's picker.
     var filteredLists: [TaskList] {
-        // Virtual lists (saved filters) own no tasks — the SHARED rule the Mac picker uses too (D28)
-        let realLists = ListFilingTargets.lists(availableLists)
-
-        if searchText.isEmpty {
-            return realLists
-        }
-        return realLists.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        ListPicks.lists(searchText, in: availableLists) ?? lastFiltered
     }
 
     var selectedLists: [TaskList] {
@@ -171,6 +170,11 @@ struct InlineListsPicker: View {
                     saveLists()
                 }
             }
+        }
+        // Asked before anyone opens the picker, so the rows are there the moment it does.
+        .task(id: searchText) {
+            await ListPicks.ask(searchText)
+            if let found = ListPicks.lists(searchText, in: availableLists) { lastFiltered = found }
         }
     }
 

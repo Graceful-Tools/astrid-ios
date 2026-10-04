@@ -2,7 +2,7 @@
 //  Regression guard for AITD-413 — "[iOS] Cannot assign tasks when offline".
 //
 //  A list rehydrated from CoreData used to come back with no `owner` and no `listMembers`,
-//  because `CDTaskList` never persisted either. `AssigneeOptions` builds the assignee picker's
+//  because `CDTaskList` never persisted either. The assignee picker (the core's `assigneeOptions`) builds its
 //  roster from exactly those two fields, so after an offline cold launch the picker had nobody
 //  in it. This is the store that keeps them.
 

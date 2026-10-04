@@ -37,47 +37,25 @@ struct MacAssigneeOption: Identifiable, Equatable {
 
 enum MacAssigneeOptions {
 
-    /// Ordered: no one, then AI agents, then you, then everyone else alphabetically.
+    /// What the Mac's pickers ask about `task`: its lists, the agents the app keeps (the Mac fills
+    /// that cache itself since AITD-399), and who is signed in.
     ///
-    /// WHO and IN WHAT ORDER is `AssigneeOptions.build` (AITD-401), because that order is a
-    /// cross-platform contract with the web picker, not a Mac preference. This used to sort the
-    /// current user first and never offered agents at all — so the Mac could not hand a task to
-    /// one, which is the very bug task 1484ea4a fixed on the iOS board. Only the row SHAPING is
-    /// local: the "no one" row, `isCurrentUser`, and resolving a `User` an avatar can draw.
-    ///
-    /// `taskAssignee` is folded into the roster so a task assigned to someone outside this list —
-    /// added by email, a member of another list, an agent — still shows who holds it. Without
-    /// that the picker cannot represent its own current value.
-    ///
-    /// `aiAgents` defaults to the shared cache, so the three call sites need pass nothing. The
-    /// Mac fills that cache itself since AITD-399; before then only iOS wrote it.
-    static func build(members: [ListMember],
-                      currentUserId: String?,
-                      taskAssignee: User?,
-                      aiAgents: [User] = AIAgentCache.shared.load() ?? []) -> [MacAssigneeOption] {
+    /// WHO and IN WHAT ORDER is astrid-core's `assigneeOptions` (AITD-461, CONTRACTS D47) — the
+    /// rule iOS's picker reads, so the Mac follows iOS: no one, then agents, then you, then
+    /// everyone by name; a member whose record never hydrated is not offered.
+    @MainActor
+    static func question(for task: Task) -> AssigneeQuestion {
+        AssigneeQuestion(listIds: taskListMembershipIdsInOrder(task),
+                         agents: AIAgentCache.shared.load() ?? [],
+                         currentUser: AuthManager.shared.currentUser)
+    }
 
-        // A member whose `user` never hydrated still has to become an option — dropping it would
-        // hide a real person — so it enters the roster as a minimal User carrying just the id.
-        var roster: [User] = members.map { member in
-            member.user ?? User(id: member.userId, email: nil, name: nil, image: nil)
+    /// The picker's rows from the core's answer: only the SHAPING is the Mac's — the "no one"
+    /// row first, `isCurrentUser`, and a `User` every face can be drawn from.
+    static func rows(_ answer: AssigneeAnswer?, currentUserId: String?) -> [MacAssigneeOption] {
+        let people = (answer?.people ?? []).map { user in
+            MacAssigneeOption(userId: user.id, user: user, isCurrentUser: user.id == currentUserId)
         }
-        if let taskAssignee { roster.append(taskAssignee) }
-
-        let currentUser = currentUserId.flatMap { id in roster.first { $0.id == id } }
-            ?? currentUserId.map { User(id: $0, email: nil, name: nil, image: nil) }
-
-        let ordered = AssigneeOptions.build(roster: roster, aiAgents: aiAgents, currentUser: currentUser)
-
-        let people = ordered.map { user in
-            // Never nil: AssigneeResolver falls back to a minimal User, which still renders
-            // initials and can still resolve a cached photo — where a raw id renders nothing.
-            MacAssigneeOption(userId: user.id,
-                              user: AssigneeResolver.resolve(id: user.id,
-                                                             members: ordered,
-                                                             taskAssignee: taskAssignee),
-                              isCurrentUser: user.id == currentUserId)
-        }
-
         return [MacAssigneeOption(userId: nil, user: nil, isCurrentUser: false)] + people
     }
 }

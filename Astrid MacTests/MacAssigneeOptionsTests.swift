@@ -11,7 +11,8 @@
 //
 //  The option list is the part of this that is decidable rather than drawn, so it is pinned
 //  here: every option must carry a User an avatar can be built from, and nobody may ever be
-//  labelled with a bare id.
+//  labelled with a bare id. Since AITD-461 who is offered is astrid-core's `assigneeOptions` —
+//  iOS's rule, which the Mac follows (CONTRACTS D47) — so these ask a seeded in-memory core.
 
 import XCTest
 @testable import Astrid_Mac
@@ -26,111 +27,111 @@ final class MacAssigneeOptionsTests: XCTestCase {
                    user: name == nil && email == nil ? nil : User(id: id, email: email, name: name, image: nil))
     }
 
+    /// The Mac picker's rows for a task in a list holding `members`, as the core answers.
+    private func options(members: [ListMember], currentUserId: String?,
+                         aiAgents: [User] = []) -> [MacAssigneeOption] {
+        var list = TaskList(id: "list-1", name: "List")
+        list.listMembers = members
+        let session = try! CoreBoardFixture.session(lists: [list], projects: [])
+        let me = currentUserId.map { id in
+            members.first { $0.userId == id }?.user ?? User(id: id, email: nil, name: nil, image: nil)
+        }
+        let question = AssigneeQuestion(listIds: ["list-1"], agents: aiAgents, currentUser: me)
+        let answer = try! CoreRowsFixture.wait(session, question.command, as: AssigneeAnswer.self)
+        return MacAssigneeOptions.rows(answer, currentUserId: currentUserId)
+    }
+
     /// Unassigned is a real choice and has to be offered.
     func testUnassignedIsAlwaysOffered() {
-        let options = MacAssigneeOptions.build(members: [], currentUserId: "me", taskAssignee: nil)
+        let rows = options(members: [], currentUserId: "me")
 
-        XCTAssertEqual(options.first?.userId, nil, "the first option should be 'no one'")
-        XCTAssertTrue(options.first?.isUnassigned == true)
+        XCTAssertEqual(rows.first?.userId, nil, "the first option should be 'no one'")
+        XCTAssertTrue(rows.first?.isUnassigned == true)
+        XCTAssertTrue(MacAssigneeOptions.rows(nil, currentUserId: "me").first?.isUnassigned == true,
+                      "and before the core has answered")
     }
 
     /// THE BUG: every person option must carry a User, so an avatar can actually be drawn.
     func testEveryPersonOptionCarriesAUserForTheAvatar() {
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Henry Tsai"), member("u2", name: "Jon Paris")],
-            currentUserId: "u2",
-            taskAssignee: nil)
+        let rows = options(members: [member("u1", name: "Henry Tsai"), member("u2", name: "Jon Paris")],
+                           currentUserId: "u2")
 
-        let people = options.filter { !$0.isUnassigned }
+        let people = rows.filter { !$0.isUnassigned }
         XCTAssertEqual(people.count, 2)
         XCTAssertTrue(people.allSatisfy { $0.user != nil },
                       "a nil user means the row renders without a photo — the reported bug")
     }
 
-    /// A member whose `user` never hydrated must still be presented as a person, not a UUID.
-    func testAnUnhydratedMemberIsNeverLabelledWithARawId() throws {
+    /// A member whose `user` never hydrated is never shown as a UUID — since AITD-461 it is not
+    /// offered at all, as on iOS (D47).
+    func testAnUnhydratedMemberIsNeverLabelledWithARawId() {
         let rawId = "8f14e45f-ceea-467a-9f8b-2d3c7f9a1b2c"
-        let options = MacAssigneeOptions.build(
-            members: [member(rawId, name: nil)], currentUserId: "me", taskAssignee: nil)
+        let rows = options(members: [member(rawId, name: nil), member("u1", name: "Adam")],
+                           currentUserId: "u1")
 
-        let person = try XCTUnwrap(options.first { !$0.isUnassigned })
-        XCTAssertNotNil(person.user, "must resolve to SOME user so an avatar/initials can render")
-        XCTAssertNotEqual(person.displayName, rawId,
-                          "showing a bare UUID as someone's name is what this replaces")
+        XCTAssertFalse(rows.contains { $0.displayName == rawId },
+                       "showing a bare UUID as someone's name is what this replaces")
+        XCTAssertFalse(rows.contains { $0.userId == rawId }, "iOS leaves out a member it cannot draw")
     }
 
     /// You assign things to yourself constantly; you should not hunt for your own name.
     func testTheCurrentUserSortsFirstAmongPeople() {
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam"), member("me", name: "Zoe"), member("u2", name: "Bea")],
-            currentUserId: "me",
-            taskAssignee: nil)
+        let rows = options(members: [member("u1", name: "Adam"), member("me", name: "Zoe"), member("u2", name: "Bea")],
+                           currentUserId: "me")
 
-        let people = options.filter { !$0.isUnassigned }
+        let people = rows.filter { !$0.isUnassigned }
         XCTAssertEqual(people.first?.userId, "me", "the current user leads the list")
         XCTAssertTrue(people.first?.isCurrentUser == true)
         // The rest stay alphabetical so the list is scannable.
         XCTAssertEqual(people.dropFirst().map(\.displayName), ["Adam", "Bea"])
     }
 
-    /// Someone assigned from outside this list (added by email, member of another list) must
-    /// still appear — otherwise the picker cannot show who the task is currently assigned to.
-    func testTheCurrentAssigneeAppearsEvenIfNotAListMember() {
-        let outsider = User(id: "outsider", email: "x@y.com", name: "Outside Person", image: nil)
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam")], currentUserId: "me", taskAssignee: outsider)
-
-        XCTAssertTrue(options.contains { $0.userId == "outsider" },
-                      "the person the task is assigned to must be in the list they are shown in")
+    /// Who holds the task is offered only as iOS offers them (D47): a holder from outside the
+    /// list is not a choice — the trigger still shows them (`MacAssigneePicker.selected`).
+    func testTheCurrentAssigneeIsNotAddedToTheChoices() {
+        let rows = options(members: [member("u1", name: "Adam")], currentUserId: "u1")
+        XCTAssertFalse(rows.contains { $0.userId == "outsider" })
     }
 
-    /// No duplicates when the assignee IS a member — otherwise they show up twice.
-    func testAMemberWhoIsAlsoTheAssigneeAppearsOnce() {
-        let adam = User(id: "u1", email: nil, name: "Adam", image: nil)
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam")], currentUserId: "me", taskAssignee: adam)
+    /// No duplicates when a person is on the list twice over.
+    func testAMemberWhoIsAlsoTheOwnerAppearsOnce() {
+        let rows = options(members: [member("u1", name: "Adam"), member("u1", name: "Adam")], currentUserId: "me")
 
-        XCTAssertEqual(options.filter { $0.userId == "u1" }.count, 1)
+        XCTAssertEqual(rows.filter { $0.userId == "u1" }.count, 1)
     }
 
     // MARK: - AITD-401: the Mac can hand work to an agent, in the order the web states
 
-    /// THE GAP. `build` took no agent list, so the Mac picker could not assign a task to an AI
-    /// agent at all — the same bug task 1484ea4a fixed on the iOS board.
+    /// THE GAP. The Mac picker could not assign a task to an AI agent at all — the same bug task
+    /// 1484ea4a fixed on the iOS board.
     func testAITD401_AnAgentCanBeAssignedFromTheMacPicker() {
         var claude = User(id: "agent-claude", email: "claude@astrid.cc", name: "Claude", image: nil)
         claude.isAIAgent = true
 
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam")],
-            currentUserId: "me", taskAssignee: nil, aiAgents: [claude])
+        let rows = options(members: [member("u1", name: "Adam")], currentUserId: "u1", aiAgents: [claude])
 
-        XCTAssertTrue(options.contains { $0.userId == "agent-claude" },
+        XCTAssertTrue(rows.contains { $0.userId == "agent-claude" },
                       "AITD-401: an agent must be offerable on the Mac too")
     }
 
     /// And in the order astrid-web states — "AI agents first, then current user, then
-    /// alphabetically". The Mac used to put the current user first, full stop.
+    /// alphabetically".
     func testAITD401_AgentsSortAheadOfTheCurrentUser() {
         var claude = User(id: "agent-claude", email: "claude@astrid.cc", name: "Claude", image: nil)
         claude.isAIAgent = true
 
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam"), member("me", name: "Zoe")],
-            currentUserId: "me", taskAssignee: nil, aiAgents: [claude])
+        let rows = options(members: [member("u1", name: "Adam"), member("me", name: "Zoe")],
+                           currentUserId: "me", aiAgents: [claude])
 
-        let people = options.filter { !$0.isUnassigned }
+        let people = rows.filter { !$0.isUnassigned }
         XCTAssertEqual(people.map(\.userId), ["agent-claude", "me", "u1"])
-        XCTAssertTrue(options.first?.isUnassigned == true, "'no one' stays the first row")
+        XCTAssertTrue(rows.first?.isUnassigned == true, "'no one' stays the first row")
     }
 
-    /// Passing no agents must behave exactly as before, so the three call sites that say nothing
-    /// about agents are unaffected beyond whatever the cache holds.
     func testAITD401_WithNoAgentsTheOrderIsUnchanged() {
-        let options = MacAssigneeOptions.build(
-            members: [member("u1", name: "Adam"), member("me", name: "Zoe"), member("u2", name: "Bea")],
-            currentUserId: "me", taskAssignee: nil, aiAgents: [])
+        let rows = options(members: [member("u1", name: "Adam"), member("me", name: "Zoe"), member("u2", name: "Bea")],
+                           currentUserId: "me", aiAgents: [])
 
-        XCTAssertEqual(options.filter { !$0.isUnassigned }.map(\.displayName), ["Zoe", "Adam", "Bea"])
+        XCTAssertEqual(rows.filter { !$0.isUnassigned }.map(\.displayName), ["Zoe", "Adam", "Bea"])
     }
 }

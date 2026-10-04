@@ -30,18 +30,14 @@ enum MacBoardAdd {
 
     /// What to create for a card typed into `column` on the board backed by `domainListId`.
     ///
-    /// Derived from the SHARED planner rather than from the column's kind spelled out here, so
-    /// "what does this column mean" keeps one implementation across the drag path, the quick
-    /// changer and this. The task handed to it is a blank standing in for the card about to
-    /// exist: no status, and no memberships beyond the board's own list.
-    static func newCard(in column: ProjectBoardColumn,
-                        domainListId: String,
-                        lists: [TaskList]) -> NewCard {
-        let blank = Task(id: "", title: "", listIds: [domainListId])
-        let move = resolveProjectColumnMove(blank, targetColumn: column, lists: lists)
-        return NewCard(listIds: move.listIds,
-                       statusRole: move.statusRole,
-                       complete: move.completed)
+    /// The core's `resolve_create` rule (`board::resolve_create`): the board's own list, the
+    /// column's role for a status column and none for Inbox and Done, completed in Done. Stated
+    /// here only as the create's fields — the Mac's quick-add builds its own create (smart parsing,
+    /// the list's defaults), so it cannot hand the card to `addBoardCard`.
+    static func newCard(in column: ProjectBoardColumn, domainListId: String) -> NewCard {
+        NewCard(listIds: [domainListId],
+                statusRole: column.kind == .status ? column.id : nil,
+                complete: column.kind == .done)
     }
 
     /// A column's quick-add, built the way the list's is (AITD-431): the typed text and the

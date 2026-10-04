@@ -58,14 +58,14 @@ final class BoardMoveRoundTripTests: XCTestCase {
     /// back them (task e5c74b5e). `allLists` keeps those rows so the membership strip is
     /// still exercised; they just no longer name a column.
     private func column(_ id: String) -> ProjectBoardColumn {
-        getProjectBoardColumns(allLists).first { $0.id == id }!
+        CoreBoardFixture.columns(allLists).first { $0.id == id }!
     }
 
     /// Drop the card, write what the move says, then ask where the card ended up.
     private func columnAfterMoving(_ start: Task, to target: ProjectBoardColumn) -> String {
-        let move = resolveProjectColumnMove(start, targetColumn: target, lists: allLists)
+        let move = CoreBoardFixture.move(start, to: target, lists: allLists)
         let moved = start.applyingBoardMove(move)
-        return getTaskProjectColumnId(moved, lists: allLists)
+        return CoreBoardFixture.columnId(moved, lists: allLists)
     }
 
     // MARK: - The bug
@@ -83,12 +83,11 @@ final class BoardMoveRoundTripTests: XCTestCase {
     /// The same failure reaches Done, which also carries no status.
     func testMovingFromReadyToDoneLandsInDone() {
         let start = task(lists: [project, ready], statusRole: "ready")
-        let move = resolveProjectColumnMove(start, targetColumn: column(VIRTUAL_DONE_COLUMN_ID),
-                                            lists: allLists)
+        let move = CoreBoardFixture.move(start, to: column(VIRTUAL_DONE_COLUMN_ID), lists: allLists)
         let moved = start.applyingBoardMove(move)
 
         XCTAssertTrue(moved.completed)
-        XCTAssertEqual(getTaskProjectColumnId(moved, lists: allLists), VIRTUAL_DONE_COLUMN_ID)
+        XCTAssertEqual(CoreBoardFixture.columnId(moved, lists: allLists), VIRTUAL_DONE_COLUMN_ID)
     }
 
     // MARK: - Moves that already worked must keep working
@@ -118,8 +117,7 @@ final class BoardMoveRoundTripTests: XCTestCase {
     /// Moving between columns must never drop the task out of its project.
     func testAMoveKeepsTheProjectMembership() {
         let start = task(lists: [project, ready], statusRole: "ready")
-        let move = resolveProjectColumnMove(start, targetColumn: column(VIRTUAL_INBOX_COLUMN_ID),
-                                            lists: allLists)
+        let move = CoreBoardFixture.move(start, to: column(VIRTUAL_INBOX_COLUMN_ID), lists: allLists)
         let moved = start.applyingBoardMove(move)
 
         XCTAssertTrue(moved.listIds?.contains("project-list") == true,
@@ -130,25 +128,24 @@ final class BoardMoveRoundTripTests: XCTestCase {
     func testMovingOutOfDoneClearsCompletion() {
         let start = task(lists: [project], statusRole: nil, completed: true)
 
-        let move = resolveProjectColumnMove(start, targetColumn: column("ready"), lists: allLists)
+        let move = CoreBoardFixture.move(start, to: column("ready"), lists: allLists)
         let moved = start.applyingBoardMove(move)
 
         XCTAssertFalse(moved.completed)
-        XCTAssertEqual(getTaskProjectColumnId(moved, lists: allLists), "ready")
+        XCTAssertEqual(CoreBoardFixture.columnId(moved, lists: allLists), "ready")
     }
 
     /// Round-tripping every column must be stable — drop it anywhere, it lands there.
     func testEveryColumnIsReachableFromEveryOtherColumn() {
-        let columns = getProjectBoardColumns(allLists)
+        let columns = CoreBoardFixture.columns(allLists)
 
         for origin in columns {
             for target in columns {
                 // Build a task that currently sits in `origin`.
-                let originMove = resolveProjectColumnMove(
-                    task(lists: [project], statusRole: nil), targetColumn: origin, lists: allLists)
+                let originMove = CoreBoardFixture.move(task(lists: [project], statusRole: nil), to: origin, lists: allLists)
                 let sittingInOrigin = task(lists: [project], statusRole: nil)
                     .applyingBoardMove(originMove)
-                XCTAssertEqual(getTaskProjectColumnId(sittingInOrigin, lists: allLists), origin.id,
+                XCTAssertEqual(CoreBoardFixture.columnId(sittingInOrigin, lists: allLists), origin.id,
                                "fixture is wrong: task did not start in \(origin.name)")
 
                 XCTAssertEqual(columnAfterMoving(sittingInOrigin, to: target), target.id,

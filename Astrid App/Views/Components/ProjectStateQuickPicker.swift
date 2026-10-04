@@ -4,14 +4,14 @@
 //  Jon: "when it is project tapping ... brings up the quick changer of assignee, priority, and
 //  project state."
 //
-//  It does NOT invent a list of states. The columns come from `getProjectBoardColumns`, the same
-//  derivation the board itself uses, so a renamed "Ready" reads the same in both places. The
-//  write goes through `planProjectColumnMove`, so moving to Done from here completes the task
-//  exactly as dragging it there does — including the un-complete on the way back out.
+//  It does NOT invent a list of states. The columns are the core's `taskStatusOptions` — the
+//  task's own board, named as the board names them, never Done (CONTRACTS D46) — and the write is
+//  the core's move (`TaskService.moveToBoardColumn`), so moving here does exactly what dragging
+//  the card does, including the un-complete on the way out of Done (D45).
 //
 //  The Mac has its own view (`MacProjectStateSection`) because the two platforms' chip styling
-//  and pointer affordances differ, but both call the SAME planner and the SAME column
-//  derivation. The duplicated part is the styling; the rule is shared.
+//  and pointer affordances differ, but both read the SAME answer and make the SAME move. The
+//  duplicated part is the styling; the rule is the core's.
 
 import SwiftUI
 
@@ -24,30 +24,21 @@ struct ProjectStateQuickPicker: View {
     /// the chips kept lighting the pre-move column and the buttons looked dead.
     var onTaskUpdated: ((Task) -> Void)? = nil
 
-    @StateObject private var listService = ListService.shared
-    @StateObject private var taskService = TaskService.shared
-    /// Observed, not just read: the chips have to redraw when the projects
-    /// finish loading, or a board's custom states arrive after the picker is
-    /// already on screen and it keeps offering only the defaults.
-    @StateObject private var projectService = ProjectService.shared
+    /// The task's columns and which one it is in, from the core (AITD-461). Shared, so a picker
+    /// opened again draws its last answer at once while the core is asked again.
+    @ObservedObject private var options = TaskStatusOptions.shared
 
-    /// Every state EXCEPT Done (task 7574067b). Done is what the Complete button below is
-    /// for; offering it as a chip too gave the same action twice, and the chip was the one
-    /// that never said it would finish the task.
-    /// The custom columns of the board THIS task is on (AITD-379). Without
-    /// them the picker offers only the three defaults while the board shows
-    /// more — the two surfaces disagreeing about one board's columns.
-    private var customStates: [ProjectCustomState]? {
-        projectService.customStates(forTask: task, lists: listService.lists)
-    }
+    private var answer: TaskStatusOptions.Answer? { options.answers[task.id] }
 
     private var columns: [ProjectBoardColumn] {
-        ProjectStatePicker.columns(
-            from: getProjectBoardColumns(listService.lists, customStates: customStates))
+        answer?.columns.map(\.column) ?? []
     }
 
-    private var currentColumnId: String {
-        getTaskProjectColumnId(task, lists: listService.lists, customStates: customStates)
+    private var currentColumnId: String? { answer?.current }
+
+    /// What the core reads to answer: asked again whenever the task moves.
+    private var askKey: String {
+        "\(task.id)|\(task.statusRole ?? "")|\(task.completed)|\(task.listIds ?? [])"
     }
 
     var body: some View {
@@ -71,29 +62,21 @@ struct ProjectStateQuickPicker: View {
                 .accessibilityLabel(column.name)
             }
         }
+        .task(id: askKey) { await options.refresh(task.id) }
     }
 
     private func move(to column: ProjectBoardColumn) {
         onMoved()
-        let plan = planProjectColumnMove(task: task, column: column,
-                                         lists: listService.lists, customStates: customStates)
         _Concurrency.Task {
             do {
-                // The sequencing (and ASTRID.md rule 2 — completion only ever through
-                // `completeTask`) lives in `ProjectStateMove`, shared rather than spelled here.
-                let moved = try await ProjectStateMove.apply(
-                    plan: plan,
-                    update: { ids, role in
-                        try await taskService.updateTask(taskId: task.id, listIds: ids,
-                                                         task: task, statusRole: role)
-                    },
-                    complete: { flag in
-                        try await taskService.completeTask(id: task.id, completed: flag, task: task)
-                    }
-                )
-                // `updateTask` / `completeTask` return the OPTIMISTIC task with nothing awaited,
-                // so this lands as fast as any other control in the detail view.
-                if let moved { onTaskUpdated?(moved) }
+                // The task's own board, the core's move: nothing when it is already there,
+                // completion only ever through the completion service (ASTRID.md rule 2).
+                let moved = try await TaskService.shared.moveToBoardColumn(taskId: task.id,
+                                                                            columnId: column.id)
+                // The OPTIMISTIC task, with nothing awaited on the network, so this lands as fast
+                // as any other control in the detail view.
+                onTaskUpdated?(moved)
+                await options.refresh(task.id)
             } catch {
                 // The Outbox owns the retry; surfacing a failure here would be a second,
                 // contradictory story about whether the move happened.

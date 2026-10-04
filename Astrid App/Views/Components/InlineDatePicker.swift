@@ -14,11 +14,15 @@ struct InlineDatePicker: View {
 
     @State private var showingPicker = false
 
-    // Quick date options — from the SHARED source so Mac offers the same set in the same
-    // order. They used to be a private array here, which is exactly why the Mac had none
-    // (ea4f5124).
-    private var quickOptions: [(String, Int)] {
-        DueDateQuickPicks.dateOptions.map { (NSLocalizedString($0.titleKey, comment: ""), $0.daysFromToday) }
+    // Quick date options — astrid-core's (`dueDateOptions`, AITD-461), which the Mac reads too:
+    // the set, the order, the date each one means and which one is lit. They used to be a private
+    // array here, which is exactly why the Mac had none (ea4f5124).
+    @ObservedObject private var duePicks = DuePicks.shared
+    /// The last picks the core gave, drawn while a new question is out.
+    @State private var lastQuickOptions: [DueOptions.DatePick] = []
+
+    private var quickOptions: [DueOptions.DatePick] {
+        DuePicks.options(date, isAllDay: isAllDay)?.dates ?? lastQuickOptions
     }
 
     var body: some View {
@@ -94,16 +98,16 @@ struct InlineDatePicker: View {
                             }
                             .buttonStyle(.plain)
 
-                            ForEach(quickOptions, id: \.1) { option in
+                            ForEach(quickOptions, id: \.daysFromToday) { option in
                                 Button {
-                                    setQuickDate(daysFromNow: option.1)
+                                    setQuickDate(option)
                                 } label: {
                                     HStack {
-                                        Text(option.0)
+                                        Text(NSLocalizedString(option.titleKey, comment: ""))
                                             .font(Theme.Typography.body())
                                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                                         Spacer()
-                                        if let date = date, Calendar.current.isDate(date, equalTo: Date().addingTimeInterval(TimeInterval(option.1 * 86400)), toGranularity: .day) {
+                                        if option.isSelected {
                                             Image(systemName: "checkmark")
                                                 .foregroundColor(Theme.accent)
                                         }
@@ -217,40 +221,21 @@ struct InlineDatePicker: View {
                 }
             }
         }
+        // Asked as the trigger appears, so the picks are there the moment the sheet opens.
+        .task(id: DuePicks.key(date, isAllDay: isAllDay)) {
+            await DuePicks.ask(date, isAllDay: isAllDay)
+            if let picks = DuePicks.options(date, isAllDay: isAllDay)?.dates { lastQuickOptions = picks }
+        }
     }
 
-    private func setQuickDate(daysFromNow: Int) {
-        // CRITICAL: Use local calendar to get target day, then convert to UTC midnight
-        // This ensures "Today" means the user's local calendar day, not UTC day
-        // Fix for bug where 4pm PT on Nov 22 was creating Nov 23 (because PT is behind UTC)
-
-        // Get target day in local calendar
-        let localCalendar = Calendar.current
-        guard let targetLocalDate = localCalendar.date(byAdding: .day, value: daysFromNow, to: Date()) else { return }
-
-        // Extract year/month/day from local calendar
-        let components = localCalendar.dateComponents([.year, .month, .day], from: targetLocalDate)
-        guard let year = components.year, let month = components.month, let day = components.day else { return }
-
-        // Create date at midnight UTC with same year/month/day
-        // Use fresh Gregorian calendar to avoid device settings interference
-        var utcCalendar = Calendar(identifier: .gregorian)
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-
-        // Build DateComponents explicitly (inline initializer can cause issues)
-        var utcComponents = DateComponents()
-        utcComponents.year = year
-        utcComponents.month = month
-        utcComponents.day = day
-        utcComponents.hour = 0
-        utcComponents.minute = 0
-        utcComponents.second = 0
-
-        if let utcMidnight = utcCalendar.date(from: utcComponents) {
-            date = utcMidnight
-            showingPicker = false
-            onSave?()
-        }
+    /// A quick pick is the reader's calendar day stored as an all-day date at UTC midnight — the
+    /// core's answer, the instant this always wrote (D48). "Today" is where the person is: 4pm PT
+    /// on Nov 22 is the 22nd, not the 23rd it is in UTC.
+    private func setQuickDate(_ option: DueOptions.DatePick) {
+        guard let picked = option.date else { return }
+        date = picked
+        showingPicker = false
+        onSave?()
     }
 
     /// The shared label, so iOS and Mac cannot disagree about which day a task

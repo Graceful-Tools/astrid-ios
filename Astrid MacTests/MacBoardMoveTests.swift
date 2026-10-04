@@ -1,6 +1,8 @@
 //  MacBoardMoveTests.swift
 //  Regression for task 196d482a — board drops plan the right service ops, and completion
 //  transitions (Done / un-Done) are split out so they go through completeTask, not updateTask.
+//  Since AITD-461 the move is astrid-core's (`moveTaskToColumn` / `setTaskStatus`), and these
+//  read what it wrote (`CoreBoardFixture.plan`); the core's own tests pin the order (D45).
 
 import XCTest
 @testable import Astrid_Mac
@@ -20,12 +22,12 @@ final class MacBoardMoveTests: XCTestCase {
 
     func testMoveToDonePlansComplete() {
         let t = task("1", completed: false, lists: ["L1"])
-        XCTAssertEqual(MacBoardMove.plan(task: t, column: done, lists: []), .complete(["L1"], statusRole: ""))
+        XCTAssertEqual(CoreBoardFixture.plan(task: t, column: done, lists: []), .complete(["L1"], statusRole: ""))
     }
 
     func testMoveOutOfDonePlansUncomplete() {
         let t = task("1", completed: true, lists: ["L1"])
-        XCTAssertEqual(MacBoardMove.plan(task: t, column: inbox, lists: []), .uncomplete(["L1"], statusRole: ""))
+        XCTAssertEqual(CoreBoardFixture.plan(task: t, column: inbox, lists: []), .uncomplete(["L1"], statusRole: ""))
     }
 
     /// The Mac half of "moving from Ready to Inbox doesn't always work". The plan has to carry
@@ -41,7 +43,7 @@ final class MacBoardMoveTests: XCTestCase {
         var t = task("1", completed: false, lists: ["L1", "ready-list"])
         t.statusRole = "ready"
 
-        let plan = MacBoardMove.plan(task: t, column: inbox, lists: [ready])
+        let plan = CoreBoardFixture.plan(task: t, column: inbox, lists: [ready])
 
         XCTAssertEqual(plan, .setLists(["L1"], statusRole: ""),
                        "Inbox carries no status, so the plan must clear the role — otherwise the "
@@ -51,9 +53,9 @@ final class MacBoardMoveTests: XCTestCase {
     func testDropOntoCurrentColumnIsNoOp() {
         // A non-completed task with no status list already lives in Inbox.
         let t = task("1", completed: false, lists: ["L1"])
-        XCTAssertEqual(MacBoardMove.plan(task: t, column: inbox, lists: []), .none)
+        XCTAssertEqual(CoreBoardFixture.plan(task: t, column: inbox, lists: []), .none)
         // A completed task already lives in Done.
         let d = task("2", completed: true, lists: ["L1"])
-        XCTAssertEqual(MacBoardMove.plan(task: d, column: done, lists: []), .none)
+        XCTAssertEqual(CoreBoardFixture.plan(task: d, column: done, lists: []), .none)
     }
 }

@@ -72,7 +72,8 @@ enum ReminderTriage {
     /// all-day date (`AllDayTimezoneTests`). Timed tasks keep their time of day. A task with no
     /// due date becomes all-day tomorrow: there is no time to keep.
     static func postponedDueDate(for task: Task, now: Date = Date(), calendar: Calendar = .current) -> Date {
-        let tomorrow = DueDateQuickPicks.date(daysFromToday: 1, from: now, calendar: calendar)
+        // By the calendar, not 86 400 seconds: across a DST change a day is 23 or 25 hours.
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
 
         guard let due = task.dueDateTime, !task.isAllDay else {
             var utc = Calendar(identifier: .gregorian)

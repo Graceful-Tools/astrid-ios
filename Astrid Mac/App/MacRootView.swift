@@ -18,7 +18,6 @@ struct MacRootView: View {
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
     @StateObject private var listService = ListService.shared
     @StateObject private var taskService = TaskService.shared
-    @StateObject private var projectService = ProjectService.shared   // board custom columns (AITD-379)
     @StateObject private var appModel = MacAppModel.shared
     @StateObject private var auth = AuthManager.shared
     @StateObject private var network = NetworkMonitor.shared
@@ -90,10 +89,8 @@ struct MacRootView: View {
     /// How many columns the board would draw. Only asked in board mode — off a board the chat
     /// rule never reaches the measurement, so the list scan is not paid for.
     private var boardColumnCount: Int {
-        guard contentMode == .board else { return 0 }
-        let board = getProjectIdForBoard(listService.lists, selectedListId: selectedListId)
-        return getProjectBoardColumns(listService.lists,
-                                      customStates: projectService.customStates(projectId: board)).count
+        guard contentMode == .board, let listId = selectedListId else { return 0 }
+        return BoardModel.columnCount(listId: listId)
     }
     @Environment(\.openWindow) private var openWindow
     /// The window's undo manager — handed to MacUndoCoordinator so ⌘Z / Edit ▸ Undo reverse

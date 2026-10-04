@@ -2,9 +2,9 @@
 //  Moving a task to a board column, planned once for both platforms (task 729a190e).
 //
 //  The quick changer gives task details a second way to change a task's column, on both
-//  platforms. The board already had one, in `MacBoardMove.plan`, which was Mac-only — so the
-//  rule moved to `planProjectColumnMove` in shared Core rather than being written again for
-//  iOS. These pin the parts that fail QUIETLY if a second copy ever drifts back in.
+//  platforms. The rule lived in Swift (`planProjectColumnMove`) until AITD-461; it is
+//  astrid-core's `setTaskStatus` now, and these run against it (`CoreBoardFixture.plan` reads
+//  what the move wrote). They pin the parts that fail QUIETLY if a second copy ever drifts back.
 //
 //  What makes a wrong plan hard to notice: nothing throws. The task moves, and only the
 //  completion or the status role is wrong — so it reappears in the column it came from, or a
@@ -53,7 +53,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testMovingToItsCurrentColumnPlansNothing() {
         let t = task(listIds: ["ready-id"], statusRole: "ready")
         let ready = column("ready", kind: .status)
-        XCTAssertEqual(planProjectColumnMove(task: t, column: ready, lists: lists), .none)
+        XCTAssertEqual(CoreBoardFixture.plan(task: t, column: ready, lists: lists), .none)
     }
 
     // MARK: - Done
@@ -63,7 +63,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testMovingToDonePlansACompletion() {
         let t = task(listIds: ["ready-id"])
         let done = column(VIRTUAL_DONE_COLUMN_ID, kind: .done)
-        guard case .complete = planProjectColumnMove(task: t, column: done, lists: lists) else {
+        guard case .complete = CoreBoardFixture.plan(task: t, column: done, lists: lists) else {
             return XCTFail("moving to Done must complete the task, not just re-file it")
         }
     }
@@ -73,7 +73,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testMovingOutOfDonePlansAnUncomplete() {
         let t = task(completed: true)
         let ready = column("ready", kind: .status)
-        guard case .uncomplete = planProjectColumnMove(task: t, column: ready, lists: lists) else {
+        guard case .uncomplete = CoreBoardFixture.plan(task: t, column: ready, lists: lists) else {
             return XCTFail("a completed task leaving Done must be un-completed")
         }
     }
@@ -87,7 +87,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testMovingToAStatusColumnCarriesThatRole() {
         let t = task(listIds: ["ready-id"])
         let doing = column("doing", kind: .status)
-        guard case .setLists(_, let role) = planProjectColumnMove(task: t, column: doing, lists: lists) else {
+        guard case .setLists(_, let role) = CoreBoardFixture.plan(task: t, column: doing, lists: lists) else {
             return XCTFail("expected a plain list move")
         }
         XCTAssertEqual(role, "doing", "the role is what the board actually reads")
@@ -98,7 +98,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testMovingToInboxClearsTheRoleWithAnEmptyString() {
         let t = task(listIds: ["ready-id"], statusRole: "ready")
         let inbox = column(VIRTUAL_INBOX_COLUMN_ID, kind: .inbox)
-        guard case .setLists(_, let role) = planProjectColumnMove(task: t, column: inbox, lists: lists) else {
+        guard case .setLists(_, let role) = CoreBoardFixture.plan(task: t, column: inbox, lists: lists) else {
             return XCTFail("expected a plain list move")
         }
         XCTAssertEqual(role, "", "\"\" clears the role; nil would mean leave it alone")
@@ -112,7 +112,7 @@ final class ProjectColumnMovePlanTests: XCTestCase {
     func testANonStatusListMembershipIsPreserved() {
         let t = task(listIds: ["my-list", "ready-id"])
         let doing = column("doing", kind: .status)
-        guard case .setLists(let ids, _) = planProjectColumnMove(task: t, column: doing, lists: lists) else {
+        guard case .setLists(let ids, _) = CoreBoardFixture.plan(task: t, column: doing, lists: lists) else {
             return XCTFail("expected a plain list move")
         }
         XCTAssertTrue(ids.contains("my-list"), "a regular list membership is not the board's to remove")

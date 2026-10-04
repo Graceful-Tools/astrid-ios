@@ -48,21 +48,21 @@ final class BoardColumnsFromConfigTests: XCTestCase {
     // MARK: - The end state: no status lists at all
 
     func testRendersTheThreeDefaultsWithNoStatusListsAtAll() {
-        let columns = getProjectBoardColumns([domainList()])
+        let columns = CoreBoardFixture.columns([domainList()])
 
         XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
     }
 
     func testPlacesACardByItsRoleAloneWithNoListsAndNoMembership() {
-        let columns = getProjectBoardColumns([domainList()])
+        let columns = CoreBoardFixture.columns([domainList()])
         let doing = try! XCTUnwrap(columns.first { $0.name == "Doing" })
 
-        XCTAssertEqual(getTaskProjectColumnId(task(statusRole: "doing"), lists: [domainList()]), doing.id)
+        XCTAssertEqual(CoreBoardFixture.columnId(task(statusRole: "doing"), lists: [domainList()]), doing.id)
     }
 
     func testNoRoleStillMeansInbox() {
         XCTAssertEqual(
-            getTaskProjectColumnId(task(statusRole: nil), lists: [domainList()]),
+            CoreBoardFixture.columnId(task(statusRole: nil), lists: [domainList()]),
             VIRTUAL_INBOX_COLUMN_ID
         )
     }
@@ -71,10 +71,10 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         // The column id IS the role when nothing backs it; persisting that in
         // listIds would be a membership in a list that does not exist.
         let lists = [domainList()]
-        let columns = getProjectBoardColumns(lists)
+        let columns = CoreBoardFixture.columns(lists)
         let doing = try! XCTUnwrap(columns.first { $0.name == "Doing" })
 
-        let move = resolveProjectColumnMove(task(statusRole: nil), targetColumn: doing, lists: lists)
+        let move = CoreBoardFixture.move(task(statusRole: nil), to: doing, lists: lists)
 
         XCTAssertEqual(move.statusRole, "doing")
         XCTAssertEqual(move.listIds, ["domain-1"])
@@ -87,7 +87,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         // the list id. The rows are deleted, so the id is the role whether or not
         // a client still has one cached — see BoardColumnIdIsTheRoleTests (e5c74b5e).
         let ready = statusList("ready", "l-ready", "Ready")
-        let columns = getProjectBoardColumns([domainList(), ready])
+        let columns = CoreBoardFixture.columns([domainList(), ready])
         let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
 
         XCTAssertEqual(readyColumn.id, "ready")
@@ -96,10 +96,10 @@ final class BoardColumnsFromConfigTests: XCTestCase {
     func testABackedMoveDoesNotPersistStatusMembership() {
         let ready = statusList("ready", "l-ready", "Ready")
         let lists = [domainList(), ready]
-        let columns = getProjectBoardColumns(lists)
+        let columns = CoreBoardFixture.columns(lists)
         let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
 
-        let move = resolveProjectColumnMove(task(statusRole: nil), targetColumn: readyColumn, lists: lists)
+        let move = CoreBoardFixture.move(task(statusRole: nil), to: readyColumn, lists: lists)
 
         XCTAssertEqual(move.statusRole, "ready")
         XCTAssertEqual(move.listIds, ["domain-1"])
@@ -107,7 +107,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
 
     func testARenamedDefaultKeepsItsListName() {
         let renamed = statusList("ready", "l-ready", "Backlog")
-        let columns = getProjectBoardColumns([domainList(), renamed])
+        let columns = CoreBoardFixture.columns([domainList(), renamed])
 
         XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Backlog", "Doing", "Waiting", "Done"])
     }
@@ -117,7 +117,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
     func testACustomStateRendersOnItsOwnBoard() {
         // Same guarantee as before AITD-379, from a different source: the state
         // is declared BY the board rather than filtered to it.
-        let columns = getProjectBoardColumns(
+        let columns = CoreBoardFixture.columns(
             [domainList()],
             customStates: [ProjectCustomState(role: "custom-blocked", name: "Blocked", order: 5)]
         )
@@ -132,7 +132,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         // nothing at all.
         let otherBoardsRow = statusList("custom-blocked", "l-blocked", "Blocked",
                                         order: 5, projectId: "other-project")
-        let columns = getProjectBoardColumns([domainList(), otherBoardsRow], customStates: nil)
+        let columns = CoreBoardFixture.columns([domainList(), otherBoardsRow], customStates: nil)
 
         XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
     }
