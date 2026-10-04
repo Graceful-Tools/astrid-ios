@@ -33,15 +33,22 @@ struct InlineAssigneePicker: View {
     @State private var discoveredUsers: [User] = []
     @State private var isLoadingAgents = false
 
-    /// Who this task can be assigned to — from the SHARED rule, so the board, the task detail
-    /// and the list view cannot offer different people (task 1484ea4a). It used to be built
-    /// here, which made it a view detail rather than something a test could hold.
+    /// The last people the core offered, drawn while a new question is out.
+    @State private var lastMembers: [User]?
+    @ObservedObject private var assigneePicks = AssigneePicks.shared
+
+    /// What this picker asks: the task's lists as the editor holds them, the people its search
+    /// found, the agents it keeps, and who is signed in.
+    private var question: AssigneeQuestion {
+        AssigneeQuestion(listIds: taskListIds, discovered: discoveredUsers, agents: aiAgents,
+                         currentUser: authManager.currentUser)
+    }
+
+    /// Who this task can be assigned to — astrid-core's answer (`assigneeOptions`, CONTRACTS D47),
+    /// the one the board, the task detail, the list view and the Mac all read (tasks 1484ea4a,
+    /// AITD-461). It used to be built here, which made it a view detail rather than a rule.
     private var availableMembers: [User] {
-        AssigneeOptions.build(availableLists: availableLists,
-                              taskListIds: taskListIds,
-                              discoveredUsers: discoveredUsers,
-                              aiAgents: aiAgents,
-                              currentUser: authManager.currentUser)
+        AssigneePicks.answer(question)?.people ?? lastMembers ?? []
     }
 
     // Fetch fresh assignees from API (AI agents are also cached across launches).
@@ -102,9 +109,16 @@ struct InlineAssigneePicker: View {
         }
     }
 
-    // Find the current assignee User object from assigneeId
+    // Find the current assignee User object from assigneeId. Before the core has answered for
+    // the first time, the person is resolved from what the lists already know, so the trigger
+    // never flashes "Unassigned" over a task somebody holds.
     private var currentAssignee: User? {
         guard let id = assigneeId else { return nil }
+        if AssigneePicks.answer(question) == nil, lastMembers == nil {
+            let known = availableLists.filter { taskListIds.contains($0.id) }
+                .flatMap { [$0.owner].compactMap { $0 } + ($0.listMembers ?? []).compactMap(\.user) }
+            return AssigneeResolver.resolve(id: id, members: known, taskAssignee: nil, agents: aiAgents)
+        }
         return availableMembers.first { $0.id == id }
     }
 
@@ -153,6 +167,10 @@ struct InlineAssigneePicker: View {
         }
         .task {
             await fetchAssignees()
+        }
+        .task(id: question) {
+            await AssigneePicks.ask(question)
+            if let people = AssigneePicks.answer(question)?.people { lastMembers = people }
         }
     }
 

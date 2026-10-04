@@ -11,6 +11,9 @@
 //
 //  The Mac already states this as data (`MacAssigneeOptions.build`). This is iOS getting the
 //  same treatment so the two platforms, and the three iOS surfaces, cannot drift.
+//
+//  Since AITD-461 the rule is astrid-core's `assigneeOptions` (CONTRACTS D47), which both apps
+//  ask through `AssigneePicks`; these run, unchanged, against a seeded in-memory core.
 
 import XCTest
 @testable import Astrid_App
@@ -21,6 +24,22 @@ final class AssigneeOptionsTests: XCTestCase {
         var u = User(id: id, email: "\(id)@astrid.cc", name: name, image: nil)
         u.isAIAgent = agent
         return u
+    }
+
+    /// The people the core offers — iOS's `AssigneeOptions.build`, asked of astrid-core.
+    private func build(availableLists: [TaskList], taskListIds: [String], discoveredUsers: [User] = [],
+                       aiAgents: [User], currentUser: User?) -> [User] {
+        let session = try! CoreBoardFixture.session(lists: availableLists, projects: [])
+        let question = AssigneeQuestion(listIds: taskListIds, discovered: discoveredUsers,
+                                        agents: aiAgents, currentUser: currentUser)
+        return try! CoreRowsFixture.wait(session, question.command, as: AssigneeAnswer.self).people
+    }
+
+    /// A roster of people, as one list carrying them.
+    private func build(roster: [User], aiAgents: [User], currentUser: User?) -> [User] {
+        var carrier = TaskList(id: "roster", name: "Roster")
+        carrier.listMembers = roster.map { ListMember(id: "lm-\($0.id)", listId: "roster", userId: $0.id, role: "MEMBER", user: $0) }
+        return build(availableLists: [carrier], taskListIds: ["roster"], aiAgents: aiAgents, currentUser: currentUser)
     }
 
     private func list(_ id: String, owner: User?, members: [User]) -> TaskList {
@@ -44,7 +63,7 @@ final class AssigneeOptionsTests: XCTestCase {
         let me = user("me", "Jon")
         let cachedOffline = TaskList(id: "list-1", name: "Groceries")  // no owner, no members
 
-        let options = AssigneeOptions.build(availableLists: [cachedOffline],
+        let options = build(availableLists: [cachedOffline],
                                             taskListIds: ["list-1"],
                                             aiAgents: [],
                                             currentUser: me)
@@ -59,7 +78,7 @@ final class AssigneeOptionsTests: XCTestCase {
         let me = user("me", "Jon")
         let dana = user("dana", "Dana")
 
-        let options = AssigneeOptions.build(availableLists: [list("list-1", owner: dana, members: [])],
+        let options = build(availableLists: [list("list-1", owner: dana, members: [])],
                                             taskListIds: ["list-1"],
                                             aiAgents: [],
                                             currentUser: me)
@@ -76,7 +95,7 @@ final class AssigneeOptionsTests: XCTestCase {
     func testAgentsAreOfferedEvenWhenTheTasksListsAreNotLoaded() {
         let agent = user("agent-claude", "Claude", agent: true)
 
-        let options = AssigneeOptions.build(availableLists: [],
+        let options = build(availableLists: [],
                                             taskListIds: ["project-list", "status-doing"],
                                             aiAgents: [agent],
                                             currentUser: user("me", "Jon"))
@@ -88,7 +107,7 @@ final class AssigneeOptionsTests: XCTestCase {
     func testTask8ffe30ceScopedSearchUsersFillOptionsBeforeListsLoad() {
         let teammate = user("dana", "Dana")
 
-        let options = AssigneeOptions.build(
+        let options = build(
             availableLists: [TaskList(id: "project-list", name: "Project")],
             taskListIds: ["project-list", "status-doing"],
             discoveredUsers: [teammate],
@@ -106,7 +125,7 @@ final class AssigneeOptionsTests: XCTestCase {
         let agent = user("agent-claude", "Claude", agent: true)
         let l = list("project-list", owner: me, members: [mate])
 
-        let options = AssigneeOptions.build(availableLists: [l],
+        let options = build(availableLists: [l],
                                             taskListIds: ["project-list"],
                                             aiAgents: [agent],
                                             currentUser: me)
@@ -120,7 +139,7 @@ final class AssigneeOptionsTests: XCTestCase {
     /// stating it here is what stops one surface sorting differently.
     func testAgentsComeFirstThenYouThenTheRestByName() {
         let me = user("me", "Jon")
-        let options = AssigneeOptions.build(
+        let options = build(
             availableLists: [list("l", owner: me, members: [user("zoe", "Zoe"), user("amy", "Amy")])],
             taskListIds: ["l"],
             aiAgents: [user("agent-b", "Beta", agent: true), user("agent-a", "Alpha", agent: true)],
@@ -132,7 +151,7 @@ final class AssigneeOptionsTests: XCTestCase {
     /// A task with no lists at all still offers you — otherwise "My Tasks" has an empty picker.
     func testATaskWithNoListsStillOffersYou() {
         let me = user("me", "Jon")
-        let options = AssigneeOptions.build(availableLists: [], taskListIds: [],
+        let options = build(availableLists: [], taskListIds: [],
                                             aiAgents: [], currentUser: me)
         XCTAssertEqual(options.map(\.id), ["me"])
     }
@@ -141,7 +160,7 @@ final class AssigneeOptionsTests: XCTestCase {
     func testAPersonOnTwoListsIsOfferedOnce() {
         let me = user("me", "Jon")
         let dana = user("dana", "Dana")
-        let options = AssigneeOptions.build(
+        let options = build(
             availableLists: [list("a", owner: me, members: [dana]), list("b", owner: me, members: [dana])],
             taskListIds: ["a", "b"], aiAgents: [], currentUser: me)
         XCTAssertEqual(options.filter { $0.id == "dana" }.count, 1)
@@ -154,7 +173,7 @@ final class AssigneeOptionsTests: XCTestCase {
     /// This is the whole rule in one assertion, so a change here is a change to three platforms.
     func testAITD401_TheOrderIsAgentsThenYouThenEveryoneAlphabetically() {
         let me = user("me", "Zoe")
-        let options = AssigneeOptions.build(
+        let options = build(
             roster: [user("u-adam", "Adam"), me, user("u-bea", "Bea")],
             aiAgents: [user("agent-codex", "Codex", agent: true),
                        user("agent-claude", "Claude", agent: true)],
@@ -168,7 +187,7 @@ final class AssigneeOptionsTests: XCTestCase {
     /// Two people with the same display name must not swap places between launches — the option
     /// list is built from a dictionary, whose iteration order is not stable.
     func testAITD401_TheOrderIsStableWhenTwoPeopleShareAName() {
-        let options = AssigneeOptions.build(
+        let options = build(
             roster: [user("u-zzz", "Sam"), user("u-aaa", "Sam")],
             aiAgents: [], currentUser: nil)
         XCTAssertEqual(options.map(\.id), ["u-aaa", "u-zzz"], "id breaks the tie")
@@ -182,7 +201,7 @@ final class AssigneeOptionsTests: XCTestCase {
         let full = user("u1", "Henry Tsai")
 
         for roster in [[bare, full], [full, bare]] {
-            let options = AssigneeOptions.build(roster: roster, aiAgents: [], currentUser: nil)
+            let options = build(roster: roster, aiAgents: [], currentUser: nil)
             XCTAssertEqual(options.count, 1)
             XCTAssertEqual(options.first?.name, "Henry Tsai",
                            "AITD-401: the record with a name wins regardless of arrival order")
@@ -197,9 +216,9 @@ final class AssigneeOptionsTests: XCTestCase {
         let agent = user("agent-claude", "Claude", agent: true)
         let l = list("l1", owner: adam, members: [me])
 
-        let viaLists = AssigneeOptions.build(availableLists: [l], taskListIds: ["l1"],
+        let viaLists = build(availableLists: [l], taskListIds: ["l1"],
                                              aiAgents: [agent], currentUser: me)
-        let viaCore = AssigneeOptions.build(roster: [adam, me], aiAgents: [agent], currentUser: me)
+        let viaCore = build(roster: [adam, me], aiAgents: [agent], currentUser: me)
         XCTAssertEqual(viaLists.map(\.id), viaCore.map(\.id))
     }
 }

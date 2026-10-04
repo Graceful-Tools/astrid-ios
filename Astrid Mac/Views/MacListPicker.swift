@@ -23,11 +23,13 @@ struct MacListPicker: View {
         selectedIds.compactMap { id in lists.first { $0.id == id } }
     }
 
-    /// The lists a task can be filed in — iOS's rule, shared (`ListFilingTargets`, CONTRACTS D28).
-    /// This used to leave out board-status lists and offer saved filters, the opposite half of
-    /// iOS's rule; Jon 2026-10-03: on disagreement follow iOS. Internal for `MacFollowsIOSTests`.
+    @ObservedObject private var picks = ListPicks.shared
+
+    /// The lists a task can be filed in, in the sidebar's order — the core's answer, the one iOS's
+    /// picker reads (`listPicks`, CONTRACTS D28/D50; AITD-461). Asked as the chips appear, so it
+    /// has answered long before the popover opens.
     var selectableLists: [TaskList] {
-        ListFilingTargets.lists(lists)
+        ListPicks.lists("", in: lists) ?? []
     }
 
     var body: some View {
@@ -36,6 +38,7 @@ struct MacListPicker: View {
             .macPointingHand()
             .accessibilityLabel(NSLocalizedString("picker.add_to_lists", comment: ""))
             .popover(isPresented: $isPresented, arrowEdge: .bottom) { picker }
+            .task { await ListPicks.ask("") }
     }
 
     private var chips: some View {

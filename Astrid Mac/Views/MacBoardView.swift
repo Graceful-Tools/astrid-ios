@@ -1,7 +1,8 @@
 //  MacBoardView.swift
-//  Astrid for Mac — project-status board (Task 196d482a). Columns are the shared
-//  [Inbox, …status lists, Done] contract (getProjectBoardColumns); cards drag between columns
-//  via Transferable and move through the shared services. Replaces the old priority board.
+//  Astrid for Mac — project-status board (Task 196d482a). Columns and cards are astrid-core's
+//  `board`, through the shared `BoardModel` (AITD-461): the board iOS draws — top-level cards in
+//  the list's manual order, Done holding recent work. Cards drag between columns via
+//  Transferable and move through the core's `moveTaskToColumn`.
 
 #if os(macOS)
 import SwiftUI
@@ -11,8 +12,8 @@ struct MacBoardView: View {
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Observed so the board redraws when a project's custom columns arrive (AITD-379).
-    @StateObject private var projectService = ProjectService.shared
+    /// The columns and their cards, as astrid-core draws them — iOS's board (AITD-461).
+    @StateObject private var board = BoardModel()
     @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
     @State private var boardBusy = false
@@ -45,25 +46,12 @@ struct MacBoardView: View {
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
     private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
-    /// This board's own custom columns (AITD-379) — keyed off the selected
-    /// list's project, since that is what makes this a board at all.
-    private var customStates: [ProjectCustomState]? {
-        projectService.customStates(projectId: list?.projectId)
-    }
-    private var columns: [ProjectBoardColumn] {
-        getProjectBoardColumns(listService.lists, customStates: customStates)
-    }
-    private var tasks: [Task] { taskService.getTasksForList(listId) }
+    private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
-    /// One-pass column grouping (6042bde0): builds the columns once, out of the per-task path.
-    /// Was O(columns × tasks × lists) — tasks(in:) per column, each task rescanning all lists.
-    private func groupTasksByColumn() -> [String: [Task]] {
-        let columns = self.columns
-        var buckets: [String: [Task]] = [:]
-        for t in tasks {
-            buckets[getTaskProjectColumnId(t, columns: columns), default: []].append(t)
-        }
-        return buckets
+    /// Each column's cards, from the core's ids: the service's own tasks.
+    private func cardsByColumn() -> [String: [Task]] {
+        Dictionary(board.columns.map { ($0.id, BoardModel.cards($0, in: taskService.tasksById)) },
+                   uniquingKeysWith: { first, _ in first })
     }
 
     var body: some View {
@@ -87,7 +75,7 @@ struct MacBoardView: View {
             Divider()
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: MacLayout.boardColumnSpacing) {
-                    let buckets = groupTasksByColumn()   // ONE pass over tasks (6042bde0)
+                    let buckets = cardsByColumn()
                     ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []) }
                 }
                 .padding(MacLayout.boardPadding)
@@ -103,6 +91,7 @@ struct MacBoardView: View {
         // list people it knows about. Fetching here rather than relying on another screen having
         // opened the members sheet first, which is not something the board can assume.
         .task(id: listId) { try? await memberService.fetchMembers(listId: listId) }
+        .task(id: BoardModel.Query(listId: listId)) { board.update(BoardModel.Query(listId: listId)) }
     }
 
     private func enableBoard() {
@@ -278,22 +267,10 @@ struct MacBoardView: View {
     // MARK: moves
 
     private func move(taskId: String, to col: ProjectBoardColumn) {
-        guard let task = tasks.first(where: { $0.id == taskId }) else { return }
-        let plan = MacBoardMove.plan(task: task, column: col,
-                                     lists: listService.lists, customStates: customStates)
+        // The core's move against this board's columns (CONTRACTS D45): nothing when the card is
+        // already there, un-complete before leaving Done, Done through the completion service.
         AppActions.perform("Move task") {
-            switch plan {
-            case .none:
-                break
-            case .setLists(let ids, let role):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
-            case .complete(let ids, let role):
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
-                _ = try await taskService.completeTask(id: task.id, completed: true, task: task)
-            case .uncomplete(let ids, let role):
-                _ = try await taskService.completeTask(id: task.id, completed: false, task: task)
-                _ = try await taskService.updateTask(taskId: task.id, listIds: ids, task: task, statusRole: role)
-            }
+            try await taskService.moveToBoardColumn(taskId: taskId, columnId: col.id, listId: listId)
         }
     }
 

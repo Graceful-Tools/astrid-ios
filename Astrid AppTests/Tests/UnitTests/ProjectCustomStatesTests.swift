@@ -54,7 +54,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     // MARK: - The acceptance criteria
 
     func testACustomStateOnTheProjectRendersAsAColumn() {
-        let columns = getProjectBoardColumns(
+        let columns = CoreBoardFixture.columns(
             [domainList()],
             customStates: [state("blocked", "Blocked", order: 0)]
         )
@@ -65,7 +65,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     func testACustomColumnsIdIsItsRole() {
         // Task e5c74b5e's rule survives the change of source: the id is the
         // ROLE, never a row id, so the board's shape never depends on a cache.
-        let columns = getProjectBoardColumns(
+        let columns = CoreBoardFixture.columns(
             [domainList()],
             customStates: [state("blocked", "Blocked", order: 0)]
         )
@@ -75,9 +75,9 @@ final class ProjectCustomStatesTests: XCTestCase {
 
     func testACardWithACustomRoleLandsInThatColumn() {
         let customStates = [state("blocked", "Blocked", order: 0)]
-        let columns = getProjectBoardColumns([domainList()], customStates: customStates)
+        let columns = CoreBoardFixture.columns([domainList()], customStates: customStates)
 
-        let resolved = getTaskProjectColumnId(task(statusRole: "blocked"),
+        let resolved = CoreBoardFixture.columnId(task(statusRole: "blocked"),
                                               lists: [domainList()],
                                               customStates: customStates)
 
@@ -90,7 +90,7 @@ final class ProjectCustomStatesTests: XCTestCase {
         // Showing a card in the wrong column is recoverable; losing it is not.
         // Reachable whenever a board's customStates have not loaded yet.
         XCTAssertEqual(
-            getTaskProjectColumnId(task(statusRole: "nowhere"),
+            CoreBoardFixture.columnId(task(statusRole: "nowhere"),
                                    lists: [domainList()],
                                    customStates: [state("blocked", "Blocked", order: 0)]),
             VIRTUAL_INBOX_COLUMN_ID
@@ -99,10 +99,10 @@ final class ProjectCustomStatesTests: XCTestCase {
 
     func testEveryResolvedColumnIdIsOneTheBoardRenders() {
         let customStates = [state("blocked", "Blocked", order: 0)]
-        let columnIds = Set(getProjectBoardColumns([domainList()], customStates: customStates).map(\.id))
+        let columnIds = Set(CoreBoardFixture.columns([domainList()], customStates: customStates).map(\.id))
 
         for role in ["ready", "doing", "waiting", "blocked", "nowhere"] {
-            let resolved = getTaskProjectColumnId(task(statusRole: role),
+            let resolved = CoreBoardFixture.columnId(task(statusRole: role),
                                                   lists: [domainList()],
                                                   customStates: customStates)
             XCTAssertTrue(columnIds.contains(resolved),
@@ -112,7 +112,7 @@ final class ProjectCustomStatesTests: XCTestCase {
 
     func testNoCustomStatesMeansJustTheDefaults() {
         XCTAssertEqual(
-            getProjectBoardColumns([domainList()], customStates: nil).map(\.name),
+            CoreBoardFixture.columns([domainList()], customStates: nil).map(\.name),
             ["Inbox", "Ready", "Doing", "Waiting", "Done"]
         )
     }
@@ -126,28 +126,28 @@ final class ProjectCustomStatesTests: XCTestCase {
         let blocked = staleStatusRow("custom-blocked", "l-blocked", "Blocked",
                                      order: 5, projectId: project)
 
-        let columns = getProjectBoardColumns([domainList(), blocked], customStates: nil)
+        let columns = CoreBoardFixture.columns([domainList(), blocked], customStates: nil)
 
         XCTAssertEqual(columns.map(\.name), ["Inbox", "Ready", "Doing", "Waiting", "Done"])
     }
 
     func testTheBoardIsIdenticalWithAndWithoutStaleRows() {
         let customStates = [state("blocked", "Blocked", order: 0)]
-        let withRows = getProjectBoardColumns(
+        let withRows = CoreBoardFixture.columns(
             [domainList(),
              staleStatusRow("ready", "l-ready", "Ready"),
              staleStatusRow("custom-blocked", "l-blocked", "Blocked", order: 5, projectId: project)],
             customStates: customStates
         )
-        let withoutRows = getProjectBoardColumns([domainList()], customStates: customStates)
+        let withoutRows = CoreBoardFixture.columns([domainList()], customStates: customStates)
 
         XCTAssertEqual(withRows.map(\.id), withoutRows.map(\.id))
     }
 
-    // MARK: - parseProjectCustomStates — the port of web's parseCustomStates
+    // MARK: - How the core reads customStates — the port of web's parseCustomStates
 
     func testParseDropsEntriesMissingARoleOrAName() {
-        let parsed = parseProjectCustomStates([
+        let parsed = CoreBoardFixture.parsedStates([
             state("", "No role"),
             state("no-name", ""),
             state("   ", "Blank role"),
@@ -158,14 +158,14 @@ final class ProjectCustomStatesTests: XCTestCase {
     }
 
     func testParseTrimsRoleAndName() {
-        let parsed = parseProjectCustomStates([state("  blocked  ", "  Blocked  ")])
+        let parsed = CoreBoardFixture.parsedStates([state("  blocked  ", "  Blocked  ")])
 
         XCTAssertEqual(parsed.first?.role, "blocked")
         XCTAssertEqual(parsed.first?.name, "Blocked")
     }
 
     func testParseKeepsTheFirstEntryForARepeatedRole() {
-        let parsed = parseProjectCustomStates([
+        let parsed = CoreBoardFixture.parsedStates([
             state("blocked", "First", order: 0),
             state("blocked", "Second", order: 1),
         ])
@@ -174,7 +174,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     }
 
     func testParseSortsByOrder() {
-        let parsed = parseProjectCustomStates([
+        let parsed = CoreBoardFixture.parsedStates([
             state("c", "Third", order: 2),
             state("a", "First", order: 0),
             state("b", "Second", order: 1),
@@ -184,7 +184,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     }
 
     func testParseFallsBackToInsertionOrderWhenOrderIsAbsent() {
-        let parsed = parseProjectCustomStates([
+        let parsed = CoreBoardFixture.parsedStates([
             state("a", "First"),
             state("b", "Second"),
             state("c", "Third"),
@@ -194,7 +194,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     }
 
     func testCustomColumnsRenderInTheirParsedOrder() {
-        let columns = getProjectBoardColumns([domainList()], customStates: [
+        let columns = CoreBoardFixture.columns([domainList()], customStates: [
             state("shipped", "Shipped", order: 1),
             state("blocked", "Blocked", order: 0),
         ])
@@ -209,7 +209,7 @@ final class ProjectCustomStatesTests: XCTestCase {
         // Web stores a renamed built-in in the same array and tells the two
         // apart with `isDefaultStatusRole` (lib/task-status.ts). Treating it as
         // a custom state instead would render "Ready" twice.
-        let columns = getProjectBoardColumns([domainList()],
+        let columns = CoreBoardFixture.columns([domainList()],
                                              customStates: [state("ready", "Backlog", order: 0)])
 
         XCTAssertEqual(columns.map(\.name), ["Inbox", "Backlog", "Doing", "Waiting", "Done"])
@@ -220,7 +220,7 @@ final class ProjectCustomStatesTests: XCTestCase {
         // Both sources can be present on a client that was open across the
         // deploy. The durable one wins.
         let renamedRow = staleStatusRow("ready", "l-ready", "From the row")
-        let columns = getProjectBoardColumns([domainList(), renamedRow],
+        let columns = CoreBoardFixture.columns([domainList(), renamedRow],
                                              customStates: [state("ready", "From customStates", order: 0)])
 
         XCTAssertEqual(columns.first { $0.id == "ready" }?.name, "From customStates")
@@ -257,14 +257,14 @@ final class ProjectCustomStatesTests: XCTestCase {
                          {"role":"blocked","name":"Blocked"}]}
         """)
 
-        XCTAssertEqual(parseProjectCustomStates(project.customStates).map(\.role), ["blocked"])
+        XCTAssertEqual(CoreBoardFixture.parsedStates(project.customStates).map(\.role), ["blocked"])
     }
 
     func testANonArrayCustomStatesIsToleratedAsEmpty() throws {
         // Mirrors web's `if (!Array.isArray(raw)) return []`.
         let project = try decodeProject(#"{"id":"p1","name":"Board","customStates":{"role":"blocked"}}"#)
 
-        XCTAssertEqual(parseProjectCustomStates(project.customStates), [])
+        XCTAssertEqual(CoreBoardFixture.parsedStates(project.customStates), [])
     }
 
     func testCustomStatesRoundTripThroughEncoding() throws {

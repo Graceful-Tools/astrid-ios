@@ -246,7 +246,7 @@ struct MacQuickAddBar: View {
         var statusRole: String?
         var complete = false
         if let column, let domainListId = selectedListId {
-            let card = MacBoardAdd.newCard(in: column, domainListId: domainListId, lists: lists)
+            let card = MacBoardAdd.newCard(in: column, domainListId: domainListId)
             args = MacBoardAdd.placing(args, in: card)
             statusRole = card.statusRole
             complete = card.complete

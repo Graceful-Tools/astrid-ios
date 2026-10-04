@@ -30,7 +30,7 @@ final class BoardDoneWindowTests: XCTestCase {
         let recent = completedTask(id: "recent", completedAgo: 60 * 60)       // 1h ago
         let old = completedTask(id: "old", completedAgo: 48 * 60 * 60)        // 48h ago
 
-        let result = boardColumnTasksSorted(
+        let result = CoreBoardFixture.columnTasks(
             [recent, old],
             projectId: "p1",
             column: doneColumn(),
@@ -50,7 +50,7 @@ final class BoardDoneWindowTests: XCTestCase {
         let recent = completedTask(id: "recent", completedAgo: 60 * 60)
         let old = completedTask(id: "old", completedAgo: 48 * 60 * 60)
 
-        let result = boardColumnTasksSorted(
+        let result = CoreBoardFixture.columnTasks(
             [recent, old],
             projectId: "p1",
             column: doneColumn(),

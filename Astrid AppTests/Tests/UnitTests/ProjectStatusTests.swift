@@ -5,6 +5,10 @@ import XCTest
 /// fixtures, same assertions — if iOS diverges from the web here, the
 /// board behaviour will drift in production. Treat these as the contract.
 ///
+/// Since AITD-461 the rules are astrid-core's (`board`, `dropBoardCard`, `setTaskStatus`,
+/// `taskStatusOptions`), and these run against a seeded in-memory core (`CoreBoardFixture`) —
+/// the parity spec the Swift `ProjectStatus` copy was deleted against.
+///
 /// Status lists are per-user globals: `projectId == nil`, `listType ==
 /// "status"`, one Ready/Doing/Waiting set shared across every project
 /// board. Domain lists keep their project id.
@@ -70,18 +74,17 @@ final class ProjectStatusTests: XCTestCase {
     // MARK: - Default statuses
 
     func test_seedsOnlyReadyDoingWaitingAsRealStatusLists() {
-        XCTAssertEqual(
-            DEFAULT_PROJECT_STATUSES.map { $0.name },
-            ["Ready", "Doing", "Waiting"]
-        )
-        XCTAssertTrue(DEFAULT_PROJECT_STATUSES.allSatisfy { $0.description.count > 12 })
+        let columns = CoreBoardFixture.columns([])
+        let defaults = columns.filter { $0.kind == .status }
+        XCTAssertEqual(defaults.map { $0.name }, ["Ready", "Doing", "Waiting"])
+        XCTAssertTrue(defaults.allSatisfy { $0.description.count > 12 })
     }
 
     // MARK: - Virtual column copy
 
     func test_usesApprovedCopyForVirtualInboxAndDoneColumns() {
         let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready", statusOrder: 0)
-        let columns = getProjectBoardColumns([ready])
+        let columns = CoreBoardFixture.columns([ready])
         let inbox = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
         let done = columns.first { $0.id == VIRTUAL_DONE_COLUMN_ID }!
         XCTAssertEqual(inbox.description, "Move them to \"Ready\" when they are... ready!")
@@ -95,7 +98,7 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing", statusOrder: 1)
         let waiting = makeStatusList(id: "waiting", name: "Waiting", statusRole: "waiting", statusOrder: 2)
 
-        let columns = getProjectBoardColumns([ready, doing, waiting])
+        let columns = CoreBoardFixture.columns([ready, doing, waiting])
         XCTAssertEqual(columns.map { $0.id }, [
             VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
         ])
@@ -112,7 +115,7 @@ final class ProjectStatusTests: XCTestCase {
         // config now, so the board survives the status lists going away
         // (task 2e41c645). A backed role keeps the LIST id; an unbacked one is
         // keyed on the role.
-        let columns = getProjectBoardColumns([projectA, ready, doing])
+        let columns = CoreBoardFixture.columns([projectA, ready, doing])
         XCTAssertEqual(columns.map { $0.id }, [
             VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
         ])
@@ -125,7 +128,7 @@ final class ProjectStatusTests: XCTestCase {
                                         statusOrder: 9, statusCompleted: true)
 
         // The legacy inbox/done rows stay hidden; the config defaults render.
-        let columns = getProjectBoardColumns([legacyInbox, ready, legacyDone])
+        let columns = CoreBoardFixture.columns([legacyInbox, ready, legacyDone])
         XCTAssertEqual(columns.map { $0.id }, [
             VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
         ])
@@ -137,7 +140,7 @@ final class ProjectStatusTests: XCTestCase {
         let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
         let completed = makeTask(lists: [ready], completed: true)
         XCTAssertEqual(
-            getTaskProjectColumnId(completed, lists: [ready]),
+            CoreBoardFixture.columnId(completed, lists: [ready]),
             VIRTUAL_DONE_COLUMN_ID
         )
     }
@@ -147,7 +150,7 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios])
         XCTAssertEqual(
-            getTaskProjectColumnId(t, lists: [ios, doing]),
+            CoreBoardFixture.columnId(t, lists: [ios, doing]),
             VIRTUAL_INBOX_COLUMN_ID
         )
     }
@@ -157,7 +160,7 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios, doing], statusRole: nil)
         XCTAssertEqual(
-            getTaskProjectColumnId(t, lists: [ios, doing]),
+            CoreBoardFixture.columnId(t, lists: [ios, doing]),
             VIRTUAL_INBOX_COLUMN_ID
         )
     }
@@ -170,10 +173,9 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios, ready])
 
-        let columns = getProjectBoardColumns([ios, ready, doing])
+        let columns = CoreBoardFixture.columns([ios, ready, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
-        let result = resolveProjectColumnMove(t, targetColumn: doingColumn,
-                                              lists: [ios, ready, doing])
+        let result = CoreBoardFixture.move(t, to: doingColumn, lists: [ios, ready, doing])
         XCTAssertEqual(result.listIds, ["ios"])
         XCTAssertEqual(result.statusRole, "doing")
         XCTAssertFalse(result.completed)
@@ -185,10 +187,9 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios, ready], statusRole: "ready")
 
-        let columns = getProjectBoardColumns([ios, ready, doing])
+        let columns = CoreBoardFixture.columns([ios, ready, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
-        let result = resolveProjectColumnMove(t, targetColumn: doingColumn,
-                                              lists: [ios, ready, doing])
+        let result = CoreBoardFixture.move(t, to: doingColumn, lists: [ios, ready, doing])
         XCTAssertEqual(result.listIds, ["ios"])
         XCTAssertEqual(result.statusRole, "doing")
     }
@@ -199,10 +200,9 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios, ready])
 
-        let columns = getProjectBoardColumns([ios, ready, doing])
+        let columns = CoreBoardFixture.columns([ios, ready, doing])
         let doneColumn = columns.first { $0.id == VIRTUAL_DONE_COLUMN_ID }!
-        let result = resolveProjectColumnMove(t, targetColumn: doneColumn,
-                                              lists: [ios, ready, doing])
+        let result = CoreBoardFixture.move(t, to: doneColumn, lists: [ios, ready, doing])
         XCTAssertEqual(result.listIds, ["ios"])
         XCTAssertTrue(result.completed)
     }
@@ -221,10 +221,9 @@ final class ProjectStatusTests: XCTestCase {
         cachedTask.lists = nil
         cachedTask.listIds = ["ios"]
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
-        let move = resolveProjectColumnMove(cachedTask, targetColumn: doingColumn,
-                                            lists: [ios, doing])
+        let move = CoreBoardFixture.move(cachedTask, to: doingColumn, lists: [ios, doing])
         XCTAssertEqual(move.listIds, ["ios"],
                        "Regular list membership must survive the move even when task.lists is nil")
         XCTAssertEqual(move.statusRole, "doing")
@@ -236,52 +235,11 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let completedTask = makeTask(lists: [ios, doing], completed: true)
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let inboxColumn = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
-        let result = resolveProjectColumnMove(completedTask, targetColumn: inboxColumn,
-                                              lists: [ios, doing])
+        let result = CoreBoardFixture.move(completedTask, to: inboxColumn, lists: [ios, doing])
         XCTAssertEqual(result.listIds, ["ios"])
         XCTAssertFalse(result.completed)
-    }
-
-    // MARK: - normalizeProjectStatusListIds
-
-    func test_normalizesToOneGlobalStatus_andForcesCompletedFalse() {
-        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: "project-1", listType: "regular")
-        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
-        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
-
-        let result = normalizeProjectStatusListIds(
-            requestedListIds: ["ios", "ready", "doing"],
-            knownLists: [ios, ready, doing]
-        )
-        XCTAssertEqual(result.listIds, ["ios", "doing"])
-        XCTAssertEqual(result.completedFromStatus, false)
-    }
-
-    func test_stripsEveryStatus_whenTaskIsBeingCompleted() {
-        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: "project-1", listType: "regular")
-        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
-
-        let result = normalizeProjectStatusListIds(
-            requestedListIds: ["ios", "ready"],
-            knownLists: [ios, ready],
-            completed: true
-        )
-        XCTAssertEqual(result.listIds, ["ios"])
-        XCTAssertNil(result.completedFromStatus)
-    }
-
-    func test_doesNotAutoAddStatus_whenProjectTaskCreatedWithoutOne() {
-        let ios = makeList(id: "ios", name: "Astrid iOS To-do", projectId: "project-1", listType: "regular")
-        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing", statusOrder: 1)
-
-        let result = normalizeProjectStatusListIds(
-            requestedListIds: ["ios"],
-            knownLists: [ios, doing]
-        )
-        XCTAssertEqual(result.listIds, ["ios"])
-        XCTAssertNil(result.completedFromStatus)
     }
 
     // MARK: - getProjectDomainTasks
@@ -296,7 +254,7 @@ final class ProjectStatusTests: XCTestCase {
         let onlyStatus = makeTask(id: "t-2", lists: [status])
         let outside = makeTask(id: "t-3", lists: [otherProject])
 
-        let result = getProjectDomainTasks(
+        let result = CoreBoardFixture.domainTasks(
             [inProject, onlyStatus, outside],
             lists: [ios, otherProject, status],
             projectId: projectId
@@ -316,7 +274,7 @@ final class ProjectStatusTests: XCTestCase {
         cachedTask.lists = nil
         cachedTask.listIds = ["ios"]
 
-        let result = getProjectDomainTasks(
+        let result = CoreBoardFixture.domainTasks(
             [cachedTask],
             lists: [ios],
             projectId: projectId
@@ -331,7 +289,7 @@ final class ProjectStatusTests: XCTestCase {
         var t = makeTask(id: "t-both", lists: [ios])
         t.listIds = ["ios"]
 
-        let result = getProjectDomainTasks([t], lists: [ios], projectId: projectId)
+        let result = CoreBoardFixture.domainTasks([t], lists: [ios], projectId: projectId)
         XCTAssertEqual(result.map { $0.id }, ["t-both"])
     }
 
@@ -347,10 +305,10 @@ final class ProjectStatusTests: XCTestCase {
         let b = makeTask(id: "b", lists: [ios, doing], statusRole: "doing")
         let c = makeTask(id: "c", lists: [ios, doing], statusRole: "doing")
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
-        let sorted = boardColumnTasksSorted(
+        let sorted = CoreBoardFixture.columnTasks(
             [a, b, c],
             projectId: projectId,
             column: doingColumn,
@@ -365,10 +323,10 @@ final class ProjectStatusTests: XCTestCase {
         let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
         let a = makeTask(id: "a", lists: [ios])
         let b = makeTask(id: "b", lists: [ios])
-        let columns = getProjectBoardColumns([ios])
+        let columns = CoreBoardFixture.columns([ios])
         let inboxColumn = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
 
-        let result = boardColumnTasksSorted(
+        let result = CoreBoardFixture.columnTasks(
             [a, b],
             projectId: projectId,
             column: inboxColumn,
@@ -387,11 +345,11 @@ final class ProjectStatusTests: XCTestCase {
         let a = makeTask(id: "a", lists: [ios, doing], statusRole: "doing")
         let b = makeTask(id: "b", lists: [ios, doing], statusRole: "doing")
         let c = makeTask(id: "c", lists: [ios, doing], statusRole: "doing")
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
         // current order: a, b, c. Drag c to index 1 → expect a, c, b
-        let result = resolveBoardReorder(
+        let result = CoreBoardFixture.reorder(
             task: c,
             targetColumn: doingColumn,
             targetIndex: 1,
@@ -415,10 +373,10 @@ final class ProjectStatusTests: XCTestCase {
         let inboxTask = makeTask(id: "i-1", lists: [ios])
         let doing1 = makeTask(id: "d-1", lists: [ios, doing], statusRole: "doing")
         let doing2 = makeTask(id: "d-2", lists: [ios, doing], statusRole: "doing")
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
-        let result = resolveBoardReorder(
+        let result = CoreBoardFixture.reorder(
             task: inboxTask,
             targetColumn: doingColumn,
             targetIndex: 0,
@@ -441,10 +399,10 @@ final class ProjectStatusTests: XCTestCase {
         let a = makeTask(id: "a", lists: [ios, doing])
         let b = makeTask(id: "b", lists: [ios, doing])
         let c = makeTask(id: "c", lists: [ios])  // currently inbox
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
 
-        let result = resolveBoardReorder(
+        let result = CoreBoardFixture.reorder(
             task: c,
             targetColumn: doingColumn,
             targetIndex: 2,
@@ -471,10 +429,10 @@ final class ProjectStatusTests: XCTestCase {
         let inboxB = makeTask(id: "i-b", lists: [ios])
         let doingX = makeTask(id: "d-x", lists: [ios, doing])
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let inboxColumn = columns.first { $0.id == VIRTUAL_INBOX_COLUMN_ID }!
 
-        let result = resolveBoardReorder(
+        let result = CoreBoardFixture.reorder(
             task: doingX,
             targetColumn: inboxColumn,
             targetIndex: 1,
@@ -500,10 +458,9 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios, doing], statusRole: "doing")
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
-        XCTAssertTrue(isTaskAlreadyInColumn(t, targetColumn: doingColumn,
-                                            lists: [ios, doing]))
+        XCTAssertTrue(CoreBoardFixture.isAlreadyIn(t, column: doingColumn, lists: [ios, doing]))
     }
 
     /// Inbox task dropped on Doing → not a no-op (real move).
@@ -512,10 +469,9 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
         let t = makeTask(lists: [ios])
 
-        let columns = getProjectBoardColumns([ios, doing])
+        let columns = CoreBoardFixture.columns([ios, doing])
         let doingColumn = columns.first { $0.id == "doing" }!
-        XCTAssertFalse(isTaskAlreadyInColumn(t, targetColumn: doingColumn,
-                                             lists: [ios, doing]))
+        XCTAssertFalse(CoreBoardFixture.isAlreadyIn(t, column: doingColumn, lists: [ios, doing]))
     }
 
     /// Completed task dropped on Done → no-op (already in virtual Done).
@@ -523,10 +479,9 @@ final class ProjectStatusTests: XCTestCase {
         let ios = makeList(id: "ios", name: "iOS", projectId: "project-1", listType: "regular")
         let t = makeTask(lists: [ios], completed: true)
 
-        let columns = getProjectBoardColumns([ios])
+        let columns = CoreBoardFixture.columns([ios])
         let doneColumn = columns.first { $0.id == VIRTUAL_DONE_COLUMN_ID }!
-        XCTAssertTrue(isTaskAlreadyInColumn(t, targetColumn: doneColumn,
-                                            lists: [ios]))
+        XCTAssertTrue(CoreBoardFixture.isAlreadyIn(t, column: doneColumn, lists: [ios]))
     }
 
     // MARK: - BoardCardPayload (typed drag-drop)
@@ -570,74 +525,6 @@ final class ProjectStatusTests: XCTestCase {
         XCTAssertEqual(boardColumnsVisible(availableWidth: -10), 1)
     }
 
-    // MARK: - Board create / disable: local list-state mirroring
-
-    /// Creating a board get-or-creates the user's global Ready/Doing/
-    /// Waiting status lists; the helper merges them into the in-memory
-    /// list array so the board's columns render before the next sync.
-    func test_applyProjectStatusLists_addsGlobalStatusLists() {
-        let ios = makeList(id: "ios", name: "iOS", projectId: "p-1", listType: "regular")
-        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready", statusOrder: 0)
-        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing", statusOrder: 1)
-
-        let result = applyProjectStatusLists([ios], adding: [ready, doing])
-        XCTAssertEqual(Set(result.map { $0.id }), ["ios", "ready", "doing"])
-    }
-
-    /// Idempotent — a status list already present (by id) is not
-    /// duplicated when the helper runs again.
-    func test_applyProjectStatusLists_isIdempotent() {
-        let ios = makeList(id: "ios", name: "iOS", projectId: "p-1", listType: "regular")
-        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
-
-        let once = applyProjectStatusLists([ios], adding: [ready])
-        let twice = applyProjectStatusLists(once, adding: [ready])
-        XCTAssertEqual(once.map { $0.id }, twice.map { $0.id })
-        XCTAssertEqual(twice.filter { $0.id == "ready" }.count, 1)
-    }
-
-    /// Non-status lists in the `adding` set are ignored.
-    func test_applyProjectStatusLists_ignoresNonStatusLists() {
-        let ios = makeList(id: "ios", name: "iOS", projectId: "p-1", listType: "regular")
-        let other = makeList(id: "other", name: "Other", projectId: "p-1", listType: "regular")
-        let result = applyProjectStatusLists([ios], adding: [other])
-        XCTAssertEqual(result.map { $0.id }, ["ios"])
-    }
-
-    /// Disabling a board deletes the project: its domain (regular) list
-    /// is detached — projectId cleared, the list itself kept. Status
-    /// lists are per-user globals and survive the deletion untouched.
-    func test_applyProjectDeletion_keepsGlobalStatusLists_detachesDomainList() {
-        let projectId = "p-1"
-        let ios = makeList(id: "ios", name: "iOS", projectId: projectId, listType: "regular")
-        let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready")
-        let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing")
-
-        let result = applyProjectDeletion([ios, ready, doing], deletedProjectId: projectId)
-        XCTAssertEqual(Set(result.map { $0.id }), ["ios", "ready", "doing"],
-                       "Global status lists survive; domain list kept")
-        XCTAssertNil(result.first { $0.id == "ios" }?.projectId,
-                     "Domain list detached — projectId cleared")
-    }
-
-    /// Lists belonging to OTHER projects (or no project) are untouched.
-    func test_applyProjectDeletion_leavesOtherProjectsListsAlone() {
-        let groceries = makeList(id: "groc", name: "Groceries", listType: "regular")
-        let otherDomain = makeList(id: "od", name: "Other", projectId: "p-2", listType: "regular")
-        let globalStatus = makeStatusList(id: "gs", name: "Doing", statusRole: "doing")
-        let deadDomain = makeList(id: "dd", name: "Dead", projectId: "p-1", listType: "regular")
-
-        let result = applyProjectDeletion(
-            [groceries, otherDomain, globalStatus, deadDomain],
-            deletedProjectId: "p-1"
-        )
-        XCTAssertEqual(result.map { $0.id }, ["groc", "od", "gs", "dd"])
-        XCTAssertEqual(result.first { $0.id == "od" }?.projectId, "p-2")
-        XCTAssertNil(result.first { $0.id == "groc" }?.projectId)
-        XCTAssertNil(result.first { $0.id == "dd" }?.projectId,
-                     "p-1's domain list detached, not deleted")
-    }
-
     // MARK: - Status as a state on the task (AWTD-562)
 
     /// Swift port of the web tests added with `Task.statusRole`. Status stopped
@@ -654,25 +541,25 @@ final class ProjectStatusTests: XCTestCase {
         let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
         // Membership says Ready, the field says Doing. The field is authoritative.
         let task = makeTask(lists: [ready], statusRole: "doing")
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready, doing]), "doing")
+        XCTAssertEqual(CoreBoardFixture.columnId(task, lists: [ready, doing]), "doing")
     }
 
     func test_missingStatusRoleFallsBackToInbox_notMembership() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let task = makeTask(lists: [ready], statusRole: nil)
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
+        XCTAssertEqual(CoreBoardFixture.columnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
     }
 
     func test_emptyStatusRoleIsTreatedAsAbsent() {
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let task = makeTask(lists: [ready], statusRole: "")
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
+        XCTAssertEqual(CoreBoardFixture.columnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
     }
 
     func test_completedWinsOverStatusRole() {
         let doing = makeList(id: "doing", name: "Doing", listType: "status", statusRole: "doing", statusOrder: 1)
         let task = makeTask(lists: [doing], completed: true, statusRole: "doing")
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [doing]), VIRTUAL_DONE_COLUMN_ID)
+        XCTAssertEqual(CoreBoardFixture.columnId(task, lists: [doing]), VIRTUAL_DONE_COLUMN_ID)
     }
 
     func test_unrenderableStatusFallsBackToInboxRatherThanVanishing() {
@@ -681,18 +568,18 @@ final class ProjectStatusTests: XCTestCase {
         // and the card would disappear from the board entirely.
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let task = makeTask(lists: [ready], statusRole: "blocked")
-        XCTAssertEqual(getTaskProjectColumnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
+        XCTAssertEqual(CoreBoardFixture.columnId(task, lists: [ready]), VIRTUAL_INBOX_COLUMN_ID)
     }
 
     func test_everyResolvedColumnIdIsOneTheBoardRenders() {
         // The invariant behind the fallback above.
         let ready = makeList(id: "ready", name: "Ready", listType: "status", statusRole: "ready", statusOrder: 0)
         let lists = [ready]
-        let columnIds = Set(getProjectBoardColumns(lists).map { $0.id })
+        let columnIds = Set(CoreBoardFixture.columns(lists).map { $0.id })
         for role in ["ready", "blocked", "doing"] {
             let task = makeTask(lists: lists, statusRole: role)
             XCTAssertTrue(
-                columnIds.contains(getTaskProjectColumnId(task, lists: lists)),
+                columnIds.contains(CoreBoardFixture.columnId(task, lists: lists)),
                 "resolved a column the board does not render for role \(role)"
             )
         }
@@ -706,9 +593,9 @@ final class ProjectStatusTests: XCTestCase {
         let domain = makeList(id: "domain", name: "Board", projectId: "p1")
         let task = makeTask(lists: [domain, ready])
 
-        let columns = getProjectBoardColumns([ready, doing])
+        let columns = CoreBoardFixture.columns([ready, doing])
         let target = columns.first { $0.id == "doing" }!
-        let move = resolveProjectColumnMove(task, targetColumn: target, lists: [ready, doing, domain])
+        let move = CoreBoardFixture.move(task, to: target, lists: [ready, doing, domain])
 
         XCTAssertEqual(move.statusRole, "doing")
         XCTAssertFalse(move.listIds.contains("doing"))
@@ -722,9 +609,9 @@ final class ProjectStatusTests: XCTestCase {
         let domain = makeList(id: "domain", name: "Board", projectId: "p1")
         let task = makeTask(lists: [domain, doing])
 
-        let columns = getProjectBoardColumns([doing])
+        let columns = CoreBoardFixture.columns([doing])
         let inbox = columns.first { $0.kind == .inbox }!
-        let move = resolveProjectColumnMove(task, targetColumn: inbox, lists: [doing, domain])
+        let move = CoreBoardFixture.move(task, to: inbox, lists: [doing, domain])
 
         XCTAssertNil(move.statusRole)
         XCTAssertFalse(move.listIds.contains("doing"))
@@ -737,9 +624,9 @@ final class ProjectStatusTests: XCTestCase {
         let domain = makeList(id: "domain", name: "Board", projectId: "p1")
         let task = makeTask(lists: [domain, doing])
 
-        let columns = getProjectBoardColumns([doing])
+        let columns = CoreBoardFixture.columns([doing])
         let done = columns.first { $0.kind == .done }!
-        let move = resolveProjectColumnMove(task, targetColumn: done, lists: [doing, domain])
+        let move = CoreBoardFixture.move(task, to: done, lists: [doing, domain])
 
         XCTAssertNil(move.statusRole)
         XCTAssertFalse(move.listIds.contains("doing"))

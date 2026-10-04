@@ -13,16 +13,29 @@
 import SwiftUI
 
 struct MacAssigneePicker: View {
-    let options: [MacAssigneeOption]
-    /// Currently assigned id; nil for unassigned.
-    let selectedId: String?
+    let task: Task
     let priority: Task.Priority
     let onSelect: (String?) -> Void
 
     @State private var showingPicker = false
+    /// Who the task can go to — astrid-core's answer, iOS's rule (AITD-461), asked as the
+    /// trigger appears and kept app-wide.
+    @ObservedObject private var picks = AssigneePicks.shared
 
+    /// Currently assigned id; nil for unassigned.
+    private var selectedId: String? { task.assigneeId?.isEmpty == false ? task.assigneeId : nil }
+    private var question: AssigneeQuestion { MacAssigneeOptions.question(for: task) }
+    private var options: [MacAssigneeOption] {
+        MacAssigneeOptions.rows(AssigneePicks.answer(question), currentUserId: AuthManager.shared.userId)
+    }
+
+    /// The trigger shows who holds the task even when they are not one of the choices — someone
+    /// assigned from outside the list — resolved from every record the app has (42013da7).
     private var selected: MacAssigneeOption? {
-        options.first { $0.userId == selectedId }
+        guard let selectedId else { return nil }
+        return options.first { $0.userId == selectedId }
+            ?? MacAssigneeOption(userId: selectedId, user: AssigneeResolver.resolve(task: task),
+                                 isCurrentUser: selectedId == AuthManager.shared.userId)
     }
 
     var body: some View {
@@ -51,6 +64,7 @@ struct MacAssigneePicker: View {
         // Keyed on the assignee: SwiftUI reuses a view whose identity hasn't changed, which is
         // how the PREVIOUS person's photo used to stay on screen after a reassign.
         .id(AssigneeResolver.avatarIdentity(for: selectedId))
+        .task(id: question) { await AssigneePicks.ask(question) }
         .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(options) { option in

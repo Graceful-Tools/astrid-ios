@@ -8,7 +8,13 @@
 //  highlight never left the previous column. Every other control in that view keeps its own
 //  `@State` mirror (`editedPriority`, `editedAssigneeId`, `isCompleted`) and updates on tap —
 //  which is exactly the difference Jon reported.
+//
+//  Since AITD-461 the move is astrid-core's (`setTaskStatus`, through
+//  `TaskService.moveToBoardColumn`), which answers with the task it produced; these run against a
+//  seeded in-memory core. The ORDER of the writes (un-complete before leaving Done, the column
+//  before completing) is pinned by the core's own tests (CONTRACTS D45).
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -17,86 +23,66 @@ final class ProjectStateMoveTests: XCTestCase {
     private func task(id: String = "t1", statusRole: String? = nil, completed: Bool = false) -> Task {
         var t = TestHelpers.createTestTask(id: id, completed: completed)
         t.statusRole = statusRole
+        t.listIds = ["board-list"]
+        t.lists = nil
         return t
+    }
+
+    private var lists: [TaskList] {
+        var board = TaskList(id: "board-list", name: "Board")
+        board.projectId = "p1"
+        return [board]
+    }
+
+    /// What the state menu's move answers with, for `task` moved to `columnId`.
+    private func moved(_ task: Task, to columnId: String) throws -> Task {
+        let session = try CoreBoardFixture.session(tasks: [task], lists: lists,
+                                                   projects: [Project(id: "p1", name: "Board")])
+        var command = CoreCommand(kind: "setTaskStatus")
+        command.set("taskId", task.id)
+        command.set("columnId", columnId)
+        return try CoreRowsFixture.wait(session, command, as: Task.self)
     }
 
     // MARK: - The hand-back (the actual bug)
 
-    func testAStatusMoveReturnsTheTaskItProduced() async throws {
-        let moved = task(statusRole: "doing")
-        let result = try await ProjectStateMove.apply(
-            plan: .setLists(["l1"], statusRole: "doing"),
-            update: { _, _ in moved },
-            complete: { _ in XCTFail("a status move must not touch completion"); return moved }
-        )
-        XCTAssertEqual(result?.statusRole, "doing",
+    func testAStatusMoveReturnsTheTaskItProduced() throws {
+        let result = try moved(task(statusRole: "ready"), to: "doing")
+        XCTAssertEqual(result.statusRole, "doing",
                        "the moved task must come back so the view can redraw — discarding it is "
                        + "what made the chips look dead (AITD-352)")
+        XCTAssertFalse(result.completed, "a status move must not touch completion")
     }
 
     func testTheRenderedColumnFollowsTheMove() throws {
         // The user-visible symptom, stated in the board's own vocabulary: the chip that lights up
-        // is `getTaskProjectColumnId` of whatever task the view is holding. Hold the old one and
-        // it keeps lighting the old chip no matter how many times you tap.
+        // is the column of whatever task the view is holding. Hold the old one and it keeps
+        // lighting the old chip no matter how many times you tap.
         let before = task(statusRole: "ready")
-        let after = task(statusRole: "doing")
+        let after = try moved(before, to: "doing")
 
-        XCTAssertEqual(getTaskProjectColumnId(before, lists: []), "ready")
-        XCTAssertEqual(getTaskProjectColumnId(after, lists: []), "doing")
+        XCTAssertEqual(CoreBoardFixture.columnId(before, lists: lists), "ready")
+        XCTAssertEqual(CoreBoardFixture.columnId(after, lists: lists), "doing")
     }
 
-    func testNothingComesBackWhenThereIsNothingToDo() async throws {
-        let result = try await ProjectStateMove.apply(
-            plan: .none,
-            update: { _, _ in XCTFail("no write for an already-current column"); return self.task() },
-            complete: { _ in XCTFail("no write for an already-current column"); return self.task() }
-        )
-        XCTAssertNil(result, "tapping the chip you are already on must not write anything")
+    func testNothingIsWrittenWhenThereIsNothingToDo() {
+        let ready = ProjectBoardColumn(id: "ready", name: "Ready", description: "", kind: .status)
+        XCTAssertEqual(CoreBoardFixture.plan(task: task(statusRole: "ready"), column: ready, lists: lists),
+                       .none, "tapping the chip you are already on must not write anything")
     }
 
-    // MARK: - Ordering, which the hand-back must not disturb
+    // MARK: - What the move hands back at each end
 
-    func testMovingToDoneUpdatesThenCompletes_andReturnsTheCompletedTask() async throws {
-        var calls: [String] = []
-        let completed = task(statusRole: nil, completed: true)
-
-        let result = try await ProjectStateMove.apply(
-            plan: .complete(["l1"], statusRole: ""),
-            update: { _, role in
-                calls.append("update(\(role))")
-                return self.task()
-            },
-            complete: { flag in
-                calls.append("complete(\(flag))")
-                return completed
-            }
-        )
-
-        XCTAssertEqual(calls, ["update()", "complete(true)"],
-                       "lists are set before the completion, as the board does it")
-        XCTAssertEqual(result?.completed, true,
-                       "the LAST write is the one the view should render")
+    func testMovingToDoneReturnsTheCompletedTask() throws {
+        let result = try moved(task(statusRole: "doing"), to: VIRTUAL_DONE_COLUMN_ID)
+        XCTAssertTrue(result.completed, "the task handed back is the completed one")
+        XCTAssertNil(result.statusRole, "Done carries no status")
     }
 
-    func testMovingOutOfDoneUncompletesFirst_andReturnsTheUpdatedTask() async throws {
-        var calls: [String] = []
-        let reopened = task(statusRole: "ready")
-
-        let result = try await ProjectStateMove.apply(
-            plan: .uncomplete(["l1"], statusRole: "ready"),
-            update: { _, role in
-                calls.append("update(\(role))")
-                return reopened
-            },
-            complete: { flag in
-                calls.append("complete(\(flag))")
-                return self.task(completed: false)
-            }
-        )
-
-        XCTAssertEqual(calls, ["complete(false)", "update(ready)"],
-                       "un-complete before setting lists — the reverse order re-completes it")
-        XCTAssertEqual(result?.statusRole, "ready")
+    func testMovingOutOfDoneReturnsTheReopenedTask() throws {
+        let result = try moved(task(completed: true), to: "ready")
+        XCTAssertFalse(result.completed, "leaving Done reopens the task")
+        XCTAssertEqual(result.statusRole, "ready", "and the task handed back is in its new column")
     }
 
     // MARK: - The call sites
@@ -119,7 +105,7 @@ final class ProjectStateMoveTests: XCTestCase {
         let picker = try source("Astrid App/Views/Components/ProjectStateQuickPicker.swift")
         XCTAssertTrue(picker.contains("onTaskUpdated"),
                       "ProjectStateQuickPicker must report the task its move produced")
-        XCTAssertTrue(picker.contains("ProjectStateMove.apply"),
-                      "the move sequence is shared, not re-spelled in the view")
+        XCTAssertTrue(picker.contains("moveToBoardColumn"),
+                      "the move is the core's, through the service — not re-spelled in the view")
     }
 }

@@ -1,60 +1,71 @@
 //  MacBoardGroupingTests.swift
-//  Astrid for Mac — Task 6042bde0: the hoisted column-id variant must be equivalent to the
-//  original (the board's one-pass grouping relies on it), and grouping covers every task.
+//  Astrid for Mac — Task 6042bde0: every card lands in exactly one column.
 //
-//  AITD-379 changed what gets hoisted: the fast variant now takes the board's COLUMNS rather
-//  than its status lists, because a card's column is resolved against the columns the board
-//  declares. The equivalence this suite pins is unchanged.
+//  Since AITD-461 the Mac board groups nothing itself: its columns and cards are astrid-core's
+//  `board`, the board iOS draws (CONTRACTS D43) — so these ask a seeded in-memory core, and the
+//  last one pins what the Mac took from iOS: subtasks are not cards, Done holds recent work, and
+//  a column is in the list's manual order.
 
+#if os(macOS)
 import XCTest
 @testable import Astrid_Mac
 
 final class MacBoardGroupingTests: XCTestCase {
 
-    private func task(_ id: String, completed: Bool = false, lists: [String] = []) -> Task {
+    private func task(_ id: String, completed: Bool = false, role: String? = nil,
+                      updatedAt: Date? = Date()) -> Task {
         var t = Task(id: id, title: id, completed: completed)
-        t.listIds = lists
+        t.listIds = ["L1"]
+        t.statusRole = role
+        t.updatedAt = updatedAt
         return t
     }
 
-    /// The fast variant (precomputed columns) matches the lists-taking variant.
-    func testHoistedVariantEquivalence() {
-        let tasks = [task("open", lists: ["L1"]), task("done", completed: true, lists: ["L1"]),
-                     task("bare")]
-        for t in tasks {
-            XCTAssertEqual(getTaskProjectColumnId(t, columns: getProjectBoardColumns([])),
-                           getTaskProjectColumnId(t, lists: []),
-                           "fast and original variants must agree for \(t.id)")
-        }
+    private func board(_ tasks: [Task], customStates: [ProjectCustomState]? = nil,
+                       manualOrder: [String]? = nil) throws -> [BoardModel.Column] {
+        var list = TaskList(id: "L1", name: "Board")
+        list.projectId = "p1"
+        list.manualSortOrder = manualOrder
+        let session = try CoreBoardFixture.session(
+            tasks: tasks, lists: [list], projects: [Project(id: "p1", name: "Board", customStates: customStates)])
+        return try CoreBoardFixture.drawn(session, listId: "L1")
     }
 
-    /// The same equivalence with a custom column in play (AITD-379) — the hoist must not be
-    /// the reason a card in a custom column groups differently from how the board resolves it.
-    func testHoistedVariantEquivalenceWithACustomColumn() {
-        let customStates = [ProjectCustomState(role: "blocked", name: "Blocked", order: 0)]
-        var blocked = task("blocked-card", lists: ["L1"])
-        blocked.statusRole = "blocked"
-
-        XCTAssertEqual(
-            getTaskProjectColumnId(blocked, columns: getProjectBoardColumns([], customStates: customStates)),
-            getTaskProjectColumnId(blocked, lists: [], customStates: customStates)
-        )
-        XCTAssertEqual(getTaskProjectColumnId(blocked, lists: [], customStates: customStates), "blocked")
+    private func ids(_ columns: [BoardModel.Column], _ id: String) -> [String] {
+        columns.first { $0.id == id }?.ids ?? []
     }
 
-    func testVirtualColumnAssignment() {
-        XCTAssertEqual(getTaskProjectColumnId(task("d", completed: true), columns: []), VIRTUAL_DONE_COLUMN_ID)
-        XCTAssertEqual(getTaskProjectColumnId(task("i"), columns: []), VIRTUAL_INBOX_COLUMN_ID)
+    func testACustomColumnHoldsItsCards() throws {
+        let columns = try board([task("blocked-card", role: "blocked")],
+                                customStates: [ProjectCustomState(role: "blocked", name: "Blocked", order: 0)])
+        XCTAssertEqual(ids(columns, "blocked"), ["blocked-card"])
     }
 
-    /// One-pass grouping must place every task in exactly one bucket.
-    func testGroupingCoversAllTasks() {
-        let tasks = [task("a"), task("b", completed: true), task("c", lists: ["L2"])]
-        var buckets: [String: [Task]] = [:]
-        let columns = getProjectBoardColumns([])
-        for t in tasks { buckets[getTaskProjectColumnId(t, columns: columns), default: []].append(t) }
-        XCTAssertEqual(buckets.values.map(\.count).reduce(0, +), tasks.count)
-        XCTAssertEqual(Set(buckets[VIRTUAL_DONE_COLUMN_ID]?.map(\.id) ?? []), ["b"])
-        XCTAssertEqual(Set(buckets[VIRTUAL_INBOX_COLUMN_ID]?.map(\.id) ?? []), ["a", "c"])
+    func testVirtualColumnAssignment() throws {
+        let columns = try board([task("d", completed: true), task("i")])
+        XCTAssertEqual(ids(columns, VIRTUAL_DONE_COLUMN_ID), ["d"])
+        XCTAssertEqual(ids(columns, VIRTUAL_INBOX_COLUMN_ID), ["i"])
+    }
+
+    /// Every card must land in exactly one column.
+    func testGroupingCoversAllTasks() throws {
+        let tasks = [task("a"), task("b", completed: true), task("c", role: "doing")]
+        let columns = try board(tasks)
+        let placed = columns.flatMap(\.ids)
+        XCTAssertEqual(placed.count, tasks.count)
+        XCTAssertEqual(Set(placed), ["a", "b", "c"])
+    }
+
+    /// The Mac follows iOS (AITD-461): no subtask cards, Done holds recent work only, and a
+    /// column is in the list's manual order.
+    func testTheMacBoardIsIOSBoard() throws {
+        var child = task("child")
+        child.parentTaskId = "a"
+        let stale = task("stale", completed: true, updatedAt: Date().addingTimeInterval(-3 * 86_400))
+        let columns = try board([task("a"), task("b"), child, stale], manualOrder: ["b", "a"])
+        XCTAssertEqual(ids(columns, VIRTUAL_INBOX_COLUMN_ID), ["b", "a"])
+        XCTAssertTrue(ids(columns, VIRTUAL_DONE_COLUMN_ID).isEmpty,
+                      "a task finished three days ago has left Done, as on iOS")
     }
 }
+#endif

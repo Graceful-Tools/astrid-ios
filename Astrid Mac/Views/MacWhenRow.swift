@@ -30,9 +30,11 @@ import Foundation
 /// A row in the due-date popover.
 ///
 /// Order is contractual in one respect: among the CHOICES, clearing comes first
-/// — matching iOS and the note in DueDateQuickPicks. The typed field leads the
-/// popover because this is a Mac: there is a keyboard, and typing a date is
-/// faster than hunting for it in a grid.
+/// — matching iOS. The typed field leads the popover because this is a Mac: there
+/// is a keyboard, and typing a date is faster than hunting for it in a grid.
+///
+/// The quick picks are astrid-core's (`dueDateOptions`, AITD-461) — the set, the order and
+/// the date each one means, the answer iOS's picker reads (CONTRACTS D48).
 ///
 /// EXACTLY ONE calendar. An early version paired NSDatePicker's `.field` with a
 /// graphical one, not realising `.field` brings a calendar of its own — two
@@ -41,21 +43,19 @@ import Foundation
 enum MacDueDatePopoverRow: Equatable {
     case typedEntry
     case clear
-    case quickPick(DueDateQuickPicks.DateOption)
+    case quickPick(DueOptions.DatePick)
     case calendar
 }
 
 enum MacDueDatePopover {
-    static var rows: [MacDueDatePopoverRow] {
-        [.typedEntry, .clear]
-            + DueDateQuickPicks.dateOptions.map { .quickPick($0) }
-            + [.calendar]
+    static func rows(_ picks: [DueOptions.DatePick]) -> [MacDueDatePopoverRow] {
+        [.typedEntry, .clear] + picks.map { .quickPick($0) } + [.calendar]
     }
 
     /// The calendars in the popover. There must be exactly one — two is a bug
     /// this control has already shipped once.
-    static var calendars: [MacDueDatePopoverRow] {
-        rows.filter { $0 == .calendar }
+    static func calendars(_ picks: [DueOptions.DatePick]) -> [MacDueDatePopoverRow] {
+        rows(picks).filter { $0 == .calendar }
     }
 }
 
@@ -64,13 +64,13 @@ enum MacDueDatePopover {
 /// time IS an all-day task.
 enum MacDueTimePopoverRow: Equatable {
     case clear
-    case quickPick(DueDateQuickPicks.TimeOption)
+    case quickPick(DueOptions.TimePick)
     case clock
 }
 
 enum MacDueTimePopover {
-    static var rows: [MacDueTimePopoverRow] {
-        [.clear] + DueDateQuickPicks.timeOptions.map { .quickPick($0) } + [.clock]
+    static func rows(_ picks: [DueOptions.TimePick]) -> [MacDueTimePopoverRow] {
+        [.clear] + picks.map { .quickPick($0) } + [.clock]
     }
 }
 

@@ -21,6 +21,14 @@ import XCTest
 
 final class MacWhenRowTests: XCTestCase {
 
+    /// The quick picks as the core answers them — what the popover is built from (AITD-461).
+    private var corePicks: DueOptions {
+        let session = try! CoreBoardFixture.session(lists: [], projects: [])
+        return try! CoreRowsFixture.wait(session, DuePicks.command(nil, isAllDay: true), as: DueOptions.self)
+    }
+    private var dateRows: [MacDueDatePopoverRow] { MacDueDatePopover.rows(corePicks.dates) }
+    private var timeRows: [MacDueTimePopoverRow] { MacDueTimePopover.rows(corePicks.times) }
+
     // MARK: - The row's composition is the SHARED one
 
     /// The Mac renders the same lines iOS does. Its own `MacWhenControl` — which
@@ -50,11 +58,10 @@ final class MacWhenRowTests: XCTestCase {
     // MARK: - The popover carries what the pane used to
 
     /// "No due date" comes before every quick pick — not a toolbar escape hatch.
-    /// The order iOS deliberately chose and DueDateQuickPicks documents as
-    /// contractual. (The typed field precedes it, but that is a text input, not
+    /// The order iOS deliberately chose, and contractual. (The typed field precedes it, but that is a text input, not
     /// one of the choices.)
     func testClearingIsTheFirstChoiceInThePopover() {
-        let rows = MacDueDatePopover.rows
+        let rows = dateRows
         let clearIndex = rows.firstIndex(of: .clear)
         let firstPickIndex = rows.firstIndex { if case .quickPick = $0 { return true }; return false }
         XCTAssertNotNil(clearIndex)
@@ -66,17 +73,17 @@ final class MacWhenRowTests: XCTestCase {
     /// This is a Mac: there is a keyboard, so a date can be TYPED rather than
     /// hunted for in a grid — and the field leads the popover.
     func testPopoverOffersATypableDateField() {
-        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
+        XCTAssertEqual(dateRows.first, .typedEntry)
     }
 
     /// The popover offers exactly the shared quick picks, in the shared order —
     /// so the Mac cannot drift from iOS about what "Next week" means.
     func testPopoverOffersTheSharedQuickPicksInOrder() {
-        let picks: [DueDateQuickPicks.DateOption] = MacDueDatePopover.rows.compactMap {
-            if case .quickPick(let option) = $0 { return option }
+        let picks: [String] = dateRows.compactMap {
+            if case .quickPick(let option) = $0 { return option.titleKey }
             return nil
         }
-        XCTAssertEqual(picks, DueDateQuickPicks.dateOptions)
+        XCTAssertEqual(picks, ["picker.today", "picker.tomorrow", "picker.in_3_days", "picker.next_week"])
     }
 
     /// THE BUG, once shipped: the popover paired NSDatePicker's `.field` with a
@@ -84,20 +91,20 @@ final class MacWhenRowTests: XCTestCase {
     /// calendars, overlapping. The typed field is ours now and carries none, so
     /// there must be exactly one.
     func testThePopoverHasExactlyOneCalendar() {
-        XCTAssertEqual(MacDueDatePopover.calendars.count, 1)
+        XCTAssertEqual(MacDueDatePopover.calendars(corePicks.dates).count, 1)
     }
 
     /// A date can still be TYPED — this is a Mac, and the graphical picker on
     /// its own cannot be typed into at all.
     func testThePopoverOffersATypableField() {
-        XCTAssertTrue(MacDueDatePopover.rows.contains(.typedEntry))
-        XCTAssertEqual(MacDueDatePopover.rows.first, .typedEntry)
+        XCTAssertTrue(dateRows.contains(.typedEntry))
+        XCTAssertEqual(dateRows.first, .typedEntry)
     }
 
     /// The calendar sits BELOW the shortcuts: the quick picks answer most cases
     /// in one click, and the grid is there when they do not.
     func testTheCalendarComesAfterTheQuickPicks() {
-        let rows = MacDueDatePopover.rows
+        let rows = dateRows
         let lastPick = rows.lastIndex { if case .quickPick = $0 { return true }; return false }
         let calendar = rows.firstIndex(of: .calendar)
         XCTAssertNotNil(lastPick)
@@ -111,15 +118,15 @@ final class MacWhenRowTests: XCTestCase {
     /// Clearing the time is what "all day" now means; the standalone All-day
     /// toggle is gone, exactly as on iOS.
     func testTimePopoverLeadsWithClearingTheTime() {
-        XCTAssertEqual(MacDueTimePopover.rows.first, .clear)
+        XCTAssertEqual(timeRows.first, .clear)
     }
 
     func testTimePopoverOffersTheSharedTimeQuickPicksInOrder() {
-        let picks: [DueDateQuickPicks.TimeOption] = MacDueTimePopover.rows.compactMap {
-            if case .quickPick(let option) = $0 { return option }
+        let picks: [Int] = timeRows.compactMap {
+            if case .quickPick(let option) = $0 { return option.hour }
             return nil
         }
-        XCTAssertEqual(picks, DueDateQuickPicks.timeOptions)
+        XCTAssertEqual(picks, [9, 14, 18, 21])
     }
 
     // MARK: - It still has to fit the panel

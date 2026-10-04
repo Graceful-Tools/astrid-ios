@@ -67,8 +67,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // actually earned. Still well below where the day started. Then 1465 for AITD-431: the
         // quick-add bar moved out to `MacQuickAddBar` so every board column could draw it too.
         // 1463 for AITD-460: the rows became astrid-core's, and the question asked of it and the
-        // sidebar counts live in `MacRowPipeline` rather than growing this file.
-        "Astrid Mac/App/MacRootView.swift": 1463,
+        // sidebar counts live in `MacRowPipeline` rather than growing this file. 1460 for
+        // AITD-461: the board's column count is the core's last answer (`BoardModel`).
+        "Astrid Mac/App/MacRootView.swift": 1460,
         // Was 1625, then 1639, and the second raise in one day is what this ratchet exists to
         // catch — the question it asks is "should this still be one file?", and for a coherent
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
