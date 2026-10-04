@@ -48,6 +48,13 @@ enum MacDetailPresentation {
         style == .fullScreen ? .center : .trailing
     }
 
+    /// Full screen belongs to the task it was opened for (AITD-464). The flag is persisted, and
+    /// closing the detail — the close button, Escape, switching lists — only clears the
+    /// selection, so without this every task opened afterwards came up full screen as well.
+    static func fullScreen(current: Bool, selectionCount: Int) -> Bool {
+        selectionCount == 0 ? false : current
+    }
+
     // MARK: - The affordance, shared by both places that offer it
 
     /// The glyph, so the board card and the detail header cannot drift into two different icons.
