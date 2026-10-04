@@ -85,6 +85,8 @@ struct TaskListView: View {
 
     // My Tasks filter preferences (synced across devices via server)
     @StateObject private var myTasksPreferences = MyTasksPreferencesService.shared
+    /// The search box, answered by astrid-core (AITD-459) — the same model the Mac uses.
+    @StateObject private var search = TaskSearchModel()
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
@@ -715,6 +717,8 @@ struct TaskListView: View {
             GitHubSyncService.shared.scheduleSync()
             GoogleTasksSyncService.shared.scheduleSync()
         })
+        // Ask the core for the search box's results; the rows follow when they land (AITD-459).
+        .task(id: searchText) { search.update(query: searchText) }
         .onChange(of: isViewingFromFeatured) { _, newValue in
             if newValue, let listId = selectedListId {
                 _Concurrency.Task {
@@ -893,6 +897,7 @@ struct TaskListView: View {
         let key = TaskListRowsKey(tasks: taskService.tasks, featuredListTasks: featuredListTasks,
                                   selectedListId: selectedListId, selectedList: selectedList,
                                   isViewingFromFeatured: isViewingFromFeatured, searchText: searchText,
+                                  searchResultIds: search.resultIds,
                                   myTasksPreferences: myTasksPreferences.preferences)
         return rowsMemo.value(for: key) { computeFilteredTasks() }   // AITD-455
     }
@@ -943,9 +948,10 @@ struct TaskListView: View {
 
         // If search is active, show ALL matching tasks across all lists (ignore list selection)
         if !searchText.isEmpty {
-            // The SHARED search (Core/Filters/TaskSearch, used by Mac too): the query as one
-            // phrase, default completion filter, highest priority first.
-            return TaskSearch.results(tasks, query: searchText)
+            // astrid-core's search, as the Mac draws it too (AITD-459): the query as one phrase,
+            // top-level tasks, default completion filter, highest priority first. Answered
+            // asynchronously into `search` (see `.task(id: searchText)`).
+            return search.results(in: taskService.tasksById)
         }
 
         // If viewing from featured, merge featuredListTasks with user's own tasks

@@ -38,7 +38,7 @@ struct MacRootView: View {
     @State private var editingTaskTitle = ""
     @SceneStorage("contentMode") private var contentMode: ContentMode = .list
     @State private var taskSearchQuery = ""
-    @State private var debouncedSearchQuery = ""   // search runs on this, ~200ms behind (6042bde0)
+    @StateObject private var search = TaskSearchModel()   // astrid-core's search, as iOS (AITD-459)
     @State private var sideEffectsTask: _Concurrency.Task<Void, Never>?   // coalesced badge/notify (c38b177b)
     @State private var lastDueSignature = 0
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
@@ -564,12 +564,12 @@ struct MacRootView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.inputBorder, lineWidth: 0.5))
             .padding(.horizontal, MacLayout.rowTrailingGap)
             .padding(.vertical, 10)
-            // Debounce: matches() runs on the debounced query (~200ms), not every keystroke (6042bde0).
+            // Debounce: the core is asked ~200ms after the last keystroke, not on every one (6042bde0).
             .task(id: taskSearchQuery) {
-                try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
-                debouncedSearchQuery = taskSearchQuery
+                guard (try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)) != nil else { return }
+                search.update(query: taskSearchQuery)
             }
-            let results = TaskSearch.results(taskService.tasks, query: debouncedSearchQuery)
+            let results = search.results(in: taskService.tasksById)
             if taskSearchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
                 // Branded Astrid empty states, like every other empty surface — search was the
                 // last place still showing system ContentUnavailableView chrome.

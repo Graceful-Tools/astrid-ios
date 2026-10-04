@@ -14,6 +14,8 @@ struct TaskListRowsKey: Equatable {
     let selectedList: TaskList?
     let isViewingFromFeatured: Bool
     let searchText: String
+    /// What the core found for `searchText` (AITD-459); rows follow it when it lands.
+    var searchResultIds: [String] = []
     let myTasksPreferences: MyTasksPreferences
     var subtaskDisplay: String? = UserSettingsService.shared.settings.subtaskDisplay
     var userId: String? = AuthManager.shared.userId

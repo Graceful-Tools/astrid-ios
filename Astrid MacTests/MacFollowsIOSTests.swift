@@ -9,6 +9,7 @@
 #if os(macOS)
 import XCTest
 import SwiftUI
+import Combine
 @testable import Astrid_Mac
 
 @MainActor
@@ -75,7 +76,7 @@ final class MacFollowsIOSTests: XCTestCase {
         XCTAssertEqual(picker.selectableLists.map(\.id), ["real", "status"])
     }
 
-    // MARK: - Search runs iOS's search
+    // MARK: - Search runs iOS's search — answered by astrid-core since AITD-459
 
     private func task(_ id: String, _ title: String, notes: String = "",
                       priority: Task.Priority = .none) -> Task {
@@ -85,40 +86,55 @@ final class MacFollowsIOSTests: XCTestCase {
         return t
     }
 
+    /// The ids the core's search finds among `tasks`, through the model both apps draw.
+    private func results(_ tasks: [Task], query: String) async throws -> [String] {
+        let model = TaskSearchModel(session: try CoreSearchFixture.session(seeding: tasks),
+                                    tasksChanged: Empty().eraseToAnyPublisher())
+        await model.search(query)
+        return model.resultIds
+    }
+
     /// iOS matches the query as one phrase; the Mac matched each word anywhere.
-    func testFollowIOS_searchMatchesTheQueryAsOnePhrase() {
+    func testFollowIOS_searchMatchesTheQueryAsOnePhrase() async throws {
         let tasks = [task("1", "Buy milk and bread"), task("2", "Buy milk")]
-        XCTAssertEqual(TaskSearch.results(tasks, query: "buy bread").map(\.id), [])
-        XCTAssertEqual(TaskSearch.results(tasks, query: "milk and").map(\.id), ["1"])
+        let none = try await results(tasks, query: "buy bread")
+        XCTAssertEqual(none, [])
+        let one = try await results(tasks, query: "milk and")
+        XCTAssertEqual(one, ["1"])
     }
 
     /// iOS also finds a task by the name of the person it is assigned to.
-    func testFollowIOS_searchMatchesTheAssigneesName() {
+    func testFollowIOS_searchMatchesTheAssigneesName() async throws {
         var t = task("1", "Call the bank")
+        t.assigneeId = "u-dana"
         t.assignee = user("u-dana", "Dana")
-        XCTAssertEqual(TaskSearch.results([t], query: "dana").map(\.id), ["1"])
+        let found = try await results([t], query: "dana")
+        XCTAssertEqual(found, ["1"])
     }
 
     /// iOS hides completed work in search, as its lists do by default; the Mac listed every
     /// completed task ever.
-    func testFollowIOS_searchHidesLongCompletedTasks() {
+    func testFollowIOS_searchHidesLongCompletedTasks() async throws {
         var done = task("done", "milk")
         done.completed = true
         done.completedAt = Date().addingTimeInterval(-30 * 86_400)
-        XCTAssertEqual(TaskSearch.results([done, task("open", "milk")], query: "milk").map(\.id), ["open"])
+        let found = try await results([done, task("open", "milk")], query: "milk")
+        XCTAssertEqual(found, ["open"])
     }
 
     /// iOS sorts search results by priority; the Mac by newest.
-    func testFollowIOS_searchSortsByPriority() {
+    func testFollowIOS_searchSortsByPriority() async throws {
         let tasks = [task("low", "milk", priority: .low), task("high", "milk", priority: .high)]
-        XCTAssertEqual(TaskSearch.results(tasks, query: "milk").map(\.id), ["high", "low"])
+        let found = try await results(tasks, query: "milk")
+        XCTAssertEqual(found, ["high", "low"])
     }
 
     /// iOS searches top-level tasks; a subtask shows under its parent, not as a result of its own.
-    func testFollowIOS_searchSkipsSubtasks() {
+    func testFollowIOS_searchSkipsSubtasks() async throws {
         var sub = task("sub", "milk")
         sub.parentTaskId = "parent"
-        XCTAssertEqual(TaskSearch.results([sub], query: "milk").map(\.id), [])
+        let found = try await results([sub], query: "milk")
+        XCTAssertEqual(found, [])
     }
 }
 #endif
