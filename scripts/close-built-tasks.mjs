@@ -6,7 +6,7 @@
 // 2026-09-27). The loop now runs this on every tick — no session, no tokens.
 //
 // What it closes: Doing tasks on the iOS board assigned to claude whose newest
-// `**Awaiting build:** \`<sha>\`` comment (see .claude/commands/fixall.md) names a commit that a
+// `**Awaiting build:** \`<sha>\`` comment, from any author, (see .claude/commands/fixall.md) names a commit that a
 // VALID TestFlight build contains. Everything else it leaves alone and says why in one line.
 // The rules live in lib/built-task-closer.mjs and are pinned by test-close-built-tasks.mjs.
 //
@@ -62,7 +62,7 @@ const waiting = [];
 for (const t of doing) {
   const name = t.identifier || t.id.slice(0, 8);
   const { comments = [] } = await astrid(`/api/v1/tasks/${t.id}/comments`).catch(e => fail(e.message));
-  const sha = awaitingSha(comments, AGENT_ID);
+  const sha = awaitingSha(comments);
   if (!sha) { console.log(`close-built: ${name} — no Awaiting build marker, left for a session`); continue; }
   waiting.push({ task: t, name, sha });
 }
