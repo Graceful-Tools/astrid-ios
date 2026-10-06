@@ -19,12 +19,16 @@ settings and the live stream go through astrid-core, whose paths are in
 is what the Swift client still calls itself.
 
 
-## Current client — `AstridAPIClient` (46 paths)
+## Current client — `AstridAPIClient` (47 paths)
 
 
 ### `/api/v1/app-version`
 
 - `/api/v1/app-version`
+
+### `/api/v1/auth`
+
+- `/api/v1/auth/desktop/exchange`
 
 ### `/api/v1/capabilities`
 

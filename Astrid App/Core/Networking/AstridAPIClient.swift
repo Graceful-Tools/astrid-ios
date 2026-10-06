@@ -1042,6 +1042,13 @@ class AstridAPIClient {
         try await request(method: "GET", path: "/api/v1/capabilities")
     }
 
+    /// Trade a desktop hand-off code and its PKCE verifier for a session (AITD-465, spec §6.5).
+    /// Unauthenticated: the app has no session yet, which is the point. The token comes back in
+    /// the body, never as Set-Cookie, so the caller stores it.
+    func exchangeDesktopCode(_ body: DesktopExchangeRequest) async throws -> DesktopExchangeResponse {
+        try await request(method: "POST", path: "/api/v1/auth/desktop/exchange", body: body)
+    }
+
     /// Get available AI agents for the current user.
     ///
     /// `serverRunOnly` narrows to what the server can execute — api-mode built-ins with a

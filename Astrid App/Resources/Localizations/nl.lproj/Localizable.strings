@@ -261,6 +261,9 @@
 "auth.continue_with_google" = "Doorgaan met Google";
 "auth.continue_with_passkey" = "Doorgaan met Passkey";
 "auth.continue_with_apple" = "Doorgaan met Apple";
+"auth.continue_with_github" = "Doorgaan met GitHub";
+"auth.continue_with_sso" = "Doorgaan met SSO";
+"auth.browser_sign_in_failed" = "Inloggen is niet voltooid. Probeer het opnieuw.";
 "auth.email" = "E-mail";
 
 /* Settings - Reminders */

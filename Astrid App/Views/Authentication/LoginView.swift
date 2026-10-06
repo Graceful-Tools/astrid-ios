@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -80,73 +81,10 @@ struct LoginView: View {
                         }
                         .padding(.horizontal, Theme.spacing32)
 
-                        // OAuth/Passkey Buttons - Order: Google (blue), Passkey (white), Apple (black)
+                        // Sign-in buttons, in the order the deployment lists them (AITD-465)
                         VStack(spacing: Theme.spacing12) {
-                            if signInMethods.google {
-                                // 1. Google button - Most prominent (blue)
-                                Button {
-                                    _Concurrency.Task { await signInWithGoogle() }
-                                } label: {
-                                    HStack(spacing: Theme.spacing12) {
-                                        Image(systemName: "globe")
-                                            .font(Theme.Typography.headline())
-                                        Text(NSLocalizedString("auth.continue_with_google", comment: ""))
-                                            .font(Theme.Typography.headline())
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                }
-                                .buttonStyle(.plain)
-                                .background(Theme.accent)
-                                .foregroundColor(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                                .disabled(isLoading)
-                                .opacity(isLoading ? 0.6 : 1.0)
-                            }
-
-                            if signInMethods.passkey {
-                                // 2. Passkey button - Opens dialog with New/Returning options
-                                Button {
-                                    passkeyEmail = ""
-                                    showPasskeyEmailSheet = true
-                                } label: {
-                                    HStack(spacing: Theme.spacing12) {
-                                        Image(systemName: "person.badge.key.fill")
-                                            .font(Theme.Typography.headline())
-                                        Text(NSLocalizedString("auth.continue_with_passkey", comment: ""))
-                                            .font(Theme.Typography.headline())
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                }
-                                .buttonStyle(.plain)
-                                .background(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
-                                .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                                .disabled(isLoading)
-                                .opacity(isLoading ? 0.6 : 1.0)
-                            }
-
-                            if signInMethods.apple {
-                                // 3. Apple button - Least prominent (black)
-                                Button {
-                                    _Concurrency.Task { await signInWithApple() }
-                                } label: {
-                                    HStack(spacing: Theme.spacing12) {
-                                        Image(systemName: "apple.logo")
-                                            .font(Theme.Typography.headline())
-                                        Text(NSLocalizedString("auth.continue_with_apple", comment: ""))
-                                            .font(Theme.Typography.headline())
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                }
-                                .buttonStyle(.plain)
-                                .background(Color.black)
-                                .foregroundColor(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
-                                .disabled(isLoading)
-                                .opacity(isLoading ? 0.6 : 1.0)
+                            ForEach(signInMethods.buttons) { provider in
+                                signInButton(for: provider)
                             }
 
                             // Divider
@@ -248,6 +186,76 @@ struct LoginView: View {
             // exactly when the app needs to know which brand and which sign-in methods
             // to show. Failure leaves this build's own brand in place (task 97208a72).
             .task { await serverCapabilities.refreshIfServerChanged() }
+        }
+    }
+
+    @ViewBuilder
+    private func signInButton(for provider: SignInProvider) -> some View {
+        let neutralBackground = colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95)
+        let neutralForeground = colorScheme == .dark ? Color.white : Color.black
+        switch provider {
+        case .google:
+            providerButton(icon: "globe", titleKey: "auth.continue_with_google",
+                           background: Theme.accent, foreground: .white) {
+                _Concurrency.Task { await signInWithGoogle() }
+            }
+        case .passkey:
+            // Opens the dialog with New/Returning options
+            providerButton(icon: "person.badge.key.fill", titleKey: "auth.continue_with_passkey",
+                           background: neutralBackground, foreground: neutralForeground) {
+                passkeyEmail = ""
+                showPasskeyEmailSheet = true
+            }
+        case .apple:
+            providerButton(icon: "apple.logo", titleKey: "auth.continue_with_apple",
+                           background: .black, foreground: .white) {
+                _Concurrency.Task { await signInWithApple() }
+            }
+        case .github:
+            providerButton(icon: "chevron.left.forwardslash.chevron.right", titleKey: "auth.continue_with_github",
+                           background: neutralBackground, foreground: neutralForeground) {
+                _Concurrency.Task { await signInWithBrowser(.github) }
+            }
+        case .sso:
+            providerButton(icon: "building.2", titleKey: "auth.continue_with_sso",
+                           background: neutralBackground, foreground: neutralForeground) {
+                _Concurrency.Task { await signInWithBrowser(.sso) }
+            }
+        }
+    }
+
+    private func providerButton(icon: String, titleKey: String, background: Color, foreground: Color,
+                                action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Theme.spacing12) {
+                Image(systemName: icon)
+                    .font(Theme.Typography.headline())
+                Text(NSLocalizedString(titleKey, comment: ""))
+                    .font(Theme.Typography.headline())
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+        }
+        .buttonStyle(.plain)
+        .background(background)
+        .foregroundColor(foreground)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
+        .disabled(isLoading)
+        .opacity(isLoading ? 0.6 : 1.0)
+    }
+
+    private func signInWithBrowser(_ provider: SignInProvider) async {
+        isLoading = true
+        showError = false
+
+        do {
+            try await authManager.signInWithBrowser(provider: provider)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            isLoading = false
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+            isLoading = false
         }
     }
 

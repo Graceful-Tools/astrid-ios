@@ -21,14 +21,53 @@ struct ServerCapabilities: Codable, Equatable {
         var google = true
         var apple = true
         var passkey = true
+        /// GitHub and SSO are the EXCEPTION to "missing means offered" (AITD-465, spec §6.2):
+        /// they need credentials a deployment has to configure, so a server that does not
+        /// mention them has not got them. Defaulting these on would give every older deployment
+        /// buttons that fail on tap.
+        var github = false
+        var sso = false
+        /// The configured providers in button order, or nil from a server older than the list.
+        /// Ids this build does not know are dropped, so a newer provider never draws a button
+        /// that cannot sign in.
+        var providers: [SignInProvider]?
 
         init() {}
+
+        private struct ProviderEntry: Decodable {
+            let id: String?
+        }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             google = try c.decodeIfPresent(Bool.self, forKey: .google) ?? true
             apple = try c.decodeIfPresent(Bool.self, forKey: .apple) ?? true
             passkey = try c.decodeIfPresent(Bool.self, forKey: .passkey) ?? true
+            github = try c.decodeIfPresent(Bool.self, forKey: .github) ?? false
+            sso = try c.decodeIfPresent(Bool.self, forKey: .sso) ?? false
+            // `try?`: a malformed list must not blank out the booleans above, which still work.
+            if let entries = try? c.decodeIfPresent([ProviderEntry].self, forKey: .providers) {
+                var seen: [SignInProvider] = []
+                for case let provider? in entries.map({ $0.id.flatMap(SignInProvider.init(rawValue:)) })
+                where !seen.contains(provider) {
+                    seen.append(provider)
+                }
+                providers = seen
+            }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case google, apple, passkey, github, sso, providers
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(google, forKey: .google)
+            try c.encode(apple, forKey: .apple)
+            try c.encode(passkey, forKey: .passkey)
+            try c.encode(github, forKey: .github)
+            try c.encode(sso, forKey: .sso)
+            try c.encodeIfPresent(providers?.map { ["id": $0.rawValue] }, forKey: .providers)
         }
     }
 

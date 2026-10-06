@@ -261,6 +261,9 @@
 "auth.continue_with_google" = "Googleで続行";
 "auth.continue_with_passkey" = "パスキーで続行";
 "auth.continue_with_apple" = "Appleで続行";
+"auth.continue_with_github" = "GitHubで続ける";
+"auth.continue_with_sso" = "SSOで続ける";
+"auth.browser_sign_in_failed" = "サインインが完了しませんでした。もう一度お試しください。";
 "auth.email" = "メールアドレス";
 
 /* Settings - Reminders */
