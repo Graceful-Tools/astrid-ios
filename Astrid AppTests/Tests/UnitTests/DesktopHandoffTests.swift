@@ -97,7 +97,7 @@ final class DesktopHandoffTests: XCTestCase {
     }
 
     func testAITD465_ExchangeGoesThroughTheV1Route() throws {
-        let source = try RepositoryLocator.source(at: "Astrid App/Core/Networking/AstridAPIClient.swift")
+        let source = try RepositoryLocator.source(at: "Astrid App/Core/Networking/AstridAPIClient+Auth.swift")
         XCTAssertTrue(source.contains("\"/api/v1/auth/desktop/exchange\""))
     }
 }
