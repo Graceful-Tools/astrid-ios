@@ -243,6 +243,9 @@
 "auth.continue_with_google" = "Continuer avec Google";
 "auth.continue_with_passkey" = "Continuer avec Passkey";
 "auth.continue_with_apple" = "Continuer avec Apple";
+"auth.continue_with_github" = "Continuer avec GitHub";
+"auth.continue_with_sso" = "Continuer avec SSO";
+"auth.browser_sign_in_failed" = "La connexion n'a pas abouti. Veuillez réessayer.";
 "auth.email" = "E-mail";
 
 /* Settings - Reminders */

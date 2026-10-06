@@ -261,6 +261,9 @@
 "auth.continue_with_google" = "继续使用 Google";
 "auth.continue_with_passkey" = "继续使用通行密钥";
 "auth.continue_with_apple" = "继续使用 Apple";
+"auth.continue_with_github" = "使用GitHub继续";
+"auth.continue_with_sso" = "使用SSO继续";
+"auth.browser_sign_in_failed" = "登录未完成，请重试。";
 "auth.email" = "电子邮箱";
 
 /* Settings - Reminders */

@@ -261,6 +261,9 @@
 "auth.continue_with_google" = "Продолжить через Google";
 "auth.continue_with_passkey" = "Продолжить через Passkey";
 "auth.continue_with_apple" = "Продолжить через Apple";
+"auth.continue_with_github" = "Продолжить через GitHub";
+"auth.continue_with_sso" = "Продолжить через SSO";
+"auth.browser_sign_in_failed" = "Вход не завершён. Попробуйте ещё раз.";
 "auth.email" = "Электронная почта";
 
 /* Settings - Reminders */

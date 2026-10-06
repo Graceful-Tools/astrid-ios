@@ -1,5 +1,6 @@
 import AstridCore
 import Foundation
+import AuthenticationServices
 import Combine
 
 @MainActor
@@ -463,6 +464,57 @@ class AuthManager: ObservableObject {
             throw error
         } catch {
             AppLog.debug("❌ [AuthManager] Passkey sign-in failed: \(error)")
+            self.errorMessage = error.localizedDescription
+            throw error
+        }
+    }
+
+    // MARK: - Sign In through the browser (GitHub, SSO)
+
+    /// GitHub and SSO sign-in via the desktop hand-off (AITD-465, spec §6.5): the deployment's own
+    /// sign-in page runs in an ASWebAuthenticationSession, hands back a one-time code, and the code
+    /// plus this attempt's PKCE verifier is exchanged for a session. No provider SDK in the app.
+    func signInWithBrowser(provider: SignInProvider) async throws {
+        PrivacyLogger.debug("AuthManager", "browser_sign_in=started")
+        isLoading = true
+        errorMessage = nil
+
+        defer { isLoading = false }
+
+        do {
+            let attempt = DesktopHandoff.Attempt.start()
+            guard let baseURL = URL(string: Constants.API.baseURL),
+                  let url = DesktopHandoff.startURL(baseURL: baseURL, provider: provider, attempt: attempt) else {
+                throw DesktopHandoff.HandoffError.unexpectedCallback
+            }
+            let callback = try await OAuthWebConnector.shared.present(url: url, callbackScheme: DesktopHandoff.callbackScheme)
+            let code = try DesktopHandoff.code(from: callback, expectedState: attempt.state)
+
+            let response = try await AstridAPIClient.shared.exchangeDesktopCode(DesktopExchangeRequest(
+                code: code, codeVerifier: attempt.verifier, client: DesktopHandoff.clientId))
+            try keychainService.saveSessionCookie(
+                DesktopHandoff.cookieHeader(token: response.sessionToken, cookieName: response.sessionCookieName))
+
+            let user = response.user
+            self.currentUser = user
+            UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
+            UserDefaults.standard.set(user.email, forKey: Constants.UserDefaults.userEmail)
+            if let name = user.name {
+                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+            }
+            if let image = user.image {
+                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+            }
+
+            self.isAuthenticated = true
+            PrivacyLogger.debug("AuthManager", "browser_sign_in=success")
+
+            ConnectionModeManager.shared.handleSuccessfulSignIn(userId: user.id)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // Closing the sheet is a choice, not a failure: no banner.
+            throw error
+        } catch {
+            PrivacyLogger.debug("AuthManager", "browser_sign_in=failed")
             self.errorMessage = error.localizedDescription
             throw error
         }

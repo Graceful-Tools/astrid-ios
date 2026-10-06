@@ -174,29 +174,11 @@ struct MacLoginView: View {
             .padding(.bottom, 4)
 
             VStack(spacing: 10) {
-                // Passkey — primary sign-in (discoverable credential; no email needed). Local
-                // credentials first: iCloud Keychain and enabled password managers, never the
-                // nearby-device QR as the opening move (AITD-298).
-                if signInMethods.passkey {
-                    Button { signInWithPasskey(PasskeySignInPlan.initialPresentation(isMac: true)) } label: {
-                        Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
-                    .accessibilityIdentifier("login.passkey")
-
-                    if showPasskeyAlternatives {
-                        passkeyAlternatives
-                    }
-                }
-
-                if signInMethods.google {
-                    secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
-                }
-                // Apple needs BOTH the deployment to offer it and this build to be entitled: the
-                // Developer ID profile cannot carry Sign In with Apple (MacSignInOptions).
-                if signInMethods.apple {
-                    secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
+                // In the order the deployment lists them (AITD-465). Apple only shows when this
+                // build is entitled too: the Developer ID profile cannot carry Sign In with Apple
+                // (MacSignInOptions, folded into SignInMethods).
+                ForEach(signInMethods.buttons) { provider in
+                    signInButton(for: provider)
                 }
             }
             .frame(width: 280)
@@ -244,6 +226,38 @@ struct MacLoginView: View {
         .padding(20)
         .frame(width: 380)
         .background(Theme.bgPrimary)
+    }
+
+    @ViewBuilder
+    private func signInButton(for provider: SignInProvider) -> some View {
+        switch provider {
+        case .passkey:
+            // Passkey — the primary sign-in (discoverable credential; no email needed). Local
+            // credentials first: iCloud Keychain and enabled password managers, never the
+            // nearby-device QR as the opening move (AITD-298).
+            Button { signInWithPasskey(PasskeySignInPlan.initialPresentation(isMac: true)) } label: {
+                Label(NSLocalizedString("mac.sign_in_passkey", comment: ""), systemImage: "person.badge.key.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
+            .accessibilityIdentifier("login.passkey")
+
+            if showPasskeyAlternatives {
+                passkeyAlternatives
+            }
+        case .google:
+            secondaryButton(NSLocalizedString("auth.continue_with_google", comment: ""), "globe") { try await auth.signInWithGoogle() }
+        case .apple:
+            secondaryButton(NSLocalizedString("mac.sign_in_apple", comment: ""), "apple.logo") { try await auth.signInWithApple() }
+        case .github:
+            secondaryButton(NSLocalizedString("auth.continue_with_github", comment: ""), "chevron.left.forwardslash.chevron.right") {
+                try await auth.signInWithBrowser(provider: .github)
+            }
+        case .sso:
+            secondaryButton(NSLocalizedString("auth.continue_with_sso", comment: ""), "building.2") {
+                try await auth.signInWithBrowser(provider: .sso)
+            }
+        }
     }
 
     private func secondaryButton(_ title: String, _ icon: String, _ op: @escaping () async throws -> Void) -> some View {
