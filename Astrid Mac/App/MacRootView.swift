@@ -650,22 +650,17 @@ struct MacRootView: View {
     /// 3-column mode they right-aligned above the CHAT column and read as its controls.
     @ViewBuilder
     private var listChrome: some View {
-        let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil,
-                                                    isListMode: contentMode == .list)
-        // Where the filter button is showing, its sheet already sorts — so the standalone sort
-        // menu would be the same setting twice, side by side (AITD-305).
-        let showsSort = MacListChrome.showsSort(
-            hasSelection: selectedListId != nil,
-            isListMode: contentMode == .list,
+        let isList = contentMode == .list
+        let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil, isListMode: isList)
+        // Where a filter button shows — a list's or My Tasks' — its sheet already sorts, so a
+        // standalone sort menu would be the same setting twice (AITD-305, AITD-467).
+        let showsSort = MacListChrome.showsSort(hasSelection: selectedListId != nil, isListMode: isList,
             filterSheetOffersSort: MacListChrome.sheetOffersSort(
-                isRealList: currentRealList != nil,
-                isMyTasks: selectedListId == Self.myTasksId,
-                isListMode: contentMode == .list))
+                isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId, isListMode: isList))
         // A board suppressed this strip entirely, which took list settings with it — the sidebar
         // right-click was the only way in, and that row is not what you are looking at while
         // working the columns (AITD-373).
-        let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil,
-                                                        isListMode: contentMode == .list)
+        let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil, isListMode: isList)
         if showsSort || showsFilter || showsListMenu {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
@@ -673,7 +668,7 @@ struct MacRootView: View {
                 if showsFilter, let list = currentRealList { filterButton(list) }
                 // My Tasks is virtual, so it has no TaskList to edit — but it does have saved,
                 // synced filters, and until now nothing on Mac could reach them (ebdf94a1).
-                if selectedListId == Self.myTasksId, contentMode == .list { myTasksFilterButton }
+                if selectedListId == Self.myTasksId, isList { myTasksFilterButton }
                 if showsListMenu, let list = currentRealList {
                     MacListSettingsButton(list: list, userId: auth.userId,
                                           actions: listMenuActions(list))
@@ -927,8 +922,7 @@ struct MacRootView: View {
     /// the view came to disagree with the pipeline about which sort was in force.
     private var effectiveSortKey: String {
         MacRowPipeline.effectiveSortKey(override: taskSortOverride, list: currentRealList,
-                                        myTasks: selectedListId == Self.myTasksId
-                                            ? myTasksPreferences.preferences : nil)
+            myTasks: selectedListId == Self.myTasksId ? myTasksPreferences.preferences : nil)
     }
     private var isManualSort: Bool { effectiveSortKey == "manual" }
 
