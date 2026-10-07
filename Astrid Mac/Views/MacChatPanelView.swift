@@ -171,8 +171,28 @@ struct MacChatPanelView: View {
 
     private func isPending(_ m: ChatMessage) -> Bool { m.id.hasPrefix("temp_") }
 
-    /// Small initials avatar for others' messages; agents get a purple sparkles badge look.
+    /// Others' messages: an agent's own mark, else the photo, else a badge or initials (AWTD2-67).
     @ViewBuilder private func chatAvatar(_ m: ChatMessage, isAgent: Bool) -> some View {
+        Group {
+            switch MacChatBubbleStyle.avatar(author: m.author, isAgent: isAgent) {
+            case .brandMark(let asset):
+                Image(asset).resizable().aspectRatio(contentMode: .fit)
+            case .photo(let s):
+                CachedAsyncImage(url: URL(string: s)) { img in
+                    img.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { chatAvatarPlaceholder(m, isAgent: isAgent) }
+            case .agentBadge, .initials:
+                chatAvatarPlaceholder(m, isAgent: isAgent)
+            }
+        }
+        .frame(width: 22, height: 22)
+        .clipShape(Circle())
+        // The photo opens the profile, like the name beside it. An agent has none (0994eabb).
+        .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: isAgent),
+                         target: $profileTarget)
+    }
+
+    private func chatAvatarPlaceholder(_ m: ChatMessage, isAgent: Bool) -> some View {
         ZStack {
             Circle().fill(isAgent ? Color.purple.opacity(0.8) : Theme.accent)
             if isAgent {
@@ -181,10 +201,6 @@ struct MacChatPanelView: View {
                 Text(m.author?.initials ?? "?").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
             }
         }
-        .frame(width: 22, height: 22)
-        // The photo opens the profile, like the name beside it. An agent has none (0994eabb).
-        .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: isAgent),
-                         target: $profileTarget)
     }
 
     /// Web/iOS-style bubble row (eb1b7da6): mine right-aligned in accent, agents purple with a
