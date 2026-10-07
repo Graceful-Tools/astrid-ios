@@ -72,6 +72,29 @@ final class MacRowPipelineTests: XCTestCase {
         XCTAssertEqual(try CoreRowsFixture.answer([low, high], query: query).ids, ["high", "low"])
     }
 
+    /// AITD-467: My Tasks sorts by its SYNCED preference — the one its sheet writes and iOS
+    /// reads — not by the window-local override, which used to be the only way to sort it on Mac
+    /// and never left this machine. A stale override must not outrank the sheet's pick.
+    @MainActor
+    func testMyTasksSortsByItsSyncedPreferenceNotTheWindowOverrideAITD467() throws {
+        var prefs = MyTasksPreferences()
+        prefs.sortBy = "priority"
+        let query = try XCTUnwrap(MacRowPipeline.rowsQuery(
+            selection: "mine", myTasksId: "mine", searchId: "search", lists: [], myTasks: prefs,
+            override: "when", userId: "me", tasksInList: { _ in [] }, publicListTasks: [:]))
+        XCTAssertNil(query.sortBy, "AITD-467: the override no longer applies to My Tasks")
+        XCTAssertEqual(query.myTasks?.sortBy, "priority")
+
+        var low = task("low", priority: .low), high = task("high", priority: .high)
+        low.assigneeId = "me"; high.assigneeId = "me"
+        XCTAssertEqual(try CoreRowsFixture.answer([low, high], query: query).ids, ["high", "low"],
+                       "the core sorts My Tasks by the synced preference")
+
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "when", list: nil, myTasks: prefs), "priority")
+        XCTAssertEqual(MacRowPipeline.effectiveSortKey(override: "when", list: nil, myTasks: MyTasksPreferences(sortBy: nil)),
+                       "auto")
+    }
+
     // MARK: the splice (G2) — iOS's, through the core (AITD-460)
 
     /// A subtask shows under its parent by the list's COMPLETION filter, as iOS draws it — the

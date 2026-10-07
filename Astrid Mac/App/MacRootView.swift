@@ -657,7 +657,10 @@ struct MacRootView: View {
         let showsSort = MacListChrome.showsSort(
             hasSelection: selectedListId != nil,
             isListMode: contentMode == .list,
-            filterSheetOffersSort: showsFilter && MacListChrome.filterSheetOffersSort)
+            filterSheetOffersSort: MacListChrome.sheetOffersSort(
+                isRealList: currentRealList != nil,
+                isMyTasks: selectedListId == Self.myTasksId,
+                isListMode: contentMode == .list))
         // A board suppressed this strip entirely, which took list settings with it — the sidebar
         // right-click was the only way in, and that row is not what you are looking at while
         // working the columns (AITD-373).
@@ -923,7 +926,9 @@ struct MacRootView: View {
     /// Asked of the SHARED rule rather than restated here (AITD-389) — this private copy is how
     /// the view came to disagree with the pipeline about which sort was in force.
     private var effectiveSortKey: String {
-        MacRowPipeline.effectiveSortKey(override: taskSortOverride, list: currentRealList)
+        MacRowPipeline.effectiveSortKey(override: taskSortOverride, list: currentRealList,
+                                        myTasks: selectedListId == Self.myTasksId
+                                            ? myTasksPreferences.preferences : nil)
     }
     private var isManualSort: Bool { effectiveSortKey == "manual" }
 

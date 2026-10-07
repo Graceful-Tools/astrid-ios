@@ -21,14 +21,26 @@ enum MacListChrome {
     /// makes a separate sort menu a second control for the same setting (AITD-305).
     static let filterSheetOffersSort = true
 
+    /// `MacMyTasksFilterSheet` sorts too, writing the synced My Tasks sort exactly as iOS's My
+    /// Tasks sheet does (AITD-467). Before, it offered the three filters and no sort, so My Tasks
+    /// drew the sort menu and the filter button side by side — the pair AITD-305 collapsed on
+    /// real lists.
+    static let myTasksSheetOffersSort = true
+
+    /// Whether the sheet behind the strip's filter button already sorts this selection.
+    static func sheetOffersSort(isRealList: Bool, isMyTasks: Bool, isListMode: Bool) -> Bool {
+        (showsFilter(isRealList: isRealList, isListMode: isListMode) && filterSheetOffersSort)
+            || (isMyTasks && isListMode && myTasksSheetOffersSort)
+    }
+
     /// Sort rides with the rows it sorts. Board and chat are not a sorted row list.
     ///
     /// …but only where nothing else already offers it. On a real list the strip drew the sort
     /// menu AND the filter button three pixels apart, and the sheet behind the filter button
     /// sorts too — so the same setting had two controls (AITD-305). The sheet is the one that has
     /// all the things (sort + six filters + saved filter + subtasks), so the standalone menu is
-    /// the one that goes. Where no such sheet stands behind the rows — a saved-filter list, and
-    /// My Tasks, whose own sheet offers the three iOS filters and no sort — the menu stays, and
+    /// the one that goes. My Tasks' sheet sorts as well since AITD-467. Where no such sheet stands
+    /// behind the rows — a saved-filter list, a public list you only view — the menu stays, and
     /// it is the only way to sort there.
     static func showsSort(hasSelection: Bool, isListMode: Bool,
                           filterSheetOffersSort: Bool) -> Bool {
