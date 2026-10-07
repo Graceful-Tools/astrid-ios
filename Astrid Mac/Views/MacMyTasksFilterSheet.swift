@@ -16,6 +16,11 @@
 //
 //  The three offered are exactly the three iOS offers, in the same order, reading and writing the
 //  same synced preferences.
+//
+//  Sort sits above them, as it does on iOS's My Tasks sheet and the Mac's list sheet (AITD-467):
+//  "consolidate sort links for my tasks just like on other lists". My Tasks used to draw a
+//  standalone sort menu beside this sheet's button, and that menu wrote a window-local override
+//  that never left the Mac — so a sort picked on the phone did nothing here and vice versa.
 
 #if os(macOS)
 import SwiftUI
@@ -24,6 +29,7 @@ struct MacMyTasksFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var preferences = MyTasksPreferencesService.shared
 
+    @State private var sortBy: String = "auto"
     @State private var completion: String = "default"
     @State private var priority: String = "all"
     @State private var dueDate: String = "all"
@@ -34,6 +40,10 @@ struct MacMyTasksFilterSheet: View {
                 .font(.headline).foregroundStyle(Theme.textPrimary)
 
             Form {
+                Section(NSLocalizedString("actions.sort", comment: "")) {
+                    picker(NSLocalizedString("lists.sort_order", comment: ""),
+                           selection: $sortBy, options: MacListFilter.sort)
+                }
                 Section(NSLocalizedString("lists.filters", comment: "")) {
                     picker(NSLocalizedString("lists.task_completion", comment: ""),
                            selection: $completion, options: MacListFilter.completion)
@@ -44,9 +54,10 @@ struct MacMyTasksFilterSheet: View {
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(height: 180)
+            .frame(height: 240)
 
             HStack {
+                // Clears the filters, not the sort — as the list sheet's Clear does.
                 Button(NSLocalizedString("mac.clear_filters", comment: "")) {
                     completion = "default"; priority = "all"; dueDate = "all"
                     save()
@@ -66,6 +77,7 @@ struct MacMyTasksFilterSheet: View {
         // called out on task 8ef7d89d, and the reason each `onChange` saves rather than a
         // binding that fires while the sheet is still populating.
         .onAppear(perform: load)
+        .onChange(of: sortBy) { _, _ in save() }
         .onChange(of: completion) { _, _ in save() }
         .onChange(of: priority) { _, _ in save() }
         .onChange(of: dueDate) { _, _ in save() }
@@ -87,6 +99,7 @@ struct MacMyTasksFilterSheet: View {
 
     private func load() {
         let current = preferences.preferences
+        sortBy = current.sortBy ?? "auto"
         completion = current.filterCompletion ?? "default"
         dueDate = current.filterDueDate ?? "all"
         // My Tasks stores a LIST of priorities where a list stores one string. The sheet offers
@@ -100,6 +113,7 @@ struct MacMyTasksFilterSheet: View {
 
     private func save() {
         var updated = preferences.preferences
+        updated.sortBy = sortBy
         updated.filterCompletion = completion
         updated.filterDueDate = dueDate
         // Empty means "all" — the default, and what the shared filter treats as no constraint.

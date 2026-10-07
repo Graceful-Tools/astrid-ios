@@ -17,15 +17,21 @@ enum MacRowPipeline {
     /// the toolbar menu reads `list.sortBy`, so the control showed one sort while the rows were
     /// in another.
     ///
-    /// The override exists for selections that own no list row to write to — My Tasks, Search, a
-    /// saved filter. That is the whole of its job, and what `sortMenu` has always claimed it did.
+    /// The override exists for selections that own no row to write to — Search, a public list you
+    /// only view. That is the whole of its job, and what `sortMenu` has always claimed it did.
     ///
     /// IT TAKES THE LIST, NOT ITS `sortBy`. The old signature took `listSortBy: String?`, where
     /// nil meant both "no list" and "a list that has never set a sort" — so the rule could not
     /// tell them apart and the ambiguity is what hid the bug. The list itself is the
     /// discriminator, so the two cases cannot be confused again.
-    static func effectiveSortKey(override: String, list: TaskList?) -> String {
+    ///
+    /// My Tasks is the same rule one step over (AITD-467): its sort is synced in
+    /// `MyTasksPreferences`, written by its sheet and read by iOS, so it outranks the override
+    /// just as a list's does. Pass `myTasks` only when My Tasks is the selection.
+    static func effectiveSortKey(override: String, list: TaskList?,
+                                 myTasks: MyTasksPreferences? = nil) -> String {
         if let list { return list.sortBy ?? "auto" }
+        if let myTasks { return myTasks.sortBy ?? "auto" }
         return override.isEmpty ? "auto" : override
     }
 
@@ -40,9 +46,10 @@ enum MacRowPipeline {
         let display = UserSettingsService.shared.settings.subtaskDisplay ?? "indented"
         // The window's own sort, for the selections that have no list row to save one on.
         let override = override.isEmpty ? nil : override
+        // My Tasks sorts by its synced preference, as iOS asks (AITD-467) — no window override.
         if id == myTasksId {
             return .init(listId: ListRowsModel.myTasksId, myTasks: myTasks, subtaskDisplay: display,
-                         sortBy: override, currentUserId: userId)
+                         currentUserId: userId)
         }
         // A list of yours — real or saved filter: its own filters and sort, always (AITD-389).
         if let list = lists.first(where: { $0.id == id }) {

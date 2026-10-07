@@ -43,27 +43,32 @@ final class MacListChromeTests: XCTestCase {
     }
 
     /// Removing it must not strip the capability. Every selection that shows rows still reaches
-    /// sort through exactly ONE control — the sheet where a list filter exists, the standalone
-    /// menu where it does not (a saved-filter list, and My Tasks, whose sheet has no sort).
+    /// sort through exactly ONE control — the list's sheet on a real list, My Tasks' sheet on My
+    /// Tasks (AITD-467), the standalone menu where no sheet stands behind the rows (a saved-filter
+    /// list, a public list you only view).
     func testEverySelectionKeepsExactlyOneWayToSortAITD305() {
-        for isRealList in [true, false] {
-            let sheetSorts = MacListChrome.showsFilter(isRealList: isRealList, isListMode: true)
-                && MacListChrome.filterSheetOffersSort
+        for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
+            let sheetSorts = MacListChrome.sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
+                                                           isListMode: true)
             let menuShows = MacListChrome.showsSort(hasSelection: true, isListMode: true,
                                                     filterSheetOffersSort: sheetSorts)
             XCTAssertNotEqual(sheetSorts, menuShows,
-                              "isRealList=\(isRealList) offers sort \(sheetSorts && menuShows ? "twice" : "not at all")")
+                              "isRealList=\(isRealList) isMyTasks=\(isMyTasks) offers sort \(sheetSorts && menuShows ? "twice" : "not at all")")
         }
     }
 
-    /// My Tasks is virtual, so no list filter sheet stands behind it, and its own sheet offers the
-    /// three iOS filters and no sort — it keeps the standalone menu.
-    func testMyTasksKeepsTheSortMenuAITD305() {
-        let sheetSorts = MacListChrome.showsFilter(isRealList: false, isListMode: true)
-            && MacListChrome.filterSheetOffersSort
-        XCTAssertTrue(MacListChrome.showsSort(hasSelection: true, isListMode: true,
-                                              filterSheetOffersSort: sheetSorts),
-                      "My Tasks would lose sort entirely")
+    /// AITD-467: "consolidate sort links for my tasks just like on other lists."
+    ///
+    /// My Tasks drew the sort menu AND its filter button side by side — the pair AITD-305 already
+    /// collapsed on real lists. Its sheet now sorts, as iOS's My Tasks sheet always has, so the
+    /// standalone menu goes here too.
+    func testMyTasksSortsFromItsFilterSheetNotASecondMenuAITD467() {
+        XCTAssertTrue(MacListChrome.myTasksSheetOffersSort)
+        let sheetSorts = MacListChrome.sheetOffersSort(isRealList: false, isMyTasks: true, isListMode: true)
+        XCTAssertTrue(sheetSorts, "My Tasks' sheet carries Sort, like the list sheet")
+        XCTAssertFalse(MacListChrome.showsSort(hasSelection: true, isListMode: true,
+                                               filterSheetOffersSort: sheetSorts),
+                       "AITD-467: a second sort icon beside My Tasks' filter button is the duplicate")
     }
 
     /// The filter editor writes to a real list's saved filters; My Tasks keeps its own prefs and a
