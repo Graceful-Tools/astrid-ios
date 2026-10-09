@@ -20,6 +20,22 @@ enum MacBoardExpand {
     }
     /// The field labels, in order, matching Astrid Web (locks the layout contract).
     static let fieldLabels = ["Who", "Date", "Priority", "Lists", "Description"]
+
+    enum HeaderControl: Equatable { case actionsMenu, collapse }
+
+    /// What sits at the right of a card's header. The open card gets web's ⋮ beside the caret
+    /// (AITD-470); a closed card stays a quiet face with just the caret.
+    static func headerControls(expanded: Bool) -> [HeaderControl] {
+        expanded ? [.actionsMenu, .collapse] : [.collapse]
+    }
+
+    /// The open card's title is a field (AITD-471). Its editor omits the title row because the
+    /// face shows it — so the face is where it has to be editable.
+    static func titleIsEditable(expanded: Bool) -> Bool { expanded }
+
+    /// Clicking the title opens the card and never closes it: on an open card that click is
+    /// placing the caret in the title field. Only the caret toggles (AITD-471).
+    static func titleTap(current: String?, tapped: String) -> String? { tapped }
 }
 
 struct MacBoardCardEditor: View {

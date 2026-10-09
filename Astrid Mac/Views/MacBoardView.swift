@@ -18,6 +18,8 @@ struct MacBoardView: View {
     @State private var dropTargetColumnId: String?
     @State private var boardBusy = false
     @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
+    /// The card whose title field should take the caret when it opens — set by Rename (AITD-471).
+    @State private var renamingCardId: String?
     /// Shared with the detail panel and its header toggle, so "full screen" means one
     /// thing app-wide (7017c3c1).
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false
@@ -184,7 +186,14 @@ struct MacBoardView: View {
                     onToggleComplete: { toggleComplete(t) }
                 )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
+                    // Open: the title is a field — the card's editor has no title row because
+                    // this is where the title lives (AITD-471).
+                    if MacBoardExpand.titleIsEditable(expanded: expanded) {
+                        MacBoardCardTitleField(task: t, focusRequested: renamingCardId == t.id,
+                                               onFocused: { renamingCardId = nil })
+                    } else {
+                        Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
+                    }
                     if let due = t.dueDateTime {
                         Text(due, style: .date).macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
@@ -195,7 +204,9 @@ struct MacBoardView: View {
                 // TITLE area rather than the whole header now, so the expand button beside the
                 // caret is not swallowed by it.
                 .contentShape(Rectangle())
-                .onTapGesture { toggleExpanded(t) }
+                // Opens, never collapses: on an open card this click is placing the caret in the
+                // title (AITD-471). The caret is what closes it.
+                .onTapGesture { openCard(t) }
 
                 // The caret, alone (AITD-377, matching web's AWTD-872). Full screen used to sit
                 // directly beneath it whenever the card was open — two controls stacked in a
@@ -205,10 +216,21 @@ struct MacBoardView: View {
                 // Collapse stayed a button on purpose: it undoes the click that expanded the
                 // card, so burying it would make expanding feel like a trap. Web kept it for the
                 // same reason.
-                Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .macFont(.caption2).foregroundStyle(Theme.textMuted)
-                    .contentShape(Rectangle())
-                    .onTapGesture { toggleExpanded(t) }
+                //
+                // The open card also gets web's ⋮ beside it (AITD-470): the same actions as the
+                // right-click menu, but visible — nothing on a card says right-click exists.
+                ForEach(MacBoardExpand.headerControls(expanded: expanded), id: \.self) { control in
+                    switch control {
+                    case .actionsMenu:
+                        MacBoardCardActionsMenu(task: t, lists: listService.lists,
+                                                currentListId: listId, actions: cardActions(t))
+                    case .collapse:
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .macFont(.caption2).foregroundStyle(Theme.textMuted)
+                            .contentShape(Rectangle())
+                            .onTapGesture { toggleExpanded(t) }
+                    }
+                }
             }
 
             if expanded {
@@ -242,23 +264,7 @@ struct MacBoardView: View {
                 surface: .boardCard,
                 lists: listService.lists,
                 currentListId: listId,
-                actions: MacTaskRowMenuActions(
-                    toggleComplete: { toggleComplete(t) },
-                    // A card has no inline title field; its expanded editor does. Same intent,
-                    // one layer down — better than dropping Rename from the card's menu.
-                    rename: { if expandedCardId != t.id { toggleExpanded(t) } },
-                    setPriority: { setPriority(t, $0) },
-                    move: { moveToList(t, $0) },
-                    copyToList: { copyTask(t, to: $0) },
-                    share: { shareTask(t) },
-                    copyToPasteboard: {
-                        MacTaskActions.copyToPasteboard(
-                            MacTaskActions.clipboardText(title: t.title, shareURL: nil))
-                    },
-                    openInNewWindow: { openWindow(id: "task", value: t.id) },
-                    delete: { deleteTask(t) },
-                    fullScreen: { openFullScreen(t) }
-                )
+                actions: cardActions(t)
             )
         }
         .draggable(t.id)
@@ -276,6 +282,33 @@ struct MacBoardView: View {
 
     /// Open or close the card. Both the title area and the caret call this, so tapping either does
     /// the same thing — the caret is the visible affordance, the title is the large target.
+    private func openCard(_ t: Task) {
+        withAnimation(MacMotion.spring) {
+            expandedCardId = MacBoardExpand.titleTap(current: expandedCardId, tapped: t.id)
+        }
+    }
+
+    /// One set of card actions for both the right-click menu and the open card's ⋮ (AITD-470).
+    private func cardActions(_ t: Task) -> MacTaskRowMenuActions {
+        MacTaskRowMenuActions(
+            toggleComplete: { toggleComplete(t) },
+            // Opens the card with the caret in its title field (AITD-471) — before, this only
+            // opened the card, into an editor with no title field at all.
+            rename: { renamingCardId = t.id; openCard(t) },
+            setPriority: { setPriority(t, $0) },
+            move: { moveToList(t, $0) },
+            copyToList: { copyTask(t, to: $0) },
+            share: { shareTask(t) },
+            copyToPasteboard: {
+                MacTaskActions.copyToPasteboard(
+                    MacTaskActions.clipboardText(title: t.title, shareURL: nil))
+            },
+            openInNewWindow: { openWindow(id: "task", value: t.id) },
+            delete: { deleteTask(t) },
+            fullScreen: { openFullScreen(t) }
+        )
+    }
+
     private func toggleExpanded(_ t: Task) {
         withAnimation(MacMotion.spring) {
             expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id)
