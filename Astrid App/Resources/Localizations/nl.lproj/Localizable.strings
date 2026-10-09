@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "Lijst";
 "settings.task_display.project" = "Project";
 "settings.appearance.task_details_footer" = "Kies hoe taakdetails worden weergegeven. Lijst geeft prioriteit en toegewezene een eigen rij. Project is compact en het vakje opent een keuzemenu in plaats van de taak te voltooien.";
+"settings.appearance.list_images.title" = "Lijstafbeeldingen";
+"settings.appearance.list_images.label" = "Lijstafbeeldingen tonen";
+"settings.appearance.list_images.off_description" = "Uit: elke lijst toont in plaats daarvan zijn kleur.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

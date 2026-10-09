@@ -9,12 +9,16 @@ import SwiftUI
 struct MacListIcon: View {
     let list: TaskList
     var size: CGFloat = 14
+    /// hide_list_images / "Show list images" (AITD-468).
+    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
 
     var body: some View {
         Color.clear
             .frame(width: size, height: size)
             .overlay {
-                if let url = ListImageHelper.getFullImageUrl(list: list) {
+                if !listImages.showListImages {
+                    ListColorGlyph(list: list, size: size)
+                } else if let url = ListImageHelper.getFullImageUrl(list: list) {
                     // This used to carry an `.id(url)`, because CachedAsyncImage captured its URL
                     // once and a new identity was the only way to make it refetch. The component
                     // follows its url itself now (16f39f36), so forcing a full rebuild of the row

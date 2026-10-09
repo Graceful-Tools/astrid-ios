@@ -46,6 +46,7 @@ struct ListAdminTab: View {
     @StateObject private var githubSync = GitHubSyncService.shared
     @StateObject private var googleSync = GoogleTasksSyncService.shared
     @StateObject private var featureFlags = FeatureFlagService.shared
+    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
     @State private var syncRepos: [GitHubRepoDTO] = []
     @State private var syncTasklists: [GoogleTasklistDTO] = []
     @State private var selectedSyncRepo: String?
@@ -103,34 +104,37 @@ struct ListAdminTab: View {
                     }
             }
 
-            // List Appearance
-            Section(NSLocalizedString("lists.list_appearance", comment: "")) {
-                HStack(spacing: Theme.spacing16) {
-                    // Current list image preview (with live update)
-                    ListImageViewLarge(list: listWithCurrentImage, size: 64)
-                        .id(currentImageUrl ?? "default") // Force view refresh when image changes
+            // List Appearance — absent while list images are hidden (AITD-468): an image the
+            // app never draws is not something to set up.
+            if listImages.showListImages {
+                Section(NSLocalizedString("lists.list_appearance", comment: "")) {
+                    HStack(spacing: Theme.spacing16) {
+                        // Current list image preview (with live update)
+                        ListImageViewLarge(list: listWithCurrentImage, size: 64)
+                            .id(currentImageUrl ?? "default") // Force view refresh when image changes
 
-                    VStack(alignment: .leading, spacing: Theme.spacing4) {
-                        Text(NSLocalizedString("lists.list_image", comment: ""))
-                            .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        VStack(alignment: .leading, spacing: Theme.spacing4) {
+                            Text(NSLocalizedString("lists.list_image", comment: ""))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                        Text(NSLocalizedString("lists.list_image_description", comment: ""))
-                            .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            Text(NSLocalizedString("lists.list_image_description", comment: ""))
+                                .font(Theme.Typography.caption2())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            showingImagePicker = true
+                        } label: {
+                            Text(NSLocalizedString("actions.change", comment: ""))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(Theme.accent)
+                        }
                     }
-
-                    Spacer()
-
-                    Button {
-                        showingImagePicker = true
-                    } label: {
-                        Text(NSLocalizedString("actions.change", comment: ""))
-                            .font(Theme.Typography.body())
-                            .foregroundColor(Theme.accent)
-                    }
+                    .padding(.vertical, Theme.spacing8)
                 }
-                .padding(.vertical, Theme.spacing8)
             }
 
             // Default Task Settings

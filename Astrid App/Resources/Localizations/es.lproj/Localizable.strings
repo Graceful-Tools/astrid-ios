@@ -1245,6 +1245,9 @@
 "settings.task_display.list" = "Lista";
 "settings.task_display.project" = "Proyecto";
 "settings.appearance.task_details_footer" = "Elige cómo se muestran los detalles de la tarea. Lista da a la prioridad y al responsable sus propias filas. Proyecto es compacto y la casilla abre un selector en lugar de completar la tarea.";
+"settings.appearance.list_images.title" = "Imágenes de listas";
+"settings.appearance.list_images.label" = "Mostrar imágenes de listas";
+"settings.appearance.list_images.off_description" = "Si está desactivado, cada lista muestra su color.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

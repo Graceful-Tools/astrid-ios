@@ -1237,6 +1237,9 @@
 "settings.task_display.list" = "List";
 "settings.task_display.project" = "Project";
 "settings.appearance.task_details_footer" = "Choose how task details are laid out. List gives priority and assignee their own rows. Project is compact, and the checkbox opens a picker instead of completing the task.";
+"settings.appearance.list_images.title" = "List images";
+"settings.appearance.list_images.label" = "Show list images";
+"settings.appearance.list_images.off_description" = "When off, each list shows its color instead.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

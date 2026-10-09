@@ -8,6 +8,9 @@ enum AstridFeature: String, Codable, CaseIterable {
     /// ServerCapabilities.product.projectMode, which says whether the
     /// deployment ships it at all.
     case projectMode = "project_mode"
+    /// The web's list-images A/B test (AITD-468). ON hides list images, unless the user has
+    /// chosen otherwise — resolve it through `ListImagesVisibility`, never on its own.
+    case hideListImages = "hide_list_images"
 }
 
 struct FeatureFlagSnapshot: Codable, Equatable {
@@ -22,6 +25,8 @@ struct FeatureFlagSnapshot: Codable, Equatable {
         // user by an admin, so defaulting to true would show Projects to
         // someone who has not been granted them and then 403 on every write.
         case .projectMode: false
+        // Off: a user the server has not answered for keeps the images they already see.
+        case .hideListImages: false
         }
     }
 

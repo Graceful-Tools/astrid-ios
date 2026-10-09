@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "リスト";
 "settings.task_display.project" = "プロジェクト";
 "settings.appearance.task_details_footer" = "タスク詳細のレイアウトを選びます。リストでは優先度と担当者がそれぞれの行に表示されます。プロジェクトはコンパクトで、チェックボックスはタスクを完了せずに選択メニューを開きます。";
+"settings.appearance.list_images.title" = "リストの画像";
+"settings.appearance.list_images.label" = "リストの画像を表示";
+"settings.appearance.list_images.off_description" = "オフにすると、各リストは代わりに色で表示されます。";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

@@ -1231,6 +1231,9 @@
 "settings.task_display.list" = "清單";
 "settings.task_display.project" = "專案";
 "settings.appearance.task_details_footer" = "選擇任務詳情的版面配置。清單為優先順序與負責人各設一列。專案較精簡，勾選框會開啟選擇器而非完成任務。";
+"settings.appearance.list_images.title" = "清單圖片";
+"settings.appearance.list_images.label" = "顯示清單圖片";
+"settings.appearance.list_images.off_description" = "關閉後，每個清單改為顯示其顏色。";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

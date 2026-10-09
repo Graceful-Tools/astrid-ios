@@ -9,6 +9,8 @@ struct ListImageView: View {
     let size: CGFloat
 
     @State private var imageLoadFailed = false
+    /// hide_list_images / "Show list images" (AITD-468).
+    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
 
     init(list: TaskList, size: CGFloat = 12) {
         self.list = list
@@ -21,7 +23,9 @@ struct ListImageView: View {
             .frame(width: size, height: size)
             .overlay(
                 Group {
-                    if let imageURL = ListImageHelper.getFullImageUrl(list: list) {
+                    if !listImages.showListImages {
+                        ListColorGlyph(list: list, size: size)
+                    } else if let imageURL = ListImageHelper.getFullImageUrl(list: list) {
                         CachedAsyncImage(url: imageURL) { image in
                             image
                                 .resizable()

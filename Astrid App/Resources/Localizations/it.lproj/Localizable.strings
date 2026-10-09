@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "Elenco";
 "settings.task_display.project" = "Progetto";
 "settings.appearance.task_details_footer" = "Scegli come vengono disposti i dettagli dell'attività. Elenco assegna a priorità e assegnatario righe proprie. Progetto è compatto e la casella apre un selettore invece di completare l'attività.";
+"settings.appearance.list_images.title" = "Immagini delle liste";
+"settings.appearance.list_images.label" = "Mostra immagini delle liste";
+"settings.appearance.list_images.off_description" = "Se disattivato, ogni lista mostra il suo colore.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";
