@@ -37,7 +37,7 @@ struct MacMyTasksFilterSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(NSLocalizedString("navigation.my_tasks", comment: ""))
-                .font(.headline).foregroundStyle(Theme.textPrimary)
+                .macFont(.headline).foregroundStyle(Theme.textPrimary)
 
             Form {
                 Section(NSLocalizedString("actions.sort", comment: "")) {

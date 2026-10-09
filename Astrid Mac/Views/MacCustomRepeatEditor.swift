@@ -52,7 +52,7 @@ struct MacCustomRepeatEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(NSLocalizedString("mac.custom_repeat", comment: "")).font(.headline)
+            Text(NSLocalizedString("mac.custom_repeat", comment: "")).macFont(.headline)
 
             HStack {
                 Text(NSLocalizedString("mac.every", comment: ""))

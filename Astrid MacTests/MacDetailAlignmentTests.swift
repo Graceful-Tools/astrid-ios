@@ -68,7 +68,7 @@ final class MacDetailAlignmentTests: XCTestCase {
     /// THE ASK: subtasks read like the description. One token drives both, so
     /// they cannot drift apart the way two inherited defaults did.
     func testSubtasksAndDescriptionShareOneBodyFont() {
-        XCTAssertEqual(MacTypography.detailBody,
+        XCTAssertEqual(MacTypography.detailBody.font(scale: 1),
                        Font.system(size: MacTypography.detailBodySize, weight: .regular))
     }
 

@@ -65,7 +65,7 @@ struct MacLanguageSettingsView: View {
                 }
                 .onChange(of: language) { LocalizationManager.shared.setLanguage(language) }
                 Text(NSLocalizedString("mac.relaunch_note", comment: ""))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -218,14 +218,14 @@ struct MacPublicListsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(NSLocalizedString("mac.browse_public_lists", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("mac.browse_public_lists", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
             TextField(NSLocalizedString("actions.search", comment: ""), text: $query).textFieldStyle(.roundedBorder)
             List(filtered, id: \.id) { l in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(l.name).foregroundStyle(Theme.textPrimary)
                         if let d = l.description, !d.isEmpty {
-                            Text(d).font(.caption).foregroundStyle(Theme.textMuted).lineLimit(2)
+                            Text(d).macFont(.caption).foregroundStyle(Theme.textMuted).lineLimit(2)
                         }
                     }
                     Spacer()

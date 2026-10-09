@@ -45,12 +45,12 @@ struct MacAssigneePicker: View {
                 // Ask the option for its name rather than spelling the fallback again — the two
                 // copies are how this drifted from iOS separately (task 6c891bce).
                 Text(selected?.displayName ?? MacAssigneeOption.unassignedLabel)
-                    .font(.system(size: 12))
+                    .macFont(.system(size: 12))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundStyle(.primary)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
+                    .macFont(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 6)
@@ -75,17 +75,17 @@ struct MacAssigneePicker: View {
                         HStack(spacing: 8) {
                             face(for: option, size: 22)
                             Text(option.displayName)
-                                .font(.system(size: 12))
+                                .macFont(.system(size: 12))
                                 .foregroundStyle(.primary)
                             if option.isCurrentUser {
                                 Text(NSLocalizedString("mac.you", comment: "(you)"))
-                                    .font(.system(size: 11))
+                                    .macFont(.system(size: 11))
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 12)
                             if option.userId == selectedId {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .macFont(.system(size: 10, weight: .semibold))
                                     .foregroundStyle(Theme.accent)
                             }
                         }

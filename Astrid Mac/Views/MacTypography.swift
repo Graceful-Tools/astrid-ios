@@ -28,10 +28,11 @@ enum MacTypography {
     /// stops being true.
     static let detailBodySize: CGFloat = 13     // macOS body
 
-    static var rowTitle: Font { .system(size: rowTitleSize, weight: .medium) }
-    static var rowMeta: Font { .system(size: rowMetaSize) }
-    static var detailTitle: Font { rowTitle }
-    static var label: Font { .system(size: labelSize) }
-    static var detailBody: Font { .system(size: detailBodySize, weight: .regular) }
+    // MacFont, not Font, so the app's text size (AITD-469) reaches them: `.macFont(MacTypography.rowTitle)`.
+    static var rowTitle: MacFont { .system(size: rowTitleSize, weight: .medium) }
+    static var rowMeta: MacFont { .system(size: rowMetaSize) }
+    static var detailTitle: MacFont { rowTitle }
+    static var label: MacFont { .system(size: labelSize) }
+    static var detailBody: MacFont { .system(size: detailBodySize, weight: .regular) }
 }
 #endif

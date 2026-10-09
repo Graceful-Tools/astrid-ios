@@ -27,7 +27,7 @@ struct MacAgentHubView: View {
         Form {
             Section(NSLocalizedString("settings.agents.your_agents", comment: "")) {
                 Text(String(format: NSLocalizedString("settings.agents.description", comment: ""), Brand.appName))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
                 if capabilities.capabilities.integrations.mcp {
                     HStack {
                         if let guide = AgentHubLinks.loopsGuide(origin: origin) {
@@ -52,7 +52,7 @@ struct MacAgentHubView: View {
                 }
             } else {
                 if let message = model.actionErrorMessage ?? model.setupErrorMessage {
-                    Section { Text(message).font(.caption).foregroundStyle(Theme.error) }
+                    Section { Text(message).macFont(.caption).foregroundStyle(Theme.error) }
                 }
                 ForEach(model.rows) { row in agentSection(row) }
 
@@ -60,7 +60,7 @@ struct MacAgentHubView: View {
                     Section(NSLocalizedString("settings.agents.custom.title", comment: "")) {
                         HStack {
                             Text(NSLocalizedString("settings.agents.custom.subtitle", comment: ""))
-                                .font(.caption).foregroundStyle(Theme.textMuted)
+                                .macFont(.caption).foregroundStyle(Theme.textMuted)
                             Spacer()
                             Button(NSLocalizedString("mac.manage", comment: "")) { showCustomAgents = true }
                         }
@@ -70,7 +70,7 @@ struct MacAgentHubView: View {
                 Section(NSLocalizedString("settings.connections.title", comment: "")) {
                     HStack {
                         Text(NSLocalizedString("settings.connections.subtitle", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.textMuted)
+                            .macFont(.caption).foregroundStyle(Theme.textMuted)
                         Spacer()
                         Button(NSLocalizedString("mac.manage", comment: "")) { showConnections = true }
                     }
@@ -120,11 +120,11 @@ struct MacAgentHubView: View {
                         Text(row.label).foregroundStyle(Theme.textPrimary)
                         if !model.isConfigured(row) && mode != .off {
                             Text(NSLocalizedString("settings.agents.needs_setup", comment: ""))
-                                .font(.caption).foregroundStyle(Theme.warning)
+                                .macFont(.caption).foregroundStyle(Theme.warning)
                         }
                     }
                     Text("\(row.identityMailbox(for: mode))@\(Brand.agentEmailDomain)")
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
                 Spacer()
                 if model.savingRowID == row.id { ProgressView().controlSize(.small) }
@@ -172,23 +172,23 @@ struct MacAgentHubView: View {
         switch mode {
         case .api:
             Text(String(format: NSLocalizedString("settings.agents.api_description", comment: ""), Brand.appName))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             if row.usesOAuth { copilotRow } else { keyRow(row) }
         case .polling:
             Text(String(format: NSLocalizedString("settings.agents.polling_description", comment: ""), row.label))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             Text(NSLocalizedString("settings.agents.polling_guide_hint", comment: ""))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             if row.usesOAuth && capabilities.capabilities.integrations.mcp {
                 Button(NSLocalizedString("settings.agents.copilot_cloud.title", comment: "")) { showCopilotCloud = true }
             }
         case .webhook:
             Text(NSLocalizedString("settings.agents.webhook_description", comment: ""))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             Button(NSLocalizedString("settings.agents.webhook.configure", comment: "")) { showWebhook = true }
         case .off:
             Text(String(format: NSLocalizedString("settings.agents.off_description", comment: ""), Brand.appName))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
         }
     }
 
@@ -198,7 +198,7 @@ struct MacAgentHubView: View {
             Text(NSLocalizedString(
                 model.copilotConnected ? "settings.agents.copilot_connected" : "settings.agents.copilot_disconnected",
                 comment: ""
-            )).font(.caption)
+            )).macFont(.caption)
             Spacer()
             if model.isPollingCopilot {
                 ProgressView().controlSize(.small)
@@ -232,7 +232,7 @@ struct MacAgentHubView: View {
         let busy = model.keyOperationService == row.service
         HStack {
             Text(MacAIKeys.statusText(hasKey: status?.hasKey ?? false, preview: status?.keyPreview, isValid: status?.isValid))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             Spacer()
             if let docs = AIService(rawValue: row.service)?.documentationURL {
                 Button(NSLocalizedString("settings.agents.get_key", comment: "")) { PlatformApplication.open(docs) }
@@ -266,7 +266,7 @@ struct MacAgentHubView: View {
             if busy { ProgressView().controlSize(.small) }
         }
         Text(NSLocalizedString("settings.agents.key_footer", comment: ""))
-            .font(.caption).foregroundStyle(Theme.textMuted)
+            .macFont(.caption).foregroundStyle(Theme.textMuted)
     }
 }
 
@@ -281,11 +281,11 @@ struct MacAssistantModelSection: View {
     var body: some View {
         Section(String(format: NSLocalizedString("settings.agents.model.title", comment: ""), Brand.appName)) {
             Text(String(format: NSLocalizedString("settings.agents.model.description", comment: ""), Brand.appName))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
             if let s = settings {
                 if agents.filter({ !$0.isDefaultAssistant }).isEmpty {
                     Text(String(format: NSLocalizedString("settings.agents.model.empty", comment: ""), Brand.appName, Brand.appName))
-                        .font(.caption).foregroundStyle(Theme.warning)
+                        .macFont(.caption).foregroundStyle(Theme.warning)
                 } else {
                     Picker(NSLocalizedString("settings.default_agent.title", comment: ""), selection: Binding(
                         get: { s.defaultAgentId ?? "" },
@@ -351,7 +351,7 @@ struct MacAgentHubSheet<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(title).font(.headline)
+                Text(title).macFont(.headline)
                 Spacer()
                 Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
             }

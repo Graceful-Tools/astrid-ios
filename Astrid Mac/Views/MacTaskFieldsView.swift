@@ -181,7 +181,7 @@ struct MacTaskFieldsView: View {
             TextField(NSLocalizedString("mac.title", comment: ""), text: $title, axis: .vertical)
                 .labelsHidden()
                 .textFieldStyle(.plain)
-                .font(MacTypography.detailTitle)
+                .macFont(MacTypography.detailTitle)
                 .macTextSelection()
                 .strikethrough(task.completed)
                 .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
@@ -289,7 +289,7 @@ struct MacTaskFieldsView: View {
     private var descriptionRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(NSLocalizedString("tasks.description", comment: ""))
-                .font(MacTypography.label)
+                .macFont(MacTypography.label)
                 .foregroundStyle(Theme.textMuted)
 
             if editingNotes {
@@ -298,13 +298,13 @@ struct MacTaskFieldsView: View {
                     // always exactly as tall as its content — which is what
                     // removes the scrollbar rather than just hiding it.
                     Text(notes.isEmpty ? " " : notes)
-                        .font(MacTypography.detailBody)
+                        .macFont(MacTypography.detailBody)
                         .foregroundStyle(.clear)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     TextEditor(text: $notes)
-                        .font(MacTypography.detailBody)
+                        .macFont(MacTypography.detailBody)
                         .macTextSelection()
                         .scrollDisabled(true)
                         .scrollContentBackground(.hidden)
@@ -336,7 +336,7 @@ struct MacTaskFieldsView: View {
                                 .textSelection(.enabled)
                         case .placeholder:
                             Text(NSLocalizedString("mac.click_add_description", comment: ""))
-                                .font(MacTypography.detailBody)
+                                .macFont(MacTypography.detailBody)
                                 .foregroundStyle(Theme.textMuted)
                         }
                     }
@@ -363,7 +363,7 @@ struct MacTaskFieldsView: View {
                                   @ViewBuilder _ content: () -> V) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: MacDetailRowMetrics.columnGap) {
             Text(glyph)
-                .font(.system(size: 12, weight: .semibold))
+                .macFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.textMuted)
                 .frame(width: MacDetailRowMetrics.leadingColumnWidth)
                 .accessibilityLabel(accessibilityLabel)
@@ -379,7 +379,7 @@ struct MacTaskFieldsView: View {
             // `Text(Image(…))` rather than a bare Image: only Text participates in
             // firstTextBaseline alignment.
             Text(Image(systemName: icon))
-                .font(.system(size: 12))
+                .macFont(.system(size: 12))
                 .foregroundStyle(Theme.textMuted)
                 .frame(width: MacDetailRowMetrics.leadingColumnWidth)
                 .accessibilityLabel(accessibilityLabel)

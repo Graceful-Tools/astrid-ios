@@ -1152,6 +1152,10 @@
 "mac.quick_add_placeholder" = "Ajouter une tâche…";
 "mac.quit" = "Quitter";
 "mac.refresh" = "Actualiser";
+"mac.text_size" = "Taille du texte";
+"mac.text_bigger" = "Plus grand";
+"mac.text_smaller" = "Plus petit";
+"mac.text_actual_size" = "Taille réelle";
 "mac.refresh_connection" = "Actualiser l'état de la connexion";
 "mac.register" = "Enregistrer";
 "mac.relaunch_note" = "Certains changements prennent effet au redémarrage.";

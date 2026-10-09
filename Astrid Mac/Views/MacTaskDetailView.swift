@@ -73,7 +73,7 @@ struct MacTaskDetailView: View {
                     .buttonStyle(.borderless).foregroundStyle(Theme.textMuted).help(NSLocalizedString("actions.close", comment: ""))
             }
             Spacer()
-            Text(NSLocalizedString("tasks.task_details", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("tasks.task_details", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
             Spacer()
             // Full screen (42013da7) — the point of the redesign is room for the description, and
             // the widest the pop-out can ever be is the detail column. This takes the window.
@@ -154,7 +154,7 @@ struct MacTaskDetailView: View {
                 // "Last: …" timer caption under the description (web parity — df22157f).
                 if let last = task.lastTimerValue, !last.isEmpty {
                     Text(String(format: NSLocalizedString("mac.last_timer", comment: ""), last))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
@@ -173,7 +173,7 @@ struct MacTaskDetailView: View {
                         .buttonStyle(.plain)
                         .macPointingHand()
                         Text(st.title)
-                            .font(MacTypography.detailBody)
+                            .macFont(MacTypography.detailBody)
                             .strikethrough(st.completed)
                             .foregroundStyle(st.completed ? Theme.textMuted : Theme.textPrimary)
                         Spacer()
@@ -196,7 +196,7 @@ struct MacTaskDetailView: View {
                         .accessibilityHidden(true)
                     TextField(NSLocalizedString("mac.add_subtask", comment: ""), text: $newSubtask)
                         .textFieldStyle(.plain)
-                        .font(MacTypography.detailBody)
+                        .macFont(MacTypography.detailBody)
                         .onSubmit(addSubtask)
                 }
             }
@@ -224,7 +224,7 @@ struct MacTaskDetailView: View {
                 Section(NSLocalizedString("tasks.timer", comment: "")) {
                     HStack {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
-                            Text(hms(loggedSeconds)).font(.system(.title3, design: .monospaced))
+                            Text(hms(loggedSeconds)).macFont(.title3.monospaced())
                                 .foregroundStyle(Theme.accent)
                         }
                         Spacer()
@@ -236,7 +236,7 @@ struct MacTaskDetailView: View {
             } else if MacTimerSection.showsLoggedCaption(running: timerRunning, loggedSeconds: loggedSeconds) {
                 // iOS parity: one caption line instead of a section (task_edit.last_timer).
                 Text(String(format: NSLocalizedString("mac.timer_logged", comment: ""), hms(loggedSeconds)))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowBackground(Color.clear)
             }
@@ -254,7 +254,7 @@ struct MacTaskDetailView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(a.name).foregroundStyle(Theme.textPrimary).lineLimit(1)
                             let size = MacAttachmentIcon.humanSize(a.size)
-                            if !size.isEmpty { Text(size).font(.caption2).foregroundStyle(Theme.textMuted) }
+                            if !size.isEmpty { Text(size).macFont(.caption2).foregroundStyle(Theme.textMuted) }
                         }
                         Spacer()
                         Button { previewAttachment(a) } label: { Image(systemName: "eye") }
@@ -281,7 +281,7 @@ struct MacTaskDetailView: View {
             if let shareURL {
                 Section {
                     HStack {
-                        Text(shareURL.absoluteString).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                        Text(shareURL.absoluteString).macFont(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
                         Button(NSLocalizedString("actions.copy", comment: "")) { copyToPasteboard(shareURL.absoluteString) }
                         ShareLink(item: shareURL) { Image(systemName: "square.and.arrow.up") }
@@ -312,7 +312,7 @@ struct MacTaskDetailView: View {
                               onPosted: { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }) {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 if timerRunning {
-                    Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent)
+                    Text(hms(loggedSeconds)).macFont(.caption.monospaced()).foregroundStyle(Theme.accent)
                 }
             }
         } idle: {

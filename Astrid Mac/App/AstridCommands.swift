@@ -17,6 +17,7 @@ import SwiftUI
 struct AstridCommands: Commands {
     @ObservedObject private var appModel = MacAppModel.shared
     @ObservedObject private var undo = MacUndoCoordinator.shared
+    @ObservedObject private var textSize = MacTextSize.shared
 
     /// One menu item, titled and bound from the shared table.
     private func item(_ command: MacMenuShortcuts.Command, action: @escaping () -> Void) -> some View {
@@ -71,6 +72,15 @@ struct AstridCommands: Commands {
             // command (0f525a89); there was no menu item, button or shortcut before.
             Button(NSLocalizedString("mac.refresh", comment: "")) { MacAppModel.shared.refreshNow() }
                 .keyboardShortcut("r", modifiers: .command)
+            Divider()
+            // Text size (AITD-469): macOS gives a third-party app no Dynamic Type, so the app
+            // offers the zoom keys every Mac reading app has.
+            item(.textBigger) { MacTextSize.shared.bigger() }
+                .disabled(!textSize.canGrow)
+            item(.textSmaller) { MacTextSize.shared.smaller() }
+                .disabled(!textSize.canShrink)
+            item(.textActualSize) { MacTextSize.shared.reset() }
+                .disabled(!textSize.canReset)
         }
 
         // App menu → Check for Updates (Direct/Sparkle build; no-op/hidden on App Store).

@@ -1136,6 +1136,10 @@
 "mac.quick_add_placeholder" = "Taak toevoegen…";
 "mac.quit" = "Stoppen";
 "mac.refresh" = "Vernieuwen";
+"mac.text_size" = "Tekstgrootte";
+"mac.text_bigger" = "Groter";
+"mac.text_smaller" = "Kleiner";
+"mac.text_actual_size" = "Ware grootte";
 "mac.refresh_connection" = "Verbindingsstatus vernieuwen";
 "mac.register" = "Registreren";
 "mac.relaunch_note" = "Sommige wijzigingen worden pas na herstarten toegepast.";

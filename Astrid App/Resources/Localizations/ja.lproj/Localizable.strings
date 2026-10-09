@@ -1136,6 +1136,10 @@
 "mac.quick_add_placeholder" = "タスクを追加…";
 "mac.quit" = "終了";
 "mac.refresh" = "更新";
+"mac.text_size" = "文字サイズ";
+"mac.text_bigger" = "拡大";
+"mac.text_smaller" = "縮小";
+"mac.text_actual_size" = "実際のサイズ";
 "mac.refresh_connection" = "接続状態を更新";
 "mac.register" = "登録";
 "mac.relaunch_note" = "一部の変更は再起動後に反映されます。";

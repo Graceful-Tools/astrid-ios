@@ -46,6 +46,7 @@ struct AstridMacApp: App {
                 Color.clear.frame(width: 1, height: 1)
             } else {
                 MacAuthGateView()
+                    .macTextScaleRoot()
                     // The same card as iOS, from the same file (AITD-383) — so an update cannot
                     // be described one way on the phone and another on the desktop.
                     .appUpdateReminder()
@@ -59,25 +60,25 @@ struct AstridMacApp: App {
 
         // Menu-bar extra: glanceable tasks + quick add (v1.1).
         MenuBarExtra(Brand.appName, systemImage: "checklist") {
-            if !underTest { MacMenuBarView() }
+            if !underTest { MacMenuBarView().macTextScaleRoot() }
         }
         .menuBarExtraStyle(.window)
 
         // ⌘, Settings — native Mac settings wired to the shared settings services.
         Settings {
-            if !underTest { MacSettingsView() }
+            if !underTest { MacSettingsView().macTextScaleRoot() }
         }
 
         // Global quick-entry target window (M0 de-risk / M2).
         Window("Quick Add", id: QuickEntryHotKeyController.windowID) {
-            if !underTest { QuickEntryView() }
+            if !underTest { QuickEntryView().macTextScaleRoot() }
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
         // Tear-off: open a single task in its own window (v1.1).
         WindowGroup(id: "task", for: String.self) { $taskId in
-            if !underTest { MacTaskWindowView(taskId: taskId) }
+            if !underTest { MacTaskWindowView(taskId: taskId).macTextScaleRoot() }
         }
     }
 

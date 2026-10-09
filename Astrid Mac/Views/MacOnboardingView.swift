@@ -30,16 +30,16 @@ struct MacOnboardingView: View {
     var body: some View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
-                Image(systemName: "checklist").font(.system(size: 48)).foregroundStyle(Theme.accent)
-                Text(Brand.localized("mac.welcome")).font(.title2.bold())
+                Image(systemName: "checklist").macFont(.system(size: 48)).foregroundStyle(Theme.accent)
+                Text(Brand.localized("mac.welcome")).macFont(.title2.bold())
             }
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(features) { f in
                     HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: f.icon).font(.title3).foregroundStyle(Theme.accent).frame(width: 28)
+                        Image(systemName: f.icon).macFont(.title3).foregroundStyle(Theme.accent).frame(width: 28)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(f.title).font(.headline)
-                            Text(f.detail).font(.callout).foregroundStyle(.secondary)
+                            Text(f.title).macFont(.headline)
+                            Text(f.detail).macFont(.callout).foregroundStyle(.secondary)
                         }
                     }
                 }

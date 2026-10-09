@@ -81,7 +81,7 @@ struct MacQuickAddBar: View {
             TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
-                .font(MacTypography.rowTitle)
+                .macFont(MacTypography.rowTitle)
                 .macTextSelection()
                 // Not a credential field — avoids the AutoFill panel rather than closing it (AITD-443).
                 .textContentType(MacStrayAutoFillPanel.quickAddContentType)
@@ -111,7 +111,7 @@ struct MacQuickAddBar: View {
                     Image(systemName: "calendar")
                     Text(due)
                 }
-                .font(MacTypography.rowMeta)
+                .macFont(MacTypography.rowMeta)
                 .foregroundStyle(Theme.textSecondary)
                 .help(NSLocalizedString("lists.due_date", comment: ""))
                 .accessibilityIdentifier("tasks.quickAdd.defaultDueDate")
@@ -121,7 +121,7 @@ struct MacQuickAddBar: View {
             // ⊕ adds the task AND opens its details (iOS / web parity); Return just adds.
             Button { commitDraft(openDetails: true) } label: {
                 Image(systemName: "plus.circle.fill")
-                    .font(style == .list ? .title2 : .title3)
+                    .macFont(style == .list ? .title2 : .title3)
                     .foregroundStyle(MacQuickAdd.isCommittable(draftTitle) ? Theme.accent : Theme.textMuted)
             }
             .buttonStyle(.plain)

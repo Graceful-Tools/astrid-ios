@@ -23,6 +23,7 @@ struct MacMarkdownText: View {
     var fillsWidth: Bool = true
 
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.macTextScale) private var textScale
 
     var body: some View {
         MarkdownView(source: source, style: style)
@@ -41,9 +42,9 @@ struct MacMarkdownText: View {
 
     private var style: MarkdownStyle {
         MarkdownStyle(
-            body: MacTypography.detailBody,
-            heading: { .system(size: Self.headingSize($0), weight: .semibold) },
-            code: .system(size: 12, design: .monospaced),
+            body: MacTypography.detailBody.font(scale: textScale),
+            heading: { [textScale] in .system(size: Self.headingSize($0) * textScale, weight: .semibold) },
+            code: .system(size: 12 * textScale, design: .monospaced),
             text: Theme.textPrimary,
             muted: Theme.textMuted,
             codeBackground: Theme.bgTertiary,

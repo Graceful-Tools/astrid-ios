@@ -318,7 +318,7 @@ struct MacRootView: View {
                 .fill(lit ? Theme.accent.opacity(0.18) : Color.clear)
                 .overlay(alignment: .leading) {
                     Image(systemName: "arrow.left.to.line")
-                        .font(.system(size: 10, weight: .semibold))
+                        .macFont(.system(size: 10, weight: .semibold))
                         .foregroundStyle(lit ? Theme.accent : Color.clear)
                         .padding(.leading, 6)
                 }
@@ -554,7 +554,7 @@ struct MacRootView: View {
                 Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
                 TextField(NSLocalizedString("mac.search_all_tasks", comment: ""), text: $taskSearchQuery)
                     .textFieldStyle(.plain)
-                    .font(MacTypography.rowTitle)
+                    .macFont(MacTypography.rowTitle)
                     .accessibilityIdentifier("search.field")
                 if !taskSearchQuery.isEmpty {
                     Button { taskSearchQuery = "" } label: {
@@ -1445,7 +1445,7 @@ struct MacRootView: View {
                     Image(systemName: "wifi.slash")
                     Text(NSLocalizedString("mac.offline_banner", comment: ""))
                 }
-                .font(.caption)
+                .macFont(.caption)
                 .foregroundStyle(Theme.textSecondary)
                 .padding(6)
                 .frame(maxWidth: .infinity)

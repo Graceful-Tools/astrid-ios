@@ -45,7 +45,7 @@ struct MacListAgentSection: View {
             Divider()
             VStack(alignment: .leading, spacing: 6) {
                 Text(NSLocalizedString("lists.ai_agent.section", comment: ""))
-                    .font(.caption).foregroundStyle(Theme.textSecondary)
+                    .macFont(.caption).foregroundStyle(Theme.textSecondary)
 
                 if isLoading {
                     ProgressView().controlSize(.small)
@@ -54,17 +54,17 @@ struct MacListAgentSection: View {
                     // reason to say so, not to draw an empty picker.
                     Text(String(format: NSLocalizedString("settings.agents.model.empty", comment: ""),
                                 Brand.appName, Brand.appName))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 } else {
                     picker
                     Text(String(format: NSLocalizedString("lists.ai_agent.footer", comment: ""),
                                 Brand.appName))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
 
                 if saveFailed {
                     Text(NSLocalizedString("mac.failed.save", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.error)
+                        .macFont(.caption).foregroundStyle(Theme.error)
                 }
             }
             .task { await load() }

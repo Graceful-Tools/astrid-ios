@@ -64,7 +64,7 @@ struct MacDueDatePicker: View {
                         // two, and MacDateEntry makes the parsing testable.
                         TextField(MacDateEntry.format(Date()), text: $typed)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12))
+                            .macFont(.system(size: 12))
                             .multilineTextAlignment(.center)
                             .onSubmit(commitTyped)
                             .frame(maxWidth: .infinity)

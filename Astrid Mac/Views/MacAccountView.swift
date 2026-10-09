@@ -22,14 +22,14 @@ struct MacAccountView: View {
                 HStack(spacing: 12) {
                     avatar
                     VStack(alignment: .leading) {
-                        Text(auth.currentUser?.displayName ?? "—").font(.headline)
-                        Text(auth.currentUser?.email ?? "").font(.caption).foregroundStyle(Theme.textMuted)
+                        Text(auth.currentUser?.displayName ?? "—").macFont(.headline)
+                        Text(auth.currentUser?.email ?? "").macFont(.caption).foregroundStyle(Theme.textMuted)
                     }
                 }
                 .contentShape(Rectangle())
                 .macOpensProfile(MacProfileLink.ownUserId(auth.currentUser), target: $profileTarget)
                 TextField(NSLocalizedString("settings.account.name_placeholder", comment: ""), text: $name).onSubmit(saveName)
-                if savedFlash { Text(NSLocalizedString("messages.saved", comment: "")).font(.caption).foregroundStyle(Theme.success) }
+                if savedFlash { Text(NSLocalizedString("messages.saved", comment: "")).macFont(.caption).foregroundStyle(Theme.success) }
             }
 
             Section(NSLocalizedString("settings.account.your_data", comment: "")) {
@@ -101,9 +101,9 @@ struct MacDeleteAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(NSLocalizedString("settings.account.delete_account", comment: "")).font(.headline).foregroundStyle(Theme.error)
+            Text(NSLocalizedString("settings.account.delete_account", comment: "")).macFont(.headline).foregroundStyle(Theme.error)
             Text(NSLocalizedString("mac.delete_account_warning", comment: ""))
-                .font(.callout).foregroundStyle(Theme.textSecondary)
+                .macFont(.callout).foregroundStyle(Theme.textSecondary)
             TextField(NSLocalizedString("mac.type_delete_confirm", comment: ""), text: $confirm).textFieldStyle(.roundedBorder)
             HStack {
                 Spacer()

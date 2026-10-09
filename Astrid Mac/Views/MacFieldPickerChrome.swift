@@ -28,11 +28,11 @@ struct MacFieldTrigger: View {
         HStack(spacing: 4) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 11))
+                    .macFont(.system(size: 11))
                     .foregroundStyle(Theme.textMuted)
             }
             Text(text)
-                .font(.system(size: 11))
+                .macFont(.system(size: 11))
                 // NOT lineLimit(1): a truncated date is not a date. "Sat, Aug 15,…"
                 // told you less than the bare date it replaced. The chip sizes to
                 // its content and the ROW wraps instead (FlowLayout).
@@ -58,7 +58,7 @@ struct MacFieldGlyphTrigger: View {
 
     var body: some View {
         Image(systemName: systemImage)
-            .font(.system(size: 11))
+            .macFont(.system(size: 11))
             .foregroundStyle(Theme.textMuted)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
@@ -88,7 +88,7 @@ struct MacPickerRow: View {
             // in the layout (task d4f663a3). In an HStack the tick pushes the title off-centre,
             // so "Today" and "Today ✓" would sit at different places in the same column.
             Text(title)
-                .font(.system(size: 12))
+                .macFont(.system(size: 12))
                 .foregroundStyle(tint)
                 // Room for the tick on BOTH sides, so reserving it does not shift the centre.
                 .padding(.horizontal, 18)
@@ -97,7 +97,7 @@ struct MacPickerRow: View {
                 .overlay(alignment: .trailing) {
                     if isChecked {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .semibold))
+                            .macFont(.system(size: 10, weight: .semibold))
                             .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
                             .padding(.trailing, 9)
                     }

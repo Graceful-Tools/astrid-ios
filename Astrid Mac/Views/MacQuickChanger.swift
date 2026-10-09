@@ -34,7 +34,7 @@ struct MacQuickChanger: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(NSLocalizedString("tasks.priority", comment: ""))
-                    .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                 // Per-tap callback, NOT `.onChange(of:)`: watching the value swallows a tap
                 // that picks the priority the task already has, and the popover sits there
                 // looking dead (task a6cd1367).
@@ -49,7 +49,7 @@ struct MacQuickChanger: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(NSLocalizedString("tasks.assignee", comment: ""))
-                    .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                 MacAssigneePicker(
                     task: task,
                     priority: priority,
@@ -65,7 +65,7 @@ struct MacQuickChanger: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(NSLocalizedString("board.project_state", comment: ""))
-                    .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                 MacProjectStateSection(task: task, onMoved: onDismiss)
             }
 

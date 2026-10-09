@@ -50,7 +50,7 @@ struct MacListPicker: View {
                 HStack(spacing: 4) {
                     MacListIcon(list: list, size: 11)
                     // One line, always: a pill that wraps its own name is the bug.
-                    Text(list.name).font(MacTypography.rowMeta).lineLimit(1)
+                    Text(list.name).macFont(MacTypography.rowMeta).lineLimit(1)
                 }
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .foregroundStyle(Theme.accent)
@@ -63,7 +63,7 @@ struct MacListPicker: View {
                     Image(systemName: "plus.circle")
                     Text(NSLocalizedString("picker.add_to_lists", comment: ""))
                 }
-                .font(MacTypography.rowMeta)
+                .macFont(MacTypography.rowMeta)
                 .foregroundStyle(Theme.textMuted)
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 1))
@@ -76,7 +76,7 @@ struct MacListPicker: View {
         VStack(alignment: .leading, spacing: 2) {
             if selectableLists.isEmpty {
                 Text(NSLocalizedString("picker.no_lists", comment: ""))
-                    .font(.system(size: 12))
+                    .macFont(.system(size: 12))
                     .foregroundStyle(Theme.textMuted)
                     .padding(8)
             } else {
@@ -101,11 +101,11 @@ struct MacListPicker: View {
         return Button { onToggle(list.id) } label: {
             HStack(spacing: 6) {
                 MacListIcon(list: list, size: 12)
-                Text(list.name).font(.system(size: 12)).foregroundStyle(Theme.textPrimary)
+                Text(list.name).macFont(.system(size: 12)).foregroundStyle(Theme.textPrimary)
                 Spacer(minLength: 0)
                 if isOn {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .semibold))
+                        .macFont(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.accent)
                 }
             }

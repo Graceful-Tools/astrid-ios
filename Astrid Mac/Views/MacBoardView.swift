@@ -115,8 +115,8 @@ struct MacBoardView: View {
     private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(col.name).font(.headline).foregroundStyle(Theme.textSecondary)
-                Text("\(items.count)").font(.caption).foregroundStyle(Theme.textMuted)
+                Text(col.name).macFont(.headline).foregroundStyle(Theme.textSecondary)
+                Text("\(items.count)").macFont(.caption).foregroundStyle(Theme.textMuted)
             }
             .help(col.description)
             // The CARDS scroll, not the board. Without this the column was a plain stack of
@@ -186,7 +186,7 @@ struct MacBoardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
                     if let due = t.dueDateTime {
-                        Text(due, style: .date).font(.caption2).foregroundStyle(Theme.textMuted)
+                        Text(due, style: .date).macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,7 +206,7 @@ struct MacBoardView: View {
                 // card, so burying it would make expanding feel like a trap. Web kept it for the
                 // same reason.
                 Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                    .font(.caption2).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption2).foregroundStyle(Theme.textMuted)
                     .contentShape(Rectangle())
                     .onTapGesture { toggleExpanded(t) }
             }

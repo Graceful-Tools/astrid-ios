@@ -18,6 +18,7 @@ enum MacMenuShortcuts {
     enum Command: String, CaseIterable {
         case newTask, completeTask, deleteTask, palette
         case search, viewList, viewBoard, viewChat, filter, shortcuts
+        case textBigger, textSmaller, textActualSize
     }
 
     struct Binding: Equatable {
@@ -41,6 +42,10 @@ enum MacMenuShortcuts {
         Binding(command: .viewChat,     key: "3",  modifiers: .command,            titleKey: "mac.view_chat"),
         Binding(command: .filter,       key: "f",  modifiers: [.command, .shift],  titleKey: "mac.filter_tasks"),
         Binding(command: .shortcuts,    key: "/",  modifiers: .command,            titleKey: "mac.keyboard_shortcuts"),
+        // The Mac's own text-size keys (Safari, Mail, Notes) — Dynamic Type does not exist here (AITD-469).
+        Binding(command: .textBigger,     key: "+", modifiers: .command,          titleKey: "mac.text_bigger"),
+        Binding(command: .textSmaller,    key: "-", modifiers: .command,          titleKey: "mac.text_smaller"),
+        Binding(command: .textActualSize, key: "0", modifiers: .command,          titleKey: "mac.text_actual_size"),
     ]
 
     static func binding(for command: Command) -> Binding? { all.first { $0.command == command } }

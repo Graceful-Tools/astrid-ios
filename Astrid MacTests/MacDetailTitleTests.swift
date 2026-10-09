@@ -41,7 +41,7 @@ final class MacDetailTitleTests: XCTestCase {
     /// Same WEIGHT too, which the ask names separately — matching the size while staying
     /// semibold would still read as a different piece of text.
     func testDetailTitleIsTheSameFontAsARowTitle() {
-        XCTAssertEqual(MacTypography.detailTitle, MacTypography.rowTitle)
+        XCTAssertEqual(MacTypography.detailTitle.font(scale: 1), MacTypography.rowTitle.font(scale: 1))
     }
 
     /// The rest of the ramp is unchanged: the title still stands above body text and the

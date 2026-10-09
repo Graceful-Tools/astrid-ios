@@ -39,7 +39,7 @@ struct MacListEditSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             if !embedded {
                 Text(existing == nil ? NSLocalizedString("lists.new_list", comment: "") : NSLocalizedString("lists.edit_list", comment: ""))
-                    .font(.headline).foregroundStyle(Theme.textPrimary)
+                    .macFont(.headline).foregroundStyle(Theme.textPrimary)
             }
 
             TextField(NSLocalizedString("lists.list_name", comment: ""), text: $name)
@@ -54,7 +54,7 @@ struct MacListEditSheet: View {
             // Image upload — only for an existing list (upload needs the list id). Task 383b96af.
             if let e = existing {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                    Text(NSLocalizedString("mac.image", comment: "")).macFont(.caption).foregroundStyle(Theme.textSecondary)
                     HStack(spacing: 10) {
                         imagePreview
                         Button(uploadingImage ? NSLocalizedString("image_picker.uploading", comment: "") : NSLocalizedString("mac.choose_image", comment: "")) { pickImage(for: e) }
@@ -71,7 +71,7 @@ struct MacListEditSheet: View {
             // Unlike an upload these are just paths, so one can be chosen while CREATING a list,
             // which the upload button below cannot do (it needs a list id to post to).
             VStack(alignment: .leading, spacing: 6) {
-                Text(NSLocalizedString("mac.image", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                Text(NSLocalizedString("mac.image", comment: "")).macFont(.caption).foregroundStyle(Theme.textSecondary)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8),
                           spacing: 6) {
                     ForEach(ListImagePlaceholders.all) { placeholder in
@@ -93,7 +93,7 @@ struct MacListEditSheet: View {
             if let existingList = existing {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(NSLocalizedString("mac.new_task_defaults", comment: "")).font(.caption).foregroundStyle(Theme.textSecondary)
+                    Text(NSLocalizedString("mac.new_task_defaults", comment: "")).macFont(.caption).foregroundStyle(Theme.textSecondary)
                     Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defPriority) {
                         ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
                             Text(MacTaskVisuals.priorityLabel(p)).tag(p.rawValue)

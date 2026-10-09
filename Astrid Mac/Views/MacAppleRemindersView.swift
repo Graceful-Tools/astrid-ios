@@ -35,7 +35,7 @@ struct MacAppleRemindersView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(NSLocalizedString("apple_reminders", comment: "")).font(.headline)
+                Text(NSLocalizedString("apple_reminders", comment: "")).macFont(.headline)
                 Spacer()
                 Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }.keyboardShortcut(.return)
             }
