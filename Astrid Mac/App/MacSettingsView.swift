@@ -11,6 +11,7 @@ struct MacSettingsView: View {
     @StateObject private var userSettings = UserSettingsService.shared
     @ObservedObject private var featureFlags = FeatureFlagService.shared
     @ObservedObject private var listImages = ListImagesVisibilityStore.shared
+    @ObservedObject private var textSize = MacTextSize.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
     // wants the system behaviour.
@@ -26,6 +27,16 @@ struct MacSettingsView: View {
                         ForEach(ThemeMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .pickerStyle(.inline)
+                    // The same setting as View ▸ Bigger / Smaller (⌘+ / ⌘−), AITD-469.
+                    Picker(NSLocalizedString("mac.text_size", comment: ""), selection: Binding(
+                        get: { textSize.scale },
+                        set: { textSize.set($0) }
+                    )) {
+                        ForEach(MacTextSize.steps, id: \.self) { step in
+                            Text(Double(step).formatted(.percent.precision(.fractionLength(0)))).tag(step)
+                        }
+                    }
+                    .accessibilityIdentifier("settings.textSize")
                     Toggle(NSLocalizedString("mac.show_scroll_bars", comment: ""), isOn: $showScrollBars)
                     // Effective value; flipping it stores an explicit choice that wins over the
                     // hide_list_images experiment on every device (AITD-468).
@@ -35,7 +46,7 @@ struct MacSettingsView: View {
                     ))
                     .accessibilityIdentifier("settings.showListImages")
                     Text(NSLocalizedString("settings.appearance.list_images.off_description", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
                 Section(NSLocalizedString("tasks.tasks", comment: "")) {
                     // Smart Task Creation — gates the shared SmartTaskParser in quick-add (a840511d).
@@ -44,7 +55,7 @@ struct MacSettingsView: View {
                         set: { userSettings.smartTaskCreationEnabled = $0 }
                     ))
                     Text(NSLocalizedString("mac.smart_parse_hint", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                     // Sub-tasks display (consumed by the list's subtask rendering, 3c945236).
                     Picker(NSLocalizedString("mac.subtasks", comment: ""), selection: Binding(
                         get: { userSettings.settings.subtaskDisplay ?? "indented" },
@@ -79,7 +90,7 @@ struct MacSettingsView: View {
                             hasLoadedSettings: userSettings.hasLoadedFromServer))
                         .accessibilityIdentifier("settings.taskDisplayMode")
                         Text(NSLocalizedString("settings.appearance.task_details_footer", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.textMuted)
+                            .macFont(.caption).foregroundStyle(Theme.textMuted)
                     }
                 }
             }

@@ -291,17 +291,17 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
                                     RoundedRectangle(cornerRadius: 6).fill(Theme.bgSecondary)
                                         .frame(width: 56, height: 56)
                                     VStack(spacing: 2) {
-                                        Image(systemName: "doc").font(.system(size: 18))
+                                        Image(systemName: "doc").macFont(.system(size: 18))
                                         // A file extension, not prose — verbatim so the hardcoded-string guard passes it deliberately.
                                         Text(verbatim: file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
-                                            .font(.system(size: 9, weight: .medium))
+                                            .macFont(.system(size: 9, weight: .medium))
                                     }
                                     .foregroundStyle(Theme.textMuted)
                                 }
                             }
                             Button { draft.removeStaged(file) } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 15))
+                                    .macFont(.system(size: 15))
                                     .foregroundStyle(.white, Color.black.opacity(0.6))
                             }
                             .buttonStyle(.plain)
@@ -331,13 +331,13 @@ struct MacCommentsHeader: View {
                         CommentVisibility.count(comments, showSystem: showSystem, isOffline: isOffline)))
             if MacSystemComments.showsToggle(comments, isOffline: isOffline) {
                 Button(MacSystemComments.toggleTitle(showingSystem: showSystem)) { showSystem.toggle() }
-                    .buttonStyle(.borderless).font(.caption).foregroundStyle(Theme.textMuted)
+                    .buttonStyle(.borderless).macFont(.caption).foregroundStyle(Theme.textMuted)
             }
             Spacer()
             Button(action: onRefresh) {
                 Label(NSLocalizedString("mac.refresh", comment: ""), systemImage: "arrow.clockwise").labelStyle(.titleAndIcon)
             }
-            .buttonStyle(.borderless).font(.caption)
+            .buttonStyle(.borderless).macFont(.caption)
         }
     }
 }
@@ -369,7 +369,7 @@ struct MacCommentThreadList: View {
 
     var body: some View {
         if comments.isEmpty {
-            Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).font(.callout)
+            Text(NSLocalizedString("mac.no_comments", comment: "")).foregroundStyle(Theme.textMuted).macFont(.callout)
         }
         ForEach(CompletionStreak.fold(
             CommentVisibility.displayed(comments, showSystem: showSystem, isOffline: isOffline))) { item in
@@ -421,7 +421,7 @@ struct MacCommentThreadList: View {
                 Text(who.name).macOpensProfile(c.authorId, target: $profileTarget)
                 if let d = c.createdAt { Text("·"); Text(d, style: .relative) }
             }
-            .font(.caption2).foregroundStyle(Theme.textMuted)
+            .macFont(.caption2).foregroundStyle(Theme.textMuted)
             .padding(mine ? .trailing : .leading, 30)
         }
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
@@ -449,9 +449,9 @@ struct MacCommentThreadList: View {
                     Text(CompletionStreak.summary(for: streak))
                         .foregroundStyle(Theme.textSecondary)
                     Image(systemName: expandedStreaks.contains(streak.id) ? "chevron.down" : "chevron.right")
-                        .font(.caption2).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption2).foregroundStyle(Theme.textMuted)
                 }
-                .font(.caption)
+                .macFont(.caption)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain).macPointingHand()
@@ -460,7 +460,7 @@ struct MacCommentThreadList: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(streak.dates, id: \.self) { date in
                         Text(date, format: .dateTime.month().day().hour().minute())
-                            .font(.caption2).foregroundStyle(Theme.textMuted)
+                            .macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
                 .padding(.leading, 20)
@@ -512,7 +512,7 @@ struct MacTextEditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.headline)
+            Text(title).macFont(.headline)
             TextField("", text: $text, axis: .vertical).lineLimit(2...6).textFieldStyle(.roundedBorder)
                 .macTextSelection()
             HStack {

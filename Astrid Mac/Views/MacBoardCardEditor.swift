@@ -71,7 +71,7 @@ struct MacBoardCardEditor: View {
             MacCommentComposerBar(draft: commentDraft, taskId: task.id, members: members,
                                   focus: $commentFocused, onPosted: refreshComments) {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    if timerRunning { Text(hms(loggedSeconds)).font(.caption.monospaced()).foregroundStyle(Theme.accent) }
+                    if timerRunning { Text(hms(loggedSeconds)).macFont(.caption.monospaced()).foregroundStyle(Theme.accent) }
                 }
             } idle: {
                 Button { toggleTimer() } label: { Image(systemName: "timer") }
@@ -100,7 +100,7 @@ struct MacBoardCardEditor: View {
                           isOffline: !network.isConnected) {
             _Concurrency.Task { await refreshComments() }
         }
-        .font(.caption).bold().foregroundStyle(Theme.textSecondary)
+        .macFont(.caption).bold().foregroundStyle(Theme.textSecondary)
         MacCommentThreadList(comments: $comments, taskId: task.id,
                              showSystem: showSystemComments, isOffline: !network.isConnected,
                              profileTarget: $profileTarget,

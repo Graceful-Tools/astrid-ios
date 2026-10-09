@@ -99,7 +99,7 @@ struct MacListMembershipTab: View {
     private var membersSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(NSLocalizedString("lists.members", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
 
             if members.isEmpty, !loadingMembers {
                 // An empty roster is ambiguous: a non-member viewing a PUBLIC list gets 200 with
@@ -107,10 +107,10 @@ struct MacListMembershipTab: View {
                 switch ListMemberVisibility.emptyState(userRole: svc.viewerRoleByList[list.id]) {
                 case .hiddenFromViewer:
                     Text(NSLocalizedString("lists.members_hidden_from_viewer", comment: ""))
-                        .font(.callout).foregroundStyle(Theme.textMuted)
+                        .macFont(.callout).foregroundStyle(Theme.textMuted)
                 case .genuinelyEmpty:
                     Text(NSLocalizedString("lists.no_members_yet", comment: ""))
-                        .font(.callout).foregroundStyle(Theme.textMuted)
+                        .macFont(.callout).foregroundStyle(Theme.textMuted)
                 }
             }
             if loadingMembers && members.isEmpty {
@@ -124,7 +124,7 @@ struct MacListMembershipTab: View {
 
             if !pendingInvitations.isEmpty {
                 Text(NSLocalizedString("lists.pending_invitations", comment: ""))
-                    .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                     .padding(.top, 6)
                 ForEach(pendingInvitations) { invitationRow($0) }
             }
@@ -140,7 +140,7 @@ struct MacListMembershipTab: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(m.user?.displayName ?? m.userId).foregroundStyle(Theme.textPrimary)
                     Text(MacMemberRoleLabel.title(for: isOwner(m) ? "owner" : m.role))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
             }
             .contentShape(Rectangle())
@@ -175,7 +175,7 @@ struct MacListMembershipTab: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(invite.email).foregroundStyle(Theme.textPrimary)
                     Text(NSLocalizedString("lists.invited", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
             }
             Spacer()
@@ -239,14 +239,14 @@ struct MacListMembershipTab: View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
             Text(NSLocalizedString("lists.ai_agents", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
 
             if loadingAgents {
                 Text(NSLocalizedString("lists.loading_ai_agents", comment: ""))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
             } else if availableAgents.isEmpty {
                 Text(NSLocalizedString("lists.no_ai_agents_hint", comment: ""))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
             } else {
                 ForEach(availableAgents) { agent in
                     HStack {
@@ -293,7 +293,7 @@ struct MacListMembershipTab: View {
             .onChange(of: privacy) { savePrivacy() }
 
             Text(MacListPrivacy.privacyDescription(privacy))
-                .font(.caption).foregroundStyle(Theme.textMuted)
+                .macFont(.caption).foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
             if privacy == "PUBLIC" {
@@ -303,7 +303,7 @@ struct MacListMembershipTab: View {
                 .onChange(of: publicType) { savePrivacy() }
 
                 Text(MacListPrivacy.publicTypeDescription(publicType))
-                    .font(.caption).foregroundStyle(Theme.textMuted)
+                    .macFont(.caption).foregroundStyle(Theme.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -338,7 +338,7 @@ struct MacListMembershipTab: View {
                 switch transferAvailability {
                 case .unavailable:
                     Text(NSLocalizedString("lists.owner_cannot_leave_yet", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .notPermitted:
@@ -348,13 +348,13 @@ struct MacListMembershipTab: View {
 
                 case .noEligibleOwners:
                     Text(NSLocalizedString("lists.transfer_ownership_none", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .available(let successors):
                     Text(String(format: NSLocalizedString("lists.transfer_ownership_prompt",
                                                           comment: ""), currentList.name))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Picker(NSLocalizedString("lists.transfer_ownership_select", comment: ""),

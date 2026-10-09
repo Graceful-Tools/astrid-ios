@@ -45,7 +45,7 @@ struct MacChatPanelView: View {
             case .spinner:
                 VStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text(NSLocalizedString("mac.loading_messages", comment: "")).font(.caption).foregroundStyle(Theme.textMuted)
+                    Text(NSLocalizedString("mac.loading_messages", comment: "")).macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .empty:
@@ -56,7 +56,7 @@ struct MacChatPanelView: View {
                     if hasMore {
                         Button(action: loadEarlier) {
                             if loadingMore { ProgressView().controlSize(.small) }
-                            else { Text(NSLocalizedString("chat.load_earlier", comment: "")).font(.callout) }
+                            else { Text(NSLocalizedString("chat.load_earlier", comment: "")).macFont(.callout) }
                         }
                         .buttonStyle(.borderless).padding(.vertical, 6)
                     }
@@ -66,7 +66,7 @@ struct MacChatPanelView: View {
                             HStack(spacing: 6) {
                                 ProgressView().controlSize(.mini)
                                 Text(String(format: NSLocalizedString("mac.agent_thinking", comment: ""), name))
-                                    .font(.caption).foregroundStyle(Theme.textMuted)
+                                    .macFont(.caption).foregroundStyle(Theme.textMuted)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 4)
@@ -103,9 +103,9 @@ struct MacChatPanelView: View {
                 }
                 if let r = replyingTo {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrowshape.turn.up.left").foregroundStyle(Theme.accent).font(.caption)
+                        Image(systemName: "arrowshape.turn.up.left").foregroundStyle(Theme.accent).macFont(.caption)
                         Text(String(format: NSLocalizedString("mac.replying_to", comment: ""), r.author?.displayName ?? NSLocalizedString("mac.unknown_author", comment: ""), r.content))
-                            .font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                            .macFont(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
                         Spacer()
                         Button { replyingTo = nil } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.borderless).foregroundStyle(Theme.textMuted)
@@ -196,9 +196,9 @@ struct MacChatPanelView: View {
         ZStack {
             Circle().fill(isAgent ? Color.purple.opacity(0.8) : Theme.accent)
             if isAgent {
-                Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                Image(systemName: "sparkles").macFont(.system(size: 10, weight: .bold)).foregroundStyle(.white)
             } else {
-                Text(m.author?.initials ?? "?").font(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
+                Text(m.author?.initials ?? "?").macFont(.system(size: 10, weight: .semibold)).foregroundStyle(.white)
             }
         }
     }
@@ -217,17 +217,17 @@ struct MacChatPanelView: View {
                     if !mine {
                         let who = MacAuthorDisplay.of(authorId: m.authorId, author: m.author,
                                                       currentUser: AuthManager.shared.currentUser)
-                        Text(who.name).font(.caption).bold().foregroundStyle(Theme.textSecondary)
+                        Text(who.name).macFont(.caption).bold().foregroundStyle(Theme.textSecondary)
                             .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: agent),
                                              target: $profileTarget)
                         if agent {
-                            Image(systemName: "sparkles").font(.caption2).foregroundStyle(.purple)
+                            Image(systemName: "sparkles").macFont(.caption2).foregroundStyle(.purple)
                         }
                     }
-                    if let d = m.createdAt { Text(d, style: .relative).font(.caption2).foregroundStyle(Theme.textMuted) }
+                    if let d = m.createdAt { Text(d, style: .relative).macFont(.caption2).foregroundStyle(Theme.textMuted) }
                     if isPending(m) {
                         Label(NSLocalizedString("mac.sending", comment: ""), systemImage: "clock").labelStyle(.titleOnly)
-                            .font(.caption2).foregroundStyle(Theme.textMuted)
+                            .macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
                 // One composed renderer for both Mac bubbles (AITD-390): blocks from the shared

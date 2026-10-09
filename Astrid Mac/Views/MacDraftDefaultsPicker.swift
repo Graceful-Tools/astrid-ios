@@ -77,7 +77,7 @@ struct MacDraftDefaultsPicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(NSLocalizedString("tasks.priority", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
             // The SAME styled picker the task detail uses — ○ ! !! !!! in their priority colours,
             // not plain text buttons.
             MacPriorityPicker(selection: Binding(
@@ -85,7 +85,7 @@ struct MacDraftDefaultsPicker: View {
                 set: { priorityOverride = $0.rawValue }
             ))
             Text(NSLocalizedString("tasks.assignee", comment: ""))
-                .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
             Picker("", selection: Binding(
                 get: { assigneeOverride ?? "" },
                 set: { assigneeOverride = $0.isEmpty ? nil : $0 }

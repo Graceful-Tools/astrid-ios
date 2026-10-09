@@ -111,7 +111,7 @@ struct MacLeadingControlButton: View {
         case .unassigned:
             // The same mark the assignee list uses, so what you PICK is what you SEE.
             Text(TaskLeadingControl.unassignedGlyph)
-                .font(.system(size: 11, weight: .semibold))
+                .macFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(MacTaskVisuals.priorityColor(priority))
                 .frame(width: MacTaskVisuals.detailCheckboxSize,
                        height: MacTaskVisuals.detailCheckboxSize)
@@ -130,7 +130,7 @@ struct MacLeadingControlButton: View {
                 case .priority:
                     VStack(alignment: .leading, spacing: 5) {
                         Text(NSLocalizedString("tasks.priority", comment: ""))
-                            .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                            .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                         // The real buttons, in their priority colours — not a Menu,
                         // which AppKit would draw in the system's own style and lose
                         // the colours that ARE the information.
@@ -146,7 +146,7 @@ struct MacLeadingControlButton: View {
                 case .assignee:
                     VStack(alignment: .leading, spacing: 5) {
                         Text(NSLocalizedString("tasks.assignee", comment: ""))
-                            .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                            .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                         MacAssigneePicker(
                             task: task,
                             priority: priority,
@@ -156,7 +156,7 @@ struct MacLeadingControlButton: View {
                 case .projectState:
                     VStack(alignment: .leading, spacing: 5) {
                         Text(NSLocalizedString("board.project_state", comment: ""))
-                            .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                            .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
                         MacProjectStateSection(task: task, onMoved: { isPresented = false })
                     }
                 case .complete:
@@ -218,7 +218,7 @@ struct MacProjectStateSection: View {
             ForEach(columns) { column in
                 Button { move(to: column) } label: {
                     Text(column.name)
-                        .font(MacTypography.label)
+                        .macFont(MacTypography.label)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(RoundedRectangle(cornerRadius: 6)
                             .fill(column.id == currentColumnId

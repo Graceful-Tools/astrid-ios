@@ -120,7 +120,7 @@ struct MacTaskRow: View {
                 // Clicking still completes: the mark changes, the action does not. A tap gesture
                 // rather than a Button for the same reason as the checkbox below.
                 Text(TaskLeadingControl.unassignedGlyph)
-                    .font(.system(size: 11, weight: .semibold))
+                    .macFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MacTaskVisuals.priorityColor(task.priority))
                     .frame(width: MacTaskVisuals.rowCheckboxSize, height: MacTaskVisuals.rowCheckboxSize)
                     .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
@@ -174,13 +174,13 @@ struct MacTaskRow: View {
                 if isEditing {
                     TextField(NSLocalizedString("mac.title", comment: ""), text: $editingTitle)
                         .textFieldStyle(.plain)
-                        .font(MacTypography.rowTitle)
+                        .macFont(MacTypography.rowTitle)
                         .macTextSelection()
                         .onSubmit(onCommitEdit)
                         .onExitCommand(perform: onCancelEdit)
                 } else {
                     Text(task.title)
-                        .font(MacTypography.rowTitle)
+                        .macFont(MacTypography.rowTitle)
                         .strikethrough(task.completed)
                         .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                         .lineLimit(2)
@@ -191,13 +191,13 @@ struct MacTaskRow: View {
                     HStack(spacing: 8) {
                         if let dueText {
                             Text(dueText)
-                                .font(MacTypography.rowMeta)
+                                .macFont(MacTypography.rowMeta)
                                 .foregroundStyle(Theme.textMuted)
                         }
                         ForEach(chips.prefix(2)) { list in
                             HStack(spacing: 4) {
                                 MacListIcon(list: list, size: 11)
-                                Text(list.name).font(MacTypography.rowMeta).lineLimit(1)
+                                Text(list.name).macFont(MacTypography.rowMeta).lineLimit(1)
                             }
                             .foregroundStyle(Theme.textSecondary)
                             .padding(.horizontal, 7)
@@ -206,7 +206,7 @@ struct MacTaskRow: View {
                         }
                         if chips.count > 2 {
                             Text("+\(chips.count - 2)")
-                                .font(MacTypography.rowMeta)
+                                .macFont(MacTypography.rowMeta)
                                 .foregroundStyle(Theme.textMuted)
                         }
                     }

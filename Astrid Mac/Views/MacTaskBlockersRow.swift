@@ -26,7 +26,7 @@ struct MacTaskBlockersRow: View {
         FlowLayout(spacing: 6, rowSpacing: 6) {
             if blockedBy.isEmpty {
                 Text(NSLocalizedString("tasks.waitingOn.empty", comment: ""))
-                    .font(MacTypography.label)
+                    .macFont(MacTypography.label)
                     .foregroundStyle(Theme.textMuted)
             }
             ForEach(blockedBy) { blocker in
@@ -34,7 +34,7 @@ struct MacTaskBlockersRow: View {
             }
             Button(NSLocalizedString("tasks.waitingOn.add", comment: "")) { showingPicker = true }
                 .buttonStyle(.link)
-                .font(MacTypography.label)
+                .macFont(MacTypography.label)
                 .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
                     MacTaskBlockerPicker(task: task,
                                          excludedIds: blockedBy.map(\.id) + dependentIds,
@@ -47,16 +47,16 @@ struct MacTaskBlockersRow: View {
     private func chip(for blocker: TaskBlocker) -> some View {
         HStack(spacing: 4) {
             if blocker.isHidden {
-                Image(systemName: "lock").font(MacTypography.label)
+                Image(systemName: "lock").macFont(MacTypography.label)
             }
             Text(TaskBlockers.chipLabel(for: blocker)) // short id first, as iOS (AITD-438)
-                .font(MacTypography.label)
+                .macFont(MacTypography.label)
                 .strikethrough(blocker.isCompleted)
                 .lineLimit(1)
                 .foregroundStyle(blocker.isHidden || blocker.isCompleted ? Theme.textMuted : Theme.textPrimary)
                 .onTapGesture { open(blocker) }
             Button { remove(blocker) } label: {
-                Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
+                Image(systemName: "xmark").macFont(.system(size: 9, weight: .semibold))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.textMuted)
@@ -126,11 +126,11 @@ private struct MacTaskBlockerPicker: View {
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.escape) { dismiss(); return .handled }
             if let errorMessage {
-                Text(errorMessage).font(MacTypography.label).foregroundStyle(Theme.error)
+                Text(errorMessage).macFont(MacTypography.label).foregroundStyle(Theme.error)
             }
             if TaskBlockers.shouldSearch(query) && hits.isEmpty {
                 Text(NSLocalizedString("tasks.waitingOn.noResults", comment: ""))
-                    .font(MacTypography.label).foregroundStyle(Theme.textMuted)
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
             }
             ForEach(Array(hits.enumerated()), id: \.element.id) { index, hit in
                 Text(hit.title)

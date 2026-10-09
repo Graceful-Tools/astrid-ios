@@ -1136,6 +1136,10 @@
 "mac.quick_add_placeholder" = "Aufgabe hinzufügen…";
 "mac.quit" = "Beenden";
 "mac.refresh" = "Aktualisieren";
+"mac.text_size" = "Textgröße";
+"mac.text_bigger" = "Größer";
+"mac.text_smaller" = "Kleiner";
+"mac.text_actual_size" = "Originalgröße";
 "mac.refresh_connection" = "Verbindungsstatus aktualisieren";
 "mac.register" = "Registrieren";
 "mac.relaunch_note" = "Einige Änderungen wirken erst nach einem Neustart.";

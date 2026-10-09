@@ -165,11 +165,11 @@ struct MacLoginView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 VStack(spacing: 2) {
                     Text(serverCapabilities.capabilities.brand.resolvedWordmark)
-                        .font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                        .macFont(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)
                     Text(serverCapabilities.capabilities.brand.resolvedSlogan)
-                        .font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
+                        .macFont(.system(size: 16)).foregroundStyle(Theme.textSecondary)
                 }
-                Text(NSLocalizedString("auth.sign_in_header", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+                Text(NSLocalizedString("auth.sign_in_header", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
             }
             .padding(.bottom, 4)
 
@@ -185,17 +185,17 @@ struct MacLoginView: View {
 
             VStack(spacing: 6) {
                 Button(NSLocalizedString("mac.new_here", comment: "")) { showSignUp = true }
-                    .buttonStyle(.link).font(.callout)
+                    .buttonStyle(.link).macFont(.callout)
                 Button(NSLocalizedString("mac.continue_without_account", comment: "")) {
                     _Concurrency.Task { await ConnectionModeManager.shared.createLocalUser() }
                 }
-                .buttonStyle(.link).font(.callout).foregroundStyle(Theme.textSecondary)
+                .buttonStyle(.link).macFont(.callout).foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("login.offline")
             }
 
             if auth.isLoading { ProgressView().controlSize(.small) }
             if let err = auth.errorMessage, !err.isEmpty {
-                Text(err).font(.caption).foregroundStyle(Theme.error)
+                Text(err).macFont(.caption).foregroundStyle(Theme.error)
                     .multilineTextAlignment(.center).frame(width: 300)
             }
         }
@@ -212,9 +212,9 @@ struct MacLoginView: View {
 
     private var signUpSheet: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(NSLocalizedString("auth.create_account", comment: "")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("auth.create_account", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
             Text(NSLocalizedString("mac.passkey_intro", comment: ""))
-                .font(.callout).foregroundStyle(Theme.textSecondary)
+                .macFont(.callout).foregroundStyle(Theme.textSecondary)
             TextField(NSLocalizedString("auth.email", comment: ""), text: $email).textFieldStyle(.roundedBorder).onSubmit(signUp)
             HStack {
                 Spacer()
@@ -284,7 +284,7 @@ struct MacLoginView: View {
     private var passkeyAlternatives: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(NSLocalizedString("mac.passkey_no_local", comment: ""))
-                .font(.callout).foregroundStyle(Theme.textPrimary)
+                .macFont(.callout).foregroundStyle(Theme.textPrimary)
             Button {
                 signInWithPasskey(PasskeySignInPlan.otherDevicePresentation)
             } label: {
@@ -302,7 +302,7 @@ struct MacLoginView: View {
             .buttonStyle(.bordered)
             .accessibilityIdentifier("login.passkey.passwordManager")
             Text(NSLocalizedString("mac.passkey_password_manager_hint", comment: ""))
-                .font(.caption).foregroundStyle(Theme.textSecondary)
+                .macFont(.caption).foregroundStyle(Theme.textSecondary)
         }
         .padding(12)
         .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 10))

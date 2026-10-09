@@ -131,7 +131,7 @@ struct MacGitHubLinksView: View {
 private extension View {
     func header(_ title: String) -> some View {
         HStack {
-            Text(title).font(.headline)
+            Text(title).macFont(.headline)
             Spacer()
             DismissButton()
         }

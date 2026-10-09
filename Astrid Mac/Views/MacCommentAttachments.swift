@@ -136,12 +136,12 @@ struct MacCommentAttachmentItem: View {
     private var documentChip: some View {
         HStack(spacing: 8) {
             Image(systemName: MacAttachmentIcon.symbol(type: file.mimeType, name: file.name))
-                .font(.system(size: 20)).foregroundStyle(Theme.accent).frame(width: 22)
+                .macFont(.system(size: 20)).foregroundStyle(Theme.accent).frame(width: 22)
             VStack(alignment: .leading, spacing: 1) {
-                Text(file.name).font(.caption).lineLimit(1).foregroundStyle(Theme.textPrimary)
+                Text(file.name).macFont(.caption).lineLimit(1).foregroundStyle(Theme.textPrimary)
                 let size = MacAttachmentIcon.humanSize(file.size)
                 if !size.isEmpty {
-                    Text(size).font(.caption2).foregroundStyle(Theme.textMuted)
+                    Text(size).macFont(.caption2).foregroundStyle(Theme.textMuted)
                 }
             }
         }

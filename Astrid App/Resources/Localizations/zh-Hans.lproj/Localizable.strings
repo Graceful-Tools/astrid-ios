@@ -1136,6 +1136,10 @@
 "mac.quick_add_placeholder" = "添加任务…";
 "mac.quit" = "退出";
 "mac.refresh" = "刷新";
+"mac.text_size" = "文字大小";
+"mac.text_bigger" = "放大";
+"mac.text_smaller" = "缩小";
+"mac.text_actual_size" = "实际大小";
 "mac.refresh_connection" = "刷新连接状态";
 "mac.register" = "注册";
 "mac.relaunch_note" = "部分更改将在重新启动后生效。";

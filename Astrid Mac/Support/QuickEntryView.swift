@@ -81,7 +81,7 @@ struct QuickEntryView: View {
                 TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $text, axis: .vertical)
                     .lineLimit(1...4)   // wraps + expands vertically (a02a6819)
                     .textFieldStyle(.plain)
-                    .font(.title2)
+                    .macFont(.title2)
                     .macTextSelection()
                     .onSubmit(save)
             }

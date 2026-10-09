@@ -39,7 +39,7 @@ struct CommandPaletteView: View {
         VStack(spacing: 0) {
             TextField(NSLocalizedString("mac.palette_placeholder", comment: ""), text: $query)
                 .textFieldStyle(.plain)
-                .font(.title2)
+                .macFont(.title2)
                 .padding(16)
                 .onSubmit(runSelectedOrFirst)
             Divider()
@@ -57,10 +57,10 @@ struct CommandPaletteView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(c.title)
-                    if let sub = c.subtitle { Text(sub).font(.caption).foregroundStyle(.secondary) }
+                    if let sub = c.subtitle { Text(sub).macFont(.caption).foregroundStyle(.secondary) }
                 }
                 Spacer()
-                if let s = c.shortcut { Text(s).font(.callout).foregroundStyle(.secondary) }
+                if let s = c.shortcut { Text(s).macFont(.callout).foregroundStyle(.secondary) }
             }
         case .list(let l):
             Label { Text(l.name) } icon: { Image(systemName: "list.bullet") }
@@ -68,7 +68,7 @@ struct CommandPaletteView: View {
             HStack {
                 Label { Text(t.title) } icon: { Image(systemName: "circle") }
                 Spacer()
-                Button(NSLocalizedString("reminders.complete", comment: "")) { complete(t) }.buttonStyle(.borderless).font(.caption)
+                Button(NSLocalizedString("reminders.complete", comment: "")) { complete(t) }.buttonStyle(.borderless).macFont(.caption)
             }
         }
     }

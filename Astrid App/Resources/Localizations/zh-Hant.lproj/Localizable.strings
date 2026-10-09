@@ -1138,6 +1138,10 @@
 "mac.quick_add_placeholder" = "新增任務…";
 "mac.quit" = "結束";
 "mac.refresh" = "重新整理";
+"mac.text_size" = "文字大小";
+"mac.text_bigger" = "放大";
+"mac.text_smaller" = "縮小";
+"mac.text_actual_size" = "實際大小";
 "mac.refresh_connection" = "重新整理連線狀態";
 "mac.register" = "註冊";
 "mac.relaunch_note" = "部分變更將在重新啟動後生效。";

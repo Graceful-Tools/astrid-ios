@@ -40,7 +40,7 @@ struct MacListSettingsWindow: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(String(format: NSLocalizedString("mac.list_settings_title", comment: ""),
                         currentList.name))
-                .font(.headline).foregroundStyle(Theme.textPrimary)
+                .macFont(.headline).foregroundStyle(Theme.textPrimary)
 
             Picker("", selection: $tab) {
                 Text(NSLocalizedString("lists.filters", comment: "")).tag(Tab.sortFilters)
@@ -62,7 +62,7 @@ struct MacListSettingsWindow: View {
                         // copy names is manualSortOrder — choosing manual sort is yours, the
                         // arrangement it orders by is everyone's.
                         Text(NSLocalizedString("lists.sort_filters_personal_note", comment: ""))
-                            .font(.caption).foregroundStyle(Theme.textMuted)
+                            .macFont(.caption).foregroundStyle(Theme.textMuted)
                             .fixedSize(horizontal: false, vertical: true)
                         MacListSortFiltersContent(list: currentList)
                     }

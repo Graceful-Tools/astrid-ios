@@ -25,7 +25,7 @@ struct MacUserProfileView: View {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let errorMessage {
                     Text(errorMessage)
-                        .font(.callout).foregroundStyle(Theme.textMuted)
+                        .macFont(.callout).foregroundStyle(Theme.textMuted)
                         .multilineTextAlignment(.center).padding(24)
                 } else if let profile {
                     ScrollView { content(profile) .padding(20) }
@@ -42,7 +42,7 @@ struct MacUserProfileView: View {
 
     private var header: some View {
         HStack {
-            Text(NSLocalizedString("profile.title", comment: "")).font(.headline)
+            Text(NSLocalizedString("profile.title", comment: "")).macFont(.headline)
             Spacer()
             Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }
                 .keyboardShortcut(.defaultAction)
@@ -62,10 +62,10 @@ struct MacUserProfileView: View {
                                 size: 64)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(profile.user.name ?? profile.user.email)
-                        .font(.title3.bold()).foregroundStyle(Theme.textPrimary)
-                    Text(profile.user.email).font(.callout).foregroundStyle(Theme.textSecondary)
+                        .macFont(.title3.bold()).foregroundStyle(Theme.textPrimary)
+                    Text(profile.user.email).macFont(.callout).foregroundStyle(Theme.textSecondary)
                     Text(profile.user.createdAt, style: .date)
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
                 Spacer()
             }
@@ -75,14 +75,14 @@ struct MacUserProfileView: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10).fill(card.tint.opacity(0.12))
                             .frame(width: 44, height: 44)
-                        Image(systemName: card.symbol).font(.title3).foregroundStyle(card.tint)
+                        Image(systemName: card.symbol).macFont(.title3).foregroundStyle(card.tint)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(card.label).font(.headline).foregroundStyle(Theme.textPrimary)
-                        Text(card.tagline).font(.caption).foregroundStyle(Theme.textMuted)
+                        Text(card.label).macFont(.headline).foregroundStyle(Theme.textPrimary)
+                        Text(card.tagline).macFont(.caption).foregroundStyle(Theme.textMuted)
                     }
                     Spacer()
-                    Text("\(card.value)").font(.title2.bold()).foregroundStyle(Theme.textPrimary)
+                    Text("\(card.value)").macFont(.title2.bold()).foregroundStyle(Theme.textPrimary)
                 }
                 .padding(12)
                 .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 12))
@@ -92,7 +92,7 @@ struct MacUserProfileView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(String(format: NSLocalizedString("profile.shared_tasks_with", comment: ""),
                                 profile.user.name ?? profile.user.email))
-                        .font(.headline).foregroundStyle(Theme.textPrimary)
+                        .macFont(.headline).foregroundStyle(Theme.textPrimary)
                     ForEach(profile.sharedTasks) { task in
                         HStack(spacing: 8) {
                             MacTaskCheckbox(completed: task.completed, priority: task.priority, size: 16,

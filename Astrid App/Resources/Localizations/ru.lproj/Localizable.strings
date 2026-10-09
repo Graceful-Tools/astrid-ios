@@ -1136,6 +1136,10 @@
 "mac.quick_add_placeholder" = "Добавить задачу…";
 "mac.quit" = "Выйти";
 "mac.refresh" = "Обновить";
+"mac.text_size" = "Размер текста";
+"mac.text_bigger" = "Крупнее";
+"mac.text_smaller" = "Мельче";
+"mac.text_actual_size" = "Фактический размер";
 "mac.refresh_connection" = "Обновить статус подключения";
 "mac.register" = "Зарегистрировать";
 "mac.relaunch_note" = "Некоторые изменения вступят в силу после перезапуска.";

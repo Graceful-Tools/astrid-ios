@@ -1138,6 +1138,10 @@
 "mac.quick_add_placeholder" = "작업 추가…";
 "mac.quit" = "종료";
 "mac.refresh" = "새로 고침";
+"mac.text_size" = "텍스트 크기";
+"mac.text_bigger" = "크게";
+"mac.text_smaller" = "작게";
+"mac.text_actual_size" = "실제 크기";
 "mac.refresh_connection" = "연결 상태 새로 고침";
 "mac.register" = "등록";
 "mac.relaunch_note" = "일부 변경 사항은 다시 실행한 후 적용됩니다.";

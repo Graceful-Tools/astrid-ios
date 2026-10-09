@@ -27,7 +27,7 @@ struct MacFilterSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name))
-                .font(.headline).foregroundStyle(Theme.textPrimary)
+                .macFont(.headline).foregroundStyle(Theme.textPrimary)
             MacListSortFiltersContent(list: list)
             HStack {
                 Spacer()
@@ -105,7 +105,7 @@ struct MacListSortFiltersContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("lists.saved_filter", comment: ""))
                     Text(NSLocalizedString("list.smart_list_description", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
             }
             .onChange(of: isVirtual) { _, on in setSavedFilter(on) }
@@ -114,7 +114,7 @@ struct MacListSortFiltersContent: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(NSLocalizedString("lists.show_subtasks", comment: ""))
                     Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
-                        .font(.caption).foregroundStyle(Theme.textMuted)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
             }
             .onChange(of: showSubtasks) { _, on in saveShowSubtasks(on) }

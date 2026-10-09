@@ -42,10 +42,10 @@ struct MacEmptyState: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             VStack(spacing: 4) {
                 Text(copy.message)
-                    .font(.system(size: 14, weight: .medium))
+                    .macFont(.system(size: 14, weight: .medium))
                     .foregroundStyle(Theme.textPrimary)
                 if let d = copy.detail {
-                    Text(d).font(.caption).foregroundStyle(Theme.textMuted)
+                    Text(d).macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
             }
             .padding(.horizontal, 16).padding(.vertical, 10)

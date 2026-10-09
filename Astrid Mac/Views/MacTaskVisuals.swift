@@ -139,7 +139,7 @@ struct MacPriorityPicker: View {
             Button { showingPicker = true } label: {
                 let color = MacTaskVisuals.priorityColor(selection)
                 Text(MacTaskVisuals.prioritySymbol(selection))
-                    .font(.system(size: 11, weight: .semibold))
+                    .macFont(.system(size: 11, weight: .semibold))
                     .frame(width: Self.buttonWidth, height: Self.buttonHeight)
                     .foregroundStyle(selection == .none ? color : .white)
                     .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
@@ -196,7 +196,7 @@ struct MacPriorityPicker: View {
         let isSelected = selection == p
         return Button(action: action) {
             Text(MacTaskVisuals.prioritySymbol(p))
-                .font(.system(size: 11, weight: .semibold))
+                .macFont(.system(size: 11, weight: .semibold))
                 .frame(width: Self.buttonWidth, height: Self.buttonHeight)
                 .foregroundStyle(isSelected ? .white : color)
                 .background(RoundedRectangle(cornerRadius: Theme.radiusSmall)
