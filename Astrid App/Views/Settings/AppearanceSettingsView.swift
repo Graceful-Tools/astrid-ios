@@ -12,6 +12,7 @@ struct AppearanceSettingsView: View {
     // Task-detail layout (task 96727335). Synced, not @AppStorage — it is a server preference.
     @StateObject private var userSettings = UserSettingsService.shared
     @ObservedObject private var featureFlags = FeatureFlagService.shared
+    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
 
     /// Reads through `TaskDisplayMode` so null and anything unrecognised resolve to `.list`,
     /// and writes only the two literals the server accepts — anything else is a 400.
@@ -70,6 +71,18 @@ struct AppearanceSettingsView: View {
                         hasLoadedSettings: userSettings.hasLoadedFromServer))
                     .accessibilityIdentifier("settings.taskDisplayMode")
                 }
+            }
+
+            // The effective value, not the stored one: a user who never chose sees the arm the
+            // hide_list_images experiment put them in. Flipping it stores an explicit choice that
+            // wins over the experiment from then on, on every device (AITD-468).
+            Section(header: Text(NSLocalizedString("settings.appearance.list_images.title", comment: "")),
+                    footer: Text(NSLocalizedString("settings.appearance.list_images.off_description", comment: ""))) {
+                Toggle(NSLocalizedString("settings.appearance.list_images.label", comment: ""), isOn: Binding(
+                    get: { listImages.showListImages },
+                    set: { listImages.setShowListImages($0) }
+                ))
+                .accessibilityIdentifier("settings.showListImages")
             }
 
             Section(header: Text(NSLocalizedString("settings.appearance.email_to_task", comment: "")), footer: Text(NSLocalizedString("settings.appearance.email_to_task_footer", comment: ""))) {

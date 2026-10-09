@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "Liste";
 "settings.task_display.project" = "Projekt";
 "settings.appearance.task_details_footer" = "Wähle das Layout der Aufgabendetails. Liste gibt Priorität und zugewiesener Person eigene Zeilen. Projekt ist kompakt, und das Kästchen öffnet eine Auswahl, statt die Aufgabe abzuschließen.";
+"settings.appearance.list_images.title" = "Listenbilder";
+"settings.appearance.list_images.label" = "Listenbilder anzeigen";
+"settings.appearance.list_images.off_description" = "Wenn aus, zeigt jede Liste stattdessen ihre Farbe.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

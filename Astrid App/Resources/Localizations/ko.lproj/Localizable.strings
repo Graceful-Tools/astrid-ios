@@ -1231,6 +1231,9 @@
 "settings.task_display.list" = "목록";
 "settings.task_display.project" = "프로젝트";
 "settings.appearance.task_details_footer" = "작업 세부 정보의 배치를 선택하세요. 목록은 우선순위와 담당자에게 각각의 행을 제공합니다. 프로젝트는 간결하며, 체크박스는 작업을 완료하는 대신 선택기를 엽니다.";
+"settings.appearance.list_images.title" = "목록 이미지";
+"settings.appearance.list_images.label" = "목록 이미지 표시";
+"settings.appearance.list_images.off_description" = "끄면 각 목록에 이미지 대신 색상이 표시됩니다.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

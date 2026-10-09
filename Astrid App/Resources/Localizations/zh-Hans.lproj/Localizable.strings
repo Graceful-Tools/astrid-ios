@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "列表";
 "settings.task_display.project" = "项目";
 "settings.appearance.task_details_footer" = "选择任务详情的布局。列表为优先级和负责人各设一行。项目更紧凑，勾选框会打开选择器而不是完成任务。";
+"settings.appearance.list_images.title" = "列表图片";
+"settings.appearance.list_images.label" = "显示列表图片";
+"settings.appearance.list_images.off_description" = "关闭后，每个列表改为显示其颜色。";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

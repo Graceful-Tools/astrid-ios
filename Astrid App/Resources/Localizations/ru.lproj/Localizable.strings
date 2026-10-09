@@ -1229,6 +1229,9 @@
 "settings.task_display.list" = "Список";
 "settings.task_display.project" = "Проект";
 "settings.appearance.task_details_footer" = "Выберите оформление деталей задачи. «Список» отводит приоритету и исполнителю отдельные строки. «Проект» компактный, и флажок открывает выбор вместо завершения задачи.";
+"settings.appearance.list_images.title" = "Изображения списков";
+"settings.appearance.list_images.label" = "Показывать изображения списков";
+"settings.appearance.list_images.off_description" = "Если выключено, у каждого списка вместо картинки показан его цвет.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";
