@@ -1140,6 +1140,7 @@
 "mac.text_bigger" = "Più grande";
 "mac.text_smaller" = "Più piccolo";
 "mac.text_actual_size" = "Dimensioni reali";
+"mac.task_actions" = "Azioni attività";
 "mac.refresh_connection" = "Aggiorna stato connessione";
 "mac.register" = "Registra";
 "mac.relaunch_note" = "Alcune modifiche hanno effetto dopo il riavvio.";

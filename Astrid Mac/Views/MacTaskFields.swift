@@ -40,6 +40,16 @@ enum MacTaskFieldRow: Equatable {
     }
 }
 
+/// The one rule for committing a title edit, wherever it is typed — the detail's title row and
+/// the open board card's (AITD-471).
+enum MacTaskTitleEdit {
+    /// The title to write, or nil for no write: unchanged, or blank (a title is never emptied).
+    static func titleToSave(draft: String, current: String) -> String? {
+        let trimmed = draft.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || trimmed == current ? nil : trimmed
+    }
+}
+
 enum MacTaskFields {
 
     /// The rows, in order. `showsTitle` is false for the board's inline card

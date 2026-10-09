@@ -407,8 +407,7 @@ struct MacTaskFieldsView: View {
     }
 
     private func saveTitle() {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, trimmed != task.title else { return }
+        guard let trimmed = MacTaskTitleEdit.titleToSave(draft: title, current: task.title) else { return }
         AppActions.perform("Save title") {
             _ = try await taskService.updateTask(taskId: task.id, title: trimmed, task: task)
         }

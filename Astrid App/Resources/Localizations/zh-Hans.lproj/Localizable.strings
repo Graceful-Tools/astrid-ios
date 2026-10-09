@@ -1140,6 +1140,7 @@
 "mac.text_bigger" = "放大";
 "mac.text_smaller" = "缩小";
 "mac.text_actual_size" = "实际大小";
+"mac.task_actions" = "任务操作";
 "mac.refresh_connection" = "刷新连接状态";
 "mac.register" = "注册";
 "mac.relaunch_note" = "部分更改将在重新启动后生效。";

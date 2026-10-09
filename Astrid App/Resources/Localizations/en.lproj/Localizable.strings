@@ -1148,6 +1148,7 @@
 "mac.text_bigger" = "Bigger";
 "mac.text_smaller" = "Smaller";
 "mac.text_actual_size" = "Actual Size";
+"mac.task_actions" = "Task actions";
 "mac.refresh_connection" = "Refresh connection status";
 "mac.register" = "Register";
 "mac.relaunch_note" = "Some changes take effect after relaunch.";

@@ -1140,6 +1140,7 @@
 "mac.text_bigger" = "Крупнее";
 "mac.text_smaller" = "Мельче";
 "mac.text_actual_size" = "Фактический размер";
+"mac.task_actions" = "Действия с задачей";
 "mac.refresh_connection" = "Обновить статус подключения";
 "mac.register" = "Зарегистрировать";
 "mac.relaunch_note" = "Некоторые изменения вступят в силу после перезапуска.";
