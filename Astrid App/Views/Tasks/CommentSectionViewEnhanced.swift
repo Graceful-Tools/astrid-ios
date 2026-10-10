@@ -1578,14 +1578,16 @@ struct ChatAttachmentView<MenuContent: View>: View {
     private func prepareAndShowPreview(for file: SecureFile) {
         isPreparingPreview = true
         _Concurrency.Task {
-            let results = await AttachmentService.shared.prepareFilesForPreview(files: allTaskFiles)
+            // The tapped bubble's own files are always prepared: the gallery comes from a cache
+            // the thread on screen can disagree with, and a tap on a photo it did not hold
+            // prepared nothing and opened nothing (AITD-481).
+            let realId = AttachmentService.shared.getRealFileId(for:)
+            let toPrepare = AttachmentPreviewSet.files(bubble: files, gallery: allTaskFiles, realId: realId)
+            let results = await AttachmentService.shared.prepareFilesForPreview(files: toPrepare)
             await MainActor.run {
                 self.previewItems = results
-                if let index = results.firstIndex(where: { $0.fileId == file.id }) {
-                    self.selectedIndex = index
-                } else {
-                    self.selectedIndex = 0
-                }
+                self.selectedIndex = AttachmentPreviewSet.index(
+                    of: file.id, in: results.map(\.fileId), realId: realId) ?? 0
                 self.isPreparingPreview = false
                 if !previewItems.isEmpty {
                     self.isShowingQuickLook = true
