@@ -170,4 +170,25 @@ final class TaskIdentifiersTests: XCTestCase {
         XCTAssertNil(TaskIdentifiers.identifier(inLink: URL(string: "\(Brand.productionBaseURL)/t/not-an-id-x")!))
         XCTAssertNil(TaskIdentifiers.identifier(inLink: URL(string: "\(Brand.productionBaseURL)/tasks/AWTD-12")!))
     }
+
+    // MARK: - AITD-484: the task-id icon is not the list "#"
+
+    /// "#" is the list glyph (`ListColorGlyph`, the row's list chips) and the list autocomplete
+    /// trigger; "!" is priority. A task id drawn with either reads as the wrong thing.
+    func test_AITD484_taskIdIsNotDrawnWithTheListHash() throws {
+        let details = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskDetailIdentifierRow.swift")
+        XCTAssertFalse(details.contains("icon: \"number\""), "Task ID in task details still uses the list #")
+
+        let row = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskRowView.swift")
+        let copyLabels = row.components(separatedBy: "\n").filter { $0.contains("\"tasks.taskId.copy\"") }
+        XCTAssertFalse(copyLabels.isEmpty)
+        for line in copyLabels {
+            XCTAssertFalse(line.contains("\"number\""), "Copy task id still uses the list #: \(line)")
+        }
+    }
+
+    func test_AITD484_taskIdSymbolExistsAndIsNotAnotherMeaning() {
+        XCTAssertNotNil(UIImage(systemName: TaskIdentifiers.symbolName))
+        XCTAssertFalse(["number", "exclamationmark", "at"].contains(TaskIdentifiers.symbolName))
+    }
 }
