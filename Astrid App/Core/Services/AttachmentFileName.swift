@@ -56,11 +56,14 @@ enum AttachmentFileName {
 
     // MARK: - Internals
 
+    /// Compared as written, never against the disk (AITD-481). `standardizedFileURL` drops a
+    /// leading `/private` only from a path that exists, so on a device — where the temp directory
+    /// is `/private/var/…` — the directory lost it and the file about to be written kept it. Every
+    /// name then failed this check and was written as the fallback, which has no extension.
     private static func contains(_ directory: URL, _ candidate: URL) -> Bool {
-        var base = directory.standardizedFileURL.path
-        if !base.hasSuffix("/") { base += "/" }
-        let resolved = candidate.standardizedFileURL.path
-        return resolved.hasPrefix(base) && resolved != base
+        let base = directory.standardized.pathComponents
+        let resolved = candidate.standardized.pathComponents
+        return resolved.count > base.count && Array(resolved.prefix(base.count)) == base
     }
 
     /// Trim the *stem* rather than the tail, so the extension survives an overlong name.

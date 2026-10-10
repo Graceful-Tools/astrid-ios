@@ -103,6 +103,58 @@ final class AttachmentPreviewPathTests: XCTestCase {
         }
     }
 
+    // MARK: - AITD-481: a device's temp directory sits under /private
+
+    /// On a device `temporaryDirectory` is `/private/var/mobile/…`. `standardizedFileURL` drops
+    /// that `/private` only from a path that EXISTS, so the directory lost it and the not yet
+    /// written file kept it, the containment check failed, and every preview was written as
+    /// "attachment" — no extension, so Quick Look drew a blank document instead of the photo.
+    /// The simulator's and the Mac's temp directories carry no such prefix, which hid it.
+    func testAITD481_ordinaryNameSurvivesInADirectoryUnderPrivate() throws {
+        let directory = URL(fileURLWithPath: "/private/tmp/aitd481-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            throw XCTSkip("cannot create a directory under /private/tmp here: \(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let url = AttachmentFileName.temporaryURL(in: directory, for: "photo_1791638387.jpg")
+        XCTAssertEqual(url.lastPathComponent, "photo_1791638387.jpg",
+                       "the name, and with it the extension Quick Look needs, must survive")
+    }
+
+    func testAITD481_previewURLKeepsThePhotoNameUnderPrivate() throws {
+        let root = URL(fileURLWithPath: "/private/tmp/aitd481-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        } catch {
+            throw XCTSkip("cannot create a directory under /private/tmp here: \(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let cache = DownloadedAttachmentCache(directory: root.appendingPathComponent("cache"),
+                                              previewRoot: root.appendingPathComponent("preview"))
+        let url = cache.previewURL(fileId: "00c6d935", fileName: "photo_1791638387.jpg")
+        XCTAssertEqual(url.pathExtension, "jpg")
+    }
+
+    func testAITD481_traversalIsStillContainedUnderPrivate() throws {
+        let directory = URL(fileURLWithPath: "/private/tmp/aitd481-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            throw XCTSkip("cannot create a directory under /private/tmp here: \(error)")
+        }
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        for hostile in ["../../etc/hosts", "..", ".", ""] {
+            let url = AttachmentFileName.temporaryURL(in: directory, for: hostile)
+            XCTAssertEqual(url.deletingLastPathComponent().standardized.path, directory.standardized.path,
+                           "name \(hostile.debugDescription) must land directly in the directory")
+        }
+    }
+
     // MARK: - The guard: no call site may join a raw name onto a temp directory again
 
     func testNoAttachmentPathJoinsARawNameOntoATemporaryDirectory() throws {
