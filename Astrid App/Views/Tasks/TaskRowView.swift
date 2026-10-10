@@ -279,7 +279,7 @@ struct TaskRowView: View {
                 Button {
                     UIPasteboard.general.string = identifier
                 } label: {
-                    Label(NSLocalizedString("tasks.taskId.copy", comment: ""), systemImage: "number")
+                    Label(NSLocalizedString("tasks.taskId.copy", comment: ""), systemImage: TaskIdentifiers.symbolName)
                 }
             }
         }

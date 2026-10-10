@@ -17,7 +17,7 @@ struct TaskDetailIdentifierRow: View {
     var body: some View {
         if TaskIdentifiers.shows(task, lists: listService.lists, on: .details),
            let identifier = task.identifier {
-            TwoColumnRow(label: NSLocalizedString("tasks.taskId.label", comment: ""), icon: "number") {
+            TwoColumnRow(label: NSLocalizedString("tasks.taskId.label", comment: ""), icon: TaskIdentifiers.symbolName) {
                 Text(identifier)
                     .font(Theme.Typography.body())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)

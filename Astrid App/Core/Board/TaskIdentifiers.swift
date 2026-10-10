@@ -41,6 +41,10 @@ enum TaskIdentifiers {
         case listRow
     }
 
+    /// The SF Symbol beside a task id. Not "number": "#" is a list here, and "!" is priority
+    /// (AITD-484).
+    static let symbolName = "ticket"
+
     /// Shown when the task has an id AND sits on at least one list belonging to a project. A
     /// task moved out of every project keeps its id for links, but stops showing it.
     static func shows(identifier: String?, listProjectIds: [String?], on surface: Surface) -> Bool {
