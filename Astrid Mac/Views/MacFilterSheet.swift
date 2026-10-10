@@ -49,6 +49,10 @@ struct MacFilterSheet: View {
 /// loud rather than implying a private view that does not exist (AITD-388).
 struct MacListSortFiltersContent: View {
     let list: TaskList
+    /// Whether the form takes the height its host has left, rather than its own fixed one. The
+    /// List Settings window is a fixed size and sets this; the filter sheet sizes to its content
+    /// and does not (AITD-483).
+    private let fillsHeight: Bool
 
     @State private var completion: String
     @State private var priority: String
@@ -64,8 +68,9 @@ struct MacListSortFiltersContent: View {
     /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
     @State private var showSubtasks: Bool
 
-    init(list: TaskList) {
+    init(list: TaskList, fillsHeight: Bool = false) {
         self.list = list
+        self.fillsHeight = fillsHeight
         _completion = State(initialValue: list.filterCompletion ?? "default")
         _priority   = State(initialValue: list.filterPriority ?? "all")
         _dueDate    = State(initialValue: list.filterDueDate ?? "all")
@@ -76,6 +81,12 @@ struct MacListSortFiltersContent: View {
         _isVirtual  = State(initialValue: list.isVirtual ?? false)
         _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
     }
+
+    /// Every row at the default text size.
+    private static let formHeight: CGFloat = 360
+    /// The form scrolls, so squeezed it still works — but below a few rows it stops reading as
+    /// a list of filters.
+    private static let minimumFormHeight: CGFloat = 140
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -96,7 +107,8 @@ struct MacListSortFiltersContent: View {
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(height: 360)
+            .frame(minHeight: fillsHeight ? Self.minimumFormHeight : Self.formHeight,
+                   maxHeight: fillsHeight ? .infinity : Self.formHeight)
 
             // Saved filter: converts THIS list, exactly as web's checkbox and iOS's toggle do.
             // It used to create a NEW list and copy the filters over, pre-filled with this list's
