@@ -727,4 +727,77 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
         XCTAssertEqual(nextDateComponents.day, 7, "DUE_DATE mode should be 1 day after original due")
         XCTAssertEqual(nextDateComponents.hour, 0, "All-day task should remain at UTC midnight")
     }
+
+    // MARK: - Reader defaults for stored patterns (AITD-482)
+
+    private func utcDate(_ iso: String) -> Date {
+        ISO8601DateFormatter().date(from: iso)!
+    }
+
+    private func storedPattern(unit: String, interval: Int?) -> CustomRepeatingPattern {
+        CustomRepeatingPattern(
+            type: "custom",
+            unit: unit,
+            interval: interval,
+            endCondition: "never",
+            endAfterOccurrences: nil,
+            endUntilDate: nil,
+            weekdays: nil,
+            monthRepeatType: nil,
+            monthDay: nil,
+            monthWeekday: nil,
+            month: nil,
+            day: nil
+        )
+    }
+
+    /// AITD-482 (AWTD-1077): a monthly pattern stored with no monthRepeatType is read as
+    /// same_date, counted from the repeat anchor — it used to end the series.
+    func testAITD482MonthlyPatternWithoutMonthRepeatTypeReadsAsSameDate() {
+        let dueDate = utcDate("2026-01-15T00:00:00Z")
+
+        let result = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+            pattern: storedPattern(unit: "months", interval: 6),
+            currentDueDate: dueDate,
+            completionDate: dueDate,
+            repeatFrom: .DUE_DATE,
+            currentOccurrenceCount: 0,
+            isAllDay: true
+        )
+
+        XCTAssertFalse(result.shouldTerminate, "A missing monthRepeatType must not end the series")
+        XCTAssertEqual(result.nextDueDate, utcDate("2026-07-15T00:00:00Z"))
+    }
+
+    /// AITD-482 (AWTD-1080): a stored interval below 1 steps as 1 — it used to end the series.
+    func testAITD482IntervalBelowOneStepsAsOne() {
+        let dueDate = utcDate("2026-01-05T09:00:00Z")
+
+        let result = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+            pattern: storedPattern(unit: "days", interval: 0),
+            currentDueDate: dueDate,
+            completionDate: dueDate,
+            repeatFrom: .DUE_DATE,
+            currentOccurrenceCount: 0
+        )
+
+        XCTAssertFalse(result.shouldTerminate, "An interval of 0 must not end the series")
+        XCTAssertEqual(result.nextDueDate, utcDate("2026-01-06T09:00:00Z"))
+    }
+
+    /// AITD-482: an ABSENT interval still ends the series — only a stored value below 1 is defaulted.
+    func testAITD482AbsentIntervalStillTerminates() {
+        let dueDate = utcDate("2026-01-05T09:00:00Z")
+
+        let result = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+            pattern: storedPattern(unit: "days", interval: nil),
+            currentDueDate: dueDate,
+            completionDate: dueDate,
+            repeatFrom: .DUE_DATE,
+            currentOccurrenceCount: 0
+        )
+
+        XCTAssertNil(result.nextDueDate)
+        XCTAssertTrue(result.shouldTerminate)
+    }
 }
