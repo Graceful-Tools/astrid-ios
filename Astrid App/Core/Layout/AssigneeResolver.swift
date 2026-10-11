@@ -47,6 +47,23 @@ enum AssigneeResolver {
         resolve(id: task.assigneeId, members: members, taskAssignee: task.assignee, agents: agents)
     }
 
+    /// Everyone assigned to a task, primary first (AITD-466) — the same rule as the web's
+    /// `assigneeIdsOf` and astrid-core's `all_assignee_ids`.
+    ///
+    /// `assigneeId` leads whatever the array says, and the array supplies the others: a
+    /// reassignment writes the id alone and leaves the array as fetched. No primary means nobody —
+    /// the server promotes the next person when the first is cleared, so an array without a
+    /// primary is a stale one.
+    static func assigneeIds(of task: Task) -> [String] {
+        guard let primary = task.assigneeId, !primary.isEmpty else { return [] }
+        return [primary] + (task.assigneeIds ?? []).filter { $0 != primary }
+    }
+
+    /// How many people share a task beyond the one whose face the row draws.
+    static func additionalAssigneeCount(of task: Task) -> Int {
+        max(0, assigneeIds(of: task).count - 1)
+    }
+
     /// Identity for the avatar view. SwiftUI reuses a view whose identity has not changed, so
     /// without keying on the assignee the image stays put when the person changes.
     static func avatarIdentity(for id: String?) -> String {

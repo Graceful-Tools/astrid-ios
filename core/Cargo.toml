@@ -19,7 +19,7 @@ license = "MIT"
 publish = false
 
 [workspace.dependencies]
-astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "21d89c2af8707ce983ca13b081b460c7c75b4d59" }
+astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "2823337511f41398192e129a79f3ecca2ece3d21" }
 uniffi = "0.32"
 
 [profile.release]

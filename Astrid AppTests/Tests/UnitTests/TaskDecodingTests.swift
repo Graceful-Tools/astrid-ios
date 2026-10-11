@@ -124,4 +124,35 @@ final class TaskDecodingTests: XCTestCase {
         let ids = response.tasks.map { $0.id }
         XCTAssertEqual(ids, ["a", "c"], "Structurally broken task is skipped; others kept")
     }
+
+    // MARK: - Several assignees and list capabilities (AITD-466)
+
+    func test_aitd466_assigneeIds_decodeAndRoundTrip() throws {
+        let json = #"{"id":"t1","title":"x","description":"","priority":0,"isAllDay":true,"isPrivate":false,"completed":false,"assigneeId":"u1","assigneeIds":["u1","u2"]}"#
+        let task = try decoder.decode(Task.self, from: Data(json.utf8))
+        XCTAssertEqual(task.assigneeIds, ["u1", "u2"])
+        let again = try decoder.decode(Task.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(again.assigneeIds, ["u1", "u2"])
+    }
+
+    func test_aitd466_assigneeIds_absentFromAnOlderServer_isNil() throws {
+        let json = #"{"id":"t1","title":"x","description":"","priority":0,"isAllDay":true,"isPrivate":false,"completed":false,"assigneeId":"u1"}"#
+        XCTAssertNil(try decoder.decode(Task.self, from: Data(json.utf8)).assigneeIds)
+    }
+
+    /// `supports` grows a key as each capability lands, so one this build has not met must not
+    /// cost the list — and a list without the field is a classic one.
+    func test_aitd466_listSupports_toleratesUnknownKeys_andAbsentMeansClassic() throws {
+        let board = try decoder.decode(TaskList.self, from: Data(
+            #"{"id":"l1","name":"Board","supports":{"multipleAssignees":true,"repeatMode":"spawn"}}"#.utf8))
+        XCTAssertTrue(board.supportsMultipleAssignees)
+
+        let partial = try decoder.decode(TaskList.self, from: Data(
+            #"{"id":"l2","name":"Later","supports":{"repeatMode":"spawn"}}"#.utf8))
+        XCTAssertFalse(partial.supportsMultipleAssignees)
+
+        let classic = try decoder.decode(TaskList.self, from: Data(#"{"id":"l3","name":"Home"}"#.utf8))
+        XCTAssertNil(classic.supports)
+        XCTAssertFalse(classic.supportsMultipleAssignees)
+    }
 }

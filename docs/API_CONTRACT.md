@@ -71,7 +71,8 @@ Event names: see §SSE events (current) below.
 | createdAt | date | yes | ISO 8601 |
 | updatedAt | date | yes | ISO 8601 |
 | creatorId | string | yes | |
-| assigneeId | string | no | |
+| assigneeId | string | no | Always `assigneeIds[0]` when the array is sent |
+| assigneeIds | string[] | no | Everyone assigned, primary first. More than one only where `list.supports.multipleAssignees`; absent from an older server. Read through `AssigneeResolver.assigneeIds(of:)` |
 | dueDateTime | date | no | ISO 8601 |
 | isAllDay | boolean | no | |
 | lists | array | no | List references |

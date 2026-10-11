@@ -51,6 +51,9 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     /// Whether this list splices subtasks inline (task ba1deb9d). **nil means SHOW** — a list
     /// fetched before the field existed must render exactly as it did. See ListSubtaskVisibility.
     var showSubtasks: Bool?
+    /// What this list's backend can do (AITD-466). **nil means classic** — a server older than
+    /// the field omits it. Ask through `supportsMultipleAssignees`, not the field.
+    var supports: ListSupports?
 
     // Filter settings for virtual lists
     var filterCompletion: String?
@@ -91,7 +94,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         case aiAgentConfiguredBy, copyCount
         case createdAt, updatedAt, description, tasks, taskCount
         case isFavorite, favoriteOrder, isVirtual, virtualListType, sortBy, manualSortOrder
-        case showSubtasks
+        case showSubtasks, supports
         case filterCompletion, filterDueDate, filterAssignee, filterAssignedBy
         case filterRepeating, filterPriority, filterInLists
         case projectId, listType, statusRole, statusOrder
@@ -162,7 +165,8 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         statusOrder: Int? = nil,
         statusDescription: String? = nil,
         statusCompleted: Bool? = nil,
-        recentlyCompletedWindow: RecentlyCompletedWindow? = nil
+        recentlyCompletedWindow: RecentlyCompletedWindow? = nil,
+        supports: ListSupports? = nil
     ) {
         self.id = id
         self.name = name
@@ -220,7 +224,11 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         self.statusDescription = statusDescription
         self.statusCompleted = statusCompleted
         self.recentlyCompletedWindow = recentlyCompletedWindow
+        self.supports = supports
     }
+
+    /// May a task on this list hold several assignees? Classic unless the server says otherwise.
+    var supportsMultipleAssignees: Bool { supports?.multipleAssignees ?? false }
 
     // MARK: - Decoding
 
@@ -288,6 +296,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         sortBy = try c.decodeIfPresent(String.self, forKey: .sortBy)
         manualSortOrder = try c.decodeIfPresent([String].self, forKey: .manualSortOrder)
         showSubtasks = try c.decodeIfPresent(Bool.self, forKey: .showSubtasks)
+        supports = try c.decodeIfPresent(ListSupports.self, forKey: .supports)
         filterCompletion = try c.decodeIfPresent(String.self, forKey: .filterCompletion)
         filterDueDate = try c.decodeIfPresent(String.self, forKey: .filterDueDate)
         filterAssignee = try c.decodeIfPresent(String.self, forKey: .filterAssignee)
@@ -302,6 +311,23 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         statusDescription = try c.decodeIfPresent(String.self, forKey: .statusDescription)
         statusCompleted = try c.decodeIfPresent(Bool.self, forKey: .statusCompleted)
         recentlyCompletedWindow = try c.decodeIfPresent(RecentlyCompletedWindow.self, forKey: .recentlyCompletedWindow)
+    }
+}
+
+/// `list.supports` on the wire: what a list's backend can do that the app would otherwise have
+/// to guess. The server adds a key as each capability lands, so every key reads as its classic
+/// value when absent and a key this build does not know is ignored.
+nonisolated struct ListSupports: Codable, Equatable, Hashable {
+    /// A task here may hold several assignees (`assigneeIds`). Classic lists keep at most one.
+    var multipleAssignees: Bool
+
+    init(multipleAssignees: Bool = false) {
+        self.multipleAssignees = multipleAssignees
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        multipleAssignees = try c.decodeIfPresent(Bool.self, forKey: .multipleAssignees) ?? false
     }
 }
 
