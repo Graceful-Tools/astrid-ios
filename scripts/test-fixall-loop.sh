@@ -47,13 +47,30 @@ exit 0
 STUB
 chmod +x "$TMP/bin/tsx"
 
-# The fake claude: never reads the board, exits however the test asks.
+# The fake claude: never reads the board, exits however the test asks. It records
+# its own pid so the caffeinate checks can prove the assertion names THIS process.
 cat > "$TMP/bin/claude" <<'STUB'
 #!/bin/bash
 echo "claude $*" >> "$CALLS"
+echo "$$" > "$CLAUDE_PID_FILE"
+# STUB_CLAUDE_SLEEP keeps the fake run alive for a moment. A run that exits
+# instantly is killed by the loop's own `kill "$CAFFEINATE_PID"` before the
+# caffeinate stub is ever scheduled, so the assertion it recorded would be
+# missing for a reason that cannot happen with the real binary.
+sleep "${STUB_CLAUDE_SLEEP:-0}"
 exit "${STUB_CLAUDE_EXIT:-0}"
 STUB
 chmod +x "$TMP/bin/claude"
+export CLAUDE_PID_FILE="$TMP/claude.pid"
+
+# The fake caffeinate: records the assertion the loop asks for and returns at once.
+# The real one would hold until the watched pid exits, which is the whole point of
+# -w, so a stub is the only way to see the arguments without waiting on the run.
+cat > "$TMP/bin/caffeinate" <<'STUB'
+#!/bin/bash
+echo "caffeinate $*" >> "$CALLS"
+STUB
+chmod +x "$TMP/bin/caffeinate"
 
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); }
@@ -64,6 +81,9 @@ bad()  { FAIL=$((FAIL+1)); echo "✗ $1"; [ -n "${2:-}" ] && echo "$2" | sed 's/
 # end of a pipe would make `$(…)` block for the whole watchdog interval.
 run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv log), $STATUS
   : > "$CALLS"
+  : > "$CLAUDE_PID_FILE"
+  FIXALL_CAFFEINATE="$TMP/bin/caffeinate" \
+  STUB_CLAUDE_SLEEP="${STUB_CLAUDE_SLEEP:-0}" \
   FIXALL_FORCE=1 \
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
@@ -114,6 +134,18 @@ called "…and passes the preflight's keys through verbatim" \
 if echo "$OUT" | tail -1 | grep -q '^RESULT: OK'; then ok
 else bad "RESULT: OK is the last line after a finished run" "$OUT"; fi
 if [ "$STATUS" = 0 ]; then ok; else bad "a finished run exits 0 (got $STATUS)" "$OUT"; fi
+
+# --- The run is held awake, for exactly as long as it lives (AITD-488) -------------
+STUB_CLAUDE_SLEEP=0.3 run 0 0
+called "the run is held awake while it lives" "caffeinate " "-i" "-w"
+CAFF_PID=$(grep '^caffeinate ' "$CALLS" | head -1 | sed -n 's/.*-w \([0-9][0-9]*\).*/\1/p')
+RUN_PID=$(cat "$CLAUDE_PID_FILE" 2>/dev/null)
+if [ -n "$CAFF_PID" ] && [ "$CAFF_PID" = "$RUN_PID" ]; then ok
+else bad "caffeinate names the run's OWN pid — as a wrapper it would take the kill the watchdog means for the run" \
+         "caffeinate -w '$CAFF_PID', run pid '$RUN_PID'"; fi
+if grep '^caffeinate ' "$CALLS" | grep -q -- ' -d'; then
+  bad "no -d: the display may sleep, nobody is watching" "$(grep '^caffeinate ' "$CALLS")"
+else ok; fi
 
 # --- Phase two, run that died: a strike, not a mute --------------------------------
 run 3 0
