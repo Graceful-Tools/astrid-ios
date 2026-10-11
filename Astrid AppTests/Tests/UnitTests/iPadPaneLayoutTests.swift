@@ -27,10 +27,60 @@ final class iPadPaneLayoutTests: XCTestCase {
         }
     }
 
-    /// "Board view is fine" — the board keeps the room, so messages stand down there.
-    func testBoardModeHidesMessages() {
-        XCTAssertFalse(iPadPaneLayout.showsMessages(columns: 3, viewMode: .board,
-                                                    listId: "list-1", boardFullScreen: false))
+    // MARK: board keeps its messages, and the pane can be hidden (AITD-485)
+
+    /// The board used to lose the pane, and the iPad rotator has no messages step — so a board
+    /// had no route to its messages at all.
+    func testAITD485_boardKeepsTheMessagesPaneBesideIt() {
+        for columns in [2, 3] {
+            XCTAssertTrue(iPadPaneLayout.showsMessages(columns: columns, viewMode: .board,
+                                                       listId: "list-1", boardFullScreen: false))
+        }
+    }
+
+    /// Beside a board the pane is a fixed narrow column, so the board's columns get the width.
+    func testAITD485_messagesBesideABoardAreNarrowerThanBesideAList() {
+        let list = iPadPaneLayout.widths(total: 1366, columns: 3, showsMessages: true,
+                                         boardFullScreen: false)
+        let board = iPadPaneLayout.widths(total: 1366, columns: 3, showsMessages: true,
+                                          boardFullScreen: false, besideBoard: true)
+        XCTAssertEqual(board.messages, iPadPaneLayout.messagesWidthBesideBoard)
+        XCTAssertLessThan(board.messages, list.messages)
+        XCTAssertEqual(board.sidebar + board.list + board.messages, 1366, accuracy: 0.001)
+    }
+
+    /// Hidden, the pane is a rail holding the show button and the list or board takes the rest.
+    func testAITD485_hiddenMessagesCollapseToARail() {
+        for columns in [2, 3] {
+            for besideBoard in [false, true] {
+                let panes = iPadPaneLayout.widths(total: 1024, columns: columns, showsMessages: true,
+                                                  boardFullScreen: false, messagesHidden: true,
+                                                  besideBoard: besideBoard)
+                XCTAssertEqual(panes.messages, iPadPaneLayout.messagesRailWidth)
+                XCTAssertEqual(panes.sidebar + panes.list + panes.messages, 1024, accuracy: 0.001)
+            }
+        }
+    }
+
+    /// Hiding the pane is not a way to lose the list picker or summon a pane that isn't there.
+    func testAITD485_hidingChangesNothingWhereThereIsNoMessagesPane() {
+        XCTAssertEqual(iPadPaneLayout.widths(total: 1024, columns: 3, showsMessages: false,
+                                             boardFullScreen: false, messagesHidden: true),
+                       iPadPaneLayout.widths(total: 1024, columns: 3, showsMessages: false,
+                                             boardFullScreen: false))
+        XCTAssertEqual(iPadPaneLayout.widths(total: 1024, columns: 3, showsMessages: true,
+                                             boardFullScreen: true, messagesHidden: true).messages, 0)
+    }
+
+    /// A task must never open into the rail, or into the narrow column beside a board.
+    func testAITD485_detailKeepsAUsableWidthOverARailOrABoard() {
+        for columns in [2, 3] {
+            let plain = iPadPaneLayout.detailWidth(total: 1024, columns: columns, showsMessages: false)
+            XCTAssertEqual(iPadPaneLayout.detailWidth(total: 1024, columns: columns, showsMessages: true,
+                                                      messagesHidden: true), plain)
+            XCTAssertEqual(iPadPaneLayout.detailWidth(total: 1024, columns: columns, showsMessages: true,
+                                                      besideBoard: true), plain)
+        }
     }
 
     /// Virtual lists with no chat channel must not show an empty pane. My Tasks HAS one

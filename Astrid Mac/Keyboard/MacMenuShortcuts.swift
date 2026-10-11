@@ -98,6 +98,15 @@ enum MacViewMode {
         return modes
     }
 
+    /// The glyph each mode wears in the toolbar picker.
+    static func symbol(for mode: MacRootView.ContentMode) -> String {
+        switch mode {
+        case .list:  return "list.bullet"
+        case .board: return "square.grid.2x2"
+        case .chat:  return "bubble.left.and.bubble.right"
+        }
+    }
+
     /// Whether the picker is worth drawing at all.
     ///
     /// A segmented control with one segment is a switch with nothing to switch to — which is what

@@ -22,6 +22,17 @@ final class MacLayoutTests: XCTestCase {
         XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1100, isRealList: true))
     }
 
+    /// The messages toggle hides the column wherever it would otherwise be — beside a list and
+    /// beside a board — and never conjures one in a window too narrow for it.
+    func testAITD485_theMessagesToggleHidesTheChatColumn() {
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 1_200, isRealList: true, hiddenByUser: true))
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 2_400, isRealList: true, isBoard: true,
+                                                 boardColumnCount: 3, contentWidth: 2_100,
+                                                 hiddenByUser: true))
+        XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1_200, isRealList: true, hiddenByUser: false))
+        XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 900, isRealList: true, hiddenByUser: false))
+    }
+
     /// Reported: showing the left rail closed the right column. The decision must depend only on
     /// the WINDOW, which does not change when the sidebar opens — so the same window width gives
     /// the same answer regardless of how much content area the sidebar leaves behind.

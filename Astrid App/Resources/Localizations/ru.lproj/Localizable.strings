@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "Оставить";
 "reminders.triage.caught_up" = "Всё разобрано";
 "reminders.triage.done" = "Готово";
+"chat.hide_messages" = "Скрыть сообщения";
+"chat.show_messages" = "Показать сообщения";

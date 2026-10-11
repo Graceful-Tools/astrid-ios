@@ -55,6 +55,8 @@ struct MacRootView: View {
     /// Width when the current drag began, so the column tracks the pointer instead of accelerating
     /// away from it — a delta applied to the LIVE width compounds on every gesture callback.
     @State private var chatColumnDragStart: CGFloat?
+    /// The messages toggle — the sidebar toggle's mirror image, remembered on this Mac (AITD-485).
+    @AppStorage("mac.chatColumnHidden") private var chatColumnHidden = false
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
@@ -79,7 +81,10 @@ struct MacRootView: View {
 
     /// 3-column mode: wide content + a selection that HAS a channel → chat is a persistent right
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
-    private var chatColumnVisible: Bool {
+    private var chatColumnVisible: Bool { chatColumnFits && !chatColumnHidden }
+
+    /// Would the chat column be up if nobody had hidden it? This is what offers the toggle.
+    private var chatColumnFits: Bool {
         MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil,
                                   isBoard: contentMode == .board,
                                   boardColumnCount: boardColumnCount,
@@ -99,15 +104,6 @@ struct MacRootView: View {
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
-
-    /// The glyph each mode wears in the toolbar picker.
-    static func symbol(for mode: ContentMode) -> String {
-        switch mode {
-        case .list:  return "list.bullet"
-        case .board: return "square.grid.2x2"
-        case .chat:  return "bubble.left.and.bubble.right"
-        }
-    }
 
     /// What the toolbar picker can offer here — list, plus a board and a chat tab when this
     /// selection actually has them (task 6d709a75).
@@ -1269,7 +1265,7 @@ struct MacRootView: View {
                                                    isSwitchable: contentModeIsSwitchable) {
                         Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
                             ForEach(availableContentModes, id: \.self) { mode in
-                                Image(systemName: Self.symbol(for: mode)).tag(mode)
+                                Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
@@ -1309,13 +1305,18 @@ struct MacRootView: View {
                         }
                     }
                 }
+                // Last, so it sits at the trailing corner — the sidebar toggle's mirror (AITD-485).
+                if chatColumnFits {
+                    ToolbarItem(placement: .primaryAction) { MacMessagesToggleButton(isHidden: $chatColumnHidden) }
+                }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
         // 3-column mode (1a71c0e7) OPENS the sidebar when the window becomes wide enough — it must
         // not PIN it there. Snapping `.all` back on every change made the rail impossible to close:
         // the toolbar toggle and ⌃⌘S were undone the instant they fired.
-        .onChange(of: chatColumnVisible) { _, wide in
+        // FITS, not showing: the messages toggle must not reopen a closed sidebar (AITD-485).
+        .onChange(of: chatColumnFits) { _, wide in
             if wide { columnVisibility = .all }
         }
         // Adding/removing a list, or editing a smart list's filters, changes the badges too.

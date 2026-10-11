@@ -1514,3 +1514,5 @@
 "reminders.triage.keep" = "Conservar";
 "reminders.triage.caught_up" = "Todo al día";
 "reminders.triage.done" = "Listo";
+"chat.hide_messages" = "Ocultar mensajes";
+"chat.show_messages" = "Mostrar mensajes";

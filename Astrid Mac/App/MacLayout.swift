@@ -177,11 +177,17 @@ enum MacLayout {
     /// So the exclusion becomes a MEASUREMENT: a board keeps the chat column only while both
     /// still fit at their minimums. Below that the columns win — the board is what the user chose
     /// to look at.
+    ///
+    /// `hiddenByUser` is the toolbar's messages toggle (AITD-485) — the mirror of the sidebar
+    /// toggle. It can only ever take the column away: whether the toggle is OFFERED is this
+    /// same rule asked without it, so the button never appears where it would do nothing.
     static func showsChatColumn(windowWidth: CGFloat,
                                 isRealList: Bool,
                                 isBoard: Bool = false,
                                 boardColumnCount: Int = 0,
-                                contentWidth: CGFloat = 0) -> Bool {
+                                contentWidth: CGFloat = 0,
+                                hiddenByUser: Bool = false) -> Bool {
+        guard !hiddenByUser else { return false }
         guard isRealList, windowWidth >= chatColumnWindowThreshold else { return false }
         guard isBoard else { return true }
         let leftForBoard = contentWidth - chatColumnMinWidth - columnDividerWidth

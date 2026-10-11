@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "Houden";
 "reminders.triage.caught_up" = "Alles bijgewerkt";
 "reminders.triage.done" = "Klaar";
+"chat.hide_messages" = "Berichten verbergen";
+"chat.show_messages" = "Berichten tonen";

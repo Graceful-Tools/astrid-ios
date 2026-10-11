@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "Manter";
 "reminders.triage.caught_up" = "Tudo em dia";
 "reminders.triage.done" = "Concluído";
+"chat.hide_messages" = "Ocultar mensagens";
+"chat.show_messages" = "Mostrar mensagens";

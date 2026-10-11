@@ -1500,3 +1500,5 @@
 "reminders.triage.keep" = "保留";
 "reminders.triage.caught_up" = "全部處理完畢";
 "reminders.triage.done" = "完成";
+"chat.hide_messages" = "隱藏訊息";
+"chat.show_messages" = "顯示訊息";

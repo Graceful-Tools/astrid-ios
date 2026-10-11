@@ -80,6 +80,8 @@ struct iPadTaskManagerView: View {
     /// layout turns on it: messages ride beside a LIST, and stand down for a board (a34d0163).
     @State private var listViewMode: HeaderToggleSegment = .list
     @AppStorage("iPadBoardFullScreen") private var boardFullScreen: Bool = false
+    /// The messages pane's hide/show, remembered on this iPad apart from the picker's (AITD-485).
+    @AppStorage("iPadMessagesPaneHidden") private var messagesPaneHidden: Bool = false
     // Expanded task detail (task c5ba07ed). Persisted like the Mac's macDetailFullScreen, so a
     // panel you expanded is still expanded next launch.
     @AppStorage("iPadDetailFullScreen") private var detailFullScreen: Bool = false
@@ -185,10 +187,14 @@ struct iPadTaskManagerView: View {
         let showsMessages = showsMessagesPane(columns: 3)
         let panes = iPadPaneLayout.widths(total: width, columns: 3,
                                           showsMessages: showsMessages,
-                                          boardFullScreen: isBoardFullScreen)
+                                          boardFullScreen: isBoardFullScreen,
+                                          messagesHidden: messagesPaneHidden,
+                                          besideBoard: listViewMode == .board)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
                                                      showsMessages: showsMessages,
-                                                     isFullScreen: detailFullScreen)
+                                                     isFullScreen: detailFullScreen,
+                                                     messagesHidden: messagesPaneHidden,
+                                                     besideBoard: listViewMode == .board)
         // A full-screen board takes the picker's pane away, so the hamburger opens the picker
         // as a sliding drawer instead — exactly what it does in 2-column (AITD-388).
         let showsDrawer = iPadPaneLayout.showsSlidingPicker(columns: 3,
@@ -305,11 +311,42 @@ struct iPadTaskManagerView: View {
     }
 
     /// List messages, styled to sit beside the list rather than float over it.
+    ///
+    /// Its hide/show button sits at the pane's inner top corner — the mirror of the list
+    /// picker's control on the other side. Hidden, the pane is a rail holding only that button
+    /// (`iPadPaneLayout.messagesRailWidth`), so the way back is where the pane was (AITD-485).
     private func messagesPane(listId: String, width: CGFloat) -> some View {
-        ChatPanelView(listId: listId)
-            .frame(width: width)
-            .background(themeBackground)
-            .overlay(alignment: .leading) { Divider() }
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                messagesPaneToggle
+                Spacer(minLength: 0)
+            }
+            if messagesPaneHidden {
+                Spacer(minLength: 0)
+            } else {
+                ChatPanelView(listId: listId)
+            }
+        }
+        .frame(width: width)
+        .background(themeBackground)
+        .overlay(alignment: .leading) { Divider() }
+    }
+
+    private var messagesPaneToggle: some View {
+        let title = NSLocalizedString(messagesPaneHidden ? "chat.show_messages" : "chat.hide_messages",
+                                      comment: "")
+        return Button {
+            withAnimation(Self.panelAnimation) { messagesPaneHidden.toggle() }
+        } label: {
+            Image(systemName: "sidebar.right")
+                .font(.system(size: 18))
+                .foregroundColor(Theme.accent)
+                .frame(width: iPadPaneLayout.messagesRailWidth, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityIdentifier("messages.togglePane")
     }
 
     // MARK: - Portrait Layout (Sliding sidebar like iPhone)
@@ -322,10 +359,14 @@ struct iPadTaskManagerView: View {
         let showsMessages = showsMessagesPane(columns: 2)
         let panes = iPadPaneLayout.widths(total: width, columns: 2,
                                           showsMessages: showsMessages,
-                                          boardFullScreen: isBoardFullScreen)
+                                          boardFullScreen: isBoardFullScreen,
+                                          messagesHidden: messagesPaneHidden,
+                                          besideBoard: listViewMode == .board)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 2,
                                                      showsMessages: showsMessages,
-                                                     isFullScreen: detailFullScreen)
+                                                     isFullScreen: detailFullScreen,
+                                                     messagesHidden: messagesPaneHidden,
+                                                     besideBoard: listViewMode == .board)
 
         ZStack(alignment: .leading) {
             // Full-screen background

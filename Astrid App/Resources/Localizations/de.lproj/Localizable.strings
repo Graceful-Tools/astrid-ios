@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "Behalten";
 "reminders.triage.caught_up" = "Alles erledigt";
 "reminders.triage.done" = "Fertig";
+"chat.hide_messages" = "Nachrichten ausblenden";
+"chat.show_messages" = "Nachrichten einblenden";
