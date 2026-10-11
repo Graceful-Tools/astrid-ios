@@ -379,6 +379,7 @@ struct TaskRowView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(priorityColor, lineWidth: 2)
             )
+            .assigneeOverflowBadge(for: task, avatarSize: 34)
             // The avatar had NO gesture, which was harmless while a face only ever meant
             // someone else's task. In project mode your own task is a face too, so without
             // this the control you are told to tap does nothing (task 132d7b3f).

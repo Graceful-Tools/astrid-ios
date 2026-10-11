@@ -9,6 +9,11 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     var description: String
     var assigneeId: String?
     var assignee: User?
+    /// Everyone assigned, as the server sent it (AITD-466). Only a list whose backend supports
+    /// several assignees holds more than one, and a server older than the field omits it.
+    /// Read it through `AssigneeResolver.assigneeIds(of:)`, never directly: `assigneeId` is
+    /// written on its own by a reassignment and stays the truth about who is first.
+    var assigneeIds: [String]?
     var creatorId: String?  // Optional - MCP API doesn't return this, only creator object
     var creator: User?
     var dueDateTime: Date?  // The due date/time (single source of truth)
@@ -133,7 +138,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, assigneeId, assignee, creatorId, creator
+        case id, title, description, assigneeId, assignee, assigneeIds, creatorId, creator
         case dueDateTime  // Primary datetime field
         case isAllDay  // All-day task flag
         case reminderTime, reminderSent, reminderType
@@ -150,6 +155,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         description: String = "",
         assigneeId: String? = nil,
         assignee: User? = nil,
+        assigneeIds: [String]? = nil,
         creatorId: String? = nil,
         creator: User? = nil,
         dueDateTime: Date? = nil,
@@ -187,6 +193,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         self.description = description
         self.assigneeId = assigneeId
         self.assignee = assignee
+        self.assigneeIds = assigneeIds
         self.creatorId = creatorId
         self.creator = creator
         self.dueDateTime = dueDateTime

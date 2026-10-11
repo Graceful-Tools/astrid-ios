@@ -134,4 +134,37 @@ final class AssigneeResolverTests: XCTestCase {
                         assignee: user("u1", name: "Dana", image: "https://example.com/d.jpg"))
         XCTAssertEqual(AssigneeResolver.resolve(task: task)?.name, "Dana")
     }
+
+    // MARK: - Several assignees (AITD-466)
+
+    /// A GitHub-backed board's task carries everyone in `assigneeIds`; the row has to know there
+    /// is more than the one face it draws.
+    func testAITD466_EveryoneAssignedIsListedPrimaryFirst() {
+        let task = Task(id: "t1", title: "x", assigneeId: "u1", assigneeIds: ["u1", "u2", "u3"])
+        XCTAssertEqual(AssigneeResolver.assigneeIds(of: task), ["u1", "u2", "u3"])
+        XCTAssertEqual(AssigneeResolver.additionalAssigneeCount(of: task), 2)
+    }
+
+    /// A reassignment writes `assigneeId` alone, so the array is as fetched: the new primary
+    /// leads and is not counted twice.
+    func testAITD466_AReassignedPrimaryLeadsAndIsNotRepeated() {
+        var task = Task(id: "t1", title: "x", assigneeId: "u1", assigneeIds: ["u1", "u2", "u3"])
+        task.assigneeId = "u3"
+        XCTAssertEqual(AssigneeResolver.assigneeIds(of: task), ["u3", "u1", "u2"])
+        XCTAssertEqual(AssigneeResolver.additionalAssigneeCount(of: task), 2)
+    }
+
+    /// A server older than the field sends no array: one assignee, nobody extra.
+    func testAITD466_NoArrayMeansJustThePrimary() {
+        let task = Task(id: "t1", title: "x", assigneeId: "u1")
+        XCTAssertEqual(AssigneeResolver.assigneeIds(of: task), ["u1"])
+        XCTAssertEqual(AssigneeResolver.additionalAssigneeCount(of: task), 0)
+    }
+
+    /// Unassigned here while the array still names people: nobody, not the leftovers.
+    func testAITD466_NoPrimaryMeansNobody() {
+        let task = Task(id: "t1", title: "x", assigneeId: nil, assigneeIds: ["u2", "u3"])
+        XCTAssertEqual(AssigneeResolver.assigneeIds(of: task), [])
+        XCTAssertEqual(AssigneeResolver.additionalAssigneeCount(of: task), 0)
+    }
 }

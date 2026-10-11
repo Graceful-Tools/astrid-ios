@@ -107,6 +107,7 @@ struct MacTaskRow: View {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
+                    .assigneeOverflowBadge(for: task, avatarSize: MacTaskVisuals.rowCheckboxSize)
                     // No gesture here before: harmless while a face only meant someone ELSE's
                     // task, but in project mode your own task is a face too, so the control
                     // you are told to click did nothing (task 132d7b3f).
