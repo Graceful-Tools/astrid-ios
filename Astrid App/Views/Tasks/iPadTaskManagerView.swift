@@ -192,9 +192,9 @@ struct iPadTaskManagerView: View {
                                           besideBoard: listViewMode == .board)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 3,
                                                      showsMessages: showsMessages,
+                                                     isFullScreen: detailFullScreen,
                                                      messagesHidden: messagesPaneHidden,
-                                                     besideBoard: listViewMode == .board,
-                                                     isFullScreen: detailFullScreen)
+                                                     besideBoard: listViewMode == .board)
         // A full-screen board takes the picker's pane away, so the hamburger opens the picker
         // as a sliding drawer instead — exactly what it does in 2-column (AITD-388).
         let showsDrawer = iPadPaneLayout.showsSlidingPicker(columns: 3,
@@ -364,9 +364,9 @@ struct iPadTaskManagerView: View {
                                           besideBoard: listViewMode == .board)
         let detailWidth = iPadPaneLayout.detailWidth(total: width, columns: 2,
                                                      showsMessages: showsMessages,
+                                                     isFullScreen: detailFullScreen,
                                                      messagesHidden: messagesPaneHidden,
-                                                     besideBoard: listViewMode == .board,
-                                                     isFullScreen: detailFullScreen)
+                                                     besideBoard: listViewMode == .board)
 
         ZStack(alignment: .leading) {
             // Full-screen background
