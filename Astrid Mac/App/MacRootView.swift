@@ -83,8 +83,7 @@ struct MacRootView: View {
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
     private var chatColumnVisible: Bool { chatColumnFits && !chatColumnHidden }
 
-    /// Would the chat column be up if nobody had hidden it? This — not `chatColumnVisible` — is
-    /// what offers the messages toggle, so the button is still there to bring the column back.
+    /// Would the chat column be up if nobody had hidden it? This is what offers the toggle.
     private var chatColumnFits: Bool {
         MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil,
                                   isBoard: contentMode == .board,
@@ -105,15 +104,6 @@ struct MacRootView: View {
     static let searchId = "__search__"    // virtual "Search" selection (Task 36587d3d)
 
     enum ContentMode: String, CaseIterable { case list, board, chat }
-
-    /// The glyph each mode wears in the toolbar picker.
-    static func symbol(for mode: ContentMode) -> String {
-        switch mode {
-        case .list:  return "list.bullet"
-        case .board: return "square.grid.2x2"
-        case .chat:  return "bubble.left.and.bubble.right"
-        }
-    }
 
     /// What the toolbar picker can offer here — list, plus a board and a chat tab when this
     /// selection actually has them (task 6d709a75).
@@ -1275,7 +1265,7 @@ struct MacRootView: View {
                                                    isSwitchable: contentModeIsSwitchable) {
                         Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
                             ForEach(availableContentModes, id: \.self) { mode in
-                                Image(systemName: Self.symbol(for: mode)).tag(mode)
+                                Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
@@ -1315,18 +1305,9 @@ struct MacRootView: View {
                         }
                     }
                 }
-                // The messages toggle (AITD-485): last, so it sits at the window's trailing corner
-                // over the column it closes — the mirror of the sidebar toggle at the leading one.
+                // Last, so it sits at the trailing corner — the sidebar toggle's mirror (AITD-485).
                 if chatColumnFits {
-                    ToolbarItem(placement: .primaryAction) {
-                        let title = NSLocalizedString(chatColumnHidden ? "chat.show_messages"
-                                                                       : "chat.hide_messages", comment: "")
-                        Button { withAnimation(MacMotion.medium) { chatColumnHidden.toggle() } } label: {
-                            Label(title, systemImage: "sidebar.right")
-                        }
-                        .help(title)
-                        .accessibilityIdentifier("messages.togglePane")
-                    }
+                    ToolbarItem(placement: .primaryAction) { MacMessagesToggleButton(isHidden: $chatColumnHidden) }
                 }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
@@ -1334,8 +1315,7 @@ struct MacRootView: View {
         // 3-column mode (1a71c0e7) OPENS the sidebar when the window becomes wide enough — it must
         // not PIN it there. Snapping `.all` back on every change made the rail impossible to close:
         // the toolbar toggle and ⌃⌘S were undone the instant they fired.
-        // Watches whether the column FITS, not whether it is showing: bringing the messages back
-        // with their toggle must not reopen a sidebar the user closed (AITD-485).
+        // FITS, not showing: the messages toggle must not reopen a closed sidebar (AITD-485).
         .onChange(of: chatColumnFits) { _, wide in
             if wide { columnVisibility = .all }
         }
