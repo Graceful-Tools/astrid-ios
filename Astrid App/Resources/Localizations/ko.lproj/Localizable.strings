@@ -1500,3 +1500,5 @@
 "reminders.triage.keep" = "유지";
 "reminders.triage.caught_up" = "모두 처리됨";
 "reminders.triage.done" = "완료";
+"chat.hide_messages" = "메시지 숨기기";
+"chat.show_messages" = "메시지 표시";

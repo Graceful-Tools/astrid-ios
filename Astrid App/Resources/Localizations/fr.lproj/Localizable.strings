@@ -1514,3 +1514,5 @@
 "reminders.triage.keep" = "Garder";
 "reminders.triage.caught_up" = "Tout est à jour";
 "reminders.triage.done" = "Terminé";
+"chat.hide_messages" = "Masquer les messages";
+"chat.show_messages" = "Afficher les messages";

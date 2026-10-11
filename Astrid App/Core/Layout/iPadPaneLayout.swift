@@ -34,13 +34,24 @@ enum iPadPaneLayout {
         "search", "shared", "favorites", "settings", "profile",
     ]
 
+    /// The messages pane's width beside a BOARD. Fixed and narrow, so the board's columns get
+    /// the room — the same 320pt web gives it (AITD-485).
+    static let messagesWidthBesideBoard: CGFloat = 320
+    /// What a hidden messages pane leaves behind: a rail just wide enough for the show button.
+    static let messagesRailWidth: CGFloat = 48
+
     /// Does the list-messages pane belong on screen for this selection?
     ///
-    /// Only in list view: the board keeps the room it has (and a full-screen board keeps all of
-    /// it). Messages replacing the list is a one-column behaviour; here it sits beside it.
+    /// Beside a list and beside a board. A board used to lose the pane outright, which left it
+    /// with no route to its messages at all — the rotator has no messages step here (AITD-485).
+    /// A full-screen board still keeps the whole window. Messages replacing the list is a
+    /// one-column behaviour; here it sits beside it.
+    ///
+    /// Whether the user has HIDDEN the pane is not asked here: a hidden pane is still on screen
+    /// as its rail, which is what `widths` draws.
     static func showsMessages(columns: Int, viewMode: HeaderToggleSegment,
                               listId: String?, boardFullScreen: Bool) -> Bool {
-        guard viewMode == .list, !boardFullScreen else { return false }
+        guard viewMode == .list || viewMode == .board, !boardFullScreen else { return false }
         guard let listId, !listId.isEmpty else { return false }
         return !selectionsWithoutChannel.contains(listId)
     }
@@ -64,7 +75,8 @@ enum iPadPaneLayout {
     }
 
     static func widths(total: CGFloat, columns: Int,
-                       showsMessages: Bool, boardFullScreen: Bool) -> Panes {
+                       showsMessages: Bool, boardFullScreen: Bool,
+                       messagesHidden: Bool = false, besideBoard: Bool = false) -> Panes {
         if boardFullScreen {
             return Panes(sidebar: 0, list: total, messages: 0)
         }
@@ -74,7 +86,9 @@ enum iPadPaneLayout {
         guard showsMessages else {
             return Panes(sidebar: sidebar, list: remaining, messages: 0)
         }
-        let messages = remaining * messagesShare
+        let share = remaining * messagesShare
+        let messages = messagesHidden ? messagesRailWidth
+            : besideBoard ? min(messagesWidthBesideBoard, share) : share
         return Panes(sidebar: sidebar, list: remaining - messages, messages: messages)
     }
 
@@ -89,12 +103,16 @@ enum iPadPaneLayout {
     /// is what "full screen" means on the Mac, whose pop-out expands to fill the detail column
     /// and leaves its sidebar alone (42013da7); the iPad says the same thing with the same two
     /// glyphs. In 2-column the picker is a sliding drawer costing no width, so this is the window.
+    ///
+    /// A hidden pane is a rail and a pane beside a board is deliberately narrow — neither is
+    /// room for a task, so both fall back to that share too (AITD-485).
     static func detailWidth(total: CGFloat, columns: Int, showsMessages: Bool,
-                            isFullScreen: Bool = false) -> CGFloat {
+                            isFullScreen: Bool = false,
+                            messagesHidden: Bool = false, besideBoard: Bool = false) -> CGFloat {
         if isFullScreen {
             return total - (columns >= 3 ? total * sidebarShare : 0)
         }
-        if showsMessages {
+        if showsMessages, !messagesHidden, !besideBoard {
             return widths(total: total, columns: columns,
                           showsMessages: true, boardFullScreen: false).messages
         }

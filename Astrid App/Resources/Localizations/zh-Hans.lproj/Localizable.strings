@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "保留";
 "reminders.triage.caught_up" = "全部处理完毕";
 "reminders.triage.done" = "完成";
+"chat.hide_messages" = "隐藏消息";
+"chat.show_messages" = "显示消息";

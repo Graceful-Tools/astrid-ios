@@ -55,6 +55,8 @@ struct MacRootView: View {
     /// Width when the current drag began, so the column tracks the pointer instead of accelerating
     /// away from it — a delta applied to the LIVE width compounds on every gesture callback.
     @State private var chatColumnDragStart: CGFloat?
+    /// The messages toggle — the sidebar toggle's mirror image, remembered on this Mac (AITD-485).
+    @AppStorage("mac.chatColumnHidden") private var chatColumnHidden = false
 
     /// What the chat panel talks to for the current selection — a real list's channel, or My
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
@@ -79,7 +81,11 @@ struct MacRootView: View {
 
     /// 3-column mode: wide content + a selection that HAS a channel → chat is a persistent right
     /// column (web parity). My Tasks qualifies now that it resolves a virtual channel (51703e2a).
-    private var chatColumnVisible: Bool {
+    private var chatColumnVisible: Bool { chatColumnFits && !chatColumnHidden }
+
+    /// Would the chat column be up if nobody had hidden it? This — not `chatColumnVisible` — is
+    /// what offers the messages toggle, so the button is still there to bring the column back.
+    private var chatColumnFits: Bool {
         MacLayout.showsChatColumn(windowWidth: windowWidth, isRealList: chatSource != nil,
                                   isBoard: contentMode == .board,
                                   boardColumnCount: boardColumnCount,
@@ -1309,13 +1315,28 @@ struct MacRootView: View {
                         }
                     }
                 }
+                // The messages toggle (AITD-485): last, so it sits at the window's trailing corner
+                // over the column it closes — the mirror of the sidebar toggle at the leading one.
+                if chatColumnFits {
+                    ToolbarItem(placement: .primaryAction) {
+                        let title = NSLocalizedString(chatColumnHidden ? "chat.show_messages"
+                                                                       : "chat.hide_messages", comment: "")
+                        Button { withAnimation(MacMotion.medium) { chatColumnHidden.toggle() } } label: {
+                            Label(title, systemImage: "sidebar.right")
+                        }
+                        .help(title)
+                        .accessibilityIdentifier("messages.togglePane")
+                    }
+                }
             }
             .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
         // 3-column mode (1a71c0e7) OPENS the sidebar when the window becomes wide enough — it must
         // not PIN it there. Snapping `.all` back on every change made the rail impossible to close:
         // the toolbar toggle and ⌃⌘S were undone the instant they fired.
-        .onChange(of: chatColumnVisible) { _, wide in
+        // Watches whether the column FITS, not whether it is showing: bringing the messages back
+        // with their toggle must not reopen a sidebar the user closed (AITD-485).
+        .onChange(of: chatColumnFits) { _, wide in
             if wide { columnVisibility = .all }
         }
         // Adding/removing a list, or editing a smart list's filters, changes the badges too.

@@ -1498,3 +1498,5 @@
 "reminders.triage.keep" = "保持";
 "reminders.triage.caught_up" = "すべて完了";
 "reminders.triage.done" = "完了";
+"chat.hide_messages" = "メッセージを隠す";
+"chat.show_messages" = "メッセージを表示";

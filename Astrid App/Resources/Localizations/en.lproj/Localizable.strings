@@ -1506,3 +1506,5 @@
 "reminders.triage.keep" = "Keep";
 "reminders.triage.caught_up" = "All caught up";
 "reminders.triage.done" = "Done";
+"chat.hide_messages" = "Hide messages";
+"chat.show_messages" = "Show messages";
