@@ -22,13 +22,15 @@
 #
 # Environment:
 #   FIXALL_MODEL        model for the unattended run (default: opus)
-#   FIXALL_MAX_MINUTES  watchdog, kills a wedged run (default: 50)
+#   FIXALL_MAX_MINUTES  watchdog, kills a wedged run (default: 75)
 #   FIXALL_MAX_USD      hard spend cap for one run (default: 10; empty = no cap)
 #   CLAUDE_BIN          path to the claude CLI (default: ~/.local/bin/claude)
 #   FIXALL_FORCE=1      skip the dirty-tree/branch guard (testing only)
 #   FIXALL_TSX          path to tsx (default: astrid-web's). scripts/test-fixall-loop.sh
 #                       points it at a stub so the test can run this loop for real without
 #                       taking the working-tree lock or calling the board.
+#   FIXALL_CAFFEINATE   caffeinate binary that holds the Mac awake for the run
+#                       (default: caffeinate; empty = do not assert, as the test does)
 #   FIXALL_STALL_STATE  where the consecutive-skip count lives (default: beside the log)
 #   FIXALL_STALL_ALERT_AFTER  how many skips in a row before saying so (default: 3)
 #   FIXALL_PROD_SYNC    the ios-prod/mac-prod sync run each tick (default:
@@ -314,11 +316,37 @@ echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})
   "${BUDGET_ARGS[@]}" > "$RUN_OUT" 2>&1 &
 CLAUDE_PID=$!
 
+# A run may last MAX_MINUTES and this loop's runs include xcodebuild simulator
+# suites, so it is the most sleep-exposed unattended run on this Mac: idle sleep
+# inside that window kills it mid-task (AITD-488, after the web board's
+# AWTD-1207, where whole hours of ticks went missing to sleep).
+#
+# `-w "$CLAUDE_PID"`, NOT `caffeinate "$CLAUDE"`. As a wrapper, caffeinate would
+# be the child this script waits on, and the watchdog's kill would land on
+# caffeinate while the real run carried on — the wedged run the watchdog exists
+# to stop, since launchd starts no second copy of a live label. Asserting
+# against the run's pid keeps one process to kill, and the assertion ends with
+# the run on its own. No -d: the display may sleep, nobody is watching.
+# FIXALL_CAFFEINATE is the test seam, like FIXALL_TSX: a login shell runs
+# path_helper, which reorders PATH and puts /usr/bin ahead of anything the
+# caller prepended, so a stub cannot be reached by PATH alone. Empty = skip.
+CAFFEINATE_BIN="${FIXALL_CAFFEINATE-caffeinate}"
+CAFFEINATE_PID=""
+if [ -n "$CAFFEINATE_BIN" ] && command -v "$CAFFEINATE_BIN" >/dev/null 2>&1; then
+  "$CAFFEINATE_BIN" -i -m -w "$CLAUDE_PID" &
+  CAFFEINATE_PID=$!
+elif [ -n "$CAFFEINATE_BIN" ]; then
+  echo "  ⚠️  no caffeinate at $CAFFEINATE_BIN — idle sleep may kill this run"
+fi
+
 ( sleep $((MAX_MINUTES * 60)); kill -TERM "$CLAUDE_PID" 2>/dev/null ) &
 WATCHDOG_PID=$!
 
 wait "$CLAUDE_PID"
 STATUS=$?
+if [ -n "$CAFFEINATE_PID" ]; then
+  kill "$CAFFEINATE_PID" 2>/dev/null || true
+fi
 kill "$WATCHDOG_PID" 2>/dev/null
 cat "$RUN_OUT" 2>/dev/null
 RUN_VERDICT=$(grep -E '^RESULT: ' "$RUN_OUT" 2>/dev/null | tail -1)
