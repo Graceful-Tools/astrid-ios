@@ -230,6 +230,10 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     /// May a task on this list hold several assignees? Classic unless the server says otherwise.
     var supportsMultipleAssignees: Bool { supports?.multipleAssignees ?? false }
 
+    /// Does completing a repeating task here leave it completed, the next occurrence arriving
+    /// from the server as a new task? Classic — roll forward in place — unless the server says so.
+    var spawnsNextOccurrence: Bool { supports?.repeatMode == .spawn }
+
     // MARK: - Decoding
 
     /// Hand-written so that ONE field on ONE list can never fail the decode of the whole
@@ -320,14 +324,30 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
 nonisolated struct ListSupports: Codable, Equatable, Hashable {
     /// A task here may hold several assignees (`assigneeIds`). Classic lists keep at most one.
     var multipleAssignees: Bool
+    /// How a repeating task here advances when it is completed (AITD-491). The core acts on it
+    /// in `completeTask`; a view reads it through `TaskList.spawnsNextOccurrence`.
+    var repeatMode: RepeatMode
 
-    init(multipleAssignees: Bool = false) {
+    /// On a board that spawns, the completed task stays completed and the server makes the next
+    /// occurrence as a new task. A mode this build does not know reads as the classic one.
+    enum RepeatMode: String, Codable, Hashable {
+        case rollForward = "roll_forward"
+        case spawn
+
+        init(from decoder: Decoder) throws {
+            self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .rollForward
+        }
+    }
+
+    init(multipleAssignees: Bool = false, repeatMode: RepeatMode = .rollForward) {
         self.multipleAssignees = multipleAssignees
+        self.repeatMode = repeatMode
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         multipleAssignees = try c.decodeIfPresent(Bool.self, forKey: .multipleAssignees) ?? false
+        repeatMode = try c.decodeIfPresent(RepeatMode.self, forKey: .repeatMode) ?? .rollForward
     }
 }
 

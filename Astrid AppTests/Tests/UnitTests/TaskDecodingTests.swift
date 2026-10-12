@@ -155,4 +155,35 @@ final class TaskDecodingTests: XCTestCase {
         XCTAssertNil(classic.supports)
         XCTAssertFalse(classic.supportsMultipleAssignees)
     }
+
+    // MARK: - A board whose series spawns (AITD-491)
+
+    /// `repeatMode` was the unknown key in the test above: decoded and dropped, so nothing in the
+    /// app could tell a board that spawns its next occurrence from a list that rolls forward.
+    func test_aitd491_listRepeatMode_decodesSpawn_andAnythingElseRollsForward() throws {
+        let board = try decoder.decode(TaskList.self, from: Data(
+            #"{"id":"l1","name":"Board","supports":{"multipleAssignees":true,"repeatMode":"spawn"}}"#.utf8))
+        XCTAssertTrue(board.spawnsNextOccurrence)
+        let again = try decoder.decode(TaskList.self, from: JSONEncoder().encode(board))
+        XCTAssertTrue(again.spawnsNextOccurrence, "survives the app's own cache")
+
+        for classic in [
+            #"{"id":"l2","name":"Home"}"#,
+            #"{"id":"l3","name":"Older","supports":{"multipleAssignees":true}}"#,
+            #"{"id":"l4","name":"Home","supports":{"repeatMode":"roll_forward"}}"#,
+            #"{"id":"l5","name":"Later","supports":{"repeatMode":"aModeFromLater"}}"#,
+        ] {
+            XCTAssertFalse(try decoder.decode(TaskList.self, from: Data(classic.utf8)).spawnsNextOccurrence, classic)
+        }
+    }
+
+    func test_aitd491_previousOccurrenceId_decodesAndRoundTrips_andIsAbsentOnAClassicTask() throws {
+        let json = #"{"id":"t2","title":"x","description":"","priority":0,"isAllDay":true,"isPrivate":false,"completed":false,"previousOccurrenceId":"t1"}"#
+        let task = try decoder.decode(Task.self, from: Data(json.utf8))
+        XCTAssertEqual(task.previousOccurrenceId, "t1")
+        XCTAssertEqual(try decoder.decode(Task.self, from: JSONEncoder().encode(task)).previousOccurrenceId, "t1")
+
+        let classic = #"{"id":"t3","title":"x","description":"","priority":0,"isAllDay":true,"isPrivate":false,"completed":false}"#
+        XCTAssertNil(try decoder.decode(Task.self, from: Data(classic.utf8)).previousOccurrenceId)
+    }
 }
