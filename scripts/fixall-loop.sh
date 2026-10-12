@@ -113,7 +113,7 @@ skip_and_maybe_alert() {  # skip_and_maybe_alert <one-line reason> <detail block
 
 $reason
 
-It has skipped **$count ticks in a row**, first at \`$since\`. That guard is doing its job — it will not clobber work in progress — but it will keep refusing until the tree is put back, so this says so once rather than waiting to be asked.
+It has skipped **$count ticks in a row**, first at \`$since\`. That guard is doing its job, but it will keep refusing until what is in its way is cleared, so this says so once rather than waiting to be asked.
 
 $detail
 
@@ -157,7 +157,7 @@ if [ ! -x "$TSX" ]; then
   exit 1
 fi
 
-"$TSX" "$WEB/scripts/fixall-session.ts" acquire --pid $$ --harness claude-code
+"$TSX" "$WEB/scripts/fixall-session.ts" acquire --pid $$ --harness claude-code --scheduled
 LOCK_STATUS=$?
 if [ "$LOCK_STATUS" -eq 2 ]; then
   echo "RESULT: SKIPPED — another live session holds this checkout"
@@ -181,6 +181,36 @@ export ASTRID_FIXALL_LOCK_HELD=1
 # A run that takes the whole queue does not fit the watchdog; the next tick takes
 # the next task. Same rule as astrid-web/scripts/fixall-loop.sh.
 export ASTRID_FIXALL_MAX_TASKS="${FIXALL_MAX_TASKS:-1}"
+
+# ── Guard 1b: stand down while someone is working ────────────────────────────
+# The lock above is per WORKING TREE; contention is per MACHINE. On 2026-10-11 a
+# session worked astrid-web while this loop ran a simulator suite and the web
+# loop ran predeploy: the 5-minute load average peaked over 890, and two web
+# runs that day went red on test timeouts in files that pass alone, filing
+# failure tasks for nothing. A simulator suite buries this Mac for the web
+# loop's predeploy just as thoroughly as the other way round (AITD-489, after
+# astrid-web's AWTD-1212).
+#
+# So an interactive `fixall-session.ts acquire` in EITHER repo stands both loops
+# down, for as long as that session lives, and `npm run fixall:pause` in
+# astrid-web covers the work no session knows about — plain Xcode, a manual
+# build. `--scheduled` above is what keeps the two loops from pausing each
+# other: they register as lock holders without publishing a pause.
+#
+# An unreadable pause state RUNS the tick and says so. Until the astrid-web
+# change lands this script is simply absent, which is that case: the loop goes
+# on exactly as it does today rather than stalling on a missing file.
+YIELD_OUT=$("$TSX" "$WEB/scripts/fixall-pause.ts" yield --self-pid $$ 2>&1)
+YIELD_STATUS=$?
+if [ "$YIELD_STATUS" -eq 2 ]; then
+  # Through the stall tracker, so a pause nobody lifts is announced on the board
+  # like any other long skip rather than skipping every tick in silence.
+  skip_and_maybe_alert "$YIELD_OUT" \
+    "Standing down is deliberate while someone is working this Mac. If nobody is, \`npm run fixall:pause -- status\` in astrid-web says what is holding it, and \`npm run fixall:resume\` lifts an explicit pause."
+  exit 0
+elif [ "$YIELD_STATUS" -ne 0 ]; then
+  echo "  ⚠️  could not read the pause state, running anyway: $YIELD_OUT"
+fi
 
 # ── Guard 2: never clobber work in progress ──────────────────────────────────
 # /fixstuff takes no lock, so an interactive session editing files here is

@@ -35,6 +35,11 @@ cat > "$TMP/bin/tsx" <<'STUB'
 echo "$*" >> "$CALLS"
 case "$*" in
   *fixall-session.ts*)      exit 0 ;;
+  *fixall-pause.ts*yield*)
+    # 2 = someone is working this Mac, 1 = state unreadable, 0 = go.
+    [ "${STUB_YIELD_EXIT:-0}" = "2" ] && echo "claude-code (pid 999) is working /w/web — this tick stands down"
+    [ "${STUB_YIELD_EXIT:-0}" = "1" ] && echo "boom"
+    exit "${STUB_YIELD_EXIT:-0}" ;;
   *post-list-message.ts*)   exit 0 ;;
   *agent-queue-status.ts*--mark-seen*)
     echo "SEEN: recorded"; exit 0 ;;
@@ -84,6 +89,8 @@ run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv
   : > "$CLAUDE_PID_FILE"
   FIXALL_CAFFEINATE="$TMP/bin/caffeinate" \
   STUB_CLAUDE_SLEEP="${STUB_CLAUDE_SLEEP:-0}" \
+  STUB_YIELD_EXIT="${STUB_YIELD_EXIT:-0}" \
+  FIXALL_STALL_STATE="$TMP/stall.state" \
   FIXALL_FORCE=1 \
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
@@ -146,6 +153,26 @@ else bad "caffeinate names the run's OWN pid — as a wrapper it would take the 
 if grep '^caffeinate ' "$CALLS" | grep -q -- ' -d'; then
   bad "no -d: the display may sleep, nobody is watching" "$(grep '^caffeinate ' "$CALLS")"
 else ok; fi
+
+# --- Stand down while someone is working this Mac (AITD-489) -----------------------
+called "the loop asks whether to stand down, about OTHER sessions not itself" \
+       "fixall-pause.ts" "yield" "--self-pid"
+called "the loop takes its lock as --scheduled, so the two loops cannot pause each other" \
+       "fixall-session.ts" "acquire" "--scheduled"
+
+STUB_YIELD_EXIT=2 run 0 0
+if echo "$OUT" | tail -1 | grep -q '^RESULT: SKIPPED'; then ok
+else bad "a tick stands down while someone is working" "$OUT"; fi
+if echo "$OUT" | grep -q "is working /w/web"; then ok
+else bad "…and repeats the reason, so the log says who and where" "$OUT"; fi
+not_called "^claude " "a paused tick must not start a session"
+
+# Unreadable must RUN, not stall: until astrid-web lands the script it is absent,
+# and a loop that stops for a missing file would be the worse outage.
+STUB_YIELD_EXIT=1 run 0 0
+if echo "$OUT" | grep -q "could not read the pause state"; then ok
+else bad "an unreadable pause state is reported" "$OUT"; fi
+called "…and the run still happens" "claude -p"
 
 # --- Phase two, run that died: a strike, not a mute --------------------------------
 run 3 0
@@ -272,6 +299,21 @@ not_called "post-list-message.ts" "a tick that gets past the guards posts nothin
 dirty_sandbox
 run_sandbox
 not_called "post-list-message.ts" "…and the count starts again from one after it"
+
+# Standing down for someone working this Mac is a skip like any other (AITD-489): a
+# pause nobody lifts must announce itself, not skip every tick in silence.
+rm -f "$STALL_STATE"
+clean_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "the first stood-down tick stays quiet"
+STUB_YIELD_EXIT=2 run_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+posted "the third stood-down tick in a row posts to the list chat (AITD-489)" "is working /w/web"
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "…once per stand-down, not once per tick"
+run_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "a tick that runs in between starts the count again"
 
 # The wrong-branch guard is the same failure class and gets the same treatment.
 rm -f "$STALL_STATE"
