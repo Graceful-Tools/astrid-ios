@@ -63,7 +63,8 @@ struct MacTaskFieldsView: View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle,
                                              displayMode: displayMode,
-                                             isInProject: isInProject).enumerated()),
+                                             isInProject: isInProject,
+                                             hasOccurrenceLinks: !occurrenceLinks.isEmpty).enumerated()),
                     id: \.offset) { _, row in
                 fieldRow(row)
             }
@@ -119,7 +120,17 @@ struct MacTaskFieldsView: View {
             // Only reached for a task on a board — `MacTaskFields.rows` decides (AITD-430).
             labeled(icon: "hourglass",
                     NSLocalizedString("tasks.waitingOn.label", comment: "")) { MacTaskBlockersRow(task: task) }
+        case .occurrences:
+            // Only reached for a task in an occurrence chain — `MacTaskFields.rows` decides (AITD-491).
+            labeled(icon: "repeat", NSLocalizedString("tasks.occurrences.label", comment: "")) {
+                MacTaskOccurrencesRow(links: occurrenceLinks)
+            }
         }
+    }
+
+    /// The occurrences on either side of this task, by the rule iOS shares.
+    private var occurrenceLinks: TaskOccurrenceLinks {
+        TaskOccurrences.links(for: task, in: taskService.tasks)
     }
 
     /// Does this task have a board column? Asked of the shared rule, not spelled here, so the

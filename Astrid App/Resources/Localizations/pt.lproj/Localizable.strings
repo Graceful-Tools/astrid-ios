@@ -1485,6 +1485,11 @@
 "tasks.waitingOn.addError" = "Não foi possível esperar por essa tarefa";
 "tasks.waitingOn.noResults" = "Nenhuma tarefa correspondente";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "Ocorrências";
+"tasks.occurrences.previous" = "Anterior";
+"tasks.occurrences.next" = "Próxima";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID da tarefa";
 "tasks.taskId.copy" = "Copiar ID da tarefa";

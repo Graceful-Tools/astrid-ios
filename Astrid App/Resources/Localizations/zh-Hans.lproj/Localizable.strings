@@ -1485,6 +1485,11 @@
 "tasks.waitingOn.addError" = "无法等待该任务";
 "tasks.waitingOn.noResults" = "没有匹配的任务";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "重复记录";
+"tasks.occurrences.previous" = "上一次";
+"tasks.occurrences.next" = "下一次";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "任务 ID";
 "tasks.taskId.copy" = "复制任务 ID";

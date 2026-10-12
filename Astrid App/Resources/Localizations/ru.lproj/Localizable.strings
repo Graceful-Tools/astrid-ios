@@ -1485,6 +1485,11 @@
 "tasks.waitingOn.addError" = "Не удалось добавить ожидание этой задачи";
 "tasks.waitingOn.noResults" = "Подходящих задач нет";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "Повторения";
+"tasks.occurrences.previous" = "Предыдущее";
+"tasks.occurrences.next" = "Следующее";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID задачи";
 "tasks.taskId.copy" = "Копировать ID задачи";

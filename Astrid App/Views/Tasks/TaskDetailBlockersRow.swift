@@ -140,8 +140,8 @@ struct TaskDetailBlockersRow: View {
     private var textMuted: Color { colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
 }
 
-private extension View {
-    /// The When row's compact chip (`InlineDatePicker(compact: true)`), so the two rows match.
+extension View {
+    /// The When row's compact chip (shared with the occurrences row, AITD-491) (`InlineDatePicker(compact: true)`), so the rows match.
     func chipBackground(_ colorScheme: ColorScheme) -> some View {
         padding(.horizontal, Theme.spacing8)
             .padding(.vertical, Theme.spacing4)

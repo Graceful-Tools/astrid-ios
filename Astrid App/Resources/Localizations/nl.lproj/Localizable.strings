@@ -1485,6 +1485,11 @@
 "tasks.waitingOn.addError" = "Kon niet op die taak wachten";
 "tasks.waitingOn.noResults" = "Geen overeenkomende taken";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "Herhalingen";
+"tasks.occurrences.previous" = "Vorige";
+"tasks.occurrences.next" = "Volgende";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "Taak-ID";
 "tasks.taskId.copy" = "Taak-ID kopiëren";

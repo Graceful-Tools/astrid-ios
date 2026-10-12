@@ -1485,6 +1485,11 @@
 "tasks.waitingOn.addError" = "Impossibile attendere quell'attività";
 "tasks.waitingOn.noResults" = "Nessuna attività corrispondente";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "Ricorrenze";
+"tasks.occurrences.previous" = "Precedente";
+"tasks.occurrences.next" = "Successiva";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID attività";
 "tasks.taskId.copy" = "Copia ID attività";
