@@ -187,7 +187,8 @@ TDD with a task-id-linked test → gates → completion report → mark complete
 (`scripts/launchd/cc.astrid.fixall.plist.template`, rendered and installed by
 `scripts/launchd/install.sh` — no path in git names a machine) fires one pass
 at `:00` and `:30` — interleaved with the Copilot GitHub workflow's `:15`/`:45` — through
-`scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held, the tree is
+`scripts/fixall-loop.sh`, which skips the tick when the working-tree lock is held, someone is
+working this Mac (a live session in either repo, or `npm run fixall:pause` in astrid-web), the tree is
 dirty, or the queue is empty — that last one checked with a single HTTP request before any
 session starts, so a quiet tick costs nothing. A run is bounded by both a wall-clock watchdog
 and `--max-budget-usd`. Three skips in a row on a dirty tree or the wrong branch posts once to
