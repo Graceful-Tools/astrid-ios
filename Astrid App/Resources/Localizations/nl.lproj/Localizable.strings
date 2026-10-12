@@ -1505,3 +1505,6 @@
 "reminders.triage.done" = "Klaar";
 "chat.hide_messages" = "Berichten verbergen";
 "chat.show_messages" = "Berichten tonen";
+"tasks.wont_do" = "Doen we niet";
+"tasks.reopen" = "Heropenen";
+"tasks.wont_do_chip" = "Doen we niet";

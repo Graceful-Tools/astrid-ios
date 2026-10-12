@@ -448,6 +448,22 @@ class TaskService: ObservableObject {
         return done
     }
 
+    /// Close a task as "won't do" — or reopen it, with `nil` (AITD-496).
+    ///
+    /// Not a completion, and deliberately not routed through `completeTask`: a won't-do close is
+    /// not an occurrence, so the core's rule closes a repeating task where it stands rather than
+    /// rolling it forward (web: `lib/task-update-handler.ts`). Reopening clears the flag and the
+    /// reason together. `reason` is one of `ClosedReason.all`; the core refuses anything else.
+    @discardableResult
+    func setClosedReason(taskId: String, reason: String?) async throws -> Task {
+        let closed = try await core.run(
+            CoreCommand.setClosedReason(taskId: resolved(taskId), reason: reason), as: Task.self)
+        show(closed)
+        LocalMutation.note(source: nil)
+        refreshOutboxCounts()
+        return closed
+    }
+
     /// Put a task in a board column — the move a dragged card or a state chip makes (AITD-461).
     ///
     /// The core decides what that writes (CONTRACTS D45): nothing when the card is already there;

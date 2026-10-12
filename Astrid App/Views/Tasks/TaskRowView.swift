@@ -125,17 +125,32 @@ struct TaskRowView: View {
             VStack(alignment: .leading, spacing: 6) {
                 // Title - 10% larger than standard (17pt × 1.1 = 19pt)
                 // In compact mode (details panel visible), truncate to single line
-                Text(task.title)
-                    .font(.system(size: 19, weight: .medium))
-                    .lineSpacing(-1)
-                    .lineLimit(compactMode ? 1 : nil)
-                    .truncationMode(.tail)
-                    .strikethrough(task.completed)
-                    .foregroundColor(
-                        task.completed
-                            ? (effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
-                            : (effectiveTheme == "dark" ? Theme.Dark.textPrimary : Theme.textPrimary)
-                    )
+                HStack(alignment: .firstTextBaseline, spacing: Theme.spacing8) {
+                    Text(task.title)
+                        .font(.system(size: 19, weight: .medium))
+                        .lineSpacing(-1)
+                        .lineLimit(compactMode ? 1 : nil)
+                        .truncationMode(.tail)
+                        .strikethrough(task.completed)
+                        .foregroundColor(
+                            task.completed
+                                ? (effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
+                                : (effectiveTheme == "dark" ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        )
+                    // Closed as won't-do reads differently from done (AITD-496, web's
+                    // `tasks.wontDoChip`). Nothing draws for a task that was simply completed.
+                    if ClosedReason.isCanceled(task) {
+                        let muted = effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted
+                        Text(NSLocalizedString(ClosedReason.chipLabelKey, comment: ""))
+                            .font(Theme.Typography.caption1())
+                            .foregroundColor(muted)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .padding(.horizontal, 6)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(muted.opacity(0.5), lineWidth: 1))
+                            .accessibilityIdentifier("taskRow.wontDoChip")
+                    }
+                }
 
                 // Combined metadata row: date first (left), then lists - matching web
                 // Drop the row entirely when there's nothing useful to show

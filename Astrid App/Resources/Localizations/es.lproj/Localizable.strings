@@ -1521,3 +1521,6 @@
 "reminders.triage.done" = "Listo";
 "chat.hide_messages" = "Ocultar mensajes";
 "chat.show_messages" = "Mostrar mensajes";
+"tasks.wont_do" = "No se hará";
+"tasks.reopen" = "Reabrir";
+"tasks.wont_do_chip" = "No se hará";

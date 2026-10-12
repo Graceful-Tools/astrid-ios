@@ -1505,3 +1505,6 @@
 "reminders.triage.done" = "Fertig";
 "chat.hide_messages" = "Nachrichten ausblenden";
 "chat.show_messages" = "Nachrichten einblenden";
+"tasks.wont_do" = "Wird nicht erledigt";
+"tasks.reopen" = "Wieder öffnen";
+"tasks.wont_do_chip" = "Wird nicht erledigt";

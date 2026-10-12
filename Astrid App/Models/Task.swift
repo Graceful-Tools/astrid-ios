@@ -37,6 +37,10 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     var completed: Bool
     var completedAt: Date?        // real completion time (backdatable by sync)
     var completedSource: String?  // astrid | google | github | apple
+    /// Why the task is closed, when not because it is done: canceled | duplicate | not_planned
+    /// (AITD-496). Closing that way still sets `completed`, so every filter keeps working; only
+    /// the rendering differs. Read it through `ClosedReason.isCanceled`, never directly.
+    var closedReason: String?
     /// Board status as a STATE on the task: ready | doing | waiting | a
     /// project's custom role. Nil means Inbox; Done is derived from
     /// `completed`, so neither is ever stored.
@@ -147,7 +151,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, completedAt, completedSource, statusRole, identifier, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, closedReason, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
@@ -180,6 +184,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         completed: Bool = false,
         completedAt: Date? = nil,
         completedSource: String? = nil,
+        closedReason: String? = nil,
         statusRole: String? = nil,
         identifier: String? = nil,
         attachments: [Attachment]? = nil,
@@ -219,6 +224,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         self.completed = completed
         self.completedAt = completedAt
         self.completedSource = completedSource
+        self.closedReason = closedReason
         self.statusRole = statusRole
         self.identifier = identifier
         self.attachments = attachments

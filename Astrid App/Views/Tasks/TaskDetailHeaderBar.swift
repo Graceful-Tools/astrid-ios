@@ -16,9 +16,14 @@ import SwiftUI
 
 struct TaskDetailHeaderBar: View {
     let isReadOnly: Bool
+    /// The task as the detail view holds it — the menu's won't-do item reads "Reopen" on a task
+    /// already closed that way (AITD-496).
+    let task: Task
     /// Supplied only by the iPad side panel, where it clears `selectedTask`. Its presence is
     /// what tells `TaskDetailHeader.backAction` which presentation this is.
     let onClose: (() -> Void)?
+    /// The task after a write this bar made, for the parent's snapshot (AITD-352).
+    let onTaskChanged: (Task) -> Void
     let isFullScreen: Bool
     let onToggleFullScreen: (() -> Void)?
     let scrollToTopAction: (() -> Void)?
@@ -92,6 +97,18 @@ struct TaskDetailHeaderBar: View {
         .background(background)
     }
 
+    /// Close as won't-do, or reopen with `nil` (AITD-496). Not the completion toggle: a won't-do
+    /// close is not an occurrence, so it never rolls a repeating task forward.
+    private func setClosedReason(_ reason: String?) {
+        _Concurrency.Task {
+            do {
+                onTaskChanged(try await TaskService.shared.setClosedReason(taskId: task.id, reason: reason))
+            } catch {
+                AppLog.debug("❌ [TaskDetail] Failed to set closed reason: \(TaskService.safeErrorSummary(error))")
+            }
+        }
+    }
+
     private var backButton: some View {
         Button {
             // Which of the two this is lives in the shared helper, not here: the panel case
@@ -118,25 +135,33 @@ struct TaskDetailHeaderBar: View {
     }
 
     private var actionsMenu: some View {
+        // Copy / Share / Won't do / Delete — web's task menu, in web's order (AITD-496).
         Menu {
             Button {
                 showingCopySheet = true
             } label: {
-                Label(NSLocalizedString("tasks.copy_task", comment: ""), systemImage: "doc.on.doc")
+                Label(NSLocalizedString("actions.copy", comment: ""), systemImage: "doc.on.doc")
             }
 
             Button {
                 showingShareSheet = true
             } label: {
-                Label(NSLocalizedString("tasks.share_task", comment: ""), systemImage: "square.and.arrow.up")
+                Label(NSLocalizedString("actions.share", comment: ""), systemImage: "square.and.arrow.up")
             }
 
             Divider()
 
+            Button {
+                setClosedReason(ClosedReason.menuReason(for: task))
+            } label: {
+                Label(NSLocalizedString(ClosedReason.menuLabelKey(for: task), comment: ""),
+                      systemImage: ClosedReason.menuSymbol(for: task))
+            }
+
             Button(role: .destructive) {
                 showingDeleteConfirmation = true
             } label: {
-                Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
+                Label(NSLocalizedString("actions.delete", comment: ""), systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis")

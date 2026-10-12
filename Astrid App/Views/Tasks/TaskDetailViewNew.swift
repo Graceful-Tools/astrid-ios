@@ -145,8 +145,8 @@ struct TaskDetailViewNew: View {
             // glass bubbles. It lives in `TaskDetailHeaderBar` (AITD-425) — this was the
             // largest file in the repo and the header was the most separable thing in it.
             TaskDetailHeaderBar(
-                isReadOnly: isReadOnly,
-                onClose: onClose,
+                isReadOnly: isReadOnly, task: task,
+                onClose: onClose, onTaskChanged: { task = $0; isCompleted = $0.completed },
                 isFullScreen: isFullScreen,
                 onToggleFullScreen: onToggleFullScreen,
                 scrollToTopAction: scrollToTopAction,

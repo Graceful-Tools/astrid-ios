@@ -1507,3 +1507,6 @@
 "reminders.triage.done" = "완료";
 "chat.hide_messages" = "메시지 숨기기";
 "chat.show_messages" = "메시지 표시";
+"tasks.wont_do" = "하지 않음";
+"tasks.reopen" = "다시 열기";
+"tasks.wont_do_chip" = "하지 않음";
