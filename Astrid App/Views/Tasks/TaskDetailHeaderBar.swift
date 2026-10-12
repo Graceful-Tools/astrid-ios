@@ -23,6 +23,11 @@ struct TaskDetailHeaderBar: View {
     let onToggleFullScreen: (() -> Void)?
     let scrollToTopAction: (() -> Void)?
     let background: Color
+    /// The task as the detail view holds it — the menu's won't-do item reads "Reopen" on a task
+    /// already closed that way (AITD-496).
+    let task: Task
+    /// Close as won't-do, or reopen with `nil`. The parent owns the write, as it does the others.
+    let onSetClosedReason: (String?) -> Void
     @Binding var showingCopySheet: Bool
     @Binding var showingShareSheet: Bool
     @Binding var showingDeleteConfirmation: Bool
@@ -118,25 +123,33 @@ struct TaskDetailHeaderBar: View {
     }
 
     private var actionsMenu: some View {
+        // Copy / Share / Won't do / Delete — web's task menu, in web's order (AITD-496).
         Menu {
             Button {
                 showingCopySheet = true
             } label: {
-                Label(NSLocalizedString("tasks.copy_task", comment: ""), systemImage: "doc.on.doc")
+                Label(NSLocalizedString("actions.copy", comment: ""), systemImage: "doc.on.doc")
             }
 
             Button {
                 showingShareSheet = true
             } label: {
-                Label(NSLocalizedString("tasks.share_task", comment: ""), systemImage: "square.and.arrow.up")
+                Label(NSLocalizedString("actions.share", comment: ""), systemImage: "square.and.arrow.up")
             }
 
             Divider()
 
+            Button {
+                onSetClosedReason(ClosedReason.menuReason(for: task))
+            } label: {
+                Label(NSLocalizedString(ClosedReason.menuLabelKey(for: task), comment: ""),
+                      systemImage: ClosedReason.menuSymbol(for: task))
+            }
+
             Button(role: .destructive) {
                 showingDeleteConfirmation = true
             } label: {
-                Label(NSLocalizedString("tasks.delete_task", comment: ""), systemImage: "trash")
+                Label(NSLocalizedString("actions.delete", comment: ""), systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis")

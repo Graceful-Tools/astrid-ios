@@ -90,8 +90,8 @@ or filed.
   server rolls (and counts) only when it receives `completed: true`, and the v1 update route
   ignores an `occurrenceCount` in the body. So "end after N times" only works for completions
   made on the web. The core's `completion` rule now counts locally; the server-side fix is filed.
-- **Swift never cleared a "won't do" reason on reopen** — moot on Apple today (Swift has no
-  `closedReason`), and the core's rule does.
+- **Swift never cleared a "won't do" reason on reopen** — the core's rule does, and since
+  AITD-496 the Apple apps carry `closedReason` and close through the core's `setClosedReason`.
 - Found by the mapping pass (2026-09-28), since recorded as CONTRACTS D22–D28: the
   completion-filter values mean different things (Swift `completed`/`incomplete` vs core `hide`);
   Mac mentions insert a plain `@label` instead of `@[Name](id)`; snooze moves `dueDateTime` on

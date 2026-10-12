@@ -1513,3 +1513,6 @@
 "reminders.triage.done" = "Done";
 "chat.hide_messages" = "Hide messages";
 "chat.show_messages" = "Show messages";
+"tasks.wont_do" = "Won't do";
+"tasks.reopen" = "Reopen";
+"tasks.wont_do_chip" = "Won't do";

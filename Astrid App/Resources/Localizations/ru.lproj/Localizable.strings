@@ -1505,3 +1505,6 @@
 "reminders.triage.done" = "Готово";
 "chat.hide_messages" = "Скрыть сообщения";
 "chat.show_messages" = "Показать сообщения";
+"tasks.wont_do" = "Не будет сделано";
+"tasks.reopen" = "Открыть снова";
+"tasks.wont_do_chip" = "Не будет сделано";

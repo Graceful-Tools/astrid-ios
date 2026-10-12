@@ -73,4 +73,11 @@ extension CoreCommand {
         command.set("source", source)
         return command
     }
+
+    /// Close a task as something other than done, or reopen it with `nil` (AITD-496).
+    static func setClosedReason(taskId: String, reason: String?) -> CoreCommand {
+        var command = CoreCommand(kind: "setClosedReason", taskId: taskId)
+        command.set("closedReason", reason)
+        return command
+    }
 }

@@ -1505,3 +1505,6 @@
 "reminders.triage.done" = "完成";
 "chat.hide_messages" = "隐藏消息";
 "chat.show_messages" = "显示消息";
+"tasks.wont_do" = "不做";
+"tasks.reopen" = "重新打开";
+"tasks.wont_do_chip" = "不做";

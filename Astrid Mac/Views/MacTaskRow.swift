@@ -180,11 +180,24 @@ struct MacTaskRow: View {
                         .onSubmit(onCommitEdit)
                         .onExitCommand(perform: onCancelEdit)
                 } else {
-                    Text(task.title)
-                        .macFont(MacTypography.rowTitle)
-                        .strikethrough(task.completed)
-                        .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
-                        .lineLimit(2)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(task.title)
+                            .macFont(MacTypography.rowTitle)
+                            .strikethrough(task.completed)
+                            .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
+                            .lineLimit(2)
+                        // Closed as won't-do reads differently from done (AITD-496), as on iOS and web.
+                        if ClosedReason.isCanceled(task) {
+                            Text(NSLocalizedString(ClosedReason.chipLabelKey, comment: ""))
+                                .macFont(MacTypography.rowMeta)
+                                .foregroundStyle(Theme.textMuted)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .padding(.horizontal, 6)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.textMuted.opacity(0.5), lineWidth: 1))
+                                .accessibilityIdentifier("taskRow.wontDoChip")
+                        }
+                    }
                 }
 
                 let chips = chipLists   // computed ONCE per row render (was 3 references = 3 computations)

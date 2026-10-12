@@ -1505,3 +1505,6 @@
 "reminders.triage.done" = "完了";
 "chat.hide_messages" = "メッセージを隠す";
 "chat.show_messages" = "メッセージを表示";
+"tasks.wont_do" = "対応しない";
+"tasks.reopen" = "再開";
+"tasks.wont_do_chip" = "対応しない";

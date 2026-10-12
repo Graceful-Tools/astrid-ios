@@ -151,6 +151,8 @@ struct TaskDetailViewNew: View {
                 onToggleFullScreen: onToggleFullScreen,
                 scrollToTopAction: scrollToTopAction,
                 background: toolbarBackgroundColor,
+                task: task,
+                onSetClosedReason: setClosedReason,
                 showingCopySheet: $showingCopySheet,
                 showingShareSheet: $showingShareSheet,
                 showingDeleteConfirmation: $showingDeleteConfirmation
@@ -1433,6 +1435,20 @@ struct TaskDetailViewNew: View {
             return
         }
         performCompletion(alsoCompleteSubtasks: false)
+    }
+
+    /// Close as won't-do, or reopen (AITD-496). Not `toggleCompletion`: a won't-do close is not
+    /// an occurrence, so it never rolls a repeating task forward and never prompts for subtasks.
+    private func setClosedReason(_ reason: String?) {
+        _Concurrency.Task {
+            do {
+                let updated = try await taskService.setClosedReason(taskId: task.id, reason: reason)
+                task = updated
+                isCompleted = updated.completed
+            } catch {
+                print("❌ [TaskDetail] Failed to set closed reason: \(TaskService.safeErrorSummary(error))")
+            }
+        }
     }
 
     private var openSubtasks: [Task] {

@@ -125,7 +125,13 @@ struct MacTaskDetailView: View {
                 }
                 Button(NSLocalizedString("mac.open_new_window", comment: "")) { openWindow(id: "task", value: task.id) }
                 Divider()
-                Button(NSLocalizedString("tasks.delete_task", comment: ""), role: .destructive) { deleteTask() }
+                // Won't do, beside Delete — web's menu (AITD-496). Reads "Reopen" once closed.
+                Button(NSLocalizedString(ClosedReason.menuLabelKey(for: task), comment: ""),
+                       systemImage: ClosedReason.menuSymbol(for: task)) {
+                    setClosedReason(ClosedReason.menuReason(for: task))
+                }
+                .accessibilityIdentifier("taskDetail.wontDo")
+                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteTask() }
             } label: {
                 // A real symbol, stood on end: macOS has no "ellipsis.vertical", and asking for
                 // one rendered an empty label so only the menu's own chevron showed (59d51b80).
@@ -485,6 +491,14 @@ struct MacTaskDetailView: View {
         // is indistinguishable from a dead checkbox (652edb22).
         AppActions.perform("Complete task") {
             _ = try await TaskService.shared.completeTask(id: task.id, completed: value, task: task)
+        }
+    }
+
+    /// Close as won't-do, or reopen with `nil` (AITD-496) — never a completion, so a repeating
+    /// task closes where it stands instead of rolling forward.
+    private func setClosedReason(_ reason: String?) {
+        AppActions.perform("Won't do") {
+            _ = try await TaskService.shared.setClosedReason(taskId: task.id, reason: reason)
         }
     }
 
