@@ -113,7 +113,7 @@ skip_and_maybe_alert() {  # skip_and_maybe_alert <one-line reason> <detail block
 
 $reason
 
-It has skipped **$count ticks in a row**, first at \`$since\`. That guard is doing its job — it will not clobber work in progress — but it will keep refusing until the tree is put back, so this says so once rather than waiting to be asked.
+It has skipped **$count ticks in a row**, first at \`$since\`. That guard is doing its job, but it will keep refusing until what is in its way is cleared, so this says so once rather than waiting to be asked.
 
 $detail
 
@@ -203,7 +203,10 @@ export ASTRID_FIXALL_MAX_TASKS="${FIXALL_MAX_TASKS:-1}"
 YIELD_OUT=$("$TSX" "$WEB/scripts/fixall-pause.ts" yield --self-pid $$ 2>&1)
 YIELD_STATUS=$?
 if [ "$YIELD_STATUS" -eq 2 ]; then
-  echo "RESULT: SKIPPED — $YIELD_OUT"
+  # Through the stall tracker, so a pause nobody lifts is announced on the board
+  # like any other long skip rather than skipping every tick in silence.
+  skip_and_maybe_alert "$YIELD_OUT" \
+    "Standing down is deliberate while someone is working this Mac. If nobody is, \`npm run fixall:pause -- status\` in astrid-web says what is holding it, and \`npm run fixall:resume\` lifts an explicit pause."
   exit 0
 elif [ "$YIELD_STATUS" -ne 0 ]; then
   echo "  ⚠️  could not read the pause state, running anyway: $YIELD_OUT"

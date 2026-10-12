@@ -90,6 +90,7 @@ run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv
   FIXALL_CAFFEINATE="$TMP/bin/caffeinate" \
   STUB_CLAUDE_SLEEP="${STUB_CLAUDE_SLEEP:-0}" \
   STUB_YIELD_EXIT="${STUB_YIELD_EXIT:-0}" \
+  FIXALL_STALL_STATE="$TMP/stall.state" \
   FIXALL_FORCE=1 \
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
@@ -298,6 +299,21 @@ not_called "post-list-message.ts" "a tick that gets past the guards posts nothin
 dirty_sandbox
 run_sandbox
 not_called "post-list-message.ts" "…and the count starts again from one after it"
+
+# Standing down for someone working this Mac is a skip like any other (AITD-489): a
+# pause nobody lifts must announce itself, not skip every tick in silence.
+rm -f "$STALL_STATE"
+clean_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "the first stood-down tick stays quiet"
+STUB_YIELD_EXIT=2 run_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+posted "the third stood-down tick in a row posts to the list chat (AITD-489)" "is working /w/web"
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "…once per stand-down, not once per tick"
+run_sandbox
+STUB_YIELD_EXIT=2 run_sandbox
+not_called "post-list-message.ts" "a tick that runs in between starts the count again"
 
 # The wrong-branch guard is the same failure class and gets the same treatment.
 rm -f "$STALL_STATE"
