@@ -145,14 +145,12 @@ struct TaskDetailViewNew: View {
             // glass bubbles. It lives in `TaskDetailHeaderBar` (AITD-425) — this was the
             // largest file in the repo and the header was the most separable thing in it.
             TaskDetailHeaderBar(
-                isReadOnly: isReadOnly,
-                onClose: onClose,
+                isReadOnly: isReadOnly, task: task,
+                onClose: onClose, onTaskChanged: { task = $0; isCompleted = $0.completed },
                 isFullScreen: isFullScreen,
                 onToggleFullScreen: onToggleFullScreen,
                 scrollToTopAction: scrollToTopAction,
                 background: toolbarBackgroundColor,
-                task: task,
-                onSetClosedReason: setClosedReason,
                 showingCopySheet: $showingCopySheet,
                 showingShareSheet: $showingShareSheet,
                 showingDeleteConfirmation: $showingDeleteConfirmation
@@ -1435,20 +1433,6 @@ struct TaskDetailViewNew: View {
             return
         }
         performCompletion(alsoCompleteSubtasks: false)
-    }
-
-    /// Close as won't-do, or reopen (AITD-496). Not `toggleCompletion`: a won't-do close is not
-    /// an occurrence, so it never rolls a repeating task forward and never prompts for subtasks.
-    private func setClosedReason(_ reason: String?) {
-        _Concurrency.Task {
-            do {
-                let updated = try await taskService.setClosedReason(taskId: task.id, reason: reason)
-                task = updated
-                isCompleted = updated.completed
-            } catch {
-                print("❌ [TaskDetail] Failed to set closed reason: \(TaskService.safeErrorSummary(error))")
-            }
-        }
     }
 
     private var openSubtasks: [Task] {
