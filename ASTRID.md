@@ -175,6 +175,13 @@ facade over `CoreRules` and holds no pattern logic of its own.
 `weekdays`, `monthRepeatType`, `monthWeekday`, and yearly `month`/`day`, breaking
 weekly M/W/F rollover.
 
+**A board whose series spawns is the one exception to "rolls forward"** (AITD-491, astrid-core
+CONTRACTS D51). Where `list.supports.repeatMode` is `spawn` — a GitHub Projects board — the core
+sends a plain completion and leaves the task completed; the server makes the next occurrence as a
+new task carrying `previousOccurrenceId`, and it arrives like any other. No caller chooses this:
+it is the same `completeTask`, and `TaskList.spawnsNextOccurrence` is only for a view that needs
+to say so.
+
 **Every completion entry point in the app** (keep this list in sync when you add one):
 
 | Caller | File |

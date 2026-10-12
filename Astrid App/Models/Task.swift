@@ -25,6 +25,9 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     var repeatingData: CustomRepeatingPattern?
     var repeatFrom: RepeatFromMode?  // Whether to repeat from due date or completion date
     var occurrenceCount: Int?  // Number of times this task has repeated
+    /// The occurrence this one followed, on a list whose series spawns a new task each time
+    /// (AITD-491, `TaskList.spawnsNextOccurrence`). Absent everywhere else.
+    var previousOccurrenceId: String?
     var timerDuration: Int?  // New field
     var lastTimerValue: String? // Last completion details for the timer
     var priority: Priority
@@ -142,7 +145,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case dueDateTime  // Primary datetime field
         case isAllDay  // All-day task flag
         case reminderTime, reminderSent, reminderType
-        case repeating, repeatingData, repeatFrom, occurrenceCount, timerDuration, lastTimerValue
+        case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, timerDuration, lastTimerValue
         case priority, lists, listIds
         case isPrivate, completed, completedAt, completedSource, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
@@ -167,6 +170,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         repeatingData: CustomRepeatingPattern? = nil,
         repeatFrom: RepeatFromMode? = nil,
         occurrenceCount: Int? = nil,
+        previousOccurrenceId: String? = nil,
         timerDuration: Int? = nil,
         lastTimerValue: String? = nil,
         priority: Priority = .none,
@@ -205,6 +209,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         self.repeatingData = repeatingData
         self.repeatFrom = repeatFrom
         self.occurrenceCount = occurrenceCount
+        self.previousOccurrenceId = previousOccurrenceId
         self.timerDuration = timerDuration
         self.lastTimerValue = lastTimerValue
         self.priority = priority

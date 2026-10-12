@@ -72,6 +72,7 @@ Event names: see §SSE events (current) below.
 | updatedAt | date | yes | ISO 8601 |
 | creatorId | string | yes | |
 | assigneeId | string | no | Always `assigneeIds[0]` when the array is sent |
+| previousOccurrenceId | string | no | The occurrence this task followed, where `list.supports.repeatMode` is `spawn`: completing a repeating task there sends a plain completion and the server makes the next occurrence as a new task. Absent elsewhere |
 | assigneeIds | string[] | no | Everyone assigned, primary first. More than one only where `list.supports.multipleAssignees`; absent from an older server. Read through `AssigneeResolver.assigneeIds(of:)` |
 | dueDateTime | date | no | ISO 8601 |
 | isAllDay | boolean | no | |
