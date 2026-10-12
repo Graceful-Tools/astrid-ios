@@ -470,6 +470,7 @@ struct TaskDetailViewNew: View {
                     }
                 }
                 TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON (AITD-429)
+                TaskDetailOccurrencesRow(task: task) // 7c. PREVIOUS / NEXT OCCURRENCE (AITD-491)
 
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)

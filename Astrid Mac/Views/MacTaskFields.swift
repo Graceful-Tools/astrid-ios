@@ -28,6 +28,10 @@ enum MacTaskFieldRow: Equatable {
     /// (AITD-430; web AWTD-1002). After Lists and the board-state row, never interleaved.
     case blockers
 
+    /// The previous / next occurrence of a repeating task on a board that spawns (AITD-491).
+    /// Only for a task in such a chain; after "Waiting on", in both display modes.
+    case occurrences
+
     /// The Mac's name for a shared field, so `MacTaskFields.rows` can build list mode straight
     /// from `TaskDetailFieldOrder.listMode` (task c8a1ff51).
     nonisolated init(_ field: TaskDetailField) {
@@ -68,20 +72,24 @@ enum MacTaskFields {
     /// reaches the Mac without anyone remembering to come here.
     /// - Parameter isInProject: whether this task has a board column at all (AITD-327). List mode
     ///   shows a state row only when it does — see the note on `.projectState` below.
+    /// - Parameter hasOccurrenceLinks: whether `TaskOccurrences.links` found a previous or next
+    ///   occurrence (AITD-491). The row is a pair of links, so with neither there is no row.
     static func rows(showsTitle: Bool,
                      displayMode: TaskDisplayMode,
-                     isInProject: Bool = false) -> [MacTaskFieldRow] {
+                     isInProject: Bool = false,
+                     hasOccurrenceLinks: Bool = false) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
         // Both modes, unlike board state: blocking is said nowhere else in the compact layout.
         // The rule is iOS's and web's (`TaskBlockers.showsRow`); this editor has no read-only
         // mode, so an empty row is always the way to add the first blocker.
         let blockers: [MacTaskFieldRow] = TaskBlockers.showsRow(
             isInProject: isInProject, isReadOnly: false, hasBlockers: false) ? [.blockers] : []
+        let occurrences: [MacTaskFieldRow] = hasOccurrenceLinks ? [.occurrences] : []
         guard displayMode.showsSeparateAssigneeAndPriorityRows else {
             // Project mode: priority and assignee are not rows at all — the leading control
             // depicts both (task 42013da7) — and board state is in that same popover, so there
             // is no order to share and no state row to add.
-            return leading + [.when, .lists] + blockers + [.description]
+            return leading + [.when, .lists] + blockers + occurrences + [.description]
         }
         // Board state gets a row in LIST mode when the task is in a project (AITD-327), and the
         // reasoning behind that lives with the rule in `TaskDetailProjectStateRow`. It was
@@ -96,7 +104,7 @@ enum MacTaskFields {
             displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
             ? [.projectState] : []
         return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + blockers
-            + [.description]
+            + occurrences + [.description]
     }
 
     /// Every field the editor shows is one the user can change. The Lists row

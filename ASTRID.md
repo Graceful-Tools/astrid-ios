@@ -180,7 +180,8 @@ CONTRACTS D51). Where `list.supports.repeatMode` is `spawn` — a GitHub Project
 sends a plain completion and leaves the task completed; the server makes the next occurrence as a
 new task carrying `previousOccurrenceId`, and it arrives like any other. No caller chooses this:
 it is the same `completeTask`, and `TaskList.spawnsNextOccurrence` is only for a view that needs
-to say so.
+to say so. Task details link the chain both ways through `TaskOccurrences.links` (Core) — the server
+only names the previous occurrence, so "next" is the loaded task that points back.
 
 **Every completion entry point in the app** (keep this list in sync when you add one):
 

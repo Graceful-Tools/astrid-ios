@@ -1501,6 +1501,11 @@
 "tasks.waitingOn.addError" = "No se pudo esperar a esa tarea";
 "tasks.waitingOn.noResults" = "No hay tareas coincidentes";
 
+/* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
+"tasks.occurrences.label" = "Repeticiones";
+"tasks.occurrences.previous" = "Anterior";
+"tasks.occurrences.next" = "Siguiente";
+
 /* Task ids on board tasks (AITD-437; web tasks.taskId.*) */
 "tasks.taskId.label" = "ID de tarea";
 "tasks.taskId.copy" = "Copiar ID de tarea";
