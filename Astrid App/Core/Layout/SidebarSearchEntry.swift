@@ -5,7 +5,8 @@ import Foundation
 /// There are two: the Search row among the lists, and the icon at the far right of the brand
 /// header (AWTD-1180 — Jon: *"(a) but add search icon inline on far right"*, where (a) is the
 /// row). The icon is an addition, not a replacement, so both ask here and cannot drift to
-/// different destinations.
+/// different destinations. iOS has since dropped its row and keeps the icon alone (AITD-497);
+/// the Mac still has both.
 enum SidebarSearchEntry: CaseIterable {
     /// The magnifying glass in the brand header.
     case headerIcon

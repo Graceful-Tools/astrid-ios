@@ -75,9 +75,7 @@ struct ListSidebarView: View {
             List {
                 brandHeaderSection
                     .id("top")
-                userProfileSection
                 myTasksSection
-                searchRow
                 favoritesSection
                 yourListsSection
                 featuredCollaborativeSection
@@ -87,6 +85,10 @@ struct ListSidebarView: View {
             .scrollContentBackground(.hidden)
             .background(themeBackgroundColor)  // Apply theme background color directly
             .listRowBackground(Color.clear)  // Make rows transparent to show themed background
+            // Fixed under the lists, as mobile web's sidebar has it (AITD-497).
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                accountFooter
+            }
             .navigationBarHidden(true)
             .toolbar {
                 toolbarContent
@@ -134,8 +136,8 @@ struct ListSidebarView: View {
 
     // MARK: - Brand Header
 
-    /// Logo and wordmark left, search far right, as web's sidebar opens (AITD-494). The user
-    /// card and the gear are untouched beneath it.
+    /// Logo and wordmark left, search far right, as web's sidebar opens (AITD-494). The icon is
+    /// the one way into search: the Search row that repeated it is gone (AITD-497).
     private var brandHeaderSection: some View {
         Section {
             SidebarBrandHeader(
@@ -148,10 +150,13 @@ struct ListSidebarView: View {
         }
     }
 
-    // MARK: - User Profile Section
+    // MARK: - Account Footer
 
-    private var userProfileSection: some View {
-        Section {
+    /// The user card and the gear, fixed to the bottom of the sidebar rather than scrolling
+    /// away with the lists (AITD-497) — where mobile web and the Mac already keep them.
+    private var accountFooter: some View {
+        VStack(spacing: 0) {
+            Divider()
             HStack(spacing: Theme.spacing12) {
                 // Profile tap area (avatar + name)
                 Button {
@@ -227,6 +232,7 @@ struct ListSidebarView: View {
                         }
                     }
                 }
+                .buttonStyle(.plain)  // No longer a list row, which is what kept the label untinted
 
                 Spacer()
 
@@ -242,35 +248,15 @@ struct ListSidebarView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.horizontal, Theme.spacing16)
+            .padding(.vertical, Theme.spacing8)
         }
+        .background(themeBackgroundColor)
     }
 
-    // MARK: - Search Row
+    // MARK: - Search
 
-    private var searchRow: some View {
-        Section {
-            Button {
-                openSearch(.row)
-            } label: {
-                HStack(spacing: Theme.spacing12) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                        .font(Theme.Typography.body())
-
-                    Text(NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks"))
-                        .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-
-                    Spacer()
-                }
-                .padding(.vertical, Theme.spacing8)
-                .padding(.horizontal, Theme.spacing12)
-            }
-            .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "search"))
-        }
-    }
-
-    /// The header icon and the Search row both ask `SidebarSearchEntry` where they lead (AITD-494).
+    /// The header icon asks `SidebarSearchEntry` where it leads (AITD-494).
     private func openSearch(_ entry: SidebarSearchEntry) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         switch entry.destination {
