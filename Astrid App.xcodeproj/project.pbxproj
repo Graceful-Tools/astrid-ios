@@ -182,6 +182,7 @@
 				Views/Tasks/TaskActionsView.swift,
 				Views/Tasks/TaskAttachmentSectionView.swift,
 				Views/Tasks/TaskDetailBlockersRow.swift,
+				Views/Tasks/TaskDetailOccurrencesRow.swift,
 				Views/Tasks/TaskDetailIdentifierRow.swift,
 				Views/Tasks/TaskDetailLeadingControl.swift,
 				Views/Tasks/TaskDetailViewNew.swift,
