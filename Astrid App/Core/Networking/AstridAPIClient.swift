@@ -274,9 +274,8 @@ class AstridAPIClient {
         if let listId = listId {
             queryItems.append(URLQueryItem(name: "listId", value: listId))
         }
-        // Opt out of the per-task embedded listMembers (permission checks resolve
-        // list membership from ListService instead). Server omits the field when
-        // this is set; older servers ignore the param and still send it.
+        // Opt out of the per-task embedded listMembers (permission checks resolve membership from
+        // ListService). Never `omit=description`: these rows are what the detail view opens (AITD-498).
         if leanListMembers {
             queryItems.append(URLQueryItem(name: "leanListMembers", value: "1"))
         }
@@ -291,8 +290,6 @@ class AstridAPIClient {
             path: "/api/v1/tasks",
             queryItems: queryItems
         )
-        // No `omit=description` here on purpose: these rows are what the detail view opens
-        // (a public list's tasks are not in the store), so this read wants the full shape.
         try response.requireOnlyOmitted(leanListMembers ? ["listMembers"] : [])
         return (response.tasks, response.meta?.total ?? response.tasks.count)
     }
