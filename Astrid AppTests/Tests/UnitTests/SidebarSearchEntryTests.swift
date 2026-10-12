@@ -19,10 +19,10 @@ final class SidebarSearchEntryTests: XCTestCase {
 
     /// Pinned at the source, as web's `sidebar-header-search.test.ts` is: a render of either
     /// sidebar needs the services, the session and the list store to say what the markup does.
-    func test_aitd494_bothSidebarsOpenSearchFromTheHeaderAndTheRow() throws {
+    /// iOS dropped its Search row in AITD-497 (`SidebarAccountFooterTests`); the Mac keeps both.
+    func test_aitd494_bothSidebarsOpenSearchFromTheHeader() throws {
         let ios = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListSidebarView.swift")
         XCTAssertTrue(ios.contains("openSearch(.headerIcon)"), "iOS: the header icon is gone")
-        XCTAssertTrue(ios.contains("openSearch(.row)"), "iOS: the Search row is an addition's twin, not replaced")
         XCTAssertEqual(ios.components(separatedBy: "selectedListId = \"search\"").count - 1, 1,
                        "iOS: search is opened in exactly one place")
 
