@@ -112,6 +112,63 @@ struct InlineAssigneePicker: View {
     // Find the current assignee User object from assigneeId. Before the core has answered for
     // the first time, the person is resolved from what the lists already know, so the trigger
     // never flashes "Unassigned" over a task somebody holds.
+    /// Set once a person is tapped on a list that allows several assignees (AITD-491); until
+    /// then the task as the app holds it is the answer.
+    @State private var pickedIds: [String]?
+    @ObservedObject private var taskService = TaskService.shared
+
+    /// A GitHub-backed board lets a task hold several people; there a tap adds or removes one
+    /// and the editor stays open. A task not made yet has no one to add to.
+    private var allowsMultiple: Bool {
+        taskId != nil && AssigneeSelection.allowsMultiple(listIds: taskListIds, lists: availableLists)
+    }
+
+    /// Everyone assigned, primary first.
+    private var selectedIds: [String] {
+        if let pickedIds { return pickedIds }
+        if let task = taskService.tasks.first(where: { $0.id == taskId }) {
+            return AssigneeResolver.assigneeIds(of: task)
+        }
+        return [assigneeId].compactMap { $0 }
+    }
+
+    private func isSelected(_ id: String?) -> Bool {
+        guard allowsMultiple else { return assigneeId == id }
+        return id.map(selectedIds.contains) ?? selectedIds.isEmpty
+    }
+
+    /// The faces after the primary's, so the trigger shows everyone and not just the first.
+    @ViewBuilder private var additionalFaces: some View {
+        if allowsMultiple {
+            let faces = AssigneeSelection.additionalFaces(in: selectedIds)
+            HStack(spacing: -6) {
+                ForEach(faces.shown, id: \.self) { id in
+                    let user = AssigneeResolver.resolve(id: id, members: availableMembers,
+                                                        taskAssignee: nil, agents: aiAgents)
+                    CachedAsyncImage(url: user?.cachedImageURL.flatMap { URL(string: $0) }) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        ZStack {
+                            Circle().fill(Theme.accent)
+                            Text(user?.initials ?? "")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .frame(width: 22, height: 22)
+                    .clipShape(Circle())
+                    .accessibilityLabel(Text(user?.displayName ?? ""))
+                }
+                if faces.overflow > 0 {
+                    Text("+\(faces.overflow)")
+                        .font(Theme.Typography.caption1())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .padding(.leading, 10)
+                }
+            }
+        }
+    }
+
     private var currentAssignee: User? {
         guard let id = assigneeId else { return nil }
         if AssigneePicks.answer(question) == nil, lastMembers == nil {
@@ -167,6 +224,10 @@ struct InlineAssigneePicker: View {
         }
         .task {
             await fetchAssignees()
+        }
+        // The task has caught up with the taps: it is the answer again (AITD-491).
+        .onChange(of: taskService.tasks.first(where: { $0.id == taskId }).map(AssigneeResolver.assigneeIds(of:))) {
+            pickedIds = nil
         }
         .task(id: question) {
             await AssigneePicks.ask(question)
@@ -418,6 +479,7 @@ struct InlineAssigneePicker: View {
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
                             }
                         }
+                        additionalFaces
                         if !compact {
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -438,6 +500,21 @@ struct InlineAssigneePicker: View {
     @ViewBuilder
     private func assigneeOption(id: String?, name: String, email: String?, image: String?, icon: String?, isAIAgent: Bool = false) -> some View {
         Button {
+            // Several assignees (AITD-491): a tap adds or removes this one person, and the editor
+            // stays open for the next. The whole list is the edit, so it goes through the service
+            // itself rather than the single-id `onSave`.
+            if allowsMultiple, let taskId {
+                let agentIds = Set(availableMembers.filter { $0.isAIAgent == true }.map(\.id))
+                let next = AssigneeSelection.toggling(id, in: selectedIds, agentIds: agentIds)
+                pickedIds = next
+                assigneeId = next.first
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                _Concurrency.Task {
+                    _ = try? await TaskService.shared.setAssignees(taskId: taskId, assigneeIds: next)
+                }
+                return
+            }
+
             // Optimistic update: Update binding immediately for instant UI feedback - no blocking "smooth as butter"
             assigneeId = id
             isEditing = false
@@ -511,7 +588,7 @@ struct InlineAssigneePicker: View {
 
                 Spacer()
 
-                if assigneeId == id {
+                if isSelected(id) {
                     Image(systemName: "checkmark")
                         .foregroundColor(Theme.accent)
                 }

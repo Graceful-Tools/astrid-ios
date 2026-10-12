@@ -360,6 +360,16 @@ class TaskService: ObservableObject {
         return try await apply(changes, to: taskId, source: source)
     }
 
+    /// Everyone assigned to a task, primary first — the whole list, replaced (AITD-491). Only for
+    /// a list whose `supports.multipleAssignees` is true; the server refuses a second person
+    /// anywhere else. An empty list unassigns. Build the list with `AssigneeSelection.toggling`.
+    @discardableResult
+    func setAssignees(taskId: String, assigneeIds: [String]) async throws -> Task {
+        var changes = TaskEdit()
+        changes.set("assigneeIds", assigneeIds)
+        return try await apply(changes, to: taskId)
+    }
+
     /// One edit, through the core: its cache and journal first, the server when it can.
     private func apply(_ changes: TaskEdit, to taskId: String, source: SyncSource? = nil) async throws -> Task {
         let updated = try await core.run(

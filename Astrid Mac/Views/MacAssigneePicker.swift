@@ -23,10 +23,50 @@ struct MacAssigneePicker: View {
     @ObservedObject private var picks = AssigneePicks.shared
 
     /// Currently assigned id; nil for unassigned.
-    private var selectedId: String? { task.assigneeId?.isEmpty == false ? task.assigneeId : nil }
+    private var selectedId: String? {
+        if let pickedIds { return pickedIds.first }
+        return task.assigneeId?.isEmpty == false ? task.assigneeId : nil
+    }
     private var question: AssigneeQuestion { MacAssigneeOptions.question(for: task) }
     private var options: [MacAssigneeOption] {
         MacAssigneeOptions.rows(AssigneePicks.answer(question), currentUserId: AuthManager.shared.userId)
+    }
+
+    @ObservedObject private var listService = ListService.shared
+    /// Set once a person is clicked on a list that allows several assignees (AITD-491) — the
+    /// `task` this view was handed is the one from before the click.
+    @State private var pickedIds: [String]?
+
+    /// A GitHub-backed board lets a task hold several people; there a click adds or removes one
+    /// and the popover stays open — the same rule as iOS (`AssigneeSelection`).
+    private var allowsMultiple: Bool {
+        AssigneeSelection.allowsMultiple(listIds: task.listIds ?? [], lists: listService.lists)
+    }
+    private var selectedIds: [String] { pickedIds ?? AssigneeResolver.assigneeIds(of: task) }
+    private func isSelected(_ option: MacAssigneeOption) -> Bool {
+        guard allowsMultiple else { return option.userId == selectedId }
+        return option.userId.map(selectedIds.contains) ?? selectedIds.isEmpty
+    }
+    /// Everyone after the primary, as options, so the trigger can draw their faces.
+    private var additional: (shown: [MacAssigneeOption], overflow: Int) {
+        guard allowsMultiple else { return ([], 0) }
+        let faces = AssigneeSelection.additionalFaces(in: selectedIds)
+        let shown = faces.shown.map { id in
+            options.first { $0.userId == id }
+                ?? MacAssigneeOption(userId: id,
+                                     user: AssigneeResolver.resolve(id: id, members: [], taskAssignee: nil),
+                                     isCurrentUser: id == AuthManager.shared.userId)
+        }
+        return (shown, faces.overflow)
+    }
+
+    private func toggle(_ option: MacAssigneeOption) {
+        let agentIds = Set(options.compactMap { $0.user?.isAIAgent == true ? $0.userId : nil })
+        let next = AssigneeSelection.toggling(option.userId, in: selectedIds, agentIds: agentIds)
+        pickedIds = next
+        AppActions.perform("Set assignees") {
+            _ = try await TaskService.shared.setAssignees(taskId: task.id, assigneeIds: next)
+        }
     }
 
     /// The trigger shows who holds the task even when they are not one of the choices — someone
@@ -42,6 +82,11 @@ struct MacAssigneePicker: View {
         Button { showingPicker = true } label: {
             HStack(spacing: 6) {
                 face(for: selected, size: 20)
+                    // Keyed on the assignee: SwiftUI reuses a view whose identity hasn't changed,
+                    // which is how the PREVIOUS person's photo used to stay on screen after a
+                    // reassign. On the face rather than the button, so removing the primary on a
+                    // list with several assignees does not rebuild the open popover (AITD-491).
+                    .id(AssigneeResolver.avatarIdentity(for: selectedId))
                 // Ask the option for its name rather than spelling the fallback again — the two
                 // copies are how this drifted from iOS separately (task 6c891bce).
                 Text(selected?.displayName ?? MacAssigneeOption.unassignedLabel)
@@ -49,6 +94,12 @@ struct MacAssigneePicker: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .foregroundStyle(.primary)
+                ForEach(additional.shown) { face(for: $0, size: 20) }
+                if additional.overflow > 0 {
+                    Text("+\(additional.overflow)")
+                        .macFont(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
                 Image(systemName: "chevron.down")
                     .macFont(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -61,16 +112,20 @@ struct MacAssigneePicker: View {
         .buttonStyle(.plain)
         .macPointingHand()
         .help(NSLocalizedString("tasks.assignee", comment: ""))
-        // Keyed on the assignee: SwiftUI reuses a view whose identity hasn't changed, which is
-        // how the PREVIOUS person's photo used to stay on screen after a reassign.
-        .id(AssigneeResolver.avatarIdentity(for: selectedId))
+        // The task has caught up with the clicks, or is a different task: it is the answer again.
+        .onChange(of: AssigneeResolver.assigneeIds(of: task)) { pickedIds = nil }
+        .onChange(of: task.id) { pickedIds = nil }
         .task(id: question) { await AssigneePicks.ask(question) }
         .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(options) { option in
                     Button {
-                        onSelect(option.userId)
-                        showingPicker = false
+                        if allowsMultiple {
+                            toggle(option)
+                        } else {
+                            onSelect(option.userId)
+                            showingPicker = false
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             face(for: option, size: 22)
@@ -83,7 +138,7 @@ struct MacAssigneePicker: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 12)
-                            if option.userId == selectedId {
+                            if isSelected(option) {
                                 Image(systemName: "checkmark")
                                     .macFont(.system(size: 10, weight: .semibold))
                                     .foregroundStyle(Theme.accent)
