@@ -1173,10 +1173,10 @@ struct MacRootView: View {
             // belong to. `ignoresSafeArea` is what carries the fill the last few points to the
             // window edge; without it the strip stops short and the material shows as a band.
             .safeAreaInset(edge: .top, spacing: 0) {
-                sidebarChromeBackground
-                    .frame(height: MacLayout.sidebarTitlebarInset)
-                    .ignoresSafeArea(edges: .top)
-                    .accessibilityIdentifier("sidebar.headerBackground")
+                MacSidebarHeader(background: sidebarChromeBackground,
+                                 isSearchActive: selectedListId == Self.searchId) {
+                    selectedListId = Self.searchId   // where the Search row leads too (AITD-494)
+                }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {   // account + settings at bottom-left
                 VStack(spacing: 0) {

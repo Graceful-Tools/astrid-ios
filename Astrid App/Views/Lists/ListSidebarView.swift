@@ -73,8 +73,9 @@ struct ListSidebarView: View {
     var body: some View {
         ScrollViewReader { proxy in
             List {
-                userProfileSection
+                brandHeaderSection
                     .id("top")
+                userProfileSection
                 myTasksSection
                 searchRow
                 favoritesSection
@@ -127,6 +128,22 @@ struct ListSidebarView: View {
                         proxy.scrollTo("top", anchor: .top)
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Brand Header
+
+    /// Logo and wordmark left, search far right, as web's sidebar opens (AITD-494). The user
+    /// card and the gear are untouched beneath it.
+    private var brandHeaderSection: some View {
+        Section {
+            SidebarBrandHeader(
+                primary: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                muted: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
+                isSearchActive: selectedListId == "search"
+            ) {
+                openSearch(.headerIcon)
             }
         }
     }
@@ -233,11 +250,7 @@ struct ListSidebarView: View {
     private var searchRow: some View {
         Section {
             Button {
-                let generator = UIImpactFeedbackGenerator(style: .light)
-                generator.impactOccurred()
-                selectedListId = "search"
-                searchText = "" // Clear previous search
-                onListTap?()
+                openSearch(.row)
             } label: {
                 HStack(spacing: Theme.spacing12) {
                     Image(systemName: "magnifyingglass")
@@ -254,6 +267,17 @@ struct ListSidebarView: View {
                 .padding(.horizontal, Theme.spacing12)
             }
             .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "search"))
+        }
+    }
+
+    /// The header icon and the Search row both ask `SidebarSearchEntry` where they lead (AITD-494).
+    private func openSearch(_ entry: SidebarSearchEntry) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        switch entry.destination {
+        case .search:
+            selectedListId = "search"
+            searchText = "" // Clear previous search
+            onListTap?()
         }
     }
 
