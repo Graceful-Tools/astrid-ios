@@ -2,7 +2,7 @@
 //  AITD-460 — a list's rows are astrid-core's `rowsForList`, on iOS and the Mac. These pin iOS's
 //  list as it drew before the move (the deleted Swift `filterTasksForList`,
 //  `sortTasksByListSetting`, `spliceSubtasks`, `MyTasksScope`) where the core used to answer
-//  differently — CONTRACTS D40–D42 — and how the model asks: in the background, again when the
+//  differently — CONTRACTS D41–D42; D40 has since gone to web (AITD-495) — and how the model asks: in the background, again when the
 //  tasks change, never with another list's rows under this one's title.
 
 import XCTest
@@ -36,13 +36,16 @@ final class ListRowsModelTests: XCTestCase {
 
     // MARK: - Where the core answered differently from iOS
 
-    /// D40: a list that has never been given a sort is in iOS's `sortBy ?? "manual"` order —
-    /// newest first with nothing arranged — where the core (and web, and the Mac) read auto.
-    func testAITD460_aListWithNoSortIsNewestFirstAsOnIOS() throws {
-        let tasks = [task("old", priority: .high, created: 1), task("new", priority: .none, created: 2)]
-        XCTAssertEqual(try CoreRowsFixture.rows(tasks, list: list(sortBy: nil)), ["new", "old"])
-        XCTAssertEqual(try CoreRowsFixture.rows(tasks, list: list(sortBy: "auto")), ["old", "new"],
-                       "fixture check: auto would put the high-priority task first")
+    /// D40, reversed by AITD-495: a list that has never been given a sort is drawn as web draws
+    /// it — auto, open before completed, then priority. It was read as `manual` (newest first), so
+    /// a completed task sat wherever its creation date put it: first, in the comparison shot.
+    func testAITD495_aListWithNoSortIsAutoWithCompletedLastAsOnWeb() throws {
+        let tasks = [task("old", priority: .high, created: 1), task("new", priority: .none, created: 2),
+                     task("done", priority: .high, completed: true, created: 3)]
+        XCTAssertEqual(try CoreRowsFixture.rows(tasks, list: list(sortBy: nil, completion: "all")),
+                       ["old", "new", "done"])
+        XCTAssertEqual(try CoreRowsFixture.rows(tasks, list: list(sortBy: "manual", completion: "all")),
+                       ["done", "new", "old"], "fixture check: manual, with nothing arranged, is newest first")
     }
 
     /// D41: a spliced subtask obeys the view's completion filter and nothing else, as iOS's

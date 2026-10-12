@@ -29,7 +29,7 @@ enum ListSettingsPayload {
             updates["description"] = updated.description ?? ""
         }
         if updated.sortBy != original.sortBy {
-            updates["sortBy"] = updated.sortBy ?? "manual"
+            updates["sortBy"] = updated.sortBy ?? "auto"
         }
         // Only on an actual change — a rename must not carry a showSubtasks value with it
         // and quietly hide the list's subtasks (ba1deb9d).
