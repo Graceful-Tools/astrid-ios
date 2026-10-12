@@ -73,7 +73,9 @@ final class MacSidebarChromeTests: XCTestCase {
     /// which is the same black, just thinner, and reads as a rendering glitch rather than a bug.
     func testBothStripsReachTheWindowEdge() throws {
         let source = try rootSource()
-        XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .top)"),
+        // The top strip is drawn by MacSidebarHeader since the brand header joined it (AITD-494).
+        let header = try RepositoryLocator.source(at: "Astrid Mac/Views/MacSidebarHeader.swift")
+        XCTAssertTrue(header.contains(".ignoresSafeArea(edges: .top)"),
                       "The top strip must reach the window edge")
         XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"),
                       "The footer strip must reach the window edge")
