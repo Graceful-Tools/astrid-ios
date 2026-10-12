@@ -27,7 +27,7 @@ struct ListSortFiltersTab: View {
     init(list: TaskList, onUpdate: @escaping (TaskList) -> Void) {
         self.list = list
         self.onUpdate = onUpdate
-        _sortBy = State(initialValue: list.sortBy ?? "manual")
+        _sortBy = State(initialValue: list.sortBy ?? "auto")
         _filterPriority = State(initialValue: list.filterPriority ?? "all")
         _filterAssignee = State(initialValue: list.filterAssignee ?? "all")
         _filterDueDate = State(initialValue: list.filterDueDate ?? "all")
@@ -151,7 +151,7 @@ struct ListSortFiltersTab: View {
             // Clear Filters
             Section {
                 Button(NSLocalizedString("lists.clear_all_filters", comment: "")) {
-                    sortBy = "manual"
+                    sortBy = "auto"
                     filterPriority = "all"
                     filterAssignee = "all"
                     filterDueDate = "all"
@@ -259,7 +259,7 @@ struct ListSortFiltersTab: View {
     }
 
     private var hasActiveFilters: Bool {
-        return sortBy != "manual"
+        return sortBy != "auto"
             || filterCompletion != "default"
             || filterPriority != "all"
             || filterDueDate != "all"

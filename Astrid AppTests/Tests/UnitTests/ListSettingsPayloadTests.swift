@@ -126,7 +126,18 @@ final class ListSettingsPayloadTests: XCTestCase {
         XCTAssertEqual(updates["filterPriority"] as? String, "all")
         XCTAssertEqual(updates["filterCompletion"] as? String, "default")
         XCTAssertEqual(updates["filterInLists"] as? String, "dont_filter")
-        XCTAssertEqual(updates["sortBy"] as? String, "manual")
+        XCTAssertEqual(updates["sortBy"] as? String, "auto")
+    }
+
+    /// AITD-495: a sort that is cleared goes back to what an unset list is drawn as — auto, as on
+    /// web — not to manual, which would freeze the list newest-first.
+    func testAITD495_AClearedSortIsSentAsAuto() {
+        var original = TaskList(id: "l1", name: "Work")
+        original.sortBy = "priority"
+        var cleared = original
+        cleared.sortBy = nil
+        let updates = ListSettingsPayload.updates(original: original, updated: cleared)
+        XCTAssertEqual(updates["sortBy"] as? String, "auto")
     }
 
     func testAITD409_PrivacyIsSentAsItsWireValue() {
