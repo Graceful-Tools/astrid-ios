@@ -167,6 +167,27 @@ Endpoint: `GET /api/v1/sse`. Event names use underscores: `task_created`, `task_
 
 `completedAt` (ISO, backdatable on completion), `completedSource` (`astrid|google|github|apple`), `parentTaskId` (subtasks), `clientRequestId` (idempotency echo), `repeatingData` (custom patterns).
 
+### `GET /api/v1/tasks?omit=` — not sent, and why (AITD-498)
+
+The server can leave `description` and `listMembers` out of this read (`?omit=description`
+is 80% of a 1,000-task page). **Neither app sends `omit=description`**, because no read here is
+a list view:
+
+- the sync (astrid-core `fetch_all_tasks`) fills the replica the detail view renders offline;
+- public / featured list browsing (`TaskService.fetchTasksForListFromServer`) hands the fetched
+  rows straight to the detail view — those tasks are not in the store.
+
+A read that only ever shows titles may take it, provided its detail path reads
+`GET /api/v1/tasks/{id}` or the task event, both full shape.
+
+**An omitted field is absent from the task object — not `null`, not `""` — and must be applied as
+unchanged.** `meta.omitted` names what the server dropped (absent on a full response; an
+unrecognised `omit` name is ignored, not rejected, so the echo is the only proof). The Swift
+read refuses a page whose `meta.omitted` names a field it did not ask to drop
+(`TasksResponse.requireOnlyOmitted`): `Task.description` is non-optional, so such a page
+would otherwise decode to an empty list. Full parameter documentation is in astrid-web
+`docs/API_CONTRACT.md`.
+
 ### Endpoint groups (summary)
 
 - **Chat**: `/api/v1/chat/channels`, `/api/v1/chat/channels/{id}/messages` (GET/POST)
