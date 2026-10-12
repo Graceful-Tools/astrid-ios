@@ -291,6 +291,9 @@ class AstridAPIClient {
             path: "/api/v1/tasks",
             queryItems: queryItems
         )
+        // No `omit=description` here on purpose: these rows are what the detail view opens
+        // (a public list's tasks are not in the store), so this read wants the full shape.
+        try response.requireOnlyOmitted(leanListMembers ? ["listMembers"] : [])
         return (response.tasks, response.meta?.total ?? response.tasks.count)
     }
 

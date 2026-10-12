@@ -325,6 +325,41 @@ struct TasksResponseMeta: Codable {
     var total: Int
     var limit: Int?
     var offset: Int?
+    /// The fields the server left out of every task on this page (`?omit=`, or the older
+    /// `leanListMembers`). Absent — not empty — on a full response, and from a server that
+    /// predates it. An omitted field is absent from the task object rather than null, so this is
+    /// the only thing that tells "not sent" from "has none" (AITD-498).
+    var omitted: [String]?
+
+    init(total: Int, limit: Int? = nil, offset: Int? = nil, omitted: [String]? = nil) {
+        self.total = total
+        self.limit = limit
+        self.offset = offset
+        self.omitted = omitted
+    }
+}
+
+extension TasksResponse {
+    enum LeanPageError: LocalizedError, Equatable {
+        case unrequestedOmission([String])
+
+        var errorDescription: String? {
+            switch self {
+            case .unrequestedOmission(let fields):
+                return "Server omitted task fields this client did not ask to drop: \(fields.joined(separator: ", "))"
+            }
+        }
+    }
+
+    /// Refuse a page trimmed of anything but `requested` (AITD-498).
+    ///
+    /// `Task.description` is not optional, so a task without the key does not decode and the
+    /// resilient array drops it: a page the server trimmed arrives as a list with nothing in it.
+    /// Every read here feeds a detail view, so none of them may take a lean page silently.
+    func requireOnlyOmitted(_ requested: Set<String>) throws {
+        let unrequested = (meta?.omitted ?? []).filter { !requested.contains($0) }
+        if !unrequested.isEmpty { throw LeanPageError.unrequestedOmission(unrequested) }
+    }
 }
 
 struct ListsResponse: Codable {

@@ -186,4 +186,43 @@ final class TaskDecodingTests: XCTestCase {
         let classic = #"{"id":"t3","title":"x","description":"","priority":0,"isAllDay":true,"isPrivate":false,"completed":false}"#
         XCTAssertNil(try decoder.decode(Task.self, from: Data(classic.utf8)).previousOccurrenceId)
     }
+
+    // MARK: - Lean pages (AITD-498)
+
+    /// `GET /api/v1/tasks?omit=description` leaves the key ABSENT, and `Task.description` is not
+    /// optional, so every task on such a page fails to decode and the resilient array hands back
+    /// nothing. The envelope is the only place that says why: `meta.omitted`.
+    func test_aitd498_metaOmitted_isRead_andAbsentOnAFullPage() throws {
+        let lean = """
+        { "tasks": [ { "id": "a", "title": "Alpha", "isAllDay": false, "priority": 0,
+                       "isPrivate": true, "completed": false } ],
+          "meta": { "total": 1, "omitted": ["description"] } }
+        """.data(using: .utf8)!
+        XCTAssertEqual(try decoder.decode(TasksResponse.self, from: lean).meta?.omitted, ["description"])
+
+        let full = #"{ "tasks": [], "meta": { "total": 0 } }"#.data(using: .utf8)!
+        XCTAssertNil(try decoder.decode(TasksResponse.self, from: full).meta?.omitted)
+    }
+
+    /// A page the server trimmed of a field this client never asked to drop is refused outright.
+    /// Without this it reads as a list with no tasks in it, which is indistinguishable from the
+    /// truth — and one decoder change away from writing empty text over a real description.
+    func test_aitd498_pageMissingAFieldWeDidNotAskToDrop_isRefused() throws {
+        let lean = TasksResponse(tasks: [], meta: TasksResponseMeta(total: 1, omitted: ["description"]))
+        XCTAssertThrowsError(try lean.requireOnlyOmitted(["listMembers"])) { error in
+            guard case TasksResponse.LeanPageError.unrequestedOmission(let fields) = error else {
+                return XCTFail("wrong error: \(error)")
+            }
+            XCTAssertEqual(fields, ["description"])
+        }
+    }
+
+    /// What this client does ask for — `leanListMembers`, echoed as `listMembers` — and a full
+    /// page from a server that predates `meta.omitted` both pass.
+    func test_aitd498_requestedOmission_andAFullPage_pass() throws {
+        let asked = TasksResponse(tasks: [], meta: TasksResponseMeta(total: 0, omitted: ["listMembers"]))
+        XCTAssertNoThrow(try asked.requireOnlyOmitted(["listMembers"]))
+        XCTAssertNoThrow(try TasksResponse(tasks: [], meta: TasksResponseMeta(total: 0)).requireOnlyOmitted([]))
+        XCTAssertNoThrow(try TasksResponse(tasks: []).requireOnlyOmitted([]))
+    }
 }
