@@ -6,6 +6,19 @@
 
 import SwiftUI
 
+/// The rows that link a task to other tasks, in order: "Waiting on" (AITD-429), then its
+/// occurrences. One name for the detail view to place, so a new relation is added here rather
+/// than to the largest file in the repo (`SourceFileSizeGuardTests`).
+struct TaskDetailRelatedTasksRows: View {
+    let task: Task
+    let isReadOnly: Bool
+
+    var body: some View {
+        TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly)
+        TaskDetailOccurrencesRow(task: task)
+    }
+}
+
 struct TaskDetailOccurrencesRow: View {
     let task: Task
 

@@ -469,8 +469,7 @@ struct TaskDetailViewNew: View {
                                                 onTaskUpdated: { self.task = $0 })
                     }
                 }
-                TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON (AITD-429)
-                TaskDetailOccurrencesRow(task: task) // 7c. PREVIOUS / NEXT OCCURRENCE (AITD-491)
+                TaskDetailRelatedTasksRows(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON, OCCURRENCES
 
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
