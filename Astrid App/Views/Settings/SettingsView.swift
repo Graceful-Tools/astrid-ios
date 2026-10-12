@@ -40,6 +40,27 @@ struct SettingsView: View {
                         Color.clear.frame(height: 0)
                     }
                 } else {
+                    // Your profile. The sidebar's user card leads here now rather than to the
+                    // profile (AITD-493), so the profile is a row of the screen it opens.
+                    if !authManager.isLocalOnlyMode, let user = authManager.currentUser {
+                        Section {
+                            NavigationLink(destination: LazyView { UserProfileView(userId: user.id) }) {
+                                HStack {
+                                    Image(systemName: "person.crop.circle")
+                                        .foregroundColor(Theme.accent)
+                                        .frame(width: 24)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(user.displayName)
+                                        Text(NSLocalizedString("profile.title", comment: "Profile"))
+                                            .font(Theme.Typography.caption1())
+                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    }
+                                }
+                            }
+                            .accessibilityIdentifier("settings.profile")
+                        }
+                    }
+
                     // Sync section
                     SettingsSyncSection()
 

@@ -141,8 +141,7 @@ struct ListSidebarView: View {
                     if authManager.isLocalOnlyMode {
                         // Local-only users get sign-in prompt (handled separately)
                     } else {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        NotificationCenter.default.post(name: .openProfile, object: nil)
+                        openAccountEntry(.userCard)
                     }
                 } label: {
                     HStack(spacing: Theme.spacing12) {
@@ -201,8 +200,8 @@ struct ListSidebarView: View {
                             } else if let user = authManager.currentUser {
                                 // Name only. The email wrapped onto a second line in the sidebar's
                                 // narrow column ("jonparis@gmail.-\ncom") and told the signed-in
-                                // user nothing they did not know. It is still on the profile this
-                                // row opens, and in Settings › Account.
+                                // user nothing they did not know. It is still in Settings, which
+                                // this row opens, on the profile and under Account.
                                 Text(user.displayName)
                                     .font(Theme.Typography.body())
                                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
@@ -216,8 +215,7 @@ struct ListSidebarView: View {
 
                 // Settings gear button
                 Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                    openAccountEntry(.gear)
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 18))
@@ -259,7 +257,14 @@ struct ListSidebarView: View {
         }
     }
 
-    // Settings is now in UserProfileView (accessible from the profile section above)
+    /// The user card and the gear both ask `SidebarAccountEntry` where they lead (AITD-493).
+    private func openAccountEntry(_ entry: SidebarAccountEntry) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        switch entry.destination {
+        case .settings: NotificationCenter.default.post(name: .openSettings, object: nil)
+        case .profile: NotificationCenter.default.post(name: .openProfile, object: nil)
+        }
+    }
 
     // MARK: - Sections
 
