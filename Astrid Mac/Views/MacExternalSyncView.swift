@@ -86,7 +86,9 @@ struct MacGitHubLinksView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var repoDrafts: [String: String] = [:]
 
-    private var realLists: [TaskList] { listService.lists.filter { $0.isVirtual != true } }
+    /// A GitHub Projects-backed list is absent: the server mirrors its issues itself, so there is
+    /// nothing here to link and nothing this device syncs (`GitHubSyncEligibility`, AITD-491).
+    private var realLists: [TaskList] { GitHubSyncEligibility.linkableLists(listService.lists) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

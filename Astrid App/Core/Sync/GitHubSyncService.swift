@@ -170,8 +170,14 @@ final class GitHubSyncService: ObservableObject {
     /// cannot be immediately followed by another the moment it finishes.
     private var lastPassStarted: Date?
 
+    /// The links this device may sync: a GitHub Projects-backed list is mirrored by the server
+    /// itself, and a second engine on the same issue would fight it (`GitHubSyncEligibility`).
+    private var syncableLinks: [ExternalListLinkDTO] {
+        GitHubSyncEligibility.syncableLinks(links, in: ListService.shared.lists)
+    }
+
     func scheduleSync() {
-        guard isConnected, !links.isEmpty else { return }
+        guard isConnected, !syncableLinks.isEmpty else { return }
         if isSyncing { rerunAfterPass = true; return }  // don't drop mid-pass nudges
         syncDebounce?.cancel()
         syncDebounce = _Concurrency.Task { @MainActor [weak self] in
@@ -202,7 +208,7 @@ final class GitHubSyncService: ObservableObject {
             if rerunAfterPass { rerunAfterPass = false; scheduleSync() }
         }
 
-        for link in links {
+        for link in syncableLinks {
             do {
                 try await sync(link: link)
             } catch {

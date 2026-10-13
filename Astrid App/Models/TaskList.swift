@@ -234,6 +234,16 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     /// from the server as a new task? Classic — roll forward in place — unless the server says so.
     var spawnsNextOccurrence: Bool { supports?.repeatMode == .spawn }
 
+    /// Is this list backed by a GitHub Project — so the SERVER mirrors its issues itself, and the
+    /// on-device Issues engine must keep off it (`GitHubSyncEligibility`, AITD-491)?
+    ///
+    /// `list.backend` is the field the spec names for this (§11.2) and it is not on the v1 wire
+    /// yet. `supports` is derived server-side from `backend == 'github_project'` and from nothing
+    /// else (astrid-web `lib/backends/supports.ts`), so a spawning repeat mode identifies such a
+    /// list exactly. When `backend` does reach the wire, read it here: this is the only line that
+    /// has to change.
+    var isGitHubBacked: Bool { spawnsNextOccurrence }
+
     // MARK: - Decoding
 
     /// Hand-written so that ONE field on ONE list can never fail the decode of the whole

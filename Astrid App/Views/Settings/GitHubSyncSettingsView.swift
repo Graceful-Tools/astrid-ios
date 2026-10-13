@@ -80,7 +80,7 @@ struct GitHubSyncSettingsView: View {
                 Section(NSLocalizedString("sync.link_list_repo", comment: "Link a list to a repo")) {
                     Picker(NSLocalizedString("sync.list", comment: "List"), selection: $selectedListId) {
                         Text(NSLocalizedString("sync.choose_list", comment: "Choose a list")).tag(String?.none)
-                        ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.listType != "status" }) { list in
+                        ForEach(GitHubSyncEligibility.linkableLists(listService.lists)) { list in
                             Text(list.name).tag(String?.some(list.id))
                         }
                     }
