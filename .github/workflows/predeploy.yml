@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
+          ref: 13585fa9ad5392d031afc85ec93100d790c39d91
           path: astrid-web
           persist-credentials: false
 
