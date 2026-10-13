@@ -108,6 +108,16 @@ or filed.
   depth walk's cap against the splice's, not a disagreement). D26 and D27 were already alike on
   the two apps. Apple-vs-core differences (D22, D24, the unassigned half of D25, the status half
   of D28, D26, D27) stand until settled against the web.
+- **A task field the server leaves out never applies as empty** (AITD-499, the core half of
+  AITD-498). `GET /api/v1/tasks` takes `?omit=description` (AWTD-1236), and the core's
+  `Task::description` is `#[serde(default)]` — so a trimmed page would have decoded as empty
+  descriptions and the merge would have written them over the real text, then pushed the blanks
+  back on the next edit. The sync now reads the `meta.omitted` echo before any row is written and
+  refuses a page naming a field it did not ask to drop (the pass reports `fetched: false` and the
+  cache is untouched), which is the rule `TasksResponse.requireOnlyOmitted` gave the Swift read.
+  Core keeps asking for the full shape: this replica is what the detail view renders offline.
+  On astrid-core `main` at `b887145`, pinned here and released as `core-b887145`.
+
 - **"Recently completed" sort never reached a list.** Task c6e87fb8 added `completedAt` to a copy
   of the sort nothing called (`Core/Board/TaskSort.swift`), so its tests passed while both apps
   sorted such a list as auto. The case is now in `sortTasksByListSetting`, and the copy is gone.
