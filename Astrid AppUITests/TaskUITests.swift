@@ -99,14 +99,19 @@ final class TaskUITests: XCTestCase {
     /// query matched nothing on a screen full of tasks. `UITestLaunch.visibleRows` is the one
     /// place that knows how to ask.
     ///
-    /// It also asserted nothing: it tapped, screenshotted, and ended. Measured behaviour is
-    /// that the completed row disappears from the list, so that is what it checks now. Safe to
-    /// run repeatedly — `npm run test:ui` recreates the fixture tasks on every run.
+    /// It also asserted nothing: it tapped, screenshotted, and ended. It then asserted that the
+    /// completed row DISAPPEARS, which was measured on an account holding hundreds of leftover
+    /// tasks: the row re-sorted below every open one, far out of the lazy accessibility tree,
+    /// and that read as gone. On the five-fixture account the reset is meant to produce, the
+    /// row stays on screen, struck through and ticked, and the assertion failed on an app doing
+    /// exactly the right thing (AITD-490). So it checks the tick, and accepts the row leaving
+    /// for the case where completed tasks are filtered out. Safe to run repeatedly —
+    /// `npm run test:ui` recreates the fixture tasks on every run.
     func testCompleteTask() throws {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
 
-        guard let firstRow = UITestLaunch.waitForFirstVisibleRow(app) else {
+        guard UITestLaunch.waitForFirstVisibleRow(app) != nil else {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "No Tasks Found"
             screenshot.lifetime = .keepAlways
@@ -114,30 +119,45 @@ final class TaskUITests: XCTestCase {
             throw XCTSkip("No task rows on screen")
         }
 
-        // The row's own title, which is the first static text inside it.
-        let title = firstRow.staticTexts.firstMatch.label
-        XCTAssertFalse(title.isEmpty, "a task row should carry its title")
-        let remaining = app.staticTexts.matching(NSPredicate(format: "label == %@", title))
-        let initialCount = remaining.count
-
         // The checkbox is the row's `taskRow`-identified BUTTON — the title beside it carries
         // the same identifier, which is exactly the trap that made tapping a row complete it
-        // once before.
-        let checkbox = firstRow.buttons.matching(identifier: UITestLaunch.taskRowIdentifier).firstMatch
-        guard checkbox.waitForExistence(timeout: 5) else {
-            throw XCTSkip("The row has no checkbox — an avatar or the unassigned mark instead")
+        // once before. Its label is the image name, `check_box[_repeat][_checked]_<priority>`,
+        // which is the only place the row says whether it is ticked.
+        func checkbox(in row: XCUIElement) -> XCUIElement {
+            row.buttons.matching(identifier: UITestLaunch.taskRowIdentifier).firstMatch
         }
-        UITestLaunch.tapCenter(checkbox)
+        // The first OPEN row: ticking one that is already done would un-complete it.
+        guard let openRow = UITestLaunch.visibleRows(app).first(where: {
+            let box = checkbox(in: $0)
+            return box.exists && !box.label.contains("_checked")
+        }) else {
+            throw XCTSkip("No open row with a checkbox — an avatar or the unassigned mark instead")
+        }
 
-        // Completing re-sorts the list and drops the task out of it. Poll rather than sleep,
-        // and say WHICH title was being watched if it never goes — a bare timeout on a
-        // predicate cannot tell "the tap did nothing" from "the wrong text was captured".
+        // The row's own title, which is the first static text inside it.
+        let title = openRow.staticTexts.firstMatch.label
+        XCTAssertFalse(title.isEmpty, "a task row should carry its title")
+        let titled = NSPredicate(format: "label == %@", title)
+        let initialCount = app.staticTexts.matching(titled).count
+
+        UITestLaunch.tapCenter(checkbox(in: openRow))
+
+        // Completing re-sorts the list, so the row is looked up again by title on every poll
+        // rather than held onto. Poll rather than sleep, and say WHICH title was being watched
+        // if nothing changes — a bare timeout on a predicate cannot tell "the tap did nothing"
+        // from "the wrong text was captured".
+        var ticked = false
+        var left = false
         let deadline = Date().addingTimeInterval(10)
-        while remaining.count >= initialCount && Date() < deadline {
+        while Date() < deadline {
+            let box = checkbox(in: app.cells.containing(titled).firstMatch)
+            ticked = box.exists && box.label.contains("_checked")
+            left = app.staticTexts.matching(titled).count < initialCount
+            if ticked || left { break }
             Thread.sleep(forTimeInterval: 0.25)
         }
-        XCTAssertEqual(remaining.count, initialCount - 1,
-                       "completing should remove one \"\(title)\" row; count stayed at \(initialCount)")
+        XCTAssertTrue(ticked || left,
+                      "completing \"\(title)\" should tick its checkbox or drop it from the list; neither happened")
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "After Task Completion"
