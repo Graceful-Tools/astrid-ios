@@ -439,6 +439,8 @@
 "lists.list_appearance" = "Внешний вид списка";
 "lists.list_image" = "Изображение списка";
 "lists.list_image_description" = "Выберите пользовательское изображение или значок";
+"lists.list_color" = "Цвет списка";
+"lists.custom_color" = "Свой цвет";
 "lists.default_task_settings" = "Настройки задачи по умолчанию";
 "lists.task_creator" = "Создатель задачи";
 "lists.all_day" = "Весь день (Без времени)";

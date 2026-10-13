@@ -439,6 +439,8 @@
 "lists.list_appearance" = "列表外观";
 "lists.list_image" = "列表图片";
 "lists.list_image_description" = "选择自定义图片或图标";
+"lists.list_color" = "列表颜色";
+"lists.custom_color" = "自定义颜色";
 "lists.default_task_settings" = "默认任务设置";
 "lists.task_creator" = "任务创建者";
 "lists.all_day" = "全天（无时间）";

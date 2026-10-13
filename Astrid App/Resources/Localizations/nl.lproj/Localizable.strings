@@ -439,6 +439,8 @@
 "lists.list_appearance" = "Lijstweergave";
 "lists.list_image" = "Lijstafbeelding";
 "lists.list_image_description" = "Kies een aangepaste afbeelding of pictogram";
+"lists.list_color" = "Lijstkleur";
+"lists.custom_color" = "Aangepaste kleur";
 "lists.default_task_settings" = "Standaard taakinstellingen";
 "lists.task_creator" = "Taakmaker";
 "lists.all_day" = "Hele dag (Geen tijd)";

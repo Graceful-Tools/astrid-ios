@@ -87,6 +87,10 @@ enum ListSettingsPayload {
         if updated.imageUrl != original.imageUrl {
             updates["imageUrl"] = updated.imageUrl ?? NSNull()
         }
+        // A list always has a colour, so there is no clearing it — only a new one is sent (AITD-500).
+        if updated.color != original.color, let color = updated.color {
+            updates["color"] = color
+        }
         // The branch that was missing (task 545812e6). NSNull is the legacy 24h default, which is
         // a real choice — omitting the key would leave the old window in place.
         if updated.recentlyCompletedWindow != original.recentlyCompletedWindow {

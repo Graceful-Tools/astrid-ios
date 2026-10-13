@@ -439,6 +439,8 @@
 "lists.list_appearance" = "목록 모양";
 "lists.list_image" = "목록 이미지";
 "lists.list_image_description" = "사용자 지정 이미지 또는 아이콘 선택";
+"lists.list_color" = "목록 색상";
+"lists.custom_color" = "사용자 지정 색상";
 "lists.default_task_settings" = "기본 작업 설정";
 "lists.task_creator" = "작업 생성자";
 "lists.all_day" = "종일 (시간 없음)";

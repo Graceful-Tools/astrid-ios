@@ -466,6 +466,8 @@
 "lists.list_appearance" = "Apparence de la liste";
 "lists.list_image" = "Image de la liste";
 "lists.list_image_description" = "Choisissez une image ou icône personnalisée";
+"lists.list_color" = "Couleur de la liste";
+"lists.custom_color" = "Couleur personnalisée";
 "lists.default_task_settings" = "Paramètres de tâche par défaut";
 "lists.task_creator" = "Créateur de tâche";
 "lists.all_day" = "Toute la journée (Sans heure)";

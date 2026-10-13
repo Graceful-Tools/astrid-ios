@@ -104,10 +104,11 @@ struct ListAdminTab: View {
                     }
             }
 
-            // List Appearance — absent while list images are hidden (AITD-468): an image the
-            // app never draws is not something to set up.
-            if listImages.showListImages {
-                Section(NSLocalizedString("lists.list_appearance", comment: "")) {
+            // List Appearance. The image row is absent while list images are hidden (AITD-468): an
+            // image the app never draws is not something to set up. The colour row is there in
+            // both arms, as on web — it is what marks the list once the image is gone (AITD-500).
+            Section(NSLocalizedString("lists.list_appearance", comment: "")) {
+                if listImages.showListImages {
                     HStack(spacing: Theme.spacing16) {
                         // Current list image preview (with live update)
                         ListImageViewLarge(list: listWithCurrentImage, size: 64)
@@ -135,6 +136,15 @@ struct ListAdminTab: View {
                     }
                     .padding(.vertical, Theme.spacing8)
                 }
+
+                VStack(alignment: .leading, spacing: Theme.spacing8) {
+                    Text(NSLocalizedString("lists.list_color", comment: ""))
+                        .font(Theme.Typography.body())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+
+                    ListColorSwatches(color: list.displayColor, onPick: saveColor)
+                }
+                .padding(.vertical, Theme.spacing4)
             }
 
             // Default Task Settings
@@ -594,6 +604,13 @@ struct ListAdminTab: View {
         AppLog.debug("📋 [ListAdminTab] Saving GitHub settings:")
         AppLog.debug("  - Repository ID: \(githubRepositoryId ?? "nil (none)")")
 
+        onUpdate(updated)
+    }
+
+    private func saveColor(_ picked: String) {
+        guard let color = ListColors.change(from: list.displayColor, to: picked) else { return }
+        var updated = list
+        updated.color = color
         onUpdate(updated)
     }
 
