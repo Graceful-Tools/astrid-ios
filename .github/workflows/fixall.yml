@@ -34,8 +34,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          # Pin the merged structured queue and atomic claim contract from astrid-web PR #251.
-          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
+          # Pin the merged structured queue and atomic claim contract from astrid-web PR #251,
+          # and the fixture reset that also clears list-less tasks (PR #406, AITD-490).
+          ref: 13585fa9ad5392d031afc85ec93100d790c39d91
           path: astrid-web
           persist-credentials: false
 
@@ -117,7 +118,7 @@ jobs:
         with:
           repository: Graceful-Tools/astrid-web
           # Keep this identical to the merged contract checkout used by the queue job.
-          ref: 5f0f20ccfc4b2accf738238ac5473316c90b421e
+          ref: 13585fa9ad5392d031afc85ec93100d790c39d91
           path: astrid-web
           persist-credentials: false
 
