@@ -191,6 +191,8 @@
 "lists.list_appearance" = "List Appearance";
 "lists.list_image" = "List Image";
 "lists.list_image_description" = "Choose a custom image or icon";
+"lists.list_color" = "List Color";
+"lists.custom_color" = "Custom color";
 "lists.default_task_settings" = "Default Task Settings";
 "lists.task_creator" = "Task Creator";
 "lists.all_day" = "All Day (No Time)";

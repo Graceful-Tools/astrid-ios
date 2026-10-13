@@ -178,6 +178,8 @@
 "lists.list_appearance" = "Listenerscheinung";
 "lists.list_image" = "Listenbild";
 "lists.list_image_description" = "Wählen Sie ein benutzerdefiniertes Bild oder Symbol";
+"lists.list_color" = "Listenfarbe";
+"lists.custom_color" = "Eigene Farbe";
 "lists.default_task_settings" = "Standard-Aufgabeneinstellungen";
 "lists.task_creator" = "Aufgabenersteller";
 "lists.all_day" = "Ganztägig (Keine Zeit)";

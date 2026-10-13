@@ -439,6 +439,8 @@
 "lists.list_appearance" = "リストの外観";
 "lists.list_image" = "リスト画像";
 "lists.list_image_description" = "カスタム画像またはアイコンを選択";
+"lists.list_color" = "リストの色";
+"lists.custom_color" = "カスタムカラー";
 "lists.default_task_settings" = "デフォルトタスク設定";
 "lists.task_creator" = "タスク作成者";
 "lists.all_day" = "終日（時間なし）";
