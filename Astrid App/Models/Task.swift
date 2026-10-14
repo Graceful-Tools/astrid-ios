@@ -28,6 +28,10 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     /// The occurrence this one followed, on a list whose series spawns a new task each time
     /// (AITD-491, `TaskList.spawnsNextOccurrence`). Absent everywhere else.
     var previousOccurrenceId: String?
+    /// The occurrence that followed this one, as the server names it (AITD-492). It rides only
+    /// on the single-task read, and the core keeps it through list pages that leave it out, so
+    /// nil is "not known here" as often as "none" — `TaskOccurrences.links` falls back.
+    var nextOccurrenceId: String?
     var timerDuration: Int?  // New field
     var lastTimerValue: String? // Last completion details for the timer
     var priority: Priority
@@ -149,7 +153,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case dueDateTime  // Primary datetime field
         case isAllDay  // All-day task flag
         case reminderTime, reminderSent, reminderType
-        case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, timerDuration, lastTimerValue
+        case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, nextOccurrenceId, timerDuration, lastTimerValue
         case priority, lists, listIds
         case isPrivate, completed, completedAt, completedSource, closedReason, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
