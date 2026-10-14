@@ -1510,3 +1510,5 @@
 "tasks.wont_do" = "Não será feito";
 "tasks.reopen" = "Reabrir";
 "tasks.wont_do_chip" = "Não será feito";
+"tasks.sync_pending_chip" = "Sincronizando";
+"tasks.sync_failed_chip" = "Falha na sincronização";

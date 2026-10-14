@@ -73,6 +73,7 @@ Event names: see §SSE events (current) below.
 | creatorId | string | yes | |
 | assigneeId | string | no | Always `assigneeIds[0]` when the array is sent |
 | previousOccurrenceId | string | no | The occurrence this task followed, where `list.supports.repeatMode` is `spawn`: completing a repeating task there sends a plain completion and the server makes the next occurrence as a new task. Absent elsewhere |
+| syncState | string | no | `pending` while a task made on a GitHub Projects board is still being written to GitHub, `error` if that gave up (not sent yet). Null or absent is settled. Read through `TaskSyncState.mark(for:)`, which draws the row's chip |
 | assigneeIds | string[] | no | Everyone assigned, primary first. More than one only where `list.supports.multipleAssignees`; absent from an older server. Read through `AssigneeResolver.assigneeIds(of:)` |
 | dueDateTime | date | no | ISO 8601 |
 | isAllDay | boolean | no | |

@@ -45,6 +45,10 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     /// (AITD-496). Closing that way still sets `completed`, so every filter keeps working; only
     /// the rendering differs. Read it through `ClosedReason.isCanceled`, never directly.
     var closedReason: String?
+    /// Where the server's write-back to the list's backend stands (AITD-491): `pending` while a
+    /// task made on a GitHub board is still being written there. Nil is settled — read it
+    /// through `TaskSyncState.mark`.
+    var syncState: String?
     /// Board status as a STATE on the task: ready | doing | waiting | a
     /// project's custom role. Nil means Inbox; Done is derived from
     /// `completed`, so neither is ever stored.
@@ -155,7 +159,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, nextOccurrenceId, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, completedAt, completedSource, closedReason, statusRole, identifier, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, closedReason, syncState, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
@@ -199,7 +203,8 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         originalTaskId: String? = nil,
         sourceListId: String? = nil,
         clientRequestId: String? = nil,
-        parentTaskId: String? = nil
+        parentTaskId: String? = nil,
+        syncState: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -240,6 +245,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         self.sourceListId = sourceListId
         self.clientRequestId = clientRequestId
         self.parentTaskId = parentTaskId
+        self.syncState = syncState
     }
 }
 

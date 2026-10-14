@@ -1526,3 +1526,5 @@
 "tasks.wont_do" = "No se hará";
 "tasks.reopen" = "Reabrir";
 "tasks.wont_do_chip" = "No se hará";
+"tasks.sync_pending_chip" = "Sincronizando";
+"tasks.sync_failed_chip" = "Error de sincronización";

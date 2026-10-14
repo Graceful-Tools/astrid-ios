@@ -1510,3 +1510,5 @@
 "tasks.wont_do" = "Wird nicht erledigt";
 "tasks.reopen" = "Wieder öffnen";
 "tasks.wont_do_chip" = "Wird nicht erledigt";
+"tasks.sync_pending_chip" = "Wird synchronisiert";
+"tasks.sync_failed_chip" = "Synchronisierung fehlgeschlagen";

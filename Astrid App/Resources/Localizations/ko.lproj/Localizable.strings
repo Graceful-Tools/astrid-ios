@@ -1512,3 +1512,5 @@
 "tasks.wont_do" = "하지 않음";
 "tasks.reopen" = "다시 열기";
 "tasks.wont_do_chip" = "하지 않음";
+"tasks.sync_pending_chip" = "동기화 중";
+"tasks.sync_failed_chip" = "동기화 실패";

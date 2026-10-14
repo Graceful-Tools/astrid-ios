@@ -1512,3 +1512,5 @@
 "tasks.wont_do" = "不做";
 "tasks.reopen" = "重新開啟";
 "tasks.wont_do_chip" = "不做";
+"tasks.sync_pending_chip" = "正在同步";
+"tasks.sync_failed_chip" = "同步失敗";

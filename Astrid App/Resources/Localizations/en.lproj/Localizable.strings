@@ -1518,3 +1518,5 @@
 "tasks.wont_do" = "Won't do";
 "tasks.reopen" = "Reopen";
 "tasks.wont_do_chip" = "Won't do";
+"tasks.sync_pending_chip" = "Syncing";
+"tasks.sync_failed_chip" = "Sync failed";
