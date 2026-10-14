@@ -46,6 +46,18 @@ struct MacTaskRow: View {
         TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
     }
 
+    /// A small outlined label beside the title: won't-do (AITD-496), sync state (AITD-491).
+    private func titleChip(_ labelKey: String, identifier: String) -> some View {
+        Text(NSLocalizedString(labelKey, comment: ""))
+            .macFont(MacTypography.rowMeta)
+            .foregroundStyle(Theme.textMuted)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.textMuted.opacity(0.5), lineWidth: 1))
+            .accessibilityIdentifier(identifier)
+    }
+
     /// In project mode the task box opens the quick changer instead of completing — the same
     /// thing it does in task details (task 132d7b3f). In list mode it completes, which is what
     /// a checkbox means when the task is not on a board.
@@ -188,14 +200,11 @@ struct MacTaskRow: View {
                             .lineLimit(2)
                         // Closed as won't-do reads differently from done (AITD-496), as on iOS and web.
                         if ClosedReason.isCanceled(task) {
-                            Text(NSLocalizedString(ClosedReason.chipLabelKey, comment: ""))
-                                .macFont(MacTypography.rowMeta)
-                                .foregroundStyle(Theme.textMuted)
-                                .lineLimit(1)
-                                .fixedSize()
-                                .padding(.horizontal, 6)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.textMuted.opacity(0.5), lineWidth: 1))
-                                .accessibilityIdentifier("taskRow.wontDoChip")
+                            titleChip(ClosedReason.chipLabelKey, identifier: "taskRow.wontDoChip")
+                        }
+                        // Made on a GitHub board and not all written there yet (AITD-491).
+                        if let mark = TaskSyncState.mark(for: task) {
+                            titleChip(TaskSyncState.chipLabelKey(for: mark), identifier: "taskRow.syncChip")
                         }
                     }
                 }

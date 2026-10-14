@@ -1510,3 +1510,5 @@
 "tasks.wont_do" = "対応しない";
 "tasks.reopen" = "再開";
 "tasks.wont_do_chip" = "対応しない";
+"tasks.sync_pending_chip" = "同期中";
+"tasks.sync_failed_chip" = "同期に失敗";

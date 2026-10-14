@@ -44,6 +44,19 @@ struct TaskRowView: View {
     /// One decision for all three faces. Each branch used to complete the task directly, which
     /// is why "same behavior as task details" could not simply be switched on — the rule was
     /// written three times inside one view.
+    /// A small outlined label beside the title: won't-do (AITD-496), sync state (AITD-491).
+    private func titleChip(_ labelKey: String, identifier: String) -> some View {
+        let muted = effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted
+        return Text(NSLocalizedString(labelKey, comment: ""))
+            .font(Theme.Typography.caption1())
+            .foregroundColor(muted)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(muted.opacity(0.5), lineWidth: 1))
+            .accessibilityIdentifier(identifier)
+    }
+
     private func handleLeadingTap() {
         if opensQuickChanger {
             showingQuickChanger = true
@@ -140,15 +153,11 @@ struct TaskRowView: View {
                     // Closed as won't-do reads differently from done (AITD-496, web's
                     // `tasks.wontDoChip`). Nothing draws for a task that was simply completed.
                     if ClosedReason.isCanceled(task) {
-                        let muted = effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted
-                        Text(NSLocalizedString(ClosedReason.chipLabelKey, comment: ""))
-                            .font(Theme.Typography.caption1())
-                            .foregroundColor(muted)
-                            .lineLimit(1)
-                            .fixedSize()
-                            .padding(.horizontal, 6)
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(muted.opacity(0.5), lineWidth: 1))
-                            .accessibilityIdentifier("taskRow.wontDoChip")
+                        titleChip(ClosedReason.chipLabelKey, identifier: "taskRow.wontDoChip")
+                    }
+                    // Made on a GitHub board and not all written there yet (AITD-491).
+                    if let mark = TaskSyncState.mark(for: task) {
+                        titleChip(TaskSyncState.chipLabelKey(for: mark), identifier: "taskRow.syncChip")
                     }
                 }
 
