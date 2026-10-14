@@ -154,53 +154,40 @@ struct ListSidebarView: View {
 
     /// The user card and the gear, fixed to the bottom of the sidebar rather than scrolling
     /// away with the lists (AITD-497) — where mobile web and the Mac already keep them.
+    ///
+    /// A floating glass panel, so the lists scrolling under it show through (AITD-501). It was an
+    /// opaque band of the theme colour, which sliced the last visible row in half.
     private var accountFooter: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: Theme.spacing12) {
-                // Profile tap area (avatar + name)
-                Button {
+        HStack(spacing: Theme.spacing12) {
+            // Profile tap area (avatar + name)
+            Button {
+                if authManager.isLocalOnlyMode {
+                    // Local-only users get sign-in prompt (handled separately)
+                } else {
+                    openAccountEntry(.userCard)
+                }
+            } label: {
+                HStack(spacing: Theme.spacing12) {
+                    // Avatar
                     if authManager.isLocalOnlyMode {
-                        // Local-only users get sign-in prompt (handled separately)
-                    } else {
-                        openAccountEntry(.userCard)
-                    }
-                } label: {
-                    HStack(spacing: Theme.spacing12) {
-                        // Avatar
-                        if authManager.isLocalOnlyMode {
-                            Circle()
-                                .fill(Theme.accent.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                                .overlay {
-                                    Image(systemName: "person.crop.circle.badge.plus")
-                                        .font(.system(size: 22))
-                                        .foregroundColor(Theme.accent)
-                                }
-                        } else if let user = authManager.currentUser,
-                           let imageUrl = user.image,
-                           let url = URL(string: imageUrl) {
-                            CachedAsyncImage(url: url) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                Circle()
-                                    .fill(Theme.accent)
-                                    .overlay {
-                                        if let user = authManager.currentUser {
-                                            Text(user.initials)
-                                                .foregroundColor(.white)
-                                                .font(Theme.Typography.body())
-                                        }
-                                    }
-                            }
+                        Circle()
+                            .fill(Theme.accent.opacity(0.15))
                             .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                        } else {
+                            .overlay {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(Theme.accent)
+                            }
+                    } else if let user = authManager.currentUser,
+                       let imageUrl = user.image,
+                       let url = URL(string: imageUrl) {
+                        CachedAsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
                             Circle()
                                 .fill(Theme.accent)
-                                .frame(width: 40, height: 40)
                                 .overlay {
                                     if let user = authManager.currentUser {
                                         Text(user.initials)
@@ -209,49 +196,77 @@ struct ListSidebarView: View {
                                     }
                                 }
                         }
-
-                        // User info
-                        VStack(alignment: .leading, spacing: 2) {
-                            if authManager.isLocalOnlyMode {
-                                Text(NSLocalizedString("auth.sign_in_short", comment: "Sign In"))
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(Theme.accent)
-                                Text(NSLocalizedString("profile.sign_in_to_sync", comment: "Sign in to sync"))
-                                    .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                            } else if let user = authManager.currentUser {
-                                // Name only. The email wrapped onto a second line in the sidebar's
-                                // narrow column ("jonparis@gmail.-\ncom") and told the signed-in
-                                // user nothing they did not know. It is still in Settings, which
-                                // this row opens, on the profile and under Account.
-                                Text(user.displayName)
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    .lineLimit(1)
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(Theme.accent)
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                if let user = authManager.currentUser {
+                                    Text(user.initials)
+                                        .foregroundColor(.white)
+                                        .font(Theme.Typography.body())
+                                }
                             }
+                    }
+
+                    // User info
+                    VStack(alignment: .leading, spacing: 2) {
+                        if authManager.isLocalOnlyMode {
+                            Text(NSLocalizedString("auth.sign_in_short", comment: "Sign In"))
+                                .font(Theme.Typography.body())
+                                .foregroundColor(Theme.accent)
+                            Text(NSLocalizedString("profile.sign_in_to_sync", comment: "Sign in to sync"))
+                                .font(Theme.Typography.caption1())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        } else if let user = authManager.currentUser {
+                            // Name only. The email wrapped onto a second line in the sidebar's
+                            // narrow column ("jonparis@gmail.-\ncom") and told the signed-in
+                            // user nothing they did not know. It is still in Settings, which
+                            // this row opens, on the profile and under Account.
+                            Text(user.displayName)
+                                .font(Theme.Typography.body())
+                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .lineLimit(1)
                         }
                     }
                 }
-                .buttonStyle(.plain)  // No longer a list row, which is what kept the label untinted
-
-                Spacer()
-
-                // Settings gear button
-                Button {
-                    openAccountEntry(.gear)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 18))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                        .padding(Theme.spacing8)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
             }
-            .padding(.horizontal, Theme.spacing16)
-            .padding(.vertical, Theme.spacing8)
+            .buttonStyle(.plain)  // No longer a list row, which is what kept the label untinted
+
+            Spacer()
+
+            // Settings gear button
+            Button {
+                openAccountEntry(.gear)
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18))
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .padding(Theme.spacing8)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .background(themeBackgroundColor)
+        .padding(.horizontal, Theme.spacing16)
+        .padding(.vertical, Theme.spacing8)
+        .modifier(AccountFooterGlass())
+        .padding(.horizontal, Theme.spacing12)
+        .padding(.bottom, Theme.spacing8)
+    }
+
+    /// Liquid Glass where the system has it; the theme's thin glass material before iOS 26.
+    private struct AccountFooterGlass: ViewModifier {
+        private let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *) {
+                content.glassEffect(.regular, in: shape)
+            } else {
+                content.background(Theme.LiquidGlass.secondaryGlassMaterial, in: shape)
+            }
+        }
     }
 
     // MARK: - Search
