@@ -3,8 +3,8 @@
 //
 //  Where `TaskList.spawnsNextOccurrence`, completing a repeating task leaves it completed and
 //  the server makes the next occurrence as a NEW task carrying `previousOccurrenceId`. Task
-//  details link the two. The server only says who came before, so "next" is derived here —
-//  once, in Core, so the phone and the Mac draw the same links.
+//  details link the two. The server says who came next only on the single-task read, so "next"
+//  falls back to a derived link — once, in Core, so the phone and the Mac draw the same links.
 
 import Foundation
 
@@ -21,11 +21,16 @@ enum TaskOccurrences {
 
     /// - `previousId` is the task's own `previousOccurrenceId`, whether or not that task is
     ///   loaded: a completed occurrence often is not, and opening a task by id fetches it.
-    /// - `nextId` is the loaded task that names this one as its previous occurrence. A
-    ///   successor that is not loaded yet simply has no link until it arrives.
+    /// - `nextId` is the server's `nextOccurrenceId` when this device has it (AITD-492), which
+    ///   is the only way a successor that is not loaded gets a link. It rides the single-task
+    ///   read alone, so nil there is "not known here", never "none" — and then it is the loaded
+    ///   task that names this one as its previous occurrence, if there is one.
+    /// - Neither link is inferred from the other.
     static func links(for task: Task, in tasks: [Task]) -> TaskOccurrenceLinks {
-        let previous = task.previousOccurrenceId.flatMap { $0 == task.id || $0.isEmpty ? nil : $0 }
-        let next = tasks.first { $0.previousOccurrenceId == task.id && $0.id != task.id }?.id
+        let other: (String) -> String? = { $0 == task.id || $0.isEmpty ? nil : $0 }
+        let previous = task.previousOccurrenceId.flatMap(other)
+        let next = task.nextOccurrenceId.flatMap(other)
+            ?? tasks.first { $0.previousOccurrenceId == task.id && $0.id != task.id }?.id
         return TaskOccurrenceLinks(previousId: previous, nextId: next)
     }
 }
