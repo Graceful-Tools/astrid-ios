@@ -59,3 +59,28 @@ final class SidebarAccountFooterTests: XCTestCase {
         XCTAssertLessThan(myTasks.lowerBound, favorites.lowerBound)
     }
 }
+
+/// The footer is glass, not an opaque band of the theme colour (AITD-501).
+///
+/// Jon: *"Make the left footer with the profile and setting icon glass."* His screenshot shows a
+/// solid cyan block slicing the Health row in half: the lists scroll under the footer, and the
+/// theme fill hid them instead of letting them show through.
+final class SidebarAccountFooterGlassTests: XCTestCase {
+
+    /// The footer's own declaration, up to the next section of the file.
+    private func footerSource() throws -> String {
+        let source = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListSidebarView.swift")
+        let open = try XCTUnwrap(source.range(of: "private var accountFooter: some View"))
+        let close = try XCTUnwrap(source.range(of: "// MARK: - Search", range: open.upperBound..<source.endIndex))
+        return String(source[open.upperBound..<close.lowerBound])
+    }
+
+    func test_aitd501_theFooterIsGlass() throws {
+        XCTAssertTrue(try footerSource().contains(".glassEffect("), "the account footer is not glass")
+    }
+
+    func test_aitd501_theFooterIsNotFilledWithTheThemeColour() throws {
+        XCTAssertFalse(try footerSource().contains(".background(themeBackgroundColor)"),
+                       "an opaque theme fill still hides the lists scrolling under the footer")
+    }
+}
