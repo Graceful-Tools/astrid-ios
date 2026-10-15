@@ -54,6 +54,9 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     /// What this list's backend can do (AITD-466). **nil means classic** — a server older than
     /// the field omits it. Ask through `supportsMultipleAssignees`, not the field.
     var supports: ListSupports?
+    /// Which backend holds this list (astrid-web AWTD-1256, spec §11.2): `"github_project"` for a
+    /// GitHub Projects board, nil for a classic one. Ask through `isGitHubBacked`, not the field.
+    var backend: String?
 
     // Filter settings for virtual lists
     var filterCompletion: String?
@@ -94,7 +97,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         case aiAgentConfiguredBy, copyCount
         case createdAt, updatedAt, description, tasks, taskCount
         case isFavorite, favoriteOrder, isVirtual, virtualListType, sortBy, manualSortOrder
-        case showSubtasks, supports
+        case showSubtasks, supports, backend
         case filterCompletion, filterDueDate, filterAssignee, filterAssignedBy
         case filterRepeating, filterPriority, filterInLists
         case projectId, listType, statusRole, statusOrder
@@ -166,7 +169,8 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         statusDescription: String? = nil,
         statusCompleted: Bool? = nil,
         recentlyCompletedWindow: RecentlyCompletedWindow? = nil,
-        supports: ListSupports? = nil
+        supports: ListSupports? = nil,
+        backend: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -225,6 +229,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         self.statusCompleted = statusCompleted
         self.recentlyCompletedWindow = recentlyCompletedWindow
         self.supports = supports
+        self.backend = backend
     }
 
     /// May a task on this list hold several assignees? Classic unless the server says otherwise.
@@ -237,12 +242,14 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
     /// Is this list backed by a GitHub Project — so the SERVER mirrors its issues itself, and the
     /// on-device Issues engine must keep off it (`GitHubSyncEligibility`, AITD-491)?
     ///
-    /// `list.backend` is the field the spec names for this (§11.2) and it is not on the v1 wire
-    /// yet. `supports` is derived server-side from `backend == 'github_project'` and from nothing
-    /// else (astrid-web `lib/backends/supports.ts`), so a spawning repeat mode identifies such a
-    /// list exactly. When `backend` does reach the wire, read it here: this is the only line that
-    /// has to change.
-    var isGitHubBacked: Bool { spawnsNextOccurrence }
+    /// Read from `backend`. A server older than that field leaves only `supports`, which the web
+    /// derives from the backend and from nothing else (`lib/backends/supports.ts`), so a spawning
+    /// repeat mode identifies such a list there. Same rule as astrid-core's
+    /// `TaskList::is_github_backed` (CONTRACTS D54).
+    var isGitHubBacked: Bool {
+        guard let backend else { return spawnsNextOccurrence }
+        return backend == "github_project"
+    }
 
     // MARK: - Decoding
 
@@ -311,6 +318,7 @@ nonisolated struct TaskList: Identifiable, Codable, Equatable, Hashable {
         manualSortOrder = try c.decodeIfPresent([String].self, forKey: .manualSortOrder)
         showSubtasks = try c.decodeIfPresent(Bool.self, forKey: .showSubtasks)
         supports = try c.decodeIfPresent(ListSupports.self, forKey: .supports)
+        backend = try? c.decodeIfPresent(String.self, forKey: .backend)
         filterCompletion = try c.decodeIfPresent(String.self, forKey: .filterCompletion)
         filterDueDate = try c.decodeIfPresent(String.self, forKey: .filterDueDate)
         filterAssignee = try c.decodeIfPresent(String.self, forKey: .filterAssignee)

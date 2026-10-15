@@ -109,7 +109,7 @@ dependencies = [
 [[package]]
 name = "astrid-core"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=6030a4d6945162e53158f0cb9ea582dbfd792bf2#6030a4d6945162e53158f0cb9ea582dbfd792bf2"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=99a3eb5c97904efc8eca3de07ca3f36b46fb4e94#99a3eb5c97904efc8eca3de07ca3f36b46fb4e94"
 dependencies = [
  "astrid-rules",
  "async-trait",
@@ -134,7 +134,7 @@ dependencies = [
 [[package]]
 name = "astrid-rules"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=6030a4d6945162e53158f0cb9ea582dbfd792bf2#6030a4d6945162e53158f0cb9ea582dbfd792bf2"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=99a3eb5c97904efc8eca3de07ca3f36b46fb4e94#99a3eb5c97904efc8eca3de07ca3f36b46fb4e94"
 dependencies = [
  "chrono",
  "chrono-tz",

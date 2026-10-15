@@ -80,4 +80,28 @@ final class GitHubSyncEligibilityTests: XCTestCase {
         older.supports = ListSupports(multipleAssignees: true)
         XCTAssertFalse(older.isGitHubBacked, "a server that sends only the first supports key is classic")
     }
+
+    /// `list.backend` reached the v1 wire (astrid-web AWTD-1256): it decides, and `supports` is
+    /// only the fallback for a server older than the field.
+    func test_aitd491_backendDecidesGitHubBackedAndSurvivesTheCache() throws {
+        let decoder = JSONDecoder()
+        let board = try decoder.decode(TaskList.self, from: Data(
+            #"{"id":"l1","name":"Board","backend":"github_project"}"#.utf8))
+        XCTAssertTrue(board.isGitHubBacked, "backend alone decides it, whatever supports says")
+        let again = try decoder.decode(TaskList.self, from: JSONEncoder().encode(board))
+        XCTAssertEqual(again.backend, "github_project", "survives the app's own cache")
+
+        let older = try decoder.decode(TaskList.self, from: Data(
+            #"{"id":"l2","name":"Board","supports":{"repeatMode":"spawn"}}"#.utf8))
+        XCTAssertTrue(older.isGitHubBacked, "no backend key: the supports derivation still holds")
+
+        for classic in [
+            #"{"id":"l3","name":"Home","backend":null}"#,
+            #"{"id":"l4","name":"Later","backend":"aBackendFromLater"}"#,
+        ] {
+            XCTAssertFalse(try decoder.decode(TaskList.self, from: Data(classic.utf8)).isGitHubBacked, classic)
+        }
+        XCTAssertEqual(GitHubSyncEligibility.linkableLists([board]).map(\.id), [],
+                       "a board known only by its backend is not offered for linking")
+    }
 }
