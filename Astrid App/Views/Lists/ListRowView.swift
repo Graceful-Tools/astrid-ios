@@ -46,9 +46,12 @@ struct ListRowView: View {
 
             onTap()
         }) {
-            HStack(spacing: Theme.spacing12) {
+            // The icon is centred under the sidebar header's logo and the name starts under its
+            // wordmark — where it already sat, give or take a point (AITD-502).
+            HStack(spacing: SidebarBrandHeader.spacing) {
                 // List image/icon
                 ListImageView(list: list, size: 12)
+                    .frame(width: SidebarBrandHeader.logoSize)
 
                 // List name
                 Text(list.name)
@@ -66,7 +69,7 @@ struct ListRowView: View {
                 // Task count badge (always show, even when 0)
                 if let count = taskCount {
                     Text("\(count)")
-                        .font(Theme.Typography.caption1())
+                        .font(Theme.Typography.callout())  // A step under the name (AITD-502)
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         .padding(.horizontal, Theme.spacing4)
                         .padding(.vertical, Theme.spacing4)
@@ -77,7 +80,7 @@ struct ListRowView: View {
                 }
             }
             .padding(.vertical, Theme.spacing8)
-            .padding(.horizontal, Theme.spacing12)
+            .padding(.trailing, Theme.spacing4)  // The count sits near the edge (AITD-502)
             .contentShape(Rectangle())  // Make entire row area tappable
         }
         .buttonStyle(ListRowButtonStyle(isSelected: isSelected))

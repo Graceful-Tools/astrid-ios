@@ -7,7 +7,12 @@ import SwiftUI
 /// the caller's because the two apps resolve their themes differently; everything about the
 /// arrangement is here.
 struct SidebarBrandHeader: View {
-    static let logoSize: CGFloat = 24
+    /// 20% up from 24 and 18 (AITD-502). The sidebar's list rows put their icons in a column
+    /// this wide, so the icons line up under the logo and the names under the wordmark.
+    static let logoSize: CGFloat = 28.8
+    static let wordmarkSize: CGFloat = 21.6
+    /// Between the logo and the wordmark.
+    static let spacing: CGFloat = 8
 
     let primary: Color
     let muted: Color
@@ -18,7 +23,7 @@ struct SidebarBrandHeader: View {
     @ObservedObject private var serverCapabilities = ServerCapabilityService.shared
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Self.spacing) {
             Image("AstridCharacter")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -26,7 +31,7 @@ struct SidebarBrandHeader: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .accessibilityHidden(true)
             Text(serverCapabilities.capabilities.brand.resolvedWordmark)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: Self.wordmarkSize, weight: .semibold))
                 .foregroundColor(primary)
                 .lineLimit(1)
             Spacer(minLength: 4)
