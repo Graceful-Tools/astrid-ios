@@ -432,9 +432,10 @@ struct ListSidebarView: View {
         Button {
             showingAddList = true
         } label: {
-            HStack {
+            HStack(spacing: SidebarBrandHeader.spacing) {
                 Image(systemName: "plus.circle.fill")
                     .foregroundColor(Theme.accent)
+                    .frame(width: SidebarBrandHeader.logoSize)
                 Text(NSLocalizedString("navigation.add_list", comment: ""))
                     .foregroundColor(Theme.accent)
             }
@@ -467,10 +468,12 @@ struct ListSidebarView: View {
             searchText = ""  // Clear search when switching lists
             onListTap?()
         } label: {
-            HStack(spacing: Theme.spacing12) {
+            // In the logo's column, as the list rows are (AITD-502).
+            HStack(spacing: SidebarBrandHeader.spacing) {
                 Circle()
                     .fill(Theme.accent)
                     .frame(width: 12, height: 12)
+                    .frame(width: SidebarBrandHeader.logoSize)
 
                 Text(NSLocalizedString("navigation.my_tasks", comment: ""))
                     .font(Theme.Typography.body())
@@ -485,7 +488,7 @@ struct ListSidebarView: View {
 
                 // Count of tasks assigned to current user (always show, even when 0)
                 Text("\(badges.myTasks)")
-                    .font(Theme.Typography.caption1())
+                    .font(Theme.Typography.callout())
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     .padding(.horizontal, Theme.spacing8)
                     .padding(.vertical, Theme.spacing4)
@@ -495,7 +498,7 @@ struct ListSidebarView: View {
                     )
             }
             .padding(.vertical, Theme.spacing8)
-            .padding(.horizontal, Theme.spacing12)
+            .padding(.trailing, Theme.spacing4)
             .contentShape(Rectangle())  // Make entire row area tappable
         }
         .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "my-tasks"))
