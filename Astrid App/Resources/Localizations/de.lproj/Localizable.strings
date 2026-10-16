@@ -107,6 +107,8 @@
 "tasks.copy_task" = "Aufgabe kopieren";
 "tasks.share_task" = "Aufgabe teilen";
 "tasks.delete_confirm" = "Diese Aufgabe löschen?";
+"tasks.remove_from_board" = "Vom Board entfernen";
+"tasks.remove_from_board_confirm" = "Diese Aufgabe vom Board entfernen? Das GitHub-Issue bleibt bestehen.";
 "tasks.loading" = "Aufgaben werden geladen...";
 "tasks.priority_only" = "Nur %@";
 "tasks.who" = "Wer";

@@ -11,6 +11,10 @@ struct TaskActionsView: View {
     @State private var showingCopySheet = false
     @State private var showingShareModal = false
     @State private var showingDeleteConfirmation = false
+    @ObservedObject private var listService = ListService.shared
+
+    /// "Remove from board" on a GitHub board, where the issue outlives the task (AITD-491).
+    private var deletion: TaskCapabilities.Deletion { TaskCapabilities.deleteWording(for: task, lists: listService.lists) }
 
     var body: some View {
         VStack(spacing: Theme.spacing12) {
@@ -82,7 +86,7 @@ struct TaskActionsView: View {
             } label: {
                 HStack {
                     Image(systemName: "trash")
-                    Text(NSLocalizedString("tasks.delete_task", comment: ""))
+                    Text(NSLocalizedString(deletion.actionKey, comment: ""))
                 }
                 .font(Theme.Typography.body())
                 .foregroundColor(Theme.error)
@@ -93,11 +97,11 @@ struct TaskActionsView: View {
             }
             .buttonStyle(.plain)
             .confirmationDialog(
-                NSLocalizedString("tasks.delete_confirm", comment: ""),
+                NSLocalizedString(deletion.confirmKey, comment: ""),
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
-                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
+                Button(NSLocalizedString(deletion.buttonKey, comment: ""), role: .destructive) {
                     _Concurrency.Task {
                         try? await TaskService.shared.deleteTask(id: task.id, task: task)
                         dismiss()

@@ -98,6 +98,8 @@
 "tasks.copy_task" = "Copiar Tarefa";
 "tasks.share_task" = "Compartilhar Tarefa";
 "tasks.delete_confirm" = "Excluir esta tarefa?";
+"tasks.remove_from_board" = "Remover do quadro";
+"tasks.remove_from_board_confirm" = "Remover esta tarefa do quadro? A issue do GitHub permanece.";
 "tasks.loading" = "Carregando suas tarefas...";
 "tasks.priority_only" = "Apenas %@";
 

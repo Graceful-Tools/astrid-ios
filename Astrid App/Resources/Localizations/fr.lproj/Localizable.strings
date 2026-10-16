@@ -95,6 +95,8 @@
 "tasks.copy_task" = "Copier la Tâche";
 "tasks.share_task" = "Partager la Tâche";
 "tasks.delete_confirm" = "Supprimer cette tâche ?";
+"tasks.remove_from_board" = "Retirer du tableau";
+"tasks.remove_from_board_confirm" = "Retirer cette tâche du tableau ? Le ticket GitHub est conservé.";
 "tasks.loading" = "Chargement de vos tâches...";
 
 /* Lists */
