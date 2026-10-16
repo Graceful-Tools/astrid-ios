@@ -173,4 +173,54 @@ final class ListCapabilitiesTests: XCTestCase {
             XCTAssertTrue(source.contains("taskRow.remoteChip"), "\(path) does not identify the repo chip")
         }
     }
+
+    // MARK: - New tasks
+
+    /// Quick add sends the list's default priority and date, and smart parsing turns "!!" or
+    /// "tomorrow" into them. On a board that refuses either, the create carried a value the
+    /// server rejects, so a new task never reached the board.
+    func testANewTaskDropsWhatItsBoardRefuses_AITD491() throws {
+        let board = try list(#"{"id":"b","name":"Board","supports":{"priority":false,"dueDate":false}}"#)
+        let datesOnly = try list(#"{"id":"d","name":"Dates","supports":{"priority":false,"dueDate":true}}"#)
+        let home = try list(#"{"id":"h","name":"Home"}"#)
+        let lists = [board, datesOnly, home]
+        let day = Date(timeIntervalSince1970: 1_800_000_000)
+        let time = day.addingTimeInterval(3600)
+
+        let onBoard = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+                                                listIds: ["b"], lists: lists)
+        XCTAssertNil(onBoard.priority)
+        XCTAssertNil(onBoard.whenDate)
+        XCTAssertNil(onBoard.whenTime)
+
+        let onDates = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+                                                listIds: ["d"], lists: lists)
+        XCTAssertNil(onDates.priority)
+        XCTAssertEqual(onDates.whenDate, day)
+        XCTAssertEqual(onDates.whenTime, time)
+
+        // A classic list, and a list not loaded yet, keep everything.
+        for ids in [["h"], ["unknown"], []] {
+            let kept = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+                                                 listIds: ids, lists: lists)
+            XCTAssertEqual(kept.priority, 2)
+            XCTAssertEqual(kept.whenDate, day)
+            XCTAssertEqual(kept.whenTime, time)
+        }
+    }
+
+    /// Every create goes through the service, so that is where the rule is asked: quick add on
+    /// both apps, the board column, the list's defaults and smart parsing all pass through it.
+    func testEveryNewTaskAsksTheRule_AITD491() throws {
+        let service = try RepositoryLocator.source(at: "Astrid App/Core/Services/TaskService.swift")
+        XCTAssertTrue(service.contains("TaskCapabilities.admitted("), "createTask does not drop refused values")
+    }
+
+    /// The quick-add pickers do not offer a priority the board would drop.
+    func testBothQuickAddPickersAskTheRuleForPriority_AITD491() throws {
+        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/QuickAddTaskView.swift")
+        XCTAssertTrue(ios.contains("TaskCapabilities.allows(.priority"), "the iOS quick-add sheet still offers priority")
+        let mac = try RepositoryLocator.source(at: "Astrid Mac/Views/MacQuickAddBar.swift")
+        XCTAssertTrue(mac.contains("TaskCapabilities.allows(.priority"), "the Mac add bar still offers priority")
+    }
 }

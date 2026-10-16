@@ -73,17 +73,22 @@ struct MacDraftDefaultsPicker: View {
     let defaultAssigneeLabel: String
     /// Who can be picked, from `MacDraftDefaults.assigneeChoices`.
     let assigneeChoices: [MacAssigneeChoice]
+    /// False on a board that refuses a priority (AITD-491): the row would set a value the new
+    /// task drops.
+    var offersPriority = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(NSLocalizedString("tasks.priority", comment: ""))
-                .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
-            // The SAME styled picker the task detail uses — ○ ! !! !!! in their priority colours,
-            // not plain text buttons.
-            MacPriorityPicker(selection: Binding(
-                get: { resolvedPriority },
-                set: { priorityOverride = $0.rawValue }
-            ))
+            if offersPriority {
+                Text(NSLocalizedString("tasks.priority", comment: ""))
+                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
+                // The SAME styled picker the task detail uses — ○ ! !! !!! in their priority colours,
+                // not plain text buttons.
+                MacPriorityPicker(selection: Binding(
+                    get: { resolvedPriority },
+                    set: { priorityOverride = $0.rawValue }
+                ))
+            }
             Text(NSLocalizedString("tasks.assignee", comment: ""))
                 .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
             Picker("", selection: Binding(

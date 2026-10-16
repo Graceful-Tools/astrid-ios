@@ -29,6 +29,17 @@ enum TaskCapabilities {
         Set([Control.priority, .dueDate].filter { !allows($0, listIds: listIds, lists: lists) })
     }
 
+    /// What a new task may carry onto these lists. A value they refuse is dropped rather than
+    /// sent: a list's default, a smart-parsed "!!" or "tomorrow" would otherwise make a create
+    /// the server rejects, and the task would never reach the board.
+    static func admitted(priority: Int?, whenDate: Date?, whenTime: Date?,
+                         listIds: [String], lists: [TaskList]) -> (priority: Int?, whenDate: Date?, whenTime: Date?) {
+        let datesAllowed = allows(.dueDate, listIds: listIds, lists: lists)
+        return (allows(.priority, listIds: listIds, lists: lists) ? priority : nil,
+                datesAllowed ? whenDate : nil,
+                datesAllowed ? whenTime : nil)
+    }
+
     /// What deleting the task is called. On a GitHub board an Astrid delete removes the item from
     /// the project and the issue stays (spec §8), so "Delete" would promise more than happens.
     enum Deletion: Equatable {

@@ -766,6 +766,11 @@ struct QuickAddPickerSheet: View {
 
     private let priorities: [Task.Priority] = [.none, .low, .medium, .high]
 
+    /// A board that refuses a priority (AITD-491) is not offered one: the new task would drop it.
+    private var offersPriority: Bool {
+        TaskCapabilities.allows(.priority, listIds: listIds ?? [], lists: ListService.shared.lists)
+    }
+
     // Combine available members with AI agents
     private var allMembers: [User] {
         var memberMap: [String: User] = [:]
@@ -798,22 +803,24 @@ struct QuickAddPickerSheet: View {
         // Content fits within .medium detent for typical team sizes
         VStack(alignment: .leading, spacing: Theme.spacing24) {
             // Priority Section - using same design as task details
-            VStack(alignment: .leading, spacing: Theme.spacing12) {
-                Text(NSLocalizedString("tasks.priority", comment: ""))
-                    .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+            if offersPriority {
+                VStack(alignment: .leading, spacing: Theme.spacing12) {
+                    Text(NSLocalizedString("tasks.priority", comment: ""))
+                        .font(Theme.Typography.headline())
+                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                HStack(spacing: Theme.spacing12) {
-                    ForEach(priorities, id: \.self) { priority in
-                        QuickAddPriorityButton(
-                            priority: priority,
-                            isSelected: selectedPriority == priority,
-                            colorScheme: colorScheme
-                        ) {
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
-                            selectedPriority = priority
-                            dismiss()
+                    HStack(spacing: Theme.spacing12) {
+                        ForEach(priorities, id: \.self) { priority in
+                            QuickAddPriorityButton(
+                                priority: priority,
+                                isSelected: selectedPriority == priority,
+                                colorScheme: colorScheme
+                            ) {
+                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                impact.impactOccurred()
+                                selectedPriority = priority
+                                dismiss()
+                            }
                         }
                     }
                 }
@@ -821,7 +828,7 @@ struct QuickAddPickerSheet: View {
 
             // Only show assignee section for logged-in users
             if authManager.isAuthenticated {
-                Divider()
+                if offersPriority { Divider() }
 
                 // Assignee Section - scrollable for large teams
                 VStack(alignment: .leading, spacing: Theme.spacing12) {
