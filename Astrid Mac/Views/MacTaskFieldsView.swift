@@ -64,7 +64,9 @@ struct MacTaskFieldsView: View {
             ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle,
                                              displayMode: displayMode,
                                              isInProject: isInProject,
-                                             hasOccurrenceLinks: !occurrenceLinks.isEmpty).enumerated()),
+                                             hasOccurrenceLinks: !occurrenceLinks.isEmpty,
+                                             refused: TaskCapabilities.refused(
+                                                listIds: task.listIds ?? [], lists: listService.lists)).enumerated()),
                     id: \.offset) { _, row in
                 fieldRow(row)
             }

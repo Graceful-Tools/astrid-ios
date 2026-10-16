@@ -46,8 +46,12 @@ struct TaskRowView: View {
     /// written three times inside one view.
     /// A small outlined label beside the title: won't-do (AITD-496), sync state (AITD-491).
     private func titleChip(_ labelKey: String, identifier: String) -> some View {
+        titleChip(verbatim: NSLocalizedString(labelKey, comment: ""), identifier: identifier)
+    }
+
+    private func titleChip(verbatim label: String, identifier: String) -> some View {
         let muted = effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted
-        return Text(NSLocalizedString(labelKey, comment: ""))
+        return Text(verbatim: label)
             .font(Theme.Typography.caption1())
             .foregroundColor(muted)
             .lineLimit(1)
@@ -158,6 +162,10 @@ struct TaskRowView: View {
                     // Made on a GitHub board and not all written there yet (AITD-491).
                     if let mark = TaskSyncState.mark(for: task) {
                         titleChip(TaskSyncState.chipLabelKey(for: mark), identifier: "taskRow.syncChip")
+                    }
+                    // The GitHub issue a task on a GitHub board is, `repo#N`; opens it (AITD-491).
+                    if let label = task.remote?.chipLabel, let url = task.remote?.pageURL {
+                        Link(destination: url) { titleChip(verbatim: label, identifier: "taskRow.remoteChip") }
                     }
                 }
 

@@ -49,6 +49,9 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     /// task made on a GitHub board is still being written there. Nil is settled — read it
     /// through `TaskSyncState.mark`.
     var syncState: String?
+    /// The GitHub issue or pull request a task on a GitHub board is (AITD-491, web AWTD-1222).
+    /// Nil on every classic task. Rows draw it through `TaskRemote.chipLabel`.
+    var remote: TaskRemote?
     /// Board status as a STATE on the task: ready | doing | waiting | a
     /// project's custom role. Nil means Inbox; Done is derived from
     /// `completed`, so neither is ever stored.
@@ -159,7 +162,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
         case reminderTime, reminderSent, reminderType
         case repeating, repeatingData, repeatFrom, occurrenceCount, previousOccurrenceId, nextOccurrenceId, timerDuration, lastTimerValue
         case priority, lists, listIds
-        case isPrivate, completed, completedAt, completedSource, closedReason, syncState, statusRole, identifier, attachments, secureFiles, comments
+        case isPrivate, completed, completedAt, completedSource, closedReason, syncState, remote, statusRole, identifier, attachments, secureFiles, comments
         case createdAt, updatedAt, originalTaskId, sourceListId, clientRequestId, parentTaskId
     }
 
