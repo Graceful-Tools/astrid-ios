@@ -70,6 +70,14 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"))
     }
 
+    /// Project mode keeps priority behind the leading control's popover, which still offered it
+    /// on a board that refuses the write.
+    func testTheIOSQuickChangerAsksTheRuleForPriority_AITD491() throws {
+        let source = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift")
+        XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"),
+                      "the popover still offers priority on a board that refuses it")
+    }
+
     // MARK: - Delete wording
 
     /// On a GitHub board an Astrid delete removes the item from the project and the issue stays,

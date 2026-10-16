@@ -116,12 +116,15 @@ struct TaskDetailLeadingControl: View {
         VStack(alignment: .leading, spacing: Theme.spacing16) {
             // Each choice dismisses the popover straight away — you came here to set ONE thing,
             // and leaving it open makes you tap outside to confirm nothing happened (42013da7).
-            PriorityButtonPicker(priority: $priority, onSave: { newPriority in
-                _ = try await taskService.updateTask(taskId: task.id,
-                                                     priority: newPriority.rawValue,
-                                                     task: task)
-                await MainActor.run { showingPicker = false }
-            })
+            // Not on a GitHub board with no Priority field: the server refuses that write (AITD-491).
+            if TaskCapabilities.allows(.priority, listIds: listIds, lists: listService.lists) {
+                PriorityButtonPicker(priority: $priority, onSave: { newPriority in
+                    _ = try await taskService.updateTask(taskId: task.id,
+                                                         priority: newPriority.rawValue,
+                                                         task: task)
+                    await MainActor.run { showingPicker = false }
+                })
+            }
 
             InlineAssigneePicker(
                 label: NSLocalizedString("tasks.assignee", comment: ""),

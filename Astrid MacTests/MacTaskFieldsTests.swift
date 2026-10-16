@@ -67,6 +67,20 @@ final class MacTaskFieldsTests: XCTestCase {
                        [.priority, .assignee, .complete])
     }
 
+    /// A GitHub board with no Priority field refuses the write, so the popover does not offer
+    /// it (AITD-491). Everything else it holds stays.
+    func testThePickerLeavesOutPriorityWhenTheListsRefuseIt_AITD491() throws {
+        XCTAssertEqual(MacLeadingPicker.sections(for: .project, refused: [.priority]),
+                       [.assignee, .projectState, .complete])
+        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.priority]),
+                       [.assignee, .complete])
+        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.dueDate]),
+                       [.priority, .assignee, .complete])
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacLeadingControlButton.swift")
+        XCTAssertTrue(source.contains("TaskCapabilities.refused("),
+                      "the control does not ask which controls the task's lists refuse")
+    }
+
     // MARK: - The rows that remain
 
     /// The detail owns the title; a board card already shows it on the card
