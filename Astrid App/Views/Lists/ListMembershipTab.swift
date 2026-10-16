@@ -46,6 +46,11 @@ struct ListMembershipTab: View {
         ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)
     }
 
+    /// Invites, roles and removals. Not on a GitHub board, whose roster is GitHub's (AITD-491).
+    private var canManageMembers: Bool {
+        ListPermissions.canManageMembers(list, userId: AuthManager.shared.userId)
+    }
+
     /// Invitations nobody has accepted yet.
     ///
     /// The SHARED rule (AITD-388). It lived here as a private copy, which is why the Mac — having
@@ -210,7 +215,7 @@ struct ListMembershipTab: View {
 
                                     Spacer()
 
-                                    if canEditSettings {
+                                    if canManageMembers {
                                         Menu {
                                             Button {
                                                 let newRole = listMember.role == "admin" ? "member" : "admin"
@@ -256,7 +261,7 @@ struct ListMembershipTab: View {
                 }
 
                 // Pending Invitations (only show to admins/owners)
-                if canEditSettings && !pendingInvitations.isEmpty {
+                if canManageMembers && !pendingInvitations.isEmpty {
                     ForEach(pendingInvitations) { invitation in
                         HStack(spacing: Theme.spacing12) {
                             Circle()
@@ -299,8 +304,8 @@ struct ListMembershipTab: View {
                 }
             }
 
-            // Add Member Section - Only for admins/owners
-            if canEditSettings {
+            // Add Member Section - Only for admins/owners, and not on a GitHub board
+            if canManageMembers {
                 Section {
                     Button(action: { showingAddMember = true }) {
                         HStack {

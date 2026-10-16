@@ -49,6 +49,13 @@ enum ListPermissions {
         access(list, userId: userId).canManage
     }
 
+    /// May this user invite, remove, or change the role of members? An owner or admin — and only
+    /// on a list whose roster is Astrid's. On a GitHub board it is GitHub's
+    /// (`supports.membership == false`, AITD-491); a server too old to send the key means classic.
+    static func canManageMembers(_ list: TaskList, userId: String?) -> Bool {
+        canEditSettings(list, userId: userId) && (list.supports?.membership ?? true)
+    }
+
     /// May this user delete the list? The owner only: deleting a shared list destroys other
     /// people's work, so it stays with the owner even though an admin may edit everything else.
     static func canDelete(_ list: TaskList, userId: String?) -> Bool {

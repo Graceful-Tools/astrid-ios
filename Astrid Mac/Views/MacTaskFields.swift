@@ -218,15 +218,21 @@ enum MacLeadingPicker {
     /// the popover is the only thing a tap gives you, list mode's omission stops applying: that
     /// omission is an argument about the detail panel's own layout, not about what to offer when
     /// the panel is not what you are looking at.
+    ///
+    /// A GITHUB BOARD with no Priority field refuses the write (AITD-491), so `refused`
+    /// (`TaskCapabilities.refused`) leaves the section out — the same answer the list-mode row gets.
     static func sections(for displayMode: TaskDisplayMode,
                          surface: TaskLeadingControlSurface = .detail,
-                         isSomeoneElses: Bool = false) -> [MacLeadingPickerSection] {
+                         isSomeoneElses: Bool = false,
+                         refused: Set<TaskCapabilities.Control> = []) -> [MacLeadingPickerSection] {
         // The SHARED rule, so the Mac and the phone cannot offer different choices for one task.
-        return TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
-                                                          surface: surface,
-                                                          isSomeoneElses: isSomeoneElses)
+        let sections: [MacLeadingPickerSection] =
+            TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
+                                                       surface: surface,
+                                                       isSomeoneElses: isSomeoneElses)
             ? [.priority, .assignee, .projectState, .complete]
             : [.priority, .assignee, .complete]
+        return refused.contains(.priority) ? sections.filter { $0 != .priority } : sections
     }
 }
 #endif

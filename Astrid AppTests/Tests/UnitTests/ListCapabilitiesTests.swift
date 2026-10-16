@@ -70,6 +70,37 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"))
     }
 
+    /// Project mode keeps priority behind the leading control's popover, which still offered it
+    /// on a board that refuses the write.
+    func testTheIOSQuickChangerAsksTheRuleForPriority_AITD491() throws {
+        let source = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift")
+        XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"),
+                      "the popover still offers priority on a board that refuses it")
+    }
+
+    // MARK: - Membership
+
+    /// On a GitHub board the roster is GitHub's (`supports.membership == false`), so an owner
+    /// who may edit everything else is still not offered invites, role changes or removals.
+    func testAGitHubBoardsRosterIsNotManagedInAstrid_AITD491() throws {
+        let board = try list(#"{"id":"b","name":"Board","ownerId":"me","supports":{"membership":false}}"#)
+        let home = try list(#"{"id":"h","name":"Home","ownerId":"me"}"#)
+        XCTAssertTrue(ListPermissions.canEditSettings(board, userId: "me"))
+        XCTAssertFalse(ListPermissions.canManageMembers(board, userId: "me"))
+        XCTAssertTrue(ListPermissions.canManageMembers(home, userId: "me"))
+        // Membership support never grants what the role does not.
+        XCTAssertFalse(ListPermissions.canManageMembers(home, userId: "someone-else"))
+    }
+
+    func testBothMembershipTabsAskTheRosterRule_AITD491() throws {
+        for path in ["Astrid App/Views/Lists/ListMembershipTab.swift",
+                     "Astrid Mac/Views/MacListMembershipTab.swift"] {
+            let source = try RepositoryLocator.source(at: path)
+            XCTAssertTrue(source.contains("ListPermissions.canManageMembers("),
+                          "\(path) still offers invites on a GitHub board")
+        }
+    }
+
     // MARK: - Delete wording
 
     /// On a GitHub board an Astrid delete removes the item from the project and the issue stays,

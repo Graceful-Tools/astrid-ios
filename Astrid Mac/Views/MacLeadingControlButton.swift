@@ -59,6 +59,13 @@ struct MacLeadingControlButton: View {
                                               currentUserId: AuthManager.shared.userId)
     }
 
+    /// What the task's lists refuse — a GitHub board with no Priority field (AITD-491). Asked
+    /// here rather than at each call site, so the board card and the panel cannot disagree.
+    private var refusedControls: Set<TaskCapabilities.Control> {
+        TaskCapabilities.refused(listIds: taskListMembershipIdsInOrder(task),
+                                 lists: ListService.shared.lists)
+    }
+
     var body: some View {
         Button {
             switch tapAction {
@@ -124,7 +131,8 @@ struct MacLeadingControlButton: View {
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface,
-                                                    isSomeoneElses: isSomeoneElsesTask)
+                                                    isSomeoneElses: isSomeoneElsesTask,
+                                                    refused: refusedControls)
                             .enumerated()), id: \.offset) { _, section in
                 switch section {
                 case .priority:
