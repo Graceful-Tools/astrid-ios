@@ -74,10 +74,20 @@ enum MacTaskFields {
     ///   shows a state row only when it does — see the note on `.projectState` below.
     /// - Parameter hasOccurrenceLinks: whether `TaskOccurrences.links` found a previous or next
     ///   occurrence (AITD-491). The row is a pair of links, so with neither there is no row.
+    /// - Parameter refused: the controls the task's lists refuse (`TaskCapabilities.refused`).
     static func rows(showsTitle: Bool,
                      displayMode: TaskDisplayMode,
                      isInProject: Bool = false,
-                     hasOccurrenceLinks: Bool = false) -> [MacTaskFieldRow] {
+                     hasOccurrenceLinks: Bool = false,
+                     refused: Set<TaskCapabilities.Control> = []) -> [MacTaskFieldRow] {
+        // A board that refuses a priority or date write does not get the control (AITD-491).
+        let hidden = Set(refused.map { $0 == .priority ? MacTaskFieldRow.priority : .when })
+        return rowsOffered(showsTitle: showsTitle, displayMode: displayMode, isInProject: isInProject,
+                           hasOccurrenceLinks: hasOccurrenceLinks).filter { !hidden.contains($0) }
+    }
+
+    private static func rowsOffered(showsTitle: Bool, displayMode: TaskDisplayMode, isInProject: Bool,
+                                    hasOccurrenceLinks: Bool) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
         // Both modes, unlike board state: blocking is said nowhere else in the compact layout.
         // The rule is iOS's and web's (`TaskBlockers.showsRow`); this editor has no read-only

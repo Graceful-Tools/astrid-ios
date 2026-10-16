@@ -48,7 +48,11 @@ struct MacTaskRow: View {
 
     /// A small outlined label beside the title: won't-do (AITD-496), sync state (AITD-491).
     private func titleChip(_ labelKey: String, identifier: String) -> some View {
-        Text(NSLocalizedString(labelKey, comment: ""))
+        titleChip(verbatim: NSLocalizedString(labelKey, comment: ""), identifier: identifier)
+    }
+
+    private func titleChip(verbatim label: String, identifier: String) -> some View {
+        Text(verbatim: label)
             .macFont(MacTypography.rowMeta)
             .foregroundStyle(Theme.textMuted)
             .lineLimit(1)
@@ -205,6 +209,10 @@ struct MacTaskRow: View {
                         // Made on a GitHub board and not all written there yet (AITD-491).
                         if let mark = TaskSyncState.mark(for: task) {
                             titleChip(TaskSyncState.chipLabelKey(for: mark), identifier: "taskRow.syncChip")
+                        }
+                        // The GitHub issue a task on a GitHub board is, `repo#N`; opens it (AITD-491).
+                        if let label = task.remote?.chipLabel, let url = task.remote?.pageURL {
+                            Link(destination: url) { titleChip(verbatim: label, identifier: "taskRow.remoteChip") }
                         }
                     }
                 }

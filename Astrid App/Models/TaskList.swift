@@ -345,6 +345,26 @@ nonisolated struct ListSupports: Codable, Equatable, Hashable {
     /// How a repeating task here advances when it is completed (AITD-491). The core acts on it
     /// in `completeTask`; a view reads it through `TaskList.spawnsNextOccurrence`.
     var repeatMode: RepeatMode
+    /// The rest of the capabilities (web AWTD-1222). Each is its classic value when absent, so a
+    /// server older than a key never hides a control that works. Asked through `TaskCapabilities`.
+    var privateTasks: Bool
+    var membership: Bool
+    var priority: Bool
+    var dueDate: Bool
+    var comments: Bool
+    var fields: Bool
+    var deleteTask: DeleteTaskMode
+
+    /// What deleting a task does: a GitHub board takes the item off the project and leaves the
+    /// issue. A mode this build does not know reads as the classic one.
+    enum DeleteTaskMode: String, Codable, Hashable {
+        case delete
+        case removeFromList = "remove_from_list"
+
+        init(from decoder: Decoder) throws {
+            self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .delete
+        }
+    }
 
     /// On a board that spawns, the completed task stays completed and the server makes the next
     /// occurrence as a new task. A mode this build does not know reads as the classic one.
@@ -357,15 +377,32 @@ nonisolated struct ListSupports: Codable, Equatable, Hashable {
         }
     }
 
-    init(multipleAssignees: Bool = false, repeatMode: RepeatMode = .rollForward) {
+    init(multipleAssignees: Bool = false, repeatMode: RepeatMode = .rollForward,
+         privateTasks: Bool = true, membership: Bool = true, priority: Bool = true,
+         dueDate: Bool = true, comments: Bool = true, fields: Bool = false,
+         deleteTask: DeleteTaskMode = .delete) {
         self.multipleAssignees = multipleAssignees
         self.repeatMode = repeatMode
+        self.privateTasks = privateTasks
+        self.membership = membership
+        self.priority = priority
+        self.dueDate = dueDate
+        self.comments = comments
+        self.fields = fields
+        self.deleteTask = deleteTask
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         multipleAssignees = try c.decodeIfPresent(Bool.self, forKey: .multipleAssignees) ?? false
         repeatMode = try c.decodeIfPresent(RepeatMode.self, forKey: .repeatMode) ?? .rollForward
+        privateTasks = try c.decodeIfPresent(Bool.self, forKey: .privateTasks) ?? true
+        membership = try c.decodeIfPresent(Bool.self, forKey: .membership) ?? true
+        priority = try c.decodeIfPresent(Bool.self, forKey: .priority) ?? true
+        dueDate = try c.decodeIfPresent(Bool.self, forKey: .dueDate) ?? true
+        comments = try c.decodeIfPresent(Bool.self, forKey: .comments) ?? true
+        fields = try c.decodeIfPresent(Bool.self, forKey: .fields) ?? false
+        deleteTask = try c.decodeIfPresent(DeleteTaskMode.self, forKey: .deleteTask) ?? .delete
     }
 }
 

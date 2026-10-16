@@ -367,7 +367,7 @@ struct TaskDetailViewNew: View {
                 // rows were what pushed the description below the fold; this is where the room
                 // for it comes from. Time and Repeat stay conditional on a date, so with no date
                 // the row is a single "Add date" chip rather than three empty controls.
-                if editedDueDate != nil || !isReadOnly {
+                if (editedDueDate != nil || !isReadOnly) && TaskCapabilities.allows(.dueDate, listIds: editedListIds, lists: listService.lists) {
                     TwoColumnRow(label: NSLocalizedString("tasks.when", comment: ""), icon: "calendar") {
                         if isReadOnly {
                             HStack(spacing: Theme.spacing8) {
@@ -410,7 +410,7 @@ struct TaskDetailViewNew: View {
                 // vocabulary the app already uses for priority in rows, quick add and the
                 // board, so the row is recognisable without reading its label, and the flag
                 // only ever said "some field about importance".
-                if displayMode.showsSeparateAssigneeAndPriorityRows && !isReadOnly {
+                if displayMode.showsSeparateAssigneeAndPriorityRows && !isReadOnly && TaskCapabilities.allows(.priority, listIds: editedListIds, lists: listService.lists) {
                     TwoColumnRow(label: NSLocalizedString("tasks.priority", comment: ""),
                                  glyph: PriorityGlyph.rowIcon) {
                         // The SAME picker the popover uses, so the two layouts cannot drift

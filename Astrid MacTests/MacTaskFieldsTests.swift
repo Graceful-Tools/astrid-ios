@@ -216,3 +216,18 @@ final class MacTaskFieldsTests: XCTestCase {
                           MacTaskFields.Density.detail.rowSpacing)
     }
 }
+
+/// A GitHub board with no Priority or date field mapped refuses those writes (AITD-491), so the
+/// editor does not offer them — in either display mode.
+final class MacTaskFieldsCapabilitiesTests: XCTestCase {
+    func testARefusedFieldIsNotARow_AITD491() {
+        let list = MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: [.priority, .dueDate])
+        XCTAssertFalse(list.contains(.priority))
+        XCTAssertFalse(list.contains(.when))
+        XCTAssertTrue(list.contains(.lists))
+        let project = MacTaskFields.rows(showsTitle: true, displayMode: .project, refused: [.dueDate])
+        XCTAssertFalse(project.contains(.when))
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: []),
+                       MacTaskFields.rows(showsTitle: true, displayMode: .list))
+    }
+}
