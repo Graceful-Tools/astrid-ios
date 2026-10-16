@@ -65,6 +65,11 @@ struct MacListMembershipTab: View {
         ListPermissions.canEditSettings(currentList, userId: AuthManager.shared.userId)
     }
 
+    /// Invites, roles and removals. Not on a GitHub board, whose roster is GitHub's (AITD-491).
+    private var canManageMembers: Bool {
+        ListPermissions.canManageMembers(currentList, userId: AuthManager.shared.userId)
+    }
+
     private func isOwner(_ m: ListMember) -> Bool { currentList.role(for: m.userId) == .owner }
 
     private var leaveOption: ListMembershipRoster.LeaveOption {
@@ -75,7 +80,7 @@ struct MacListMembershipTab: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 membersSection
-                if canManage { inviteSection }
+                if canManageMembers { inviteSection }
                 if canManage { agentsSection }
                 if canManage { privacySection }
                 leaveSection
@@ -148,7 +153,7 @@ struct MacListMembershipTab: View {
                                                    isAgent: m.user?.isAIAgent == true),
                              target: $profileTarget)
             Spacer()
-            if canManage && !isOwner(m) {
+            if canManageMembers && !isOwner(m) {
                 Picker("", selection: Binding(get: { m.role }, set: { setRole(m, $0) })) {
                     ForEach(Self.roles, id: \.self) {
                         Text(MacMemberRoleLabel.title(for: $0)).tag($0)
@@ -179,7 +184,7 @@ struct MacListMembershipTab: View {
                 }
             }
             Spacer()
-            if canManage {
+            if canManageMembers {
                 Picker("", selection: Binding(get: { invite.role },
                                               set: { setInviteRole(invite, $0) })) {
                     ForEach(Self.roles, id: \.self) {
