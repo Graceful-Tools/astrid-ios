@@ -244,4 +244,27 @@ final class MacTaskFieldsCapabilitiesTests: XCTestCase {
         XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: []),
                        MacTaskFields.rows(showsTitle: true, displayMode: .list))
     }
+
+    /// `refused` also carries controls this editor has no row for. Folding one of those into
+    /// `.when` — which "priority, else .when" did — hid the date row on a board that takes dates.
+    func testAControlWithNoRowHidesNothing_AITD491() {
+        let all = MacTaskFields.rows(showsTitle: true, displayMode: .list)
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: [.privateTasks]), all)
+        let priorityOnly = MacTaskFields.rows(showsTitle: true, displayMode: .list,
+                                              refused: [.priority, .privateTasks])
+        XCTAssertFalse(priorityOnly.contains(.priority))
+        XCTAssertTrue(priorityOnly.contains(.when), "a refused private task hid the date row")
+        // The popover is unchanged by a control it does not offer either.
+        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.privateTasks]),
+                       MacLeadingPicker.sections(for: .list))
+    }
+
+    /// The Mac list editor stops offering a default the list refuses (AITD-491).
+    func testTheMacListEditorAsksTheRule_AITD491() throws {
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacListEditSheet.swift")
+        XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"),
+                      "the Mac list editor still offers a default priority a board refuses")
+        XCTAssertTrue(source.contains("TaskCapabilities.allows(.dueDate"),
+                      "the Mac list editor still offers a default due date a board refuses")
+    }
 }

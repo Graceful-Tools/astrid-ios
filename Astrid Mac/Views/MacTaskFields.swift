@@ -81,7 +81,16 @@ enum MacTaskFields {
                      hasOccurrenceLinks: Bool = false,
                      refused: Set<TaskCapabilities.Control> = []) -> [MacTaskFieldRow] {
         // A board that refuses a priority or date write does not get the control (AITD-491).
-        let hidden = Set(refused.map { $0 == .priority ? MacTaskFieldRow.priority : .when })
+        // Mapped case by case, not by "priority, else .when": `refused` also carries controls
+        // that are not rows here, and folding one of those into `.when` would hide the date row
+        // on a board that accepts dates.
+        let hidden: Set<MacTaskFieldRow> = Set(refused.compactMap { control in
+            switch control {
+            case .priority: return .priority
+            case .dueDate: return .when
+            case .privateTasks: return nil   // no row of its own in this editor
+            }
+        })
         return rowsOffered(showsTitle: showsTitle, displayMode: displayMode, isInProject: isInProject,
                            hasOccurrenceLinks: hasOccurrenceLinks).filter { !hidden.contains($0) }
     }

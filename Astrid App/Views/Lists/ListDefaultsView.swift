@@ -53,16 +53,19 @@ struct ListDefaultsView: View {
                 }
             }
 
-            // Default Priority
-            Section(NSLocalizedString("tasks.priority", comment: "")) {
-                Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defaultPriority) {
-                    Text(NSLocalizedString("filters.low_priority", comment: "")).tag(0)
-                    Text(NSLocalizedString("filters.medium_priority", comment: "")).tag(1)
-                    Text(NSLocalizedString("filters.high_priority", comment: "")).tag(2)
-                    Text(NSLocalizedString("filters.highest_priority", comment: "")).tag(3)
+            // Default Priority — not offered where the list refuses one (AITD-491): `createTask`
+            // drops it, so the setting would look as if it worked and do nothing.
+            if TaskCapabilities.allows(.priority, on: list) {
+                Section(NSLocalizedString("tasks.priority", comment: "")) {
+                    Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defaultPriority) {
+                        Text(NSLocalizedString("filters.low_priority", comment: "")).tag(0)
+                        Text(NSLocalizedString("filters.medium_priority", comment: "")).tag(1)
+                        Text(NSLocalizedString("filters.high_priority", comment: "")).tag(2)
+                        Text(NSLocalizedString("filters.highest_priority", comment: "")).tag(3)
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: defaultPriority) { saveDefaults() }
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: defaultPriority) { saveDefaults() }
             }
 
             // Default Repeating
@@ -77,43 +80,48 @@ struct ListDefaultsView: View {
                 .onChange(of: defaultRepeating) { saveDefaults() }
             }
 
-            // Default Due Date
-            Section(NSLocalizedString("tasks.due_date", comment: "")) {
-                Picker(NSLocalizedString("tasks.due_date", comment: ""), selection: $defaultDueDate) {
-                    Text(NSLocalizedString("lists.none", comment: "")).tag("none")
-                    Text(NSLocalizedString("time.today", comment: "")).tag("today")
-                    Text(NSLocalizedString("lists.tomorrow", comment: "")).tag("tomorrow")
-                    Text(NSLocalizedString("lists.next_week", comment: "")).tag("next_week")
-                }
-                .onChange(of: defaultDueDate) { _, newValue in
-                    if newValue == "none" {
-                        defaultDueTime = nil
+            // Default Due Date — likewise, a board with no date field mapped refuses it.
+            if TaskCapabilities.allows(.dueDate, on: list) {
+                Section(NSLocalizedString("tasks.due_date", comment: "")) {
+                    Picker(NSLocalizedString("tasks.due_date", comment: ""), selection: $defaultDueDate) {
+                        Text(NSLocalizedString("lists.none", comment: "")).tag("none")
+                        Text(NSLocalizedString("time.today", comment: "")).tag("today")
+                        Text(NSLocalizedString("lists.tomorrow", comment: "")).tag("tomorrow")
+                        Text(NSLocalizedString("lists.next_week", comment: "")).tag("next_week")
                     }
-                    saveDefaults()
-                }
+                    .onChange(of: defaultDueDate) { _, newValue in
+                        if newValue == "none" {
+                            defaultDueTime = nil
+                        }
+                        saveDefaults()
+                    }
 
-                if defaultDueDate != "none" {
-                    DatePicker(
-                        NSLocalizedString("tasks.due_time", comment: ""),
-                        selection: Binding(
-                            get: { defaultDueTime ?? Date() },
-                            set: { defaultDueTime = $0 }
-                        ),
-                        displayedComponents: .hourAndMinute
-                    )
-                    .onChange(of: defaultDueTime) { saveDefaults() }
+                    if defaultDueDate != "none" {
+                        DatePicker(
+                            NSLocalizedString("tasks.due_time", comment: ""),
+                            selection: Binding(
+                                get: { defaultDueTime ?? Date() },
+                                set: { defaultDueTime = $0 }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .onChange(of: defaultDueTime) { saveDefaults() }
+                    }
                 }
             }
 
-            // Default Privacy
-            Section(NSLocalizedString("lists.list_privacy", comment: "")) {
-                Toggle(NSLocalizedString("lists.private_description", comment: ""), isOn: $defaultIsPrivate)
-                    .onChange(of: defaultIsPrivate) { saveDefaults() }
+            // Default Privacy — a GitHub board's tasks are as visible as the project is (spec 9.1),
+            // so `isPrivate` means nothing there.
+            if TaskCapabilities.allows(.privateTasks, on: list) {
+                Section(NSLocalizedString("lists.list_privacy", comment: "")) {
+                    Toggle(NSLocalizedString("lists.private_description", comment: ""), isOn: $defaultIsPrivate)
+                        .onChange(of: defaultIsPrivate) { saveDefaults() }
 
-                if defaultIsPrivate {
-                    Text(NSLocalizedString("lists.private_description", comment: ""))
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    if defaultIsPrivate {
+                        Text(NSLocalizedString("lists.private_description", comment: ""))
+                            .font(Theme.Typography.caption1())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    }
                 }
             }
 

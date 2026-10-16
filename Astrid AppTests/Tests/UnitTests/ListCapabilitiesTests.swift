@@ -180,32 +180,83 @@ final class ListCapabilitiesTests: XCTestCase {
     /// "tomorrow" into them. On a board that refuses either, the create carried a value the
     /// server rejects, so a new task never reached the board.
     func testANewTaskDropsWhatItsBoardRefuses_AITD491() throws {
-        let board = try list(#"{"id":"b","name":"Board","supports":{"priority":false,"dueDate":false}}"#)
-        let datesOnly = try list(#"{"id":"d","name":"Dates","supports":{"priority":false,"dueDate":true}}"#)
+        let board = try list(#"{"id":"b","name":"Board","supports":{"priority":false,"dueDate":false,"privateTasks":false}}"#)
+        let datesOnly = try list(#"{"id":"d","name":"Dates","supports":{"priority":false,"dueDate":true,"privateTasks":false}}"#)
         let home = try list(#"{"id":"h","name":"Home"}"#)
         let lists = [board, datesOnly, home]
         let day = Date(timeIntervalSince1970: 1_800_000_000)
         let time = day.addingTimeInterval(3600)
 
-        let onBoard = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+        let onBoard = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time, isPrivate: true,
                                                 listIds: ["b"], lists: lists)
         XCTAssertNil(onBoard.priority)
         XCTAssertNil(onBoard.whenDate)
         XCTAssertNil(onBoard.whenTime)
+        XCTAssertNil(onBoard.isPrivate)
 
-        let onDates = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+        let onDates = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time, isPrivate: true,
                                                 listIds: ["d"], lists: lists)
         XCTAssertNil(onDates.priority)
         XCTAssertEqual(onDates.whenDate, day)
         XCTAssertEqual(onDates.whenTime, time)
+        XCTAssertNil(onDates.isPrivate)
 
         // A classic list, and a list not loaded yet, keep everything.
         for ids in [["h"], ["unknown"], []] {
-            let kept = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time,
+            let kept = TaskCapabilities.admitted(priority: 2, whenDate: day, whenTime: time, isPrivate: true,
                                                  listIds: ids, lists: lists)
             XCTAssertEqual(kept.priority, 2)
             XCTAssertEqual(kept.whenDate, day)
             XCTAssertEqual(kept.whenTime, time)
+            XCTAssertEqual(kept.isPrivate, true)
+        }
+
+        // Dropping is about what the board refuses, not about the value: `false` is as
+        // meaningless on a board as `true`, and a nil stays nil everywhere.
+        XCTAssertNil(TaskCapabilities.admitted(priority: nil, whenDate: nil, whenTime: nil, isPrivate: false,
+                                               listIds: ["b"], lists: lists).isPrivate)
+        XCTAssertNil(TaskCapabilities.admitted(priority: nil, whenDate: nil, whenTime: nil, isPrivate: nil,
+                                               listIds: ["h"], lists: lists).isPrivate)
+    }
+
+    /// `privateTasks` is the last of the nine `supports` keys nothing read. A GitHub board's
+    /// tasks are as visible as the project is (spec 9.1), so the server refuses the write.
+    func testAGitHubBoardRefusesAPrivateTask_AITD491() throws {
+        let board = try list(#"{"id":"b","name":"Board","supports":{"privateTasks":false}}"#)
+        let home = try list(#"{"id":"h","name":"Home"}"#)
+        let lists = [board, home]
+        XCTAssertFalse(TaskCapabilities.allows(.privateTasks, listIds: ["b"], lists: lists))
+        XCTAssertFalse(TaskCapabilities.allows(.privateTasks, listIds: ["h", "b"], lists: lists))
+        XCTAssertTrue(TaskCapabilities.allows(.privateTasks, listIds: ["h"], lists: lists))
+        XCTAssertTrue(TaskCapabilities.allows(.privateTasks, listIds: ["unknown"], lists: lists))
+        XCTAssertTrue(TaskCapabilities.refused(listIds: ["h"], lists: lists).isEmpty)
+        XCTAssertEqual(TaskCapabilities.refused(listIds: ["b"], lists: lists), [.privateTasks])
+    }
+
+    /// The defaults screens ask about ONE list, which is the list being edited, not a task's
+    /// list set. Same rule, reached the way those screens have the data.
+    func testTheRuleAnswersForASingleList_AITD491() throws {
+        let board = try list(#"{"id":"b","name":"Board","supports":{"priority":false,"dueDate":false,"privateTasks":false}}"#)
+        let home = try list(#"{"id":"h","name":"Home"}"#)
+        for control in [TaskCapabilities.Control.priority, .dueDate, .privateTasks] {
+            XCTAssertFalse(TaskCapabilities.allows(control, on: board), "\(control) offered on a board that refuses it")
+            XCTAssertTrue(TaskCapabilities.allows(control, on: home))
+        }
+    }
+
+    /// The gap the earlier passes left: a board with no Priority field still offered a DEFAULT
+    /// priority, and one with no date field a default due date and time. `createTask` drops
+    /// them now, so the setting looked as if it worked and did nothing.
+    func testBothListDefaultsScreensAskTheRule_AITD491() throws {
+        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListDefaultsView.swift")
+        for control in ["priority", "dueDate", "privateTasks"] {
+            XCTAssertTrue(ios.contains("TaskCapabilities.allows(.\(control)"),
+                          "the iOS defaults screen still offers a default \(control) a board refuses")
+        }
+        let mac = try RepositoryLocator.source(at: "Astrid Mac/Views/MacListEditSheet.swift")
+        for control in ["priority", "dueDate"] {
+            XCTAssertTrue(mac.contains("TaskCapabilities.allows(.\(control)"),
+                          "the Mac list editor still offers a default \(control) a board refuses")
         }
     }
 

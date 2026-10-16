@@ -10,6 +10,9 @@ import Foundation
 enum TaskCapabilities {
     enum Control: Hashable {
         case priority, dueDate
+        /// `isPrivate` means something on a classic list. A GitHub board's tasks are as visible
+        /// as the project is (spec 9.1), so the server refuses the write.
+        case privateTasks
     }
 
     /// A control is offered unless a list the task is on refuses it. A list that is not loaded
@@ -20,24 +23,33 @@ enum TaskCapabilities {
             switch control {
             case .priority: return !supports.priority
             case .dueDate: return !supports.dueDate
+            case .privateTasks: return !supports.privateTasks
             }
         }
     }
 
+    /// The same rule for ONE list — what a list's own settings screen has in hand, rather than
+    /// the set of lists a task is on.
+    static func allows(_ control: Control, on list: TaskList) -> Bool {
+        allows(control, listIds: [list.id], lists: [list])
+    }
+
     /// The controls those lists refuse.
     static func refused(listIds: [String], lists: [TaskList]) -> Set<Control> {
-        Set([Control.priority, .dueDate].filter { !allows($0, listIds: listIds, lists: lists) })
+        Set([Control.priority, .dueDate, .privateTasks].filter { !allows($0, listIds: listIds, lists: lists) })
     }
 
     /// What a new task may carry onto these lists. A value they refuse is dropped rather than
     /// sent: a list's default, a smart-parsed "!!" or "tomorrow" would otherwise make a create
     /// the server rejects, and the task would never reach the board.
-    static func admitted(priority: Int?, whenDate: Date?, whenTime: Date?,
-                         listIds: [String], lists: [TaskList]) -> (priority: Int?, whenDate: Date?, whenTime: Date?) {
+    static func admitted(priority: Int?, whenDate: Date?, whenTime: Date?, isPrivate: Bool?,
+                         listIds: [String], lists: [TaskList])
+        -> (priority: Int?, whenDate: Date?, whenTime: Date?, isPrivate: Bool?) {
         let datesAllowed = allows(.dueDate, listIds: listIds, lists: lists)
         return (allows(.priority, listIds: listIds, lists: lists) ? priority : nil,
                 datesAllowed ? whenDate : nil,
-                datesAllowed ? whenTime : nil)
+                datesAllowed ? whenTime : nil,
+                allows(.privateTasks, listIds: listIds, lists: lists) ? isPrivate : nil)
     }
 
     /// What deleting the task is called. On a GitHub board an Astrid delete removes the item from
