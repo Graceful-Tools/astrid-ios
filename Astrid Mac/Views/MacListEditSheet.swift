@@ -94,21 +94,27 @@ struct MacListEditSheet: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("mac.new_task_defaults", comment: "")).macFont(.caption).foregroundStyle(Theme.textSecondary)
-                    Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defPriority) {
-                        ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
-                            Text(MacTaskVisuals.priorityLabel(p)).tag(p.rawValue)
-                        }
-                    }.onChange(of: defPriority) { saveDefaults() }
-                    Picker(NSLocalizedString("lists.due_date", comment: ""), selection: $defDueDate) {
-                        ForEach(MacListDefaults.dueDate) { Text($0.label).tag($0.value) }
-                    }.onChange(of: defDueDate) { saveDefaults() }
+                    // A default the list refuses is not offered (AITD-491): `createTask` drops it,
+                    // so the picker would look as if it worked and change nothing.
+                    if TaskCapabilities.allows(.priority, on: existingList) {
+                        Picker(NSLocalizedString("tasks.priority", comment: ""), selection: $defPriority) {
+                            ForEach(MacTaskVisuals.allPriorities, id: \.self) { p in
+                                Text(MacTaskVisuals.priorityLabel(p)).tag(p.rawValue)
+                            }
+                        }.onChange(of: defPriority) { saveDefaults() }
+                    }
                     Picker(NSLocalizedString("Repeat", comment: ""), selection: $defRepeating) {
                         ForEach(MacListDefaults.repeating) { Text($0.label).tag($0.value) }
                     }.onChange(of: defRepeating) { saveDefaults() }
-                    // Was missing on Mac entirely (task 545812e6).
-                    Picker(NSLocalizedString("tasks.due_time", comment: ""), selection: $defDueTime) {
-                        ForEach(MacListDefaults.dueTime, id: \.value) { Text($0.label).tag($0.value) }
-                    }.onChange(of: defDueTime) { saveDueTime() }
+                    if TaskCapabilities.allows(.dueDate, on: existingList) {
+                        Picker(NSLocalizedString("lists.due_date", comment: ""), selection: $defDueDate) {
+                            ForEach(MacListDefaults.dueDate) { Text($0.label).tag($0.value) }
+                        }.onChange(of: defDueDate) { saveDefaults() }
+                        // Was missing on Mac entirely (task 545812e6).
+                        Picker(NSLocalizedString("tasks.due_time", comment: ""), selection: $defDueTime) {
+                            ForEach(MacListDefaults.dueTime, id: \.value) { Text($0.label).tag($0.value) }
+                        }.onChange(of: defDueTime) { saveDueTime() }
+                    }
                 }
 
                 // Recently completed window — the shared presets, so Mac shows the same nine
