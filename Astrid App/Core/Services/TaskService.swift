@@ -253,6 +253,11 @@ class TaskService: ObservableObject {
         source: SyncSource? = nil,  // Origin tag for provider echo suppression
         presumeCompletedAt: Date? = nil  // Sync history imports: born completed and backdated
     ) async throws -> Task {
+        // A board that refuses a priority or a date never gets one (AITD-491).
+        let (priority, whenDate, whenTime) = TaskCapabilities.admitted(
+            priority: priority, whenDate: whenDate, whenTime: whenTime,
+            listIds: listIds, lists: ListService.shared.lists)
+
         // A time makes it a timed task; a date alone, all-day; neither, no due date.
         let dueDateTime: String?
         let isAllDay: Bool

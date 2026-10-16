@@ -204,7 +204,9 @@ struct MacQuickAddBar: View {
             resolvedPriority: draftPriority,
             defaultAssigneeLabel: listDefaultAssigneeLabel,
             assigneeChoices: MacDraftDefaults.assigneeChoices(
-                members: listMemberChoices, currentUserId: auth.userId, hasList: true))
+                members: listMemberChoices, currentUserId: auth.userId, hasList: true),
+            offersPriority: TaskCapabilities.allows(.priority, listIds: list.map { [$0.id] } ?? [],
+                                                    lists: ListService.shared.lists))
     }
 
     /// The list's members, as picker choices.

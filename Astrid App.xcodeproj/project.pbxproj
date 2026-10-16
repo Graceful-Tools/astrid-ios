@@ -176,6 +176,7 @@
 				Views/Tasks/CommentSectionViewEnhanced.swift,
 				Views/Tasks/iPadTaskManagerView.swift,
 				Views/Tasks/MyTasksFilterSheet.swift,
+				Views/Tasks/QuickAddPickerSheet.swift,
 				Views/Tasks/QuickAddTaskView.swift,
 				Views/Components/ShareTargetView.swift,
 				Views/Tasks/SubtasksSectionView.swift,
