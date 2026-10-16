@@ -98,6 +98,8 @@
 "tasks.copy_task" = "Taak kopiëren";
 "tasks.share_task" = "Taak delen";
 "tasks.delete_confirm" = "Deze taak verwijderen?";
+"tasks.remove_from_board" = "Van bord verwijderen";
+"tasks.remove_from_board_confirm" = "Deze taak van het bord verwijderen? Het GitHub-issue blijft bestaan.";
 "tasks.loading" = "Taken laden...";
 "tasks.priority_only" = "Alleen %@";
 

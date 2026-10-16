@@ -193,7 +193,8 @@ struct MacTaskRowMenuContent: View {
             Divider()
 
         case .delete:
-            Button(NSLocalizedString("actions.delete", comment: ""),
+            // "Remove from board" on a GitHub board, where the issue outlives the task (AITD-491).
+            Button(NSLocalizedString(TaskCapabilities.deleteWording(for: task, lists: lists).actionKey, comment: ""),
                    role: .destructive, action: actions.delete)
         }
     }

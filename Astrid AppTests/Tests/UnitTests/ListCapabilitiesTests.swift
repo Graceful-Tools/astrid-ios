@@ -70,6 +70,53 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"))
     }
 
+    // MARK: - Delete wording
+
+    /// On a GitHub board an Astrid delete removes the item from the project and the issue stays,
+    /// so "Delete this task?" promised more than happens.
+    func testAGitHubBoardSaysRemoveFromBoard_AITD491() throws {
+        let board = try list(#"{"id":"b","name":"Board","supports":{"deleteTask":"remove_from_list"}}"#)
+        let older = try list(#"{"id":"o","name":"Older","supports":{"multipleAssignees":true}}"#)
+        let home = try list(#"{"id":"h","name":"Home"}"#)
+        let lists = [board, older, home]
+        let remove = TaskCapabilities.deleteWording(listIds: ["b"], lists: lists)
+        XCTAssertEqual(remove, .removeFromBoard)
+        XCTAssertEqual(remove.actionKey, "tasks.remove_from_board")
+        XCTAssertEqual(remove.confirmKey, "tasks.remove_from_board_confirm")
+        XCTAssertEqual(remove.buttonKey, "actions.remove")
+        // A list not loaded yet does not turn a removal back into a delete.
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["b", "unknown"], lists: lists), .removeFromBoard)
+        // A task also on a list that deletes really is deleted from Astrid.
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["b", "h"], lists: lists), .delete)
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["o"], lists: lists), .delete)
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["unknown"], lists: lists), .delete)
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: [], lists: lists), .delete)
+        let classic = TaskCapabilities.Deletion.delete
+        XCTAssertEqual(classic.actionKey, "tasks.delete_task")
+        XCTAssertEqual(classic.confirmKey, "tasks.delete_confirm")
+        XCTAssertEqual(classic.buttonKey, "actions.delete")
+    }
+
+    func testEveryDeleteSurfaceAsksTheWording_AITD491() throws {
+        for path in ["Astrid App/Views/Tasks/TaskActionsView.swift",
+                     "Astrid App/Views/Tasks/TaskDetailViewNew.swift",
+                     "Astrid App/Views/Tasks/TaskDetailHeaderBar.swift",
+                     "Astrid Mac/Views/MacTaskDetailView.swift",
+                     "Astrid Mac/Views/MacTaskRowMenu.swift"] {
+            let source = try RepositoryLocator.source(at: path)
+            XCTAssertTrue(source.contains("TaskCapabilities.deleteWording("), "\(path) still says Delete on a GitHub board")
+        }
+    }
+
+    func testTheRemoveStringsExistInEveryLanguage_AITD491() throws {
+        for language in ["en", "de", "es", "fr", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"] {
+            let strings = try RepositoryLocator.source(at: "Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
+            for key in ["tasks.remove_from_board", "tasks.remove_from_board_confirm", "actions.remove"] {
+                XCTAssertTrue(strings.contains("\"\(key)\" ="), "\(language) lacks \(key)")
+            }
+        }
+    }
+
     // MARK: - remote
 
     func testATasksRemoteIsKeptAndNamesItsChip_AITD491() throws {

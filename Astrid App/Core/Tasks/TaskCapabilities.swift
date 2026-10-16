@@ -28,4 +28,25 @@ enum TaskCapabilities {
     static func refused(listIds: [String], lists: [TaskList]) -> Set<Control> {
         Set([Control.priority, .dueDate].filter { !allows($0, listIds: listIds, lists: lists) })
     }
+
+    /// What deleting the task is called. On a GitHub board an Astrid delete removes the item from
+    /// the project and the issue stays (spec §8), so "Delete" would promise more than happens.
+    enum Deletion: Equatable {
+        case delete, removeFromBoard
+
+        var actionKey: String { self == .delete ? "tasks.delete_task" : "tasks.remove_from_board" }
+        var confirmKey: String { self == .delete ? "tasks.delete_confirm" : "tasks.remove_from_board_confirm" }
+        var buttonKey: String { self == .delete ? "actions.delete" : "actions.remove" }
+    }
+
+    /// A removal when a loaded list the task is on removes and none deletes. A task also on a
+    /// classic list really is deleted from Astrid; a list not loaded yet changes neither answer.
+    static func deleteWording(listIds: [String], lists: [TaskList]) -> Deletion {
+        let modes = lists.filter { listIds.contains($0.id) }.map { $0.supports?.deleteTask ?? .delete }
+        return modes.contains(.removeFromList) && !modes.contains(.delete) ? .removeFromBoard : .delete
+    }
+
+    static func deleteWording(for task: Task, lists: [TaskList]) -> Deletion {
+        deleteWording(listIds: taskListMembershipIdsInOrder(task), lists: lists)
+    }
 }

@@ -98,6 +98,8 @@
 "tasks.copy_task" = "Копировать задачу";
 "tasks.share_task" = "Поделиться задачей";
 "tasks.delete_confirm" = "Удалить эту задачу?";
+"tasks.remove_from_board" = "Убрать с доски";
+"tasks.remove_from_board_confirm" = "Убрать эту задачу с доски? Задача на GitHub останется.";
 "tasks.loading" = "Загрузка задач...";
 "tasks.priority_only" = "Только %@";
 

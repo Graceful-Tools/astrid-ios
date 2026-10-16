@@ -98,6 +98,8 @@
 "tasks.copy_task" = "タスクをコピー";
 "tasks.share_task" = "タスクを共有";
 "tasks.delete_confirm" = "このタスクを削除しますか？";
+"tasks.remove_from_board" = "ボードから外す";
+"tasks.remove_from_board_confirm" = "このタスクをボードから外しますか？GitHub の Issue は残ります。";
 "tasks.loading" = "タスクを読み込み中...";
 "tasks.priority_only" = "%@のみ";
 

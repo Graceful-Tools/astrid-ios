@@ -131,7 +131,8 @@ struct MacTaskDetailView: View {
                     setClosedReason(ClosedReason.menuReason(for: task))
                 }
                 .accessibilityIdentifier("taskDetail.wontDo")
-                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) { deleteTask() }
+                Button(NSLocalizedString(TaskCapabilities.deleteWording(for: task, lists: listService.lists).actionKey, comment: ""),
+                       role: .destructive) { deleteTask() }
             } label: {
                 // A real symbol, stood on end: macOS has no "ellipsis.vertical", and asking for
                 // one rendered an empty label so only the menu's own chevron showed (59d51b80).

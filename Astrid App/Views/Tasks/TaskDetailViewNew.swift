@@ -170,11 +170,11 @@ struct TaskDetailViewNew: View {
                 ShareTargetView(task: task)
             }
             .confirmationDialog(
-                NSLocalizedString("tasks.delete_confirm", comment: ""),
+                NSLocalizedString(TaskCapabilities.deleteWording(listIds: editedListIds, lists: listService.lists).confirmKey, comment: ""),
                 isPresented: $showingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
-                Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
+                Button(NSLocalizedString(TaskCapabilities.deleteWording(listIds: editedListIds, lists: listService.lists).buttonKey, comment: ""), role: .destructive) {
                     _Concurrency.Task {
                         try? await TaskService.shared.deleteTask(id: task.id, task: task)
                         dismiss()

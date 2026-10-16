@@ -98,6 +98,8 @@
 "tasks.copy_task" = "작업 복사";
 "tasks.share_task" = "작업 공유";
 "tasks.delete_confirm" = "이 작업을 삭제하시겠습니까?";
+"tasks.remove_from_board" = "보드에서 제거";
+"tasks.remove_from_board_confirm" = "이 작업을 보드에서 제거할까요? GitHub 이슈는 그대로 남습니다.";
 "tasks.loading" = "작업을 불러오는 중...";
 "tasks.priority_only" = "%@만";
 

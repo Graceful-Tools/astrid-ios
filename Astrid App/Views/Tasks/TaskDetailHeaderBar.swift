@@ -161,7 +161,7 @@ struct TaskDetailHeaderBar: View {
             Button(role: .destructive) {
                 showingDeleteConfirmation = true
             } label: {
-                Label(NSLocalizedString("actions.delete", comment: ""), systemImage: "trash")
+                Label(NSLocalizedString(TaskCapabilities.deleteWording(for: task, lists: ListService.shared.lists).actionKey, comment: ""), systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis")

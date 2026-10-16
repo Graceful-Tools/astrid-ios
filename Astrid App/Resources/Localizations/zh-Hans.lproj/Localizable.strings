@@ -98,6 +98,8 @@
 "tasks.copy_task" = "复制任务";
 "tasks.share_task" = "分享任务";
 "tasks.delete_confirm" = "删除此任务？";
+"tasks.remove_from_board" = "从看板移除";
+"tasks.remove_from_board_confirm" = "要从看板移除此任务吗？GitHub 议题会保留。";
 "tasks.loading" = "正在加载任务...";
 "tasks.priority_only" = "仅限 %@";
 

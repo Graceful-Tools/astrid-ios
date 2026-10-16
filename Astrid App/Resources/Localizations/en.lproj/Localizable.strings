@@ -122,6 +122,8 @@
 "tasks.copy_task" = "Copy Task";
 "tasks.share_task" = "Share Task";
 "tasks.delete_confirm" = "Delete this task?";
+"tasks.remove_from_board" = "Remove from board";
+"tasks.remove_from_board_confirm" = "Remove this task from the board? The GitHub issue stays.";
 "tasks.loading" = "Loading your tasks...";
 "tasks.priority_only" = "%@ Only";
 "tasks.who" = "Who";
