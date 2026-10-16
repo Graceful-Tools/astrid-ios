@@ -78,7 +78,8 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // 1405 on 2026-10-03: three member-response DTOs nothing decoded were deleted.
         "Astrid App/Core/Networking/AstridAPIClient.swift": 1405,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
-        "Astrid App/Views/Tasks/QuickAddTaskView.swift": 1042,
+        // `QuickAddTaskView.swift` left this list on 2026-10-16 at 749 lines: AITD-491 moved its
+        // priority/assignee sheet to `QuickAddPickerSheet.swift`. Under the threshold, no entry.
     ]
 
     /// How far below its ceiling a file may sit before the ceiling should be tightened. Without

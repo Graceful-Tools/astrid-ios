@@ -218,7 +218,7 @@ final class ListCapabilitiesTests: XCTestCase {
 
     /// The quick-add pickers do not offer a priority the board would drop.
     func testBothQuickAddPickersAskTheRuleForPriority_AITD491() throws {
-        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/QuickAddTaskView.swift")
+        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/QuickAddPickerSheet.swift")
         XCTAssertTrue(ios.contains("TaskCapabilities.allows(.priority"), "the iOS quick-add sheet still offers priority")
         let mac = try RepositoryLocator.source(at: "Astrid Mac/Views/MacQuickAddBar.swift")
         XCTAssertTrue(mac.contains("TaskCapabilities.allows(.priority"), "the Mac add bar still offers priority")
