@@ -103,7 +103,7 @@ final class AnalyticsPlatformCoverageTests: XCTestCase {
         let required = ["PasskeyManager.swift",      // sign-in: a new Mac user's first traffic
                         "AttachmentService.swift",
                         "OAuthManager.swift",
-                        "APIEndpoint.swift"]
+                        "AstridAPIClient.swift"]   // took over APIEndpoint's calls (AITD-504)
         let byName = Dictionary(uniqueKeysWithValues: try sources().map { ($0.name, $0) })
         for name in required {
             guard let source = byName[name] else {

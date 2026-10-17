@@ -5,7 +5,7 @@ import Combine
 
 @MainActor
 class AuthManager: ObservableObject {
-    static let shared = AuthManager(apiClient: APIClient.shared, keychainService: .shared)
+    static let shared = AuthManager(apiClient: .shared, keychainService: .shared)
 
     @Published var isAuthenticated = false
     @Published var currentUser: User?
@@ -13,10 +13,10 @@ class AuthManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var isCheckingAuth = true  // Track initial auth check for splash screen
 
-    private let apiClient: APIClientProtocol
+    private let apiClient: AstridAPIClient
     private let keychainService: KeychainService
 
-    init(apiClient: APIClientProtocol, keychainService: KeychainService) {
+    init(apiClient: AstridAPIClient, keychainService: KeychainService) {
         self.apiClient = apiClient
         self.keychainService = keychainService
     }
@@ -136,7 +136,7 @@ class AuthManager: ObservableObject {
                 AppLog.debug("🔑 [AuthManager] Session cookie found")
 
                 // Validate session with backend
-                let response: SessionResponse = try await apiClient.request(.session)
+                let response: SessionResponse = try await apiClient.getSession()
                 persistRenewedSession(response)
                 self.currentUser = response.user
 
@@ -186,7 +186,7 @@ class AuthManager: ObservableObject {
             _ = try keychainService.getSessionCookie()
 
             // Validate session with backend
-            let response: SessionResponse = try await apiClient.request(.session)
+            let response: SessionResponse = try await apiClient.getSession()
             persistRenewedSession(response)
 
             await MainActor.run {
@@ -209,9 +209,9 @@ class AuthManager: ObservableObject {
             await MainActor.run {
                 self.clearStaleAuthState()
             }
-        } catch let error as APIError {
+        } catch let error as AstridAPIError {
             // Check if this is an explicit session rejection (401 Unauthorized)
-            if case .httpError(let statusCode, _) = error, statusCode == 401 {
+            if error.httpStatusCode == 401 {
                 AppLog.debug("🔒 [AuthManager] Session rejected by server (401) - logging out user")
                 await MainActor.run {
                     self.clearStaleAuthState()
@@ -259,7 +259,7 @@ class AuthManager: ObservableObject {
 
         do {
             // Call signup without password - this creates a session and returns the user
-            let response: SessionResponse = try await apiClient.request(.signUpPasswordless(email: email, name: name))
+            let response: SessionResponse = try await apiClient.signUpPasswordless(email: email, name: name)
 
             self.currentUser = response.user
 
@@ -281,9 +281,9 @@ class AuthManager: ObservableObject {
             // Trigger local data upload if transitioning from offline-only mode
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
-        } catch let error as APIError {
+        } catch let error as AstridAPIError {
             AppLog.debug("❌ [AuthManager] Passwordless sign-up failed: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = error.serverMessage ?? error.localizedDescription
             throw error
         } catch {
             AppLog.debug("❌ [AuthManager] Passwordless sign-up failed: \(error)")
@@ -313,7 +313,7 @@ class AuthManager: ObservableObject {
             }
 
             // Send to backend for validation and session creation
-            let response: SessionResponse = try await apiClient.request(.signInWithApple(
+            let response: SessionResponse = try await apiClient.signInWithApple(AppleSignInRequest(
                 identityToken: appleResult.identityToken,
                 authorizationCode: appleResult.authorizationCode,
                 user: appleResult.user,
@@ -341,9 +341,9 @@ class AuthManager: ObservableObject {
             // Trigger local data upload if transitioning from offline-only mode
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
-        } catch let error as APIError {
+        } catch let error as AstridAPIError {
             AppLog.debug("❌ [AuthManager] Apple sign-in failed: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = error.serverMessage ?? error.localizedDescription
             throw error
         } catch {
             AppLog.debug("❌ [AuthManager] Apple sign-in failed: \(error)")
@@ -368,9 +368,7 @@ class AuthManager: ObservableObject {
             AppLog.debug("🔵 [AuthManager] Got Google credentials, sending to backend...")
 
             // Send to backend for validation and session creation
-            let response: SessionResponse = try await apiClient.request(.signInWithGoogle(
-                idToken: googleResult.idToken
-            ))
+            let response: SessionResponse = try await apiClient.signInWithGoogle(idToken: googleResult.idToken)
 
             self.currentUser = response.user
 
@@ -392,9 +390,9 @@ class AuthManager: ObservableObject {
             // Trigger local data upload if transitioning from offline-only mode
             ConnectionModeManager.shared.handleSuccessfulSignIn(userId: response.user.id)
 
-        } catch let error as APIError {
+        } catch let error as AstridAPIError {
             AppLog.debug("❌ [AuthManager] Google sign-in failed: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = error.serverMessage ?? error.localizedDescription
             throw error
         } catch {
             AppLog.debug("❌ [AuthManager] Google sign-in failed: \(error)")
@@ -613,7 +611,7 @@ class AuthManager: ObservableObject {
 
         do {
             // Call sign out endpoint
-            let _: EmptyResponse = try await apiClient.request(.signOut)
+            try await apiClient.signOut()
         } catch {
             AppLog.debug("Sign out API call failed: \(error)")
             // Continue with local cleanup even if API call fails

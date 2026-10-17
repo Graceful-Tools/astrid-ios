@@ -113,10 +113,7 @@ struct MacUserProfileView: View {
         do {
             profile = try await ProfileCache.shared.loadProfile(userId: userId)
         } catch {
-            let status = (error as? APIError).flatMap { apiError -> Int? in
-                if case .httpError(let code, _) = apiError { return code }
-                return nil
-            }
+            let status = (error as? AstridAPIError)?.httpStatusCode
             errorMessage = MacProfileState.message(forStatus: status ?? 0)
         }
     }

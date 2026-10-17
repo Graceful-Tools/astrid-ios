@@ -137,11 +137,11 @@ class EditProfileViewModel: ObservableObject {
 
             showSuccess = true
 
-        } catch let error as APIError {
+        } catch let error as AstridAPIError {
             AppLog.debug("❌ [EditProfileViewModel] Save failed: \(error)")
             switch error {
-            case .httpError(let statusCode, let message):
-                errorMessage = message ?? "Failed to update profile (HTTP \(statusCode))"
+            case .httpError(let statusCode, _):
+                errorMessage = error.serverMessage ?? "Failed to update profile (HTTP \(statusCode))"
             case .unauthorized:
                 errorMessage = "Please sign in again to update your profile"
             default:

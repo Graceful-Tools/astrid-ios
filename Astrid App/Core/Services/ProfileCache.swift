@@ -19,7 +19,7 @@ class ProfileCache {
         }
     }
 
-    private let apiClient = APIClient.shared
+    private let apiClient = AstridAPIClient.shared
 
     private init() {}
 
@@ -61,7 +61,7 @@ class ProfileCache {
         AppLog.debug("🔄 [ProfileCache] Prefetching profile for user: \(userId)")
 
         do {
-            let profile: UserProfileResponse = try await apiClient.request(.userProfile(userId: userId))
+            let profile: UserProfileResponse = try await apiClient.getUserProfile(userId: userId)
             cacheProfile(profile, userId: userId)
             AppLog.debug("✅ [ProfileCache] Profile prefetched and cached for user: \(userId)")
         } catch {
@@ -80,7 +80,7 @@ class ProfileCache {
 
         // Load from API if not cached
         AppLog.debug("🌐 [ProfileCache] Loading profile from API for user: \(userId)")
-        let profile: UserProfileResponse = try await apiClient.request(.userProfile(userId: userId))
+        let profile: UserProfileResponse = try await apiClient.getUserProfile(userId: userId)
         cacheProfile(profile, userId: userId)
         return profile
     }
