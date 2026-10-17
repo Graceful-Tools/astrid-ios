@@ -66,7 +66,8 @@ struct MacTaskFieldsView: View {
                                              isInProject: isInProject,
                                              hasOccurrenceLinks: !occurrenceLinks.isEmpty,
                                              refused: TaskCapabilities.refused(
-                                                listIds: task.listIds ?? [], lists: listService.lists)).enumerated()),
+                                                listIds: task.listIds ?? [], lists: listService.lists),
+                                             showsTaskId: showsTaskId).enumerated()),
                     id: \.offset) { _, row in
                 fieldRow(row)
             }
@@ -100,6 +101,10 @@ struct MacTaskFieldsView: View {
         case .lists:
             labeled(icon: "list.bullet",
                     NSLocalizedString("navigation.lists", comment: "Lists")) { listsRow }
+        case .taskId:
+            // Only reached when `showsTaskId` holds — on a board, with an id (AITD-505).
+            labeled(icon: TaskIdentifiers.symbolName,
+                    NSLocalizedString("tasks.taskId.label", comment: "")) { taskIdRow }
         case .description:
             descriptionRow
         case .priority:
@@ -128,6 +133,26 @@ struct MacTaskFieldsView: View {
                 MacTaskOccurrencesRow(links: occurrenceLinks)
             }
         }
+    }
+
+    /// The task id in the detail panel only: the open board card's editor sits under a face that
+    /// already shows it. Whether it shows at all is iOS's rule, not restated here (AITD-505).
+    private var showsTaskId: Bool {
+        showsTitle && TaskIdentifiers.shows(task, lists: listService.lists, on: .details)
+    }
+
+    /// Muted, like iOS's row; right-click copies it, the same "Copy task id" the row menu offers.
+    private var taskIdRow: some View {
+        Text(task.identifier ?? "")
+            .macFont(MacTypography.detailBody)
+            .foregroundStyle(Theme.textMuted)
+            .contextMenu {
+                Button(NSLocalizedString("tasks.taskId.copy", comment: "")) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(task.identifier ?? "", forType: .string)
+                }
+            }
+            .accessibilityIdentifier("taskDetail.taskId")
     }
 
     /// The occurrences on either side of this task, by the rule iOS shares.
