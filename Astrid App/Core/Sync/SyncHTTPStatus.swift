@@ -8,8 +8,6 @@ extension Error {
     var syncHTTPStatusCode: Int? {
         if let apiError = self as? AstridAPIError,
            case let .httpError(statusCode, _) = apiError { return statusCode }
-        if let apiError = self as? APIError,
-           case let .httpError(statusCode, _) = apiError { return statusCode }
         return nil
     }
 

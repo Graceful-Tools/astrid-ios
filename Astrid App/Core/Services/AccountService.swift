@@ -3,7 +3,7 @@ import Foundation
 /// Canonical service facade for account / profile operations.
 ///
 /// Per the canonical control points in CLAUDE.md, UI (Views / ViewModels /
-/// Utilities) must not talk to `AstridAPIClient` / `APIClient` directly. All
+/// Utilities) must not talk to `AstridAPIClient` directly. All
 /// account reads and writes flow through this service so the boundary stays in
 /// one place and can be extended (caching, optimistic updates) without touching
 /// every screen.
@@ -15,7 +15,6 @@ final class AccountService {
     static let shared = AccountService()
 
     private let apiClient = AstridAPIClient.shared
-    private let legacyClient = APIClient.shared
 
     private init() {}
 
@@ -41,19 +40,19 @@ final class AccountService {
         try await apiClient.deleteAccount(confirmationText: confirmationText)
     }
 
-    // MARK: - Profile image upload (legacy endpoint path)
+    // MARK: - Profile image upload
 
     func uploadProfileImage(_ imageData: Data, fileName: String, mimeType: String = "image/jpeg") async throws -> UploadResponse {
-        try await legacyClient.request(.uploadFile(imageData, fileName: fileName, mimeType: mimeType))
+        try await apiClient.uploadFile(imageData, fileName: fileName, mimeType: mimeType)
     }
 
-    // MARK: - Legacy generic account path (EditProfile / UserProfile screens)
+    // MARK: - Whole account response (EditProfile / UserProfile screens)
 
     func fetchAccountResponse() async throws -> AccountResponse {
-        try await legacyClient.request(.getAccount)
+        try await apiClient.fetchAccountResponse()
     }
 
     func updateAccount(_ request: UpdateAccountRequest) async throws -> UpdateAccountResponse {
-        try await legacyClient.request(.updateAccount(request))
+        try await apiClient.updateAccount(request)
     }
 }

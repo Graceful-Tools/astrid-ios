@@ -503,3 +503,10 @@ struct AppVersionResponse: Codable {
     let updateUrl: String?
     let releaseNotes: String?
 }
+
+// MARK: - User Search Response
+
+struct UserSearchResponse: Codable {
+    let users: [User]
+    let listMemberCount: Int?
+}

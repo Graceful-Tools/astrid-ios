@@ -426,9 +426,9 @@ class UserProfileViewModel: ObservableObject {
                 AppLog.debug("[UserProfileViewModel] Using offline profile from local auth data")
             } else {
                 hasLoaded = false // Allow retry on error
-                if let apiError = error as? APIError {
-                    switch apiError {
-                    case .httpError(let statusCode, _):
+                if let apiError = error as? AstridAPIError {
+                    switch apiError.httpStatusCode {
+                    case let statusCode?:
                         if statusCode == 404 {
                             self.error = NSLocalizedString("profile.error_not_found", comment: "User not found")
                         } else if statusCode == 401 {

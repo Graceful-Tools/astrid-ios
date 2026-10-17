@@ -63,7 +63,9 @@ class AstridAPIClient {
         method: String,
         path: String,
         body: Encodable? = nil,
-        queryItems: [URLQueryItem]? = nil
+        rawBody: (data: Data, contentType: String)? = nil,
+        queryItems: [URLQueryItem]? = nil,
+        capturesSession: Bool = false
     ) async throws -> T {
         // Security backstop (audit 2026-07-25): ids reach these paths from deep links, and a
         // percent-encoded separator used to survive into the request — `astrid://tasks/a%2F..%2Fadmin`
@@ -103,6 +105,9 @@ class AstridAPIClient {
         // Add body if present
         if let body = body {
             request.httpBody = try encoder.encode(body)
+        } else if let rawBody {
+            request.httpBody = rawBody.data
+            request.setValue(rawBody.contentType, forHTTPHeaderField: "Content-Type")
         }
 
         AppLog.debug("🔄 [AstridAPI] Waiting for response...")
@@ -125,6 +130,8 @@ class AstridAPIClient {
         }
 
         PrivacyLogger.response("AstridAPI", status: httpResponse.statusCode, bytes: data.count)
+        // Sign-in hands its session back as Set-Cookie (AITD-504, see SessionCookieCapture).
+        if capturesSession { SessionCookieCapture.save(from: httpResponse) }
 
         // Handle error responses
         if httpResponse.statusCode == 401 {
@@ -137,6 +144,8 @@ class AstridAPIClient {
             PrivacyLogger.error("AstridAPI", code: "http_error", status: httpResponse.statusCode)
             throw AstridAPIError.httpError(statusCode: httpResponse.statusCode, message: responseString)
         }
+
+        if data.isEmpty, let empty = EmptyResponse() as? T { return empty }
 
         // Decode response
         do {
@@ -1093,58 +1102,6 @@ class AstridAPIClient {
     }
 
     // MARK: - Account Management
-
-    /// Get current user's account data
-    func getAccount() async throws -> AccountData {
-        let response: AccountResponse = try await request(
-            method: "GET",
-            path: "/api/v1/users/me"
-        )
-        return response.user
-    }
-
-    /// Update account (name, email, image)
-    func updateAccount(name: String? = nil, email: String? = nil, image: String? = nil) async throws -> UpdateAccountResponse {
-        struct UpdateRequest: Codable {
-            var name: String?
-            var email: String?
-            var image: String?
-        }
-
-        let body = UpdateRequest(name: name, email: email, image: image)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/users/me",
-            body: body
-        )
-    }
-
-    /// Send, resend, or cancel email verification
-    /// - Parameter action: "send", "resend", or "cancel"
-    func verifyEmail(action: String) async throws -> VerifyEmailResponse {
-        return try await request(
-            method: "POST",
-            path: "/api/v1/users/me/verify-email",
-            queryItems: [URLQueryItem(name: "action", value: action)]
-        )
-    }
-
-    /// Delete account permanently
-    /// - Parameter confirmationText: Must be "DELETE MY ACCOUNT"
-    func deleteAccount(confirmationText: String) async throws -> DeleteAccountResponse {
-        struct DeleteAccountBody: Codable {
-            let confirmationText: String
-        }
-
-        let body = DeleteAccountBody(confirmationText: confirmationText)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/users/me/delete",
-            body: body
-        )
-    }
 
     /// Export account data
     /// - Parameter format: "json" or "csv"

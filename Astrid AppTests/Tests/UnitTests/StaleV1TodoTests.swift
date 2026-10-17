@@ -60,15 +60,6 @@ final class StaleV1TodoTests: XCTestCase {
                        + "go through ListMemberService. Delete it rather than let it be found.")
     }
 
-    /// The unreachable legacy case. `AstridAPIClient` is the one client (b1a05e99); a favorite
-    /// is a `PUT /api/v1/lists/{id}` with `isFavorite`, so nothing constructs this endpoint.
-    func testTheLegacyClientCarriesNoUnreachableFavoritePath() throws {
-        let endpoints = try source("Astrid App/Core/Networking/APIEndpoint.swift")
-        XCTAssertFalse(endpoints.contains("favoriteList"),
-                       "APIEndpoint.favoriteList is constructed nowhere — it is a path, a method "
-                       + "override and a body encoder for a request that is never sent.")
-    }
-
     /// Favoriting rides `updateList` on purpose. Saying so where the call is made is what keeps
     /// this from being re-filed as a missing endpoint a third time.
     func testTheFavoriteCallSiteExplainsWhyItUsesUpdateList() throws {

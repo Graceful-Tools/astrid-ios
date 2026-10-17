@@ -10,14 +10,13 @@ import Combine
 
 @MainActor
 class AttachmentService: ObservableObject {
-    static let shared = AttachmentService(apiClient: APIClient.shared)
+    static let shared = AttachmentService()
 
     @Published var isUploading = false
     @Published var uploadProgress: Double = 0
     @Published var errorMessage: String?
     @Published var pendingUploads: [String: PendingAttachment] = [:]  // tempFileId -> PendingAttachment
 
-    private let apiClient: APIClientProtocol
     private let fileManager = FileManager.default
     private let cacheDirectory: URL  // For pending uploads
     /// Downloaded/viewed attachments: bounded, LRU-evicted (AITD-344).
@@ -26,9 +25,7 @@ class AttachmentService: ObservableObject {
     // Map temp fileIds to real fileIds after upload
     private var fileIdMapping: [String: String] = [:]
 
-    init(apiClient: APIClientProtocol) {
-        self.apiClient = apiClient
-
+    init() {
         // Setup local cache directory for pending attachments
         let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDirectory.appendingPathComponent("PendingAttachments", isDirectory: true)
@@ -423,7 +420,7 @@ class AttachmentService: ObservableObject {
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.invalidResponse
+            throw AstridAPIError.invalidResponse
         }
 
         // Parse response
@@ -674,7 +671,7 @@ class AttachmentService: ObservableObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.invalidResponse
+            throw AstridAPIError.invalidResponse
         }
         
         return data
@@ -859,7 +856,7 @@ class AttachmentService: ObservableObject {
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.invalidResponse
+            throw AstridAPIError.invalidResponse
         }
     }
     

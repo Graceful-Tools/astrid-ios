@@ -5,7 +5,7 @@ Every `/api/v1` path in the iOS/Mac app, grouped by resource.
 **Why this file exists.** `AstridAPIClient` is the one HTTP client (ASTRID.md §2a, task
 `b1a05e99`), and it spends its paths as inline string literals — so without this list,
 "which endpoints does the app use" is a question you answer by reading 1,500 lines. The
-`APIEndpoint` enum it replaced gave that readability for free; this file buys it back, and
+`APIEndpoint` enum it replaced (deleted in AITD-504) gave that readability for free; this file buys it back, and
 unlike a Swift enum, `astrid-web` can read it.
 
 **It cannot silently rot.** `APIEndpointInventoryTests` fails when the source and this file
@@ -19,7 +19,7 @@ settings and the live stream go through astrid-core, whose paths are in
 is what the Swift client still calls itself.
 
 
-## Current client — `AstridAPIClient` (47 paths)
+## `AstridAPIClient` — the only client (54 paths)
 
 
 ### `/api/v1/app-version`
@@ -28,7 +28,12 @@ is what the Swift client still calls itself.
 
 ### `/api/v1/auth`
 
+- `/api/v1/auth/apple`
 - `/api/v1/auth/desktop/exchange`
+- `/api/v1/auth/google`
+- `/api/v1/auth/mobile-session`
+- `/api/v1/auth/mobile-signup`
+- `/api/v1/auth/signout`
 
 ### `/api/v1/capabilities`
 
@@ -99,6 +104,10 @@ is what the Swift client still calls itself.
 - `/api/v1/tasks/{id}`
 - `/api/v1/tasks/{id}/comments`
 
+### `/api/v1/upload`
+
+- `/api/v1/upload`
+
 ### `/api/v1/users`
 
 - `/api/v1/users/me`
@@ -116,21 +125,4 @@ is what the Swift client still calls itself.
 - `/api/v1/users/me/verify-email`
 - `/api/v1/users/me/webhook-settings`
 - `/api/v1/users/search`
-
-## Legacy client — `APIEndpoint` (8 paths)
-
-
-Closed to additions. These move to `AstridAPIClient` when task `2023c90f` is worked; the
-services still on this client are `AuthManager`, `AccountService`, `AttachmentService` and
-`ProfileCache`. The 2026-09-13 dedupe pass deleted the 28 enum cases nothing constructed
-(they duplicated `AstridAPIClient` methods), so this list is now the paths the legacy client
-actually sends.
-
-- `/api/v1/auth/apple`
-- `/api/v1/auth/google`
-- `/api/v1/auth/mobile-session`
-- `/api/v1/auth/mobile-signup`
-- `/api/v1/auth/signout`
-- `/api/v1/upload`
-- `/api/v1/users/me`
 - `/api/v1/users/{id}/profile`

@@ -75,8 +75,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // group of six member/invitation endpoints the answer was no. AITD-388 moved them to
         // `AstridAPIClient+ListMembers.swift`, so the number goes DOWN rather than up again.
         // Was 1578. Two methods nothing called (getList, getAvailableModels) left on 2026-09-13.
-        // 1405 on 2026-10-03: three member-response DTOs nothing decoded were deleted.
-        "Astrid App/Core/Networking/AstridAPIClient.swift": 1405,
+        // 1405 on 2026-10-03: three member-response DTOs nothing decoded were deleted. 1362 for
+        // AITD-504: the account calls went to `+Account` as the legacy client's calls came in.
+        "Astrid App/Core/Networking/AstridAPIClient.swift": 1362,
         "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
         // `QuickAddTaskView.swift` left this list on 2026-10-16 at 749 lines: AITD-491 moved its
         // priority/assignee sheet to `QuickAddPickerSheet.swift`. Under the threshold, no entry.

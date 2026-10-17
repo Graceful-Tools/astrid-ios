@@ -63,6 +63,7 @@ final class APIEndpointInventoryTests: XCTestCase {
         "Astrid App/Core/Networking/AstridAPIClient+ListOwnership.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Connections.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Auth.swift",
+        "Astrid App/Core/Networking/AstridAPIClient+Account.swift",
     ]
 
     private static func currentClientPaths(_ test: APIEndpointInventoryTests) throws -> Set<String> {
@@ -73,7 +74,6 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     func testEveryEndpointInTheCodeIsDocumented() throws {
         let inCode = try Self.currentClientPaths(self)
-            .union(paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift"))
         let documented = try documentedPaths()
 
         let undocumented = inCode.subtracting(documented)
@@ -86,7 +86,6 @@ final class APIEndpointInventoryTests: XCTestCase {
     /// stops describing the app while still looking authoritative.
     func testNothingIsDocumentedThatTheCodeNoLongerCalls() throws {
         let inCode = try Self.currentClientPaths(self)
-            .union(paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift"))
         let documented = try documentedPaths()
 
         let stale = documented.subtracting(inCode)
@@ -97,15 +96,8 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     // MARK: - The decision itself
 
-    /// The legacy client is closed to additions. This is the rule that decays first, because
-    /// adding one more case beside the others always looks harmless. Was 27 paths; the
-    /// 2026-09-13 dedupe pass deleted the 28 cases nothing constructed, leaving eight.
-    func testTheLegacyClientIsNotGrowing() throws {
-        let legacy = try paths(inSourceAt: "Astrid App/Core/Networking/APIEndpoint.swift")
-        XCTAssertLessThanOrEqual(
-            legacy.count, 8,
-            "APIEndpoint gained a path. It is closed (ASTRID.md §2a) — add it to AstridAPIClient.")
-    }
+    // The legacy client this used to keep from growing is gone (AITD-504) —
+    // LegacyAPIClientRetiredTests keeps it gone.
 
     /// The decision has to be findable by someone who never read the task.
     func testTheDecisionIsRecordedWhereAgentsRead() throws {

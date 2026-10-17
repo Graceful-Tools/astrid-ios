@@ -38,9 +38,9 @@ Violating any of these has caused a shipped regression. If you read nothing else
    fail, then make it green. Run `npm run predeploy` before declaring a task done.
 8. **For breaking API changes, add a new app/API version** — keep the existing
    version working. Never break the deployed contract.
-9. **`AstridAPIClient` is the HTTP client. New endpoints go there, always.**
-   `APIClient` + `APIEndpoint` are legacy and shrinking — do not add to them, and do
-   not copy their pattern. (Decided by Jon 2026-08-15, task `b1a05e99`. See §2a.)
+9. **`AstridAPIClient` is the HTTP client. New endpoints go there, always.** It is the
+   only one: the legacy `APIClient` + `APIEndpoint` pair was deleted in AITD-504. Do not
+   bring a second client back. (Decided by Jon 2026-08-15, task `b1a05e99`. See §2a.)
 
 ---
 
@@ -112,7 +112,7 @@ fails a unit test instead of shipping.
 ## 2a. Which HTTP client (decided, task `b1a05e99`)
 
 **`AstridAPIClient` is the one.** Every new endpoint goes there. `APIClient` and its
-`APIEndpoint` enum are legacy: closed to additions, and shrinking.
+`APIEndpoint` enum were the legacy second client; they are gone (AITD-504, 2026-10-16).
 
 Two clients were live at once, so "where does a new endpoint go" had two answers and the
 real answer was whichever the neighbouring code happened to use. The tie was not broken
@@ -132,9 +132,15 @@ loss, and pretending otherwise is how it stays lost.
 from the source and guarded by `APIEndpointInventoryTests` so it cannot silently rot. Web
 can read that file; it could never read a Swift enum.
 
-**Still open** (`2023c90f`): migrating the five legacy call sites and deleting the enum,
-plus Jon's follow-up — revisiting a shape with better readability than inline strings.
-Until then both clients exist, but only one of them grows.
+**Done** (AITD-504; `2023c90f` had been closed with no commit): the last legacy calls —
+Apple / Google sign-in, sign-up, session, sign-out, profile, account and upload — moved to
+`AstridAPIClient` (`+Auth`, `+Account`), and both files were deleted. The one behaviour that
+moved with them is `SessionCookieCapture`: sign-in calls pass `capturesSession: true`, because
+the server returns the session as Set-Cookie and nothing else stores it.
+`LegacyAPIClientRetiredTests` keeps the second client from coming back.
+
+Still open: Jon's follow-up — a shape with better readability than inline strings. File it
+when wanted.
 
 ---
 
