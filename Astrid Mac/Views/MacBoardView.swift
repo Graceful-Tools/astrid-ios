@@ -194,8 +194,17 @@ struct MacBoardView: View {
                     } else {
                         Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
                     }
-                    if let due = t.dueDateTime {
-                        Text(due, style: .date).macFont(.caption2).foregroundStyle(Theme.textMuted)
+                    // The task id, muted, before the date — the iOS card's metadata row (AITD-505).
+                    let identifier = TaskIdentifiers.boardCardLabel(for: t)
+                    if identifier != nil || t.dueDateTime != nil {
+                        HStack(spacing: 6) {
+                            if let identifier {
+                                Text(identifier).lineLimit(1).fixedSize()
+                                    .accessibilityIdentifier("board.card.taskId")
+                            }
+                            if let due = t.dueDateTime { Text(due, style: .date) }
+                        }
+                        .macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

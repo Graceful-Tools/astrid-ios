@@ -16,6 +16,10 @@ enum MacTaskFieldRow: Equatable {
     case lists
     case description
 
+    /// The task's id (`AITD-505`), read-only and copyable, directly after Lists — where iOS's
+    /// `TaskDetailIdentifierRow` sits (AITD-437). Only when `TaskIdentifiers` says it shows.
+    case taskId
+
     /// Rows only in LIST mode. In project mode the leading control depicts both, so a row
     /// restating them spends panel width saying it twice (task 42013da7).
     case priority
@@ -75,11 +79,14 @@ enum MacTaskFields {
     /// - Parameter hasOccurrenceLinks: whether `TaskOccurrences.links` found a previous or next
     ///   occurrence (AITD-491). The row is a pair of links, so with neither there is no row.
     /// - Parameter refused: the controls the task's lists refuse (`TaskCapabilities.refused`).
+    /// - Parameter showsTaskId: whether the task id row is drawn — the shared
+    ///   `TaskIdentifiers.shows(_:lists:on: .details)`, asked by the view (AITD-505).
     static func rows(showsTitle: Bool,
                      displayMode: TaskDisplayMode,
                      isInProject: Bool = false,
                      hasOccurrenceLinks: Bool = false,
-                     refused: Set<TaskCapabilities.Control> = []) -> [MacTaskFieldRow] {
+                     refused: Set<TaskCapabilities.Control> = [],
+                     showsTaskId: Bool = false) -> [MacTaskFieldRow] {
         // A board that refuses a priority or date write does not get the control (AITD-491).
         // Mapped case by case, not by "priority, else .when": `refused` also carries controls
         // that are not rows here, and folding one of those into `.when` would hide the date row
@@ -91,8 +98,14 @@ enum MacTaskFields {
             case .privateTasks: return nil   // no row of its own in this editor
             }
         })
-        return rowsOffered(showsTitle: showsTitle, displayMode: displayMode, isInProject: isInProject,
-                           hasOccurrenceLinks: hasOccurrenceLinks).filter { !hidden.contains($0) }
+        let rows = rowsOffered(showsTitle: showsTitle, displayMode: displayMode, isInProject: isInProject,
+                               hasOccurrenceLinks: hasOccurrenceLinks).filter { !hidden.contains($0) }
+        // Beside the lists, as on iOS — appended to Lists rather than placed in either mode's
+        // order, so the Who/Date/Priority/Lists contract stays untouched.
+        guard showsTaskId, let lists = rows.firstIndex(of: .lists) else { return rows }
+        var withId = rows
+        withId.insert(.taskId, at: lists + 1)
+        return withId
     }
 
     private static func rowsOffered(showsTitle: Bool, displayMode: TaskDisplayMode, isInProject: Bool,
@@ -131,10 +144,11 @@ enum MacTaskFields {
     /// with no control attached — which is what "list selecting isn't working"
     /// turned out to mean.
     static func isEditable(_ row: MacTaskFieldRow) -> Bool {
-        // Every row, without exception. Priority and assignee used to return false here
+        // Every field row, without exception. Priority and assignee used to return false here
         // because they were not rows at all; now that list mode shows them, a false would
-        // ship exactly the read-only row the Lists bug was about.
-        true
+        // ship exactly the read-only row the Lists bug was about. The task id is not a field:
+        // the server mints it, and the row offers copy, not edit (AITD-505).
+        row != .taskId
     }
 
     /// Picking a list toggles the task's membership of it. Multi-select: a task
