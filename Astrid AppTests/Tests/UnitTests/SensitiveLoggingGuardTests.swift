@@ -7,8 +7,10 @@ final class SensitiveLoggingGuardTests: XCTestCase {
     func testSensitivePathsDoNotPrintPrivateRequestData() throws {
         let repositoryRoot = RepositoryLocator.root
         let relativePaths = [
-            "Astrid App/Core/Networking/APIClient.swift",
             "Astrid App/Core/Networking/AstridAPIClient.swift",
+            // Took over the deleted legacy APIClient's sign-in and account calls (AITD-504).
+            "Astrid App/Core/Networking/AstridAPIClient+Auth.swift",
+            "Astrid App/Core/Networking/AstridAPIClient+Account.swift",
             "Astrid App/Core/Services/AttachmentService.swift",
             "Astrid App/Core/Authentication/AuthManager.swift",
             "Astrid App/Core/Authentication/PasskeyManager.swift",
