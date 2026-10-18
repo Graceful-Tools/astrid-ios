@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "Não foi possível esperar por essa tarefa";
 "tasks.waitingOn.noResults" = "Nenhuma tarefa correspondente";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "Nenhum";
+"tasks.projectFields.empty" = "Não definido";
+"tasks.projectFields.errorAuthRequired" = "Conecte a sua conta do GitHub para alterar este campo.";
+"tasks.projectFields.errorSsoRequired" = "A sua organização exige início de sessão único para este projeto. Inicie sessão no GitHub e tente novamente.";
+"tasks.projectFields.errorSaveFailed" = "Não foi possível guardar essa alteração no GitHub. Tente novamente.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Ocorrências";
 "tasks.occurrences.previous" = "Anterior";

@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "无法等待该任务";
 "tasks.waitingOn.noResults" = "没有匹配的任务";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "无";
+"tasks.projectFields.empty" = "未设置";
+"tasks.projectFields.errorAuthRequired" = "请先连接你的 GitHub 账号，才能修改此字段。";
+"tasks.projectFields.errorSsoRequired" = "你的组织要求对此项目使用单点登录。请先登录 GitHub，然后重试。";
+"tasks.projectFields.errorSaveFailed" = "无法将该更改保存到 GitHub。请重试。";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "重复记录";
 "tasks.occurrences.previous" = "上一次";

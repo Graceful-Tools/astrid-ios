@@ -1491,6 +1491,13 @@
 "tasks.waitingOn.addError" = "無法等待該任務";
 "tasks.waitingOn.noResults" = "沒有符合的任務";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "無";
+"tasks.projectFields.empty" = "未設定";
+"tasks.projectFields.errorAuthRequired" = "請先連接你的 GitHub 帳號，才能修改此欄位。";
+"tasks.projectFields.errorSsoRequired" = "你的組織要求此專案使用單一登入。請先登入 GitHub，然後再試一次。";
+"tasks.projectFields.errorSaveFailed" = "無法將該變更儲存到 GitHub。請再試一次。";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "重複記錄";
 "tasks.occurrences.previous" = "上一次";

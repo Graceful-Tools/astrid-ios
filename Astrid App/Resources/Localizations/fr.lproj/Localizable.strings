@@ -1505,6 +1505,13 @@
 "tasks.waitingOn.addError" = "Impossible d'attendre cette tâche";
 "tasks.waitingOn.noResults" = "Aucune tâche correspondante";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "Aucun";
+"tasks.projectFields.empty" = "Non défini";
+"tasks.projectFields.errorAuthRequired" = "Connecte ton compte GitHub pour modifier ce champ.";
+"tasks.projectFields.errorSsoRequired" = "Ton organisation exige l'authentification unique pour ce projet. Connecte-toi à GitHub, puis réessaie.";
+"tasks.projectFields.errorSaveFailed" = "Cette modification n'a pas pu être enregistrée dans GitHub. Réessaie.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Occurrences";
 "tasks.occurrences.previous" = "Précédente";

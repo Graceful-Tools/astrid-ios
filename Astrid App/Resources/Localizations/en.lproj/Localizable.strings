@@ -1497,6 +1497,13 @@
 "tasks.waitingOn.addError" = "Could not wait on that task";
 "tasks.waitingOn.noResults" = "No matching tasks";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "None";
+"tasks.projectFields.empty" = "Not set";
+"tasks.projectFields.errorAuthRequired" = "Connect your GitHub account to change this field.";
+"tasks.projectFields.errorSsoRequired" = "Your organisation requires single sign-on for this project. Sign in to GitHub, then try again.";
+"tasks.projectFields.errorSaveFailed" = "That change could not be saved to GitHub. Try again.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Occurrences";
 "tasks.occurrences.previous" = "Previous";

@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "Kon niet op die taak wachten";
 "tasks.waitingOn.noResults" = "Geen overeenkomende taken";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "Geen";
+"tasks.projectFields.empty" = "Niet ingesteld";
+"tasks.projectFields.errorAuthRequired" = "Koppel je GitHub-account om dit veld te wijzigen.";
+"tasks.projectFields.errorSsoRequired" = "Je organisatie vereist eenmalige aanmelding voor dit project. Meld je aan bij GitHub en probeer het opnieuw.";
+"tasks.projectFields.errorSaveFailed" = "Die wijziging kon niet in GitHub worden opgeslagen. Probeer het opnieuw.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Herhalingen";
 "tasks.occurrences.previous" = "Vorige";
