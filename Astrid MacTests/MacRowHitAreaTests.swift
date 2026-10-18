@@ -80,6 +80,19 @@ final class MacRowHitAreaTests: XCTestCase {
                              "Without a margin, clicks beside the checkbox fall through")
     }
 
+    /// AITD-508 — "checkbox on the row should be moved to the right to line up with the checkbox
+    /// in the add task row". The column is 12 + glyph + 6 wide and its click layer is greedy, so the
+    /// glyph was CENTRED in it, 9pt in — 3pt left of the add bar's checkbox, which sits 12pt in.
+    func testRowCheckboxLinesUpWithTheAddTaskCheckbox_AITD508() {
+        let glyph = MacTaskVisuals.rowCheckboxSize
+        XCTAssertEqual(MacRowHitArea.checkboxGlyphLeading(glyph: glyph),
+                       MacQuickAddBar.horizontalPadding(.list), accuracy: 0.01,
+                       "The row's checkbox must start where the add-task checkbox does")
+        XCTAssertEqual(MacRowHitArea.checkboxGlyphLeading(glyph: glyph) + glyph + MacRowHitArea.checkboxMargin,
+                       MacRowHitArea.checkboxColumnWidth(glyph: glyph), accuracy: 0.01,
+                       "The margin stays on the glyph's trailing side, toward the title")
+    }
+
     /// Indent shifts the card but must not shrink the tappable content — a deeply nested subtask
     /// row is no harder to click than a top-level one.
     func testIndentShiftsTheRowWithoutShrinkingTheTarget() {
