@@ -132,7 +132,7 @@ struct MacQuickAddBar: View {
         // ONE input card holding the checkbox, the field and ⊕ (iOS / web parity). The internal
         // padding matches MacTaskRow's card, so the quick-add checkbox sits in the same column as
         // the checkboxes of the rows above it.
-        .padding(.horizontal, style == .list ? 12 : 8).padding(.vertical, style == .list ? 9 : 6)
+        .padding(.horizontal, Self.horizontalPadding(style)).padding(.vertical, style == .list ? 9 : 6)
         // The SAME surface a task row card uses (white on Light/Ocean) rather than the grey input
         // fill — the add row should read as a task card you are about to fill in, like iOS.
         .background(MacSelectionStyle.fill(isSelected: false), in: RoundedRectangle(cornerRadius: style == .list ? 10 : 6))
@@ -154,6 +154,11 @@ struct MacQuickAddBar: View {
             // The column is already the frame; the cards above it carry no lift either.
             bar.frame(maxWidth: .infinity).macTextSelection()
         }
+    }
+
+    /// The card's inner leading/trailing inset — where the checkbox starts.
+    static func horizontalPadding(_ style: Style) -> CGFloat {
+        style == .list ? 12 : 8
     }
 
     /// Put the caret here, and watch for the AutoFill panel that focusing summons.

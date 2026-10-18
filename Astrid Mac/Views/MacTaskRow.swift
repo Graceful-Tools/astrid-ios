@@ -114,12 +114,13 @@ struct MacTaskRow: View {
             // clicks that land in the padding around the checkbox and selects the row, instead of
             // leaving a dead strip down the left of every row (b556c6a9). The glyph sits on top and
             // keeps its own gesture, so completing a task is untouched (652edb22).
-            ZStack {
+            ZStack(alignment: .leading) {
                 if !isEditing {
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { onSelect() }
                 }
+            Group {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
@@ -178,13 +179,16 @@ struct MacTaskRow: View {
                     .accessibilityAction { onToggle() }
             }
             }
+            // Pinned where the add bar's checkbox sits, not centred in the column (AITD-508).
+            .padding(.leading, MacRowHitArea.checkboxGlyphLeading(glyph: MacTaskVisuals.rowCheckboxSize))
+            }
             // The SAME quick changer the detail panel and the board card show, so "same
             // behavior" is one view rather than three that have to agree (task 132d7b3f).
             .popover(isPresented: $showingQuickChanger, arrowEdge: .bottom) {
                 MacQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
             }
             .frame(width: MacRowHitArea.checkboxColumnWidth(glyph: MacTaskVisuals.rowCheckboxSize),
-                   alignment: .trailing)
+                   alignment: .leading)
             .padding(.vertical, MacRowHitArea.verticalPadding)
 
             let content = VStack(alignment: .leading, spacing: 4) {

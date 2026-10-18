@@ -27,6 +27,13 @@ enum MacRowHitArea {
         horizontalPadding + glyph + checkboxMargin
     }
 
+    /// Where the glyph sits inside that column, from the card's leading edge: after the gutter,
+    /// with the margin on the title side. The column's click layer is greedy, so a centred glyph
+    /// landed 9pt in, 3pt left of the add bar's checkbox (AITD-508).
+    static func checkboxGlyphLeading(glyph: CGFloat) -> CGFloat {
+        horizontalPadding
+    }
+
     static func contentColumnWidth(rowWidth: CGFloat, glyph: CGFloat) -> CGFloat {
         rowWidth - checkboxColumnWidth(glyph: glyph) - columnSpacing
     }
