@@ -1,0 +1,71 @@
+# What the Apple apps' Rust workspace accepts from crates.io, and what fails the build.
+#
+# The iOS third of the dependency-advisory gate astrid-core and astrid-windows already run (task
+# b6147418, AITD-507). This workspace is what the XCFramework is built from, so its lockfile is the
+# one that decides which HTTP stack, TLS, SQLite and PKCE crates ship inside the iOS and Mac apps —
+# and until this file existed nothing here asked whether any of them had an advisory.
+#
+# This file is COPIED from astrid-core's, not referenced across repos. A shared config would make a
+# licence decision in one repo silently change the gate in the other two, and the repos are pinned
+# to each other by revision precisely so that nothing crosses between them implicitly. What differs
+# from that copy is said where it differs: `allow-git`, and MPL-2.0.
+#
+# Run it the way CI does (`.github/workflows/core-supply-chain.yml`), from `core/`:
+# `cargo deny check` (all four checks), or one at a time — `cargo deny check advisories`,
+# `cargo deny check licenses bans sources`.
+
+# One graph for every target: the XCFramework covers iOS, the simulator and macOS, and a
+# platform-gated dependency with an advisory against it is still an advisory. `all-features` for the
+# same reason — a feature nobody enables today is enabled by the next caller.
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+
+# A vulnerability, an unmaintained crate or an unsound one fails the build; that is version 2's
+# behaviour and it is not configurable per-kind. To ACCEPT one deliberately, add its id here with
+# the date and the reason — an empty list is a claim that nothing has been waved through.
+ignore = []
+
+# A yank is not a vulnerability. Upstream yanks for a bad release as often as for a security
+# problem, and a lockfile that lags a yank by a day should not stop a release.
+yanked = "warn"
+
+# Computed from the real graph (`cargo metadata --all-features`, 249 packages on 2026-10-18), not
+# copied from core's list. Every term here is REQUIRED by something in the tree: BSD-3-Clause and
+# Unicode-3.0 and ISC each arrive through an `AND` that no `OR` branch can satisfy, and Zlib arrives
+# alone. A new licence in the graph is meant to fail here and be read.
+#
+# MPL-2.0 is the one term core's list does not have: it is UniFFI (`uniffi`, `uniffi_core`,
+# `uniffi_bindgen` and five more), the binding generator this workspace exists to host. MPL is
+# copyleft per FILE — linking it into the apps is fine, and only a modified UniFFI source file would
+# have to be published — so it is accepted here, where it is a deliberate choice, and nowhere else.
+#
+# CDLA-Permissive-2.0 (`webpki-roots`) is in core's list and not here: rustls arrives with it only on
+# Android, and this graph does not carry it.
+[licenses]
+version = 2
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-3-Clause",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[bans]
+# Duplicate versions are a fact of a Rust graph this size and failing on them would make the gate
+# noise rather than signal. A wildcard requirement is different: it is a dependency whose version
+# nothing records, so the lockfile is the only thing that knows what shipped.
+multiple-versions = "allow"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# The one git dependency this workspace has, and the reason it has one: `Cargo.toml` pins the shared
+# core by revision. Matched by URL, not by revision, so bumping the pin — which is how every
+# shared-behaviour change reaches the Apple apps — does not need this list touched.
+allow-git = ["https://github.com/Graceful-Tools/astrid-core.git"]

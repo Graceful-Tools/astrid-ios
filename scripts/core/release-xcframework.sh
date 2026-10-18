@@ -31,7 +31,7 @@ fi
 SHORT="${FULL:0:7}"
 TAG="core-$SHORT"
 
-sed -i '' -E "s|(astrid-core = \{ git = \"$CORE_REPO\", rev = \")[0-9a-f]+(\" \})|\1$FULL\2|" "$ROOT/core/Cargo.toml"
+sed -i '' -E "s|(astrid-core = \{ git = \"$CORE_REPO\", rev = \")[0-9a-f]+(\")|\1$FULL\2|" "$ROOT/core/Cargo.toml"
 grep -q "rev = \"$FULL\"" "$ROOT/core/Cargo.toml" || { echo "RESULT: FAILED — could not pin core/Cargo.toml" >&2; exit 1; }
 (cd "$ROOT/core" && cargo update -p astrid-core --precise "$FULL" >/dev/null 2>&1 || cargo update -p astrid-core >/dev/null)
 

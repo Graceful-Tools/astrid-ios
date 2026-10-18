@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PKG="$ROOT/Packages/AstridCore/Package.swift"
 LOCAL="$ROOT/Packages/AstridCore/AstridCoreFFI.xcframework"
-PINNED="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)" \}/\1/p' "$ROOT/core/Cargo.toml")"
+PINNED="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$ROOT/core/Cargo.toml")"
 
 if grep -q 'releasedChecksum = "0\{64\}"' "$PKG"; then
   echo "RESULT: FAILED — no astrid-core framework is released for Xcode Cloud; run scripts/core/release-xcframework.sh <commit>" >&2
