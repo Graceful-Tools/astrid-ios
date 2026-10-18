@@ -1,0 +1,56 @@
+# `cargo deny` over `core/Cargo.lock` — the lockfile the XCFramework the iOS and Mac apps link is
+# built from: advisories, licences, wildcard requirements and where the crates came from. The rules
+# are in `core/deny.toml`, which says why each licence in the allow list is there.
+#
+# The iOS third of the dependency-advisory gate astrid-core and astrid-windows already run (task
+# b6147418, AITD-507); astrid-web's half is `npm audit --audit-level=high`.
+#
+# Two invocations rather than one, because the two halves fail for unrelated reasons and a single
+# red job would not say which: `advisories` goes red when the WORLD changed (an advisory was
+# published against a version this repo already pinned), `licenses bans sources` when THIS REPO
+# changed (a new dependency arrived with a licence or from a place nobody has accepted). Both
+# block — a gate that cannot fail is documentation.
+#
+# ubuntu, though nothing here ships for Linux: cargo-deny reads the lockfile and the advisory
+# database, never the compiler, so the host is irrelevant and the cheap runner is the right one. Not
+# the self-hosted Mac the other workflows here use — that machine is for what needs Xcode.
+
+name: Core supply chain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - ".github/workflows/core-supply-chain.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - ".github/workflows/core-supply-chain.yml"
+  workflow_dispatch:
+  # An advisory is published between commits, so a push-only gate learns about it on whatever day
+  # someone happens to touch `core/`. astrid-web learned this on AWTD-914 and runs its npm audit
+  # weekly for the same reason. Monday 06:00 UTC, the same tick as astrid-core's.
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: core-supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supply-chain:
+    name: cargo-deny (${{ matrix.checks }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        checks:
+          - advisories
+          - licenses bans sources
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: core/Cargo.toml
+          command: check ${{ matrix.checks }}

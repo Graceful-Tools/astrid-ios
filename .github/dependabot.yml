@@ -1,0 +1,26 @@
+# Who proposes the bumps that `core/deny.toml` would otherwise only complain about (AITD-507).
+#
+# The advisory gate says an advisory exists; this says what to do about it, as a PR. Grouped
+# minor/patch so a week of routine bumps is one PR to read rather than fifteen — the same shape as
+# astrid-web's, astrid-core's and astrid-windows'.
+#
+# Cargo only, over `core/`. astrid-core is ignored: its pin is bumped deliberately, through
+# scripts/core/release-xcframework.sh, because a new core needs a new XCFramework released with it
+# and a Dependabot PR that moved the rev alone would leave Package.swift pointing at the old one.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    ignore:
+      - dependency-name: "astrid-core"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

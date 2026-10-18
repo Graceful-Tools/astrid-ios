@@ -85,7 +85,7 @@ xcodebuild -create-xcframework \
 if [ -n "$LOCAL_CORE" ]; then
   STAMP="$(git -C "$LOCAL_CORE" rev-parse HEAD)+local"
 else
-  STAMP="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)" \}/\1/p' "$CORE_DIR/Cargo.toml")"
+  STAMP="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$CORE_DIR/Cargo.toml")"
 fi
 echo "$STAMP" > "$PACKAGE_DIR/AstridCoreFFI.xcframework/astrid-core-revision"
 
