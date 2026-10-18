@@ -470,7 +470,6 @@ struct TaskDetailViewNew: View {
                     }
                 }
                 TaskDetailRelatedTasksRows(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON, OCCURRENCES
-                TaskDetailProjectFieldsRows(task: task, isReadOnly: isReadOnly) // 7c. GITHUB PROJECT FIELDS (AITD-491)
 
                 Divider()
                     .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
