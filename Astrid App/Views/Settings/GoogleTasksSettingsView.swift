@@ -131,7 +131,7 @@ struct GoogleTasksSettingsView: View {
                     Picker(NSLocalizedString("sync.list", comment: "List"), selection: $selectedListId) {
                         Text(NSLocalizedString("sync.choose_list", comment: "Choose a list")).tag(String?.none)
                         Text(NSLocalizedString("sync.new_list", comment: "New List")).tag(String?.some(Self.newAstridListSelection))
-                        ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.listType != "status" }) { list in
+                        ForEach(listService.lists.filter { !($0.isVirtual ?? false) && $0.isDomainList }) { list in
                             Text(list.name).tag(String?.some(list.id))
                         }
                     }

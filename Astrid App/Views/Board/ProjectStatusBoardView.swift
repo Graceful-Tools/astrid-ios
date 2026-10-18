@@ -94,7 +94,7 @@ struct ProjectStatusBoardView: View {
     /// Returns nil for projects with no regular list attached yet (very
     /// rare — should only happen for an unfinished migration).
     private var projectDomainList: TaskList? {
-        listService.lists.first { $0.projectId == projectId && $0.listType != "status" }
+        listService.lists.first { $0.projectId == projectId && $0.isDomainList }
     }
 
     /// A column's cards: the core's ids, drawn from the service's own tasks. Subtasks are not

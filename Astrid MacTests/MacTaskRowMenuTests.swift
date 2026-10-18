@@ -69,6 +69,15 @@ final class MacTaskRowMenuTests: XCTestCase {
         XCTAssertEqual(targets.map(\.id), ["a", "c"])
     }
 
+    /// AITD-506: a GitHub sprint, milestone or label is a tag, never somewhere to move a task.
+    func testAITD506MoveTargetsNeverOfferATag() {
+        var sprint = list("s4", "Sprint 4"); sprint.listType = "iteration"
+        var milestone = list("v1", "v1.0"); milestone.listType = "milestone"
+        let lists = [list("a", "Work"), sprint, milestone, list("b", "Home")]
+        XCTAssertEqual(MacTaskRowMenu.moveTargets(lists: lists, currentListId: nil).map(\.id), ["a", "b"])
+        XCTAssertEqual(MacTaskRowMenu.moveTargets(lists: lists, currentListId: "b").map(\.id), ["a"])
+    }
+
     /// With no list in context (a saved/virtual selection) every list is a valid destination.
     func testMoveTargetsKeepEveryListWhenThereIsNoCurrentList() {
         let lists = [list("a", "Work"), list("b", "Home")]

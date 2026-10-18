@@ -506,8 +506,24 @@ extension TaskList {
     /// which are never rendered as ordinary lists in sidebars/pickers.
     var isStatusList: Bool { listType == "status" }
 
+    /// A tag rather than a place: a label, a GitHub milestone or a GitHub project iteration
+    /// (web `isTagList` in `lib/list-flavors.ts`, astrid-core `TaskList::is_tag_list`; AITD-506).
+    /// Drawn as a chip on the task, never as a sidebar list.
+    var isTagList: Bool { ["label", "milestone", "iteration"].contains(listType ?? "") }
+
     /// True for list-shaped destinations users can navigate/file tasks into.
-    var isDomainList: Bool { !isStatusList }
+    var isDomainList: Bool { !isStatusList && !isTagList }
+
+    /// The glyph a tag's chip draws, nil for a list: an iteration a date range (web's lucide
+    /// `CalendarRange`), a milestone a flag, a label a tag (AITD-506).
+    var tagSymbolName: String? {
+        switch listType {
+        case "iteration": return "calendar"
+        case "milestone": return "flag"
+        case "label": return "tag"
+        default: return nil
+        }
+    }
 
     /// User's role on this list, or nil with no access — astrid-core's answer, web's
     /// `getUserRoleInList` (see `ListPermissions`).

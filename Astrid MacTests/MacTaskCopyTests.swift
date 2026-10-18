@@ -14,6 +14,14 @@ final class MacTaskCopyTests: XCTestCase {
         XCTAssertEqual(targets.first?.label, "My Tasks only")
     }
 
+    /// AITD-506: a GitHub sprint, milestone or label is a tag, never a copy destination.
+    func testAITD506CopyTargetsNeverOfferATag() {
+        var sprint = TaskList(id: "s4", name: "Sprint 4"); sprint.listType = "iteration"
+        var label = TaskList(id: "bug", name: "Bug"); label.listType = "label"
+        let targets = MacTaskCopy.targets(lists: [TaskList(id: "a", name: "Work"), sprint, label])
+        XCTAssertEqual(targets.map(\.listId), [nil, "a"])
+    }
+
     func testTargetIdentityStable() {
         // My Tasks target has a stable id even with a nil listId (for ForEach).
         XCTAssertEqual(MacCopyTarget(listId: nil, label: "My Tasks only").id, "__mytasks__")

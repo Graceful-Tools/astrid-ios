@@ -101,4 +101,35 @@ final class TaskListChipsTests: XCTestCase {
         let result = chipListsForTaskRow([ios], hiddenListIds: ["nonexistent"])
         XCTAssertEqual(result.map { $0.id }, ["ios"])
     }
+
+    // MARK: - AITD-506: GitHub tags (label, milestone, iteration)
+
+    /// AITD-506: a GitHub iteration (a sprint), milestone or label is a tag — kept as a chip on
+    /// the row, drawn with its own glyph, and never a list in the sidebar.
+    func test_aitd506_tagFlavorsAreChipsNotDomainLists() {
+        let ios = makeList(id: "ios", name: "iOS To-do", listType: "regular")
+        let sprint = makeList(id: "s4", name: "Sprint 4", listType: "iteration")
+        let milestone = makeList(id: "v1", name: "v1.0", listType: "milestone")
+        let label = makeList(id: "bug", name: "Bug", listType: "label")
+
+        XCTAssertEqual(chipListsForTaskRow([ios, sprint, milestone, label]).map(\.id),
+                       ["ios", "s4", "v1", "bug"])
+        for tag in [sprint, milestone, label] {
+            XCTAssertTrue(tag.isTagList, "\(tag.listType ?? "") is a tag")
+            XCTAssertFalse(tag.isDomainList, "\(tag.listType ?? "") is not a sidebar list")
+        }
+        XCTAssertFalse(ios.isTagList)
+        XCTAssertTrue(ios.isDomainList)
+        XCTAssertFalse(makeList(id: "ready", name: "Ready", listType: "status").isTagList)
+    }
+
+    /// AITD-506: an iteration's chip draws a date range, as web's lucide `CalendarRange`; a list's
+    /// chip keeps its own icon.
+    func test_aitd506_tagChipGlyphs() {
+        XCTAssertEqual(makeList(id: "s4", name: "Sprint 4", listType: "iteration").tagSymbolName, "calendar")
+        XCTAssertEqual(makeList(id: "v1", name: "v1.0", listType: "milestone").tagSymbolName, "flag")
+        XCTAssertEqual(makeList(id: "bug", name: "Bug", listType: "label").tagSymbolName, "tag")
+        XCTAssertNil(makeList(id: "ios", name: "iOS To-do", listType: "regular").tagSymbolName)
+        XCTAssertNil(makeList(id: "inbox", name: "Inbox").tagSymbolName)
+    }
 }
