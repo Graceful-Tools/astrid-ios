@@ -174,10 +174,11 @@ struct CopyTaskView: View {
                         // "My Tasks (only)" option (no specific list)
                         Text(NSLocalizedString("lists.my_tasks_only", comment: "")).tag("" as String?)
 
-                        // Filter out virtual lists (Saved Filters)
+                        // Filter out virtual lists (Saved Filters) and tags — a label,
+                        // milestone or sprint is a chip, not a place (AITD-506).
                         // Note: Use simple color dot instead of ListImageView because
                         // SwiftUI Pickers don't handle async images properly
-                        ForEach(listService.lists.filter { $0.isVirtual != true }) { list in
+                        ForEach(listService.lists.filter { $0.isVirtual != true && !$0.isTagList }) { list in
                             HStack {
                                 Circle()
                                     .fill(Color(hex: list.displayColor) ?? Theme.accent)

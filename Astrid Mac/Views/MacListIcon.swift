@@ -16,7 +16,12 @@ struct MacListIcon: View {
         Color.clear
             .frame(width: size, height: size)
             .overlay {
-                if !listImages.showListImages {
+                // A tag (label, milestone, sprint) draws its glyph, as on iOS (AITD-506).
+                if let tagSymbol = list.tagSymbolName {
+                    Image(systemName: tagSymbol)
+                        .font(.system(size: size * 0.85))
+                        .foregroundStyle(Color(hex: list.displayColor) ?? Theme.accent)
+                } else if !listImages.showListImages {
                     ListColorGlyph(list: list, size: size)
                 } else if let url = ListImageHelper.getFullImageUrl(list: list) {
                     // This used to carry an `.id(url)`, because CachedAsyncImage captured its URL

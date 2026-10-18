@@ -11,10 +11,11 @@ struct MacCopyTarget: Equatable, Identifiable {
 }
 
 enum MacTaskCopy {
-    /// Copy destinations: "My Tasks only" first, then every real (non-virtual) list.
+    /// Copy destinations: "My Tasks only" first, then every real (non-virtual) list — never a tag
+    /// (label, milestone, sprint), which is a chip rather than a place (AITD-506).
     static func targets(lists: [TaskList]) -> [MacCopyTarget] {
         [MacCopyTarget(listId: nil, label: NSLocalizedString("mac.my_tasks_only", comment: ""))]
-            + lists.filter { $0.isVirtual != true }.map { MacCopyTarget(listId: $0.id, label: $0.name) }
+            + lists.filter { $0.isVirtual != true && !$0.isTagList }.map { MacCopyTarget(listId: $0.id, label: $0.name) }
     }
 }
 #endif

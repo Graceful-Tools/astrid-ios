@@ -87,10 +87,10 @@ enum MacTaskRowMenu {
     /// Destinations for "Move to list" — every list except the one the task is already in, since
     /// moving a task to where it already is is a write that changes nothing.
     ///
-    /// A virtual/saved selection owns no list, so `nil` leaves every list a valid destination.
+    /// A virtual/saved selection owns no list, so `nil` leaves every list a valid destination. A
+    /// tag (label, milestone, sprint) is never one — it is a chip, not a place (AITD-506).
     static func moveTargets(lists: [TaskList], currentListId: String?) -> [TaskList] {
-        guard let currentListId else { return lists }
-        return lists.filter { $0.id != currentListId }
+        lists.filter { !$0.isTagList && $0.id != currentListId }
     }
 }
 

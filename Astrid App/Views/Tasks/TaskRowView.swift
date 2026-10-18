@@ -214,8 +214,13 @@ struct TaskRowView: View {
                             HStack(spacing: 4) {
                                 ForEach(chipLists.prefix(2)) { list in
                                     HStack(spacing: 4) {
-                                        // Icon based on list privacy
-                                        if list.privacy == .PUBLIC {
+                                        // A tag (label, milestone, sprint) draws its own glyph
+                                        // (AITD-506); a list's icon follows its privacy.
+                                        if let tagSymbol = list.tagSymbolName {
+                                            Image(systemName: tagSymbol)
+                                                .font(.system(size: 12))
+                                                .foregroundColor(Color(hex: list.displayColor) ?? Theme.accent)
+                                        } else if list.privacy == .PUBLIC {
                                             Image(systemName: "globe")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(.green)
