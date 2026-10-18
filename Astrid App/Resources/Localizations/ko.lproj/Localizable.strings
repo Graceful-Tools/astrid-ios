@@ -1491,6 +1491,13 @@
 "tasks.waitingOn.addError" = "해당 작업을 대기 대상으로 추가하지 못했습니다";
 "tasks.waitingOn.noResults" = "일치하는 작업이 없습니다";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "없음";
+"tasks.projectFields.empty" = "설정되지 않음";
+"tasks.projectFields.errorAuthRequired" = "이 필드를 변경하려면 GitHub 계정을 연결하세요.";
+"tasks.projectFields.errorSsoRequired" = "조직에서 이 프로젝트에 싱글 사인온을 요구합니다. GitHub에 로그인한 후 다시 시도하세요.";
+"tasks.projectFields.errorSaveFailed" = "변경 사항을 GitHub에 저장하지 못했습니다. 다시 시도하세요.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "반복";
 "tasks.occurrences.previous" = "이전";

@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "そのタスクを待機対象にできませんでした";
 "tasks.waitingOn.noResults" = "一致するタスクがありません";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "なし";
+"tasks.projectFields.empty" = "未設定";
+"tasks.projectFields.errorAuthRequired" = "このフィールドを変更するには GitHub アカウントを接続してください。";
+"tasks.projectFields.errorSsoRequired" = "このプロジェクトでは組織がシングルサインオンを必須にしています。GitHub にサインインしてからもう一度お試しください。";
+"tasks.projectFields.errorSaveFailed" = "変更を GitHub に保存できませんでした。もう一度お試しください。";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "繰り返し";
 "tasks.occurrences.previous" = "前回";

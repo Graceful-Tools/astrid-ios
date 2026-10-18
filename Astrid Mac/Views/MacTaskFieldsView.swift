@@ -71,6 +71,8 @@ struct MacTaskFieldsView: View {
                     id: \.offset) { _, row in
                 fieldRow(row)
             }
+            // A GitHub board's project fields, one row each; none off a board (AITD-491).
+            MacTaskProjectFieldsRows(task: task)
         }
         .macTextSelection()
         .task(id: task.id) { await load() }

@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "Не удалось добавить ожидание этой задачи";
 "tasks.waitingOn.noResults" = "Подходящих задач нет";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "Нет";
+"tasks.projectFields.empty" = "Не задано";
+"tasks.projectFields.errorAuthRequired" = "Подключите аккаунт GitHub, чтобы изменить это поле.";
+"tasks.projectFields.errorSsoRequired" = "Ваша организация требует единый вход для этого проекта. Войдите в GitHub и повторите попытку.";
+"tasks.projectFields.errorSaveFailed" = "Не удалось сохранить изменение в GitHub. Повторите попытку.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Повторения";
 "tasks.occurrences.previous" = "Предыдущее";

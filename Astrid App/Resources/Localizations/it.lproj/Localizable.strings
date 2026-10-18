@@ -1489,6 +1489,13 @@
 "tasks.waitingOn.addError" = "Impossibile attendere quell'attività";
 "tasks.waitingOn.noResults" = "Nessuna attività corrispondente";
 
+/* GitHub project fields in task details (AITD-491; web tasks.projectFields) */
+"tasks.projectFields.clear" = "Nessuno";
+"tasks.projectFields.empty" = "Non impostato";
+"tasks.projectFields.errorAuthRequired" = "Collega il tuo account GitHub per modificare questo campo.";
+"tasks.projectFields.errorSsoRequired" = "La tua organizzazione richiede il single sign-on per questo progetto. Accedi a GitHub e riprova.";
+"tasks.projectFields.errorSaveFailed" = "Non è stato possibile salvare la modifica su GitHub. Riprova.";
+
 /* Previous / next occurrence on a spawning board (AITD-491; web AWTD-1219) */
 "tasks.occurrences.label" = "Ricorrenze";
 "tasks.occurrences.previous" = "Precedente";

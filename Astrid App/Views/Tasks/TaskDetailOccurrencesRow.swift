@@ -7,7 +7,7 @@
 import SwiftUI
 
 /// The rows that link a task to other tasks, in order: "Waiting on" (AITD-429), then its
-/// occurrences. One name for the detail view to place, so a new relation is added here rather
+/// occurrences, then — on a GitHub board — its project fields. One name for the detail view to place, so a new relation is added here rather
 /// than to the largest file in the repo (`SourceFileSizeGuardTests`).
 struct TaskDetailRelatedTasksRows: View {
     let task: Task
@@ -16,6 +16,7 @@ struct TaskDetailRelatedTasksRows: View {
     var body: some View {
         TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly)
         TaskDetailOccurrencesRow(task: task)
+        TaskDetailProjectFieldsRows(task: task, isReadOnly: isReadOnly) // a GitHub board's fields (AITD-491)
     }
 }
 
