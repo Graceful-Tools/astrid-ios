@@ -54,6 +54,7 @@ struct AstridMacApp: App {
                     // Capture `openWindow` while a window exists — at reopen time there is no
                     // view left to read it from, which is exactly the bug (task 39470057).
                     .onAppear { MacReopen.captureOpenWindow(openWindow) }
+                    .macIconOnlyToolbar()           // no Icon and Text menu (AITD-510)
             }
         }
         .commands { AstridCommands() }              // full menu bar (M1)
@@ -78,7 +79,7 @@ struct AstridMacApp: App {
 
         // Tear-off: open a single task in its own window (v1.1).
         WindowGroup(id: "task", for: String.self) { $taskId in
-            if !underTest { MacTaskWindowView(taskId: taskId).macTextScaleRoot() }
+            if !underTest { MacTaskWindowView(taskId: taskId).macTextScaleRoot().macIconOnlyToolbar() }
         }
     }
 

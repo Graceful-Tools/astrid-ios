@@ -18,7 +18,7 @@ final class MacUndoButtonTests: XCTestCase {
     func testTheToolbarDeliberatelyCarriesUndo_AITD374() {
         XCTAssertTrue(MacListChrome.toolbarOffersUndo)
         // Unchanged: this is an exception for a WINDOW control, not the row controls coming back.
-        XCTAssertFalse(MacListChrome.toolbarOffersSortOrFilter)
+        XCTAssertFalse(MacListChrome.toolbarOffersFilter)
         XCTAssertFalse(MacListChrome.toolbarOffersNewTask)
     }
 
