@@ -68,8 +68,14 @@ struct InlineDatePicker: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("datePicker.trigger")
             .sheet(isPresented: $showingPicker) {
                 NavigationStack {
+                    // Scrolls, like the Time and Repeat sheets. The quick picks plus a whole
+                    // calendar are taller than an iPad form sheet, and a bare VStack clipped the
+                    // overflow at BOTH ends — so "No due date", the first row, sat above the
+                    // sheet's top where nothing could reach it (AITD-511).
+                    ScrollView {
                     VStack(spacing: PickerRowMetrics.sectionSpacing) {
                         // Quick date options
                         VStack(spacing: PickerRowMetrics.rowSpacing) {
@@ -204,10 +210,11 @@ struct InlineDatePicker: View {
                             .datePickerStyle(.graphical)
                             .padding(.horizontal, Theme.spacing8)
                         }
-
-                        Spacer()
                     }
-                    .padding(.top, Theme.spacing16)
+                    .padding(.vertical, Theme.spacing16)
+                    // A ScrollView hands its content the IDEAL width; the rows have to fill (42013da7).
+                    .frame(maxWidth: .infinity)
+                    }
                     .navigationTitle(label)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -219,6 +226,7 @@ struct InlineDatePicker: View {
                         }
                     }
                 }
+                .presentationDetents([.large])
             }
         }
         // Asked as the trigger appears, so the picks are there the moment the sheet opens.

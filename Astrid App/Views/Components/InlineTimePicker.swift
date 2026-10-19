@@ -216,6 +216,7 @@ struct InlineTimePicker: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("timePicker.trigger")
     }
 
     private func setQuickTime(hour: Int) {
