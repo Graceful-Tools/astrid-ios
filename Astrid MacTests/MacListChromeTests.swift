@@ -99,6 +99,18 @@ final class MacListChromeTests: XCTestCase {
                        "AITD-509: with only sort to show, there is no strip — sort is in the toolbar")
     }
 
+    /// The toolbar shows sort exactly where the old strip did: no sheet sorts, and there are rows.
+    func testTheToolbarShowsSortOnlyWhereNoSheetSortsAITD509() {
+        XCTAssertTrue(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
+                                                     isMyTasks: false, isListMode: true))
+        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: true,
+                                                      isMyTasks: false, isListMode: true))
+        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
+                                                      isMyTasks: true, isListMode: true))
+        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
+                                                      isMyTasks: false, isListMode: false))
+    }
+
     /// The strip still draws for the controls that stayed in it.
     func testTheStripStillDrawsForFilterAndListSettingsAITD509() {
         XCTAssertTrue(MacListChrome.showsStrip(showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))

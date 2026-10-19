@@ -79,6 +79,15 @@ enum MacListChrome {
     /// the tasks to hold one icon. Jon: "it shouldn't, add it to the top menu".
     static let toolbarOffersSort = true
 
+    /// The toolbar's sort menu: wherever a sheet does not already sort — a list's or My Tasks'
+    /// (AITD-305, AITD-467) — and there are rows to sort.
+    static func toolbarShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
+                                 isListMode: Bool) -> Bool {
+        toolbarOffersSort && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+            filterSheetOffersSort: sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
+                                                   isListMode: isListMode))
+    }
+
     /// Whether the strip above the rows is drawn. Sort is not in it (AITD-509), so a selection
     /// whose only control is sort gets no strip at all.
     static func showsStrip(showsFilter: Bool, showsMyTasksFilter: Bool, showsListMenu: Bool) -> Bool {
