@@ -641,30 +641,36 @@ struct MacRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Sort and filter, above the rows they act on (9998d83a). They used to be
+    /// Where a filter button shows — a list's or My Tasks' — its sheet already sorts, so a
+    /// standalone sort menu would be the same setting twice (AITD-305, AITD-467). Where it does
+    /// show, it is a window-toolbar item rather than a row of its own (AITD-509).
+    private var showsSortMenu: Bool {
+        let isList = contentMode == .list
+        return MacListChrome.showsSort(hasSelection: selectedListId != nil, isListMode: isList,
+            filterSheetOffersSort: MacListChrome.sheetOffersSort(
+                isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId, isListMode: isList))
+    }
+
+    /// Filter and list settings, above the rows they act on (9998d83a). They used to be
     /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
     /// 3-column mode they right-aligned above the CHAT column and read as its controls.
     @ViewBuilder
     private var listChrome: some View {
         let isList = contentMode == .list
         let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil, isListMode: isList)
-        // Where a filter button shows — a list's or My Tasks' — its sheet already sorts, so a
-        // standalone sort menu would be the same setting twice (AITD-305, AITD-467).
-        let showsSort = MacListChrome.showsSort(hasSelection: selectedListId != nil, isListMode: isList,
-            filterSheetOffersSort: MacListChrome.sheetOffersSort(
-                isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId, isListMode: isList))
+        // My Tasks is virtual, so it has no TaskList to edit — but it does have saved, synced
+        // filters, and until now nothing on Mac could reach them (ebdf94a1).
+        let showsMyTasksFilter = selectedListId == Self.myTasksId && isList
         // A board suppressed this strip entirely, which took list settings with it — the sidebar
         // right-click was the only way in, and that row is not what you are looking at while
         // working the columns (AITD-373).
         let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil, isListMode: isList)
-        if showsSort || showsFilter || showsListMenu {
+        if MacListChrome.showsStrip(showsFilter: showsFilter, showsMyTasksFilter: showsMyTasksFilter,
+                                    showsListMenu: showsListMenu) {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                if showsSort { sortMenu.fixedSize() }
                 if showsFilter, let list = currentRealList { filterButton(list) }
-                // My Tasks is virtual, so it has no TaskList to edit — but it does have saved,
-                // synced filters, and until now nothing on Mac could reach them (ebdf94a1).
-                if selectedListId == Self.myTasksId, isList { myTasksFilterButton }
+                if showsMyTasksFilter { myTasksFilterButton }
                 if showsListMenu, let list = currentRealList {
                     MacListSettingsButton(list: list, userId: auth.userId,
                                           actions: listMenuActions(list))
@@ -1293,10 +1299,15 @@ struct MacRootView: View {
                 if MacListChrome.toolbarOffersUndo {
                     ToolbarItem(placement: .primaryAction) { MacUndoToolbarButton() }
                 }
-                // Sort, filter and the task "+" are NOT toolbar items (9998d83a, 10d2cd34): the
+                // Sort, where a sheet does not already offer it — here rather than in a strip
+                // of its own above the rows, which it was always alone in (AITD-509).
+                if MacListChrome.toolbarOffersSort && showsSortMenu {
+                    ToolbarItem(placement: .primaryAction) { sortMenu }
+                }
+                // Filter and the task "+" are NOT toolbar items (9998d83a, 10d2cd34): the
                 // window toolbar's trailing edge is the chat column in 3-column mode, so they
-                // looked like the message list's controls. Sort/filter moved to `listChrome`
-                // above the rows; adding lives on the quick-add bar's ⊕ and ⌘N.
+                // looked like the message list's controls. Filter lives in `listChrome` above
+                // the rows; adding lives on the quick-add bar's ⊕ and ⌘N.
                 if selectedTaskIds.count > 1 && contentMode == .list {
                     ToolbarItem(placement: .primaryAction) {
                         Button { completeSelected() } label: {

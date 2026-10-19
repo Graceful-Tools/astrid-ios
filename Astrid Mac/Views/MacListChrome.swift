@@ -7,7 +7,8 @@
 //  which is above the chat column. Sort and filter act on the rows, so they read as belonging to
 //  the message list, and the toolbar's "+" looked like an add button for chat.
 //
-//  Sort and filter now live in a strip at the top of the list column. The "+" is gone entirely:
+//  Filter now lives in a strip at the top of the list column. Sort, where it shows at all, went
+//  back to the toolbar (AITD-509): it was always alone in that strip, a row for one icon. The "+" is gone entirely:
 //  the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is bound in AstridCommands, so
 //  the toolbar copy was a third way to do the same thing — in the wrong place.
 
@@ -69,9 +70,20 @@ enum MacListChrome {
         isRealList && !isListMode
     }
 
-    /// Pinned so the controls cannot drift back into the window toolbar, where the trailing edge
-    /// is the chat column rather than the list.
-    static let toolbarOffersSortOrFilter = false
+    /// Filter is pinned out of the window toolbar, where the trailing edge is the chat column
+    /// rather than the list.
+    static let toolbarOffersFilter = false
+
+    /// Sort IS a window-toolbar item (AITD-509). Since AITD-305/467 the standalone menu shows only
+    /// where no sheet sorts, so wherever it showed it was alone in the strip — a whole row above
+    /// the tasks to hold one icon. Jon: "it shouldn't, add it to the top menu".
+    static let toolbarOffersSort = true
+
+    /// Whether the strip above the rows is drawn. Sort is not in it (AITD-509), so a selection
+    /// whose only control is sort gets no strip at all.
+    static func showsStrip(showsFilter: Bool, showsMyTasksFilter: Bool, showsListMenu: Bool) -> Bool {
+        showsFilter || showsMyTasksFilter || showsListMenu
+    }
 
     /// Undo DOES belong in the window toolbar (AITD-374), and this constant is here beside the
     /// two below so the exception is recorded rather than looking like the row controls creeping

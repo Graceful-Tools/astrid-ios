@@ -79,10 +79,31 @@ final class MacListChromeTests: XCTestCase {
         XCTAssertFalse(MacListChrome.showsFilter(isRealList: true, isListMode: false))
     }
 
-    /// The point of the task: these controls must NOT be window-toolbar items, because the window
-    /// toolbar's trailing edge is the chat column.
-    func testTheseControlsAreNotWindowToolbarItems() {
-        XCTAssertFalse(MacListChrome.toolbarOffersSortOrFilter)
+    /// Filter stays out of the window toolbar: it opens the list's sheet, which belongs to the rows.
+    func testFilterIsNotAWindowToolbarItem() {
+        XCTAssertFalse(MacListChrome.toolbarOffersFilter)
+    }
+
+    // MARK: sort does not open a row of its own (AITD-509)
+
+    /// AITD-509: "sort icon creates an extra row [in] lists. it shouldn't — add it to the top menu
+    /// on mac app."
+    ///
+    /// Since AITD-305/467 the standalone sort menu only shows where no sheet sorts — so wherever it
+    /// showed, it was the ONLY thing in the strip, and the strip existed just to hold one icon.
+    /// It goes to the window toolbar instead, and the strip is drawn only for what is left.
+    func testSortLivesInTheWindowToolbarNotTheStripAITD509() {
+        XCTAssertTrue(MacListChrome.toolbarOffersSort)
+        XCTAssertFalse(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: false,
+                                                showsListMenu: false),
+                       "AITD-509: with only sort to show, there is no strip — sort is in the toolbar")
+    }
+
+    /// The strip still draws for the controls that stayed in it.
+    func testTheStripStillDrawsForFilterAndListSettingsAITD509() {
+        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))
+        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: true, showsListMenu: false))
+        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: false, showsListMenu: true))
     }
 
     // MARK: the extra + (10d2cd34)
