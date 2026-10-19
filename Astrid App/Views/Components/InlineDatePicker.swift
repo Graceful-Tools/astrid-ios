@@ -68,6 +68,7 @@ struct InlineDatePicker: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("datePicker.trigger")
             .sheet(isPresented: $showingPicker) {
                 NavigationStack {
                     VStack(spacing: PickerRowMetrics.sectionSpacing) {

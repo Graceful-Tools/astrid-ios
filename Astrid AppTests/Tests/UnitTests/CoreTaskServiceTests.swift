@@ -73,4 +73,21 @@ final class CoreTaskServiceTests: XCTestCase {
 
         XCTAssertEqual(sources, [nil, "google", nil, nil])
     }
+
+    /// "No due date" in the task detail clears the date the way `saveDueDate` sends it — the
+    /// `Date.distantPast` pair plus `repeating: "never"` — and the row comes back with none
+    /// (AITD-511).
+    func testNoDueDateClearsTheDate_AITD511() async throws {
+        let service = TaskService.shared
+        let made = try await service.createTask(
+            listIds: [], title: "Undate me \(UUID().uuidString)", whenDate: Date())
+        XCTAssertNotNil(service.tasksById[made.id]?.dueDateTime)
+
+        let cleared = try await service.updateTask(
+            taskId: made.id, when: Date.distantPast, whenTime: Date.distantPast,
+            repeating: "never", repeatingData: nil, task: service.tasksById[made.id])
+
+        XCTAssertNil(cleared.dueDateTime)
+        XCTAssertNil(service.tasksById[made.id]?.dueDateTime, "the row the list draws has no date")
+    }
 }

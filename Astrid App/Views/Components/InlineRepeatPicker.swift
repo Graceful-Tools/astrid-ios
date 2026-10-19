@@ -255,6 +255,7 @@ struct InlineRepeatPicker: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("repeatPicker.trigger")
     }
 
     // MARK: - Helper Functions
