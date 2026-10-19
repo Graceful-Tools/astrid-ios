@@ -51,6 +51,52 @@ final class TaskDueDateClearUITests: XCTestCase {
         try clearAndExpectNoDueDate(chip)
     }
 
+    /// On iPad the date sheet is a fixed-height form sheet, and its content — the quick picks
+    /// plus the whole calendar — is taller than it. The sheet clipped the overflow at both ends,
+    /// so "No due date", the FIRST row, sat above the sheet's top edge where nothing could tap it
+    /// (AITD-511, Jon's iPad screenshot). On iPhone the sheet is tall enough, so this one only
+    /// means anything on iPad, in landscape where the sheet is shortest.
+    @MainActor
+    func testNoDueDateCanBeTappedOnIPad_AITD511() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("the clipped sheet is an iPad layout")
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        app.launch()
+        try UITestLaunch.skipUnlessSignedIn(app)
+        // A fixture row rather than a quick-added task: the iPad layout only has to open one.
+        guard let row = UITestLaunch.waitForFirstVisibleRow(app) else {
+            throw XCTSkip("No tasks on screen")
+        }
+        UITestLaunch.tapCenter(row)
+        XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should open")
+        let chip = app.buttons[Self.trigger]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "the date chip should be on the When row")
+        chip.tap()
+        let today = app.buttons[Self.today].firstMatch
+        XCTAssertTrue(today.waitForExistence(timeout: 5), "the date sheet should offer Today")
+        today.tap()
+        XCTAssertTrue(waitForChip(chip, notLabelled: Self.noDueDate),
+                      "after Today the chip should show a date, got \(chip.label)")
+        chip.tap()
+        let none = app.buttons[Self.noDueDate].firstMatch
+        XCTAssertTrue(none.waitForExistence(timeout: 5), "the date sheet should offer No due date")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.lifetime = .keepAlways
+        add(shot)
+        // Not `isHittable`: SwiftUI hit-tests the clipped row where it would have been drawn, so
+        // XCUITest called it hittable — and tapped it — while the screen showed nothing there.
+        // What a person can reach is a row below the sheet's own bar.
+        let close = app.navigationBars.buttons[Self.close].firstMatch
+        XCTAssertTrue(close.waitForExistence(timeout: 5), "the date sheet should have its Close")
+        XCTAssertGreaterThanOrEqual(none.frame.minY, close.frame.maxY,
+                                    "No due date must be drawn inside the sheet, not clipped above it")
+        none.tap()
+        Thread.sleep(forTimeInterval: 2)
+        XCTAssertTrue(chip.label.contains(Self.noDueDate),
+                      "after No due date the chip must say so, got \(chip.label)")
+    }
+
     /// A new task, opened, with Today picked — the chip it returns is the date trigger.
     @MainActor
     private func openNewTaskWithToday() throws -> XCUIElement {
@@ -62,7 +108,9 @@ final class TaskDueDateClearUITests: XCTestCase {
             throw XCTSkip("Quick add not available")
         }
         field.typeText(title)
-        app.keyboards.buttons["Return"].tap()
+        // iPad's keyboard names the key "return", and with a hardware keyboard there is none.
+        let returnKey = app.keyboards.buttons["Return"]
+        if returnKey.exists { returnKey.tap() } else { field.typeText("\n") }
 
         let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the new task should appear")
@@ -129,4 +177,5 @@ final class TaskDueDateClearUITests: XCTestCase {
     static let morning = "Morning"
     static let daily = "Daily"
     static let back = "taskDetail.back"
+    static let close = "Close"
 }
