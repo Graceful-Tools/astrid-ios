@@ -31,6 +31,18 @@ final class BrandVariantTests: XCTestCase {
         key.hasPrefix("NS") && key.hasSuffix("UsageDescription")
     }
 
+    /// A Services entry as the variant carries it (AITD-513): menu title and port renamed,
+    /// the NSMessage selector left alone.
+    private func renamedService(_ service: [String: Any], to name: String) -> [String: Any] {
+        var service = service
+        if var item = service["NSMenuItem"] as? [String: String] {
+            item = item.mapValues { $0.replacingOccurrences(of: "Astrid", with: name) }
+            service["NSMenuItem"] = item
+        }
+        if service["NSPortName"] as? String == "Astrid" { service["NSPortName"] = name }
+        return service
+    }
+
     private var variantBrandName: String {
         get throws { try XCTUnwrap(try plist("Brands/Whitelabel/Info-iOS.plist")["BrandName"] as? String) }
     }
@@ -46,6 +58,11 @@ final class BrandVariantTests: XCTestCase {
             }
             var expected = String(describing: value)
             if isUsageDescription(key) { expected = expected.replacingOccurrences(of: "Astrid", with: name) }
+            if key == "NSServices", let services = value as? [[String: Any]] {
+                XCTAssertEqual(copy as? NSArray, services.map { renamedService($0, to: name) } as NSArray,
+                               "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
+                continue
+            }
             XCTAssertEqual(String(describing: copy), expected,
                            "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
         }
@@ -66,6 +83,38 @@ final class BrandVariantTests: XCTestCase {
         }
         XCTAssertFalse((try plist("Brands/Whitelabel/Info-Share.plist")["CFBundleDisplayName"] as? String ?? "").contains("Astrid"),
                        "the Share extension's name in the share sheet still says Astrid")
+    }
+
+    /// The build settings of the Whitelabel configuration of the target that builds `product`.
+    private func whitelabelSettings(bundleId: String) throws -> String {
+        let project = try RepositoryLocator.source(at: "Astrid App.xcodeproj/project.pbxproj")
+        let blocks = project.components(separatedBy: "isa = XCBuildConfiguration;").dropFirst()
+        let block = try XCTUnwrap(blocks.first {
+            $0.contains("PRODUCT_BUNDLE_IDENTIFIER = \"\(bundleId)\";") && $0.contains("name = Whitelabel;")
+                && $0.contains("SDKROOT = macosx;")
+        }, "no Whitelabel macOS configuration for \(bundleId)")
+        return String(block.prefix { $0 != "}" })
+    }
+
+    /// AITD-513: the Mac variant kept PRODUCT_NAME = Astrid — Astrid.app, "About Astrid",
+    /// "Quit Astrid" — and its Services item said "Add to Astrid".
+    func testTheWhitelabelMacAppIsNamedForTheBrand_AITD513() throws {
+        let name = try variantBrandName
+        let settings = try whitelabelSettings(bundleId: "Graceful-Tools-Inc.Whitelabel")
+        XCTAssertTrue(settings.contains("PRODUCT_NAME = \(name);"), "Whitelabel Mac must build \(name).app")
+        XCTAssertFalse(settings.contains("Astrid "), "a Whitelabel Mac build setting still names Astrid")
+
+        let services = try XCTUnwrap(try plist("Brands/Whitelabel/Info-Mac.plist")["NSServices"] as? [[String: Any]])
+        XCTAssertFalse(services.isEmpty)
+        for service in services {
+            let title = (service["NSMenuItem"] as? [String: String])?["default"] ?? ""
+            XCTAssertEqual(title, "Add to \(name)", "the Services menu still reads \(title)")
+            // AppKit delivers a service to the port named after the app; Astrid's port would
+            // never reach Whitelabel.app.
+            XCTAssertEqual(service["NSPortName"] as? String, name)
+            // The selector is code, not copy — MacServiceProvider.addToAstrid(_:userData:error:).
+            XCTAssertEqual(service["NSMessage"] as? String, "addToAstrid")
+        }
     }
 
     /// Astrid's own prompts are untouched — the rebrand happens only in the variant's copies.
