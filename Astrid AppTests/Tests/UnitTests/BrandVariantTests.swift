@@ -24,17 +24,54 @@ final class BrandVariantTests: XCTestCase {
         return try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any], path)
     }
 
+    /// Permission prompts are copied with Astrid's name swapped for the brand's (AITD-512), so
+    /// they are compared after the same swap: a prompt reworded in Astrid's plist still reads
+    /// as stale here.
+    private func isUsageDescription(_ key: String) -> Bool {
+        key.hasPrefix("NS") && key.hasSuffix("UsageDescription")
+    }
+
+    private var variantBrandName: String {
+        get throws { try XCTUnwrap(try plist("Brands/Whitelabel/Info-iOS.plist")["BrandName"] as? String) }
+    }
+
     private func assertVariant(_ variant: String, matches base: String, file: StaticString = #filePath, line: UInt = #line) throws {
         let astrid = try plist(base)
         let brand = try plist(variant)
+        let name = try variantBrandName
         for (key, value) in astrid where !brandedKeys.contains(key) {
             guard let copy = brand[key] else {
                 XCTFail("\(variant) lacks \(key), which \(base) has — re-run scripts/make-brand-variant.sh", file: file, line: line)
                 continue
             }
-            XCTAssertEqual(String(describing: copy), String(describing: value),
+            var expected = String(describing: value)
+            if isUsageDescription(key) { expected = expected.replacingOccurrences(of: "Astrid", with: name) }
+            XCTAssertEqual(String(describing: copy), expected,
                            "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
         }
+    }
+
+    /// AITD-512: the camera, contacts, photos and reminders prompts are the first thing a
+    /// partner's user reads, and they said "Astrid". Every NS*UsageDescription in a generated
+    /// plist must name the brand instead.
+    func testWhitelabelPermissionPromptsNameTheBrand_AITD512() throws {
+        let name = try variantBrandName
+        for path in ["Brands/Whitelabel/Info-iOS.plist", "Brands/Whitelabel/Info-Mac.plist", "Brands/Whitelabel/Info-Share.plist"] {
+            let variant = try plist(path)
+            for (key, value) in variant where isUsageDescription(key) {
+                let prompt = try XCTUnwrap(value as? String, "\(path) \(key)")
+                XCTAssertFalse(prompt.contains("Astrid"), "\(path) \(key) still names Astrid: \(prompt)")
+                XCTAssertTrue(prompt.contains(name), "\(path) \(key) does not name \(name): \(prompt)")
+            }
+        }
+        XCTAssertFalse((try plist("Brands/Whitelabel/Info-Share.plist")["CFBundleDisplayName"] as? String ?? "").contains("Astrid"),
+                       "the Share extension's name in the share sheet still says Astrid")
+    }
+
+    /// Astrid's own prompts are untouched — the rebrand happens only in the variant's copies.
+    func testAstridsOwnPermissionPromptsStillSayAstrid_AITD512() throws {
+        let camera = try XCTUnwrap(try plist("Info.plist")["NSCameraUsageDescription"] as? String)
+        XCTAssertTrue(camera.hasPrefix("Astrid "))
     }
 
     func testTheWhitelabelPlistsTrackAstrids() throws {

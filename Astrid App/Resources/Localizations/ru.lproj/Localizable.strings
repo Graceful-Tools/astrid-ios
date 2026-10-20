@@ -767,6 +767,8 @@
 /* Notifications */
 "notification.complete_task" = "Завершить задачу";
 "notification.test_reminder" = "📱 Тестовое уведомление";
+/* Title of a local due-soon reminder (AITD-512). */
+"notifications.due_soon_title" = "Скоро срок задачи";
 
 /* Debug Settings */
 "debug.contacts_settings" = "Настройки контактов";
@@ -1358,7 +1360,7 @@
 
 
 /* Update available card (AITD-383). %@ is the new version number. */
-"update.available_title" = "Новый Astrid готов";
+"update.available_title" = "Новый %@ готов";
 "update.available_body" = "Доступна версия %@. Обновление займёт мгновение и принесёт последние исправления.";
 "update.action" = "Обновить";
 "update.later" = "Не сейчас";

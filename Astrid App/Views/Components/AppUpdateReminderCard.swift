@@ -31,7 +31,7 @@ struct AppUpdateReminderCard: View {
                     .font(.system(size: 44))
                     .foregroundColor(Theme.accent)
 
-                Text(NSLocalizedString("update.available_title", comment: ""))
+                Text(String(format: NSLocalizedString("update.available_title", comment: ""), Brand.appName))
                     .font(Theme.Typography.title3())
                     .foregroundColor(Theme.textPrimary)
                     .multilineTextAlignment(.center)

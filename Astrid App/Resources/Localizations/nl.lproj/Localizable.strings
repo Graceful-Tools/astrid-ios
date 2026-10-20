@@ -767,6 +767,8 @@
 /* Notifications */
 "notification.complete_task" = "Taak voltooien";
 "notification.test_reminder" = "📱 Testmelding";
+/* Title of a local due-soon reminder (AITD-512). */
+"notifications.due_soon_title" = "Taak verloopt binnenkort";
 
 /* Debug Settings */
 "debug.contacts_settings" = "Contactinstellingen";
@@ -1358,7 +1360,7 @@
 
 
 /* Update available card (AITD-383). %@ is the new version number. */
-"update.available_title" = "Een nieuwe Astrid staat klaar";
+"update.available_title" = "Een nieuwe %@ staat klaar";
 "update.available_body" = "Versie %@ is beschikbaar. Bijwerken duurt even en bevat de nieuwste verbeteringen.";
 "update.action" = "Bijwerken";
 "update.later" = "Niet nu";

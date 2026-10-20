@@ -72,15 +72,15 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Astrid uses your camera so you can take a photo and attach it to a task or comment.</string>
+	<string>Whitelabel uses your camera so you can take a photo and attach it to a task or comment.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Astrid can suggest collaborators from your contacts when sharing lists. Your contacts are encrypted and never shared with third parties.</string>
+	<string>Whitelabel can suggest collaborators from your contacts when sharing lists. Your contacts are encrypted and never shared with third parties.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Astrid needs access to your photos to attach them to tasks and comments, and to detect which photos are stored on your device so they can be attached while you're offline.</string>
+	<string>Whitelabel needs access to your photos to attach them to tasks and comments, and to detect which photos are stored on your device so they can be attached while you're offline.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<string>Whitelabel can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Astrid can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
+	<string>Whitelabel can sync your tasks with Apple Reminders, allowing you to use Siri to add tasks and view them on Apple Watch.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

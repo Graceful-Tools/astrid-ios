@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Astrid Share</string>
+	<string>Whitelabel Share</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,6 +48,6 @@
 		<string>com.apple.share-services</string>
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Astrid needs access to your photos to create tasks with attachments.</string>
+	<string>Whitelabel needs access to your photos to create tasks with attachments.</string>
 </dict>
 </plist>
