@@ -609,7 +609,7 @@ struct CustomAgentsScreen: View {
                 Section {
                     if !newAgentName.isEmpty {
                         if CustomAgentNaming.isValid(newAgentName) {
-                            Text(String(format: NSLocalizedString("settings.openclaw.agent_name_preview", comment: ""), newAgentName))
+                            Text(Brand.agentAddressPreview(newAgentName))
                                 .font(.system(.body, design: .monospaced))
                                 .foregroundColor(.green)
                         } else if CustomAgentNaming.isReserved(newAgentName) {

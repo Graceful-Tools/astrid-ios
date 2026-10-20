@@ -311,10 +311,10 @@
 /* Settings - Appearance */
 "settings.appearance.theme" = "Theme";
 "settings.appearance.email_to_task" = "Email-to-Task";
-"settings.appearance.email_to_task_footer" = "Create tasks by sending emails to remindme@astrid.cc";
-"settings.appearance.email_to_task_self" = "Self-task: Send TO remindme@astrid.cc";
-"settings.appearance.email_to_task_assigned" = "Assigned task: CC remindme@astrid.cc with one recipient";
-"settings.appearance.email_to_task_group" = "Group task: CC remindme@astrid.cc with multiple recipients";
+"settings.appearance.email_to_task_footer" = "Create tasks by sending emails to %@";
+"settings.appearance.email_to_task_self" = "Self-task: Send TO %@";
+"settings.appearance.email_to_task_assigned" = "Assigned task: CC %@ with one recipient";
+"settings.appearance.email_to_task_group" = "Group task: CC %@ with multiple recipients";
 "settings.appearance.email_to_task_subject" = "Subject becomes task title";
 "settings.appearance.email_to_task_body" = "Body becomes task description";
 
@@ -806,7 +806,7 @@
 "settings.openclaw.agent_name" = "에이전트 이름";
 "settings.openclaw.agent_name_placeholder" = "buddy";
 "settings.openclaw.agent_name_hint" = "에이전트 이름을 선택하세요 (예: buddy, helper, dev-bot)";
-"settings.openclaw.agent_name_preview" = "%@.oc@astrid.cc";
+"settings.openclaw.agent_name_preview" = "%1$@.oc@%2$@";
 "settings.openclaw.agent_name_invalid" = "2-32자의 소문자, 숫자, 점, 하이픈 또는 밑줄을 사용하세요";
 "settings.openclaw.agent_name_reserved" = "이 이름은 예약되어 있습니다";
 "settings.openclaw.create_agent" = "에이전트 생성";

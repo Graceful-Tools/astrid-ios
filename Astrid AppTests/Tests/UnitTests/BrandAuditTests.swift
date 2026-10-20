@@ -174,6 +174,25 @@ final class BrandAuditTests: XCTestCase {
         XCTAssertFalse(instructions.lowercased().contains("you are astrid"))
     }
 
+    /// AITD-516: no shipped translation may carry an Astrid address. Every Brand value
+    /// can be right and a partner still read `remindme@astrid.cc`, because a string that
+    /// bakes the address in never consults Brand. This one does NOT skip on an Astrid
+    /// build: the leak is in the bundled text, which is the same on every build, so the
+    /// default build is where it is cheapest to catch.
+    func testNoLocalizedStringCarriesAnAstridAddress_AITD516() throws {
+        let localizable = Bundle.main.localizations.compactMap {
+            Bundle.main.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: $0)
+        }
+        XCTAssertGreaterThan(localizable.count, 1, "found no Localizable.strings to audit")
+
+        for path in localizable {
+            let table = try XCTUnwrap(NSDictionary(contentsOfFile: path) as? [String: String], path)
+            for (key, value) in table where value.contains("@astrid.cc") {
+                XCTFail("\(path.split(separator: "/").suffix(2).joined(separator: "/")): \(key) hardcodes an Astrid address: \(value)")
+            }
+        }
+    }
+
     // MARK: - What the applied profile configured
 
     /// The value the applied profile wrote into Info.plist for `key`, or nil when the

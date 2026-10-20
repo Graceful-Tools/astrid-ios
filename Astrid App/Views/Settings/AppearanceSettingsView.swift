@@ -85,7 +85,7 @@ struct AppearanceSettingsView: View {
                 .accessibilityIdentifier("settings.showListImages")
             }
 
-            Section(header: Text(NSLocalizedString("settings.appearance.email_to_task", comment: "")), footer: Text(NSLocalizedString("settings.appearance.email_to_task_footer", comment: ""))) {
+            Section(header: Text(NSLocalizedString("settings.appearance.email_to_task", comment: "")), footer: Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_footer"))) {
                 VStack(alignment: .leading, spacing: Theme.spacing12) {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "envelope.fill")
@@ -99,7 +99,7 @@ struct AppearanceSettingsView: View {
                         HStack(alignment: .top, spacing: Theme.spacing8) {
                             Text("•")
                                 .foregroundColor(Theme.accent)
-                            Text(NSLocalizedString("settings.appearance.email_to_task_self", comment: ""))
+                            Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_self"))
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }
@@ -107,7 +107,7 @@ struct AppearanceSettingsView: View {
                         HStack(alignment: .top, spacing: Theme.spacing8) {
                             Text("•")
                                 .foregroundColor(Theme.accent)
-                            Text(NSLocalizedString("settings.appearance.email_to_task_assigned", comment: ""))
+                            Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_assigned"))
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }
@@ -115,7 +115,7 @@ struct AppearanceSettingsView: View {
                         HStack(alignment: .top, spacing: Theme.spacing8) {
                             Text("•")
                                 .foregroundColor(Theme.accent)
-                            Text(NSLocalizedString("settings.appearance.email_to_task_group", comment: ""))
+                            Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_group"))
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                         }

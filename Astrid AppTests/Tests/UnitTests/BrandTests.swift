@@ -82,4 +82,24 @@ final class BrandTests: XCTestCase {
             XCTAssertNotEqual(rendered, key, "\(key) is missing from Localizable.strings")
         }
     }
+
+    // MARK: - Address-bearing copy (AITD-516)
+
+    /// Hosted Astrid must render exactly what it did when the address was baked into
+    /// the string — the address now arrives as an argument from `Brand.inboundTaskEmail`.
+    func testInboundTaskEmailCopyRendersTodaysText_AITD516() {
+        XCTAssertEqual(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_footer"),
+                       "Create tasks by sending emails to remindme@astrid.cc")
+        XCTAssertEqual(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_self"),
+                       "Self-task: Send TO remindme@astrid.cc")
+        XCTAssertEqual(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_assigned"),
+                       "Assigned task: CC remindme@astrid.cc with one recipient")
+        XCTAssertEqual(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_group"),
+                       "Group task: CC remindme@astrid.cc with multiple recipients")
+    }
+
+    /// The agent address preview takes its domain from `Brand.agentEmailDomain`.
+    func testAgentAddressPreviewRendersTodaysText_AITD516() {
+        XCTAssertEqual(Brand.agentAddressPreview("bob"), "bob.oc@astrid.cc")
+    }
 }

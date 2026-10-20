@@ -310,10 +310,10 @@
 /* Settings - Appearance */
 "settings.appearance.theme" = "Tema";
 "settings.appearance.email_to_task" = "Email-a-Compito";
-"settings.appearance.email_to_task_footer" = "Crea compiti inviando email a remindme@astrid.cc";
-"settings.appearance.email_to_task_self" = "Compito personale: Invia A remindme@astrid.cc";
-"settings.appearance.email_to_task_assigned" = "Compito assegnato: CC a remindme@astrid.cc con un destinatario";
-"settings.appearance.email_to_task_group" = "Compito di gruppo: CC a remindme@astrid.cc con più destinatari";
+"settings.appearance.email_to_task_footer" = "Crea compiti inviando email a %@";
+"settings.appearance.email_to_task_self" = "Compito personale: Invia A %@";
+"settings.appearance.email_to_task_assigned" = "Compito assegnato: CC a %@ con un destinatario";
+"settings.appearance.email_to_task_group" = "Compito di gruppo: CC a %@ con più destinatari";
 "settings.appearance.email_to_task_subject" = "L'oggetto diventa il titolo del compito";
 "settings.appearance.email_to_task_body" = "Il corpo diventa la descrizione del compito";
 
@@ -804,7 +804,7 @@
 "settings.openclaw.agent_name" = "Nome dell'Agente";
 "settings.openclaw.agent_name_placeholder" = "buddy";
 "settings.openclaw.agent_name_hint" = "Scegli un nome per il tuo agente (es. buddy, helper, dev-bot)";
-"settings.openclaw.agent_name_preview" = "%@.oc@astrid.cc";
+"settings.openclaw.agent_name_preview" = "%1$@.oc@%2$@";
 "settings.openclaw.agent_name_invalid" = "Usa 2-32 lettere minuscole, numeri, punti, trattini o underscore";
 "settings.openclaw.agent_name_reserved" = "Questo nome è riservato";
 "settings.openclaw.create_agent" = "Crea Agente";

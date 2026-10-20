@@ -311,10 +311,10 @@
 /* Settings - Appearance */
 "settings.appearance.theme" = "テーマ";
 "settings.appearance.email_to_task" = "メールからタスク作成";
-"settings.appearance.email_to_task_footer" = "remindme@astrid.cc にメールを送信してタスクを作成します";
-"settings.appearance.email_to_task_self" = "自分へのタスク: remindme@astrid.cc 宛に送信";
-"settings.appearance.email_to_task_assigned" = "割り当てられたタスク: 1人の受信者と remindme@astrid.cc をCCに含める";
-"settings.appearance.email_to_task_group" = "グループタスク: 複数の受信者と remindme@astrid.cc をCCに含める";
+"settings.appearance.email_to_task_footer" = "%@ にメールを送信してタスクを作成します";
+"settings.appearance.email_to_task_self" = "自分へのタスク: %@ 宛に送信";
+"settings.appearance.email_to_task_assigned" = "割り当てられたタスク: 1人の受信者と %@ をCCに含める";
+"settings.appearance.email_to_task_group" = "グループタスク: 複数の受信者と %@ をCCに含める";
 "settings.appearance.email_to_task_subject" = "件名がタスクのタイトルになります";
 "settings.appearance.email_to_task_body" = "本文がタスクの説明になります";
 
@@ -804,7 +804,7 @@
 "settings.openclaw.agent_name" = "エージェント名";
 "settings.openclaw.agent_name_placeholder" = "buddy";
 "settings.openclaw.agent_name_hint" = "エージェントの名前を選択（例：buddy、helper、dev-bot）";
-"settings.openclaw.agent_name_preview" = "%@.oc@astrid.cc";
+"settings.openclaw.agent_name_preview" = "%1$@.oc@%2$@";
 "settings.openclaw.agent_name_invalid" = "2〜32文字の小文字英数字、ドット、ハイフン、アンダースコアを使用";
 "settings.openclaw.agent_name_reserved" = "この名前は予約済みです";
 "settings.openclaw.create_agent" = "エージェントを作成";
