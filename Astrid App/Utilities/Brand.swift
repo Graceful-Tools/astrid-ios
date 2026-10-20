@@ -196,6 +196,20 @@ enum Brand {
         return String(format: format, arguments: [appName] + arguments)
     }
 
+    /// Copy that tells the user where to email a task, with `Brand.inboundTaskEmail` as
+    /// its one argument. The address used to be written into each translation, so a
+    /// partner build still showed Astrid's (AITD-516).
+    static func inboundTaskEmailCopy(_ key: String) -> String {
+        String(format: NSLocalizedString(key, comment: ""), inboundTaskEmail)
+    }
+
+    /// The address an OpenClaw agent named `name` will get, e.g. `bob.oc@astrid.cc`.
+    /// `settings.openclaw.agent_name_preview` is "%1$@.oc@%2$@" — name, then domain.
+    static func agentAddressPreview(_ name: String) -> String {
+        String(format: NSLocalizedString("settings.openclaw.agent_name_preview", comment: ""),
+               name, agentEmailDomain)
+    }
+
     // MARK: - Private
 
     /// Parse a hex string that `resolveAccentHex` has already validated.

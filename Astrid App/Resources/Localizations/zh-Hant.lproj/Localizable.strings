@@ -311,10 +311,10 @@
 /* Settings - Appearance */
 "settings.appearance.theme" = "主題";
 "settings.appearance.email_to_task" = "郵件轉任務";
-"settings.appearance.email_to_task_footer" = "通過發送郵件到 remindme@astrid.cc 來創建任務";
-"settings.appearance.email_to_task_self" = "個人任務：發送到 remindme@astrid.cc";
-"settings.appearance.email_to_task_assigned" = "指派任務：抄送 remindme@astrid.cc 並包含一名收件人";
-"settings.appearance.email_to_task_group" = "團隊任務：抄送 remindme@astrid.cc 並包含多名收件人";
+"settings.appearance.email_to_task_footer" = "通過發送郵件到 %@ 來創建任務";
+"settings.appearance.email_to_task_self" = "個人任務：發送到 %@";
+"settings.appearance.email_to_task_assigned" = "指派任務：抄送 %@ 並包含一名收件人";
+"settings.appearance.email_to_task_group" = "團隊任務：抄送 %@ 並包含多名收件人";
 "settings.appearance.email_to_task_subject" = "郵件主題將成為任務標題";
 "settings.appearance.email_to_task_body" = "郵件正文將成為任務描述";
 
@@ -806,7 +806,7 @@
 "settings.openclaw.agent_name" = "代理名稱";
 "settings.openclaw.agent_name_placeholder" = "buddy";
 "settings.openclaw.agent_name_hint" = "為代理選擇一個名稱（例如 buddy、helper、dev-bot）";
-"settings.openclaw.agent_name_preview" = "%@.oc@astrid.cc";
+"settings.openclaw.agent_name_preview" = "%1$@.oc@%2$@";
 "settings.openclaw.agent_name_invalid" = "使用 2-32 個小寫字母、數字、點、連字號或底線";
 "settings.openclaw.agent_name_reserved" = "此名稱已被保留";
 "settings.openclaw.create_agent" = "建立代理";
