@@ -11,10 +11,12 @@ struct AstridSpeechBubble: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             // Astrid character (2x size for better visibility in reminders)
-            Image("AstridCharacter")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 160, height: 160)
+            if let character = Brand.characterImage {
+                Image(character)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 160, height: 160)
+            }
 
             // Speech bubble (flexible width)
             ZStack(alignment: .leading) {

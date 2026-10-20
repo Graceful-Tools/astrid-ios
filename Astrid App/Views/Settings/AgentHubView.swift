@@ -260,10 +260,15 @@ struct AgentHubView: View {
     private var assistantModelSection: some View {
         Section {
             NavigationLink(destination: DefaultAgentPickerView()) {
-                Label(
-                    String(format: NSLocalizedString("settings.agents.model.title", comment: ""), Brand.appName),
-                    image: "AstridCharacter"
-                )
+                Label {
+                    Text(String(format: NSLocalizedString("settings.agents.model.title", comment: ""), Brand.appName))
+                } icon: {
+                    if let character = Brand.characterImage {
+                        Image(character)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                }
             }
         } footer: {
             Text(String(format: NSLocalizedString("settings.agents.model.description", comment: ""), Brand.appName))

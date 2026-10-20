@@ -23,9 +23,11 @@ struct MacAuthGateView: View {
         Group {
             if auth.isCheckingAuth {
                 VStack(spacing: 12) {
-                    Image("AstridCharacter").resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: 64, height: 64)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    if let character = Brand.characterImage {
+                        Image(character).resizable().aspectRatio(contentMode: .fit)
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
                     ProgressView().controlSize(.small)
                 }
             } else if auth.isAuthenticated {
@@ -160,9 +162,11 @@ struct MacLoginView: View {
     var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 10) {
-                Image("AstridCharacter").resizable().aspectRatio(contentMode: .fit)
-                    .frame(width: 88, height: 88)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                if let character = Brand.characterImage {
+                    Image(character).resizable().aspectRatio(contentMode: .fit)
+                        .frame(width: 88, height: 88)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
                 VStack(spacing: 2) {
                     Text(serverCapabilities.capabilities.brand.resolvedWordmark)
                         .macFont(.system(size: 34, weight: .bold)).foregroundStyle(Theme.textPrimary)

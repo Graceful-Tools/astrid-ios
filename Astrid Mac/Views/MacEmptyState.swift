@@ -36,10 +36,12 @@ struct MacEmptyState: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Image("AstridCharacter")
-                .resizable().aspectRatio(contentMode: .fit)
-                .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+            if let character = Brand.characterImage {
+                Image(character)
+                    .resizable().aspectRatio(contentMode: .fit)
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
             VStack(spacing: 4) {
                 Text(copy.message)
                     .macFont(.system(size: 14, weight: .medium))

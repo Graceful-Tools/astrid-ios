@@ -166,6 +166,17 @@ run_rule "brand-domain-substring" \
     '(domain|host)[A-Za-z]*\.(contains|hasSuffix)\([[:space:]]*"[^"]*astrid' \
     "Brand.swift"
 
+# --- Rule: brand-character-literal -----------------------------------------------
+#
+# Astrid's mascot, named in a view, is on every partner's sign-in screen (AITD-514). The
+# character resolves through Brand.characterImage, which a partner configures and which
+# hides it when the partner provides none.
+run_rule "brand-character-literal" \
+    "Astrid's character image named outside Brand.swift" \
+    "Use Brand.characterImage (nil means show no character)." \
+    '"AstridCharacter"' \
+    "Brand.swift"
+
 echo ""
 echo "──────────────────────────────────────────"
 if [[ $ERRORS -eq 0 ]]; then

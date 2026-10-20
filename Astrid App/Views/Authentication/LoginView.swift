@@ -39,11 +39,13 @@ struct LoginView: View {
                         // Logo and Title - centered layout with larger icon
                         HStack(spacing: Theme.spacing16) {
                             // Astrid character icon on left (2x bigger)
-                            Image("AstridCharacter")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 88, height: 88)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            if let character = Brand.characterImage {
+                                Image(character)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 88, height: 88)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
 
                             // Logo text and tagline on right
                             VStack(alignment: .leading, spacing: 4) {

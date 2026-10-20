@@ -74,6 +74,30 @@ enum Brand {
     /// to the user — it is user-visible copy, not an internal identifier.
     nonisolated static let agentName = infoString("BrandAgentName") ?? appName
 
+    /// Asset name of the brand's character art — the mascot on sign-in, welcome, the sidebar
+    /// and empty states — or nil to show none. Mirrors `NEXT_PUBLIC_BRAND_LOGO`, whose web
+    /// default is `/images/astrid-character.png` (AITD-514).
+    static let characterImage = resolveCharacterImage(infoString("BrandCharacterImage"), appName: appName) { name in
+        #if os(macOS)
+        NSImage(named: name) != nil
+        #else
+        UIImage(named: name) != nil
+        #endif
+    }
+
+    /// The profile carries the web's path; the asset is named after its file, so
+    /// `/images/whitelabel-logo.png` is the `whitelabel-logo` imageset. Unconfigured, Astrid
+    /// shows its own character and a partner shows none — Astrid's mascot on a partner's
+    /// sign-in screen is exactly the leak this exists to stop. Art the build does not carry
+    /// is hidden rather than drawn as an empty frame.
+    static func resolveCharacterImage(_ configured: String?, appName: String, exists: (String) -> Bool) -> String? {
+        let astrid = "AstridCharacter"
+        guard let configured else { return appName == "Astrid" ? astrid : nil }
+        let name = ((configured as NSString).lastPathComponent as NSString).deletingPathExtension
+        if name == "astrid-character" { return astrid }
+        return !name.isEmpty && exists(name) ? name : nil
+    }
+
     // MARK: - Appearance
 
     /// Default accent, as a hex string. Astrid blue (Tailwind `blue-500`).

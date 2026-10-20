@@ -31,11 +31,13 @@ struct WelcomeChoiceView: View {
 
                     // Astrid character and welcome message
                     VStack(spacing: Theme.spacing16) {
-                        Image("AstridCharacter")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 120, height: 120)
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                        if let character = Brand.characterImage {
+                            Image(character)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 120, height: 120)
+                                .clipShape(RoundedRectangle(cornerRadius: 24))
+                        }
 
                         Text(Brand.localized("welcome.title"))
                             .font(Theme.Typography.title1())
