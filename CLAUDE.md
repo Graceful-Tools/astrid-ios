@@ -57,7 +57,7 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run predeploy` | Quick + partner-brand audit + unit tests + script self-test — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (needs a minted test-account session) + Mac unit tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
-| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`) |
+| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `make-brand-variant.sh`) |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:mac` | Mac unit tests (`Astrid MacTests`); never alongside `predeploy`, whose brand audit rewrites the Info.plists |
@@ -213,6 +213,7 @@ each task's completion comment, and the terminal gets one `RESULT:` line. See
 | `docs/SYNC_ARCHITECTURE.md` | External sync providers |
 | `docs/CORE_MIGRATION.md` | Moving the Apple apps onto astrid-core: state, findings, what's left |
 | `docs/MAC_SIGNING.md`, `docs/MAC_DISTRIBUTION.md` | Mac signing / passkeys; release channels |
+| `docs/BRAND_VARIANT.md` | Building a brand as its own app: `make-brand-variant.sh`, the profile's `ios` block |
 | `docs/archive/` | Point-in-time reviews and the original Mac plan; history only |
 | [`../astrid-web/docs/WEEKLY_DEEP_REVIEW.md`](../astrid-web/docs/WEEKLY_DEEP_REVIEW.md) | Weekly cross-repo deep review — driven from this board by a repeating Astrid task (`/weekly-deep-review`) |
 | `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md` | Setup guides |
