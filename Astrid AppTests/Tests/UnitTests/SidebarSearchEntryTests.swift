@@ -33,7 +33,8 @@ final class SidebarSearchEntryTests: XCTestCase {
 
     func test_aitd494_theHeaderPutsTheLogoLeftAndSearchRight() throws {
         let header = try RepositoryLocator.source(at: "Astrid App/Core/Layout/SidebarBrandHeader.swift")
-        let logo = try XCTUnwrap(header.range(of: "Image(\"AstridCharacter\")"))
+        // The brand's character, resolved through Brand since AITD-514.
+        let logo = try XCTUnwrap(header.range(of: "Brand.characterImage"))
         let search = try XCTUnwrap(header.range(of: "\"magnifyingglass\""))
         XCTAssertLessThan(logo.lowerBound, search.lowerBound)
         // Labelled for a screen reader rather than shipped as a bare icon.
