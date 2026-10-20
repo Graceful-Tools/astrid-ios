@@ -49,9 +49,9 @@ set_string() { $PB -c "Delete :$2" "$1" 2>/dev/null || true; $PB -c "Add :$2 str
 set_string "$OUT/Info-iOS.plist"   CFBundleDisplayName "$DISPLAY_NAME"
 set_string "$OUT/Info-iOS.plist"   AppGroupIdentifier  "$APP_GROUP"
 set_string "$OUT/Info-Share.plist" AppGroupIdentifier  "$APP_GROUP"
-python3 - "$OUT" "$BUNDLE_ID" "$APP_GROUP" "$PROFILE" "$PROJECT_DIR" <<'PY'
+python3 - "$OUT" "$BUNDLE_ID" "$APP_GROUP" "$PROFILE" "$PROJECT_DIR" "$DISPLAY_NAME" <<'PY'
 import json, re, sys, os
-out, bundle, group, profile, project = sys.argv[1:]
+out, bundle, group, profile, project, display = sys.argv[1:]
 sys.path.insert(0, os.path.join(project, 'scripts', 'lib'))
 web = None
 for cand in [os.path.join(project, '..', 'astrid-web')] + [os.path.join(project, '..', d) for d in sorted(os.listdir(os.path.join(project, '..'))) if d.startswith('astrid-web')]:
@@ -59,6 +59,7 @@ for cand in [os.path.join(project, '..', 'astrid-web')] + [os.path.join(project,
         web = cand; break
 env = json.load(open(os.path.join(web, 'brands', f'{profile}.brand.json')))['env']
 apple = env.get('NEXT_PUBLIC_BRAND_ENABLE_AUTH_APPLE', 'true').strip().lower() != 'false'
+name = (env.get('NEXT_PUBLIC_BRAND_NAME') or '').strip() or display
 
 def rewrite(name, fn):
     path = os.path.join(out, name)
@@ -74,8 +75,20 @@ def identity(text):
         text = re.sub(r'\n\s*<key>com\.apple\.developer\.applesignin</key>\s*<array>.*?</array>', '', text, flags=re.S)
     return text
 
-for name in ('Whitelabel-iOS.entitlements', 'Whitelabel-Mac.entitlements', 'Whitelabel-Share.entitlements'):
-    rewrite(name, identity)
+for entitlements in ('Whitelabel-iOS.entitlements', 'Whitelabel-Mac.entitlements', 'Whitelabel-Share.entitlements'):
+    rewrite(entitlements, identity)
+
+# The permission prompts are the first words a partner's user reads, and Astrid's name them
+# (AITD-512). Text-level, so the rest of each copy stays byte-for-byte Astrid's;
+# BrandVariantTests compares them back after the same swap.
+def usage(text):
+    text = re.sub(r'(<key>NS\w*UsageDescription</key>\s*<string>)([^<]*)(</string>)',
+                  lambda m: m.group(1) + m.group(2).replace('Astrid', name) + m.group(3), text)
+    # The Share extension's name, shown under its icon in the share sheet.
+    return re.sub(r'(<key>CFBundleDisplayName</key>\s*<string>)Astrid', lambda m: m.group(1) + name, text)
+
+for plist in ('Info-iOS.plist', 'Info-Mac.plist', 'Info-Share.plist'):
+    rewrite(plist, usage)
 print('  identity applied (apple sign-in kept)' if apple else '  identity applied (apple sign-in removed)')
 PY
 

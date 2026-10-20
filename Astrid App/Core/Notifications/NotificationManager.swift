@@ -63,7 +63,7 @@ class NotificationManager {
 
         // Create notification content
         let content = UNMutableNotificationContent()
-        content.title = "Task Due Soon"
+        content.title = NSLocalizedString("notifications.due_soon_title", comment: "")
         content.body = task.title
         content.sound = .default
         // Note: Badge count is managed by BadgeManager based on due/overdue tasks

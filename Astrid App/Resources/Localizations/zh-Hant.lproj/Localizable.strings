@@ -769,6 +769,8 @@
 /* Notifications */
 "notification.complete_task" = "完成任務";
 "notification.test_reminder" = "📱 測試提醒";
+/* Title of a local due-soon reminder (AITD-512). */
+"notifications.due_soon_title" = "任務即將到期";
 
 /* Debug Settings */
 "debug.contacts_settings" = "聯絡人設定";
@@ -1360,7 +1362,7 @@
 
 
 /* Update available card (AITD-383). %@ is the new version number. */
-"update.available_title" = "新版 Astrid 已就緒";
+"update.available_title" = "新版 %@ 已就緒";
 "update.available_body" = "版本 %@ 已發布。更新只需片刻，並包含最新修正。";
 "update.action" = "更新";
 "update.later" = "稍後再說";

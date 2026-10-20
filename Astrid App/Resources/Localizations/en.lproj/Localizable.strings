@@ -808,6 +808,8 @@
 /* Notifications */
 "notification.complete_task" = "Complete Task";
 "notification.test_reminder" = "📱 Test Reminder Notification";
+/* Title of a local due-soon reminder (AITD-512). */
+"notifications.due_soon_title" = "Task Due Soon";
 
 /* Debug Settings */
 "debug.contacts_settings" = "Contacts Settings";
@@ -1365,8 +1367,8 @@
 "lists.ai_agent.footer" = "Powers %@ in this list's chat and comments. Coding agents assigned to tasks keep their own runtime.";
 
 
-/* Update available card (AITD-383). %@ is the new version number. */
-"update.available_title" = "A new Astrid is ready";
+/* Update available card (AITD-383). In the title %@ is the app name (AITD-512); in the body, the new version number. */
+"update.available_title" = "A new %@ is ready";
 "update.available_body" = "Version %@ is available. Updating takes a moment and brings the latest fixes.";
 "update.action" = "Update";
 "update.later" = "Not now";

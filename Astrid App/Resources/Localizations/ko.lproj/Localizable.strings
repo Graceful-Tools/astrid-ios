@@ -769,6 +769,8 @@
 /* Notifications */
 "notification.complete_task" = "작업 완료";
 "notification.test_reminder" = "📱 테스트 알림";
+/* Title of a local due-soon reminder (AITD-512). */
+"notifications.due_soon_title" = "곧 마감되는 작업";
 
 /* Debug Settings */
 "debug.contacts_settings" = "연락처 설정";
@@ -1360,7 +1362,7 @@
 
 
 /* Update available card (AITD-383). %@ is the new version number. */
-"update.available_title" = "새로운 Astrid가 준비되었습니다";
+"update.available_title" = "새로운 %@ 버전이 준비되었습니다";
 "update.available_body" = "버전 %@을(를) 사용할 수 있습니다. 업데이트는 잠시면 끝나며 최신 수정 사항이 적용됩니다.";
 "update.action" = "업데이트";
 "update.later" = "나중에";
