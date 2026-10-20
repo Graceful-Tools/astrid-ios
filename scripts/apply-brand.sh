@@ -8,6 +8,7 @@
 # and BrandProfileTests fails the build if the two ever disagree.
 #
 #   ./scripts/apply-brand.sh acme            # apply
+#   ./scripts/apply-brand.sh path/to/acme.brand.json   # a profile outside astrid-web
 #   ./scripts/apply-brand.sh acme --dry-run  # show what would change
 #   ./scripts/apply-brand.sh --reset         # remove every brand key (back to Astrid)
 #
@@ -115,7 +116,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run) DRY_RUN=true; shift ;;
         --reset)   RESET=true; shift ;;
         --help)
-            sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
             exit 0 ;;
         -*) echo "Unknown option: $1"; exit 1 ;;
         *)  PROFILE="$1"; shift ;;
@@ -149,13 +150,19 @@ if [[ -z "$PROFILE" ]]; then
     exit 1
 fi
 
+# A path to a profile is used as given (AITD-515): a partner's own profile needs no
+# astrid-web checkout. A bare name is looked up in the sibling one.
+if [[ -f "$PROFILE" ]]; then
+    PROFILE_PATH="$PROFILE"
+else
 WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || {
     echo -e "${RED}No astrid-web checkout beside $(basename "$PROJECT_DIR")${NC}"
-    echo "Brand profiles live in astrid-web/brands/. Clone it alongside this repo."
+    echo "Brand profiles live in astrid-web/brands/. Clone it alongside this repo, or pass a profile's path."
     exit 1
 }
-
 PROFILE_PATH="$WEB_REPO/brands/${PROFILE}.brand.json"
+fi
+
 if [[ ! -f "$PROFILE_PATH" ]]; then
     echo -e "${RED}No such brand profile: $PROFILE_PATH${NC}"
     echo "Available:"

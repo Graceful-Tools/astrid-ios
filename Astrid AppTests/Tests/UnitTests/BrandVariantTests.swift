@@ -43,6 +43,12 @@ final class BrandVariantTests: XCTestCase {
         return service
     }
 
+    /// The app's own name — Mac bundle, menu bar, Services port. The brand name is what the
+    /// prompts say; a partner can name the app differently ("Acme" vs "Acme Tasks").
+    private var variantAppName: String {
+        get throws { try XCTUnwrap(try plist("Brands/Whitelabel/Info-iOS.plist")["CFBundleDisplayName"] as? String) }
+    }
+
     private var variantBrandName: String {
         get throws { try XCTUnwrap(try plist("Brands/Whitelabel/Info-iOS.plist")["BrandName"] as? String) }
     }
@@ -51,6 +57,7 @@ final class BrandVariantTests: XCTestCase {
         let astrid = try plist(base)
         let brand = try plist(variant)
         let name = try variantBrandName
+        let appName = try variantAppName
         for (key, value) in astrid where !brandedKeys.contains(key) {
             guard let copy = brand[key] else {
                 XCTFail("\(variant) lacks \(key), which \(base) has — re-run scripts/make-brand-variant.sh", file: file, line: line)
@@ -59,7 +66,7 @@ final class BrandVariantTests: XCTestCase {
             var expected = String(describing: value)
             if isUsageDescription(key) { expected = expected.replacingOccurrences(of: "Astrid", with: name) }
             if key == "NSServices", let services = value as? [[String: Any]] {
-                XCTAssertEqual(copy as? NSArray, services.map { renamedService($0, to: name) } as NSArray,
+                XCTAssertEqual(copy as? NSArray, services.map { renamedService($0, to: appName) } as NSArray,
                                "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
                 continue
             }
@@ -99,9 +106,10 @@ final class BrandVariantTests: XCTestCase {
     /// AITD-513: the Mac variant kept PRODUCT_NAME = Astrid — Astrid.app, "About Astrid",
     /// "Quit Astrid" — and its Services item said "Add to Astrid".
     func testTheWhitelabelMacAppIsNamedForTheBrand_AITD513() throws {
-        let name = try variantBrandName
+        let name = try variantAppName
         let settings = try whitelabelSettings(bundleId: "Graceful-Tools-Inc.Whitelabel")
-        XCTAssertTrue(settings.contains("PRODUCT_NAME = \(name);"), "Whitelabel Mac must build \(name).app")
+        XCTAssertTrue(settings.contains("PRODUCT_NAME = \(name);") || settings.contains("PRODUCT_NAME = \"\(name)\";"),
+                      "Whitelabel Mac must build \(name).app")
         XCTAssertFalse(settings.contains("Astrid "), "a Whitelabel Mac build setting still names Astrid")
 
         let services = try XCTUnwrap(try plist("Brands/Whitelabel/Info-Mac.plist")["NSServices"] as? [[String: Any]])
