@@ -85,7 +85,12 @@ def usage(text):
     text = re.sub(r'(<key>NS\w*UsageDescription</key>\s*<string>)([^<]*)(</string>)',
                   lambda m: m.group(1) + m.group(2).replace('Astrid', name) + m.group(3), text)
     # The Share extension's name, shown under its icon in the share sheet.
-    return re.sub(r'(<key>CFBundleDisplayName</key>\s*<string>)Astrid', lambda m: m.group(1) + name, text)
+    text = re.sub(r'(<key>CFBundleDisplayName</key>\s*<string>)Astrid', lambda m: m.group(1) + name, text)
+    # The Mac Services item (AITD-513): its menu title, and the port AppKit delivers it to,
+    # which is named after the app. NSMessage is the Swift selector and stays addToAstrid.
+    text = re.sub(r'(<key>NSMenuItem</key>\s*<dict>\s*<key>default</key>\s*<string>)([^<]*)',
+                  lambda m: m.group(1) + m.group(2).replace('Astrid', name), text)
+    return re.sub(r'(<key>NSPortName</key>\s*<string>)Astrid(</string>)', lambda m: m.group(1) + name + m.group(2), text)
 
 for plist in ('Info-iOS.plist', 'Info-Mac.plist', 'Info-Share.plist'):
     rewrite(plist, usage)

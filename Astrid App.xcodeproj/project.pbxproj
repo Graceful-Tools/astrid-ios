@@ -928,9 +928,9 @@
 				INFOPLIST_FILE = "Brands/Whitelabel/Info-Mac.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Whitelabel;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Astrid links your lists with your calendar so due dates sit alongside your events.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Whitelabel links your lists with your calendar so due dates sit alongside your events.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Graceful Tools LLC. All rights reserved.";
-				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Astrid links your lists with Apple Reminders so your tasks stay in sync.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Whitelabel links your lists with Apple Reminders so your tasks stay in sync.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -939,7 +939,7 @@
 				MARKETING_VERSION = 1.1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = "Graceful-Tools-Inc.Whitelabel";
 				PRODUCT_MODULE_NAME = Astrid_Mac;
-				PRODUCT_NAME = Astrid;
+				PRODUCT_NAME = Whitelabel;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1010,7 +1010,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Astrid.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Astrid";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Whitelabel.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Whitelabel";
 			};
 			name = Whitelabel;
 		};

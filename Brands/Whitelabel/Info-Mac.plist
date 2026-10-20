@@ -28,12 +28,12 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>Add to Astrid</string>
+				<string>Add to Whitelabel</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>addToAstrid</string>
 			<key>NSPortName</key>
-			<string>Astrid</string>
+			<string>Whitelabel</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.utf8-plain-text</string>
