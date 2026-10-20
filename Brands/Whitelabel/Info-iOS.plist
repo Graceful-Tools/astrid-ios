@@ -14,6 +14,8 @@
 	<string>tasks.gracefultools.com</string>
 	<key>BrandAgentName</key>
 	<string>Whitelabel Assistant</string>
+	<key>BrandCharacterImage</key>
+	<string>/images/whitelabel-logo.png</string>
 	<key>BrandHost</key>
 	<string>tasks.gracefultools.com</string>
 	<key>BrandInboundTaskEmail</key>

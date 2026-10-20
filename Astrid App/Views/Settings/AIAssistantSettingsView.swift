@@ -16,11 +16,13 @@ struct AIAssistantSettingsView: View {
             Section(header: Text("\(Brand.appName)'s AI")) {
                 NavigationLink(destination: DefaultAgentPickerView()) {
                     HStack {
-                        Image("AstridCharacter")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
-                            .clipShape(Circle())
+                        if let character = Brand.characterImage {
+                            Image(character)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 28, height: 28)
+                                .clipShape(Circle())
+                        }
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(Brand.appName)'s AI")
                                 .font(Theme.Typography.body())

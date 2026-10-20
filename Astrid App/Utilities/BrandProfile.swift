@@ -38,6 +38,9 @@ enum BrandProfile {
         "NEXT_PUBLIC_BRAND_ACCENT_HOVER_COLOR": "BrandAccentHoverColor",
         "NEXT_PUBLIC_BRAND_ACCENT_TEXT_COLOR": "BrandAccentTextColor",
         "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
+        // The web's logo is the character art (default astrid-character.png). The path is
+        // carried as-is; Brand.characterImage names the asset after its file (AITD-514).
+        "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",
         // Its own variable on both sides: the server allows the agent-email domain to
         // differ from the brand domain, so they cannot share one key.
         "BRAND_AGENT_EMAIL_DOMAIN": "BrandAgentEmailDomain",

@@ -37,11 +37,17 @@ final class BrandProfileTests: XCTestCase {
         let env = [
             "NEXT_PUBLIC_BRAND_NAME": "Acme",
             "NEXT_PUBLIC_BRAND_ENABLE_MCP": "false",
-            "NEXT_PUBLIC_BRAND_LOGO": "/images/acme-logo.png",
+            "NEXT_PUBLIC_BRAND_ICON": "/icons/acme-512.png",
             "NEXTAUTH_URL": "https://tasks.acme.example",
         ]
 
         XCTAssertEqual(BrandProfile.infoPlistValues(fromProfileEnv: env), ["BrandName": "Acme"])
+    }
+
+    /// The web's logo is the character art, so the native apps consume it (AITD-514).
+    func testTheLogoIsTheCharacter_AITD514() {
+        XCTAssertEqual(BrandProfile.infoPlistValues(fromProfileEnv: ["NEXT_PUBLIC_BRAND_LOGO": "/images/acme-logo.png"]),
+                       ["BrandCharacterImage": "/images/acme-logo.png"])
     }
 
     /// The brand domain feeds `BrandHost`, but the AGENT email domain is its own web

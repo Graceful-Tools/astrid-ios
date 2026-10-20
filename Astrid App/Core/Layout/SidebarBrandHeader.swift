@@ -24,12 +24,14 @@ struct SidebarBrandHeader: View {
 
     var body: some View {
         HStack(spacing: Self.spacing) {
-            Image("AstridCharacter")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: Self.logoSize, height: Self.logoSize)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .accessibilityHidden(true)
+            if let character = Brand.characterImage {
+                Image(character)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: Self.logoSize, height: Self.logoSize)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .accessibilityHidden(true)
+            }
             Text(serverCapabilities.capabilities.brand.resolvedWordmark)
                 .font(.system(size: Self.wordmarkSize, weight: .semibold))
                 .foregroundColor(primary)

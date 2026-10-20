@@ -160,6 +160,12 @@ final class BrandAuditTests: XCTestCase {
     }
 
     /// The on-device assistant must introduce itself as the partner's.
+    /// AITD-514: Astrid's mascot must not survive a rebrand.
+    func testAstridsCharacterDoesNotSurvive_AITD514() throws {
+        try requirePartnerBuild()
+        XCTAssertNotEqual(Brand.characterImage, "AstridCharacter")
+    }
+
     func testTheAssistantIntroducesItselfAsThePartnerBrand() throws {
         try requirePartnerBuild()
 

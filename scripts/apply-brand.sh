@@ -49,6 +49,7 @@ BRAND_PLIST_KEYS=(
     BrandName BrandHost BrandAgentEmailDomain BrandSupportEmail BrandInboundTaskEmail
     BrandWordmark BrandSlogan BrandAgentName
     BrandAccentColor BrandAccentHoverColor BrandAccentTextColor
+    BrandCharacterImage
 )
 
 # Associated domains are part of the brand too: a native passkey is bound to its relying
@@ -193,6 +194,7 @@ KEY_MAP = {
     "NEXT_PUBLIC_BRAND_ACCENT_TEXT_COLOR": "BrandAccentTextColor",
     "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
     "BRAND_AGENT_EMAIL_DOMAIN": "BrandAgentEmailDomain",
+    "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",
 }
 
 profile = json.load(open(sys.argv[1]))

@@ -16,7 +16,7 @@ final class BrandVariantTests: XCTestCase {
         "CFBundleDisplayName", "AppGroupIdentifier",
         "BrandName", "BrandHost", "BrandAgentEmailDomain", "BrandSupportEmail", "BrandInboundTaskEmail",
         "BrandWordmark", "BrandSlogan", "BrandAgentName",
-        "BrandAccentColor", "BrandAccentHoverColor", "BrandAccentTextColor",
+        "BrandAccentColor", "BrandAccentHoverColor", "BrandAccentTextColor", "BrandCharacterImage",
     ]
 
     private func plist(_ path: String) throws -> [String: Any] {
