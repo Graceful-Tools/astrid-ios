@@ -14,15 +14,23 @@ import Foundation
 enum CommentVisibility {
 
     /// Is this a system comment ("marked complete", "moved to …") rather than someone's message?
-    static func isSystem(authorId: String?, isOffline: Bool) -> Bool {
+    ///
+    /// A GitHub commenter with no Astrid account has no `authorId` either, but carries
+    /// `remoteAuthorLogin` — a person, not the server (AITD-517, web's `isSystemComment`).
+    static func isSystem(authorId: String?, remoteAuthorLogin: String? = nil, isOffline: Bool) -> Bool {
         guard !isOffline else { return false }
-        return authorId == nil
+        return authorId == nil && remoteAuthorLogin == nil
+    }
+
+    static func isSystem(_ comment: Comment, isOffline: Bool) -> Bool {
+        isSystem(authorId: comment.authorId, remoteAuthorLogin: comment.remoteAuthorLogin,
+                 isOffline: isOffline)
     }
 
     /// The comments to render, in their original order.
     static func displayed(_ comments: [Comment], showSystem: Bool, isOffline: Bool) -> [Comment] {
         guard !isOffline, !showSystem else { return comments }
-        return comments.filter { !isSystem(authorId: $0.authorId, isOffline: isOffline) }
+        return comments.filter { !isSystem($0, isOffline: isOffline) }
     }
 
     /// The number beside the header. Derived from `displayed` rather than recomputed, so the count

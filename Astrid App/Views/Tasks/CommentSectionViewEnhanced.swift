@@ -442,7 +442,7 @@ struct CommentSectionViewEnhanced: View {
 
                 if let replyingTo = replyingTo {
                     HStack {
-                        Text("Replying to \(replyingTo.author?.displayName ?? "Unknown")")
+                        Text("Replying to \(replyingTo.authorDisplayName ?? "Unknown")")
                             .font(Theme.Typography.caption1())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
@@ -1216,7 +1216,7 @@ struct CommentRowViewEnhanced: View {
 
     // Check if this is a system comment (no authorId)
     private var isSystemComment: Bool {
-        CommentVisibility.isSystem(authorId: comment.authorId, isOffline: isOffline)
+        CommentVisibility.isSystem(comment, isOffline: isOffline)
     }
 
     // Check if comment has text content (not just attachments)
@@ -1356,7 +1356,7 @@ struct CommentRowViewEnhanced: View {
                         Spacer().frame(width: 40)
                     }
 
-                    Text(isCurrentUser ? NSLocalizedString("assignee.you", comment: "You") : (comment.author?.displayName ?? "Unknown"))
+                    Text(isCurrentUser ? NSLocalizedString("assignee.you", comment: "You") : (comment.authorDisplayName ?? "Unknown"))
                         .font(Theme.Typography.caption2())
                         .fontWeight(.medium)
                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
@@ -1485,7 +1485,7 @@ struct CommentRowViewEnhanced: View {
                         ZStack {
                             Circle()
                                 .fill(Theme.accent)
-                            Text(comment.author?.initials ?? "?")
+                            Text(comment.authorInitials ?? "?")
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(Theme.accentText)
                         }
@@ -1496,6 +1496,8 @@ struct CommentRowViewEnhanced: View {
             .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        // A GitHub commenter with no Astrid account has no profile to open (AITD-517).
+        .disabled(comment.authorId == nil)
     }
 }
 

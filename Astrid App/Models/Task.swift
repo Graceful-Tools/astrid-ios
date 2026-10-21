@@ -311,6 +311,23 @@ nonisolated struct Comment: Identifiable, Codable, Equatable, Hashable {
     var replies: [Comment]?
     var secureFiles: [SecureFile]?
     var clientRequestId: String?  // Server echoes back the temp_<UUID> idempotency key — use it for offline-sync dedup
+    /// The GitHub comment this mirrors, on a GitHub Projects deployment (AWTD-1283). Informational.
+    var remoteNodeId: String?
+    /// The GitHub login of a commenter with NO Astrid account (AWTD-1283). Set only when
+    /// `authorId` and `author` are both nil — and then this is a person's comment, not a system
+    /// one (AITD-517). Hosted Astrid never sets it.
+    var remoteAuthorLogin: String?
+
+    /// Who wrote it, as a reader sees it: the author's name, or `@login` for a GitHub commenter
+    /// with no account. Nil for a system comment — the server has no name.
+    var authorDisplayName: String? {
+        author?.displayName ?? remoteAuthorLogin.map { "@\($0)" }
+    }
+
+    /// The avatar's letters, on the same terms as `authorDisplayName`.
+    var authorInitials: String? {
+        author?.initials ?? remoteAuthorLogin?.first.map { String($0).uppercased() }
+    }
 
     /// Stable ID for SwiftUI ForEach - uses id if valid, otherwise generates from content hash
     var stableId: String {

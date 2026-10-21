@@ -41,6 +41,14 @@ final class CompletionStreakTests: XCTestCase {
             userComment("I marked this as complete by accident", daysAgo: 1)))
     }
 
+    /// AITD-517: a GitHub commenter with no Astrid account has no `authorId` either, but is a
+    /// person — their words are never folded, as web's `isSystemComment` has it.
+    func testAITD517_aGitHubCommenterIsNeverFolded() {
+        var remote = completion(daysAgo: 1)
+        remote.remoteAuthorLogin = "octocat"
+        XCTAssertFalse(CompletionStreak.isCompletion(remote))
+    }
+
     /// Other system comments are not completions — folding "moved to list" into a completion
     /// streak would be a lie about what happened.
     func testOtherSystemCommentsAreNotCompletions() {

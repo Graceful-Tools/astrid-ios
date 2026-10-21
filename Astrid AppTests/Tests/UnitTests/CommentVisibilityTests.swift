@@ -46,6 +46,39 @@ final class CommentVisibilityTests: XCTestCase {
         XCTAssertFalse(CommentVisibility.isSystem(authorId: nil, isOffline: true))
     }
 
+    // MARK: - A GitHub commenter with no Astrid account (AITD-517)
+
+    /// AWTD-1283 brings comments made on github.com onto the mirrored task. A commenter with no
+    /// Astrid account arrives with `authorId` and `author` both null and `remoteAuthorLogin` set.
+    /// That is a person talking, so it must not be hidden behind "show system comments".
+    private var remote: Comment {
+        var c = comment("r1", authorId: nil)
+        c.remoteAuthorLogin = "octocat"
+        return c
+    }
+
+    func testAITD517_aGitHubCommenterWithoutAnAccountIsNotASystemComment() {
+        XCTAssertFalse(CommentVisibility.isSystem(remote, isOffline: false))
+        XCTAssertEqual(CommentVisibility.displayed([remote], showSystem: false, isOffline: false).map(\.id),
+                       ["r1"])
+    }
+
+    func testAITD517_theLoginDecodesAndNamesTheAuthor() throws {
+        let json = #"{"id":"r1","content":"Looks good","type":"TEXT","taskId":"t1","authorId":null,"author":null,"remoteAuthorLogin":"octocat","remoteNodeId":"IC_kwDO123"}"#
+        let decoded = try JSONDecoder().decode(Comment.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.remoteAuthorLogin, "octocat")
+        XCTAssertEqual(decoded.remoteNodeId, "IC_kwDO123")
+        XCTAssertEqual(decoded.authorDisplayName, "@octocat")
+        XCTAssertEqual(decoded.authorInitials, "O")
+    }
+
+    func testAITD517_anOrdinaryCommentIsNamedByItsAuthor() {
+        var c = comment("u1", authorId: "u1")
+        c.author = User(id: "u1", email: "ada@example.com", name: "Ada", image: nil)
+        XCTAssertEqual(c.authorDisplayName, "Ada")
+        XCTAssertNil(comment("s1", authorId: nil).authorDisplayName, "the server has no name")
+    }
+
     // MARK: - What gets shown
 
     func testOnlineHidesSystemCommentsByDefault() {
