@@ -39,9 +39,14 @@ struct MacAuthorDisplay: Equatable {
                                 initials: "?")
     }
 
-    /// Convenience for a comment.
+    /// Convenience for a comment. A GitHub commenter with no Astrid account is named by login
+    /// rather than "Unknown" (AITD-517); there is no profile or photo to show for them.
     static func of(_ comment: Comment, currentUser: User?) -> MacAuthorDisplay {
-        of(authorId: comment.authorId, author: comment.author, currentUser: currentUser)
+        if comment.author == nil, let name = comment.authorDisplayName {
+            return MacAuthorDisplay(isCurrentUser: false, name: name, imageURL: nil,
+                                    initials: comment.authorInitials ?? "?")
+        }
+        return of(authorId: comment.authorId, author: comment.author, currentUser: currentUser)
     }
 }
 #endif

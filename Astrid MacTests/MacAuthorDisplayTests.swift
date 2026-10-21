@@ -14,6 +14,18 @@ final class MacAuthorDisplayTests: XCTestCase {
     private let me = User(id: "me", email: "me@example.com", name: "Jon Paris", image: "https://img/me.png")
     private let other = User(id: "u2", email: "her@example.com", name: "Ada", image: "https://img/ada.png")
 
+    /// AITD-517: a GitHub commenter with no Astrid account is named by login, not "Unknown".
+    func testAITD517_aGitHubCommenterIsNamedByLogin() {
+        var c = Comment(id: "r1", content: "hi", type: .TEXT, authorId: nil, author: nil,
+                        taskId: "t1", createdAt: nil, updatedAt: nil)
+        c.remoteAuthorLogin = "octocat"
+        let d = MacAuthorDisplay.of(c, currentUser: me)
+        XCTAssertFalse(d.isCurrentUser)
+        XCTAssertEqual(d.name, "@octocat")
+        XCTAssertEqual(d.initials, "O")
+        XCTAssertNil(d.imageURL)
+    }
+
     /// The exact shape that produced the bug: my id, no embedded author object.
     func testMyOwnCommentIsRecognisedWithoutAnEmbeddedAuthor() {
         let d = MacAuthorDisplay.of(authorId: "me", author: nil, currentUser: me)

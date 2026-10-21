@@ -28,7 +28,7 @@ enum MacSystemComments {
     /// even if we asked.
     static func showsToggle(_ comments: [Comment], isOffline: Bool) -> Bool {
         !isOffline && comments.contains {
-            CommentVisibility.isSystem(authorId: $0.authorId, isOffline: isOffline)
+            CommentVisibility.isSystem($0, isOffline: isOffline)
         }
     }
 

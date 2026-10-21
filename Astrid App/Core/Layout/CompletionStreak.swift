@@ -65,10 +65,10 @@ enum CompletionStreak {
 
     /// Is this one of the completion lines a repeating task leaves behind?
     ///
-    /// System comments only — `authorId == nil`. A comment someone actually wrote is never folded,
-    /// even if they happen to type the same words.
+    /// System comments only. A comment someone actually wrote is never folded, even if they happen
+    /// to type the same words — including a GitHub commenter with no account (AITD-517).
     static func isCompletion(_ comment: Comment) -> Bool {
-        guard comment.authorId == nil else { return false }
+        guard CommentVisibility.isSystem(comment, isOffline: false) else { return false }
         return comment.content.lowercased().contains(marker)
     }
 
