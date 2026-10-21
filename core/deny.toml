@@ -26,7 +26,14 @@ version = 2
 # A vulnerability, an unmaintained crate or an unsound one fails the build; that is version 2's
 # behaviour and it is not configurable per-kind. To ACCEPT one deliberately, add its id here with
 # the date and the reason — an empty list is a claim that nothing has been waved through.
-ignore = []
+ignore = [
+    # 2026-10-21, AITD-519 (copied from astrid-android's, AATD-74). `basic-toml` 0.1.10 is
+    # unmaintained (no vulnerability), reached only through uniffi_bindgen 0.32.2 → askama 0.16.1 →
+    # askama_derive: a proc-macro's dependency, so it runs at build time and nothing of it is in the
+    # XCFramework. Both are the newest releases and neither has dropped it. Remove this the day a
+    # uniffi release does, and regenerate bindings.
+    { id = "RUSTSEC-2026-0374", reason = "build-time only, via uniffi_bindgen's askama; no upgrade exists (AATD-74, AITD-519)" },
+]
 
 # A yank is not a vulnerability. Upstream yanks for a bad release as often as for a security
 # problem, and a lockfile that lags a yank by a day should not stop a release.
@@ -42,14 +49,18 @@ yanked = "warn"
 # copyleft per FILE — linking it into the apps is fine, and only a modified UniFFI source file would
 # have to be published — so it is accepted here, where it is a deliberate choice, and nowhere else.
 #
-# CDLA-Permissive-2.0 (`webpki-roots`) is in core's list and not here: rustls arrives with it only on
-# Android, and this graph does not carry it.
+# ISC (`rustls`, `rustls-webpki`, `untrusted`) and CDLA-Permissive-2.0 (`webpki-roots`) are core's
+# terms for its Android TLS stack. Neither ships in the iOS or Mac apps — `cargo tree --target
+# aarch64-apple-ios` has no rustls — but the graph above is every target, and since core-d9c0bc3
+# (AITD-517) the lockfile carries that stack, so its licences are checked here too (AITD-519).
 [licenses]
 version = 2
 allow = [
     "Apache-2.0",
     "MIT",
     "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
+    "ISC",
     "MPL-2.0",
     "Unicode-3.0",
     "Zlib",
