@@ -25,50 +25,49 @@ final class MacListChromeTests: XCTestCase {
                        "board and chat are not a sorted row list")
     }
 
-    // MARK: one sort control, not two (AITD-305)
+    // MARK: one sort control, not two (AITD-305) — and it is in the header (AITD-522)
 
-    /// AITD-305: "remove the duplicative sort / menu icon above the list. keep the one that has
-    /// all the things."
+    /// AITD-522: "[mac] move list sort to the header and add gear for list settings."
     ///
-    /// On a real list the strip drew BOTH the sort menu and the filter button, and
-    /// `MacFilterSheet` opens with a Sort section of its own — so sort was offered twice, three
-    /// pixels apart. The filter sheet is the one that has all the things (sort + six filters +
-    /// saved filter + subtasks), so the standalone menu is the one that goes.
-    func testRealListDropsTheStandaloneSortMenuBecauseTheFilterSheetAlreadySortsAITD305() {
-        XCTAssertTrue(MacListChrome.filterSheetOffersSort,
-                      "MacFilterSheet's Sort section is what makes the separate menu redundant")
-        XCTAssertFalse(MacListChrome.showsSort(hasSelection: true, isListMode: true,
-                                               filterSheetOffersSort: true),
-                       "the filter sheet already sorts — a second sort icon is the duplicate")
+    /// Sort used to hide in two places at once: inside the filter popover on a real list or My
+    /// Tasks (AITD-305/467), and in the window toolbar everywhere else (AITD-509). It now sits in
+    /// the strip above the rows on every list-mode selection, so the popovers no longer sort.
+    func testSortSitsInTheHeaderForEveryListModeSelectionAITD522() {
+        for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
+            XCTAssertTrue(MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                                        isMyTasks: isMyTasks, isListMode: true),
+                          "isRealList=\(isRealList) isMyTasks=\(isMyTasks): sort belongs in the header")
+        }
+        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: true, isRealList: true,
+                                                     isMyTasks: false, isListMode: false),
+                       "a board is not a sorted row list")
+        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: false, isRealList: false,
+                                                     isMyTasks: false, isListMode: true),
+                       "nothing selected, nothing to sort")
     }
 
-    /// Removing it must not strip the capability. Every selection that shows rows still reaches
-    /// sort through exactly ONE control — the list's sheet on a real list, My Tasks' sheet on My
-    /// Tasks (AITD-467), the standalone menu where no sheet stands behind the rows (a saved-filter
-    /// list, a public list you only view).
-    func testEverySelectionKeepsExactlyOneWayToSortAITD305() {
+    /// Moving it to the header takes it OUT of the window toolbar (AITD-509 put it there).
+    func testSortIsNoLongerAWindowToolbarItemAITD522() {
+        XCTAssertFalse(MacListChrome.toolbarOffersSort)
         for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
-            let sheetSorts = MacListChrome.sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
-                                                           isListMode: true)
-            let menuShows = MacListChrome.showsSort(hasSelection: true, isListMode: true,
-                                                    filterSheetOffersSort: sheetSorts)
-            XCTAssertNotEqual(sheetSorts, menuShows,
-                              "isRealList=\(isRealList) isMyTasks=\(isMyTasks) offers sort \(sheetSorts && menuShows ? "twice" : "not at all")")
+            XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: isRealList,
+                                                          isMyTasks: isMyTasks, isListMode: true))
         }
     }
 
-    /// AITD-467: "consolidate sort links for my tasks just like on other lists."
-    ///
-    /// My Tasks drew the sort menu AND its filter button side by side — the pair AITD-305 already
-    /// collapsed on real lists. Its sheet now sorts, as iOS's My Tasks sheet always has, so the
-    /// standalone menu goes here too.
-    func testMyTasksSortsFromItsFilterSheetNotASecondMenuAITD467() {
-        XCTAssertTrue(MacListChrome.myTasksSheetOffersSort)
-        let sheetSorts = MacListChrome.sheetOffersSort(isRealList: false, isMyTasks: true, isListMode: true)
-        XCTAssertTrue(sheetSorts, "My Tasks' sheet carries Sort, like the list sheet")
-        XCTAssertFalse(MacListChrome.showsSort(hasSelection: true, isListMode: true,
-                                               filterSheetOffersSort: sheetSorts),
-                       "AITD-467: a second sort icon beside My Tasks' filter button is the duplicate")
+    /// AITD-305's rule still holds: one sort control per selection. With sort in the header, the
+    /// filter popovers drop their Sort section rather than offering it a second time.
+    func testEverySelectionKeepsExactlyOneWayToSortAITD305() {
+        XCTAssertFalse(MacListChrome.filterSheetOffersSort)
+        XCTAssertFalse(MacListChrome.myTasksSheetOffersSort)
+        for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
+            let sheetSorts = MacListChrome.sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
+                                                           isListMode: true)
+            let headerSorts = MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                                            isMyTasks: isMyTasks, isListMode: true)
+            XCTAssertNotEqual(sheetSorts, headerSorts,
+                              "isRealList=\(isRealList) isMyTasks=\(isMyTasks) offers sort \(sheetSorts && headerSorts ? "twice" : "not at all")")
+        }
     }
 
     /// The filter editor writes to a real list's saved filters; My Tasks keeps its own prefs and a
@@ -84,38 +83,20 @@ final class MacListChromeTests: XCTestCase {
         XCTAssertFalse(MacListChrome.toolbarOffersFilter)
     }
 
-    // MARK: sort does not open a row of its own (AITD-509)
+    // MARK: the strip (AITD-509, AITD-522)
 
-    /// AITD-509: "sort icon creates an extra row [in] lists. it shouldn't — add it to the top menu
-    /// on mac app."
-    ///
-    /// Since AITD-305/467 the standalone sort menu only shows where no sheet sorts — so wherever it
-    /// showed, it was the ONLY thing in the strip, and the strip existed just to hold one icon.
-    /// It goes to the window toolbar instead, and the strip is drawn only for what is left.
-    func testSortLivesInTheWindowToolbarNotTheStripAITD509() {
-        XCTAssertTrue(MacListChrome.toolbarOffersSort)
-        XCTAssertFalse(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: false,
-                                                showsListMenu: false),
-                       "AITD-509: with only sort to show, there is no strip — sort is in the toolbar")
+    /// With nothing to show there is still no strip — AITD-509's complaint was an empty-ish row.
+    func testNoControlsMeansNoStrip() {
+        XCTAssertFalse(MacListChrome.showsStrip(showsSort: false, showsFilter: false,
+                                                showsMyTasksFilter: false, showsListMenu: false))
     }
 
-    /// The toolbar shows sort exactly where the old strip did: no sheet sorts, and there are rows.
-    func testTheToolbarShowsSortOnlyWhereNoSheetSortsAITD509() {
-        XCTAssertTrue(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
-                                                     isMyTasks: false, isListMode: true))
-        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: true,
-                                                      isMyTasks: false, isListMode: true))
-        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
-                                                      isMyTasks: true, isListMode: true))
-        XCTAssertFalse(MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: false,
-                                                      isMyTasks: false, isListMode: false))
-    }
-
-    /// The strip still draws for the controls that stayed in it.
-    func testTheStripStillDrawsForFilterAndListSettingsAITD509() {
-        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: true, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsFilter: false, showsMyTasksFilter: false, showsListMenu: true))
+    /// Each control in the header is enough to draw it — sort included, now that it lives there.
+    func testTheStripDrawsForEachHeaderControlAITD522() {
+        XCTAssertTrue(MacListChrome.showsStrip(showsSort: true, showsFilter: false, showsMyTasksFilter: false, showsListMenu: false))
+        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))
+        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: true, showsListMenu: false))
+        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: false, showsListMenu: true))
     }
 
     // MARK: the extra + (10d2cd34)

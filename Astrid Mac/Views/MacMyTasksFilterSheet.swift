@@ -40,9 +40,12 @@ struct MacMyTasksFilterSheet: View {
                 .macFont(.headline).foregroundStyle(Theme.textPrimary)
 
             Form {
-                Section(NSLocalizedString("actions.sort", comment: "")) {
-                    picker(NSLocalizedString("lists.sort_order", comment: ""),
-                           selection: $sortBy, options: MacListFilter.sort)
+                // Sort is the header's menu now (AITD-522), not a section here.
+                if MacListChrome.myTasksSheetOffersSort {
+                    Section(NSLocalizedString("actions.sort", comment: "")) {
+                        picker(NSLocalizedString("lists.sort_order", comment: ""),
+                               selection: $sortBy, options: MacListFilter.sort)
+                    }
                 }
                 Section(NSLocalizedString("lists.filters", comment: "")) {
                     picker(NSLocalizedString("lists.task_completion", comment: ""),
@@ -54,7 +57,7 @@ struct MacMyTasksFilterSheet: View {
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(height: 240)
+            .frame(height: MacListChrome.myTasksSheetOffersSort ? 240 : 180)
 
             HStack {
                 // Clears the filters, not the sort — as the list sheet's Clear does.
@@ -113,7 +116,8 @@ struct MacMyTasksFilterSheet: View {
 
     private func save() {
         var updated = preferences.preferences
-        updated.sortBy = sortBy
+        // Only when this sheet shows sort: otherwise `sortBy` is stale and the header owns it.
+        if MacListChrome.myTasksSheetOffersSort { updated.sortBy = sortBy }
         updated.filterCompletion = completion
         updated.filterDueDate = dueDate
         // Empty means "all" — the default, and what the shared filter treats as no constraint.

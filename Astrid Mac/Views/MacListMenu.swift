@@ -78,8 +78,8 @@ struct MacListMenuActions {
     var delete: () -> Void
 }
 
-/// The pull-down that opens the menu above a board's columns, in the place sort occupies in list
-/// mode (AITD-373). The sidebar needs no equivalent — a right-click is its affordance.
+/// The gear that opens the menu in the header above a list's rows or a board's columns
+/// (AITD-373, AITD-522). The sidebar needs no equivalent — a right-click is its affordance.
 ///
 /// Here rather than in `MacRootView` because it is presentation of this menu, and because that
 /// file is on the AITD-346 ratchet: the extraction is the answer the ratchet asks for.
@@ -88,12 +88,16 @@ struct MacListSettingsButton: View {
     let userId: String?
     let actions: MacListMenuActions
 
+    /// A gear, the Mac's settings glyph (AITD-522). It was `slider.horizontal.3`, which beside
+    /// the filter button read as a second filter.
+    static let symbol = "gearshape"
+
     var body: some View {
         Menu {
             MacListMenuContent(list: list, userId: userId, actions: actions)
         } label: {
             Label(NSLocalizedString("lists.list_settings", comment: ""),
-                  systemImage: "slider.horizontal.3")
+                  systemImage: Self.symbol)
         }
         .fixedSize()
         .help(NSLocalizedString("lists.list_settings", comment: ""))
