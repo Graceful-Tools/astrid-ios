@@ -310,7 +310,7 @@ local-only (chat has no server delete) and withdraws a message not yet sent.
 | Contract | Canonical (web) | iOS mirror | Test |
 |---|---|---|---|
 | Repeating task rollover | `astrid-web/types/repeating.ts` | astrid-core `repeating`, via `RepeatingTaskCalculator` / `CoreRules` (facade) | `CustomRepeatingPatternTests`, `RepeatingTaskCalculatorTests` |
-| All-day task date handling (UTC midnight, Google Calendar / RFC 5545) | `astrid-web/lib/date-comparison.ts`, `date-filter-utils.ts` | `Task.isDueToday` / `Task.isOverdue` in `BadgeManager.swift` + `TaskListView.applyDateFilter` | `AllDayTimezoneTests` |
+| All-day task date handling (UTC midnight, Google Calendar / RFC 5545) | `astrid-web/lib/date-comparison.ts`, `date-filter-utils.ts` | `Task.isDueToday` / `Task.isOverdue` in `BadgeManager.swift`; a list's due-date filter is astrid-core's `rowsForList`, asked through `ListRowsModel` (AITD-460) | `AllDayTimezoneTests` |
 | List role / permission (listMembers is source of truth — legacy `admins[]`/`members[]` arrays are NOT populated by the endpoints iOS consumes and must NOT be branched on) | `astrid-web/lib/list-permissions.ts` (`getUserRoleInList`) | `TaskList.role(for:)`, `TaskList.isMember(userId:)`, `TaskList.canUserSaveServerSettings()`, `ListPermissions` | `ListPermissionsContractTests` |
 | My Tasks empty-state message (single string per list type, no completed-task threshold) | `astrid-web/components/ui/astrid-empty-state.tsx` | `TaskListView.getMyTasksEmptyMessage` | `EmptyStateMessageTests` |
 | Preferences + settings wire shape (`/api/v1/users/me/my-tasks-preferences`, `/api/v1/users/me/settings`) | web endpoints under `app/api/` | `MyTasksPreferences`, `UserSettings` structs | `CanonicalControlPointsTests` |
