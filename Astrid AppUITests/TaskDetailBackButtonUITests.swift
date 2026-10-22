@@ -32,11 +32,11 @@ final class TaskDetailBackButtonUITests: XCTestCase {
         try UITestLaunch.skipUnlessSignedIn(app)
 
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks found in list")
+            throw UITestFailure("No tasks found in list")
         }
         UITestLaunch.tapCenter(firstTask)
 
-        guard UITestLaunch.waitForTaskDetail(app) else { throw XCTSkip("Task detail did not appear") }
+        guard UITestLaunch.waitForTaskDetail(app) else { throw UITestFailure("Task detail did not appear") }
 
         let back = app.buttons[TaskDetailHeaderIdentifiers.back]
         XCTAssertTrue(back.waitForExistence(timeout: 3),

@@ -1,7 +1,7 @@
 import XCTest
 
 /// UI tests for task creation deduplication
-/// Tests that rapid interactions don't create duplicate tasks
+/// Tests that one submit creates exactly one task
 final class TaskDuplicateUITests: XCTestCase {
 
     var app: XCUIApplication!
@@ -15,52 +15,11 @@ final class TaskDuplicateUITests: XCTestCase {
         app = nil
     }
 
-    // MARK: - Double-Tap Prevention Tests
-
-    @MainActor
-    func testRapidDoubleTapOnCreateButton() throws {
-        app.launch()
-
-        let timeout: TimeInterval = 10
-
-        try UITestLaunch.skipUnlessSignedIn(app)
-        // Find the quick add task text field
-        let addTaskField = UITestLaunch.quickAddField(app)
-
-        guard addTaskField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Quick add task field not found")
-        }
-
-        // Type a task title
-        guard UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add never took keyboard focus")
-        }
-        addTaskField.typeText("Double tap test task")
-
-        // Take screenshot before submit
-        let beforeScreenshot = XCTAttachment(screenshot: app.screenshot())
-        beforeScreenshot.name = "Before Double Tap"
-        beforeScreenshot.lifetime = .keepAlways
-        add(beforeScreenshot)
-
-        // Rapidly tap the submit/return key twice
-        // The isSubmitting guard should prevent the second creation
-        app.keyboards.buttons["Return"].tap()
-
-        // Wait briefly for any duplicate to appear
-        Thread.sleep(forTimeInterval: 2)
-
-        // Take screenshot after submit
-        let afterScreenshot = XCTAttachment(screenshot: app.screenshot())
-        afterScreenshot.name = "After Double Tap"
-        afterScreenshot.lifetime = .keepAlways
-        add(afterScreenshot)
-
-        // The task should appear exactly once in the list
-        // This is a visual/manual verification via screenshots
-        // Automated count would require accessibility identifiers on task cells
-    }
-
+    /// One submit, one task.
+    ///
+    /// This asserted `count <= 1`, which a creation that FAILED satisfies just as well as one
+    /// that worked (AITD-525). It now waits for the task to appear, gives a duplicate time to
+    /// arrive, and asserts exactly one.
     @MainActor
     func testCreateTaskAppearsExactlyOnce() throws {
         app.launch()
@@ -71,73 +30,32 @@ final class TaskDuplicateUITests: XCTestCase {
         let addTaskField = UITestLaunch.quickAddField(app)
 
         guard addTaskField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Quick add task field not found")
+            throw UITestFailure("Quick add task field not found")
         }
 
         // Create a uniquely named task
         let uniqueTitle = "Unique task \(UUID().uuidString.prefix(8))"
         guard UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add never took keyboard focus")
+            throw UITestFailure("Quick add never took keyboard focus")
         }
         addTaskField.typeText(uniqueTitle)
         app.keyboards.buttons["Return"].tap()
 
-        // Wait for task to appear
-        Thread.sleep(forTimeInterval: 3)
-
-        // Verify it appears in the UI (search for the text)
         let taskCells = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", uniqueTitle)
         )
+        XCTAssertTrue(taskCells.firstMatch.waitForExistence(timeout: timeout),
+                      "Task '\(uniqueTitle)' should appear after submitting it")
 
-        // Take screenshot for verification
+        // A duplicate arrives after the first copy (the server echo), so give it the chance.
+        Thread.sleep(forTimeInterval: 2)
+
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Single Task Created"
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        // Task should appear at most once
-        XCTAssertLessThanOrEqual(taskCells.count, 1,
-            "Task '\(uniqueTitle)' should appear at most once, found \(taskCells.count)")
-    }
-
-    @MainActor
-    func testSameTitleDifferentCreations() throws {
-        app.launch()
-
-        let timeout: TimeInterval = 10
-
-        try UITestLaunch.skipUnlessSignedIn(app)
-        let addTaskField = UITestLaunch.quickAddField(app)
-
-        guard addTaskField.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Quick add task field not found")
-        }
-
-        // Create first task
-        let title = "Repeated title task"
-        guard UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add never took keyboard focus")
-        }
-        addTaskField.typeText(title)
-        app.keyboards.buttons["Return"].tap()
-
-        // Wait for first task to process
-        Thread.sleep(forTimeInterval: 2)
-
-        // Create second task with same title (should create a NEW task with different clientRequestId)
-        guard UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add never took keyboard focus")
-        }
-        addTaskField.typeText(title)
-        app.keyboards.buttons["Return"].tap()
-
-        Thread.sleep(forTimeInterval: 2)
-
-        // Take screenshot — both should appear (different clientRequestIds)
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Two Tasks Same Title"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        XCTAssertEqual(taskCells.count, 1,
+            "Task '\(uniqueTitle)' should appear exactly once, found \(taskCells.count)")
     }
 }

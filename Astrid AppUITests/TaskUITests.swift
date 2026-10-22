@@ -10,8 +10,6 @@ final class TaskUITests: XCTestCase {
         continueAfterFailure = false
         app = UITestLaunch.makeApp()
 
-        // Skip if not logged in (UI tests require authenticated state)
-        // In real implementation, you'd handle authentication in setup
     }
 
     override func tearDownWithError() throws {
@@ -19,30 +17,6 @@ final class TaskUITests: XCTestCase {
     }
 
     // MARK: - Quick Add Task Tests
-
-    @MainActor
-    func testQuickAddTaskVisible() throws {
-        app.launch()
-
-        // Wait for app to load
-        let timeout: TimeInterval = 10
-
-        // Check if quick add task input is visible (may be on main task list view)
-        // This will depend on the actual UI structure
-        _ = app.textFields["Add a task..."].waitForExistence(timeout: timeout) ||
-            UITestLaunch.quickAddField(app).waitForExistence(timeout: timeout)
-
-        // Take screenshot for debugging
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Quick Add Task View"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-
-        // If we're on the login screen, skip this test
-        if app.buttons["Sign in with Apple"].exists || app.buttons["Sign in with Google"].exists {
-            throw XCTSkip("User not authenticated - skipping task UI tests")
-        }
-    }
 
     @MainActor
     func testCreateTaskWithTitle() throws {
@@ -60,7 +34,7 @@ final class TaskUITests: XCTestCase {
             screenshot.name = "Task Input Not Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("Quick add task input not found")
+            throw UITestFailure("Quick add task input not found")
         }
 
         // Create a unique task title
@@ -68,7 +42,7 @@ final class TaskUITests: XCTestCase {
 
         // Tap input and enter title
         guard UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add never took keyboard focus")
+            throw UITestFailure("Quick add never took keyboard focus")
         }
         taskInput.typeText(taskTitle)
 
@@ -104,9 +78,11 @@ final class TaskUITests: XCTestCase {
     /// tasks: the row re-sorted below every open one, far out of the lazy accessibility tree,
     /// and that read as gone. On the five-fixture account the reset is meant to produce, the
     /// row stays on screen, struck through and ticked, and the assertion failed on an app doing
-    /// exactly the right thing (AITD-490). So it checks the tick, and accepts the row leaving
-    /// for the case where completed tasks are filtered out. Safe to run repeatedly —
-    /// `npm run test:ui` recreates the fixture tasks on every run.
+    /// exactly the right thing (AITD-490). So it checks the tick. It used to accept the row
+    /// leaving as well, but a row re-sorting out of the lazy tree satisfies "the count dropped"
+    /// just as well as a completion does, so that branch could pass on a tap that did nothing
+    /// (AITD-525). Safe to run repeatedly — `npm run test:ui` recreates the fixture tasks on
+    /// every run.
     func testCompleteTask() throws {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
@@ -116,7 +92,7 @@ final class TaskUITests: XCTestCase {
             screenshot.name = "No Tasks Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("No task rows on screen")
+            throw UITestFailure("No task rows on screen — the seeder guarantees five")
         }
 
         // The checkbox is the row's `taskRow`-identified BUTTON — the title beside it carries
@@ -131,14 +107,13 @@ final class TaskUITests: XCTestCase {
             let box = checkbox(in: $0)
             return box.exists && !box.label.contains("_checked")
         }) else {
-            throw XCTSkip("No open row with a checkbox — an avatar or the unassigned mark instead")
+            throw UITestFailure("No open row with a checkbox — the seeded fixtures are open and unassigned")
         }
 
         // The row's own title, which is the first static text inside it.
         let title = openRow.staticTexts.firstMatch.label
         XCTAssertFalse(title.isEmpty, "a task row should carry its title")
         let titled = NSPredicate(format: "label == %@", title)
-        let initialCount = app.staticTexts.matching(titled).count
 
         UITestLaunch.tapCenter(checkbox(in: openRow))
 
@@ -147,17 +122,14 @@ final class TaskUITests: XCTestCase {
         // if nothing changes — a bare timeout on a predicate cannot tell "the tap did nothing"
         // from "the wrong text was captured".
         var ticked = false
-        var left = false
         let deadline = Date().addingTimeInterval(10)
         while Date() < deadline {
             let box = checkbox(in: app.cells.containing(titled).firstMatch)
             ticked = box.exists && box.label.contains("_checked")
-            left = app.staticTexts.matching(titled).count < initialCount
-            if ticked || left { break }
+            if ticked { break }
             Thread.sleep(forTimeInterval: 0.25)
         }
-        XCTAssertTrue(ticked || left,
-                      "completing \"\(title)\" should tick its checkbox or drop it from the list; neither happened")
+        XCTAssertTrue(ticked, "completing \"\(title)\" should tick its checkbox")
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "After Task Completion"
@@ -165,73 +137,4 @@ final class TaskUITests: XCTestCase {
         add(screenshot)
     }
 
-    // MARK: - Task Detail Tests
-
-    @MainActor
-    func testOpenTaskDetail() throws {
-        app.launch()
-        try UITestLaunch.skipUnlessSignedIn(app)
-        // Wait for tasks to load
-        sleep(2)
-
-        // Find any task text to tap
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "No Tasks for Detail"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-            throw XCTSkip("No tasks found to open")
-        }
-
-        // Tap on first task to open detail
-        tasks.firstMatch.tap()
-
-        // Wait for detail view to appear
-        // Detail view typically has title field, description, priority picker, etc.
-        sleep(1)
-
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Task Detail View"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-    }
-
-    // MARK: - Priority Selection Tests
-
-    @MainActor
-    func testChangePriority() throws {
-        app.launch()
-        try UITestLaunch.skipUnlessSignedIn(app)
-        sleep(2)
-
-        // Find and open a task
-        let tasks = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Task'"))
-
-        guard tasks.count > 0 else {
-            throw XCTSkip("No tasks found")
-        }
-
-        tasks.firstMatch.tap()
-        sleep(1)
-
-        // Find priority picker (might be labeled "Priority", "None", "Low", "Medium", "High")
-        let priorityButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'priority' OR label == 'None' OR label == 'Low' OR label == 'Medium' OR label == 'High'")).firstMatch
-
-        if priorityButton.exists {
-            priorityButton.tap()
-
-            // Select "High" priority
-            let highPriority = app.buttons["High"]
-            if highPriority.waitForExistence(timeout: 3) {
-                highPriority.tap()
-            }
-        }
-
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "After Priority Change"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-    }
 }

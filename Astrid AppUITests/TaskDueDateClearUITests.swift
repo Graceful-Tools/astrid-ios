@@ -66,7 +66,7 @@ final class TaskDueDateClearUITests: XCTestCase {
         try UITestLaunch.skipUnlessSignedIn(app)
         // A fixture row rather than a quick-added task: the iPad layout only has to open one.
         guard let row = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks on screen")
+            throw UITestFailure("No tasks on screen")
         }
         UITestLaunch.tapCenter(row)
         XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should open")
@@ -105,7 +105,7 @@ final class TaskDueDateClearUITests: XCTestCase {
 
         let field = UITestLaunch.quickAddField(app)
         guard field.waitForExistence(timeout: 10), UITestLaunch.focusQuickAdd(app) else {
-            throw XCTSkip("Quick add not available")
+            throw UITestFailure("Quick add not available")
         }
         field.typeText(title)
         // iPad's keyboard names the key "return", and with a hardware keyboard there is none.

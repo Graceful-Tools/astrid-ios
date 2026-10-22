@@ -76,8 +76,9 @@ enum UITestLaunch {
         return app
     }
 
-    /// Skips the calling test when the app is not signed in — using the marker that is
-    /// actually on the welcome screen.
+    /// Skips the calling test when there is no session to sign in with, and FAILS it when there
+    /// was one and the app is signed out anyway — using the marker that is actually on the
+    /// welcome screen.
     ///
     /// Most suites checked `app.buttons["Sign in with Apple"]`, which is NOT on that screen:
     /// the welcome screen offers "Sign in" and "Use without account", and the provider buttons
@@ -92,9 +93,13 @@ enum UITestLaunch {
                 || app.buttons["Sign in"].exists
         else { return }
 
-        throw XCTSkip(hasSession
-            ? "Signed out despite being given a session — see SignedInPreconditionUITests."
-            : "No test-account session — run `npm run test:ui`, which mints one.")
+        // Signed out WITH a session is the app failing to sign in, not a missing precondition.
+        // It used to skip here, so only SignedInPreconditionUITests went red and the other
+        // ~38 signed-in tests reported green while asserting nothing (AITD-525).
+        guard !hasSession else {
+            throw UITestFailure("Signed out despite being given a session — see SignedInPreconditionUITests.")
+        }
+        throw XCTSkip("No test-account session — run `npm run test:ui`, which mints one.")
     }
 
     /// Identifier the app stamps on every task row. Must match `TaskRowView`.
@@ -221,7 +226,7 @@ enum UITestLaunch {
         app.descendants(matching: .any).matching(identifier: commentFieldIdentifier).firstMatch
     }
 
-    /// Open the first task's detail and return its comment box, or nil with a reason.
+    /// Open the first task's detail and return its comment box, or fail saying which step broke.
     ///
     /// Four tests each rebuilt this out of `staticTexts CONTAINS 'Task'`, `tap()` and `sleep(1)`,
     /// which never checked that the detail had opened at all — so a failure one step earlier
@@ -230,15 +235,15 @@ enum UITestLaunch {
     static func openFirstTaskComment(_ app: XCUIApplication,
                                      timeout: TimeInterval = 15) throws -> XCUIElement {
         guard let row = waitForFirstVisibleRow(app, timeout: timeout) else {
-            throw XCTSkip("No task rows on screen")
+            throw UITestFailure("No task rows on screen — the seeder guarantees five")
         }
         tapCenter(row)
         guard waitForTaskDetail(app) else {
-            throw XCTSkip("Task detail did not open")
+            throw UITestFailure("Task detail did not open")
         }
         let field = commentField(app)
         guard field.waitForExistence(timeout: timeout) else {
-            throw XCTSkip("Comment box not found on an OPEN task detail — this one is the app")
+            throw UITestFailure("Comment box not found on an OPEN task detail — this one is the app")
         }
         return field
     }
@@ -269,7 +274,9 @@ enum UITestLaunch {
     /// wrong rather than early — and it only bites the first test in a class, while the app is
     /// still settling, so it looks like a flake rather than a missing wait.
     ///
-    /// Returns false when focus never arrives, so callers can skip rather than fail obscurely.
+    /// Returns false when focus never arrives, so callers can fail with a reason rather than
+    /// obscurely on the next keystroke. Fail, not skip: a field that cannot take focus is a
+    /// product bug (AITD-525).
     @MainActor
     @discardableResult
     static func focusQuickAdd(_ app: XCUIApplication, timeout: TimeInterval = 10) -> Bool {
@@ -286,8 +293,7 @@ enum UITestLaunch {
     }
 
     /// Waits for a row to appear, then returns it. Nil means the screen never populated —
-    /// callers skip on that, since it is a state the harness cannot distinguish from a list
-    /// that is legitimately empty.
+    /// callers fail on that, since the seeder guarantees five fixture tasks (AITD-525).
     ///
     /// The wait is for a REAL task row. `visibleRows` falls back to `app.cells` for screens
     /// that have none, and the sidebar's cells are in the tree from the first frame — so a
@@ -330,3 +336,17 @@ enum UITestLaunch {
 
 /// Only exists to locate the test bundle.
 private final class UITestLaunchBundleToken {}
+
+/// A precondition the harness GUARANTEES did not hold — so it is the app's failure, not a reason
+/// to skip.
+///
+/// The suite threw `XCTSkip` for "no task rows", "detail did not open", "quick add never took
+/// focus" and the like, from before the seeder guaranteed an account with five fixture tasks.
+/// Since then every one of those has been a failure wearing a skip, and the suite reported
+/// green while asserting nothing (AITD-525). XCTest records a thrown error as a failure carrying
+/// this message, so the reason still reads in the result.
+struct UITestFailure: Error, CustomStringConvertible, LocalizedError {
+    let description: String
+    init(_ description: String) { self.description = description }
+    var errorDescription: String? { description }
+}
