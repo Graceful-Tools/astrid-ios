@@ -7,78 +7,26 @@ final class AutocompleteTests: XCTestCase {
 
     // MARK: - Trigger Detection Tests
 
-    func testDetectAtMentionTrigger() {
-        let result = detectAutocompleteTrigger(in: "hello @")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .mention)
-        XCTAssertEqual(result?.search, "")
-    }
-
-    func testDetectAtMentionWithSearch() {
-        let result = detectAutocompleteTrigger(in: "hello @ast")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .mention)
-        XCTAssertEqual(result?.search, "ast")
-    }
-
-    func testDetectHashListTrigger() {
-        let result = detectAutocompleteTrigger(in: "add to #")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .list)
-        XCTAssertEqual(result?.search, "")
-    }
-
-    func testDetectHashListWithSearch() {
-        let result = detectAutocompleteTrigger(in: "add to #car")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .list)
-        XCTAssertEqual(result?.search, "car")
-    }
-
-    func testDetectBangTaskTrigger() {
-        let result = detectAutocompleteTrigger(in: "see !buy")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .task)
-        XCTAssertEqual(result?.search, "buy")
-    }
-
-    func testNoTriggerInPlainText() {
-        let result = detectAutocompleteTrigger(in: "hello world")
-        XCTAssertNil(result)
-    }
-
-    func testTriggerAtStartOfText() {
-        let result = detectAutocompleteTrigger(in: "@jon")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .mention)
-        XCTAssertEqual(result?.search, "jon")
-    }
-
-    func testTriggerClosedBySpace() {
-        // "@jon " has a space after — trigger is closed
-        let result = detectAutocompleteTrigger(in: "@jon hello")
-        XCTAssertNil(result)
-    }
-
-    func testTriggerRequiresWhitespaceBefore() {
-        // "email@test" — @ not preceded by whitespace, should not trigger
-        let result = detectAutocompleteTrigger(in: "email@test")
-        XCTAssertNil(result)
-    }
-
-    func testTriggerAfterNewline() {
-        let result = detectAutocompleteTrigger(in: "line one\n@ast")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .mention)
-        XCTAssertEqual(result?.search, "ast")
-    }
-
-    func testMostRecentTriggerWins() {
-        // Multiple triggers — closest to end wins
-        let result = detectAutocompleteTrigger(in: "@jon mentioned #car")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.type, .list)
-        XCTAssertEqual(result?.search, "car")
+    /// One row per input: the trigger it opens (nil: none) and what is searched for.
+    func testDetectAutocompleteTrigger() {
+        let cases: [(text: String, type: AutocompleteItem.AutocompleteType?, search: String?)] = [
+            ("hello @", .mention, ""),
+            ("hello @ast", .mention, "ast"),
+            ("add to #", .list, ""),
+            ("add to #car", .list, "car"),
+            ("see !buy", .task, "buy"),
+            ("hello world", nil, nil),
+            ("@jon", .mention, "jon"),                    // at the start of the text
+            ("@jon hello", nil, nil),                      // a space closes the trigger
+            ("email@test", nil, nil),                      // @ must follow whitespace
+            ("line one\n@ast", .mention, "ast"),           // a newline counts as whitespace
+            ("@jon mentioned #car", .list, "car"),         // the trigger nearest the end wins
+        ]
+        for (text, type, search) in cases {
+            let result = detectAutocompleteTrigger(in: text)
+            XCTAssertEqual(result?.type, type, text)
+            XCTAssertEqual(result?.search, search, text)
+        }
     }
 
     // MARK: - Reference Reconstruction Tests

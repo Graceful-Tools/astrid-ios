@@ -32,10 +32,16 @@ final class KeyboardEngineWarmerTests: XCTestCase {
     /// Warming must be invisible: it must not request first responder, so the
     /// keyboard never appears. We assert the warmer exposes this contract and
     /// that warming runs without touching the responder chain.
+    ///
+    /// Observed, not restated (AITD-536): `presentsKeyboard` is a constant, so asserting it
+    /// proved nothing. A keyboard that rises posts `keyboardWillShowNotification`.
+    @MainActor
     func testWarmingNeverPresentsKeyboard() {
-        XCTAssertFalse(KeyboardEngineWarmer.presentsKeyboard,
-                       "launch warm-up must never present the keyboard")
-        // Should run without crashing and without needing a window/responder.
+        let keyboardShown = expectation(forNotification: UIResponder.keyboardWillShowNotification, object: nil)
+        keyboardShown.isInverted = true
+
         KeyboardEngineWarmer.warmTextChecker()
+
+        wait(for: [keyboardShown], timeout: 1)
     }
 }

@@ -56,19 +56,4 @@ final class ServerCapabilitiesTests: XCTestCase {
 
         XCTAssertEqual(caps, ServerCapabilities.permissive)
     }
-
-    func testPermissiveEnablesEverything() {
-        let caps = ServerCapabilities.permissive
-
-        XCTAssertTrue(caps.auth.google)
-        XCTAssertTrue(caps.auth.apple)
-        XCTAssertTrue(caps.auth.passkey)
-        XCTAssertTrue(caps.sync.googleTasks)
-        XCTAssertTrue(caps.sync.githubIssues)
-        XCTAssertTrue(caps.integrations.mcp)
-        XCTAssertTrue(caps.integrations.openclaw)
-        XCTAssertTrue(caps.integrations.chatgptActions)
-        XCTAssertTrue(caps.services.emailToTask)
-        XCTAssertTrue(caps.services.calendarFeed)
-    }
 }

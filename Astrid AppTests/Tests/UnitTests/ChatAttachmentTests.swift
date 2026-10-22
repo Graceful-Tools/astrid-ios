@@ -6,59 +6,19 @@ final class ChatAttachmentTests: XCTestCase {
 
     // MARK: - AttachedFileInfo Tests
 
-    func testAttachedFileInfoIsImageForJpeg() {
-        let file = AttachedFileInfo(
-            fileId: "test-1",
-            fileName: "photo.jpg",
-            fileSize: 1024,
-            mimeType: "image/jpeg",
-            imageData: nil
-        )
-        XCTAssertTrue(file.isImage)
-    }
-
-    func testAttachedFileInfoIsImageForPng() {
-        let file = AttachedFileInfo(
-            fileId: "test-2",
-            fileName: "screenshot.png",
-            fileSize: 2048,
-            mimeType: "image/png",
-            imageData: nil
-        )
-        XCTAssertTrue(file.isImage)
-    }
-
-    func testAttachedFileInfoIsNotImageForPdf() {
-        let file = AttachedFileInfo(
-            fileId: "test-3",
-            fileName: "document.pdf",
-            fileSize: 4096,
-            mimeType: "application/pdf",
-            imageData: nil
-        )
-        XCTAssertFalse(file.isImage)
-    }
-
-    func testAttachedFileInfoIsNotImageForZip() {
-        let file = AttachedFileInfo(
-            fileId: "test-4",
-            fileName: "archive.zip",
-            fileSize: 8192,
-            mimeType: "application/zip",
-            imageData: nil
-        )
-        XCTAssertFalse(file.isImage)
-    }
-
-    func testAttachedFileInfoCaseInsensitiveMimeType() {
-        let file = AttachedFileInfo(
-            fileId: "test-5",
-            fileName: "photo.jpg",
-            fileSize: 1024,
-            mimeType: "Image/JPEG",
-            imageData: nil
-        )
-        XCTAssertTrue(file.isImage)
+    /// One row per MIME type: images (case-insensitive) preview inline, everything else does not.
+    func testAttachedFileInfoIsImage() {
+        let cases: [(mimeType: String, isImage: Bool)] = [
+            ("image/jpeg", true),
+            ("image/png", true),
+            ("Image/JPEG", true),
+            ("application/pdf", false),
+            ("application/zip", false),
+        ]
+        for (mimeType, isImage) in cases {
+            let file = AttachedFileInfo(fileId: "f", fileName: "file", fileSize: 1024, mimeType: mimeType, imageData: nil)
+            XCTAssertEqual(file.isImage, isImage, mimeType)
+        }
     }
 
     // MARK: - PendingAttachment Context Tests

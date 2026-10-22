@@ -8,14 +8,16 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
 
     // MARK: - Test Helpers
 
+    /// The calculator steps on the device's zone unless told otherwise; the tests build their dates
+    /// in UTC and ask in UTC (AITD-536), so a CI machine's zone cannot shift any result.
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+
     private func createDate(year: Int, month: Int, day: Int, hour: Int = 9, minute: Int = 0) -> Date {
-        var components = DateComponents()
-        components.year = year
-        components.month = month
-        components.day = day
-        components.hour = hour
-        components.minute = minute
-        return Calendar.current.date(from: components)!
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
     }
 
     // MARK: - Simple Daily Repeating Tests
@@ -29,7 +31,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Jan 16 at 10:30 (preserves time from due date)
@@ -37,7 +40,6 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
         XCTAssertFalse(result.shouldTerminate)
         XCTAssertEqual(result.newOccurrenceCount, 1)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 16)
         XCTAssertEqual(calendar.component(.hour, from: result.nextDueDate!), 10)
         XCTAssertEqual(calendar.component(.minute, from: result.nextDueDate!), 30)
@@ -52,13 +54,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .COMPLETION_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Jan 18 at 10:30 (1 day after completion, preserving time)
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 18)
         XCTAssertEqual(calendar.component(.hour, from: result.nextDueDate!), 10)
         XCTAssertEqual(calendar.component(.minute, from: result.nextDueDate!), 30)
@@ -75,14 +77,14 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 2
+            currentOccurrenceCount: 2,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Jan 22 (7 days later)
         XCTAssertNotNil(result.nextDueDate)
         XCTAssertEqual(result.newOccurrenceCount, 3)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 22)
     }
 
@@ -97,13 +99,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Feb 15
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 2)
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 15)
     }
@@ -118,16 +120,12 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
-        // Should handle Feb gracefully (either Feb 29 for leap year or last valid day)
-        XCTAssertNotNil(result.nextDueDate)
-
-        let calendar = Calendar.current
-        XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 2)
-        // Feb 2024 has 29 days (leap year)
-        XCTAssertTrue(calendar.component(.day, from: result.nextDueDate!) <= 29)
+        // Jan 31 clamps to the last day of a leap February — exactly Feb 29, 2024
+        XCTAssertEqual(result.nextDueDate, createDate(year: 2024, month: 2, day: 29, hour: 9, minute: 0))
     }
 
     // MARK: - Simple Yearly Repeating Tests
@@ -141,13 +139,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be June 15, 2025
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.year, from: result.nextDueDate!), 2025)
         XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 6)
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 15)
@@ -172,7 +170,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 2,
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result1.nextDueDate)  // 3rd occurrence reached, terminate
@@ -186,7 +185,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 1,
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result2.nextDueDate)
@@ -212,7 +212,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 0,
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result1.nextDueDate)
@@ -226,7 +227,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: dueDate2,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 1,
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result2.nextDueDate)
@@ -240,7 +242,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: dueDate3,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 2,
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result3.nextDueDate)
@@ -263,7 +266,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 100,  // Even at high count
-            endData: endData
+            endData: endData,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result.nextDueDate)
@@ -296,14 +300,14 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Jan 18 (3 days later)
         XCTAssertNotNil(result.nextDueDate)
         XCTAssertFalse(result.shouldTerminate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 18)
     }
 
@@ -334,16 +338,12 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
-        // Next occurrence should be Wednesday Jan 17
-        XCTAssertNotNil(result.nextDueDate)
-
-        let calendar = Calendar.current
-        let nextDayOfWeek = calendar.component(.weekday, from: result.nextDueDate!)
-        // weekday: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
-        XCTAssertEqual(nextDayOfWeek, 4)  // Wednesday
+        // Next occurrence is exactly Wednesday Jan 17 — any other Wednesday is a bug
+        XCTAssertEqual(result.nextDueDate, createDate(year: 2024, month: 1, day: 17, hour: 9, minute: 0))
     }
 
     // MARK: - Custom Pattern: Months Tests
@@ -372,13 +372,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be March 15 (2 months later)
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 3)
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 15)
     }
@@ -408,16 +408,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
-        // Next due date should be third Tuesday of February 2024
-        XCTAssertNotNil(result.nextDueDate)
-
-        let calendar = Calendar.current
-        XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 2)
-        // Third Tuesday of Feb 2024 is Feb 20
-        XCTAssertEqual(calendar.component(.weekday, from: result.nextDueDate!), 3)  // Tuesday
+        // Third Tuesday of Feb 2024 is exactly Feb 20 — at midnight: a same-weekday step builds the
+        // date from the first of the month and loses the time of day (D3, astrid-web types/repeating.ts)
+        XCTAssertEqual(result.nextDueDate, createDate(year: 2024, month: 2, day: 20, hour: 0, minute: 0))
     }
 
     // MARK: - Custom Pattern: Years Tests
@@ -446,13 +443,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Next occurrence should be Dec 25, 2025
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.year, from: result.nextDueDate!), 2025)
         XCTAssertEqual(calendar.component(.month, from: result.nextDueDate!), 12)
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 25)
@@ -485,7 +482,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 4
+            currentOccurrenceCount: 4,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result.nextDueDate)
@@ -519,7 +517,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result.nextDueDate)
@@ -536,13 +535,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: nil,  // No due date
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         // Should use completion date as anchor
         XCTAssertNotNil(result.nextDueDate)
 
-        let calendar = Calendar.current
         XCTAssertEqual(calendar.component(.day, from: result.nextDueDate!), 16)
     }
 
@@ -571,7 +570,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result.nextDueDate)
@@ -587,11 +587,13 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
-        // "never" type doesn't add any time, should return anchor date
-        XCTAssertNotNil(result.nextDueDate)
+        // "never" steps nothing: the core answers the anchor unchanged and does not end the series
+        XCTAssertEqual(result.nextDueDate, dueDate)
+        XCTAssertFalse(result.shouldTerminate)
     }
 
     // MARK: - All-Day Task Regression Tests
@@ -602,8 +604,7 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
     func testAllDayDailyRepeatFromCompletionDate() {
         // All-day tasks are stored as UTC midnight
         // Create a date at UTC midnight for Jan 6, 2026
-        var utcCalendar = Calendar.current
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let utcCalendar = calendar
         var components = DateComponents()
         components.year = 2026
         components.month = 1
@@ -631,7 +632,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .COMPLETION_DATE,
             currentOccurrenceCount: 0,
-            isAllDay: true
+            isAllDay: true,
+            timeZone: calendar.timeZone
         )
 
         // Next due date should be Jan 7 at UTC midnight (not Jan 8!)
@@ -647,8 +649,7 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
 
     /// Test that all-day weekly repeat also works correctly
     func testAllDayWeeklyRepeatFromCompletionDate() {
-        var utcCalendar = Calendar.current
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let utcCalendar = calendar
 
         // Jan 6, 2026 at UTC midnight (all-day task)
         var components = DateComponents()
@@ -674,7 +675,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .COMPLETION_DATE,
             currentOccurrenceCount: 0,
-            isAllDay: true
+            isAllDay: true,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result.nextDueDate)
@@ -689,8 +691,7 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
 
     /// Test all-day task with DUE_DATE repeat mode (less affected but still verify)
     func testAllDayDailyRepeatFromDueDate() {
-        var utcCalendar = Calendar.current
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let utcCalendar = calendar
 
         var components = DateComponents()
         components.year = 2026
@@ -715,7 +716,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: completionDate,
             repeatFrom: .DUE_DATE,  // Repeat from original due date
             currentOccurrenceCount: 0,
-            isAllDay: true
+            isAllDay: true,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNotNil(result.nextDueDate)
@@ -762,7 +764,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             completionDate: dueDate,
             repeatFrom: .DUE_DATE,
             currentOccurrenceCount: 0,
-            isAllDay: true
+            isAllDay: true,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertFalse(result.shouldTerminate, "A missing monthRepeatType must not end the series")
@@ -778,7 +781,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: dueDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertFalse(result.shouldTerminate, "An interval of 0 must not end the series")
@@ -794,7 +798,8 @@ final class RepeatingTaskCalculatorTests: XCTestCase {
             currentDueDate: dueDate,
             completionDate: dueDate,
             repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
+            currentOccurrenceCount: 0,
+            timeZone: calendar.timeZone
         )
 
         XCTAssertNil(result.nextDueDate)

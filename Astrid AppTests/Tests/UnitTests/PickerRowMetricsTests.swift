@@ -34,16 +34,16 @@ final class PickerRowMetricsTests: XCTestCase {
         XCTAssertLessThan(PickerRowMetrics.rowSpacing, PickerRowMetrics.sectionSpacing)
     }
 
-    /// Horizontal padding is shared too — the two pickers used 16 and 12, so their rows' text
-    /// started at different offsets when opened one after the other.
-    func testHorizontalPaddingIsShared() {
-        XCTAssertGreaterThan(PickerRowMetrics.rowHorizontalPadding, 0)
-    }
-
-    /// A row's total height is padding on both sides plus its content, so equal padding is what
-    /// makes equal height. Pinned as a derived value so a future change to one side is caught.
-    func testRowHeightIsSymmetric() {
-        XCTAssertEqual(PickerRowMetrics.totalVerticalPadding,
-                       PickerRowMetrics.rowVerticalPadding * 2)
+    /// Shared numbers only help if both pickers read them (AITD-536): relating the constants to
+    /// each other passes just as well with a picker back on its own literals.
+    func testBothPickersConsumeTheSharedMetrics() throws {
+        for path in ["Astrid App/Views/Components/InlineDatePicker.swift",
+                     "Astrid App/Views/Components/InlineTimePicker.swift"] {
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
+            for metric in ["sectionSpacing", "rowSpacing", "rowHorizontalPadding",
+                           "rowVerticalPadding", "clearRowVerticalPadding"] {
+                XCTAssertTrue(source.contains("PickerRowMetrics.\(metric)"), "\(path) must use PickerRowMetrics.\(metric)")
+            }
+        }
     }
 }

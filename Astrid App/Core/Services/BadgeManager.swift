@@ -74,11 +74,13 @@ extension Task {
     ///   already passed today — a 9am task is still "due today" at 10am).
     ///
     /// For "due today AND not yet passed" callers, combine with `!isOverdue`.
-    var isDueToday: Bool {
+    var isDueToday: Bool { isDueToday(at: Date()) }
+
+    /// `isDueToday` as of `now` — the seam the tests use instead of the wall clock.
+    func isDueToday(at now: Date) -> Bool {
         guard let dueDate = dueDateTime else { return false }
 
         let calendar = Calendar.current
-        let now = Date()
 
         if isAllDay {
             var utcCalendar = Calendar.current
@@ -89,16 +91,18 @@ extension Task {
                    dueDateComponents.month == todayComponents.month &&
                    dueDateComponents.day == todayComponents.day
         } else {
-            return calendar.isDateInToday(dueDate)
+            return calendar.isDate(dueDate, inSameDayAs: now)
         }
     }
 
     /// Check if task is overdue (due date passed and not completed)
-    var isOverdue: Bool {
+    var isOverdue: Bool { isOverdue(at: Date()) }
+
+    /// `isOverdue` as of `now` — the seam the tests use instead of the wall clock.
+    func isOverdue(at now: Date) -> Bool {
         guard let dueDate = dueDateTime else { return false }
 
         let calendar = Calendar.current
-        let now = Date()
 
         // For all-day tasks: Extract date components from UTC and compare to today
         // For timed tasks: overdue if due time has passed

@@ -83,8 +83,10 @@ final class QuickPickerArrowDirectionTests: XCTestCase {
             }
             RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         }
-        throw XCTSkip("UIKit never presented the probe popover — the simulator has no key window "
-                      + "to host it in; run this on a booted simulator")
+        // A failure, not a skip (AITD-536): this test hosts its own key window, so a probe that
+        // never presents is a broken check — and a skip left the AITD-397 fix unverified quietly.
+        XCTFail("UIKit never presented the probe popover in the test's key window")
+        throw ProbeNotPresented()
     }
 
     // MARK: - The task, in UIKit's words
@@ -128,3 +130,5 @@ final class QuickPickerArrowDirectionTests: XCTestCase {
                        + "AITD-393, AITD-395 and AITD-397")
     }
 }
+
+private struct ProbeNotPresented: Error {}

@@ -171,20 +171,19 @@ final class SmartTaskParserTests: XCTestCase {
         return utc.dateComponents([.year, .month, .day, .hour, .minute], from: date)
     }
 
-    private func localDay(daysFromToday offset: Int) -> DateComponents {
-        let calendar = Calendar.current
-        let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: Date()))!
-        var components = calendar.dateComponents([.year, .month, .day], from: day)
-        components.hour = 0
-        components.minute = 0
-        return components
+    /// A fixed "today" — Wednesday 11 March 2026, mid-morning on the device's calendar — so the
+    /// date words are checked against a known day instead of the wall clock (AITD-536).
+    private let today = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 11, hour: 10))!
+
+    private func utcMidnight(_ year: Int, _ month: Int, _ day: Int) -> DateComponents {
+        DateComponents(year: year, month: month, day: day, hour: 0, minute: 0)
     }
 
     func testParseToday() {
-        let result = SmartTaskParser.parse("Buy groceries today", lists: mockLists)
+        let result = SmartTaskParser.parse("Buy groceries today", lists: mockLists, today: today)
 
         XCTAssertEqual(result.title, "Buy groceries")
-        XCTAssertEqual(allDayDay(result.dueDateTime), localDay(daysFromToday: 0),
+        XCTAssertEqual(allDayDay(result.dueDateTime), utcMidnight(2026, 3, 11),
                        "today on the person's calendar, at UTC midnight")
     }
 
@@ -203,21 +202,18 @@ final class SmartTaskParserTests: XCTestCase {
     }
 
     func testParseTomorrow() {
-        let result = SmartTaskParser.parse("Call mom tomorrow", lists: mockLists)
+        let result = SmartTaskParser.parse("Call mom tomorrow", lists: mockLists, today: today)
 
         XCTAssertEqual(result.title, "Call mom")
-        XCTAssertEqual(allDayDay(result.dueDateTime), localDay(daysFromToday: 1))
+        XCTAssertEqual(allDayDay(result.dueDateTime), utcMidnight(2026, 3, 12))
     }
 
     func testParseDayName() {
-        let result = SmartTaskParser.parse("Meeting Monday", lists: mockLists)
+        let result = SmartTaskParser.parse("Meeting Monday", lists: mockLists, today: today)
 
         XCTAssertEqual(result.title, "Meeting")
-        XCTAssertNotNil(result.dueDateTime)
-        // Should be next Monday — on the UTC calendar, where an all-day date lives
-        var utc = Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        XCTAssertEqual(utc.component(.weekday, from: result.dueDateTime!), 2) // Monday = 2
+        // The coming Monday after Wednesday 11 March — exactly the 16th, not any Monday
+        XCTAssertEqual(allDayDay(result.dueDateTime), utcMidnight(2026, 3, 16))
     }
 
     // MARK: - Priority Keyword Tests
