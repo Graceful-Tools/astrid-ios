@@ -25,9 +25,19 @@ class AttachmentService: ObservableObject {
     // Map temp fileIds to real fileIds after upload
     private var fileIdMapping: [String: String] = [:]
 
-    init() {
+    /// Every request this service makes goes through `session`, and pending uploads persist to
+    /// `defaults` (AITD-535). Tests pass `StubURLProtocol.session()`, a temp `cachesDirectory` and
+    /// a suite, so nothing reaches the server or the host app's caches and defaults.
+    private let session: URLSession
+    private let defaults: UserDefaults
+
+    init(session: URLSession = AstridHTTP.session, cachesDirectory: URL? = nil,
+         defaults: UserDefaults = .standard) {
+        self.session = session
+        self.defaults = defaults
         // Setup local cache directory for pending attachments
-        let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let cachesDirectory = cachesDirectory
+            ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
         cacheDirectory = cachesDirectory.appendingPathComponent("PendingAttachments", isDirectory: true)
         let downloadCacheDirectory = cachesDirectory.appendingPathComponent("DownloadedAttachments", isDirectory: true)
         downloadCache = DownloadedAttachmentCache(
@@ -175,7 +185,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
+        let (infoData, infoResponse) = try await session.data(for: request)
         guard let httpResponse = infoResponse as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             return nil
         }
@@ -205,7 +215,7 @@ class AttachmentService: ObservableObject {
         // 3. Ask the server for a signed URL, then fetch it and cache the result.
         do {
             guard let downloadURL = try await getSecureFileDownloadURL(for: fileId) else { return nil }
-            let (data, _) = try await AstridHTTP.session.data(from: downloadURL)
+            let (data, _) = try await session.data(from: downloadURL)
             cacheDownload(fileId: fileId, data: data)
             return data
         } catch {
@@ -240,7 +250,7 @@ class AttachmentService: ObservableObject {
         if url.path.hasPrefix("/api/"), let cookie = try? KeychainService.shared.getSessionCookie() {
             request.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
-        guard let (data, response) = try? await AstridHTTP.session.data(for: request),
+        guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode)
         else {
             AppLog.debug("❌ [AttachmentService] Direct attachment fetch failed: \(url)")
@@ -311,7 +321,7 @@ class AttachmentService: ObservableObject {
                 request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
             }
 
-            let (infoData, infoResponse) = try await AstridHTTP.session.data(for: request)
+            let (infoData, infoResponse) = try await session.data(for: request)
             guard let httpResponse = infoResponse as? HTTPURLResponse,
                   (200...299).contains(httpResponse.statusCode) else { return nil }
 
@@ -319,7 +329,7 @@ class AttachmentService: ObservableObject {
             let fileInfo = try JSONDecoder().decode(FileInfo.self, from: infoData)
 
             guard let downloadURL = try? AstridHTTP.remoteURL(fileInfo.url) else { return nil }
-            let (fileData, _) = try await AstridHTTP.session.data(from: downloadURL)
+            let (fileData, _) = try await session.data(from: downloadURL)
 
             cacheDownload(fileId: file.id, data: fileData)
 
@@ -357,12 +367,12 @@ class AttachmentService: ObservableObject {
     private func savePendingUploads() {
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(pendingUploads) {
-            UserDefaults.standard.set(data, forKey: "pendingAttachments")
+            defaults.set(data, forKey: "pendingAttachments")
         }
     }
 
     private func loadPendingUploads() {
-        guard let data = UserDefaults.standard.data(forKey: "pendingAttachments") else { return }
+        guard let data = defaults.data(forKey: "pendingAttachments") else { return }
         let decoder = JSONDecoder()
         if let loaded = try? decoder.decode([String: PendingAttachment].self, from: data) {
             pendingUploads = loaded
@@ -416,7 +426,7 @@ class AttachmentService: ObservableObject {
         }
 
         // Upload with progress - body is passed here, not set on request.httpBody
-        let (data, response) = try await AstridHTTP.session.upload(for: request, from: body)
+        let (data, response) = try await session.upload(for: request, from: body)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -492,7 +502,7 @@ class AttachmentService: ObservableObject {
         ]
         getUrlRequest.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
-        let (urlData, urlResponse) = try await AstridHTTP.session.data(for: getUrlRequest)
+        let (urlData, urlResponse) = try await session.data(for: getUrlRequest)
 
         guard let httpResponse = urlResponse as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -534,8 +544,8 @@ class AttachmentService: ObservableObject {
             }
         })
 
-        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
-        let (_, blobResponse) = try await session.upload(for: blobRequest, from: fileData)
+        let blobSession = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        let (_, blobResponse) = try await blobSession.upload(for: blobRequest, from: fileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid blob response type")
@@ -623,7 +633,7 @@ class AttachmentService: ObservableObject {
         PrivacyLogger.request("AttachmentService", method: "POST", url: url)
 
         // Upload - body is passed here, not set on request.httpBody
-        let (data, response) = try await AstridHTTP.session.upload(for: request, from: body)
+        let (data, response) = try await session.upload(for: request, from: body)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid response type")
@@ -667,7 +677,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (data, response) = try await AstridHTTP.session.data(for: request)
+        let (data, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -710,7 +720,7 @@ class AttachmentService: ObservableObject {
             "fileSize": newFileData.count
         ])
 
-        let (uploadUrlData, uploadUrlResponse) = try await AstridHTTP.session.data(for: uploadUrlRequest)
+        let (uploadUrlData, uploadUrlResponse) = try await session.data(for: uploadUrlRequest)
 
         guard let httpResponse = uploadUrlResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid response type")
@@ -749,7 +759,7 @@ class AttachmentService: ObservableObject {
             blobRequest.setValue(value, forHTTPHeaderField: key)
         }
 
-        let (blobData, blobResponse) = try await AstridHTTP.session.upload(for: blobRequest, from: newFileData)
+        let (blobData, blobResponse) = try await session.upload(for: blobRequest, from: newFileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid blob response type")
@@ -788,7 +798,7 @@ class AttachmentService: ObservableObject {
             "oldBlobUrl": uploadUrlInfo.oldBlobUrl ?? ""
         ])
 
-        let (confirmData, confirmResponse) = try await AstridHTTP.session.data(for: confirmRequest)
+        let (confirmData, confirmResponse) = try await session.data(for: confirmRequest)
 
         guard let confirmHttpResponse = confirmResponse as? HTTPURLResponse else {
             AppLog.debug("❌ [AttachmentService] Invalid confirm response type")
@@ -852,7 +862,7 @@ class AttachmentService: ObservableObject {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
-        let (_, response) = try await AstridHTTP.session.data(for: request)
+        let (_, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
