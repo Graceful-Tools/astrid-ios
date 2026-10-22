@@ -41,11 +41,12 @@ final class TaskDuplicateUITests: XCTestCase {
         addTaskField.typeText(uniqueTitle)
         app.keyboards.buttons["Return"].tap()
 
+        guard UITestLaunch.waitForCreatedTask(app, titled: uniqueTitle) != nil else {
+            throw UITestFailure("Task '\(uniqueTitle)' should appear after submitting it")
+        }
         let taskCells = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", uniqueTitle)
         )
-        XCTAssertTrue(taskCells.firstMatch.waitForExistence(timeout: timeout),
-                      "Task '\(uniqueTitle)' should appear after submitting it")
 
         // A duplicate arrives after the first copy (the server echo), so give it the chance.
         Thread.sleep(forTimeInterval: 2)

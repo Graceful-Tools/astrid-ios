@@ -315,6 +315,27 @@ enum UITestLaunch {
         return firstVisibleRow(app)
     }
 
+    /// The static text naming a task just created, found even when it landed off screen.
+    ///
+    /// Quick add keeps the keyboard up, which clips the list to the space above it — four rows
+    /// on an iPhone 17 — and a new task sorts below the fixtures, out of the lazy accessibility
+    /// tree. "My Tasks, 6" counted it while `waitForExistence` reported it missing, so every
+    /// creation test failed on a task that had been created (AITD-525). Look first, then put the
+    /// keyboard away and scroll down the list a few times before giving up.
+    @MainActor
+    static func waitForCreatedTask(_ app: XCUIApplication, titled title: String,
+                                   timeout: TimeInterval = 5) -> XCUIElement? {
+        let text = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
+        if text.waitForExistence(timeout: timeout) { return text }
+        if app.keyboards.count > 0 { app.swipeDown() }
+        if text.waitForExistence(timeout: 2) { return text }
+        for _ in 0..<4 {
+            app.swipeUp()
+            if text.waitForExistence(timeout: 2) { return text }
+        }
+        return nil
+    }
+
     // MARK: - Private
 
     private static func cookieFromBundle() -> String? {

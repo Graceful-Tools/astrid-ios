@@ -155,12 +155,14 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             // Swipe right to open sidebar
             let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
             let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
-            start.press(forDuration: 0.05, thenDragTo: end)
+            // 0.15s, as in testSwipeRightOnTaskListOpensSidebar: a 0.05s flick can fall under
+            // the open threshold on a loaded simulator.
+            start.press(forDuration: 0.15, thenDragTo: end)
             Thread.sleep(forTimeInterval: 0.5)
         }
 
         // Tap settings button in sidebar
-        let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
+        let settingsButton = app.buttons["sidebar.settings"]
         // Must be hittable, not merely present: the closed sidebar keeps its gear button in
         // the tree, and tapping an off-screen element fails rather than skipping.
         guard settingsButton.waitForExistence(timeout: 3) else {

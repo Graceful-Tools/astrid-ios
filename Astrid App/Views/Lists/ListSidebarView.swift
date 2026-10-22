@@ -248,6 +248,10 @@ struct ListSidebarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // The symbol's own name was its label, so VoiceOver read "Gear Shape" and the UI
+            // suite's search for "Settings" never found it (AITD-525).
+            .accessibilityLabel(NSLocalizedString("settings", comment: "Settings"))
+            .accessibilityIdentifier("sidebar.settings")
         }
         .padding(.horizontal, Theme.spacing16)
         .padding(.vertical, Theme.spacing8)

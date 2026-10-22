@@ -112,8 +112,9 @@ final class TaskDueDateClearUITests: XCTestCase {
         let returnKey = app.keyboards.buttons["Return"]
         if returnKey.exists { returnKey.tap() } else { field.typeText("\n") }
 
-        let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "the new task should appear")
+        guard let row = UITestLaunch.waitForCreatedTask(app, titled: title) else {
+            throw UITestFailure("the new task should appear")
+        }
         if app.keyboards.count > 0 { app.swipeDown() }
         UITestLaunch.tapCenter(row)
         XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should open")

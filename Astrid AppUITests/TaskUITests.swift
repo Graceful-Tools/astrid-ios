@@ -50,8 +50,7 @@ final class TaskUITests: XCTestCase {
         app.keyboards.buttons["Return"].tap()
 
         // Wait for task to appear in list
-        let newTask = app.staticTexts[taskTitle]
-        let taskCreated = newTask.waitForExistence(timeout: timeout)
+        let taskCreated = UITestLaunch.waitForCreatedTask(app, titled: taskTitle) != nil
 
         // Take screenshot
         let screenshot = XCTAttachment(screenshot: app.screenshot())
