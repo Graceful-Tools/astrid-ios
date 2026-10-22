@@ -61,8 +61,10 @@ struct SyncDeletionLedger {
     // (which would let a deleted task resurrect via completed-backfill — a
     // GitHub twin is only closed, not deleted). Kept separate + unioned.
     private let serverCap = 5000
+    private let defaults: UserDefaults
 
-    init(provider: String) {
+    init(provider: String, defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         key = "syncPendingRemoteDeletes.\(provider)"
         tombstoneKey = "syncDeletedRemoteIds.\(provider)"
         serverTombstoneKey = "syncServerTombstones.\(provider)"
@@ -74,8 +76,8 @@ struct SyncDeletionLedger {
 
     /// remoteId → remoteContainerId (pending remote deletions)
     var pending: [String: String] {
-        get { UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:] }
-        nonmutating set { UserDefaults.standard.set(newValue, forKey: key) }
+        get { defaults.dictionary(forKey: key) as? [String: String] ?? [:] }
+        nonmutating set { defaults.set(newValue, forKey: key) }
     }
 
     /// Remote ids the sync must never re-import — the UNION of this device's
@@ -85,16 +87,16 @@ struct SyncDeletionLedger {
     /// evict oldest-first (a Set's suffix is hash-ordered and could evict a
     /// just-added id).
     var tombstonedRemoteIds: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? [])
-            .union(UserDefaults.standard.stringArray(forKey: serverTombstoneKey) ?? [])
+        Set(defaults.stringArray(forKey: tombstoneKey) ?? [])
+            .union(defaults.stringArray(forKey: serverTombstoneKey) ?? [])
     }
 
     func recordTombstone(_ remoteId: String) {
-        var arr = UserDefaults.standard.stringArray(forKey: tombstoneKey) ?? []
+        var arr = defaults.stringArray(forKey: tombstoneKey) ?? []
         guard !arr.contains(remoteId) else { return }
         arr.append(remoteId)
         if arr.count > cap { arr.removeFirst(arr.count - cap) }
-        UserDefaults.standard.set(arr, forKey: tombstoneKey)
+        defaults.set(arr, forKey: tombstoneKey)
     }
 
     /// Merge server-recorded tombstones into the separate server store (does
@@ -102,11 +104,11 @@ struct SyncDeletionLedger {
     /// by a large server merge).
     func mergeServerTombstones(_ ids: [String]) {
         guard !ids.isEmpty else { return }
-        var arr = UserDefaults.standard.stringArray(forKey: serverTombstoneKey) ?? []
+        var arr = defaults.stringArray(forKey: serverTombstoneKey) ?? []
         let existing = Set(arr)
         for id in ids where !existing.contains(id) { arr.append(id) }
         if arr.count > serverCap { arr.removeFirst(arr.count - serverCap) }
-        UserDefaults.standard.set(arr, forKey: serverTombstoneKey)
+        defaults.set(arr, forKey: serverTombstoneKey)
     }
 
     func recordPending(remoteId: String, containerId: String) {

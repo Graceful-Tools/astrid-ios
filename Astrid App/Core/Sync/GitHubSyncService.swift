@@ -22,19 +22,26 @@ final class GitHubSyncService: ObservableObject {
     @Published var lastSyncedAt: Date?
     @Published var lastError: String?
 
-    private let apiClient = AstridAPIClient.shared
+    private let apiClient: AstridAPIClient
+    private let defaults: UserDefaults
     private var refreshObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
     private var mutationObserver: NSObjectProtocol?
     private var syncDebounce: _Concurrency.Task<Void, Never>?
-    private let deletionLedger = SyncDeletionLedger(provider: "github")
+    private let deletionLedger: SyncDeletionLedger
     /// taskId → "remoteId|containerId", persisted so a delete can capture its
     /// link even before the first sync pass after relaunch.
     /// In memory, persisted through (AITD-342). It used to BE the defaults key, so every read
     /// deserialised the whole map out of the plist.
-    private let taskLinkCache = PersistedStringDictionary(key: "githubTaskLinkCache")
+    private let taskLinkCache: PersistedStringDictionary
 
-    private init() {
+    /// `shared` talks to the server through the hardened client and keeps its state in the
+    /// standard defaults; tests pass a stubbed client and a scratch suite (AITD-535).
+    init(apiClient: AstridAPIClient = .shared, defaults: UserDefaults = .standard) {
+        self.apiClient = apiClient
+        self.defaults = defaults
+        deletionLedger = SyncDeletionLedger(provider: "github", defaults: defaults)
+        taskLinkCache = PersistedStringDictionary(key: "githubTaskLinkCache", defaults: defaults)
         // Nudge from the server (GitHub webhook → SSE external_sync_refresh)
         refreshObserver = NotificationCenter.default.addObserver(
             forName: .externalSyncRefresh, object: nil, queue: .main
@@ -581,7 +588,7 @@ final class GitHubSyncService: ObservableObject {
         // non-urgent detach + completed-backfill work is throttled. If adopt
         // already fetched the full list this pass, reuse it (and stamp the gate).
         let fullPullKey = "githubLastFullPull:\(link.remoteContainerId)"
-        let lastFullPull = UserDefaults.standard.object(forKey: fullPullKey) as? Date
+        let lastFullPull = defaults.object(forKey: fullPullKey) as? Date
         let fullPullDue = lastFullPull.map { Date().timeIntervalSince($0) >= 300 } ?? true
         if fullRemoteItems == nil, fullPullDue {
             if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
@@ -592,7 +599,7 @@ final class GitHubSyncService: ObservableObject {
         // Only throttle after a genuinely COMPLETE listing — a failed/truncated
         // fetch (sentinel empty list, truncated == true) must retry next pass.
         if fullRemoteItems != nil, !fullListingTruncated {
-            UserDefaults.standard.set(Date(), forKey: fullPullKey)
+            defaults.set(Date(), forKey: fullPullKey)
         }
         if let fullItems = fullRemoteItems {
             let deletionLinks = taskLinks
