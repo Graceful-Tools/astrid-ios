@@ -107,6 +107,12 @@ struct ListSettingsModal: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                // The tabs are pages of one TabView, so a field focused on Admin stays first
+                // responder after the user moves away: the keyboard sat over Filters with nothing
+                // to type into, and opening the Who menu over it stalled the app (AITD-524).
+                .onChange(of: selectedTab) {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
             }
             .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
             .navigationTitle(NSLocalizedString("lists.list_settings", comment: ""))

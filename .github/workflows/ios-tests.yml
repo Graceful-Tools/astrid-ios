@@ -140,6 +140,24 @@ jobs:
             *.xcresult
           retention-days: 14
 
+      # A red UI job on main reached nobody: 23 runs in a row from 2026-10-15 until an audit
+      # opened Actions (AITD-524). Say it in the iOS list chat, where /fixall reports, naming the
+      # run and what failed. No @-mention: this can fire at any hour.
+      - name: Tell the board the UI job is red
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        working-directory: astrid-web
+        env:
+          ASTRID_OAUTH_CLIENT_ID: ${{ secrets.ASTRID_OAUTH_CLIENT_ID }}
+          ASTRID_OAUTH_CLIENT_SECRET: ${{ secrets.ASTRID_OAUTH_CLIENT_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          failures="$(head -5 ../test-results/ui-failures.txt 2>/dev/null | sed 's/^/- /' || true)"
+          [ -n "${failures}" ] || failures="- no test failure recorded: the job died before or outside the tests (setup, cookie mint, timeout)"
+          printf '## iOS UI tests are red on main\n\nCommit `%s` — [run %s](%s)\n\n%s\n' \
+            "${GITHUB_SHA::7}" "${GITHUB_RUN_ID}" "${RUN_URL}" "${failures}" \
+            | npx tsx scripts/post-list-message.ts aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36 -
+
   mac-tests:
     name: 'Mac Tests'
     runs-on: ${{ fromJSON(inputs.runner == 'macos-latest' && '["macos-latest"]' || '["self-hosted","astrid-ios"]') }}
