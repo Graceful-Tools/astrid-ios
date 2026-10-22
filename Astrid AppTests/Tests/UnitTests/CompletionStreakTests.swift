@@ -117,8 +117,12 @@ final class CompletionStreakTests: XCTestCase {
         XCTAssertEqual(streak.count, 6)
         XCTAssertEqual(streak.spanInDays, 25)   // 5 days ago → 30 days ago
         let summary = CompletionStreak.summary(for: streak)
-        XCTAssertTrue(summary.contains("6"), "summary should name the count: \(summary)")
         XCTAssertFalse(summary.hasPrefix("comments.streak"), "unresolved key: \(summary)")
+        // Count first, span second — a swapped pair contains "6" just as well (AITD-536)
+        XCTAssertEqual(summary, String(format: NSLocalizedString("comments.streak_summary", comment: ""), 6, 25))
+        if Bundle.main.preferredLocalizations.first == "en" {
+            XCTAssertEqual(summary, "Completed 6 times in 25 days")
+        }
     }
 
     /// Completions land at whatever time of day the box was ticked, so the span must be counted

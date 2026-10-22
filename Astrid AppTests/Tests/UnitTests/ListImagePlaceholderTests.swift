@@ -15,26 +15,17 @@ import XCTest
 
 final class ListImagePlaceholderTests: XCTestCase {
 
-    /// The exact set web serves, in the order both platforms show them.
-    func testThePlaceholderPathsAreTheAgreedSet() {
-        XCTAssertEqual(ListImagePlaceholders.all.map(\.path), [
-            "/images/placeholders/lavender.png",
-            "/images/placeholders/mint.png",
-            "/images/placeholders/peach.png",
-            "/images/placeholders/coral.png",
-            "/images/placeholders/sky.png",
-            "/images/placeholders/sage.png",
-            "/images/placeholders/rose.png",
-            "/images/placeholders/butter.png",
-            "/images/placeholders/periwinkle.png",
-            "/images/placeholders/seafoam.png",
-            "/images/placeholders/apricot.png",
-            "/images/placeholders/lilac.png",
-            "/images/placeholders/blush.png",
-            "/images/placeholders/powder.png",
-            "/images/placeholders/cream.png",
-            "/images/placeholders/pearl.png",
-        ])
+    /// The exact set web serves, in the order both platforms show them — read from the paired
+    /// web checkout's own index rather than restated here (AITD-536).
+    func testThePlaceholderPathsAreTheAgreedSet() throws {
+        let url = try RepositoryLocator.siblingWebRepository()
+            .appendingPathComponent("public/images/placeholders/index.json")
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw XCTSkip("No placeholders/index.json in the paired web checkout")
+        }
+        let served = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: Any]])
+        XCTAssertEqual(served.count, 16)
+        XCTAssertEqual(ListImagePlaceholders.all.map(\.path), served.compactMap { $0["path"] as? String })
     }
 
     /// Every entry is renderable and storable: a name, a parseable swatch colour, a path.

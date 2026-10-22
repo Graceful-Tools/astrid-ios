@@ -81,9 +81,12 @@ final class UserDataIsolationTests: XCTestCase {
         // When: Reset is called
         SyncManager.shared.resetSyncState()
 
-        // Then: All timestamps should be cleared
+        // Then: the stamp the app reads is gone, in memory and on disk
+        XCTAssertNil(SyncManager.shared.lastSyncDate, "the next account must not inherit the last sync time")
         XCTAssertNil(UserDefaults.standard.object(forKey: "last_sync_timestamp"),
             "Main sync timestamp should be cleared")
+        // The per-entity stamps below have had no writer since the core took sync over
+        // (checked 2026-10-22, AITD-536); reset still clears them for installs that wrote them.
         XCTAssertNil(UserDefaults.standard.object(forKey: "last_task_sync_timestamp"),
             "Task sync timestamp should be cleared")
         XCTAssertNil(UserDefaults.standard.object(forKey: "last_list_sync_timestamp"),

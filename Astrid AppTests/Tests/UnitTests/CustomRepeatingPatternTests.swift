@@ -872,15 +872,12 @@ final class CustomRepeatingPatternTests: XCTestCase {
             repeatFrom: .COMPLETION_DATE
         )
 
-        let (next, _) = TaskService.shared.calculateNextOccurrence(for: task)
-        guard let next = next else { return XCTFail("Expected next date") }
-        // Completion happens "now" — but the time of day is taken from the
-        // due date, so the result is a selected weekday on or after today.
-        // We can't assert a specific calendar day here (depends on test-run
-        // date), but we can assert the weekday is in the selected set.
-        let cal = Calendar.current
-        let weekday = cal.component(.weekday, from: next)
-        XCTAssertTrue([2, 4, 6].contains(weekday), "Must land on Mon/Wed/Fri (weekday=\(weekday))")
+        // Completed on Thursday Jan 18 (AITD-536: an injected now, not the wall clock). From the
+        // completion date the next selected weekday is Friday Jan 19 — from the due date it would
+        // be Wednesday Jan 17, so this tells the two modes apart.
+        let completedThursday = localDate(2024, 1, 18, hour: 12)
+        let (next, _) = TaskService.shared.calculateNextOccurrence(for: task, at: completedThursday)
+        XCTAssertEqual(next, localDate(2024, 1, 19, hour: 9))
     }
 
     @MainActor

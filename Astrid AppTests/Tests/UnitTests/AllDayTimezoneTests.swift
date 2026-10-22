@@ -79,46 +79,37 @@ final class AllDayTimezoneTests: XCTestCase {
 
     // MARK: - Timed tasks
 
-    func testTimed_DueLaterTodayIsDueToday() {
-        // Tasks due later today at 11pm local time count as "due today".
-        let now = Date()
-        let localCalendar = Calendar.current
-        var components = localCalendar.dateComponents([.year, .month, .day], from: now)
-        components.hour = 23
-        components.minute = 0
-        let laterToday = localCalendar.date(from: components)!
+    /// A fixed "now" — 10:00 on Wednesday 11 March 2026 on the device's calendar — so these
+    /// cases do not depend on when the suite runs (AITD-536).
+    private var tenAM: Date { localTime(hour: 10) }
 
-        let task = makeTask(dueDateTime: laterToday, isAllDay: false)
-        XCTAssertTrue(task.isDueToday, "Timed task later today is due today")
+    private func localTime(day: Int = 11, hour: Int, minute: Int = 0) -> Date {
+        Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: day, hour: hour, minute: minute))!
+    }
+
+    func testTimed_DueLaterTodayIsDueToday() {
+        // Tasks due later today at 11pm local time count as "due today", and are not overdue yet.
+        let task = makeTask(dueDateTime: localTime(hour: 23), isAllDay: false)
+        XCTAssertTrue(task.isDueToday(at: tenAM), "Timed task later today is due today")
+        XCTAssertFalse(task.isOverdue(at: tenAM))
     }
 
     /// Regression: iOS used to require `dueDate > now` for timed tasks,
     /// so a task due at 9am checked at 10am reported `isDueToday == false`.
     /// Web treats it as due-today-but-overdue. iOS now matches.
     func testTimed_DueEarlierTodayStillCountsAsDueToday() {
-        let now = Date()
-        let localCalendar = Calendar.current
-        // Try 00:01 local time today — very likely before `now`.
-        var components = localCalendar.dateComponents([.year, .month, .day], from: now)
-        components.hour = 0
-        components.minute = 1
-        let earlyToday = localCalendar.date(from: components)!
-
-        let task = makeTask(dueDateTime: earlyToday, isAllDay: false)
-        // Whether overdue depends on current time-of-day, but `isDueToday`
-        // must be true regardless — matches web's `isTaskDueToday`.
+        let task = makeTask(dueDateTime: localTime(hour: 9), isAllDay: false)
         XCTAssertTrue(
-            task.isDueToday,
+            task.isDueToday(at: tenAM),
             "Timed task earlier today must still be `isDueToday` (web parity)"
         )
+        XCTAssertTrue(task.isOverdue(at: tenAM), "and it is overdue — due today but already passed")
     }
 
     func testTimed_DueYesterday_IsOverdueNotDueToday() {
-        let now = Date()
-        let yesterday = now.addingTimeInterval(-24 * 60 * 60)
-        let task = makeTask(dueDateTime: yesterday, isAllDay: false)
-        XCTAssertTrue(task.isOverdue)
-        XCTAssertFalse(task.isDueToday)
+        let task = makeTask(dueDateTime: localTime(day: 10, hour: 10), isAllDay: false)
+        XCTAssertTrue(task.isOverdue(at: tenAM))
+        XCTAssertFalse(task.isDueToday(at: tenAM))
     }
 
     // MARK: - Codable / JSON round-trip (Task with all-day due date)

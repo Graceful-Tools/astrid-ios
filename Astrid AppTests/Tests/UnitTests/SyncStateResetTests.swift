@@ -18,9 +18,19 @@ final class SyncStateResetTests: XCTestCase {
         let keys = Set(SyncStateReset.userDefaultsKeys)
         for key in ["githubTaskLinkCache", "googleTaskLinkCache",
                     "recentlyDeletedTaskIds", "recentlyDeletedListIds", "pendingAttachments",
-                    "tempTaskIdMapping", "tempCommentIdMapping",
                     "AppleReminders.linkedLists", "AppleReminders.lastSyncDate"] {
             XCTAssertTrue(keys.contains(key), "sign-out reset misses \(key)")
+        }
+    }
+
+    /// The Swift outbox's temp-id maps have had no writer since the core took the journal over
+    /// (checked 2026-10-22, AITD-536). Sign-out still clears them, for installs that wrote them
+    /// before — but they are leftovers, not live state, and pinning them beside the live keys
+    /// read as if something still used them.
+    func testLegacyTempIdMapsAreStillClearedForOldInstalls() {
+        let keys = Set(SyncStateReset.userDefaultsKeys)
+        for key in ["tempTaskIdMapping", "tempCommentIdMapping"] {
+            XCTAssertTrue(keys.contains(key), "an old install's \(key) would survive sign-out")
         }
     }
 

@@ -32,7 +32,8 @@ enum RepeatingTaskCalculator {
         repeatFrom: Task.RepeatFromMode,
         currentOccurrenceCount: Int = 0,
         endData: SimplePatternEndCondition? = nil,
-        isAllDay: Bool = false
+        isAllDay: Bool = false,
+        timeZone: TimeZone = .current
     ) -> Result {
         let endPattern = endData.map {
             CustomRepeatingPattern(
@@ -42,7 +43,7 @@ enum RepeatingTaskCalculator {
         return ask(
             repeating: repeatingType.rawValue, pattern: endPattern, currentDueDate: currentDueDate,
             completionDate: completionDate, repeatFrom: repeatFrom, occurrenceCount: currentOccurrenceCount,
-            isAllDay: isAllDay)
+            isAllDay: isAllDay, timeZone: timeZone)
     }
 
     /// Next occurrence for a custom pattern: weekdays, monthly same date or same weekday, yearly.
@@ -52,22 +53,24 @@ enum RepeatingTaskCalculator {
         completionDate: Date,
         repeatFrom: Task.RepeatFromMode,
         currentOccurrenceCount: Int,
-        isAllDay: Bool = false
+        isAllDay: Bool = false,
+        timeZone: TimeZone = .current
     ) -> Result {
         ask(
             repeating: Task.Repeating.custom.rawValue, pattern: pattern, currentDueDate: currentDueDate,
             completionDate: completionDate, repeatFrom: repeatFrom, occurrenceCount: currentOccurrenceCount,
-            isAllDay: isAllDay)
+            isAllDay: isAllDay, timeZone: timeZone)
     }
 
     private static func ask(
         repeating: String, pattern: CustomRepeatingPattern?, currentDueDate: Date?,
-        completionDate: Date, repeatFrom: Task.RepeatFromMode, occurrenceCount: Int, isAllDay: Bool
+        completionDate: Date, repeatFrom: Task.RepeatFromMode, occurrenceCount: Int, isAllDay: Bool,
+        timeZone: TimeZone
     ) -> Result {
         let request = NextOccurrenceRequest(
             repeating: repeating, pattern: pattern, currentDueDate: currentDueDate,
             completion: completionDate, repeatFrom: repeatFrom.rawValue, occurrenceCount: occurrenceCount,
-            timeZone: TimeZone.current.identifier, isAllDay: isAllDay)
+            timeZone: timeZone.identifier, isAllDay: isAllDay)
         do {
             let answer = try CoreRules.ask(request, as: NextOccurrenceAnswer.self)
             return (answer.nextDueDate, answer.shouldTerminate, answer.newOccurrenceCount)

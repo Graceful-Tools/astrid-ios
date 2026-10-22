@@ -83,22 +83,27 @@ final class LanguageSettingsTests: XCTestCase {
         // Test display name helper for English
         let displayName = localizationManager.getLanguageDisplayName("en")
 
-        XCTAssertFalse(displayName.isEmpty, "Display name should not be empty")
-        // The exact value depends on localization, but it should be a non-empty string
+        // The key's own translation — and a resolved one, not the key echoed back (AITD-536)
+        XCTAssertEqual(displayName, NSLocalizedString("english", comment: ""))
+        XCTAssertNotEqual(displayName, "english", "unresolved key")
     }
 
     func testGetLanguageDisplayNameSpanish() {
         // Test display name helper for Spanish
         let displayName = localizationManager.getLanguageDisplayName("es")
 
-        XCTAssertFalse(displayName.isEmpty, "Display name should not be empty")
+        // The key's own translation — and a resolved one, not the key echoed back (AITD-536)
+        XCTAssertEqual(displayName, NSLocalizedString("spanish", comment: ""))
+        XCTAssertNotEqual(displayName, "spanish", "unresolved key")
     }
 
     func testGetLanguageDisplayNameFrench() {
         // Test display name helper for French
         let displayName = localizationManager.getLanguageDisplayName("fr")
 
-        XCTAssertFalse(displayName.isEmpty, "Display name should not be empty")
+        // The key's own translation — and a resolved one, not the key echoed back (AITD-536)
+        XCTAssertEqual(displayName, NSLocalizedString("french", comment: ""))
+        XCTAssertNotEqual(displayName, "french", "unresolved key")
     }
 
     func testGetLanguageDisplayNameUnsupportedLanguage() {

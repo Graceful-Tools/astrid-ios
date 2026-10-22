@@ -6,99 +6,28 @@ import EventKit
 /// Tests priority mapping, recurrence mapping, and sync models
 final class AppleRemindersSyncTests: XCTestCase {
 
-    // MARK: - Priority Mapping Tests (Astrid -> Apple)
+    // MARK: - Priority Mapping
 
+    /// Astrid → Apple, one row per priority (Apple: 0 none, 1 high … 9 low), and back again.
     @MainActor
-    func testMapPriorityToApple_None() {
+    func testMapPriorityToAppleAndBack() {
         let service = AppleRemindersService.shared
-        XCTAssertEqual(service.mapPriorityToApple(.none), 0)
+        let cases: [(astrid: Task.Priority, apple: Int)] = [(.none, 0), (.low, 9), (.medium, 5), (.high, 1)]
+        XCTAssertEqual(cases.map(\.astrid), Task.Priority.allCases, "every priority has a row")
+        for (astrid, apple) in cases {
+            XCTAssertEqual(service.mapPriorityToApple(astrid), apple, "\(astrid)")
+            XCTAssertEqual(service.mapPriorityFromApple(apple), astrid, "round trip of \(astrid)")
+        }
     }
 
+    /// Apple → Astrid over Apple's whole 0–9 range: 1–4 high, 5 medium, 6–9 low.
     @MainActor
-    func testMapPriorityToApple_Low() {
+    func testMapPriorityFromApple() {
         let service = AppleRemindersService.shared
-        XCTAssertEqual(service.mapPriorityToApple(.low), 9)
-    }
-
-    @MainActor
-    func testMapPriorityToApple_Medium() {
-        let service = AppleRemindersService.shared
-        XCTAssertEqual(service.mapPriorityToApple(.medium), 5)
-    }
-
-    @MainActor
-    func testMapPriorityToApple_High() {
-        let service = AppleRemindersService.shared
-        XCTAssertEqual(service.mapPriorityToApple(.high), 1)
-    }
-
-    // MARK: - Priority Mapping Tests (Apple -> Astrid)
-
-    @MainActor
-    func testMapPriorityFromApple_Zero() {
-        let service = AppleRemindersService.shared
-        XCTAssertEqual(service.mapPriorityFromApple(0), .none)
-    }
-
-    @MainActor
-    func testMapPriorityFromApple_High() {
-        let service = AppleRemindersService.shared
-        // Apple priority 1-4 maps to Astrid high
-        XCTAssertEqual(service.mapPriorityFromApple(1), .high)
-        XCTAssertEqual(service.mapPriorityFromApple(2), .high)
-        XCTAssertEqual(service.mapPriorityFromApple(3), .high)
-        XCTAssertEqual(service.mapPriorityFromApple(4), .high)
-    }
-
-    @MainActor
-    func testMapPriorityFromApple_Medium() {
-        let service = AppleRemindersService.shared
-        // Apple priority 5 maps to Astrid medium
-        XCTAssertEqual(service.mapPriorityFromApple(5), .medium)
-    }
-
-    @MainActor
-    func testMapPriorityFromApple_Low() {
-        let service = AppleRemindersService.shared
-        // Apple priority 6-9 maps to Astrid low
-        XCTAssertEqual(service.mapPriorityFromApple(6), .low)
-        XCTAssertEqual(service.mapPriorityFromApple(7), .low)
-        XCTAssertEqual(service.mapPriorityFromApple(8), .low)
-        XCTAssertEqual(service.mapPriorityFromApple(9), .low)
-    }
-
-    // MARK: - Priority Round-Trip Tests
-
-    @MainActor
-    func testPriorityRoundTrip_None() {
-        let service = AppleRemindersService.shared
-        let applePriority = service.mapPriorityToApple(.none)
-        let astridPriority = service.mapPriorityFromApple(applePriority)
-        XCTAssertEqual(astridPriority, .none)
-    }
-
-    @MainActor
-    func testPriorityRoundTrip_Low() {
-        let service = AppleRemindersService.shared
-        let applePriority = service.mapPriorityToApple(.low)
-        let astridPriority = service.mapPriorityFromApple(applePriority)
-        XCTAssertEqual(astridPriority, .low)
-    }
-
-    @MainActor
-    func testPriorityRoundTrip_Medium() {
-        let service = AppleRemindersService.shared
-        let applePriority = service.mapPriorityToApple(.medium)
-        let astridPriority = service.mapPriorityFromApple(applePriority)
-        XCTAssertEqual(astridPriority, .medium)
-    }
-
-    @MainActor
-    func testPriorityRoundTrip_High() {
-        let service = AppleRemindersService.shared
-        let applePriority = service.mapPriorityToApple(.high)
-        let astridPriority = service.mapPriorityFromApple(applePriority)
-        XCTAssertEqual(astridPriority, .high)
+        let expected: [Task.Priority] = [.none, .high, .high, .high, .high, .medium, .low, .low, .low, .low]
+        for (apple, astrid) in expected.enumerated() {
+            XCTAssertEqual(service.mapPriorityFromApple(apple), astrid, "Apple priority \(apple)")
+        }
     }
 
     // MARK: - Due Date Mapping Tests
@@ -121,8 +50,9 @@ final class AppleRemindersSyncTests: XCTestCase {
         components.day = 15
 
         let (date, isAllDay) = service.mapDueDateFromApple(components)
-        XCTAssertNotNil(date)
         XCTAssertTrue(isAllDay)
+        // An all-day due lives at UTC midnight of that day, whatever the device's zone (AITD-536)
+        XCTAssertEqual(date.map { ISO8601DateFormatter().string(from: $0) }, "2025-06-15T00:00:00Z")
     }
 
     @MainActor
@@ -137,8 +67,10 @@ final class AppleRemindersSyncTests: XCTestCase {
         components.minute = 30
 
         let (date, isAllDay) = service.mapDueDateFromApple(components)
-        XCTAssertNotNil(date)
         XCTAssertFalse(isAllDay)
+        // A timed due is that wall-clock time on the device's calendar
+        let local = date.map { Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: $0) }
+        XCTAssertEqual(local, DateComponents(year: 2025, month: 6, day: 15, hour: 14, minute: 30))
     }
 
     // MARK: - Recurrence Mapping Tests (Astrid -> Apple)
@@ -235,7 +167,7 @@ final class AppleRemindersSyncTests: XCTestCase {
     @MainActor
     func testMapRecurrenceToApple_CustomWithEndDate() {
         let service = AppleRemindersService.shared
-        let endDate = Date().addingTimeInterval(86400 * 30) // 30 days from now
+        let endDate = ISO8601DateFormatter().date(from: "2025-07-15T00:00:00Z")!
         let pattern = CustomRepeatingPattern(
             type: "custom",
             unit: "weeks",
@@ -245,8 +177,8 @@ final class AppleRemindersSyncTests: XCTestCase {
         )
         let rule = service.mapRecurrenceToApple(.custom, data: pattern)
         XCTAssertNotNil(rule)
-        XCTAssertNotNil(rule?.recurrenceEnd)
-        XCTAssertNotNil(rule?.recurrenceEnd?.endDate)
+        XCTAssertEqual(rule?.recurrenceEnd?.endDate, endDate, "the series ends on the pattern's date")
+        XCTAssertEqual(rule?.recurrenceEnd?.occurrenceCount, 0)
     }
 
     // MARK: - Recurrence Mapping Tests (Apple -> Astrid)

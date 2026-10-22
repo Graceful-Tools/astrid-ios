@@ -66,7 +66,14 @@ final class FileCacheEvictionTests: XCTestCase {
 /// actually read sizes and delete the right files" needs real files on disk.
 final class DownloadCacheSweepTests: TempFileTestCase {
 
-    private var directory: URL { tempDirectory }
+    private var directory: URL { tempDirectory.appendingPathComponent("cache", isDirectory: true) }
+    private var previewRoot: URL { tempDirectory.appendingPathComponent("previews", isDirectory: true) }
+
+    /// The real cache over the temp directory — the tests drive production, not a copy of its
+    /// directory walk (AITD-536).
+    private func cache(cap: Int = 100_000) -> DownloadedAttachmentCache {
+        DownloadedAttachmentCache(directory: directory, previewRoot: previewRoot, byteLimit: cap)
+    }
 
     /// Write `bytes` to `name`, backdating its timestamps so age is controllable.
     private func write(_ name: String, bytes: Int, minutesAgo: Int) throws {
@@ -76,55 +83,47 @@ final class DownloadCacheSweepTests: TempFileTestCase {
         try FileManager.default.setAttributes([.modificationDate: when], ofItemAtPath: url.path)
     }
 
-    private func entriesOnDisk() throws -> [FileCacheEntry] {
-        let keys: [URLResourceKey] = [.fileSizeKey, .contentAccessDateKey, .contentModificationDateKey]
-        let files = try FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: keys)
-        return files.compactMap { url in
-            guard let values = try? url.resourceValues(forKeys: Set(keys)),
-                  let size = values.fileSize else { return nil }
-            // Mirrors the service: access date where the platform records it, else modification.
-            // The simulator does not reliably update access dates, which is exactly why the
-            // fallback exists rather than treating an unknown file as infinitely old.
-            let accessed = values.contentModificationDate ?? values.contentAccessDate ?? Date()
-            return FileCacheEntry(id: url.lastPathComponent, size: size, lastAccess: accessed)
-        }
+    private func survivors() throws -> Set<String> {
+        Set(try FileManager.default.contentsOfDirectory(atPath: directory.path))
     }
 
     func testTheOldestFilesAreTheOnesRemovedOnceTheCapIsPassed() throws {
+        let cache = cache(cap: 100_000)
         try write("old", bytes: 40_000, minutesAgo: 600)
         try write("middle", bytes: 40_000, minutesAgo: 300)
         try write("fresh", bytes: 40_000, minutesAgo: 1)
 
-        let doomed = FileCacheEviction.idsToEvict(try entriesOnDisk(), cap: 100_000)
-        for id in doomed {
-            try FileManager.default.removeItem(at: directory.appendingPathComponent(id))
-        }
+        cache.enforceLimit()
 
-        let survivors = Set(try FileManager.default
-            .contentsOfDirectory(atPath: directory.path))
-        XCTAssertEqual(survivors, ["middle", "fresh"],
+        XCTAssertEqual(try survivors(), ["middle", "fresh"],
                        "120 KB over a 100 KB cap: the oldest goes and the rest stay")
     }
 
+    func testAStoreOverTheCapSweepsTheOldest() throws {
+        let cache = cache(cap: 100_000)
+        try write("old", bytes: 40_000, minutesAgo: 600)
+        try write("middle", bytes: 40_000, minutesAgo: 300)
+
+        cache.store(Data(repeating: 0x42, count: 40_000), for: "new")
+
+        XCTAssertEqual(try survivors(), ["middle", "new"], "every write sweeps, not only launch")
+    }
+
     func testAnUnderCapDirectoryIsLeftEntirelyAlone() throws {
+        let cache = cache(cap: 1_000)
         try write("a", bytes: 10, minutesAgo: 999)
         try write("b", bytes: 10, minutesAgo: 1)
-        XCTAssertEqual(FileCacheEviction.idsToEvict(try entriesOnDisk(), cap: 1_000), [])
+        cache.enforceLimit()
+        XCTAssertEqual(try survivors(), ["a", "b"])
     }
 
     /// AITD-344's other half: preview paths keyed only by NAME collided, so two attachments both
     /// called "photo.png" resolved to one file. Harmless-looking until the downloads run
     /// concurrently, at which point one task is copying over what another is reading.
     func testTwoFilesWithTheSameNameGetDistinctPreviewPaths() {
-        func previewURL(fileId: String, fileName: String) -> URL {
-            directory
-                .appendingPathComponent(AttachmentFileName.sanitized(fileId), isDirectory: true)
-                .appendingPathComponent(AttachmentFileName.sanitized(fileName))
-        }
-
-        let first = previewURL(fileId: "file-aaa", fileName: "photo.png")
-        let second = previewURL(fileId: "file-bbb", fileName: "photo.png")
+        let cache = cache()
+        let first = cache.previewURL(fileId: "file-aaa", fileName: "photo.png")
+        let second = cache.previewURL(fileId: "file-bbb", fileName: "photo.png")
 
         XCTAssertNotEqual(first, second, "same name, different files — these must not share a path")
         XCTAssertEqual(first.lastPathComponent, "photo.png",
@@ -137,5 +136,8 @@ final class DownloadCacheSweepTests: TempFileTestCase {
         let leaf = AttachmentFileName.sanitized("../../../etc/passwd")
         XCTAssertFalse(leaf.contains("/"))
         XCTAssertEqual(leaf, "passwd")
+        let url = cache().previewURL(fileId: "../../../etc/passwd", fileName: "x.txt")
+        XCTAssertTrue(url.standardizedFileURL.path.hasPrefix(previewRoot.standardizedFileURL.path + "/"),
+                      "the preview stays inside its root: \(url.path)")
     }
 }
