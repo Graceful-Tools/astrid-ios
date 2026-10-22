@@ -188,6 +188,8 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-fixall-loop.sh"
     gate "iOS destination script tests passed" "iOS destination script tests failed" \
         "$SCRIPT_DIR/test-ios-destination.sh"
+    gate "xcresult summary script tests passed" "xcresult summary script tests failed" \
+        "$SCRIPT_DIR/test-xcresult-summary.sh"
 fi
 
 # Step 9: UI tests (only with --full)
