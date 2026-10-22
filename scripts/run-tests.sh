@@ -84,6 +84,15 @@ fi
 # flag ignore it.
 DIAGNOSTICS_FLAGS=(-collect-test-diagnostics never)
 
+# Every run writes a result bundle, and the summary line reads its counts through
+# xcresult-summary.sh. It used to `grep -c "passed"` the log, which counts LINES (AITD-524).
+RESULTS_DIR="$PROJECT_DIR/test-results"
+RESULTS_SUFFIX="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$(date +%s)"
+mkdir -p "$RESULTS_DIR"
+# A bundle per predeploy adds up; a week of them is plenty to look back through.
+find "$RESULTS_DIR" -maxdepth 1 -name '*.xcresult' -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+UNIT_RESULT="$RESULTS_DIR/unit-$RESULTS_SUFFIX.xcresult"
+
 # Run unit tests
 if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     echo -e "${BLUE}Running unit tests...${NC}"
@@ -96,6 +105,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -scheme "Astrid App" \
             -destination "$DESTINATION" \
             -only-testing:"Astrid AppTests" \
+            -resultBundlePath "$UNIT_RESULT" \
             "${DIAGNOSTICS_FLAGS[@]}" \
             -quiet 2>&1 | tee /tmp/unit_tests.log
 
@@ -105,6 +115,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -scheme "Astrid App" \
             -destination "$DESTINATION" \
             -only-testing:"Astrid AppTests" \
+            -resultBundlePath "$UNIT_RESULT" \
             "${DIAGNOSTICS_FLAGS[@]}" 2>&1 | tee /tmp/unit_tests.log
 
         UNIT_EXIT=${PIPESTATUS[0]}
@@ -112,11 +123,8 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     set -e
 
     if [[ $UNIT_EXIT -eq 0 ]]; then
-        # Count passed tests
-        PASSED=$(grep -c "passed" /tmp/unit_tests.log 2>/dev/null || echo 0)
-        SKIPPED=$(grep -c "skipped" /tmp/unit_tests.log 2>/dev/null || echo 0)
         echo ""
-        echo -e "${GREEN}✓ Unit tests passed ($PASSED passed, $SKIPPED skipped)${NC}"
+        echo -e "${GREEN}✓ Unit tests passed ($("$PROJECT_DIR/scripts/xcresult-summary.sh" counts "$UNIT_RESULT"))${NC}"
     else
         echo ""
         echo -e "${RED}✗ Unit tests failed${NC}"
@@ -186,9 +194,8 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     write_uitest_session
     echo ""
 
-    RESULTS_DIR="$PROJECT_DIR/test-results"
-    RESULTS_SUFFIX="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$(date +%s)"
-    mkdir -p "$RESULTS_DIR"
+    UI_MONKEY_RESULT="$RESULTS_DIR/ui-monkey-$RESULTS_SUFFIX.xcresult"
+    UI_FUNCTIONAL_RESULT="$RESULTS_DIR/ui-functional-$RESULTS_SUFFIX.xcresult"
     : > /tmp/ui_monkey_tests.log
     : > /tmp/ui_functional_tests.log
 
@@ -212,7 +219,7 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     # positives. Run it alone, then let the deterministic functional suite use parallel clones.
     run_ui_batch \
         /tmp/ui_monkey_tests.log \
-        "$RESULTS_DIR/ui-monkey-$RESULTS_SUFFIX.xcresult" \
+        "$UI_MONKEY_RESULT" \
         -only-testing:"Astrid AppUITests/MonkeyUITests" \
         -parallel-testing-enabled NO
     UI_EXIT=$?
@@ -220,7 +227,7 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     if [[ $UI_EXIT -eq 0 ]]; then
         run_ui_batch \
             /tmp/ui_functional_tests.log \
-            "$RESULTS_DIR/ui-functional-$RESULTS_SUFFIX.xcresult" \
+            "$UI_FUNCTIONAL_RESULT" \
             -only-testing:"Astrid AppUITests" \
             -skip-testing:"Astrid AppUITests/MonkeyUITests"
         UI_EXIT=$?
@@ -229,13 +236,13 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     set -e
 
     if [[ $UI_EXIT -eq 0 ]]; then
-        PASSED=$(grep -c "passed" /tmp/ui_tests.log 2>/dev/null || echo 0)
-        SKIPPED=$(grep -c "skipped" /tmp/ui_tests.log 2>/dev/null || echo 0)
         echo ""
-        echo -e "${GREEN}✓ UI tests passed ($PASSED passed, $SKIPPED skipped)${NC}"
+        echo -e "${GREEN}✓ UI tests passed ($("$PROJECT_DIR/scripts/xcresult-summary.sh" counts "$UI_MONKEY_RESULT" "$UI_FUNCTIONAL_RESULT"))${NC}"
     else
         echo ""
         echo -e "${RED}✗ UI tests failed${NC}"
+        "$PROJECT_DIR/scripts/xcresult-summary.sh" failures "$UI_MONKEY_RESULT" "$UI_FUNCTIONAL_RESULT" \
+            | tee "$RESULTS_DIR/ui-failures.txt" || true
         grep -E "(failed|error:)" /tmp/ui_tests.log | head -20 || true
         exit 1
     fi
