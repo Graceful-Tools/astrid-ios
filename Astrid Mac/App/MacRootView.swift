@@ -641,7 +641,8 @@ struct MacRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Filter and list settings, above the rows they act on (9998d83a). They used to be
+    /// Sort, filter and the list-settings gear — the list's header (AITD-522), above the rows they
+    /// act on (9998d83a). They used to be
     /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
     /// 3-column mode they right-aligned above the CHAT column and read as its controls.
     @ViewBuilder
@@ -654,10 +655,14 @@ struct MacRootView: View {
         // right-click was the only way in, and that row is not what you are looking at while
         // working the columns (AITD-373).
         let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil, isListMode: isList)
-        if MacListChrome.showsStrip(showsFilter: showsFilter, showsMyTasksFilter: showsMyTasksFilter,
-                                    showsListMenu: showsListMenu) {
+        let showsSort = MacListChrome.headerShowsSort(hasSelection: selectedListId != nil,
+            isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
+            isListMode: isList)
+        if MacListChrome.showsStrip(showsSort: showsSort, showsFilter: showsFilter,
+                                    showsMyTasksFilter: showsMyTasksFilter, showsListMenu: showsListMenu) {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
+                if showsSort { sortMenu }
                 if showsFilter, let list = currentRealList { filterButton(list) }
                 if showsMyTasksFilter { myTasksFilterButton }
                 if showsListMenu, let list = currentRealList {
@@ -927,36 +932,10 @@ struct MacRootView: View {
         }
     }
 
-    /// Sort control. On a REAL list a pick is saved to the list (`sortBy`) through the canonical
-    /// service, so it persists and syncs to iOS/web — iOS behaves the same way. Previously every
-    /// pick was a window-local override that never left the Mac (task 2b886104). Virtual/saved
-    /// selections own no list, so those keep the local override.
-    /// The two no longer touch each other (AITD-389): clearing the override on a list pick was
-    /// only needed while it outranked the list, and it threw away your My Tasks sort.
+    /// The header's sort menu (AITD-522). Which setting a pick writes is `MacSortMenu`'s business.
     private var sortMenu: some View {
-        Menu {
-            if let list = currentRealList {
-                Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
-                    get: { list.sortBy ?? "auto" },
-                    set: { newValue in
-                        AppActions.perform("Update sort") {
-                            _ = try await ListService.shared.updateListAdvanced(
-                                listId: list.id, updates: ["sortBy": newValue])
-                        }
-                    }
-                )) {
-                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
-                }
-            } else {
-                Picker(NSLocalizedString("actions.sort", comment: ""), selection: $taskSortOverride) {
-                    Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
-                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
-                }
-            }
-        } label: {
-            Label(NSLocalizedString("actions.sort", comment: ""), systemImage: "arrow.up.arrow.down")
-        }
-        .help(NSLocalizedString("mac.sort_tasks", comment: ""))
+        MacSortMenu(list: currentRealList, isMyTasks: selectedListId == Self.myTasksId,
+                    override: $taskSortOverride)
     }
 
     private func bulkComplete(_ ids: Set<String>) {
@@ -1288,7 +1267,7 @@ struct MacRootView: View {
                 if MacListChrome.toolbarOffersUndo {
                     ToolbarItem(placement: .primaryAction) { MacUndoToolbarButton() }
                 }
-                // Sort, where no sheet offers it — not a strip of its own above the rows (AITD-509).
+                // Sort is in the list's header since AITD-522; `toolbarOffersSort` is false.
                 if MacListChrome.toolbarShowsSort(hasSelection: selectedListId != nil,
                         isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
                         isListMode: contentMode == .list) {

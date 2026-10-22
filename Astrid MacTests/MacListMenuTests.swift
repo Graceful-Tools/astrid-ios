@@ -91,10 +91,15 @@ final class MacListMenuTests: XCTestCase {
         XCTAssertFalse(MacListChrome.showsListMenu(isRealList: false, isListMode: false))
     }
 
-    /// List mode keeps the menu in the sidebar's right-click, where it has always been, rather
-    /// than gaining a third control beside sort and filter (Jon asked for the board).
-    func testListModeStripDoesNotGainTheMenu_AITD373() {
-        XCTAssertFalse(MacListChrome.showsListMenu(isRealList: true, isListMode: true))
+    /// AITD-522: "add gear for list settings." List mode gets the menu in its header too — it
+    /// used to be reachable only by right-clicking the sidebar row (AITD-373 kept it off).
+    func testListModeHeaderOffersTheListMenu_AITD522() {
+        XCTAssertTrue(MacListChrome.showsListMenu(isRealList: true, isListMode: true))
+    }
+
+    /// …behind a gear, the Mac's settings glyph, rather than the sliders that read as filters.
+    func testTheListSettingsButtonIsAGear_AITD522() {
+        XCTAssertEqual(MacListSettingsButton.symbol, "gearshape")
     }
 }
 #endif

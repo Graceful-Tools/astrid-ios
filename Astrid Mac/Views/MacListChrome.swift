@@ -7,8 +7,9 @@
 //  which is above the chat column. Sort and filter act on the rows, so they read as belonging to
 //  the message list, and the toolbar's "+" looked like an add button for chat.
 //
-//  Filter now lives in a strip at the top of the list column. Sort, where it shows at all, went
-//  back to the toolbar (AITD-509): it was always alone in that strip, a row for one icon. The "+" is gone entirely:
+//  Filter, sort and the list-settings gear live in a strip at the top of the list column — the
+//  list's header (AITD-522). Sort spent a while in the toolbar (AITD-509), when it was alone in
+//  the strip and a row for one icon was the complaint. The "+" is gone entirely:
 //  the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is bound in AstridCommands, so
 //  the toolbar copy was a third way to do the same thing — in the wrong place.
 
@@ -17,16 +18,15 @@ import Foundation
 
 enum MacListChrome {
 
-    /// `MacFilterSheet` opens with a Sort section of its own — sort is saved next to the filters
-    /// (per-user against the list since AITD-394), exactly as iOS and web store it. That is what
-    /// makes a separate sort menu a second control for the same setting (AITD-305).
-    static let filterSheetOffersSort = true
+    /// Whether `MacFilterSheet` — the popover behind the header's filter button — has a Sort
+    /// section. It did (AITD-305), which is why the header had no sort menu of its own. AITD-522
+    /// ("move list sort to the header") turned that round: sort is a header control, so the
+    /// popover drops it and sort still has one control, not two. The List Settings window's
+    /// Sort & Filters tab keeps it — that window is the complete editor, not a header control.
+    static let filterSheetOffersSort = false
 
-    /// `MacMyTasksFilterSheet` sorts too, writing the synced My Tasks sort exactly as iOS's My
-    /// Tasks sheet does (AITD-467). Before, it offered the three filters and no sort, so My Tasks
-    /// drew the sort menu and the filter button side by side — the pair AITD-305 collapsed on
-    /// real lists.
-    static let myTasksSheetOffersSort = true
+    /// The same for `MacMyTasksFilterSheet` (AITD-467 gave it Sort; AITD-522 moved it out).
+    static let myTasksSheetOffersSort = false
 
     /// Whether the sheet behind the strip's filter button already sorts this selection.
     static func sheetOffersSort(isRealList: Bool, isMyTasks: Bool, isListMode: Bool) -> Bool {
@@ -66,18 +66,22 @@ enum MacListChrome {
     /// filter button, the sidebar right-click is unchanged and still there, and Jon asked for the
     /// board. A third control beside sort and filter is the clutter AITD-305 just finished
     /// removing.
+    ///
+    /// AITD-522 asked for exactly that third control — "add gear for list settings" — once sort
+    /// joined the header, so list mode shows it too. Any real list, either mode.
     static func showsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
-        isRealList && !isListMode
+        isRealList
     }
 
     /// Filter is pinned out of the window toolbar, where the trailing edge is the chat column
     /// rather than the list.
     static let toolbarOffersFilter = false
 
-    /// Sort IS a window-toolbar item (AITD-509). Since AITD-305/467 the standalone menu shows only
+    /// Sort is NOT a window-toolbar item any more (AITD-522); it was from AITD-509 until then.
+    /// Since AITD-305/467 the standalone menu showed only
     /// where no sheet sorts, so wherever it showed it was alone in the strip — a whole row above
     /// the tasks to hold one icon. Jon: "it shouldn't, add it to the top menu".
-    static let toolbarOffersSort = true
+    static let toolbarOffersSort = false
 
     /// The toolbar's sort menu: wherever a sheet does not already sort — a list's or My Tasks'
     /// (AITD-305, AITD-467) — and there are rows to sort.
@@ -88,10 +92,19 @@ enum MacListChrome {
                                                    isListMode: isListMode))
     }
 
-    /// Whether the strip above the rows is drawn. Sort is not in it (AITD-509), so a selection
-    /// whose only control is sort gets no strip at all.
-    static func showsStrip(showsFilter: Bool, showsMyTasksFilter: Bool, showsListMenu: Bool) -> Bool {
-        showsFilter || showsMyTasksFilter || showsListMenu
+    /// The header's sort menu (AITD-522): wherever the toolbar does not carry it and no sheet
+    /// already sorts — which, with both sheets' Sort sections gone, is every list-mode selection.
+    static func headerShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
+                                isListMode: Bool) -> Bool {
+        !toolbarOffersSort && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+            filterSheetOffersSort: sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
+                                                   isListMode: isListMode))
+    }
+
+    /// Whether the strip above the rows is drawn: only when it has something in it.
+    static func showsStrip(showsSort: Bool, showsFilter: Bool, showsMyTasksFilter: Bool,
+                           showsListMenu: Bool) -> Bool {
+        showsSort || showsFilter || showsMyTasksFilter || showsListMenu
     }
 
     /// Undo DOES belong in the window toolbar (AITD-374), and this constant is here beside the

@@ -28,7 +28,7 @@ struct MacFilterSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name))
                 .macFont(.headline).foregroundStyle(Theme.textPrimary)
-            MacListSortFiltersContent(list: list)
+            MacListSortFiltersContent(list: list, showsSort: MacListChrome.filterSheetOffersSort)
             HStack {
                 Spacer()
                 Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }
@@ -53,6 +53,9 @@ struct MacListSortFiltersContent: View {
     /// List Settings window is a fixed size and sets this; the filter sheet sizes to its content
     /// and does not (AITD-483).
     private let fillsHeight: Bool
+    /// Whether the form has its Sort section. The filter popover leaves it to the header's sort
+    /// menu (AITD-522); the List Settings window keeps it.
+    private let showsSort: Bool
 
     @State private var completion: String
     @State private var priority: String
@@ -68,9 +71,10 @@ struct MacListSortFiltersContent: View {
     /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
     @State private var showSubtasks: Bool
 
-    init(list: TaskList, fillsHeight: Bool = false) {
+    init(list: TaskList, fillsHeight: Bool = false, showsSort: Bool = true) {
         self.list = list
         self.fillsHeight = fillsHeight
+        self.showsSort = showsSort
         _completion = State(initialValue: list.filterCompletion ?? "default")
         _priority   = State(initialValue: list.filterPriority ?? "all")
         _dueDate    = State(initialValue: list.filterDueDate ?? "all")
@@ -84,6 +88,11 @@ struct MacListSortFiltersContent: View {
 
     /// Every row at the default text size.
     private static let formHeight: CGFloat = 360
+    /// What the Sort section adds to that, so the popover without it is not left with a gap.
+    private static let sortSectionHeight: CGFloat = 60
+    private var fixedFormHeight: CGFloat {
+        showsSort ? Self.formHeight : Self.formHeight - Self.sortSectionHeight
+    }
     /// The form scrolls, so squeezed it still works — but below a few rows it stops reading as
     /// a list of filters.
     private static let minimumFormHeight: CGFloat = 140
@@ -94,8 +103,10 @@ struct MacListSortFiltersContent: View {
                 // Sort lives WITH the filters and persists, exactly like iOS — the old Mac sort
                 // was a window-local override that never persisted or synced (2b886104). It is
                 // saved per-user against the list, not as a column of it (AITD-394).
-                Section(NSLocalizedString("actions.sort", comment: "")) {
-                    filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
+                if showsSort {
+                    Section(NSLocalizedString("actions.sort", comment: "")) {
+                        filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
+                    }
                 }
                 Section(NSLocalizedString("lists.filters", comment: "")) {
                     filterPicker(NSLocalizedString("lists.task_completion", comment: ""), selection: $completion, options: MacListFilter.completion)
@@ -107,8 +118,8 @@ struct MacListSortFiltersContent: View {
                 }
             }
             .formStyle(.grouped).macThemedSurface()
-            .frame(minHeight: fillsHeight ? Self.minimumFormHeight : Self.formHeight,
-                   maxHeight: fillsHeight ? .infinity : Self.formHeight)
+            .frame(minHeight: fillsHeight ? Self.minimumFormHeight : fixedFormHeight,
+                   maxHeight: fillsHeight ? .infinity : fixedFormHeight)
 
             // Saved filter: converts THIS list, exactly as web's checkbox and iOS's toggle do.
             // It used to create a NEW list and copy the filters over, pre-filled with this list's
@@ -190,8 +201,7 @@ struct MacListSortFiltersContent: View {
     /// Persist sort + every filter field through the canonical service (offline-first + server),
     /// so a Mac change syncs to iOS/web exactly like an iOS change does.
     private func save() {
-        let updates: [String: Any] = [
-            "sortBy": sortBy,
+        var updates: [String: Any] = [
             "filterCompletion": completion,
             "filterPriority": priority,
             "filterDueDate": dueDate,
@@ -199,6 +209,9 @@ struct MacListSortFiltersContent: View {
             "filterAssignedBy": assignedBy,
             "filterRepeating": repeatingFilter,
         ]
+        // Without its Sort section this form's `sortBy` is only the value it opened with, and the
+        // header menu may have changed it since — so it must not write it back (AITD-522).
+        if showsSort { updates["sortBy"] = sortBy }
         AppActions.perform("Update filters") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)
         }
