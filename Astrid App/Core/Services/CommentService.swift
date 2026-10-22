@@ -30,7 +30,17 @@ class CommentService: ObservableObject {
     /// Temp comment ids the views may still hold, and the real ids they became.
     private var tempCommentIdMapping: [String: String] = [:]
 
+    /// Where a temp `fileId` is looked up to build the attach chain. Tests pass their own, on a
+    /// temp directory and defaults suite, so staging a file never touches the shared one (AITD-535).
+    private var attachments: AttachmentService { attachmentsOverride ?? AttachmentService.shared }
+    private var attachmentsOverride: AttachmentService?
+
     init() {}
+
+    convenience init(attachments: AttachmentService) {
+        self.init()
+        attachmentsOverride = attachments
+    }
 
     // MARK: - Reading
 
@@ -146,7 +156,7 @@ class CommentService: ObservableObject {
         let rowId = clientRequestId ?? "temp_\(UUID().uuidString)"
         let command: CoreCommand
         if let fileId, fileId.hasPrefix("temp_"),
-           let staged = AttachmentService.shared.pendingUploads[fileId] {
+           let staged = attachments.pendingUploads[fileId] {
             command = Self.attachFile(taskId: taskId, staged: staged, content: content,
                                       commentId: rowId, parentCommentId: parentCommentId)
         } else {
