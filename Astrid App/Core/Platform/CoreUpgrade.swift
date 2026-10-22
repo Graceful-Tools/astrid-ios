@@ -80,8 +80,8 @@ enum CoreUpgrade {
 
     /// Move the Swift Outbox's queued writes; answers how many had to be left behind.
     @discardableResult
-    private static func importJournal(_ session: CoreSession) -> Int {
-        let store = OutboxStore(fileURL: OutboxStore.defaultFileURL())
+    static func importJournal(_ session: CoreSession, fileURL: URL = OutboxStore.defaultFileURL()) -> Int {
+        let store = OutboxStore(fileURL: fileURL)
         let entries = store.load()
         var kept: [OutboxEntry] = []
         var moved = 0
@@ -112,7 +112,7 @@ enum CoreUpgrade {
         moved += importOfflineLists(session)
         moved += importQueuedMemberChanges(session)
         if kept.isEmpty {
-            try? FileManager.default.removeItem(at: OutboxStore.defaultFileURL())
+            try? FileManager.default.removeItem(at: fileURL)
         } else if moved > 0 {
             try? store.save(kept)
         }
