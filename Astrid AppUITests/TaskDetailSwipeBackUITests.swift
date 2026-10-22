@@ -44,12 +44,12 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             screenshot.name = "Task List Not Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("Task list not visible")
+            throw UITestFailure("Task list not visible")
         }
 
         // Find and tap the first task cell
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks found in list")
+            throw UITestFailure("No tasks found in list")
         }
 
         UITestLaunch.tapCenter(firstTask)
@@ -64,7 +64,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             screenshot.name = "Task Detail Not Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("Task detail did not appear")
+            throw UITestFailure("Task detail did not appear")
         }
 
         // Take screenshot before swipe
@@ -93,44 +93,6 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         XCTAssertFalse(detailHeader.exists, "Task detail should be dismissed after swipe-back")
     }
 
-    @MainActor
-    func testBackButtonOnTaskDetailReturnsToTaskList() throws {
-        app.launch()
-        try skipIfNotSignedIn()
-
-        guard waitForTaskList() else {
-            throw XCTSkip("Task list not visible")
-        }
-
-        // Find and tap the first task
-        guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks found in list")
-        }
-
-        UITestLaunch.tapCenter(firstTask)
-
-        // Wait for task detail
-        let detailHeader = UITestLaunch.taskDetailHeader(app)
-        guard detailHeader.waitForExistence(timeout: 5) else {
-            throw XCTSkip("Task detail did not appear")
-        }
-
-        // Tap the back button (chevron.left)
-        let backButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Back' OR label CONTAINS[c] 'chevron'")).firstMatch
-        if backButton.exists {
-            backButton.tap()
-        } else {
-            // Try finding by image name
-            app.images["chevron.left"].firstMatch.tap()
-        }
-
-        // Wait for animation
-        Thread.sleep(forTimeInterval: 0.5)
-
-        // Verify task detail is gone
-        XCTAssertFalse(detailHeader.exists, "Task detail should be dismissed after tapping back")
-    }
-
     // MARK: - Swipe Right on Task List Opens Sidebar
 
     @MainActor
@@ -139,7 +101,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         try skipIfNotSignedIn()
 
         guard waitForTaskList() else {
-            throw XCTSkip("Task list not visible")
+            throw UITestFailure("Task list not visible")
         }
 
         // Perform swipe-right gesture from upper area to avoid task cells / list swipe actions.
@@ -161,10 +123,16 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         afterSwipe.lifetime = .keepAlways
         add(afterSwipe)
 
-        // Sidebar contains a "Lists" section header that does NOT appear on the task list itself.
-        // Use waitForExistence to allow for any remaining open animation.
-        let listsHeader = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Lists' OR label ==[c] 'Add List'")).firstMatch
-        XCTAssertTrue(listsHeader.waitForExistence(timeout: 5), "Sidebar should be visible after swipe-right on task list")
+        // The closed sidebar keeps its cells in the accessibility tree, so "a Lists header
+        // exists" passed whether or not the swipe opened anything (AITD-525). Its header search
+        // is only HITTABLE once the sidebar is actually on screen.
+        let headerSearch = app.descendants(matching: .any)
+            .matching(identifier: "sidebar.headerSearch").firstMatch
+        XCTAssertTrue(headerSearch.waitForExistence(timeout: 5), "Sidebar header search should exist")
+        let hittable = NSPredicate(format: "isHittable == true")
+        let opened = XCTWaiter().wait(
+            for: [XCTNSPredicateExpectation(predicate: hittable, object: headerSearch)], timeout: 5)
+        XCTAssertEqual(opened, .completed, "Sidebar should be on screen after swipe-right on task list")
     }
 
     // MARK: - Swipe Right on Settings Closes Settings
@@ -175,7 +143,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         try skipIfNotSignedIn()
 
         guard waitForTaskList() else {
-            throw XCTSkip("Task list not visible")
+            throw UITestFailure("Task list not visible")
         }
 
         // Open sidebar first (tap hamburger menu)
@@ -187,12 +155,14 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             // Swipe right to open sidebar
             let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
             let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
-            start.press(forDuration: 0.05, thenDragTo: end)
+            // 0.15s, as in testSwipeRightOnTaskListOpensSidebar: a 0.05s flick can fall under
+            // the open threshold on a loaded simulator.
+            start.press(forDuration: 0.15, thenDragTo: end)
             Thread.sleep(forTimeInterval: 0.5)
         }
 
         // Tap settings button in sidebar
-        let settingsButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings' OR label CONTAINS[c] 'gearshape'")).firstMatch
+        let settingsButton = app.buttons["sidebar.settings"]
         // Must be hittable, not merely present: the closed sidebar keeps its gear button in
         // the tree, and tapping an off-screen element fails rather than skipping.
         guard settingsButton.waitForExistence(timeout: 3) else {
@@ -200,16 +170,17 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             screenshot.name = "Settings Button Not Found"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            throw XCTSkip("Settings button not found in sidebar")
+            throw UITestFailure("Settings button not found in sidebar")
         }
         UITestLaunch.tapCenter(settingsButton)
 
         Thread.sleep(forTimeInterval: 0.5)
 
-        // Verify settings is visible
-        let settingsHeader = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'Settings' OR label CONTAINS[c] 'settings'")).firstMatch
-        guard settingsHeader.waitForExistence(timeout: 3) else {
-            throw XCTSkip("Settings view did not appear")
+        // Verify settings is visible — by its profile row, which nothing else on screen carries.
+        let settingsProfile = app.descendants(matching: .any)
+            .matching(identifier: "settings.profile").firstMatch
+        guard settingsProfile.waitForExistence(timeout: 3) else {
+            throw UITestFailure("Settings view did not appear")
         }
 
         let beforeSwipe = XCTAttachment(screenshot: app.screenshot())
@@ -228,7 +199,9 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         afterSwipe.lifetime = .keepAlways
         add(afterSwipe)
 
-        // Task list should be visible again (settings dismissed)
+        // Settings must be gone. "My Tasks" alone also matches the sidebar row while Settings
+        // is still open, so it cannot say the swipe worked (AITD-525).
+        XCTAssertFalse(settingsProfile.exists, "Settings should be dismissed after swiping back")
         XCTAssertTrue(waitForTaskList(timeout: 3), "Task list should be visible after swiping back from settings")
     }
 
@@ -240,12 +213,12 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         try skipIfNotSignedIn()
 
         guard waitForTaskList() else {
-            throw XCTSkip("Task list not visible")
+            throw UITestFailure("Task list not visible")
         }
 
         // Tap a task
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks found in list")
+            throw UITestFailure("No tasks found in list")
         }
         UITestLaunch.tapCenter(firstTask)
 

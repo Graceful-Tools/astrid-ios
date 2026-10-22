@@ -83,7 +83,7 @@ final class CommentUITests: XCTestCase {
 
         let keyboard = app.keyboards.element
         guard keyboard.waitForExistence(timeout: 10) else {
-            throw XCTSkip("Keyboard did not appear")
+            throw UITestFailure("Keyboard did not appear")
         }
 
         // A real downward drag from the comment bar — the gesture the bar listens for
@@ -116,7 +116,7 @@ final class CommentUITests: XCTestCase {
         let testComment = "Test comment text"
         commentField.tap()
         guard app.keyboards.element.waitForExistence(timeout: 10) else {
-            throw XCTSkip("Keyboard did not appear, so nothing could be typed")
+            throw UITestFailure("Keyboard did not appear, so nothing could be typed")
         }
         commentField.typeText(testComment)
 
@@ -136,16 +136,17 @@ final class CommentUITests: XCTestCase {
         let commentField = try UITestLaunch.openFirstTaskComment(app)
         commentField.tap()
         guard app.keyboards.element.waitForExistence(timeout: 10) else {
-            throw XCTSkip("Keyboard did not appear, so nothing could be typed")
+            throw UITestFailure("Keyboard did not appear, so nothing could be typed")
         }
-        commentField.typeText("Test comment for button test")
+        let sent = "UI test comment \(UUID().uuidString.prefix(8))"
+        commentField.typeText(sent)
 
         let sendButton = app.buttons
             .matching(NSPredicate(format: "identifier CONTAINS 'paperplane' OR label CONTAINS[c] 'Send'"))
             .firstMatch
         guard sendButton.waitForExistence(timeout: 5) else {
             attach("Send Button Not Found")
-            throw XCTSkip("Send button not found")
+            throw UITestFailure("Send button not found")
         }
 
         UITestLaunch.tapCenter(sendButton)
@@ -155,5 +156,11 @@ final class CommentUITests: XCTestCase {
         let remaining = commentField.value as? String ?? ""
         XCTAssertTrue(remaining.isEmpty || remaining == "Add a comment...",
                       "Sending must clear the box — got \(remaining)")
+        // An emptied box is also what a send that was DROPPED looks like, so the comment has
+        // to be in the thread too (AITD-525).
+        let inThread = app.staticTexts
+            .matching(NSPredicate(format: "label CONTAINS %@", sent)).firstMatch
+        XCTAssertTrue(inThread.waitForExistence(timeout: 10),
+                      "The sent comment \"\(sent)\" should appear in the thread")
     }
 }

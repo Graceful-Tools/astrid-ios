@@ -26,14 +26,14 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'"))
             .firstMatch
             .waitForExistence(timeout: 10)
-        guard taskListLoaded else { throw XCTSkip("Task list not visible") }
+        guard taskListLoaded else { throw UITestFailure("Task list not visible") }
 
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
-            throw XCTSkip("No tasks found in list")
+            throw UITestFailure("No tasks found in list")
         }
         UITestLaunch.tapCenter(firstTask)
 
-        guard UITestLaunch.waitForTaskDetail(app) else { throw XCTSkip("Task detail did not appear") }
+        guard UITestLaunch.waitForTaskDetail(app) else { throw UITestFailure("Task detail did not appear") }
 
         // The actions menu should be present and big enough to tap
         let menu = app.buttons["taskDetailActionsMenu"]
