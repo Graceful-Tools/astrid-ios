@@ -49,9 +49,11 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 
 1. The Swift tests are the specification. Point the Swift API at the core (keep its signature),
    run its tests unchanged.
-2. A test that fails is a **divergence**: decide which side is right against the web (canonical),
-   record it below and in astrid-core `docs/CONTRACTS.md`, and change the test only when the
-   core's answer is the web's. Never "fix" the core to match a Swift bug.
+2. A test that fails is a **divergence**. On a disagreement, **iOS wins** (Jon, 2026-10-03; astrid-core
+   `docs/CONTRACTS.md` and astrid-web `ASTRID.md` → *Cross-platform contracts*): the core changes to
+   answer as iOS did, and web follows. Record it as a `D<n>` entry in astrid-core `docs/CONTRACTS.md`
+   (web's fixture routes it to `disputed` until web moves) and in the table below. Change the Swift
+   test only when it pinned a Swift bug — never to make it agree with the core.
 3. Delete the Swift implementation. What remains is a signature that delegates.
 4. Gates: `npm run predeploy` and the Mac suite.
 
