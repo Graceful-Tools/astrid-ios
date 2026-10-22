@@ -44,17 +44,6 @@ enum OnDeviceAstrid {
         return (isOnDeviceModel && isAvailable) ? .onDevice : .server
     }
 
-    /// Should this message be answered by the on-device model?
-    ///
-    /// Mirrors iOS: only when the on-device model is the selected agent AND available, and only
-    /// for a message that is actually addressed to Astrid — an @mention, or any message in a
-    /// personal channel (where she is the only other participant).
-    static func shouldRespond(isOnDeviceModel: Bool, isAvailable: Bool,
-                              content: String, listId: String?) -> Bool {
-        responder(isOnDeviceModel: isOnDeviceModel, isAvailable: isAvailable,
-                  content: content, listId: listId) == .onDevice
-    }
-
     /// The message with mention markup removed — the model should read what a person would, not
     /// "@[Astrid](user-123)".
     static func plainMessage(from content: String) -> String {

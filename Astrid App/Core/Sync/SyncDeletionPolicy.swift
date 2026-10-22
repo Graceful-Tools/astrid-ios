@@ -3,10 +3,10 @@ import Foundation
 /// Pure deletion-sync rules shared by the external sync workers. Developed
 /// red-green; spec in `SyncDeletionPolicyTests`.
 ///
-/// Two invariants:
-/// - Remote deletions are TOMBSTONE-driven (the app captured the link when the
-///   user deleted the task), never inferred from a task being absent — absence
-///   can mean "not loaded".
+/// Remote deletions are tombstone-driven — `SyncDeletionLedger` below holds the link captured
+/// when the user deleted the task, never inferred from a task being absent.
+///
+/// Invariant:
 /// - Local deletions from remote absence require a COMPLETE remote listing:
 ///   a failed fetch (nil) or a truncated page must never mass-delete local
 ///   tasks. Explicit deleted flags (Google's `deleted=1`) work regardless.
@@ -14,11 +14,6 @@ nonisolated enum SyncDeletionPolicy {
     struct Link: Equatable, Sendable {
         let taskId: String
         let remoteId: String
-    }
-
-    /// Links whose local task the user deleted → delete/close the remote twin.
-    static func remoteDeletions(links: [Link], tombstonedTaskIds: Set<String>) -> [Link] {
-        links.filter { tombstonedTaskIds.contains($0.taskId) }
     }
 
     /// Links whose remote item is gone → delete the local twin.
