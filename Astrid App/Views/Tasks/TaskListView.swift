@@ -521,6 +521,7 @@ struct TaskListView: View {
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("listSettingsButton")
                 }
             }
         }

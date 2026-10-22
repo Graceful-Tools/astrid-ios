@@ -218,4 +218,41 @@ final class ListUITests: XCTestCase {
         finalScreenshot.lifetime = .keepAlways
         add(finalScreenshot)
     }
+
+    /// AITD-524. List Settings' tabs are pages of one TabView, so a field focused on Admin stayed
+    /// first responder after the user moved to Filters: the keyboard sat over a tab with nothing
+    /// to type into. The monkey found it twice over — `typeText` into it threw "Neither element
+    /// nor any descendant has keyboard focus" (most red runs since 2026-10-15), and opening the
+    /// Who menu over it stalled the main thread for 60s (run 39707225049).
+    @MainActor
+    func testLeavingAdminTabPutsTheKeyboardAway() throws {
+        app.launch()
+        try UITestLaunch.skipUnlessSignedIn(app)
+
+        // The seeded list the account owns, from the sidebar (top-left of the floating header).
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.11)).tap()
+        let fixtureList = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "UI Test List")).firstMatch
+        XCTAssertTrue(fixtureList.waitForExistence(timeout: 10), "Seeded 'UI Test List' not in the sidebar")
+        UITestLaunch.tapCenter(fixtureList)
+
+        let settingsButton = app.buttons["listSettingsButton"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 10), "List settings button not found")
+        UITestLaunch.tapCenter(settingsButton)
+
+        let tabs = app.segmentedControls.firstMatch
+        XCTAssertTrue(tabs.waitForExistence(timeout: 10), "List Settings tabs not shown — the test account should own its list")
+        let adminTab = tabs.buttons.element(boundBy: 2)
+        XCTAssertTrue(adminTab.exists, "The owner should see the Admin tab")
+        adminTab.tap()
+
+        let nameField = app.textFields.firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5), "Admin tab has no list-name field")
+        nameField.tap()
+        XCTAssertTrue(app.keyboards.element.waitForExistence(timeout: 5), "Precondition: editing the name raises the keyboard")
+
+        tabs.buttons.element(boundBy: 0).tap()
+
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.element)
+        wait(for: [gone], timeout: 5)
+    }
 }

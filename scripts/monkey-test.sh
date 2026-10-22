@@ -68,6 +68,9 @@ for runtime, devices in json.load(sys.stdin)['devices'].items():
         if d['name'] == os.environ['MONKEY_DEVICE']:
             print(d['udid']); raise SystemExit
 " 2>/dev/null)
+  # A name alone can match several runtimes (an iPhone 17 on iOS 26.5 AND on 27.0); to replay
+  # a CI failure on the exact device it ran on, pin the UDID (AITD-524).
+  SIM_UDID="${ASTRID_MONKEY_SIMULATOR_UDID:-$SIM_UDID}"
   [ -n "$SIM_UDID" ] || { echo "RESULT: FAILED — no $MONKEY_DEVICE simulator available (set ASTRID_MONKEY_SIMULATOR_NAME)"; exit 1; }
   xcrun simctl boot "$SIM_UDID" 2>/dev/null || true
   xcrun simctl bootstatus "$SIM_UDID" -b >/dev/null 2>&1 || true

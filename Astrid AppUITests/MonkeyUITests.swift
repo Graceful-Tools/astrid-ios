@@ -147,7 +147,10 @@ final class MonkeyUITests: XCTestCase {
 
         case .type(let text):
             // Only when something is focused; typing into nothing throws rather than failing.
-            if app.keyboards.element.exists {
+            // A visible keyboard is not proof of focus: List Settings left one up over a tab with
+            // no field, and `typeText` threw "Neither element nor any descendant has keyboard
+            // focus" on most CI runs from 2026-10-15 (AITD-524).
+            if hasKeyboardFocus(app) {
                 app.typeText(text)
             }
 
@@ -155,11 +158,17 @@ final class MonkeyUITests: XCTestCase {
             UITestLaunch.swipeBackFromLeftEdge(app)
 
         case .dismissKeyboard:
-            if app.keyboards.element.exists {
+            if hasKeyboardFocus(app) {
                 app.typeText("\n")
             }
         }
         return Date().timeIntervalSince(started)
+    }
+
+    @MainActor
+    private func hasKeyboardFocus(_ app: XCUIApplication) -> Bool {
+        app.keyboards.element.exists
+            && app.descendants(matching: .any).matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch.exists
     }
 
     @MainActor
