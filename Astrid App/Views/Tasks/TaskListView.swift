@@ -520,8 +520,7 @@ struct TaskListView: View {
                             .font(Theme.Typography.headline())
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("listSettingsButton")
+                    .buttonStyle(.plain).accessibilityIdentifier("listSettingsButton")
                 }
             }
         }
