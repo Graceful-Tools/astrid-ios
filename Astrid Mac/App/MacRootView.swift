@@ -943,10 +943,7 @@ struct MacRootView: View {
         selectedTaskIds.removeAll()
     }
     private func bulkSetPriority(_ ids: Set<String>, _ p: Task.Priority) {
-        let targets = tasksForSelection.filter { ids.contains($0.id) }
-        AppActions.perform("Set priority") {
-            for t in targets { _ = try await taskService.updateTask(taskId: t.id, priority: p.rawValue, task: t) }
-        }
+        MacAppModel.setPriority(p.rawValue, on: tasksForSelection.filter { ids.contains($0.id) })
     }
     private func bulkDelete(_ ids: Set<String>) {
         let targets = tasksForSelection.filter { ids.contains($0.id) }

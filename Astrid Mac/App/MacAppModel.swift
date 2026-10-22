@@ -86,19 +86,35 @@ final class MacAppModel: ObservableObject {
         return true
     }
 
+    /// Set `priority` (0–3) on `tasks` — the priority shortcut and the bulk menu (AITD-532).
+    /// The rows change on the tap: the write queues behind earlier ones on the main actor, and
+    /// waiting for it is the stall `OptimisticPriorityTests` describes.
+    @MainActor static func setPriority(_ priority: Int, on tasks: [Task]) {
+        if let level = Task.Priority(rawValue: priority) {
+            for t in tasks { TaskService.shared.applyOptimisticPriority(taskId: t.id, priority: level) }
+        }
+        AppActions.perform("Set priority") {
+            for t in tasks { _ = try await TaskService.shared.updateTask(taskId: t.id, priority: priority, task: t) }
+        }
+    }
+
     /// Apply a pure task-data effect to every selected task through the canonical service.
     @MainActor private func applyData(_ effect: MacShortcutEffect.DataEffect) {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
         let all = TaskService.shared.tasks
+        if case .priority(let p) = effect {
+            Self.setPriority(p, on: ids.compactMap { id in all.first { $0.id == id } })
+            return
+        }
         for id in ids {
             guard let t = all.first(where: { $0.id == id }) else { continue }
             // Keyboard actions report failures like every other write — a shortcut that silently
             // does nothing is indistinguishable from one that is not wired up (task f1f0cb13).
             AppActions.perform("Update task") {
                 switch effect {
-                case .priority(let p):
-                    _ = try await TaskService.shared.updateTask(taskId: id, priority: p, task: t)
+                case .priority:
+                    break   // handled above, before the write
                 case .shiftDueDays(let d):
                     let newDue = MacShortcutEffect.shiftedDueDate(current: t.dueDateTime, days: d, today: Date())
                     _ = try await TaskService.shared.updateTask(taskId: id, dueDateTime: newDue, task: t)
