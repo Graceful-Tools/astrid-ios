@@ -102,10 +102,10 @@ struct MacTaskRow: View {
     }
 
     private var dueText: String? {
-        guard let due = task.dueDateTime else { return nil }
-        // Shared with iOS (AITD-317). This used to format an all-day date — stored at midnight UTC
-        // — in the user's own zone, so a 25 December task printed as the 24th west of UTC.
-        return DueDateLabel.rowMediumText(for: due, isAllDay: task.isAllDay)
+        // Shared with iOS (AITD-317) and with the board card (AITD-520). This used to format an
+        // all-day date — stored at midnight UTC — in the user's own zone, so a 25 December task
+        // printed as the 24th west of UTC.
+        MacDueText.text(for: task.dueDateTime, isAllDay: task.isAllDay)
     }
 
     var body: some View {
