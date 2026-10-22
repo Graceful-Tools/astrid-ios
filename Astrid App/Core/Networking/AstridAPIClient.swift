@@ -18,8 +18,7 @@ class AstridAPIClient {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    private init() {
-
+    private convenience init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = Constants.API.timeout
         configuration.timeoutIntervalForResource = Constants.API.timeout
@@ -28,7 +27,13 @@ class AstridAPIClient {
         configuration.httpShouldSetCookies = true
         // UI tests get an ephemeral, cookie-less session so they can never authenticate as the
         // real user through the shared cookie jar (see UITestNetworkIsolation).
-        self.session = URLSession(configuration: UITestNetworkIsolation.harden(configuration))
+        self.init(session: URLSession(configuration: UITestNetworkIsolation.harden(configuration)))
+    }
+
+    /// A client sending through `session`. The app uses `shared`; tests pass a session whose
+    /// protocol stub answers instead of the server (AITD-535).
+    init(session: URLSession) {
+        self.session = session
 
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
