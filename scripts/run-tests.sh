@@ -216,7 +216,7 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
 
     set +e
     # The monkey measures per-action hangs, so competing simulator clones create false
-    # positives. Run it alone, then let the deterministic functional suite use parallel clones.
+    # positives. Run it alone, before the functional suite.
     run_ui_batch \
         /tmp/ui_monkey_tests.log \
         "$UI_MONKEY_RESULT" \
@@ -226,13 +226,17 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
 
     # ParityTourUITests is a screenshot tool, not a test: it runs on its own -only-testing
     # invocation (see its header) and would only add a skip here (AITD-525).
+    # Serial, not parallel clones: every clone signs in to the SAME account, so two of them
+    # ticked "the first open row" at once and testCompleteTask failed on a row its neighbour
+    # had already completed (AITD-525, AITD-527). Parallel returns with per-run accounts.
     if [[ $UI_EXIT -eq 0 ]]; then
         run_ui_batch \
             /tmp/ui_functional_tests.log \
             "$UI_FUNCTIONAL_RESULT" \
             -only-testing:"Astrid AppUITests" \
             -skip-testing:"Astrid AppUITests/MonkeyUITests" \
-            -skip-testing:"Astrid AppUITests/ParityTourUITests"
+            -skip-testing:"Astrid AppUITests/ParityTourUITests" \
+            -parallel-testing-enabled NO
         UI_EXIT=$?
     fi
     cat /tmp/ui_monkey_tests.log /tmp/ui_functional_tests.log 2>/dev/null > /tmp/ui_tests.log

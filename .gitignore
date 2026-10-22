@@ -104,6 +104,10 @@ coverage/
 # Never commit it — it is a real credential and it expires in 30 days.
 Astrid AppUITests/UITestSession.plist
 
+# Written by scripts/monkey-test.sh for one run and removed after it. A crashed run leaves it,
+# and the synchronized group would then ship it into every later test bundle (AITD-527).
+MonkeyConfig.plist
+
 # Signing material — certificates, keys and provisioning profiles. None of this
 # has ever been committed and none of it should be: these repos are public.
 # scripts/appstore-release.sh and scripts/package-mac.sh both write a real App

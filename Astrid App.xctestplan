@@ -26,7 +26,7 @@
       }
     },
     {
-      "parallelizable" : true,
+      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:Astrid App.xcodeproj",
         "identifier" : "CBB1359A2EAB27CE00D41E86",
