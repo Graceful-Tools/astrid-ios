@@ -439,15 +439,6 @@ class AstridAPIClient {
         return response.task
     }
 
-    /// Delete a task
-    func deleteTask(id: String) async throws {
-        struct EmptyResponse: Codable {}
-        let _: EmptyResponse = try await request(
-            method: "DELETE",
-            path: "/api/v1/tasks/\(id)"
-        )
-    }
-
     // MARK: - Shortcode Operations
 
     /// Create a shortcode for sharing a task or list
