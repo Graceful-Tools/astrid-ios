@@ -202,7 +202,10 @@ struct MacBoardView: View {
                                 Text(identifier).lineLimit(1).fixedSize()
                                     .accessibilityIdentifier("board.card.taskId")
                             }
-                            if let due = t.dueDateTime { Text(due, style: .date) }
+                            // The row's short format, not `style: .date` ("October 3, 2027") (AITD-520).
+                            if let due = MacDueText.text(for: t.dueDateTime, isAllDay: t.isAllDay) {
+                                Text(due).lineLimit(1)
+                            }
                         }
                         .macFont(.caption2).foregroundStyle(Theme.textMuted)
                     }
