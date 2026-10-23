@@ -3,7 +3,8 @@
 //  landing in the unit host's in-memory core through TaskService. The planners the pass leans on
 //  (SyncSuppression, SyncAdoptionSafety, ProviderCursorCommitter…) have their own tests; these pin
 //  the orchestration the 2026-10-22 coverage audit found unexecuted — what a pulled issue becomes,
-//  what a local task pushes, and that the pulled cursor is committed only after the pass applied.
+//  what a local task pushes, that the pulled cursor is committed only after the pass applied, and
+//  how comments converge on a linked task: pulled, deleted and edited in each direction.
 
 import XCTest
 @testable import Astrid_App
@@ -23,6 +24,8 @@ final class GitHubSyncPassTests: XCTestCase {
     private var fullItems: [[String: Any]] = []
     private var fullTruncated = false
     private var upsertStatus = 200
+    private var remoteComments: [[String: Any]] = []
+    private var commentsStatus = 200
 
     override func setUp() async throws {
         try await super.setUp()
@@ -33,6 +36,7 @@ final class GitHubSyncPassTests: XCTestCase {
                                     defaults: defaults)
         taskLinks = []; pulledItems = []; fullItems = []
         pulledCursor = "cursor-2"; fullTruncated = false; upsertStatus = 200
+        remoteComments = []; commentsStatus = 200
     }
 
     override func tearDown() async throws {
@@ -59,16 +63,20 @@ final class GitHubSyncPassTests: XCTestCase {
     private func iso(_ date: Date) -> String { WireDate.string(from: date) }
 
     private func issue(_ number: Int, title: String, notes: String? = nil, completed: Bool = false,
-                       updatedAt: Date = Date().addingTimeInterval(60)) -> [String: Any] {
+                       updatedAt: Date = Date().addingTimeInterval(60), commentCount: Int? = nil) -> [String: Any] {
         var item: [String: Any] = ["remoteId": "\(repo)#\(number)", "title": title,
                                    "completed": completed, "remoteUpdatedAt": iso(updatedAt)]
         if let notes { item["notes"] = notes }
+        if let commentCount { item["metadata"] = ["commentCount": "\(commentCount)"] }
         return item
     }
 
-    private func link(task: String, issue number: Int, syncedAt: Date) -> [String: Any] {
-        ["astridTaskId": task, "remoteId": "\(repo)#\(number)", "remoteContainerId": repo,
-         "astridUpdatedAt": iso(syncedAt), "remoteUpdatedAt": iso(syncedAt)]
+    private func link(task: String, issue number: Int, syncedAt: Date,
+                      commentMap: [CommentSyncPlanner.MapEntry] = []) -> [String: Any] {
+        var link: [String: Any] = ["astridTaskId": task, "remoteId": "\(repo)#\(number)", "remoteContainerId": repo,
+                                   "astridUpdatedAt": iso(syncedAt), "remoteUpdatedAt": iso(syncedAt)]
+        if !commentMap.isEmpty { link["metadata"] = ["commentMap": CommentSyncPlanner.encodeEntries(commentMap)] }
+        return link
     }
 
     nonisolated private static func json(_ object: Any, status: Int = 200) -> StubURLProtocol.Answer {
@@ -81,6 +89,7 @@ final class GitHubSyncPassTests: XCTestCase {
         // The stub answers off the main actor, so it reads a snapshot, never `self`.
         let (repo, taskLinks, pulledItems, pulledCursor) = (repo, taskLinks, pulledItems, pulledCursor)
         let (fullItems, fullTruncated, upsertStatus) = (fullItems, fullTruncated, upsertStatus)
+        let (remoteComments, commentsStatus) = (remoteComments, commentsStatus)
         let json = Self.json
         let read = Self.read
         let now = WireDate.string(from: Date())
@@ -104,6 +113,14 @@ final class GitHubSyncPassTests: XCTestCase {
             case ("POST", "/api/v1/sync/github/issues"):
                 if body["action"] as? String == "commitCursor" { return json(["ok": true], 200) }
                 return json(["remoteId": "\(repo)#900", "remoteUpdatedAt": now], 200)
+            case ("GET", "/api/v1/sync/github/comments"):
+                return json(["comments": remoteComments], commentsStatus)
+            case ("POST", "/api/v1/sync/github/comments"):
+                return json(["id": "gh-new"], 200)
+            case ("PATCH", "/api/v1/sync/github/comments"):
+                return json(["id": body["commentId"] ?? ""], 200)
+            case ("DELETE", "/api/v1/sync/github/comments"):
+                return json(["success": true], 200)
             default:
                 return json([String: Any](), 404)
             }
@@ -140,6 +157,20 @@ final class GitHubSyncPassTests: XCTestCase {
 
     private var linkUpserts: [[String: Any]] {
         StubURLProtocol.requests.filter { $0.method == "PUT" }.compactMap(\.jsonBody)
+    }
+
+    private func commentRequests(_ method: String) -> [StubURLProtocol.Recorded] {
+        StubURLProtocol.requests.filter { $0.method == method && $0.path == "/api/v1/sync/github/comments" }
+    }
+
+    /// The `commentMap` the pass wrote back onto the task's link, if it wrote one.
+    private func writtenCommentMap(for taskId: String) -> String? {
+        linkUpserts.last { $0["astridTaskId"] as? String == taskId && $0["metadata"] != nil }
+            .flatMap { ($0["metadata"] as? [String: Any])?["commentMap"] as? String }
+    }
+
+    private func remoteComment(_ id: String, body: String, author: String = "octocat") -> [String: Any] {
+        ["id": id, "body": body, "author": author, "createdAt": iso(Date())]
     }
 
     // MARK: PULL — a linked issue edited on GitHub
@@ -258,5 +289,123 @@ final class GitHubSyncPassTests: XCTestCase {
 
         XCTAssertTrue(issueCreates.isEmpty)
         XCTAssertEqual(service.lastError, "\(repo): 1 task(s) failed to push")
+    }
+
+    // MARK: COMMENTS — two-way per linked task
+
+    /// A linked task and the issue it mirrors, both unchanged since the last pass, so only the
+    /// comments phase has anything to do.
+    private func linkedTask(issue number: Int, commentMap: [CommentSyncPlanner.MapEntry] = [],
+                            commentCount: Int? = nil) async throws -> (list: String, task: Task) {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Discussed")
+        let task = try await tasks.createTask(listIds: [list.id], title: title)
+        taskLinks = [link(task: task.id, issue: number, syncedAt: Date().addingTimeInterval(-3600),
+                          commentMap: commentMap)]
+        pulledItems = [issue(number, title: title, notes: task.description, commentCount: commentCount)]
+        fullItems = pulledItems
+        return (list.id, task)
+    }
+
+    private func localComment(on taskId: String, _ content: String) async throws -> Comment {
+        try await CommentService.shared.createComment(taskId: taskId, content: content, type: .MARKDOWN,
+                                                      authorId: "user-1")
+    }
+
+    private func comments(on taskId: String) -> [String] {
+        (CommentService.shared.cachedComments[taskId] ?? []).map(\.content)
+    }
+
+    func testANewGitHubCommentIsPulledIntoTheTaskWithItsAuthor_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 30, commentCount: 1)
+        remoteComments = [remoteComment("gh-1", body: "Looks good to me", author: "alice")]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertEqual(comments(on: task.id),
+                       [CommentSyncPlanner.pulledContent(author: "alice", body: "Looks good to me")])
+        // Offline the pulled comment keeps its temp id, and a mapping to a temp id would push the
+        // comment back to GitHub once the id resolved — so none is written until it is real.
+        XCTAssertNil(writtenCommentMap(for: task.id), "no mapping is recorded against a temp id")
+        XCTAssertTrue(commentRequests("POST").isEmpty, "a pulled comment is never echoed back")
+        XCTAssertEqual(cursorCommits, ["cursor-2"])
+    }
+
+    /// A failed fetch of the issue's comments must abort the phase, not read as "no comments" —
+    /// that is what once deleted every mirror on the issue — and the pass is not acknowledged.
+    func testAFailedCommentFetchChangesNothingAndLeavesTheCursorUncommitted_AITD535() async throws {
+        let mirror = CommentSyncPlanner.pulledContent(author: "alice", body: "Keep me")
+        let (list, task) = try await linkedTask(issue: 31, commentCount: 1)
+        let local = try await localComment(on: task.id, mirror)
+        taskLinks = [link(task: task.id, issue: 31, syncedAt: Date().addingTimeInterval(-3600),
+                          commentMap: [.init(remoteId: "gh-1", localId: local.id, pushed: false)])]
+        commentsStatus = 500
+
+        await runPass(listId: list)
+
+        XCTAssertEqual(service.lastError?.hasPrefix("Comment sync failed"), true)
+        XCTAssertEqual(comments(on: task.id), [mirror], "the mirror survives a failed fetch")
+        XCTAssertTrue(commentRequests("DELETE").isEmpty)
+        XCTAssertEqual(cursorCommits, [])
+    }
+
+    func testAGitHubCommentDeletedOnGitHubRemovesItsMirrorAndDropsTheMapping_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 32)
+        let local = try await localComment(on: task.id, CommentSyncPlanner.pulledContent(author: "alice", body: "Gone"))
+        taskLinks = [link(task: task.id, issue: 32, syncedAt: Date().addingTimeInterval(-3600),
+                          commentMap: [.init(remoteId: "gh-1", localId: local.id, pushed: false)])]
+        remoteComments = []
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertEqual(comments(on: task.id), [], "GitHub is canonical for a pulled comment")
+        XCTAssertEqual(writtenCommentMap(for: task.id), "", "the dead entry is dropped from the map")
+        XCTAssertEqual(cursorCommits, ["cursor-2"])
+    }
+
+    func testAnAstridCommentDeletedInAstridIsDeletedOnGitHub_AITD535() async throws {
+        let (list, task) = try await linkedTask(
+            issue: 33, commentMap: [.init(remoteId: "gh-7", localId: "comment-deleted-here", pushed: true)])
+        remoteComments = [remoteComment("gh-7", body: "Written in Astrid")]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertEqual(commentRequests("DELETE").map { $0.query["commentId"] }, ["gh-7"])
+        XCTAssertEqual(writtenCommentMap(for: task.id), "")
+        XCTAssertEqual(comments(on: task.id), [], "nothing is pulled back in its place")
+    }
+
+    func testAGitHubCommentEditedOnGitHubRewritesItsMirror_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 34)
+        let local = try await localComment(on: task.id, CommentSyncPlanner.pulledContent(author: "alice", body: "v1"))
+        taskLinks = [link(task: task.id, issue: 34, syncedAt: Date().addingTimeInterval(-3600),
+                          commentMap: [.init(remoteId: "gh-1", localId: local.id, pushed: false)])]
+        remoteComments = [remoteComment("gh-1", body: "v2", author: "alice")]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertEqual(comments(on: task.id), [CommentSyncPlanner.pulledContent(author: "alice", body: "v2")])
+        XCTAssertTrue(commentRequests("PATCH").isEmpty, "the mirror converges, GitHub is not rewritten")
+        XCTAssertNil(writtenCommentMap(for: task.id), "the map is unchanged, so it is not rewritten")
+    }
+
+    func testAnAstridCommentEditedInAstridIsRewrittenOnGitHub_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 35)
+        let local = try await localComment(on: task.id, "Edited in Astrid")
+        taskLinks = [link(task: task.id, issue: 35, syncedAt: Date().addingTimeInterval(-3600),
+                          commentMap: [.init(remoteId: "gh-9", localId: local.id, pushed: true)])]
+        remoteComments = [remoteComment("gh-9", body: "Before the edit")]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        let patch = try XCTUnwrap(commentRequests("PATCH").first)
+        XCTAssertEqual(patch.jsonBody?["commentId"] as? String, "gh-9")
+        XCTAssertEqual(patch.jsonBody?["body"] as? String, "Edited in Astrid")
+        XCTAssertEqual(comments(on: task.id), ["Edited in Astrid"], "Astrid is canonical for its own comment")
     }
 }
