@@ -52,9 +52,15 @@ final class StubURLProtocol: URLProtocol {
 
     /// An ephemeral session — no cookie jar, no cache — that sends only to this stub.
     static func session() -> URLSession {
+        URLSession(configuration: configuration())
+    }
+
+    /// The configuration behind `session()`, for a client that builds its own session from one —
+    /// `AttachmentService`'s Blob upload, which needs a progress delegate.
+    static func configuration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
-        return URLSession(configuration: configuration)
+        return configuration
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }

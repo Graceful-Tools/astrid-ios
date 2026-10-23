@@ -4,7 +4,7 @@
 //  (staged copy → download cache → server) that both platforms' attachment views rely on.
 //
 //  Each test builds its own service on a temp caches directory and a throwaway defaults suite,
-//  so nothing reaches the host app's caches, `UserDefaults.standard` or the network.
+//  so nothing reaches the host app's caches, `UserDefaults.standard`, keychain or the network.
 
 import XCTest
 @testable import Astrid_App
@@ -14,6 +14,8 @@ final class AttachmentServiceNetworkTests: XCTestCase {
     private var service: AttachmentService!
     private var caches: URL!
     private var suiteName: String!
+    /// Empty, so no request carries the host app's session cookie.
+    private let scratchKeychain = KeychainService(service: "cc.astrid.tests.\(UUID().uuidString)")
 
     override func setUp() async throws {
         try await super.setUp()
@@ -22,8 +24,8 @@ final class AttachmentServiceNetworkTests: XCTestCase {
             .appendingPathComponent("AttachmentServiceNetworkTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: caches, withIntermediateDirectories: true)
         suiteName = "AttachmentServiceNetworkTests-\(UUID().uuidString)"
-        service = AttachmentService(session: StubURLProtocol.session(), cachesDirectory: caches,
-                                    defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
+        service = AttachmentService(session: StubURLProtocol.session(), keychain: scratchKeychain,
+                                    cachesDirectory: caches, defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
     }
 
     override func tearDown() async throws {
@@ -265,8 +267,8 @@ final class AttachmentServiceNetworkTests: XCTestCase {
                                                        mimeType: "text/plain", context: ["taskId": "t-8"])
         service.recordOutboxUpload(tempFileId: tempId, realFileId: "real-8")
 
-        let relaunched = AttachmentService(session: StubURLProtocol.session(), cachesDirectory: caches,
-                                           defaults: defaults)
+        let relaunched = AttachmentService(session: StubURLProtocol.session(), keychain: scratchKeychain,
+                                           cachesDirectory: caches, defaults: defaults)
 
         XCTAssertEqual(relaunched.getRealFileId(for: tempId), "real-8")
         XCTAssertEqual(relaunched.pendingUploads[tempId]?.fileName, "p.txt")
