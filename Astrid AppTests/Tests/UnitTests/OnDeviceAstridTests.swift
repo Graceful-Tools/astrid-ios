@@ -10,40 +10,47 @@ import XCTest
 
 final class OnDeviceAstridTests: XCTestCase {
 
+    /// The on-device model answers exactly when the router picks it.
+    private func answersOnDevice(isOnDeviceModel: Bool, isAvailable: Bool,
+                                 content: String, listId: String?) -> Bool {
+        OnDeviceAstrid.responder(isOnDeviceModel: isOnDeviceModel, isAvailable: isAvailable,
+                                 content: content, listId: listId) == .onDevice
+    }
+
     func testAnswersWhenMentionedInAListChannel() {
-        XCTAssertTrue(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: true,
+        XCTAssertTrue(answersOnDevice(isOnDeviceModel: true, isAvailable: true,
                                                    content: "@[Astrid](u1) what is due today?",
                                                    listId: "list-1"))
     }
 
     /// In a personal channel she is the only other participant, so every message is for her.
     func testAnswersEveryMessageInAPersonalChannel() {
-        XCTAssertTrue(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: true,
+        XCTAssertTrue(answersOnDevice(isOnDeviceModel: true, isAvailable: true,
                                                    content: "what is due today?", listId: nil))
-        XCTAssertTrue(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: true,
+        XCTAssertTrue(answersOnDevice(isOnDeviceModel: true, isAvailable: true,
                                                    content: "hello", listId: "my-tasks"))
     }
 
     /// A message to other people in a list channel is not hers to answer.
     func testStaysQuietInAListChannelWithoutAMention() {
-        XCTAssertFalse(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: true,
+        XCTAssertFalse(answersOnDevice(isOnDeviceModel: true, isAvailable: true,
                                                     content: "morning all", listId: "list-1"))
     }
 
     /// Another agent is selected — the on-device path must not answer over it.
     func testStaysQuietWhenTheOnDeviceModelIsNotSelected() {
-        XCTAssertFalse(OnDeviceAstrid.shouldRespond(isOnDeviceModel: false, isAvailable: true,
+        XCTAssertFalse(answersOnDevice(isOnDeviceModel: false, isAvailable: true,
                                                     content: "@[Astrid](u1) hi", listId: nil))
     }
 
     /// Selected but unavailable (older OS / unsupported hardware): stay quiet rather than fail.
     func testStaysQuietWhenTheModelIsUnavailable() {
-        XCTAssertFalse(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: false,
+        XCTAssertFalse(answersOnDevice(isOnDeviceModel: true, isAvailable: false,
                                                     content: "@[Astrid](u1) hi", listId: nil))
     }
 
     func testMentionIsCaseInsensitiveForTheMarkup() {
-        XCTAssertTrue(OnDeviceAstrid.shouldRespond(isOnDeviceModel: true, isAvailable: true,
+        XCTAssertTrue(answersOnDevice(isOnDeviceModel: true, isAvailable: true,
                                                    content: "@[astrid](u1) hi", listId: "list-1"))
     }
 

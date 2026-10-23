@@ -1,26 +1,12 @@
 import XCTest
 @testable import Astrid_App
 
-/// Red-green spec for deletion sync. The two invariants under test:
-/// tombstone-driven remote deletions (never absence-of-local), and
-/// complete-listing-guarded local deletions (a failed or truncated remote
+/// Red-green spec for deletion sync: complete-listing-guarded local deletions (a failed or truncated remote
 /// fetch must never mass-delete local tasks).
 final class SyncDeletionPolicyTests: XCTestCase {
     private typealias Link = SyncDeletionPolicy.Link
     private let l1 = Link(taskId: "t1", remoteId: "r1")
     private let l2 = Link(taskId: "t2", remoteId: "r2")
-
-    // MARK: - Local task deleted → remote twin deleted
-
-    func testTombstonedTaskDeletesItsRemoteTwin() {
-        XCTAssertEqual(
-            SyncDeletionPolicy.remoteDeletions(links: [l1, l2], tombstonedTaskIds: ["t1"]),
-            [l1])
-    }
-
-    func testNoTombstones_noRemoteDeletions() {
-        XCTAssertTrue(SyncDeletionPolicy.remoteDeletions(links: [l1], tombstonedTaskIds: []).isEmpty)
-    }
 
     // MARK: - Remote item deleted → local twin deleted
 

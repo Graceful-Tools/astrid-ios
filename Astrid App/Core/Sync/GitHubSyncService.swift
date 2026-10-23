@@ -589,7 +589,7 @@ final class GitHubSyncService: ObservableObject {
         // already fetched the full list this pass, reuse it (and stamp the gate).
         let fullPullKey = "githubLastFullPull:\(link.remoteContainerId)"
         let lastFullPull = defaults.object(forKey: fullPullKey) as? Date
-        let fullPullDue = lastFullPull.map { Date().timeIntervalSince($0) >= 300 } ?? true
+        let fullPullDue = FullPullThrottle.isDue(lastSuccess: lastFullPull, now: Date(), interval: 300)
         if fullRemoteItems == nil, fullPullDue {
             if let fullPull = try? await apiClient.pullGitHubIssues(linkId: link.id, full: true) {
                 fullRemoteItems = fullPull.items

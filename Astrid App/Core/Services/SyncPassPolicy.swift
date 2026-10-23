@@ -1,7 +1,7 @@
 import Foundation
 
-/// How a sync pass decides to run, and how it treats a local push that fails.
-/// Pure and testable on purpose — the rules it encodes are the two ways a pass
+/// How a sync pass decides to run. Pure and testable on purpose — the rules here and
+/// below are the two ways a pass
 /// used to stop delivering remote changes WITHOUT saying anything (Task:
 /// 3173727d, "recently added tasks never show up; pull to refresh isn't adding
 /// them, nor sync").
@@ -13,7 +13,8 @@ import Foundation
 /// 2. **Pushing local work is best-effort; fetching is not.** The incremental
 ///    pass pushed pending comments and list-member ops with a bare `try` before
 ///    it fetched, so ONE stuck local write meant no remote task ever arrived
-///    again until the app was relaunched.
+///    again until the app was relaunched. The core's journal drains those writes
+///    now; the `runPushSteps` helper that once encoded this had no caller (AITD-532).
 enum SyncPassPolicy {
 
     enum Admission: Equatable {
@@ -30,32 +31,5 @@ enum SyncPassPolicy {
     static func admission(isSyncing: Bool, isUserInitiated: Bool) -> Admission {
         guard isSyncing else { return .start }
         return isUserInitiated ? .waitForInFlight : .skip
-    }
-
-    /// One local push in a pass. Named so a failure can be reported as
-    /// something specific rather than as a pass that quietly did less.
-    struct PushStep {
-        let name: String
-        let run: () async throws -> Void
-
-        init(name: String, run: @escaping () async throws -> Void) {
-            self.name = name
-            self.run = run
-        }
-    }
-
-    /// Run every step even when earlier ones throw; return the names that
-    /// failed. The caller fetches regardless — a local write that cannot be
-    /// pushed must not stop remote changes from arriving.
-    static func runPushSteps(_ steps: [PushStep]) async -> [String] {
-        var failed: [String] = []
-        for step in steps {
-            do {
-                try await step.run()
-            } catch {
-                failed.append(step.name)
-            }
-        }
-        return failed
     }
 }

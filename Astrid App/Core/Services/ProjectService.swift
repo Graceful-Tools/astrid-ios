@@ -61,17 +61,6 @@ class ProjectService: ObservableObject {
         return project
     }
 
-    /// Build the PUT body that attaches an existing list to a newly-
-    /// created project. Extracted as pure logic so a unit test can pin
-    /// the field set without touching the network.
-    /// Mirrors the web's `components/list-admin-settings.tsx`:
-    ///   `body: JSON.stringify({ ...list, projectId, listType: 'regular' })`.
-    static func buildAttachListRequest(projectId: String) -> UpdateListRequest {
-        var body = UpdateListRequest()
-        body.projectId = projectId
-        return body
-    }
-
     /// Create a project FOR a specific list, atomically: a single
     /// `POST /api/v1/projects/from-list` creates the project AND attaches the
     /// list in one server-side transaction. This replaces the old two-step

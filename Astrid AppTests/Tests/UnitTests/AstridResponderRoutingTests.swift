@@ -7,8 +7,8 @@
 //    - the message was not addressed to Astrid    → correct silence
 //    - it WAS, but we cannot answer it here       → the bug
 //
-//  `shouldRespond` answers Bool, so the second case could only ever be spelled "false", the same
-//  as the first. These pin the three-way answer, and in particular that "addressed to her but we
+//  The old `shouldRespond` answered Bool, so the second case could only ever be spelled "false",
+//  the same as the first (it is gone — AITD-532). These pin the three-way answer, and in particular that "addressed to her but we
 //  cannot" routes to the server rather than going quiet.
 
 import XCTest
@@ -67,28 +67,5 @@ final class AstridResponderRoutingTests: XCTestCase {
         XCTAssertEqual(OnDeviceAstrid.responder(isOnDeviceModel: true, isAvailable: true,
                                                 content: "morning all", listId: "list-1"),
                        .nobody)
-    }
-
-    // MARK: - Agreement with the old rule
-
-    /// `shouldRespond` is what both chat views have always asked. It must keep meaning exactly
-    /// "the on-device model answers this", or the split would silently change who replies.
-    func testShouldRespondStillMeansOnDeviceExactly() {
-        let cases: [(Bool, Bool, String, String?)] = [
-            (true,  true,  "@[Astrid](u1) hi", "list-1"),
-            (true,  true,  "hello",            nil),
-            (false, true,  "@[Astrid](u1) hi", "list-1"),
-            (true,  false, "@[Astrid](u1) hi", nil),
-            (true,  true,  "morning all",      "list-1"),
-            (false, false, "morning all",      "list-1"),
-        ]
-        for (onDevice, available, content, listId) in cases {
-            let legacy = OnDeviceAstrid.shouldRespond(isOnDeviceModel: onDevice, isAvailable: available,
-                                                      content: content, listId: listId)
-            let routed = OnDeviceAstrid.responder(isOnDeviceModel: onDevice, isAvailable: available,
-                                                  content: content, listId: listId) == .onDevice
-            XCTAssertEqual(legacy, routed,
-                           "shouldRespond and responder disagree for (\(onDevice), \(available), \(content))")
-        }
     }
 }
