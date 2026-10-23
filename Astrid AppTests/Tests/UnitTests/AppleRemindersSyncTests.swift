@@ -191,6 +191,151 @@ final class AppleRemindersSyncTests: XCTestCase {
         XCTAssertNil(data)
     }
 
+    /// Every-1 rules with no end and no weekdays import as the four simple repeats (AITD-538).
+    @MainActor
+    func testMapRecurrenceFromApple_SimpleFrequencies() {
+        let service = AppleRemindersService.shared
+        let cases: [(EKRecurrenceFrequency, Task.Repeating)] = [
+            (.daily, .daily), (.weekly, .weekly), (.monthly, .monthly), (.yearly, .yearly)
+        ]
+        for (frequency, expected) in cases {
+            let rule = EKRecurrenceRule(recurrenceWith: frequency, interval: 1, end: nil)
+            let (repeating, data) = service.mapRecurrenceFromApple(rule)
+            XCTAssertEqual(repeating, expected, "\(frequency.rawValue)")
+            XCTAssertNil(data, "a simple repeat carries no pattern")
+        }
+    }
+
+    /// Every 3 days is a custom pattern with that interval.
+    @MainActor
+    func testMapRecurrenceFromApple_IntervalBecomesCustom() {
+        let service = AppleRemindersService.shared
+        let rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 3, end: nil)
+        let (repeating, data) = service.mapRecurrenceFromApple(rule)
+        XCTAssertEqual(repeating, .custom)
+        XCTAssertEqual(data?.unit, "days")
+        XCTAssertEqual(data?.interval, 3)
+        XCTAssertEqual(data?.endCondition, "never")
+    }
+
+    /// "Daily, 5 times" kept only "daily": the end was dropped on import, and the next export
+    /// wrote an endless series back over the reminder (AITD-538).
+    @MainActor
+    func testMapRecurrenceFromApple_EveryOneWithOccurrenceEndKeepsTheEnd() {
+        let service = AppleRemindersService.shared
+        let rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: EKRecurrenceEnd(occurrenceCount: 5))
+        let (repeating, data) = service.mapRecurrenceFromApple(rule)
+        XCTAssertEqual(repeating, .custom)
+        XCTAssertEqual(data?.unit, "days")
+        XCTAssertEqual(data?.interval, 1)
+        XCTAssertEqual(data?.endCondition, "after_occurrences")
+        XCTAssertEqual(data?.endAfterOccurrences, 5)
+    }
+
+    @MainActor
+    func testMapRecurrenceFromApple_UntilDate() {
+        let service = AppleRemindersService.shared
+        let endDate = ISO8601DateFormatter().date(from: "2025-07-15T00:00:00Z")!
+        let rule = EKRecurrenceRule(recurrenceWith: .monthly, interval: 2, end: EKRecurrenceEnd(end: endDate))
+        let (repeating, data) = service.mapRecurrenceFromApple(rule)
+        XCTAssertEqual(repeating, .custom)
+        XCTAssertEqual(data?.unit, "months")
+        XCTAssertEqual(data?.interval, 2)
+        XCTAssertEqual(data?.endCondition, "until_date")
+        XCTAssertEqual(data?.endUntilDate, endDate)
+    }
+
+    /// "Weekly on Mon, Wed, Fri" imported as plain weekly — one day a week (AITD-538).
+    @MainActor
+    func testMapRecurrenceFromApple_WeekdaysAreKept() {
+        let service = AppleRemindersService.shared
+        let rule = EKRecurrenceRule(
+            recurrenceWith: .weekly, interval: 1,
+            daysOfTheWeek: [EKRecurrenceDayOfWeek(.monday), EKRecurrenceDayOfWeek(.wednesday), EKRecurrenceDayOfWeek(.friday)],
+            daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil,
+            setPositions: nil, end: nil)
+        let (repeating, data) = service.mapRecurrenceFromApple(rule)
+        XCTAssertEqual(repeating, .custom)
+        XCTAssertEqual(data?.unit, "weeks")
+        XCTAssertEqual(data?.interval, 1)
+        XCTAssertEqual(data?.weekdays, ["monday", "wednesday", "friday"])
+    }
+
+    /// A weekly pattern's weekdays reach the reminder; they were dropped on export (AITD-538).
+    @MainActor
+    func testMapRecurrenceToApple_CustomWeekdays() {
+        let service = AppleRemindersService.shared
+        let pattern = CustomRepeatingPattern(
+            type: "custom", unit: "weeks", interval: 2, endCondition: "never",
+            weekdays: ["tuesday", "sunday"])
+        let rule = service.mapRecurrenceToApple(.custom, data: pattern)
+        XCTAssertEqual(rule?.frequency, .weekly)
+        XCTAssertEqual(rule?.interval, 2)
+        XCTAssertEqual(rule?.daysOfTheWeek?.map(\.dayOfTheWeek), [.tuesday, .sunday])
+    }
+
+    /// Import then export must hand back the rule Apple had. Anything the round trip loses, the
+    /// export planner sees as a change and writes over the user's reminder (AITD-538).
+    @MainActor
+    func testRecurrenceRoundTripLeavesTheReminderUnchanged() {
+        let service = AppleRemindersService.shared
+        let until = ISO8601DateFormatter().date(from: "2025-07-15T00:00:00Z")!
+        let rules: [EKRecurrenceRule] = [
+            EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil),
+            EKRecurrenceRule(recurrenceWith: .yearly, interval: 1, end: nil),
+            EKRecurrenceRule(recurrenceWith: .daily, interval: 4, end: nil),
+            EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: EKRecurrenceEnd(occurrenceCount: 3)),
+            EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: EKRecurrenceEnd(end: until)),
+            EKRecurrenceRule(
+                recurrenceWith: .weekly, interval: 2,
+                daysOfTheWeek: [EKRecurrenceDayOfWeek(.saturday), EKRecurrenceDayOfWeek(.sunday)],
+                daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil,
+                setPositions: nil, end: nil),
+        ]
+        for rule in rules {
+            let (repeating, data) = service.mapRecurrenceFromApple(rule)
+            let exported = service.mapRecurrenceToApple(repeating, data: data)
+            XCTAssertEqual(AppleExportPlanner.recurrenceKey(exported), AppleExportPlanner.recurrenceKey(rule),
+                           "round trip of \(AppleExportPlanner.recurrenceKey(rule) ?? "nil")")
+        }
+    }
+
+    // MARK: - Due Date Mapping Tests (Astrid -> Apple)
+
+    @MainActor
+    func testMapDueDateToApple_None() {
+        XCTAssertNil(AppleRemindersService.shared.mapDueDateToApple(nil, isAllDay: true))
+    }
+
+    /// An all-day due at UTC midnight is that UTC calendar day, with no time and no calendar —
+    /// read in the local zone it lands on the previous day for anyone west of UTC.
+    @MainActor
+    func testMapDueDateToApple_AllDayIsTheUTCDay() {
+        let due = ISO8601DateFormatter().date(from: "2025-06-15T00:00:00Z")!
+        let components = AppleRemindersService.shared.mapDueDateToApple(due, isAllDay: true)
+        XCTAssertEqual(components, DateComponents(year: 2025, month: 6, day: 15))
+    }
+
+    @MainActor
+    func testMapDueDateToApple_TimedIsTheLocalWallClock() {
+        let due = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 15, hour: 14, minute: 30))!
+        let components = AppleRemindersService.shared.mapDueDateToApple(due, isAllDay: false)
+        XCTAssertEqual(components, DateComponents(year: 2025, month: 6, day: 15, hour: 14, minute: 30))
+    }
+
+    /// Export then import gives the task back its due, all-day and timed alike.
+    @MainActor
+    func testDueDateRoundTrip() {
+        let service = AppleRemindersService.shared
+        let allDay = ISO8601DateFormatter().date(from: "2025-06-15T00:00:00Z")!
+        let timed = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 15, hour: 14, minute: 30))!
+        for (due, isAllDay) in [(allDay, true), (timed, false)] {
+            let (back, backAllDay) = service.mapDueDateFromApple(service.mapDueDateToApple(due, isAllDay: isAllDay))
+            XCTAssertEqual(back, due)
+            XCTAssertEqual(backAllDay, isAllDay)
+        }
+    }
+
     // MARK: - ReminderListLink Model Tests
 
     @MainActor func testReminderListLinkCreation() {

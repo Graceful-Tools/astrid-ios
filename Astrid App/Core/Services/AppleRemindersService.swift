@@ -688,25 +688,12 @@ class AppleRemindersService: ObservableObject {
     /// Desired export state for a task — MUST mirror `updateReminder`'s
     /// transformations field-for-field (the dirty check compares these).
     func desiredSnapshot(for task: Task) -> AppleReminderSnapshot {
-        var dueComponents: DateComponents?
-        if let dueDateTime = task.dueDateTime {
-            if task.isAllDay {
-                var utc = Calendar.current
-                utc.timeZone = TimeZone(identifier: "UTC")!
-                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
-                components.calendar = nil
-                dueComponents = components
-            } else {
-                dueComponents = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
-            }
-        }
-        return AppleReminderSnapshot(
+        AppleReminderSnapshot(
             title: task.title,
             notes: task.description.isEmpty ? nil : task.description,
             isCompleted: task.completed,
             priority: mapPriorityToApple(task.priority),
-            dueKey: AppleExportPlanner.dueKey(dueComponents),
+            dueKey: AppleExportPlanner.dueKey(mapDueDateToApple(task.dueDateTime, isAllDay: task.isAllDay)),
             recurrenceKey: AppleExportPlanner.recurrenceKey(
                 mapRecurrenceToApple(task.repeating, data: task.repeatingData)),
             alarmKey: AppleExportPlanner.alarmKey(reminderTime: task.reminderTime))
@@ -729,23 +716,7 @@ class AppleRemindersService: ObservableObject {
         reminder.isCompleted = task.completed
         reminder.priority = mapPriorityToApple(task.priority)
 
-        // Due date. All-day dues are stored at UTC midnight — read their
-        // calendar day in UTC, or the reminder lands on the previous local day
-        // for anyone west of UTC.
-        if let dueDateTime = task.dueDateTime {
-            if task.isAllDay {
-                var utc = Calendar.current
-                utc.timeZone = TimeZone(identifier: "UTC")!
-                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
-                components.calendar = nil
-                reminder.dueDateComponents = components
-            } else {
-                reminder.dueDateComponents = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
-            }
-        } else {
-            reminder.dueDateComponents = nil
-        }
+        reminder.dueDateComponents = mapDueDateToApple(task.dueDateTime, isAllDay: task.isAllDay)
 
         // Recurrence
         reminder.recurrenceRules = nil
@@ -845,15 +816,36 @@ class AppleRemindersService: ObservableObject {
             end = EKRecurrenceEnd(end: date)
         }
 
-        return EKRecurrenceRule(recurrenceWith: frequency, interval: interval, end: end)
+        let days = (pattern.weekdays ?? []).compactMap(Self.appleWeekday)
+        guard frequency == .weekly, !days.isEmpty else {
+            return EKRecurrenceRule(recurrenceWith: frequency, interval: interval, end: end)
+        }
+        return EKRecurrenceRule(
+            recurrenceWith: frequency, interval: interval,
+            daysOfTheWeek: days.map { EKRecurrenceDayOfWeek($0) },
+            daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil,
+            setPositions: nil, end: end)
+    }
+
+    /// Astrid's weekday names, in `EKWeekday` order (`.sunday` is 1).
+    private static let weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+
+    private static func appleWeekday(_ name: String) -> EKWeekday? {
+        weekdayNames.firstIndex(of: name).flatMap { EKWeekday(rawValue: $0 + 1) }
+    }
+
+    private static func astridWeekday(_ day: EKWeekday) -> String? {
+        weekdayNames.indices.contains(day.rawValue - 1) ? weekdayNames[day.rawValue - 1] : nil
     }
 
     /// Map Apple recurrence rule to Astrid recurrence
     func mapRecurrenceFromApple(_ rule: EKRecurrenceRule?) -> (Task.Repeating?, CustomRepeatingPattern?) {
         guard let rule = rule else { return (.never, nil) }
 
-        // Simple patterns
-        if rule.interval == 1 {
+        // Simple patterns — only when nothing would be lost: an end or weekdays need a
+        // custom pattern, or the next export writes an endless every-day series back.
+        let weekdays = (rule.daysOfTheWeek ?? []).compactMap { Self.astridWeekday($0.dayOfTheWeek) }
+        if rule.interval == 1, rule.recurrenceEnd == nil, weekdays.isEmpty {
             switch rule.frequency {
             case .daily: return (.daily, nil)
             case .weekly: return (.weekly, nil)
@@ -893,10 +885,26 @@ class AppleRemindersService: ObservableObject {
             interval: rule.interval,
             endCondition: endCondition,
             endAfterOccurrences: endAfterOccurrences,
-            endUntilDate: endUntilDate
+            endUntilDate: endUntilDate,
+            weekdays: rule.frequency == .weekly && !weekdays.isEmpty ? weekdays : nil
         )
 
         return (.custom, pattern)
+    }
+
+    /// Map an Astrid due to Apple due date components. All-day dues are stored at
+    /// UTC midnight — read their calendar day in UTC, or the reminder lands on the
+    /// previous local day for anyone west of UTC.
+    func mapDueDateToApple(_ dueDateTime: Date?, isAllDay: Bool) -> DateComponents? {
+        guard let dueDateTime else { return nil }
+        if isAllDay {
+            var utc = Calendar.current
+            utc.timeZone = TimeZone(identifier: "UTC")!
+            var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
+            components.calendar = nil
+            return components
+        }
+        return Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: dueDateTime)
     }
 
     /// Map Apple due date components to Astrid date and isAllDay
