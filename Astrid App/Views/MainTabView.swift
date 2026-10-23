@@ -4,6 +4,16 @@ import Combine
 
 struct MainTabView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    /// iPad, or an unfolded foldable phone (AITD-521). See `iPadPaneLayout.usesSplitLayout`.
+    private var usesSplitLayout: Bool {
+        iPadPaneLayout.usesSplitLayout(
+            isPad: UIDevice.current.userInterfaceIdiom == .pad,
+            horizontalRegular: horizontalSizeClass == .regular,
+            verticalRegular: verticalSizeClass == .regular)
+    }
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     @StateObject private var authManager = AuthManager.shared
     @StateObject private var listPresenter = ListPresenter.shared
@@ -61,7 +71,7 @@ struct MainTabView: View {
 
     var body: some View {
         Group {
-            if UIDevice.current.userInterfaceIdiom == .pad {
+            if usesSplitLayout {
                 if isIPadPortrait && iPadPortraitMode == "iPhone" {
                     // iPad portrait single-column: use exact iPhone layout
                     iPhoneLayout
@@ -73,6 +83,7 @@ struct MainTabView: View {
                 iPhoneLayout
             }
         }
+        .environment(\.usesSplitLayout, usesSplitLayout)
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             updateIPadOrientation()
         }
@@ -259,7 +270,7 @@ struct MainTabView: View {
                         isViewingFromFeatured: $isViewingFromFeatured,
                         featuredList: $featuredList,
                         searchText: $searchText,
-                        forcePushNavigation: UIDevice.current.userInterfaceIdiom == .pad,
+                        forcePushNavigation: usesSplitLayout,
                         onMenuTap: {
                             // Dismiss keyboard first (important: must happen before sidebar animation)
                             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)

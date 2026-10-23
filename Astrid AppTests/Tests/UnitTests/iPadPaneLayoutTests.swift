@@ -265,3 +265,31 @@ final class iPadPaneLayoutTests: XCTestCase {
                        .messages)
     }
 }
+
+// MARK: - Foldable phones get the iPad split layout (AITD-521)
+
+/// An unfolded foldable iPhone reports the PHONE idiom, so a split gated on `idiom == .pad`
+/// left it on the one-column phone layout across a tablet-sized screen. The split now follows the
+/// size classes: regular in both directions is a tablet-shaped window whatever the idiom says.
+final class SplitLayoutEligibilityTests: XCTestCase {
+
+    func testAnIPadAlwaysSplits() {
+        XCTAssertTrue(iPadPaneLayout.usesSplitLayout(isPad: true, horizontalRegular: true, verticalRegular: true))
+        // Slide Over / a narrow Stage Manager window: still the iPad layout, which already
+        // adapts its own columns to a compact width.
+        XCTAssertTrue(iPadPaneLayout.usesSplitLayout(isPad: true, horizontalRegular: false, verticalRegular: true))
+    }
+
+    func testAnUnfoldedFoldablePhoneSplits() {
+        XCTAssertTrue(iPadPaneLayout.usesSplitLayout(isPad: false, horizontalRegular: true, verticalRegular: true))
+    }
+
+    func testAFoldedPhoneStaysOneColumn() {
+        XCTAssertFalse(iPadPaneLayout.usesSplitLayout(isPad: false, horizontalRegular: false, verticalRegular: true))
+    }
+
+    func testAPlusSizedPhoneInLandscapeStaysOneColumn() {
+        // Regular width but COMPACT height: a big phone turned sideways, not a tablet.
+        XCTAssertFalse(iPadPaneLayout.usesSplitLayout(isPad: false, horizontalRegular: true, verticalRegular: false))
+    }
+}
