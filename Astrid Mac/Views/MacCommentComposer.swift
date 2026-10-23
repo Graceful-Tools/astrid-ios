@@ -15,8 +15,9 @@ import Foundation
 enum MacCommentSend {
     /// Either text or a staged file is enough to post; neither is not. Identical to the guard in
     /// `addComment()` on purpose — an offered Send that does nothing is worse than no Send.
+    /// The rule itself is the one every composer shares (AITD-538).
     static func canPost(text: String, stagedCount: Int) -> Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || stagedCount > 0
+        ChatComposer.canSend(text: text, hasAttachments: stagedCount > 0)
     }
 
     /// The trailing slot shows Send while there is something to send, and the timer otherwise.

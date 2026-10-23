@@ -270,7 +270,7 @@ struct RichTextInput: View {
     // MARK: - Computed
 
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachedFiles.isEmpty
+        ChatComposer.canSend(text: text, hasAttachments: !attachedFiles.isEmpty)
     }
 
     // MARK: - Send
@@ -287,7 +287,7 @@ struct RichTextInput: View {
         }
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !content.isEmpty || !attachedFiles.isEmpty else { return }
+        guard ChatComposer.canSend(text: content, hasAttachments: !attachedFiles.isEmpty) else { return }
         guard !isSubmitting else { return }
 
         isSubmitting = true
