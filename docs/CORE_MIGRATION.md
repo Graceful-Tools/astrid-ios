@@ -61,7 +61,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 
 | Domain | Swift that goes | Status |
 |---|---|---|
-| Repeating rollover + completion outcome | `RepeatingTaskHandler.swift` math, `TaskService.calculateNextOccurrence` | **done** — `rules` `completion` / `nextOccurrence`; 78 Swift tests pass against the core |
+| Repeating rollover + completion outcome | `RepeatingTaskHandler.swift` math, `TaskService.calculateNextOccurrence` (deleted, AITD-532) | **done** — `rules` `completion` / `nextOccurrence`; 78 Swift tests pass against the core |
 | Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |

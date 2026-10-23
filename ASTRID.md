@@ -176,9 +176,9 @@ fixture-locked against `astrid-web/types/repeating.ts` + `astrid-web/lib/repeati
 facade over `CoreRules` and holds no pattern logic of its own.
 
 **Production entry point:** `TaskService.completeTask(...)` → the core's `completeTask` command
-(rule `repeating::completion`). `TaskService.calculateNextOccurrence(for:)` asks
-`CoreRules.completion` and is a **thin delegator** — do NOT inline pattern math there. A prior inline version ignored
-`weekdays`, `monthRepeatType`, `monthWeekday`, and yearly `month`/`day`, breaking
+(rule `repeating::completion`). Swift holds no rollover entry of its own — do NOT add one
+(AITD-532 deleted `TaskService.calculateNextOccurrence`, an uncalled second copy). A prior inline
+version ignored `weekdays`, `monthRepeatType`, `monthWeekday`, and yearly `month`/`day`, breaking
 weekly M/W/F rollover.
 
 **A board whose series spawns is the one exception to "rolls forward"** (AITD-491, astrid-core
@@ -221,10 +221,11 @@ only names the previous occurrence, so "next" is the loaded task that points bac
 |------|---------|
 | astrid-core `crates/astrid-core/src/repeating/` | The math (canonical on Apple, Windows) |
 | `Astrid App/Utilities/RepeatingTaskHandler.swift` | `RepeatingTaskCalculator` — facade over `CoreRules` |
-| `Astrid App/Core/Services/TaskService.swift` (`calculateNextOccurrence`) | Production entry point — delegates only |
+| `Astrid App/Core/Services/TaskService.swift` (`completeTask`) | Production entry point — sends the core's `completeTask` |
 | `Astrid App/Models/Task.swift` (`CustomRepeatingPattern`) | Pattern model; `nonisolated` so Codable round-trips through `CDTask` |
 | `Astrid AppTests/Tests/UnitTests/RepeatingTaskCalculatorTests.swift` | Calculator unit tests |
-| `Astrid AppTests/Tests/UnitTests/CustomRepeatingPatternTests.swift` | Round-trip + multi-step + TaskService-path tests |
+| `Astrid AppTests/Tests/UnitTests/CustomRepeatingPatternTests.swift` | Round-trip + multi-step tests |
+| `Astrid AppTests/Tests/UnitTests/CompleteTaskRolloverTests.swift` | `completeTask` rolls a repeating task (the production path) |
 
 ---
 
