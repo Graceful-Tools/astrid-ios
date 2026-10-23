@@ -171,18 +171,26 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         // Swipe right to dismiss settings — the same recognised gesture the detail uses, from
         // one place, so the two cannot drift into testing different things.
+        XCTAssertTrue(settingsProfile.isHittable, "Settings should be on screen before the swipe")
         UITestLaunch.swipeBackFromLeftEdge(app)
-        let dismissed = UITestLaunch.waitForDisappearance(settingsProfile)
+        // Back is the sidebar Settings was opened from, with Settings slid off to the right edge —
+        // where it stays in the tree, a sliver on screen. So none of the obvious checks can tell:
+        // the profile row still exists, still reads hittable (measured at x=358 of 402 on the
+        // AITD-526 run), and the sidebar's gear reads hittable even while Settings covers it. The
+        // row's position is what changes. Not "the list header exists": it always does (AITD-525).
+        let screenWidth = app.windows.firstMatch.frame.width
+        let slidAway = XCTNSPredicateExpectation(predicate: NSPredicate { element, _ in
+            guard let row = element as? XCUIElement else { return false }
+            return !row.exists || row.frame.minX > screenWidth / 2
+        }, object: settingsProfile)
+        let back = XCTWaiter().wait(for: [slidAway], timeout: 5) == .completed
 
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
         afterSwipe.name = "After Settings Swipe"
         afterSwipe.lifetime = .keepAlways
         add(afterSwipe)
 
-        // Settings must be gone — the list's header alone can be in the tree behind it, so it
-        // cannot say the swipe worked (AITD-525).
-        XCTAssertTrue(dismissed, "Settings should be dismissed after swiping back")
-        XCTAssertTrue(waitForTaskList(timeout: 3), "Task list should be visible after swiping back from settings")
+        XCTAssertTrue(back, "Swiping back should slide Settings away, back to the sidebar it was opened from")
     }
 
     // MARK: - Taps Still Work After Gesture Setup
