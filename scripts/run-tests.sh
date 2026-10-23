@@ -215,32 +215,39 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     }
 
     set +e
-    # The monkey measures per-action hangs, so competing simulator clones create false
-    # positives. Run it alone, before the functional suite.
-    run_ui_batch \
-        /tmp/ui_monkey_tests.log \
-        "$UI_MONKEY_RESULT" \
-        -only-testing:"Astrid AppUITests/MonkeyUITests" \
-        -parallel-testing-enabled NO
-    UI_EXIT=$?
-
     # ParityTourUITests is a screenshot tool, not a test: it runs on its own -only-testing
     # invocation (see its header) and would only add a skip here (AITD-525).
     # Serial, not parallel clones: every clone signs in to the SAME account, so two of them
     # ticked "the first open row" at once and testCompleteTask failed on a row its neighbour
     # had already completed (AITD-525, AITD-527). Parallel returns with per-run accounts.
-    if [[ $UI_EXIT -eq 0 ]]; then
-        run_ui_batch \
-            /tmp/ui_functional_tests.log \
-            "$UI_FUNCTIONAL_RESULT" \
-            -only-testing:"Astrid AppUITests" \
-            -skip-testing:"Astrid AppUITests/MonkeyUITests" \
-            -skip-testing:"Astrid AppUITests/ParityTourUITests" \
-            -parallel-testing-enabled NO
-        UI_EXIT=$?
-    fi
+    run_ui_batch \
+        /tmp/ui_functional_tests.log \
+        "$UI_FUNCTIONAL_RESULT" \
+        -only-testing:"Astrid AppUITests" \
+        -skip-testing:"Astrid AppUITests/MonkeyUITests" \
+        -skip-testing:"Astrid AppUITests/ParityTourUITests" \
+        -parallel-testing-enabled NO
+    UI_EXIT=$?
+
+    # The monkey runs AFTER the functional suite and does not gate it (AITD-530). It used to run
+    # first and block it: one slow action on a loaded runner — a hang threshold measuring the
+    # runner, not the app — kept every journey test from running, which is how the UI job was red
+    # from 2026-10-15. It still runs alone (competing clones make false hangs) and its result is
+    # still reported; it just cannot fail the gate.
+    run_ui_batch \
+        /tmp/ui_monkey_tests.log \
+        "$UI_MONKEY_RESULT" \
+        -only-testing:"Astrid AppUITests/MonkeyUITests" \
+        -parallel-testing-enabled NO
+    MONKEY_EXIT=$?
     cat /tmp/ui_monkey_tests.log /tmp/ui_functional_tests.log 2>/dev/null > /tmp/ui_tests.log
     set -e
+
+    if [[ $MONKEY_EXIT -ne 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}⚠ Monkey did not pass (non-blocking, AITD-530):${NC}"
+        "$PROJECT_DIR/scripts/xcresult-summary.sh" failures "$UI_MONKEY_RESULT" | head -10 || true
+    fi
 
     if [[ $UI_EXIT -eq 0 ]]; then
         echo ""

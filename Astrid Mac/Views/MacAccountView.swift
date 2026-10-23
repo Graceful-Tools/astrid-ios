@@ -45,10 +45,12 @@ struct MacAccountView: View {
 
             Section {
                 Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
+                    .accessibilityIdentifier("account.destructive.signOut")
             }
 
             Section(NSLocalizedString("messages.danger_zone", comment: "")) {
                 Button(NSLocalizedString("settings.account.delete_account", comment: ""), role: .destructive) { showDelete = true }
+                    .accessibilityIdentifier("account.destructive.deleteAccount")
             }
         }
         .formStyle(.grouped).macThemedSurface()
