@@ -317,10 +317,7 @@ class CachedImageLoader: ObservableObject {
                 do {
                     let data: Data
 
-                    // Check if this is a secure-files URL that requires authentication.
-                    // Match both /api/secure-files/ (older stored URLs) and /api/v1/secure-files/
-                    // (new emissions) so cached attachments from before the v1 cutover keep loading.
-                    if requested.path.contains("/api/secure-files/") || requested.path.contains("/api/v1/secure-files/") {
+                    if SecureFilesURL.needsSession(requested) {
                         var request = URLRequest(url: requested)
                         // Add session cookie for authentication
                         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
@@ -360,6 +357,16 @@ class CachedImageLoader: ObservableObject {
 
     nonisolated deinit {
         loadTask?.cancel()
+    }
+}
+
+/// Which image URLs are secure files, fetched with the session cookie rather than anonymously.
+enum SecureFilesURL {
+    /// Both `/api/v1/secure-files/` (what the app writes now) and `/api/secure-files/`: attachment
+    /// URLs are persisted, so rows from before the v1 cutover hold the legacy form for good, and
+    /// loading those anonymously would blank every pre-cutover image.
+    nonisolated static func needsSession(_ url: URL) -> Bool {
+        url.path.contains("/api/secure-files/") || url.path.contains("/api/v1/secure-files/")
     }
 }
 
