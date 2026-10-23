@@ -508,20 +508,6 @@ class TaskService: ObservableObject {
         return dropped.task
     }
 
-    /// Where a repeating task goes next if it were completed now — the same answer
-    /// `completeTask` acts on, from astrid-core. Holds no pattern math.
-    ///
-    /// Marked `internal` so tests can lock down the completion path.
-    func calculateNextOccurrence(for task: Task, at now: Date = Date()) -> (nextDate: Date?, shouldTerminate: Bool) {
-        var open = task
-        open.completed = false
-        switch (try? CoreRules.completion(of: open, completed: true, at: now)) ?? .toggle(completed: true, clearClosedReason: false) {
-        case .rollForward(let next, _, _): return (next, false)
-        case .seriesEnded: return (nil, true)
-        case .toggle: return (nil, false)
-        }
-    }
-
     func updateTaskLists(taskId: String, listIds: [String]) async throws -> Task {
         try await updateTask(taskId: taskId, listIds: listIds)
     }
