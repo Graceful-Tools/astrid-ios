@@ -38,6 +38,9 @@ struct ListRowView: View {
         self.onTap = onTap
     }
 
+    /// The sidebar row for a list, by id — what the E2E journeys tap, in any language (AITD-528).
+    static func accessibilityIdentifier(for listId: String) -> String { "sidebar.list.\(listId)" }
+
     var body: some View {
         Button(action: {
             // Haptic feedback on tap
@@ -84,6 +87,7 @@ struct ListRowView: View {
             .contentShape(Rectangle())  // Make entire row area tappable
         }
         .buttonStyle(ListRowButtonStyle(isSelected: isSelected))
+        .accessibilityIdentifier(Self.accessibilityIdentifier(for: list.id))
         .onLongPressGesture(minimumDuration: 0.5) {
             toggleFavorite()
         }

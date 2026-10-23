@@ -104,8 +104,9 @@ is what the Swift client still calls itself.
 - `/api/v1/tasks/{id}`
 - `/api/v1/tasks/{id}/comments`
 
-The UI suite's `UITestAPI` (`Astrid AppUITests/UITestAPI.swift`) reads these three, and only
-these, to check what a journey persisted (AITD-527). A new path there belongs in this list too.
+The UI suite's `UITestAPI` (`Astrid AppUITests/UITestAPI.swift`) reads these three and
+`/api/v1/lists`, and only these, to check what a journey persisted (AITD-527, AITD-528). A new
+path there belongs in this list too.
 
 ### `/api/v1/upload`
 

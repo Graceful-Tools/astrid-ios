@@ -385,6 +385,7 @@ struct TaskListView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .focused($isSearchFieldFocused)
+                    .accessibilityIdentifier("search.field")
 
                 if !searchText.isEmpty {
                     Button {
@@ -417,6 +418,7 @@ struct TaskListView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("taskList.menu")
             .offset(x: 8, y: 8)
             .allowsHitTesting(true)
             .transaction { transaction in
@@ -543,6 +545,7 @@ struct TaskListView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("taskList.menu")
             .offset(x: 8, y: 8)  // Align with header padding
             .allowsHitTesting(true)
             .transaction { transaction in

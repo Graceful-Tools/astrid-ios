@@ -106,5 +106,13 @@ final class SignedInPreconditionUITests: XCTestCase {
 
             Reseed with `cd ../astrid-web && npx tsx scripts/uitest-account.ts`.
             """)
+
+        // And it is the SERVER's task the screen shows, not something left in a cache: a per-run
+        // account knows the id, so ask (AITD-528, journey 1).
+        if let seeded = UITestLaunch.fixtures?.tasks.classic.first(where: { $0.completed != true }) {
+            let onServer = try UITestAPI.task(id: seeded.id)
+            XCTAssertEqual(onServer?.title, seeded.title, "the server has the fixture the screen shows")
+            XCTAssertEqual(onServer?.completed, false, "and has it open, as the screen does")
+        }
     }
 }

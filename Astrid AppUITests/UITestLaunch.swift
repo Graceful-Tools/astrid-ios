@@ -81,6 +81,11 @@ enum UITestLaunch {
     static let productionBaseURL = "https://www.astrid.cc"
     static let baseURLArgument = "-uiTestBaseURL"
 
+    /// Points every request at an address nothing answers. Must match `UITestSession.offlineArgument`.
+    static let offlineArgument = "-uiTestOffline"
+    /// Reopens one scratch cache across launches. Must match `UITestSession.cacheNameArgument`.
+    static let cacheNameArgument = "-uiTestCacheName"
+
     /// True when this run is expected to be signed in. Tests that assert signed-in behaviour
     /// use this to tell "no credential was supplied" (a fair skip) from "a credential was
     /// supplied and did not work" (a failure, and the bug this file documents).
@@ -89,9 +94,12 @@ enum UITestLaunch {
     /// The one way the suite launches the app. Every test target file uses this, so the flag
     /// and the credential cannot drift apart between suites — they already did once, and the
     /// suites that lacked the block skipped for a different reason than the ones that had it.
-    static func makeApp() -> XCUIApplication {
+    static func makeApp(cacheName: String? = nil, offline: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [flag]
+        // The Outbox journey's two switches (AITD-528). Must match `UITestSession`.
+        if let cacheName { app.launchArguments += [cacheNameArgument, cacheName] }
+        if offline { app.launchArguments += [offlineArgument] }
         if let cookie = sessionCookie {
             // Both channels: the argument is what the app reads first, the environment is
             // there because an argument list is visible in `ps` and an environment is not.

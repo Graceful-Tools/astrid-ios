@@ -78,12 +78,18 @@ final class AppCore: ObservableObject {
 
     /// One scratch cache per UI-test process, in the temp directory: every service reaches the
     /// same one, and nothing a run writes outlives it. Attachments land in `attachments/` beside it.
-    nonisolated static let uiTestCacheURL: URL = {
+    ///
+    /// A run that names its cache (`-uiTestCacheName`) gets the same file on every launch, so a
+    /// write queued in one launch is still in the journal for the next (AITD-528).
+    nonisolated static let uiTestCacheURL: URL = uiTestCacheURL(
+        named: UITestSession.cacheName(arguments: ProcessInfo.processInfo.arguments))
+
+    nonisolated static func uiTestCacheURL(named name: String?) -> URL {
         let base = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AstridCore-uitest-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AstridCore-uitest-\(name ?? UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("cache.sqlite")
-    }()
+    }
 
     /// Where the cache lives: Application Support, beside nothing else, so deleting the folder is a
     /// complete reset. Attachments the core downloads go in `attachments/` next to it.

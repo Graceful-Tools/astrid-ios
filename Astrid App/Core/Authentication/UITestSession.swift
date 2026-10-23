@@ -112,10 +112,12 @@ enum UITestSession {
     /// tested before it ships. Unlike the debug preference, nobody inherits it — the test
     /// runner passes it per launch — and outside a test run it is ignored.
     static func resolvedBaseURL(isUITesting: Bool,
+                                isOffline: Bool = false,
                                 uiTestBaseURL: String? = nil,
                                 debugPreference: String?,
                                 defaultURL: String,
                                 productionURL: String) -> String {
+        if isUITesting && isOffline { return unreachableBaseURL }
         if isUITesting { return nonEmpty(uiTestBaseURL) ?? productionURL }
         if let preference = nonEmpty(debugPreference) { return preference }
         return defaultURL
@@ -146,6 +148,45 @@ enum UITestSession {
 
     static var baseURLOverride: String? {
         baseURLOverride(arguments: ProcessInfo.processInfo.arguments)
+    }
+
+    /// The launch argument that cuts a UI-test run off from every server (AITD-528).
+    ///
+    /// The Outbox journey quick-adds with no network and relaunches online to see the write
+    /// arrive. The simulator cannot be taken offline from a test, so the app is pointed at an
+    /// address nothing listens on: every request — the core's, `AstridAPIClient`'s, `AstridHTTP`'s,
+    /// all of which build on `Constants.API.baseURL` — fails at once, the way a dead network does.
+    static let offlineArgument = "-uiTestOffline"
+
+    /// Loopback's discard port: refused immediately, never reaches anyone.
+    static let unreachableBaseURL = "http://127.0.0.1:9"
+
+    /// Only under the UI-test flag, so a stray argument can never take the real app offline.
+    nonisolated static func isOffline(arguments: [String]) -> Bool {
+        isUITesting(arguments: arguments) && arguments.contains(offlineArgument)
+    }
+
+    static var isOffline: Bool { isOffline(arguments: ProcessInfo.processInfo.arguments) }
+
+    /// The launch argument naming the run's scratch cache, so a relaunch reopens it (AITD-528).
+    ///
+    /// Each UI-test process otherwise gets a fresh one (`AppCore.uiTestCacheURL`), which is the
+    /// right default and the wrong thing for a write queued offline: the relaunch that should
+    /// deliver it would open an empty journal.
+    static let cacheNameArgument = "-uiTestCacheName"
+
+    /// The name, if it is one: letters, digits and dashes only, since it becomes a directory.
+    nonisolated static func cacheName(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: cacheNameArgument),
+              index + 1 < arguments.count
+        else { return nil }
+        let value = arguments[index + 1]
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-"))
+        guard !value.isEmpty, value.count <= 64,
+              value.unicodeScalars.allSatisfy({ allowed.contains($0) && $0.isASCII })
+        else { return nil }
+        return value
     }
 
     private static func nonEmpty(_ value: String?) -> String? {

@@ -63,7 +63,14 @@ struct UITestFixtures: Decodable {
         var all: [TaskRef] { classic + named.values.sorted { $0.id < $1.id } }
     }
 
+    struct UserRef: Decodable {
+        let id: String
+        let email: String?
+    }
+
     let runId: String
+    /// The run's own user — absent from fixtures minted before AITD-528 read it.
+    let user: UserRef?
     let lists: Lists
     let tasks: Tasks
 
