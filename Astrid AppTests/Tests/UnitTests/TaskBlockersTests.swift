@@ -94,6 +94,7 @@ final class TaskBlockersTests: XCTestCase {
 
     /// AITD-438: the empty row reads like the empty date ("No due date"), in Jon's words.
     func testAITD438EmptyRowSaysNothingToWaitFor() {
-        XCTAssertEqual(NSLocalizedString("tasks.waitingOn.empty", comment: ""), "Nothing to wait for")
+        XCTAssertNotEqual(NSLocalizedString("tasks.waitingOn.empty", comment: ""), "tasks.waitingOn.empty")
+        XCTAssertEqual(EnglishStrings.text("tasks.waitingOn.empty"), "Nothing to wait for")
     }
 }
