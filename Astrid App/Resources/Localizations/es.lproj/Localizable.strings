@@ -1539,3 +1539,16 @@
 "tasks.wont_do_chip" = "No se hará";
 "tasks.sync_pending_chip" = "Sincronizando";
 "tasks.sync_failed_chip" = "Error de sincronización";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Las llaves de acceso no son compatibles con este dispositivo";
+"passkey.error.cancelled" = "Se canceló la operación de llave de acceso";
+"passkey.error.no_local_passkey" = "No hay ninguna llave de acceso disponible en este dispositivo. Usa una llave de acceso de otro dispositivo o activa tu gestor de contraseñas como proveedor de llaves de acceso.";
+"passkey.error.invalid_challenge" = "Desafío no válido del servidor";
+"passkey.error.invalid_user_id" = "ID de usuario no válido";
+"passkey.error.invalid_response" = "Respuesta no válida del autenticador";
+"passkey.error.authentication_failed" = "Error de autenticación: %@";
+"passkey.error.registration_failed" = "Error de registro: %@";
+"passkey.error.unknown" = "Error desconocido: %@";
+"passkey.error.existing_user_passkey" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con tu llave de acceso.";
+"passkey.error.existing_user_other" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con otro método.";

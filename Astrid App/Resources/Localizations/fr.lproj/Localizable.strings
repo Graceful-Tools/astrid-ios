@@ -1539,3 +1539,16 @@
 "tasks.wont_do_chip" = "Ne sera pas fait";
 "tasks.sync_pending_chip" = "Synchronisation";
 "tasks.sync_failed_chip" = "Échec de la synchronisation";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Les clés d’identification ne sont pas prises en charge sur cet appareil";
+"passkey.error.cancelled" = "L’opération de clé d’identification a été annulée";
+"passkey.error.no_local_passkey" = "Aucune clé d’identification n’est disponible sur cet appareil. Utilisez une clé d’un autre appareil ou activez votre gestionnaire de mots de passe comme fournisseur de clés d’identification.";
+"passkey.error.invalid_challenge" = "Défi du serveur non valide";
+"passkey.error.invalid_user_id" = "Identifiant utilisateur non valide";
+"passkey.error.invalid_response" = "Réponse de l’authentificateur non valide";
+"passkey.error.authentication_failed" = "Échec de l’authentification : %@";
+"passkey.error.registration_failed" = "Échec de l’inscription : %@";
+"passkey.error.unknown" = "Erreur inconnue : %@";
+"passkey.error.existing_user_passkey" = "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre clé d’identification.";
+"passkey.error.existing_user_other" = "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec une autre méthode.";

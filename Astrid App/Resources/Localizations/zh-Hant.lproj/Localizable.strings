@@ -1525,3 +1525,16 @@
 "tasks.wont_do_chip" = "不做";
 "tasks.sync_pending_chip" = "正在同步";
 "tasks.sync_failed_chip" = "同步失敗";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "此裝置不支援通行密鑰";
+"passkey.error.cancelled" = "通行密鑰操作已取消";
+"passkey.error.no_local_passkey" = "此裝置上沒有可用的通行密鑰。請使用其他裝置上的通行密鑰，或將你的密碼管理工具啟用為通行密鑰提供者。";
+"passkey.error.invalid_challenge" = "伺服器傳回的挑戰無效";
+"passkey.error.invalid_user_id" = "使用者 ID 無效";
+"passkey.error.invalid_response" = "驗證器傳回的回應無效";
+"passkey.error.authentication_failed" = "驗證失敗：%@";
+"passkey.error.registration_failed" = "註冊失敗：%@";
+"passkey.error.unknown" = "未知錯誤：%@";
+"passkey.error.existing_user_passkey" = "已有使用此電子郵件的帳號。請使用你的通行密鑰登入。";
+"passkey.error.existing_user_other" = "已有使用此電子郵件的帳號。請使用其他方式登入。";

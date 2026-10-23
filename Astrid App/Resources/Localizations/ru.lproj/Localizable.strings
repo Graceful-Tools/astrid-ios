@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "Не будет сделано";
 "tasks.sync_pending_chip" = "Синхронизация";
 "tasks.sync_failed_chip" = "Сбой синхронизации";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Ключи доступа не поддерживаются на этом устройстве";
+"passkey.error.cancelled" = "Операция с ключом доступа отменена";
+"passkey.error.no_local_passkey" = "На этом устройстве нет доступного ключа доступа. Используйте ключ с другого устройства или включите менеджер паролей как поставщика ключей доступа.";
+"passkey.error.invalid_challenge" = "Недопустимый запрос от сервера";
+"passkey.error.invalid_user_id" = "Недопустимый идентификатор пользователя";
+"passkey.error.invalid_response" = "Недопустимый ответ от аутентификатора";
+"passkey.error.authentication_failed" = "Ошибка аутентификации: %@";
+"passkey.error.registration_failed" = "Ошибка регистрации: %@";
+"passkey.error.unknown" = "Неизвестная ошибка: %@";
+"passkey.error.existing_user_passkey" = "Аккаунт с этим адресом эл. почты уже существует. Войдите с помощью ключа доступа.";
+"passkey.error.existing_user_other" = "Аккаунт с этим адресом эл. почты уже существует. Войдите другим способом.";
