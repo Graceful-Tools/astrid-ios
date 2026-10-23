@@ -15,6 +15,8 @@ final class FakeConnectionsService: ConnectionsServicing {
     var revokeError: Error?
     var revokeErrors: [String: Error] = [:]
     var mints: [OAuthClientPresetRequest] = []
+    /// When set, the list read fails with it — the path `ConnectionsModel.load` has to survive (AITD-538).
+    var getConnectionsError: Error?
 
     /// When set, each revoke parks until `release(_:)` names it, so a test can overlap two.
     var holdRevokes = false
@@ -23,7 +25,8 @@ final class FakeConnectionsService: ConnectionsServicing {
     func release(_ id: String) { held.removeValue(forKey: id)?.resume() }
 
     func getConnections() async throws -> ConnectionsResponse {
-        ConnectionsResponse(connections: rows)
+        if let getConnectionsError { throw getConnectionsError }
+        return ConnectionsResponse(connections: rows)
     }
 
     func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {

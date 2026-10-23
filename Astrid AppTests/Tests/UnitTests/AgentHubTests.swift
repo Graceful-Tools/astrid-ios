@@ -344,6 +344,89 @@ final class AgentHubTests: XCTestCase {
     }
 }
 
+// MARK: - Loading and its failure paths (AITD-538)
+
+extension AgentHubTests {
+    private struct Boom: LocalizedError { var errorDescription: String? { "server said no" } }
+    private var keyed: AIAPIKeyStatus { AIAPIKeyStatus(hasKey: true, keyPreview: "…ab", isValid: true, lastTested: nil, error: nil) }
+
+    func testAITD538_LoadAdoptsModesKeysAndCopilotStatus() async {
+        let service = FakeAgentHubService()
+        service.modesResult = .success(AgentModesResponse(agents: [], modes: ["claude": .api], meta: nil))
+        service.keysResult = .success(AIAPIKeysResponse(keys: ["claude": keyed]))
+        service.copilotResult = .success(CopilotIntegrationStatus(connected: true))
+        let model = AgentHubModel(service: service)
+
+        await model.load()
+
+        XCTAssertEqual(model.mode(for: claude), .api)
+        XCTAssertTrue(model.isConfigured(claude), "the stored key is what makes api mode configured")
+        XCTAssertTrue(model.copilotConnected)
+        XCTAssertFalse(model.isLoading)
+        XCTAssertNil(model.loadErrorMessage)
+        XCTAssertNil(model.setupErrorMessage)
+    }
+
+    /// No modes means no screen: the credentials behind it are not fetched.
+    func testAITD538_AFailedModesReadIsALoadErrorAndSkipsTheCredentials() async {
+        let service = FakeAgentHubService()
+        service.modesResult = .failure(Boom())
+        let model = AgentHubModel(service: service)
+
+        await model.load()
+
+        XCTAssertEqual(model.loadErrorMessage,
+                       String(format: NSLocalizedString("settings.agents.load_failed", comment: ""), "server said no"))
+        XCTAssertNil(model.setupErrorMessage)
+        XCTAssertEqual(service.keysReads, 0)
+        XCTAssertEqual(service.copilotReads, 0)
+        XCTAssertFalse(model.isLoading)
+    }
+
+    /// A failed key read is a setup error, not a dead screen — and Copilot's status still loads.
+    func testAITD538_AFailedKeyReadStillRefreshesCopilot() async {
+        let service = FakeAgentHubService()
+        service.keysResult = .failure(AstridAPIError.httpError(statusCode: 500, message: #"{"error":"keys unavailable"}"#))
+        service.copilotResult = .success(CopilotIntegrationStatus(connected: true))
+        let model = AgentHubModel(service: service)
+
+        await model.load()
+
+        XCTAssertNil(model.loadErrorMessage)
+        XCTAssertEqual(model.setupErrorMessage, "keys unavailable", "the server's own words, not the error type")
+        XCTAssertTrue(model.copilotConnected)
+        XCTAssertEqual(service.copilotReads, 1)
+    }
+
+    func testAITD538_AFailedCopilotReadKeepsTheLastKnownStatus() async {
+        let service = FakeAgentHubService()
+        service.copilotResult = .success(CopilotIntegrationStatus(connected: true))
+        let model = AgentHubModel(service: service)
+        await model.refreshCopilotStatus()
+
+        service.copilotResult = .failure(Boom())
+        await model.refreshCopilotStatus()
+
+        XCTAssertTrue(model.copilotConnected, "a failed read is not a disconnect")
+        XCTAssertEqual(model.setupErrorMessage, "server said no")
+    }
+
+    /// Reloading clears the previous attempt's errors.
+    func testAITD538_ASuccessfulReloadClearsTheEarlierErrors() async {
+        let service = FakeAgentHubService()
+        service.keysResult = .failure(Boom())
+        let model = AgentHubModel(service: service)
+        await model.load()
+        XCTAssertNotNil(model.setupErrorMessage)
+
+        service.keysResult = .success(AIAPIKeysResponse(keys: ["claude": keyed]))
+        await model.load()
+
+        XCTAssertNil(model.setupErrorMessage)
+        XCTAssertEqual(model.keyStatuses["claude"]?.hasKey, true)
+    }
+}
+
 // MARK: - Fake service
 
 @MainActor
@@ -352,8 +435,15 @@ private final class FakeAgentHubService: AgentHubServicing {
     var updateModeCalls: [(agent: String, mode: AgentExecutionMode)] = []
     var onUpdateMode: ((String, AgentExecutionMode) -> Void)?
 
+    // What the reads answer (AITD-538): a fixed answer let only `setMode`/`select` be tested.
+    var modesResult: Result<AgentModesResponse, Error> = .success(AgentModesResponse(agents: [], modes: [:], meta: nil))
+    var keysResult: Result<AIAPIKeysResponse, Error> = .success(AIAPIKeysResponse(keys: [:]))
+    var copilotResult: Result<CopilotIntegrationStatus, Error> = .success(CopilotIntegrationStatus(connected: false))
+    var keysReads = 0
+    var copilotReads = 0
+
     func getAgentModes() async throws -> AgentModesResponse {
-        AgentModesResponse(agents: [], modes: [:], meta: nil)
+        try modesResult.get()
     }
 
     func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse {
@@ -362,11 +452,17 @@ private final class FakeAgentHubService: AgentHubServicing {
         return try updateModeResult.get()
     }
 
-    func getAIAPIKeys() async throws -> AIAPIKeysResponse { AIAPIKeysResponse(keys: [:]) }
+    func getAIAPIKeys() async throws -> AIAPIKeysResponse {
+        keysReads += 1
+        return try keysResult.get()
+    }
     func saveAIAPIKey(serviceId: String, apiKey: String) async throws -> SaveAPIKeyResponse { SaveAPIKeyResponse(success: true) }
     func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse { TestAPIKeyResponse(success: true, error: nil) }
     func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse { DeleteAPIKeyResponse(success: true) }
-    func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus { CopilotIntegrationStatus(connected: false) }
+    func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
+        copilotReads += 1
+        return try copilotResult.get()
+    }
     func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse { CopilotAuthorizationResponse(url: "https://github.com/login") }
     func disconnectCopilot() async throws -> CopilotIntegrationStatus { CopilotIntegrationStatus(connected: false) }
 }

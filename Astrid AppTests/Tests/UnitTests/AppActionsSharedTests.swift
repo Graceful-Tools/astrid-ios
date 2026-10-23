@@ -52,6 +52,40 @@ final class AppActionsSharedTests: XCTestCase {
         XCTAssertNil(center.current)
     }
 
+    /// A second failure replaces the first and restarts the clock, so the newer banner gets its
+    /// full time on screen rather than vanishing on the first one's timer (AITD-538).
+    @MainActor
+    func testAITD538_ASecondReportReplacesTheFirstAndRestartsTheDismissal() async throws {
+        struct Boom: LocalizedError { let text: String; var errorDescription: String? { text } }
+        let center = AppErrorCenter(dismissAfter: .milliseconds(400))
+        defer { center.clear() }
+
+        center.report("Save due date", Boom(text: "first"))
+        try await _Concurrency.Task.sleep(for: .milliseconds(250))
+        center.report("Delete subtask", Boom(text: "second"))
+        XCTAssertEqual(center.current?.text, "\(FailureCopy.message(for: "Delete subtask")): second")
+
+        // Past the first report's deadline, inside the second's.
+        try await _Concurrency.Task.sleep(for: .milliseconds(250))
+        XCTAssertEqual(center.current?.text, "\(FailureCopy.message(for: "Delete subtask")): second",
+                       "the first report's timer must not dismiss the second banner")
+
+        try await _Concurrency.Task.sleep(for: .milliseconds(500))
+        XCTAssertNil(center.current, "the banner dismisses itself")
+    }
+
+    @MainActor
+    func testAITD538_EachReportIsItsOwnBannerEvenWithTheSameText() {
+        let center = AppErrorCenter(dismissAfter: .seconds(60))
+        defer { center.clear() }
+
+        center.show("Couldn't save")
+        let first = center.current
+        center.show("Couldn't save")
+
+        XCTAssertNotEqual(first?.id, center.current?.id, "a repeat failure must redraw, not look like nothing happened")
+    }
+
     /// The mechanism must live where BOTH targets compile it, and must not be re-declared under
     /// `Astrid Mac/` — a second copy there is exactly the regression this removed.
     func testAITD400_TheMechanismIsSharedAndNotRedeclaredOnTheMac() throws {

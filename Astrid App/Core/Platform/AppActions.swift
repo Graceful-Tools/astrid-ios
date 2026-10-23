@@ -29,13 +29,19 @@ final class AppErrorCenter: ObservableObject {
     @Published var current: Banner?
 
     private var dismiss: _Concurrency.Task<Void, Never>?
+    /// How long a banner stays up. Injectable so a test can watch it go (AITD-538).
+    private let dismissAfter: Duration
+
+    init(dismissAfter: Duration = .seconds(5)) {
+        self.dismissAfter = dismissAfter
+    }
 
     /// Show a transient error banner (auto-dismisses).
     func show(_ text: String) {
         current = Banner(text: text)
         dismiss?.cancel()
-        dismiss = _Concurrency.Task { [weak self] in
-            try? await _Concurrency.Task.sleep(nanoseconds: 5_000_000_000)
+        dismiss = _Concurrency.Task { [weak self, dismissAfter] in
+            try? await _Concurrency.Task.sleep(for: dismissAfter)
             if !_Concurrency.Task.isCancelled { self?.current = nil }
         }
     }
