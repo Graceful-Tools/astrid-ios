@@ -243,6 +243,68 @@ final class CustomRepeatingPatternTests: XCTestCase {
         }
     }
 
+    private func weekly(_ interval: Int, _ weekdays: [String]) -> CustomRepeatingPattern {
+        CustomRepeatingPattern(
+            type: "custom", unit: "weeks", interval: interval,
+            endCondition: "never", endAfterOccurrences: nil, endUntilDate: nil,
+            weekdays: weekdays, monthRepeatType: nil, monthDay: nil, monthWeekday: nil,
+            month: nil, day: nil)
+    }
+
+    private func days(_ dates: [Date]) -> [String] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = .current
+        return dates.map { formatter.string(from: $0) }
+    }
+
+    /// AITD-547: "every 4 weeks on Friday, from the due date" rolled forward ONE week. Walked six
+    /// times it must land four weeks apart, at the same time of day, across the autumn change.
+    func testUserPattern_EveryFourWeeksOnFriday_FromDueDate_StepsFourWeeks_AITD547() {
+        let dates = simulateCustomProgression(
+            pattern: weekly(4, ["friday"]), initialDueDate: localDate(2026, 10, 23, hour: 9),
+            repeatFrom: .DUE_DATE, count: 6)
+
+        XCTAssertEqual(days(dates), [
+            "2026-11-20 09:00", "2026-12-18 09:00", "2027-01-15 09:00",
+            "2027-02-12 09:00", "2027-03-12 09:00", "2027-04-09 09:00",
+        ])
+    }
+
+    /// AITD-547: with several days, a later selected day in the same week comes first; past the
+    /// last one the series skips to the first selected day `interval` weeks on.
+    func testUserPattern_EveryTwoWeeksOnMonWed_SkipsAlternateWeeks_AITD547() {
+        let dates = simulateCustomProgression(
+            pattern: weekly(2, ["monday", "wednesday"]), initialDueDate: localDate(2026, 10, 19, hour: 9),
+            repeatFrom: .DUE_DATE, count: 4)
+
+        // Mon 19 Oct: Wed 21, Mon 2 Nov, Wed 4 Nov, Mon 16 Nov.
+        XCTAssertEqual(days(dates), [
+            "2026-10-21 09:00", "2026-11-02 09:00", "2026-11-04 09:00", "2026-11-16 09:00",
+        ])
+    }
+
+    /// AITD-547 asked to check every custom repeat: days, months and years already honour their
+    /// interval. Locked here so the weekly fix is not the only unit with a test for it.
+    func testEveryCustomUnitHonoursItsInterval_AITD547() {
+        func step(_ unit: String, _ interval: Int, monthDay: Int? = nil, month: Int? = nil, day: Int? = nil) -> String? {
+            let pattern = CustomRepeatingPattern(
+                type: "custom", unit: unit, interval: interval,
+                endCondition: "never", endAfterOccurrences: nil, endUntilDate: nil,
+                weekdays: nil, monthRepeatType: unit == "months" ? "same_date" : nil,
+                monthDay: monthDay, monthWeekday: nil, month: month, day: day)
+            let due = localDate(2026, 1, 15, hour: 9)
+            let next = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+                pattern: pattern, currentDueDate: due, completionDate: due,
+                repeatFrom: .DUE_DATE, currentOccurrenceCount: 0).nextDueDate
+            return next.map { days([$0])[0] }
+        }
+
+        XCTAssertEqual(step("days", 3), "2026-01-18 09:00")
+        XCTAssertEqual(step("months", 2, monthDay: 15), "2026-03-15 09:00")
+        XCTAssertEqual(step("years", 2, month: 1, day: 15), "2028-01-15 09:00")
+    }
+
     /// User-reported pattern: "Same Date of every month". Starting on
     /// Jan 15 2024, the next 12 completions must land on the 15th of each
     /// subsequent month.
