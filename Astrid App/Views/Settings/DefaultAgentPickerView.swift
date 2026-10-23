@@ -25,7 +25,7 @@ struct DefaultAgentPickerView: View {
     /// brand-derived on the server (task 97208a72), so a hardcoded `astrid@astrid.cc`
     /// would list the assistant as a model option on any rebranded deployment.
     private var modelOptions: [AvailableAgent] {
-        agents.filter { !$0.isDefaultAssistant }
+        AvailableAgent.modelOptions(agents)
     }
 
     /// Built-in models not yet returned by the API (no key configured)

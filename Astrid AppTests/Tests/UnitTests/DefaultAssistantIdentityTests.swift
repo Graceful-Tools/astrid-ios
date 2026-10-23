@@ -37,8 +37,9 @@ final class DefaultAssistantIdentityTests: XCTestCase {
         }
     }
 
-    /// Mirrors DefaultAgentPickerView.modelOptions: the assistant is excluded from the
-    /// list of models that can power it, on any domain.
+    /// The assistant is excluded from the list of models that can power it, on any domain.
+    /// Calls the one rule both platforms' pickers use (AITD-538) — this used to filter an inline
+    /// array of its own.
     func testModelOptionsExcludeTheAssistantOnAnyDomain() {
         let agents = [
             agent(email: "astrid@acme.example", service: "astrid"),
@@ -46,10 +47,9 @@ final class DefaultAssistantIdentityTests: XCTestCase {
             agent(email: "gemini@acme.example", service: "gemini"),
         ]
 
-        let modelOptions = agents.filter { !$0.isDefaultAssistant }
+        let modelOptions = AvailableAgent.modelOptions(agents)
 
-        XCTAssertEqual(modelOptions.count, 2)
-        XCTAssertFalse(modelOptions.contains { $0.service == "astrid" })
+        XCTAssertEqual(modelOptions.map(\.service), ["claude", "gemini"], "the rest keep the server's order")
     }
 
     func testAssistantStillCountsAsBuiltIn() {

@@ -283,7 +283,7 @@ struct MacAssistantModelSection: View {
             Text(String(format: NSLocalizedString("settings.agents.model.description", comment: ""), Brand.appName))
                 .macFont(.caption).foregroundStyle(Theme.textMuted)
             if let s = settings {
-                if agents.filter({ !$0.isDefaultAssistant }).isEmpty {
+                if AvailableAgent.modelOptions(agents).isEmpty {
                     Text(String(format: NSLocalizedString("settings.agents.model.empty", comment: ""), Brand.appName, Brand.appName))
                         .macFont(.caption).foregroundStyle(Theme.warning)
                 } else {
@@ -292,7 +292,7 @@ struct MacAssistantModelSection: View {
                         set: { newId in save(agentId: newId.isEmpty ? nil : newId) }
                     )) {
                         Text(NSLocalizedString("settings.default_agent.none", comment: "")).tag("")
-                        ForEach(agents.filter { !$0.isDefaultAssistant }) { a in
+                        ForEach(AvailableAgent.modelOptions(agents)) { a in
                             Text("\(a.name) · \(a.serviceDisplayName)").tag(a.id)
                         }
                     }

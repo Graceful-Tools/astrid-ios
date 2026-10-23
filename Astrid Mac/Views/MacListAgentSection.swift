@@ -37,7 +37,7 @@ struct MacListAgentSection: View {
     /// The default assistant identity is not a *choice* of model — it is what "account default"
     /// already means — so it is filtered out here exactly as the account-level picker filters it.
     private var choosableAgents: [AvailableAgent] {
-        agents.filter { !$0.isDefaultAssistant }
+        AvailableAgent.modelOptions(agents)
     }
 
     var body: some View {
