@@ -190,6 +190,8 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-ios-destination.sh"
     gate "xcresult summary script tests passed" "xcresult summary script tests failed" \
         "$SCRIPT_DIR/test-xcresult-summary.sh"
+    gate "monkey verdict script tests passed" "monkey verdict script tests failed" \
+        "$SCRIPT_DIR/test-monkey-verdict.sh"
 fi
 
 # Step 9: UI tests (only with --full)
