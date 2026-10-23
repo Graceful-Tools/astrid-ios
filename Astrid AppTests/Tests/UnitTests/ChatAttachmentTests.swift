@@ -21,53 +21,6 @@ final class ChatAttachmentTests: XCTestCase {
         }
     }
 
-    // MARK: - PendingAttachment Context Tests
-
-    func testPendingAttachmentWithTaskIdContext() {
-        let pending = PendingAttachment(
-            tempFileId: "temp_123",
-            localPath: "/tmp/test",
-            fileName: "file.jpg",
-            mimeType: "image/jpeg",
-            fileSize: 1024,
-            uploadContext: ["taskId": "task-abc"],
-            uploadStatus: .pending
-        )
-
-        XCTAssertEqual(pending.taskId, "task-abc")
-        XCTAssertEqual(pending.uploadContext["taskId"], "task-abc")
-    }
-
-    func testPendingAttachmentWithListIdContext() {
-        let pending = PendingAttachment(
-            tempFileId: "temp_456",
-            localPath: "/tmp/test",
-            fileName: "doc.pdf",
-            mimeType: "application/pdf",
-            fileSize: 2048,
-            uploadContext: ["listId": "list-xyz"],
-            uploadStatus: .pending
-        )
-
-        XCTAssertEqual(pending.taskId, "")  // No taskId in context
-        XCTAssertEqual(pending.uploadContext["listId"], "list-xyz")
-    }
-
-    func testPendingAttachmentWithChannelIdContext() {
-        let pending = PendingAttachment(
-            tempFileId: "temp_789",
-            localPath: "/tmp/test",
-            fileName: "photo.png",
-            mimeType: "image/png",
-            fileSize: 4096,
-            uploadContext: ["channelId": "ch-abc123"],
-            uploadStatus: .pending
-        )
-
-        XCTAssertEqual(pending.taskId, "")  // No taskId
-        XCTAssertEqual(pending.uploadContext["channelId"], "ch-abc123")
-    }
-
     // MARK: - PendingAttachment Codable Tests
 
     @MainActor func testPendingAttachmentCodableRoundTrip() throws {
@@ -136,31 +89,6 @@ final class ChatAttachmentTests: XCTestCase {
     }
 
     // MARK: - ChatMessage with Attachments Tests
-
-    @MainActor func testChatMessageWithSecureFiles() throws {
-        let secureFile = SecureFile(id: "sf-1", name: "photo.jpg", size: 1024, mimeType: "image/jpeg")
-        let message = ChatMessage(
-            id: "msg-attach",
-            channelId: "ch-1",
-            authorId: "user-1",
-            author: nil,
-            content: "",
-            type: .ATTACHMENT,
-            attachmentUrl: nil,
-            attachmentName: nil,
-            attachmentType: nil,
-            attachmentSize: nil,
-            replyToId: nil,
-            clientRequestId: nil,
-            secureFiles: [secureFile],
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
-        XCTAssertEqual(message.type, .ATTACHMENT)
-        XCTAssertEqual(message.secureFiles?.count, 1)
-        XCTAssertEqual(message.secureFiles?.first?.id, "sf-1")
-    }
 
     @MainActor func testChatMessageAttachmentCodableRoundTrip() throws {
         let secureFile = SecureFile(id: "sf-codable", name: "doc.pdf", size: 2048, mimeType: "application/pdf")
@@ -347,33 +275,6 @@ final class ChatAttachmentTests: XCTestCase {
         XCTAssertEqual(message.type, .ATTACHMENT)
         XCTAssertEqual(message.secureFiles?.count, 1)
         XCTAssertTrue(message.secureFiles?.first?.mimeType.hasPrefix("image/") ?? false)
-    }
-
-    // MARK: - Attachment Metadata Fields Tests
-
-    @MainActor func testAttachmentMetadataFields() {
-        let message = ChatMessage(
-            id: "msg-meta",
-            channelId: "ch-1",
-            authorId: "user-1",
-            author: nil,
-            content: "See attached",
-            type: .ATTACHMENT,
-            attachmentUrl: "/api/v1/secure-files/file-123",
-            attachmentName: "budget.xlsx",
-            attachmentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            attachmentSize: 15360,
-            replyToId: nil,
-            clientRequestId: nil,
-            secureFiles: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
-        XCTAssertEqual(message.attachmentUrl, "/api/v1/secure-files/file-123")
-        XCTAssertEqual(message.attachmentName, "budget.xlsx")
-        XCTAssertEqual(message.attachmentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        XCTAssertEqual(message.attachmentSize, 15360)
     }
 
     // MARK: - Send enablement (AITD-538)

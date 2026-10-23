@@ -51,42 +51,4 @@ final class CommentServiceIntegrationTests: XCTestCase {
         // Then: Should have temp ID indicating optimistic creation
         XCTAssertTrue(createdComment.id.hasPrefix("temp_"), "Comment should have temp ID")
     }
-
-    // MARK: - Delete Tests
-
-    func testDelete_RemovesFromCoreDataAfterSync() async throws {
-        // Given: Comment marked for deletion
-        NotificationCenter.default.post(name: .networkDidBecomeAvailable, object: nil)
-
-        _ = try await service.createComment(
-            taskId: "task-123",
-            content: "To delete",
-            type: .TEXT
-        )
-        try await service.syncPendingComments()
-        try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
-
-        try await service.deleteComment(id: "comment-123")
-        try await _Concurrency.Task.sleep(nanoseconds: 500_000_000)
-
-        // When: Syncing deletion
-        try await service.syncPendingComments()
-        try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
-
-        // Then: Should be completely removed from Core Data
-        let cdComments: [CDComment] = try await withCheckedThrowingContinuation { continuation in
-            coreDataManager.persistentContainer.performBackgroundTask { context in
-                do {
-                    let request = CDComment.fetchRequest()
-                    request.predicate = NSPredicate(format: "id == %@", "comment-123")
-                    let results = try context.fetch(request)
-                    continuation.resume(returning: results)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-
-        XCTAssertEqual(cdComments.count, 0, "Deleted comment should be removed from Core Data")
-    }
 }

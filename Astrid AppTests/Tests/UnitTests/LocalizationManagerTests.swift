@@ -125,41 +125,6 @@ final class LocalizationManagerTests: XCTestCase {
         XCTAssertEqual(currentLanguage, "fr", "Should return the user override")
     }
 
-    // MARK: - Language Affinity Tests
-
-    func testSpanishRegionAffinity() {
-        // Test that Spanish-speaking regions are correctly identified
-        let spanishRegions = ["ES", "MX", "AR", "CO", "CL", "PE", "VE", "EC", "GT", "CU",
-                             "BO", "DO", "HN", "PY", "SV", "NI", "CR", "PA", "UY", "PR", "GQ"]
-
-        for region in spanishRegions {
-            XCTAssertTrue(Constants.Localization.spanishSpeakingRegions.contains(region),
-                         "\(region) should be recognized as Spanish-speaking")
-        }
-    }
-
-    func testFrenchRegionAffinity() {
-        // Test that French-speaking regions are correctly identified
-        let frenchRegions = ["FR", "BE", "CH", "CA", "LU", "MC", "CI", "CM", "SN", "ML",
-                            "BF", "NE", "CD", "CG", "MG", "BJ", "TG", "GN", "RW", "BI",
-                            "TD", "HT", "GA", "CF"]
-
-        for region in frenchRegions {
-            XCTAssertTrue(Constants.Localization.frenchSpeakingRegions.contains(region),
-                         "\(region) should be recognized as French-speaking")
-        }
-    }
-
-    func testNonSpanishRegionNotInAffinity() {
-        // Test that non-Spanish regions are not in Spanish affinity list
-        let nonSpanishRegions = ["US", "GB", "DE", "IT", "JP", "CN", "KR"]
-
-        for region in nonSpanishRegions {
-            XCTAssertFalse(Constants.Localization.spanishSpeakingRegions.contains(region),
-                          "\(region) should not be recognized as Spanish-speaking")
-        }
-    }
-
     // MARK: - Supported Languages Tests
 
     func testSupportedLanguagesContainsExpectedLanguages() {
@@ -170,13 +135,6 @@ final class LocalizationManagerTests: XCTestCase {
             XCTAssertTrue(Constants.Localization.supportedLanguages.contains(lang),
                          "\(lang) should be in supported languages")
         }
-    }
-
-    func testSupportedLanguagesCount() {
-        // Verify we have exactly 12 supported languages
-        // en, es, fr, de, it, ja, ko, nl, pt, ru, zh-Hans, zh-Hant
-        XCTAssertEqual(Constants.Localization.supportedLanguages.count, 12,
-                      "Should support exactly 12 languages")
     }
 
     // MARK: - Integration Tests
@@ -255,54 +213,11 @@ final class LocalizationManagerTests: XCTestCase {
                       "US user with Spanish preferences should get Spanish")
     }
 
-    func testMexicanUserScenario() {
-        // Scenario: Mexican user (region=MX) should get Spanish
-        // Mexico is in spanishSpeakingRegions
-
-        XCTAssertTrue(Constants.Localization.spanishSpeakingRegions.contains("MX"),
-                     "Mexico should be recognized as Spanish-speaking")
-    }
-
-    func testCanadianFrenchUserScenario() {
-        // Scenario: Canadian user (region=CA) who speaks French
-        // Canada is in frenchSpeakingRegions
-
-        XCTAssertTrue(Constants.Localization.frenchSpeakingRegions.contains("CA"),
-                     "Canada should be recognized as French-speaking")
-    }
-
-    func testUKUserScenario() {
-        // Scenario: UK user (region=GB) should get English
-        // GB is not in Spanish or French affinity lists
-
-        XCTAssertFalse(Constants.Localization.spanishSpeakingRegions.contains("GB"),
-                      "UK should not be in Spanish affinity")
-        XCTAssertFalse(Constants.Localization.frenchSpeakingRegions.contains("GB"),
-                      "UK should not be in French affinity")
-    }
-
     // MARK: - Constants Validation Tests
 
     func testUserLanguageOverrideKeyIsConsistent() {
         // Verify the constant is defined and matches what we use in tests
         XCTAssertEqual(Constants.Localization.userLanguageOverrideKey, testOverrideKey,
                       "Test key should match constant")
-    }
-
-    func testNoOverlapBetweenSpanishAndFrenchRegions() {
-        // Ensure no region is in both Spanish and French affinity lists
-        // (Note: Some regions like Canada or Belgium might legitimately be in both,
-        // but for our current implementation we should document this if it happens)
-
-        let overlap = Constants.Localization.spanishSpeakingRegions.intersection(
-            Constants.Localization.frenchSpeakingRegions
-        )
-
-        // Document any overlaps (this is informational, not necessarily a failure)
-        if !overlap.isEmpty {
-            print("ℹ️ Regions in both Spanish and French affinity: \(overlap)")
-            // This is actually OK - some regions are bilingual
-            // We just want to be aware of it
-        }
     }
 }

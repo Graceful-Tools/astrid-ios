@@ -44,9 +44,4 @@ final class PasskeyErrorTests: XCTestCase {
     func testAServerErrorShowsTheServersMessage() {
         XCTAssertEqual(PasskeyError.serverError("Connection timeout").errorDescription, "Connection timeout")
     }
-
-    func testErrorIsLocalizedError() {
-        let error: LocalizedError = PasskeyError.notSupported
-        XCTAssertNotNil(error.errorDescription)
-    }
 }

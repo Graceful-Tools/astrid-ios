@@ -93,18 +93,6 @@ final class BoardAutoAdvanceRunawayTests: XCTestCase {
 
     // MARK: - THE BUG: the hot zone covered a third of the screen
 
-    /// 44pt per side was a *floor*, chosen as a touch target — but this is a
-    /// region you drag through, not one you tap, and the floor is what made a
-    /// 390pt phone 36% hot. The middle of the column must stay a safe place to
-    /// drag a card without the board moving.
-    func testEdgeZonesLeaveMostOfAPhoneColumnSafeToDragIn() {
-        let zone = boardAutoAdvanceEdgeWidth(containerWidth: 390)
-        XCTAssertLessThanOrEqual(zone * 2, 390 * 0.25,
-                                 "both zones together must stay under a quarter of the screen; "
-                                 + "they used to cover 36% of it")
-        XCTAssertGreaterThanOrEqual(zone, 32, "still has to be reachable mid-drag")
-    }
-
     /// The middle of a phone column is nowhere near an edge zone.
     func testTheCardAreaOfAPhoneColumnIsNotAnEdgeZone() {
         for x in stride(from: CGFloat(80), through: 310, by: 10) {

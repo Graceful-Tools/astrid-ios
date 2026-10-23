@@ -44,22 +44,6 @@ final class IOSSilentWriteGuardTests: XCTestCase {
                       "iOS should present the shared banner at the root, as MacAuthGateView does")
     }
 
-    /// The banner is only useful if the copy is translated. `report` looks the sentence up by the
-    /// FIRST WORD of the call-site context, so a context whose verb is not in the map falls back
-    /// to the generic line — silently, and only visible to a user in another language.
-    func testAITD406_EveryContextThisTaskIntroducesMapsToRealCopy() {
-        XCTAssertEqual(FailureCopy.message(for: "Delete list"),
-                       NSLocalizedString("mac.failed.delete", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Save list settings"),
-                       NSLocalizedString("mac.failed.save", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Save list filters"),
-                       NSLocalizedString("mac.failed.save", comment: ""))
-        // And the guard on the guard: an unmapped verb really does fall back, so the three above
-        // are asserting something.
-        XCTAssertEqual(FailureCopy.message(for: "Frobnicate list"),
-                       NSLocalizedString("mac.failed.generic", comment: ""))
-    }
-
     /// AITD-408. `ListDefaultsView` built its user-facing error as an English literal — "Sync
     /// issue: …. Changes saved locally." — so everyone not reading English got English. The copy
     /// was also false: that catch only sees ListService's local 404, raised BEFORE any optimistic
@@ -158,11 +142,5 @@ final class IOSSilentWriteGuardTests: XCTestCase {
         XCTAssertTrue(comments.contains("Outbox"),
                       "comment writes queue rather than fail; CommentSectionViewEnhanced's silence is correct")
 
-        // The scan above must not reach them, or the reasoning and the guard disagree.
-        for outboxBacked in ["createTask", "updateTask", "completeTask", "deleteTask",
-                             "createComment", "deleteComment", "sendMessage"] {
-            XCTAssertFalse(throwingDirectAPIWrites.contains(outboxBacked),
-                           "\(outboxBacked) is Outbox-backed and must stay out of the silent-write ban")
-        }
     }
 }

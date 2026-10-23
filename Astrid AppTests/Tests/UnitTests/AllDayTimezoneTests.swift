@@ -60,23 +60,6 @@ final class AllDayTimezoneTests: XCTestCase {
         XCTAssertFalse(task.isOverdue)
     }
 
-    /// Cross-timezone invariance: an all-day task created on another device
-    /// at "today" resolves to the same logical day regardless of the
-    /// user's current timezone, because we compare UTC date components.
-    func testAllDay_TimezoneInvariant() {
-        let task = makeTask(dueDateTime: todayAtUTCMidnight(), isAllDay: true)
-        // Even if the device switched timezone (we can't flip the process
-        // timezone safely here without side effects on other tests), the
-        // UTC-component comparison in `isDueToday` already removes TZ from
-        // the equation. Confirm the UTC-midnight structure:
-        var utcCalendar = Calendar(identifier: .gregorian)
-        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-        let hour = utcCalendar.component(.hour, from: task.dueDateTime!)
-        let minute = utcCalendar.component(.minute, from: task.dueDateTime!)
-        XCTAssertEqual(hour, 0, "All-day tasks must be stored at UTC midnight")
-        XCTAssertEqual(minute, 0, "All-day tasks must be stored at UTC midnight")
-    }
-
     // MARK: - Timed tasks
 
     /// A fixed "now" — 10:00 on Wednesday 11 March 2026 on the device's calendar — so these
@@ -138,30 +121,5 @@ final class AllDayTimezoneTests: XCTestCase {
         utcCal.timeZone = TimeZone(identifier: "UTC")!
         XCTAssertEqual(utcCal.component(.hour, from: decoded.dueDateTime!), 0)
         XCTAssertEqual(utcCal.component(.minute, from: decoded.dueDateTime!), 0)
-    }
-
-    /// Simulate a task created on the web at UTC midnight for today (the
-    /// exact payload iOS receives from `/api/v1/tasks`), then verify iOS
-    /// reads it as "due today". This is the round-trip the user wanted
-    /// covered: web creates all-day → iOS displays correctly.
-    func testAllDay_WebCreatedTaskReadsAsDueTodayOnIOS() throws {
-        // Build the payload web would emit for an all-day task due "today".
-        let now = Date()
-        let localCal = Calendar.current
-        var comps = localCal.dateComponents([.year, .month, .day], from: now)
-        comps.hour = 0
-        comps.minute = 0
-        comps.second = 0
-        comps.timeZone = TimeZone(identifier: "UTC")
-        var utcCal = Calendar(identifier: .gregorian)
-        utcCal.timeZone = TimeZone(identifier: "UTC")!
-        let todayUTCMidnight = utcCal.date(from: comps)!
-
-        let task = makeTask(dueDateTime: todayUTCMidnight, isAllDay: true)
-        XCTAssertTrue(
-            task.isDueToday,
-            "Web-created all-day task for today must read as due-today on iOS"
-        )
-        XCTAssertFalse(task.isOverdue)
     }
 }

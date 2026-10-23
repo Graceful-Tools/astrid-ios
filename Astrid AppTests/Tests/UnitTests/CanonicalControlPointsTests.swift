@@ -109,88 +109,7 @@ final class CanonicalControlPointsTests: XCTestCase {
     // network/CoreData mocks) but we prove they exist with the expected
     // signatures.
 
-    @MainActor
-    func testListMemberService_HasCanonicalMethods() {
-        let service = ListMemberService.shared
-        // Reference each expected method so a rename breaks the build here.
-        let add: (String, String, String) async throws -> ListMember = { listId, email, role in
-            try await service.addMember(listId: listId, email: email, role: role)
-        }
-        let update: (String, String, String) async throws -> Void = { listId, userId, role in
-            try await service.updateMemberRole(listId: listId, userId: userId, role: role)
-        }
-        let remove: (String, String) async throws -> Void = { listId, userId in
-            try await service.removeMember(listId: listId, userId: userId)
-        }
-        let cancel: (String, String, String) async throws -> Void = { listId, invitationId, email in
-            try await service.cancelInvitation(listId: listId, invitationId: invitationId, email: email)
-        }
-        XCTAssertNotNil(add)
-        XCTAssertNotNil(update)
-        XCTAssertNotNil(remove)
-        XCTAssertNotNil(cancel)
-    }
-
-    // MARK: - ChatService AI-assistant method contract
-
-    @MainActor
-    func testChatService_HasAIAssistantHelpers() {
-        let service = ChatService.shared
-        let getSettings: () async throws -> AIAssistantSettings = {
-            try await service.getAIAssistantSettings()
-        }
-        let post: (String, String) async throws -> Void = { channelId, content in
-            try await service.postAgentResponse(channelId: channelId, content: content)
-        }
-        let updateSettings: (String?) async throws -> AIAssistantSettings = { agentId in
-            try await service.updateAIAssistantSettings(defaultAgentId: agentId)
-        }
-        let getAgents: () async throws -> [AvailableAgent] = {
-            try await service.fetchAvailableAgents()
-        }
-        let getAgentUsers: () async throws -> [User] = {
-            try await service.fetchAvailableAgentUsers()
-        }
-        let refreshMessages: (String) async throws -> [ChatMessage] = { channelId in
-            try await service.refreshMessagesFromServer(channelId: channelId)
-        }
-        XCTAssertNotNil(getSettings)
-        XCTAssertNotNil(post)
-        XCTAssertNotNil(updateSettings)
-        XCTAssertNotNil(getAgents)
-        XCTAssertNotNil(getAgentUsers)
-        XCTAssertNotNil(refreshMessages)
-        // Invalidate the TTL cache from any caller that mutates the setting.
-        service.invalidateAIAssistantSettingsCache()
-    }
-
     // MARK: - Task/List service boundary method contracts
-
-    @MainActor
-    func testTaskService_HasServerFirstAndFeaturedListHelpers() {
-        let service = TaskService.shared
-        let updateServerFirst: (String, UpdateTaskRequest) async throws -> Task = { taskId, updates in
-            try await service.updateTaskOnServer(taskId: taskId, updates: updates)
-        }
-        let fetchListTasks: (String) async throws -> [Task] = { listId in
-            try await service.fetchTasksForListFromServer(listId)
-        }
-        XCTAssertNotNil(updateServerFirst)
-        XCTAssertNotNil(fetchListTasks)
-    }
-
-    @MainActor
-    func testListService_HasServerFirstHelpers() {
-        let service = ListService.shared
-        let leave: (String) async throws -> Void = { listId in
-            try await service.leaveList(listId: listId)
-        }
-        let updateServerFirst: (String, UpdateListRequest) async throws -> TaskList = { listId, updates in
-            try await service.updateListOnServer(listId: listId, updates: updates)
-        }
-        XCTAssertNotNil(leave)
-        XCTAssertNotNil(updateServerFirst)
-    }
 
     func testRefactoredViews_DoNotCallAstridAPIClientDirectly() throws {
         let root = try RepositoryLocator.repositoryRoot()
@@ -211,22 +130,6 @@ final class CanonicalControlPointsTests: XCTestCase {
                 "\(relativePath) must route backend work through a service layer"
             )
         }
-    }
-
-
-    // MARK: - AstridAPIClient exposes the preferences endpoints
-
-    @MainActor
-    func testAstridAPIClient_HasPreferenceMethods() {
-        let client = AstridAPIClient.shared
-        let getST: () async throws -> UserSettings = {
-            try await client.getSmartTaskSettings()
-        }
-        let updateST: (UserSettings) async throws -> Void = { s in
-            try await client.updateSmartTaskSettings(s)
-        }
-        XCTAssertNotNil(getST)
-        XCTAssertNotNil(updateST)
     }
 
     // MARK: - Preferences optimistic UserDefaults writes

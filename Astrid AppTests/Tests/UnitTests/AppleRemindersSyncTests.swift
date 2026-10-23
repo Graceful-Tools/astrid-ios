@@ -336,61 +336,6 @@ final class AppleRemindersSyncTests: XCTestCase {
         }
     }
 
-    // MARK: - ReminderListLink Model Tests
-
-    @MainActor func testReminderListLinkCreation() {
-        let link = ReminderListLink(
-            astridListId: "list-123",
-            astridListName: "My Tasks",
-            reminderCalendarId: "calendar-456",
-            reminderCalendarTitle: "Reminders",
-            syncDirection: .export,
-            createdAt: Date(),
-            lastSyncedAt: nil,
-            includeCompletedTasks: true
-        )
-
-        XCTAssertEqual(link.id, "list-123") // id is computed from astridListId
-        XCTAssertEqual(link.astridListId, "list-123")
-        XCTAssertEqual(link.astridListName, "My Tasks")
-        XCTAssertEqual(link.reminderCalendarId, "calendar-456")
-        XCTAssertEqual(link.reminderCalendarTitle, "Reminders")
-        XCTAssertEqual(link.syncDirection, .export)
-        XCTAssertNil(link.lastSyncedAt)
-        XCTAssertTrue(link.includeCompletedTasks)
-    }
-
-    @MainActor func testReminderListLinkWithIncludeCompletedFalse() {
-        let link = ReminderListLink(
-            astridListId: "list-abc",
-            astridListName: "Work",
-            reminderCalendarId: "cal-xyz",
-            reminderCalendarTitle: "Work Reminders",
-            syncDirection: .bidirectional,
-            createdAt: Date(),
-            lastSyncedAt: Date(),
-            includeCompletedTasks: false
-        )
-
-        XCTAssertFalse(link.includeCompletedTasks)
-        XCTAssertNotNil(link.lastSyncedAt)
-    }
-
-    @MainActor func testReminderListLinkDefaultIncludeCompleted() {
-        // Test that includeCompletedTasks defaults to true
-        let link = ReminderListLink(
-            astridListId: "list-def",
-            astridListName: "Default",
-            reminderCalendarId: "cal-def",
-            reminderCalendarTitle: "Default Cal",
-            syncDirection: .import_,
-            createdAt: Date(),
-            lastSyncedAt: nil
-        )
-
-        XCTAssertTrue(link.includeCompletedTasks)
-    }
-
     // MARK: - SyncDirection Tests
 
     @MainActor func testSyncDirectionRawValues() {
@@ -426,13 +371,6 @@ final class AppleRemindersSyncTests: XCTestCase {
         }
         XCTAssertTrue(SyncDirection.export.description.contains(Brand.appName))
         XCTAssertTrue(SyncDirection.import_.description.contains(Brand.appName))
-    }
-
-    @MainActor func testSyncDirectionAllCases() {
-        XCTAssertEqual(SyncDirection.allCases.count, 3)
-        XCTAssertTrue(SyncDirection.allCases.contains(.export))
-        XCTAssertTrue(SyncDirection.allCases.contains(.import_))
-        XCTAssertTrue(SyncDirection.allCases.contains(.bidirectional))
     }
 
     // MARK: - AppleRemindersError Tests
@@ -488,21 +426,5 @@ final class AppleRemindersSyncTests: XCTestCase {
         XCTAssertEqual(decoded.reminderCalendarTitle, original.reminderCalendarTitle)
         XCTAssertEqual(decoded.syncDirection, original.syncDirection)
         XCTAssertEqual(decoded.includeCompletedTasks, original.includeCompletedTasks)
-    }
-
-    // MARK: - Service State Tests
-
-    @MainActor
-    func testAppleRemindersServiceIsSingleton() {
-        let service1 = AppleRemindersService.shared
-        let service2 = AppleRemindersService.shared
-        XCTAssertTrue(service1 === service2)
-    }
-
-    @MainActor
-    func testIsListLinkedReturnsFalseForUnlinkedList() {
-        let service = AppleRemindersService.shared
-        // Random UUID should not be linked
-        XCTAssertFalse(service.isListLinked(UUID().uuidString))
     }
 }

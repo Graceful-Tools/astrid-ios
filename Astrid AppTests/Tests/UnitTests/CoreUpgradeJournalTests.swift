@@ -100,4 +100,16 @@ final class CoreUpgradeJournalTests: XCTestCase {
         XCTAssertFalse(stats.isHealthy)
         XCTAssertEqual(stats.deadLetters, [JournalStats.DeadLetter(kind: "createTask", error: nil)])
     }
+
+    /// A queued chat message is replayed from its stored payload, possibly after a relaunch, so a
+    /// dropped field would corrupt the retried send. Moved from OutboxPhase7PayloadTests (AITD-531).
+    func testAQueuedChatPayloadRoundTrips() throws {
+        let p = SendChatMessageOutboxPayload(
+            channelId: "chan-1", content: "hello", type: "TEXT",
+            fileId: "temp_file", replyToId: "msg-9"
+        )
+        let decoded = try JSONDecoder().decode(
+            SendChatMessageOutboxPayload.self, from: JSONEncoder().encode(p))
+        XCTAssertEqual(decoded, p)
+    }
 }
