@@ -17,6 +17,7 @@
 //    - the renderers must keep ACCEPTING it, for rows already written
 
 import XCTest
+@testable import Astrid_App
 
 final class LegacySecureFilesPathTests: XCTestCase {
 
@@ -72,13 +73,18 @@ final class LegacySecureFilesPathTests: XCTestCase {
     /// form and always will. Tightening these matchers to v1-only would blank out every image
     /// stored before the cutover — the failure would look like "old attachments stopped loading",
     /// which is a long way from the change that caused it.
-    func testTheImageLoadersStillAuthenticateLegacyStoredURLs() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root.appendingPathComponent("Astrid App/Utilities/ImageCache.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(source.contains("/api/secure-files/"),
-                      "ImageCache must still recognise legacy stored URLs as needing auth, or "
-                      + "pre-cutover attachments load unauthenticated and fail")
-        XCTAssertTrue(source.contains("/api/v1/secure-files/"))
+    func testTheImageLoadersStillAuthenticateLegacyStoredURLs_AITD538() throws {
+        let base = "https://www.astrid.cc"
+        XCTAssertTrue(SecureFilesURL.needsSession(try XCTUnwrap(URL(string: "\(base)/api/secure-files/abc"))),
+                      "a legacy stored URL still needs the session, or pre-cutover attachments fail")
+        XCTAssertTrue(SecureFilesURL.needsSession(try XCTUnwrap(URL(string: "\(base)/api/v1/secure-files/abc"))))
+        XCTAssertTrue(SecureFilesURL.needsSession(
+            try XCTUnwrap(URL(string: "\(base)/api/v1/secure-files/abc?info=true"))))
+        XCTAssertFalse(SecureFilesURL.needsSession(
+            try XCTUnwrap(URL(string: "https://example.blob.vercel-storage.com/avatar.png"))),
+                       "a public image is fetched without the cookie")
+        XCTAssertFalse(SecureFilesURL.needsSession(
+            try XCTUnwrap(URL(string: "\(base)/proxy?u=/api/v1/secure-files/abc"))),
+                       "only the path decides, never a query that names the route")
     }
 }

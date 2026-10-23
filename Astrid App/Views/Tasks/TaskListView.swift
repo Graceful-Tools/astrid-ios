@@ -1066,63 +1066,7 @@ struct TaskListView: View {
 
     /// Get contextual empty state message based on list type
     private func getEmptyStateMessage() -> String {
-        // Search mode
-        if selectedListId == "search" {
-            if searchText.isEmpty {
-                return NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks")
-            }
-            return NSLocalizedString("empty_state.default", comment: "")
-        }
-
-        // If search is active from sidebar, return default creative response
-        if !searchText.isEmpty {
-            return NSLocalizedString("empty_state.default", comment: "")
-        }
-
-        // Handle special "my-tasks" virtual list
-        if selectedListId == "my-tasks" {
-            return getMyTasksEmptyMessage()
-        }
-
-        guard let list = selectedList else {
-            return NSLocalizedString("empty_state.default", comment: "")
-        }
-
-        // Check if it's a virtual list (saved filter)
-        if list.isVirtual == true {
-            if let virtualType = list.virtualListType {
-                switch virtualType {
-                case "my-tasks":
-                    return getMyTasksEmptyMessage()
-                case "today":
-                    return NSLocalizedString("empty_state.today", comment: "")
-                default:
-                    return NSLocalizedString("empty_state.default", comment: "")
-                }
-            }
-            return NSLocalizedString("empty_state.default", comment: "")
-        }
-
-        // Regular list
-        if list.privacy == .PUBLIC {
-            return NSLocalizedString("empty_state.public_list", comment: "")
-        } else if list.privacy == .SHARED {
-            return NSLocalizedString("empty_state.shared_list", comment: "")
-        } else {
-            return String(format: NSLocalizedString("empty_state.list_with_name", comment: ""), list.name)
-        }
-    }
-
-    /// Get empty state message for My Tasks view
-    /// Shows "caught up" message only for users who have completed 10+ tasks
-    /// New users see a welcoming message instead
-    private func getMyTasksEmptyMessage() -> String {
-        // Aligns with web's `AstridEmptyState` (see
-        // astrid-web/components/ui/astrid-empty-state.tsx): a single empty
-        // message per list type, no completed-task threshold. iOS used to
-        // branch to a "caught up" message after 10 completions, but web has
-        // no equivalent and this created cross-platform UX inconsistency.
-        return Brand.localized("empty_state.my_tasks")
+        EmptyStateMessage.decide(selectedListId: selectedListId, searchText: searchText, list: selectedList).text
     }
 
     // MARK: - Actions
