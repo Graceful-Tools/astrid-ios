@@ -5,8 +5,8 @@
 //  the orchestration the 2026-10-22 coverage audit found unexecuted — what a pulled issue becomes,
 //  what a local task pushes, that the pulled cursor is committed only after the pass applied, and
 //  how comments converge on a linked task: pulled, deleted and edited in each direction; how a
-//  linked pair that drifted adopts GitHub's completion; and that an issue gone from a complete
-//  listing detaches its task rather than deleting it.
+//  linked pair that drifted adopts GitHub's completion; that an issue gone from a complete
+//  listing detaches its task rather than deleting it; and how closed-issue history is backfilled.
 
 import XCTest
 @testable import Astrid_App
@@ -561,6 +561,92 @@ final class GitHubSyncPassTests: XCTestCase {
 
         XCTAssertEqual(fullListings, 0)
         XCTAssertTrue(detaches.isEmpty)
+    }
+
+    // MARK: COMPLETED BACKFILL — closed-issue history trickles in after the live work
+
+    /// A closed issue with no task is imported completed, backdated to when it was closed — history
+    /// for search, not a fresh task. Offline it keeps its temp id, so no link is written against it.
+    func testAClosedIssueWithNoTaskIsBackfilledCompletedAndBackdated_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Closed last spring")
+        let closedAt = Date(timeIntervalSince1970: 1_780_000_000)
+        var closed = issue(60, title: title, notes: "the history", completed: true)
+        closed["completedAt"] = iso(closedAt)
+        fullItems = [closed]
+
+        await runPass(listId: list.id)
+
+        let imported = tasks.tasks.filter { $0.title == title }
+        XCTAssertEqual(imported.count, 1, "the closed issue is backfilled once")
+        let task = try XCTUnwrap(imported.first)
+        XCTAssertEqual(task.listIds ?? [], [list.id])
+        XCTAssertEqual(task.description, "the history")
+        XCTAssertTrue(task.completed)
+        XCTAssertEqual(try XCTUnwrap(task.completedAt).timeIntervalSince1970, closedAt.timeIntervalSince1970,
+                       accuracy: 1, "backdated to closed_at, not stamped now")
+        XCTAssertFalse(linkUpserts.contains { $0["remoteId"] as? String == "\(repo)#60" },
+                       "no link is written against a temp id")
+    }
+
+    func testATombstonedClosedIssueIsNotBackfilled_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Transferred away")
+        ledger.recordTombstone("\(repo)#61")
+        fullItems = [issue(61, title: title, completed: true)]
+
+        await runPass(listId: list.id)
+
+        XCTAssertFalse(tasks.tasks.contains { $0.title == title },
+                       "a detached issue is never brought back as history")
+    }
+
+    func testAClosedIssueThatIsAlreadyLinkedIsNotBackfilledAgain_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Already mirrored")
+        let task = serverTask(in: list.id, title: title, completed: true, updatedAt: Date().addingTimeInterval(-7200))
+        taskLinks = [link(task: task.id, issue: 62, syncedAt: Date().addingTimeInterval(-3600))]
+        fullItems = [issue(62, title: title, completed: true, updatedAt: Date().addingTimeInterval(-3600))]
+
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(tasks.tasks.filter { $0.title == title }.map(\.id), [task.id], "no duplicate")
+    }
+
+    /// The self-heal: a prior pass created the history task but could not write its link. The next
+    /// pass adopts that unique completed twin rather than creating it again — without this the
+    /// unlinked issue was re-selected and duplicated on every pass. The push side adopts the same
+    /// twin first when it reaches it; a refused link write is what leaves it to the backfill here,
+    /// as running past the push budget does in the app.
+    func testAClosedIssueAdoptsItsUniqueCompletedTwinInsteadOfDuplicatingIt_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Imported, link lost")
+        let twin = serverTask(in: list.id, title: title, completed: true)
+        fullItems = [issue(63, title: title, completed: true)]
+        upsertStatus = 500
+
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(tasks.tasks.filter { $0.title == title }.map(\.id), [twin.id], "adopted, not re-created")
+        let tries = linkUpserts.filter { $0["astridTaskId"] as? String == twin.id
+            && $0["remoteId"] as? String == "\(repo)#63" }
+        XCTAssertEqual(tries.count, 2, "the push side tried the link, then the backfill adopted the twin and tried again")
+    }
+
+    /// Two completed tasks share the title, so neither can be the twin: adopting one would pin the
+    /// issue to a guess. The issue is imported on its own instead.
+    func testAnAmbiguousTitleIsNotAdoptedAndTheIssueIsImportedOnItsOwn_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let title = name("Said twice")
+        _ = serverTask(in: list.id, title: title, completed: true)
+        _ = serverTask(in: list.id, title: title, completed: true)
+        fullItems = [issue(64, title: title, completed: true)]
+        upsertStatus = 500
+
+        await runPass(listId: list.id)
+
+        let same = tasks.tasks.filter { $0.title == title }
+        XCTAssertEqual(same.count, 3, "neither twin is adopted; the issue comes in as its own task")
     }
 
     // MARK: Astrid-side deletes — the twin is closed, then tombstoned
