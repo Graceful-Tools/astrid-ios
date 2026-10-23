@@ -11,6 +11,9 @@ struct InlineRepeatPicker: View {
     let onSave: (() async -> Void)?
     // Direct callback that passes values - avoids binding updates that cause view recreation crashes
     var onSaveCustom: ((Task.Repeating, Task.RepeatFromMode, CustomRepeatingPattern?) async -> Void)?
+    /// Passed to the custom editor, whose weekly repeat takes the due date's day (AITD-550).
+    var dueDate: Date? = nil
+    var isAllDay: Bool = false
     var showLabel: Bool = true
     /// Sizes the trigger to its content so it can share the "When" row (Task 42013da7).
     var compact: Bool = false
@@ -137,7 +140,9 @@ struct InlineRepeatPicker: View {
                 showingCustomEditor = false
                 // Compact returns to the preset SHEET; full-width returns to the inline list.
                 isEditing = true
-            }
+            },
+            dueDate: dueDate,
+            isAllDay: isAllDay
         )
     }
 

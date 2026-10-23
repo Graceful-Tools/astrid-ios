@@ -39,6 +39,38 @@ final class MacCustomRepeatTests: XCTestCase {
         XCTAssertEqual(p.interval, 1)
     }
 
+    /// AITD-550: the Mac editor wrote every weekly repeat with `weekdays: nil`, which the shared
+    /// rule reads as "no day to repeat on" — so the series ended at the first completion.
+    func testAWeeklyRepeatNamesTheDueDatesDayWhenNoneWasPicked_AITD550() {
+        let la = TimeZone(identifier: "America/Los_Angeles")!
+        let friday9am = ISO8601DateFormatter().date(from: "2026-10-23T16:00:00Z")!
+        let p = MacCustomRepeat.make(interval: 4, unit: "weeks", endCondition: "never", endAfter: 1,
+                                     endUntil: Date(), weekdays: nil, dueDate: friday9am, isAllDay: false,
+                                     timeZone: la)
+        XCTAssertEqual(p.weekdays, ["friday"])
+        let next = RepeatingTaskCalculator.calculateCustomNextOccurrence(
+            pattern: p, currentDueDate: friday9am, completionDate: friday9am,
+            repeatFrom: .DUE_DATE, currentOccurrenceCount: 0, timeZone: la).nextDueDate
+        XCTAssertEqual(next, ISO8601DateFormatter().date(from: "2026-11-20T17:00:00Z"),
+                       "completing it creates the next one four weeks on")
+    }
+
+    /// AITD-550: editing a weekly repeat kept its interval and dropped its days.
+    func testTheDaysAlreadyChosenAreKept_AITD550() {
+        let p = MacCustomRepeat.make(interval: 2, unit: "weeks", endCondition: "never", endAfter: 1,
+                                     endUntil: Date(), weekdays: ["monday", "wednesday"], dueDate: Date(), isAllDay: false)
+        XCTAssertEqual(p.weekdays, ["monday", "wednesday"])
+    }
+
+    /// Only a weekly repeat carries days.
+    func testOtherUnitsCarryNoDays_AITD550() {
+        for unit in ["days", "months", "years"] {
+            let p = MacCustomRepeat.make(interval: 1, unit: unit, endCondition: "never", endAfter: 1,
+                                         endUntil: Date(), weekdays: ["monday"], dueDate: Date(), isAllDay: false)
+            XCTAssertNil(p.weekdays, "\(unit) has no weekdays")
+        }
+    }
+
     /// Rule 8 (AITD-537): the summary is built from keys that resolve, in every unit.
     func testSummaryReadsItsKeys_AITD537() {
         func text(_ key: String) -> String {

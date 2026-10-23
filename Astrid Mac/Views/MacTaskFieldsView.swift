@@ -260,7 +260,8 @@ struct MacTaskFieldsView: View {
         case .time:
             MacDueTimePicker(due: $due, isAllDay: $isAllDay) { saveDue() }
         case .repeatPattern:
-            MacRepeatPicker(repeating: $repeating, customPattern: $customPattern) {
+            MacRepeatPicker(repeating: $repeating, customPattern: $customPattern,
+                            dueDate: hasDue ? due : nil, isAllDay: isAllDay) {
                 saveRepeat()
             }
         }

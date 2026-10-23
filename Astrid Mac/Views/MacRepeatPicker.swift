@@ -16,6 +16,9 @@ import SwiftUI
 struct MacRepeatPicker: View {
     @Binding var repeating: Task.Repeating
     @Binding var customPattern: CustomRepeatingPattern?
+    /// The task's due date, for a weekly custom repeat with no day picked (AITD-550).
+    var dueDate: Date? = nil
+    var isAllDay: Bool = false
     /// Persist a non-custom choice, or a custom pattern once edited.
     let onCommit: () -> Void
 
@@ -55,7 +58,7 @@ struct MacRepeatPicker: View {
             if showingCustomEditor {
                 // In the popover, not a window-sized sheet: picking a repeat is
                 // one interaction, so it stays in one place.
-                MacCustomRepeatEditor(initial: customPattern) { pattern in
+                MacCustomRepeatEditor(initial: customPattern, dueDate: dueDate, isAllDay: isAllDay) { pattern in
                     customPattern = pattern
                     repeating = .custom
                     showingCustomEditor = false

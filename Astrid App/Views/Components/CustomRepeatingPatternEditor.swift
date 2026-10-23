@@ -9,6 +9,9 @@ struct CustomRepeatingPatternEditor: View {
     @Binding var repeatFrom: Task.RepeatFromMode
     let onSave: () -> Void
     let onCancel: () -> Void
+    /// The task's due date, so a weekly repeat with no day picked takes the due date's (AITD-550).
+    var dueDate: Date? = nil
+    var isAllDay: Bool = false
 
     @State private var showEndDatePicker = false
 
@@ -62,7 +65,10 @@ struct CustomRepeatingPatternEditor: View {
                         // Unit picker
                         Menu {
                             Button(NSLocalizedString("repeating.days", comment: "")) { pattern.unit = "days" }
-                            Button(NSLocalizedString("repeating.weeks", comment: "")) { pattern.unit = "weeks" }
+                            Button(NSLocalizedString("repeating.weeks", comment: "")) {
+                                pattern.unit = "weeks"
+                                requireWeekday()
+                            }
                             Button(NSLocalizedString("repeating.months", comment: "")) { pattern.unit = "months" }
                             Button(NSLocalizedString("repeating.years", comment: "")) { pattern.unit = "years" }
                         } label: {
@@ -387,6 +393,7 @@ struct CustomRepeatingPatternEditor: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
 
                     Button(NSLocalizedString("misc.close", comment: "Close")) {
+                        requireWeekday()
                         onSave()
                     }
                     .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
@@ -406,6 +413,7 @@ struct CustomRepeatingPatternEditor: View {
             localMonthDay = max(1, min(31, pattern.monthDay ?? 1))
             localDay = max(1, min(31, pattern.day ?? 1))
             localEndAfterOccurrences = max(1, pattern.endAfterOccurrences ?? 1)
+            requireWeekday()
         }
     }
 
@@ -428,6 +436,13 @@ struct CustomRepeatingPatternEditor: View {
     }
 
     // MARK: - Helper Functions
+
+    /// A weekly repeat with no day never comes back (AITD-550): show the due date's day selected
+    /// as soon as Weeks is chosen, and never save one without a day.
+    private func requireWeekday() {
+        let required = pattern.requiringWeekday(dueDate: dueDate, isAllDay: isAllDay)
+        if required != pattern { pattern = required }
+    }
 
     private func toggleWeekday(_ weekday: String) {
         var weekdays = pattern.weekdays ?? []
