@@ -196,38 +196,23 @@ final class ChatAttachmentTests: XCTestCase {
         XCTAssertEqual(decoded.secureFiles?.first?.mimeType, "application/pdf")
     }
 
-    // MARK: - Upload Context Tests
+    // MARK: - Upload Context Tests (AITD-538: these call ChatComposer, not a copy of it)
 
     func testUploadContextForListChannel() {
-        // List channel should use listId
-        let listId = "list-abc"
-        let channelId = "ch-123"
-
-        let context: [String: String]
-        if listId != "my-tasks" {
-            context = ["listId": listId]
-        } else {
-            context = ["channelId": channelId]
-        }
-
-        XCTAssertEqual(context["listId"], "list-abc")
-        XCTAssertNil(context["channelId"])
+        let context = ChatComposer.uploadContext(channelId: "ch-123", listId: "list-abc")
+        XCTAssertEqual(context, ["listId": "list-abc"])
     }
 
-    func testUploadContextForVirtualChannel() {
-        // My Tasks should use channelId
-        let listId = "my-tasks"
-        let channelId = "ch-virtual-456"
+    func testUploadContextForMyTasksUsesChannel() {
+        let context = ChatComposer.uploadContext(channelId: "ch-virtual-456", listId: "my-tasks")
+        XCTAssertEqual(context, ["channelId": "ch-virtual-456"])
+    }
 
-        let context: [String: String]
-        if listId != "my-tasks" {
-            context = ["listId": listId]
-        } else {
-            context = ["channelId": channelId]
-        }
-
-        XCTAssertEqual(context["channelId"], "ch-virtual-456")
-        XCTAssertNil(context["listId"])
+    func testUploadContextWithNoListUsesChannel() {
+        // A virtual channel with no list at all (the Mac My Tasks panel) still names its channel,
+        // so the upload is not sent with an empty context.
+        let context = ChatComposer.uploadContext(channelId: "ch-virtual-789", listId: nil)
+        XCTAssertEqual(context, ["channelId": "ch-virtual-789"])
     }
 
     // MARK: - Server Response Parsing Tests
@@ -391,25 +376,21 @@ final class ChatAttachmentTests: XCTestCase {
         XCTAssertEqual(message.attachmentSize, 15360)
     }
 
+    // MARK: - Send enablement (AITD-538)
+
     func testCanSendWithAttachmentOnly() {
-        // canSend should be true when only an attachment is present (no text)
-        let text = ""
-        let hasAttachment = true
-        let canSend = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasAttachment
-        XCTAssertTrue(canSend)
+        XCTAssertTrue(ChatComposer.canSend(text: "", hasAttachments: true))
     }
 
     func testCanSendWithTextOnly() {
-        let text = "Hello"
-        let hasAttachment = false
-        let canSend = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasAttachment
-        XCTAssertTrue(canSend)
+        XCTAssertTrue(ChatComposer.canSend(text: "Hello", hasAttachments: false))
     }
 
     func testCannotSendEmpty() {
-        let text = "   "
-        let hasAttachment = false
-        let canSend = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasAttachment
-        XCTAssertFalse(canSend)
+        XCTAssertFalse(ChatComposer.canSend(text: "   ", hasAttachments: false))
+    }
+
+    func testCannotSendNewlinesOnly() {
+        XCTAssertFalse(ChatComposer.canSend(text: "\n\t \n", hasAttachments: false))
     }
 }

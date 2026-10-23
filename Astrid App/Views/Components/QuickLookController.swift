@@ -104,30 +104,22 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
             return .disabled
         }
 
-        // Only allow editing for real files (not unknown/temp)
-        if astridItem.fileId.starts(with: "unknown-") || astridItem.fileId.starts(with: "temp_") {
-            return .disabled
-        }
-
-        // Check if it's an editable file type (images and PDFs)
-        let ext = astridItem.fileURL.pathExtension.lowercased()
-        let editableExtensions = ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "tiff", "bmp", "pdf"]
-
-        return editableExtensions.contains(ext) ? .createCopy : .disabled
+        return QuickLookEditing.isEditable(fileId: astridItem.fileId,
+                                           fileExtension: astridItem.fileURL.pathExtension) ? .createCopy : .disabled
     }
 
     func previewController(_ controller: QLPreviewController, didSaveEditedCopyOf previewItem: QLPreviewItem, at modifiedContentsURL: URL) {
         guard let astridItem = previewItem as? AstridPreviewItem else { return }
 
         let fileId = astridItem.fileId
-        guard !fileId.starts(with: "unknown-") && !fileId.starts(with: "temp_") else { return }
+        guard QuickLookEditing.canEdit(fileId: fileId) else { return }
 
         guard let editedData = try? Data(contentsOf: modifiedContentsURL) else {
             AppLog.debug("❌ [QuickLook] Failed to read edited file")
             return
         }
 
-        let mimeType = mimeTypeForURL(modifiedContentsURL)
+        let mimeType = QuickLookEditing.mimeType(forExtension: modifiedContentsURL.pathExtension)
 
         _Concurrency.Task {
             // Update thumbnail cache and notify immediately for instant UI update
@@ -164,19 +156,6 @@ class QuickLookPresenter: NSObject, QLPreviewControllerDataSource, QLPreviewCont
             } catch {
                 AppLog.debug("❌ [QuickLook] Failed to save: \(error)")
             }
-        }
-    }
-
-    private func mimeTypeForURL(_ url: URL) -> String {
-        let ext = url.pathExtension.lowercased()
-        switch ext {
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "gif": return "image/gif"
-        case "heic", "heif": return "image/heic"
-        case "webp": return "image/webp"
-        case "pdf": return "application/pdf"
-        default: return "application/octet-stream"
         }
     }
 

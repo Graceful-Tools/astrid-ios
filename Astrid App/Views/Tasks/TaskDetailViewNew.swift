@@ -862,7 +862,7 @@ struct TaskDetailViewNew: View {
     // MARK: - Comment Input Theme Helpers
 
     private var canSubmitComment: Bool {
-        !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachedFiles.isEmpty
+        ChatComposer.canSend(text: newCommentText, hasAttachments: !attachedFiles.isEmpty)
     }
 
     private var commentInputTextColor: Color {

@@ -160,7 +160,7 @@ struct MacChatPanelView: View {
             guard let data = try? Data(contentsOf: url) else { await MainActor.run { attaching = false }; return }
             await MainActor.run {
                 let fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
-                    fileData: data, fileName: name, mimeType: mime, context: source.listIdForMembers.map { ["listId": $0] } ?? [:])
+                    fileData: data, fileName: name, mimeType: mime, context: ChatComposer.uploadContext(channelId: cid, listId: source.listIdForMembers))
                 attaching = false
                 AppActions.perform("Attach file") {
                     _ = try await chat.sendMessage(channelId: cid, content: name, fileId: fileId)

@@ -14,10 +14,7 @@ struct ChatInputView: View {
     var onCancelReply: (() -> Void)?
 
     private var uploadContext: [String: String] {
-        if let listId = listId, listId != "my-tasks" {
-            return ["listId": listId]
-        }
-        return ["channelId": channelId]
+        ChatComposer.uploadContext(channelId: channelId, listId: listId)
     }
 
     var body: some View {

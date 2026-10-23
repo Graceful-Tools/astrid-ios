@@ -115,117 +115,68 @@ final class QuickLookPresenterTests: XCTestCase {
         XCTAssertEqual(item.previewItemTitle, "document.pdf")
     }
 
-    // MARK: - Editable Extensions Tests
+    // MARK: - Editable Extensions Tests (AITD-538: these call QuickLookEditing, not a copy of it)
 
     func testEditableImageExtensions() {
-        // Given - all image extensions that should be editable
-        let editableExtensions = ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "tiff", "bmp", "pdf"]
-
-        for ext in editableExtensions {
-            // When
-            let isEditable = isEditableExtension(ext)
-
-            // Then
-            XCTAssertTrue(isEditable, "\(ext) should be editable")
+        for ext in ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "tiff", "bmp", "pdf", "JPG", "Pdf"] {
+            XCTAssertTrue(QuickLookEditing.isEditable(fileId: "abc123", fileExtension: ext), "\(ext) should be editable")
         }
     }
 
     func testNonEditableExtensions() {
-        // Given - extensions that should NOT be editable
-        let nonEditableExtensions = ["txt", "doc", "docx", "xls", "mp4", "mov", "zip", "html"]
-
-        for ext in nonEditableExtensions {
-            // When
-            let isEditable = isEditableExtension(ext)
-
-            // Then
-            XCTAssertFalse(isEditable, "\(ext) should not be editable")
+        for ext in ["txt", "doc", "docx", "xls", "mp4", "mov", "zip", "html", ""] {
+            XCTAssertFalse(QuickLookEditing.isEditable(fileId: "abc123", fileExtension: ext), "\(ext) should not be editable")
         }
-    }
-
-    /// Helper to test extension editability logic (mirrors QuickLookPresenter logic)
-    private func isEditableExtension(_ ext: String) -> Bool {
-        let editableExtensions = ["jpg", "jpeg", "png", "heic", "heif", "gif", "webp", "tiff", "bmp", "pdf"]
-        return editableExtensions.contains(ext.lowercased())
     }
 
     // MARK: - File ID Validation Tests
 
     func testTempFileIdsShouldNotBeEditable() {
-        // Given
-        let tempFileIds = ["temp_12345", "temp_abc", "temp_"]
-
-        for fileId in tempFileIds {
-            // When
-            let canEdit = canEditFile(fileId: fileId)
-
-            // Then
-            XCTAssertFalse(canEdit, "temp file \(fileId) should not be editable")
+        for fileId in ["temp_12345", "temp_abc", "temp_"] {
+            XCTAssertFalse(QuickLookEditing.canEdit(fileId: fileId), "temp file \(fileId) should not be editable")
+            XCTAssertFalse(QuickLookEditing.isEditable(fileId: fileId, fileExtension: "png"))
         }
     }
 
     func testUnknownFileIdsShouldNotBeEditable() {
-        // Given
-        let unknownFileIds = ["unknown-12345", "unknown-abc", "unknown-"]
-
-        for fileId in unknownFileIds {
-            // When
-            let canEdit = canEditFile(fileId: fileId)
-
-            // Then
-            XCTAssertFalse(canEdit, "unknown file \(fileId) should not be editable")
+        for fileId in ["unknown-12345", "unknown-abc", "unknown-"] {
+            XCTAssertFalse(QuickLookEditing.canEdit(fileId: fileId), "unknown file \(fileId) should not be editable")
+            XCTAssertFalse(QuickLookEditing.isEditable(fileId: fileId, fileExtension: "png"))
         }
     }
 
     func testRealFileIdsShouldBeEditable() {
-        // Given
-        let realFileIds = ["abc123", "file-uuid-here", "9c22b653-5eda-4a2a-8c75-a089dcfb5f04"]
-
-        for fileId in realFileIds {
-            // When
-            let canEdit = canEditFile(fileId: fileId)
-
-            // Then
-            XCTAssertTrue(canEdit, "real file \(fileId) should be editable")
+        for fileId in ["abc123", "file-uuid-here", "9c22b653-5eda-4a2a-8c75-a089dcfb5f04"] {
+            XCTAssertTrue(QuickLookEditing.canEdit(fileId: fileId), "real file \(fileId) should be editable")
         }
-    }
-
-    /// Helper to test file ID validation logic (mirrors QuickLookPresenter logic)
-    private func canEditFile(fileId: String) -> Bool {
-        return !fileId.starts(with: "unknown-") && !fileId.starts(with: "temp_")
     }
 
     // MARK: - MIME Type Tests
 
     func testMimeTypeForImageExtensions() {
-        XCTAssertEqual(mimeTypeForExtension("jpg"), "image/jpeg")
-        XCTAssertEqual(mimeTypeForExtension("jpeg"), "image/jpeg")
-        XCTAssertEqual(mimeTypeForExtension("png"), "image/png")
-        XCTAssertEqual(mimeTypeForExtension("gif"), "image/gif")
-        XCTAssertEqual(mimeTypeForExtension("heic"), "image/heic")
-        XCTAssertEqual(mimeTypeForExtension("heif"), "image/heic")
-        XCTAssertEqual(mimeTypeForExtension("webp"), "image/webp")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "jpg"), "image/jpeg")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "JPEG"), "image/jpeg")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "png"), "image/png")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "gif"), "image/gif")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "heic"), "image/heic")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "heif"), "image/heic")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "webp"), "image/webp")
     }
 
     func testMimeTypeForPDF() {
-        XCTAssertEqual(mimeTypeForExtension("pdf"), "application/pdf")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "pdf"), "application/pdf")
     }
 
     func testMimeTypeForUnknownExtension() {
-        XCTAssertEqual(mimeTypeForExtension("xyz"), "application/octet-stream")
-        XCTAssertEqual(mimeTypeForExtension("unknown"), "application/octet-stream")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: "xyz"), "application/octet-stream")
+        XCTAssertEqual(QuickLookEditing.mimeType(forExtension: ""), "application/octet-stream")
     }
 
-    /// Helper to test MIME type logic (mirrors QuickLookPresenter.mimeTypeForURL)
-    private func mimeTypeForExtension(_ ext: String) -> String {
-        switch ext.lowercased() {
-        case "jpg", "jpeg": return "image/jpeg"
-        case "png": return "image/png"
-        case "gif": return "image/gif"
-        case "heic", "heif": return "image/heic"
-        case "webp": return "image/webp"
-        case "pdf": return "application/pdf"
-        default: return "application/octet-stream"
+    /// AITD-538: TIFF and BMP were editable but an edited copy uploaded as octet-stream.
+    func testEveryEditableExtensionHasItsOwnMimeType() {
+        for ext in QuickLookEditing.editableExtensions {
+            XCTAssertNotEqual(QuickLookEditing.mimeType(forExtension: ext), "application/octet-stream",
+                              "an edited .\(ext) must not upload as octet-stream")
         }
     }
 
