@@ -25,15 +25,22 @@ class AttachmentService: ObservableObject {
     // Map temp fileIds to real fileIds after upload
     private var fileIdMapping: [String: String] = [:]
 
-    /// Every request this service makes goes through `session`, and pending uploads persist to
-    /// `defaults` (AITD-535). Tests pass `StubURLProtocol.session()`, a temp `cachesDirectory` and
-    /// a suite, so nothing reaches the server or the host app's caches and defaults.
+    /// Every request this service makes goes through `session` — or, for the large-file Blob PUT
+    /// that reports progress, a session built on `blobConfiguration` — reads its cookie from
+    /// `keychain`, and persists pending uploads to `defaults` (AITD-535). Tests pass the stub's
+    /// session and configuration, a scratch keychain, a temp `cachesDirectory` and a suite, so
+    /// nothing reaches the server or the host app's session, caches and defaults.
     private let session: URLSession
+    private let blobConfiguration: URLSessionConfiguration
+    private let keychain: KeychainService
     private let defaults: UserDefaults
 
-    init(session: URLSession = AstridHTTP.session, cachesDirectory: URL? = nil,
+    init(session: URLSession = AstridHTTP.session, blobConfiguration: URLSessionConfiguration = .default,
+         keychain: KeychainService = .shared, cachesDirectory: URL? = nil,
          defaults: UserDefaults = .standard) {
         self.session = session
+        self.blobConfiguration = blobConfiguration
+        self.keychain = keychain
         self.defaults = defaults
         // Setup local cache directory for pending attachments
         let cachesDirectory = cachesDirectory
@@ -181,7 +188,7 @@ class AttachmentService: ObservableObject {
         
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
@@ -247,7 +254,7 @@ class AttachmentService: ObservableObject {
     private func bytes(atDirectURL url: URL) async -> Data? {
         var request = URLRequest(url: url)
         AnalyticsPlatformHeader.apply(to: &request)
-        if url.path.hasPrefix("/api/"), let cookie = try? KeychainService.shared.getSessionCookie() {
+        if url.path.hasPrefix("/api/"), let cookie = try? keychain.getSessionCookie() {
             request.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
         guard let (data, response) = try? await session.data(for: request),
@@ -317,7 +324,7 @@ class AttachmentService: ObservableObject {
 
             var request = URLRequest(url: url)
             AnalyticsPlatformHeader.apply(to: &request)
-            if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+            if let sessionCookie = try? keychain.getSessionCookie() {
                 request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
             }
 
@@ -421,7 +428,7 @@ class AttachmentService: ObservableObject {
         // Note: Do NOT set httpBody when using upload(for:from:) - pass body data directly to upload method
 
         // Add session cookie
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
 
@@ -486,7 +493,7 @@ class AttachmentService: ObservableObject {
         getUrlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // Add session cookie
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             getUrlRequest.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
             AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
@@ -544,7 +551,7 @@ class AttachmentService: ObservableObject {
             }
         })
 
-        let blobSession = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        let blobSession = URLSession(configuration: blobConfiguration, delegate: delegate, delegateQueue: nil)
         let (_, blobResponse) = try await blobSession.upload(for: blobRequest, from: fileData)
 
         guard let blobHttpResponse = blobResponse as? HTTPURLResponse else {
@@ -624,7 +631,7 @@ class AttachmentService: ObservableObject {
         // Note: Do NOT set httpBody when using upload(for:from:) - pass body data directly to upload method
 
         // Add session cookie
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         } else {
             AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
@@ -673,7 +680,7 @@ class AttachmentService: ObservableObject {
         var request = URLRequest(url: url)
         
         // Add session cookie
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
@@ -702,7 +709,7 @@ class AttachmentService: ObservableObject {
         PrivacyLogger.debug("AttachmentService", "update_started bytes=\(newFileData.count)")
 
         // Get session cookie
-        guard let sessionCookie = try? KeychainService.shared.getSessionCookie() else {
+        guard let sessionCookie = try? keychain.getSessionCookie() else {
             AppLog.debug("⚠️ [AttachmentService] WARNING: No session cookie found!")
             throw AttachmentError.uploadFailed
         }
@@ -858,7 +865,7 @@ class AttachmentService: ObservableObject {
         request.httpMethod = "DELETE"
         
         // Add session cookie
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
+        if let sessionCookie = try? keychain.getSessionCookie() {
             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
         }
         
