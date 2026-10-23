@@ -23,7 +23,10 @@ class CommentService: ObservableObject {
     /// taskId → the agent writing a reply there right now.
     @Published var typingAgent: [String: String] = [:]
 
-    private var core: CoreSession { AppCore.shared.session }
+    private var core: CoreSession { coreSession?() ?? AppCore.shared.session }
+    /// The core this service reads and writes. Tests hand in an in-memory one seeded with
+    /// comments the server already gave ids, which the offline unit host cannot make (AITD-535).
+    private var coreSession: (@MainActor () -> CoreSession)?
     /// When each task's comments were last asked of the server, so opening a task twice in a
     /// minute does not fetch twice.
     private var lastFetchTime: [String: Date] = [:]
@@ -37,9 +40,10 @@ class CommentService: ObservableObject {
 
     init() {}
 
-    convenience init(attachments: AttachmentService) {
+    convenience init(attachments: AttachmentService? = nil, core: (@MainActor () -> CoreSession)? = nil) {
         self.init()
         attachmentsOverride = attachments
+        coreSession = core
     }
 
     // MARK: - Reading

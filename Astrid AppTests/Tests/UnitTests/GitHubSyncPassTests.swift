@@ -7,7 +7,10 @@
 //  how comments converge on a linked task: pulled, deleted and edited in each direction; how a
 //  linked pair that drifted adopts GitHub's completion; that an issue gone from a complete
 //  listing detaches its task rather than deleting it; and how closed-issue history is backfilled.
+//  A comment with a server id — what a push needs — comes from a core seeded with one, since a
+//  comment written in the offline host stays `temp_`.
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -445,6 +448,79 @@ final class GitHubSyncPassTests: XCTestCase {
         XCTAssertEqual(patch.jsonBody?["body"] as? String, "Edited in Astrid")
         XCTAssertEqual(comments(on: task.id), ["Edited in Astrid"], "Astrid is canonical for its own comment")
     }
+    /// The pass reads and writes comments through a `CommentService` on its own core, seeded with
+    /// `seeded` as the server already has them, and the thread drawn once as a view would have.
+    private func useServerComments(_ seeded: [Comment], on task: Task) async throws -> CommentService {
+        let core = try CoreSearchFixture.session(seeding: [task], comments: seeded)
+        let comments = CommentService(core: { core })
+        _ = try await comments.fetchComments(taskId: task.id)
+        service = GitHubSyncService(apiClient: AstridAPIClient(session: StubURLProtocol.session()),
+                                    defaults: defaults, comments: comments)
+        return comments
+    }
+
+    private func serverComment(on taskId: String, _ content: String) -> Comment {
+        TestHelpers.createTestComment(id: "comment-\(UUID().uuidString)", content: content, type: .MARKDOWN,
+                                      authorId: "user-1", taskId: taskId, createdAt: Date())
+    }
+
+    func testAnUnmappedAstridCommentIsPostedToTheIssueAndMapped_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 36)
+        let local = serverComment(on: task.id, "Ship it")
+        let comments = try await useServerComments([local], on: task)
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        let post = try XCTUnwrap(commentRequests("POST").first)
+        XCTAssertEqual(commentRequests("POST").count, 1)
+        XCTAssertEqual(post.jsonBody?["remoteId"] as? String, "\(repo)#36")
+        XCTAssertEqual(post.jsonBody?["body"] as? String,
+                       CommentSyncPlanner.pushBody(content: "Ship it", attachmentNames: []))
+        XCTAssertEqual(writtenCommentMap(for: task.id), CommentSyncPlanner.encodeEntries(
+            [.init(remoteId: "gh-new", localId: local.id, pushed: true)]),
+            "the pushed pair is recorded, so the next pass neither pushes it again nor pulls it back")
+        XCTAssertEqual(comments.cachedComments[task.id]?.map(\.content), ["Ship it"])
+        XCTAssertEqual(cursorCommits, ["cursor-2"])
+    }
+
+    /// The map was lost after our own push: the comment on GitHub is that push come back, so it is
+    /// re-mapped as pushed — neither posted a second time nor pulled in wrapped in an attribution.
+    func testOurOwnPushWithItsMappingLostIsAdoptedNotPulledOrPostedAgain_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 37, commentCount: 1)
+        let local = serverComment(on: task.id, "Pushed before the map was lost")
+        let comments = try await useServerComments([local], on: task)
+        remoteComments = [remoteComment("gh-5", body: CommentSyncPlanner.pushBody(
+            content: "Pushed before the map was lost", attachmentNames: []))]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertTrue(commentRequests("POST").isEmpty, "not posted a second time")
+        XCTAssertEqual(comments.cachedComments[task.id]?.map(\.content), ["Pushed before the map was lost"],
+                       "not pulled back in as a GitHub comment")
+        XCTAssertEqual(writtenCommentMap(for: task.id), CommentSyncPlanner.encodeEntries(
+            [.init(remoteId: "gh-5", localId: local.id, pushed: true)]))
+    }
+
+    /// The map was lost after a pull: the mirror already in Astrid is the GitHub comment's twin, so
+    /// it is re-mapped as pulled rather than ingested twice.
+    func testAMirrorWithItsMappingLostIsAdoptedNotPulledAgain_AITD535() async throws {
+        let (list, task) = try await linkedTask(issue: 38, commentCount: 1)
+        let mirror = CommentSyncPlanner.pulledContent(author: "alice", body: "Pulled before the map was lost")
+        let local = serverComment(on: task.id, mirror)
+        let comments = try await useServerComments([local], on: task)
+        remoteComments = [remoteComment("gh-6", body: "Pulled before the map was lost", author: "alice")]
+
+        await runPass(listId: list)
+
+        XCTAssertNil(service.lastError)
+        XCTAssertEqual(comments.cachedComments[task.id]?.map(\.content), [mirror], "one copy, not two")
+        XCTAssertTrue(commentRequests("POST").isEmpty, "a mirror is never echoed back")
+        XCTAssertEqual(writtenCommentMap(for: task.id), CommentSyncPlanner.encodeEntries(
+            [.init(remoteId: "gh-6", localId: local.id, pushed: false)]))
+    }
+
     // MARK: DRIFT REPAIR — a linked pair that disagrees, with nothing in the incremental pull
 
     /// Drift repair reads the full listing the push side fetched, so each of these lists also holds

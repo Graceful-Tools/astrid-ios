@@ -24,6 +24,8 @@ final class GitHubSyncService: ObservableObject {
 
     private let apiClient: AstridAPIClient
     private let defaults: UserDefaults
+    /// Where a linked task's comments are read and written.
+    private let comments: CommentService
     private var refreshObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
     private var mutationObserver: NSObjectProtocol?
@@ -36,10 +38,13 @@ final class GitHubSyncService: ObservableObject {
     private let taskLinkCache: PersistedStringDictionary
 
     /// `shared` talks to the server through the hardened client and keeps its state in the
-    /// standard defaults; tests pass a stubbed client and a scratch suite (AITD-535).
-    init(apiClient: AstridAPIClient = .shared, defaults: UserDefaults = .standard) {
+    /// standard defaults; tests pass a stubbed client, a scratch suite and a `CommentService` on
+    /// their own core (AITD-535).
+    init(apiClient: AstridAPIClient = .shared, defaults: UserDefaults = .standard,
+         comments: CommentService? = nil) {
         self.apiClient = apiClient
         self.defaults = defaults
+        self.comments = comments ?? .shared
         deletionLedger = SyncDeletionLedger(provider: "github", defaults: defaults)
         taskLinkCache = PersistedStringDictionary(key: "githubTaskLinkCache", defaults: defaults)
         // Nudge from the server (GitHub webhook → SSE external_sync_refresh)
@@ -709,7 +714,7 @@ final class GitHubSyncService: ObservableObject {
             let entries = commentMaps[remoteId] ?? []
             let mappedLocalIds = Set(entries.map(\.localId))
             let remoteCommentCount = Int(pulledByRemoteId[remoteId]?.metadata?["commentCount"] ?? "") ?? 0
-            let localComments = CommentService.shared.cachedComments[dto.astridTaskId] ?? []
+            let localComments = comments.cachedComments[dto.astridTaskId] ?? []
             // A mirror can never push, so an unmapped one must not keep waking
             // the pass forever (Task: ab77476c).
             let hasUnmappedLocal = localComments.contains {
@@ -720,7 +725,7 @@ final class GitHubSyncService: ObservableObject {
             // deletion of a mapped comment (cache present = authoritative view),
             // or the issue changed at all (a comment EDIT bumps the issue too).
             let issueChanged = pulledByRemoteId[remoteId] != nil
-            let cachePresent = CommentService.shared.cachedComments[dto.astridTaskId] != nil
+            let cachePresent = comments.cachedComments[dto.astridTaskId] != nil
             let mappedLocalMissing = cachePresent && entries.contains { entry in
                 !localComments.contains(where: { $0.id == entry.localId })
             }
@@ -753,7 +758,7 @@ final class GitHubSyncService: ObservableObject {
             // treat every mapped local comment as gone and delete ALL
             // Astrid-authored mirrors on the issue (transient-failure mass
             // delete). Throw so the do/catch below skips this task's pass.
-            let localModels = try await CommentService.shared.fetchComments(taskId: taskId, useCache: false)
+            let localModels = try await comments.fetchComments(taskId: taskId, useCache: false)
             let remote = remoteDTOs.map { CommentSyncPlanner.RemoteComment(id: $0.id, body: $0.body, author: $0.author) }
             let local = localModels.map { CommentSyncPlanner.LocalComment(
                 id: $0.id, content: $0.content, isSystem: $0.authorId == nil,
@@ -765,7 +770,7 @@ final class GitHubSyncService: ObservableObject {
                 localIds: Set(local.map(\.id)),
                 entries: entries)
             for localId in deletePlan.deleteLocalIds {
-                try await CommentService.shared.deleteComment(id: localId)
+                try await comments.deleteComment(id: localId)
             }
             for ghId in deletePlan.deleteRemoteIds {
                 try await apiClient.deleteGitHubIssueComment(linkId: link.id, commentId: ghId)
@@ -790,13 +795,13 @@ final class GitHubSyncService: ObservableObject {
             // GitHub → Astrid creates (attributed; resolve the Outbox temp id so
             // the mapping survives — a temp id would push back later).
             for remoteComment in plan.pullCreates {
-                let created = try await CommentService.shared.createComment(
+                let created = try await comments.createComment(
                     taskId: taskId,
                     content: CommentSyncPlanner.pulledContent(author: remoteComment.author, body: remoteComment.body),
                     type: .MARKDOWN,
                     authorId: AuthManager.shared.userId)
                 await AppCore.shared.drainJournal()
-                let realId = CommentService.shared.mappedRealCommentId(for: created.id) ?? created.id
+                let realId = comments.mappedRealCommentId(for: created.id) ?? created.id
                 guard !realId.hasPrefix("temp_") else { continue }
                 entries.append(.init(remoteId: remoteComment.id, localId: realId, pushed: false))
             }
@@ -814,7 +819,7 @@ final class GitHubSyncService: ObservableObject {
             // Edits on mapped pairs: converge the non-canonical side.
             let edits = CommentSyncPlanner.editPlan(remote: liveRemote, local: liveLocal, entries: entries)
             for update in edits.pullUpdates {
-                _ = try await CommentService.shared.updateComment(id: update.localId, content: update.content)
+                _ = try await comments.updateComment(id: update.localId, content: update.content)
             }
             for update in edits.pushUpdates {
                 try await apiClient.updateGitHubIssueComment(
