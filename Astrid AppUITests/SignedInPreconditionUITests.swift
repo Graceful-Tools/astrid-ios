@@ -54,7 +54,7 @@ final class SignedInPreconditionUITests: XCTestCase {
               1. `Astrid AppUITests/UITestSession.plist` exists and is copied into the bundle
               2. `UITestSession.injectedCookie` accepts the flag the runner passes
               3. the session has not expired — mint a fresh one with
-                 `cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie`
+                 `npm run test:ui` (mints a per-run account; or `uitest-account.ts --run <id>`)
 
             Do NOT convert this into a skip. The whole point of task 44a9cea5 is that a
             signed-out suite must never report success again.
@@ -86,8 +86,14 @@ final class SignedInPreconditionUITests: XCTestCase {
         // The fixtures being merely PRESENT on the server is also not enough — "My Tasks"
         // filters on `assigneeId == currentUserId`, so a fixture that is only created by the
         // account is invisible here. Naming one is the only check that covers both.
-        let fixture = app.staticTexts.matching(
-            NSPredicate(format: "label BEGINSWITH 'UITEST Fixture'")).firstMatch
+        //
+        // A per-run account names its fixtures by id, so look for THIS run's first one by its
+        // exact title; the shared account only has the seeder's prefix to go on (AITD-527).
+        // An open one: My Tasks may hide the seeded completed fixture.
+        let predicate = UITestLaunch.fixtures?.tasks.classic.first(where: { $0.completed != true }).map {
+            NSPredicate(format: "label == %@", $0.title)
+        } ?? NSPredicate(format: "label BEGINSWITH %@", UITestFixtures.classicTitlePrefix)
+        let fixture = app.staticTexts.matching(predicate).firstMatch
 
         XCTAssertTrue(
             fixture.waitForExistence(timeout: 20),

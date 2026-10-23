@@ -44,10 +44,13 @@ final class ParityTourUITests: XCTestCase {
         let app = UITestLaunch.makeApp()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["UITEST Fixture — open task 2"].waitForExistence(timeout: 20))
+        let fixtures = UITestLaunch.fixtures
+        let openTask = fixtures?.tasks.classic.dropFirst().first?.title ?? "UITEST Fixture — open task 2"
+        let listName = fixtures?.lists.main.name ?? UITestFixtures.defaultMainListName
+        XCTAssertTrue(app.staticTexts[openTask].waitForExistence(timeout: 20))
         shot("01-my-tasks")
 
-        app.staticTexts["UITEST Fixture — open task 2"].tap()
+        app.staticTexts[openTask].tap()
         sleep(2)
         shot("04-detail")
         app.swipeUp()
@@ -59,7 +62,7 @@ final class ParityTourUITests: XCTestCase {
         openSidebar(app)
         shot("02-sidebar")
         // The sidebar's entry, not a task row's list chip with the same name.
-        let list = app.staticTexts.matching(NSPredicate(format: "label == 'UI Test List' AND identifier != 'taskRow'")).firstMatch
+        let list = app.staticTexts.matching(NSPredicate(format: "label == %@ AND identifier != 'taskRow'", listName)).firstMatch
         if list.exists {
             list.tap()
             sleep(3)

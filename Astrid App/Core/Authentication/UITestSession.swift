@@ -106,17 +106,48 @@ enum UITestSession {
     /// id, so `debug_server_url` is the DEVELOPER'S setting sitting in the same container. A run
     /// that inherited it would point at whatever host they last used and fail somewhere else
     /// entirely — the same class of leak the keychain guard exists to prevent.
+    ///
+    /// **`uiTestBaseURL` is the one exception, and it is explicit** (AITD-527): a run handed
+    /// `-uiTestBaseURL <url>` goes there instead of production, so a staging deploy can be
+    /// tested before it ships. Unlike the debug preference, nobody inherits it — the test
+    /// runner passes it per launch — and outside a test run it is ignored.
     static func resolvedBaseURL(isUITesting: Bool,
+                                uiTestBaseURL: String? = nil,
                                 debugPreference: String?,
                                 defaultURL: String,
                                 productionURL: String) -> String {
-        if isUITesting { return productionURL }
+        if isUITesting { return nonEmpty(uiTestBaseURL) ?? productionURL }
         if let preference = nonEmpty(debugPreference) { return preference }
         return defaultURL
     }
 
     /// An unset shell variable expands to the empty string, and a blank credential produces a
     /// puzzling 401 rather than an obviously signed-out app.
+    /// The launch argument that points a UI-test run at another server (AITD-527).
+    static let baseURLArgument = "-uiTestBaseURL"
+
+    /// The server this run was told to use, or nil for production.
+    ///
+    /// Only under the UI-test flag, and only an http(s) URL with a host: a malformed value
+    /// would point the run at nothing, which fails exactly like being signed out. A trailing
+    /// slash is dropped, since every path the app builds starts with one.
+    static func baseURLOverride(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: baseURLArgument),
+              index + 1 < arguments.count,
+              var value = nonEmpty(arguments[index + 1]),
+              let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty
+        else { return nil }
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }
+
+    static var baseURLOverride: String? {
+        baseURLOverride(arguments: ProcessInfo.processInfo.arguments)
+    }
+
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }
