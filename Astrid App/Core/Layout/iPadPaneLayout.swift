@@ -13,6 +13,16 @@ import CoreGraphics
 /// layout it is supposed to be a pane sitting beside the list rather than replacing it.
 enum iPadPaneLayout {
 
+    /// Does this window get the split (iPad) layout rather than the one-column phone layout?
+    ///
+    /// Every iPad does. A phone does when its window is regular in BOTH size classes — an
+    /// unfolded foldable, which reports the phone idiom while showing a tablet-sized screen
+    /// (AITD-521). Regular width alone is not enough: a Plus/Max phone in landscape is regular
+    /// width and compact height, and a split there would leave a list a few rows tall.
+    static func usesSplitLayout(isPad: Bool, horizontalRegular: Bool, verticalRegular: Bool) -> Bool {
+        isPad || (horizontalRegular && verticalRegular)
+    }
+
     /// Pane widths, in points, left to right. A pane that is not shown is 0 wide.
     struct Panes: Equatable {
         let sidebar: CGFloat     // list picker; 0 unless it is permanently visible (3-column)
