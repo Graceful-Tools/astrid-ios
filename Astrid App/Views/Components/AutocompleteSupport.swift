@@ -176,6 +176,13 @@ func buildMentionableUsers(listId: String? = nil) -> [User] {
     return users
 }
 
+/// The references still present in `text`. Run on every keystroke: a reference whose text was
+/// deleted or edited is dropped, so the send never links words the user has since changed. One
+/// home for the three editors that inlined it (AITD-538).
+func pruneReferences(_ references: [InsertedReference], to text: String) -> [InsertedReference] {
+    references.filter { text.contains($0.displayText) }
+}
+
 /// Reconstruct @[Name](id) from display text using tracked references
 func reconstructReferencesInText(_ text: String, references: [InsertedReference]) -> String {
     var result = text
