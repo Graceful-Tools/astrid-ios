@@ -1536,3 +1536,16 @@
 "passkey.error.unknown" = "Errore sconosciuto: %@";
 "passkey.error.existing_user_passkey" = "Esiste già un account con questa email. Accedi con la tua passkey.";
 "passkey.error.existing_user_other" = "Esiste già un account con questa email. Accedi con un altro metodo.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Esporta in Promemoria";
+"apple_reminders.direction.bidirectional" = "Sincronizzazione bidirezionale";
+"apple_reminders.direction.export_description" = "Invia le attività di %@ a Promemoria di Apple";
+"apple_reminders.direction.import_description" = "Porta Promemoria di Apple in %@";
+"apple_reminders.direction.bidirectional_description" = "Mantieni sincronizzate entrambe le app";
+"apple_reminders.error.not_authorized" = "Accesso a Promemoria non autorizzato. Abilitalo in Impostazioni.";
+"apple_reminders.error.no_calendar_source" = "Nessuna sorgente calendario disponibile per creare promemoria.";
+"apple_reminders.error.list_not_found" = "Elenco %@ non trovato.";
+"apple_reminders.error.list_not_linked" = "L’elenco non è collegato a Promemoria di Apple.";
+"apple_reminders.error.calendar_not_found" = "Calendario Promemoria collegato non trovato.";
+"apple_reminders.error.sync_failed" = "Sincronizzazione non riuscita: %@";

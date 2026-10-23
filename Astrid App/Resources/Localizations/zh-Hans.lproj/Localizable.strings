@@ -1536,3 +1536,16 @@
 "passkey.error.unknown" = "未知错误：%@";
 "passkey.error.existing_user_passkey" = "已存在使用此电子邮件的账户。请使用你的通行密钥登录。";
 "passkey.error.existing_user_other" = "已存在使用此电子邮件的账户。请使用其他方式登录。";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "导出到提醒事项";
+"apple_reminders.direction.bidirectional" = "双向同步";
+"apple_reminders.direction.export_description" = "将 %@ 任务推送到 Apple 提醒事项";
+"apple_reminders.direction.import_description" = "将 Apple 提醒事项导入 %@";
+"apple_reminders.direction.bidirectional_description" = "保持两个应用同步";
+"apple_reminders.error.not_authorized" = "未授权访问提醒事项。请在设置中启用。";
+"apple_reminders.error.no_calendar_source" = "没有可用于创建提醒事项的日历来源。";
+"apple_reminders.error.list_not_found" = "找不到 %@ 列表。";
+"apple_reminders.error.list_not_linked" = "列表未关联到 Apple 提醒事项。";
+"apple_reminders.error.calendar_not_found" = "找不到已关联的提醒事项日历。";
+"apple_reminders.error.sync_failed" = "同步失败：%@";

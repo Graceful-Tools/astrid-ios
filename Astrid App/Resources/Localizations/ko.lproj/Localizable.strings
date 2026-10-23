@@ -1538,3 +1538,16 @@
 "passkey.error.unknown" = "알 수 없는 오류: %@";
 "passkey.error.existing_user_passkey" = "이 이메일로 된 계정이 이미 있습니다. 패스키로 로그인하세요.";
 "passkey.error.existing_user_other" = "이 이메일로 된 계정이 이미 있습니다. 다른 방법으로 로그인하세요.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "미리 알림으로 내보내기";
+"apple_reminders.direction.bidirectional" = "양방향 동기화";
+"apple_reminders.direction.export_description" = "%@ 작업을 Apple 미리 알림으로 보내기";
+"apple_reminders.direction.import_description" = "Apple 미리 알림을 %@(으)로 가져오기";
+"apple_reminders.direction.bidirectional_description" = "두 앱을 동기화 상태로 유지";
+"apple_reminders.error.not_authorized" = "미리 알림 접근 권한이 없습니다. 설정에서 허용해 주세요.";
+"apple_reminders.error.no_calendar_source" = "미리 알림을 만들 캘린더 소스가 없습니다.";
+"apple_reminders.error.list_not_found" = "%@ 목록을 찾을 수 없습니다.";
+"apple_reminders.error.list_not_linked" = "목록이 Apple 미리 알림에 연결되어 있지 않습니다.";
+"apple_reminders.error.calendar_not_found" = "연결된 미리 알림 캘린더를 찾을 수 없습니다.";
+"apple_reminders.error.sync_failed" = "동기화 실패: %@";

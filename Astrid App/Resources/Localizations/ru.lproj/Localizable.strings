@@ -1536,3 +1536,16 @@
 "passkey.error.unknown" = "Неизвестная ошибка: %@";
 "passkey.error.existing_user_passkey" = "Аккаунт с этим адресом эл. почты уже существует. Войдите с помощью ключа доступа.";
 "passkey.error.existing_user_other" = "Аккаунт с этим адресом эл. почты уже существует. Войдите другим способом.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Экспорт в Напоминания";
+"apple_reminders.direction.bidirectional" = "Двусторонняя синхронизация";
+"apple_reminders.direction.export_description" = "Отправлять задачи %@ в Напоминания Apple";
+"apple_reminders.direction.import_description" = "Переносить Напоминания Apple в %@";
+"apple_reminders.direction.bidirectional_description" = "Синхронизировать оба приложения";
+"apple_reminders.error.not_authorized" = "Нет доступа к Напоминаниям. Разрешите его в Настройках.";
+"apple_reminders.error.no_calendar_source" = "Нет источника календаря для создания напоминаний.";
+"apple_reminders.error.list_not_found" = "Список %@ не найден.";
+"apple_reminders.error.list_not_linked" = "Список не связан с Напоминаниями Apple.";
+"apple_reminders.error.calendar_not_found" = "Связанный календарь Напоминаний не найден.";
+"apple_reminders.error.sync_failed" = "Ошибка синхронизации: %@";

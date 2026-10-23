@@ -1552,3 +1552,16 @@
 "passkey.error.unknown" = "Erreur inconnue : %@";
 "passkey.error.existing_user_passkey" = "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre clé d’identification.";
 "passkey.error.existing_user_other" = "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec une autre méthode.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Exporter vers Rappels";
+"apple_reminders.direction.bidirectional" = "Synchronisation bidirectionnelle";
+"apple_reminders.direction.export_description" = "Envoyer les tâches %@ vers Rappels d’Apple";
+"apple_reminders.direction.import_description" = "Importer les Rappels d’Apple dans %@";
+"apple_reminders.direction.bidirectional_description" = "Garder les deux apps synchronisées";
+"apple_reminders.error.not_authorized" = "Accès à Rappels non autorisé. Activez-le dans Réglages.";
+"apple_reminders.error.no_calendar_source" = "Aucune source de calendrier disponible pour créer des rappels.";
+"apple_reminders.error.list_not_found" = "Liste %@ introuvable.";
+"apple_reminders.error.list_not_linked" = "La liste n’est pas liée à Rappels d’Apple.";
+"apple_reminders.error.calendar_not_found" = "Calendrier Rappels lié introuvable.";
+"apple_reminders.error.sync_failed" = "Échec de la synchronisation : %@";

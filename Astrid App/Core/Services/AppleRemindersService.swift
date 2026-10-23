@@ -1017,18 +1017,20 @@ enum SyncDirection: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .export: return "Export to Reminders"
-        case .import_: return "Import from Reminders"
-        case .bidirectional: return "Two-way Sync"
+        case .export: return NSLocalizedString("apple_reminders.direction.export", comment: "")
+        case .import_: return NSLocalizedString("reminders.import_from_reminders", comment: "")
+        case .bidirectional: return NSLocalizedString("apple_reminders.direction.bidirectional", comment: "")
         }
     }
 
     var description: String {
+        let key: String
         switch self {
-        case .export: return "Push \(Brand.appName) tasks to Apple Reminders"
-        case .import_: return "Pull Apple Reminders into \(Brand.appName)"
-        case .bidirectional: return "Keep both apps in sync"
+        case .export: key = "apple_reminders.direction.export_description"
+        case .import_: key = "apple_reminders.direction.import_description"
+        case .bidirectional: key = "apple_reminders.direction.bidirectional_description"
         }
+        return String(format: NSLocalizedString(key, comment: ""), Brand.appName)
     }
 }
 
@@ -1045,17 +1047,17 @@ enum AppleRemindersError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notAuthorized:
-            return "Reminders access not authorized. Please enable in Settings."
+            return NSLocalizedString("apple_reminders.error.not_authorized", comment: "")
         case .noCalendarSource:
-            return "No calendar source available for creating reminders."
+            return NSLocalizedString("apple_reminders.error.no_calendar_source", comment: "")
         case .listNotFound:
-            return "\(Brand.appName) list not found."
+            return String(format: NSLocalizedString("apple_reminders.error.list_not_found", comment: ""), Brand.appName)
         case .listNotLinked:
-            return "List is not linked to Apple Reminders."
+            return NSLocalizedString("apple_reminders.error.list_not_linked", comment: "")
         case .calendarNotFound:
-            return "Linked Reminders calendar not found."
+            return NSLocalizedString("apple_reminders.error.calendar_not_found", comment: "")
         case .syncFailed(let error):
-            return "Sync failed: \(error.localizedDescription)"
+            return String(format: NSLocalizedString("apple_reminders.error.sync_failed", comment: ""), error.localizedDescription)
         }
     }
 }

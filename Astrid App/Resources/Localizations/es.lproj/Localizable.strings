@@ -1552,3 +1552,16 @@
 "passkey.error.unknown" = "Error desconocido: %@";
 "passkey.error.existing_user_passkey" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con tu llave de acceso.";
 "passkey.error.existing_user_other" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con otro método.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Exportar a Recordatorios";
+"apple_reminders.direction.bidirectional" = "Sincronización bidireccional";
+"apple_reminders.direction.export_description" = "Enviar tareas de %@ a Recordatorios de Apple";
+"apple_reminders.direction.import_description" = "Traer Recordatorios de Apple a %@";
+"apple_reminders.direction.bidirectional_description" = "Mantener ambas apps sincronizadas";
+"apple_reminders.error.not_authorized" = "No hay acceso a Recordatorios. Actívalo en Ajustes.";
+"apple_reminders.error.no_calendar_source" = "No hay ninguna fuente de calendario para crear recordatorios.";
+"apple_reminders.error.list_not_found" = "No se encontró la lista de %@.";
+"apple_reminders.error.list_not_linked" = "La lista no está vinculada a Recordatorios de Apple.";
+"apple_reminders.error.calendar_not_found" = "No se encontró el calendario de Recordatorios vinculado.";
+"apple_reminders.error.sync_failed" = "Error de sincronización: %@";

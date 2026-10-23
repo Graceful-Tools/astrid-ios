@@ -1536,3 +1536,16 @@
 "passkey.error.unknown" = "不明なエラー: %@";
 "passkey.error.existing_user_passkey" = "このメールアドレスのアカウントはすでに存在します。パスキーでサインインしてください。";
 "passkey.error.existing_user_other" = "このメールアドレスのアカウントはすでに存在します。別の方法でサインインしてください。";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "リマインダーへ書き出す";
+"apple_reminders.direction.bidirectional" = "双方向同期";
+"apple_reminders.direction.export_description" = "%@ のタスクを Apple リマインダーへ送る";
+"apple_reminders.direction.import_description" = "Apple リマインダーを %@ に取り込む";
+"apple_reminders.direction.bidirectional_description" = "両方のアプリを同期する";
+"apple_reminders.error.not_authorized" = "リマインダーへのアクセスが許可されていません。設定で有効にしてください。";
+"apple_reminders.error.no_calendar_source" = "リマインダーを作成できるカレンダーソースがありません。";
+"apple_reminders.error.list_not_found" = "%@ のリストが見つかりません。";
+"apple_reminders.error.list_not_linked" = "リストは Apple リマインダーにリンクされていません。";
+"apple_reminders.error.calendar_not_found" = "リンクされたリマインダーのカレンダーが見つかりません。";
+"apple_reminders.error.sync_failed" = "同期に失敗しました: %@";
