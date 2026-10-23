@@ -15,11 +15,32 @@ class AuthManager: ObservableObject {
 
     private let apiClient: AstridAPIClient
     private let keychainService: KeychainService
+    private let defaults: UserDefaults
+    private let cookieStorage: HTTPCookieStorage
+    private let journalFileURL: URL?
+    private let isConnected: @MainActor () -> Bool
+    private let coreSession: (@MainActor () -> CoreSession)?
 
-    init(apiClient: AstridAPIClient, keychainService: KeychainService) {
+    /// Everything past `keychainService` defaults to the app's own state, so `shared` behaves as
+    /// it always did. A test hands in a scratch keychain service, defaults suite, cookie jar,
+    /// journal file and in-memory core, and can run `signOut` end to end without wiping the host
+    /// app's session (AITD-535).
+    init(apiClient: AstridAPIClient, keychainService: KeychainService,
+         defaults: UserDefaults = .standard,
+         cookieStorage: HTTPCookieStorage = .shared,
+         journalFileURL: URL? = nil,
+         isConnected: @escaping @MainActor () -> Bool = { NetworkMonitor.shared.isConnected },
+         core: (@MainActor () -> CoreSession)? = nil) {
         self.apiClient = apiClient
         self.keychainService = keychainService
+        self.defaults = defaults
+        self.cookieStorage = cookieStorage
+        self.journalFileURL = journalFileURL
+        self.isConnected = isConnected
+        self.coreSession = core
     }
+
+    private var core: CoreSession { coreSession?() ?? AppCore.shared.session }
     
     // MARK: - Authentication Check
 
@@ -53,7 +74,7 @@ class AuthManager: ObservableObject {
 
     private func checkLocalAuthentication() -> Bool {
         // Check UserDefaults for cached user ID
-        guard let userId = UserDefaults.standard.string(forKey: Constants.UserDefaults.userId),
+        guard let userId = defaults.string(forKey: Constants.UserDefaults.userId),
               !userId.isEmpty else {
             return false
         }
@@ -69,10 +90,10 @@ class AuthManager: ObservableObject {
             } catch {
                 AppLog.debug("⚠️ [AuthManager] UserId found in UserDefaults but no session cookie in Keychain - clearing stale auth state")
                 // Clear stale UserDefaults data to prevent future mismatches
-                UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userId)
-                UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userEmail)
-                UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userName)
-                UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userImage)
+                defaults.removeObject(forKey: Constants.UserDefaults.userId)
+                defaults.removeObject(forKey: Constants.UserDefaults.userEmail)
+                defaults.removeObject(forKey: Constants.UserDefaults.userName)
+                defaults.removeObject(forKey: Constants.UserDefaults.userImage)
                 return false
             }
         }
@@ -80,9 +101,9 @@ class AuthManager: ObservableObject {
         PrivacyLogger.debug("AuthManager", "local_auth_state=found")
 
         // Restore user from UserDefaults
-        let email = UserDefaults.standard.string(forKey: Constants.UserDefaults.userEmail)
-        let name = UserDefaults.standard.string(forKey: Constants.UserDefaults.userName)
-        let image = UserDefaults.standard.string(forKey: Constants.UserDefaults.userImage)
+        let email = defaults.string(forKey: Constants.UserDefaults.userEmail)
+        let name = defaults.string(forKey: Constants.UserDefaults.userName)
+        let image = defaults.string(forKey: Constants.UserDefaults.userImage)
 
         let restoredUser = User(
             id: userId,
@@ -118,7 +139,7 @@ class AuthManager: ObservableObject {
             // but NOT for a local-only user, who has no session to validate and would be
             // signed out by the attempt. See `shouldValidateSessionInBackground`.
             if Self.shouldValidateSessionInBackground(
-                userId: UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)) {
+                userId: defaults.string(forKey: Constants.UserDefaults.userId)) {
                 _Concurrency.Task.detached { [weak self] in
                     await self?.validateSessionInBackground()
                 }
@@ -143,13 +164,13 @@ class AuthManager: ObservableObject {
                 PrivacyLogger.debug("AuthManager", "session_validation=success")
 
                 // Save user to UserDefaults for quick access
-                UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
-                UserDefaults.standard.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
+                defaults.set(response.user.id, forKey: Constants.UserDefaults.userId)
+                defaults.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
                 if let name = response.user.name {
-                    UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                    defaults.set(name, forKey: Constants.UserDefaults.userName)
                 }
                 if let image = response.user.image {
-                    UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                    defaults.set(image, forKey: Constants.UserDefaults.userImage)
                 }
 
                 // Set authenticated (session-based auth, no token needed)
@@ -172,10 +193,10 @@ class AuthManager: ObservableObject {
     /// Validate session with backend in background (non-blocking)
     /// If validation fails due to network issues, keep user authenticated (offline mode)
     /// If session is explicitly rejected (401), log out the user
-    private func validateSessionInBackground() async {
+    func validateSessionInBackground() async {
         // Check network availability before attempting validation
         // This avoids unnecessary error logs when offline
-        guard NetworkMonitor.shared.isConnected else {
+        guard isConnected() else {
             AppLog.debug("ℹ️ [AuthManager] Skipping background session validation - no network connection")
             AppLog.debug("✅ [AuthManager] User remains authenticated with cached credentials (offline mode)")
             return
@@ -194,13 +215,13 @@ class AuthManager: ObservableObject {
                 AppLog.debug("✅ [AuthManager] Background session validation successful")
 
                 // Update UserDefaults with latest user info
-                UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
-                UserDefaults.standard.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
+                defaults.set(response.user.id, forKey: Constants.UserDefaults.userId)
+                defaults.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
                 if let name = response.user.name {
-                    UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                    defaults.set(name, forKey: Constants.UserDefaults.userName)
                 }
                 if let image = response.user.image {
-                    UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                    defaults.set(image, forKey: Constants.UserDefaults.userImage)
                 }
             }
         } catch KeychainError.notFound {
@@ -235,10 +256,10 @@ class AuthManager: ObservableObject {
         try? keychainService.deleteSessionCookie()
 
         // Clear UserDefaults user data
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userId)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userEmail)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userName)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userImage)
+        defaults.removeObject(forKey: Constants.UserDefaults.userId)
+        defaults.removeObject(forKey: Constants.UserDefaults.userEmail)
+        defaults.removeObject(forKey: Constants.UserDefaults.userName)
+        defaults.removeObject(forKey: Constants.UserDefaults.userImage)
 
         // Reset auth state
         self.isAuthenticated = false
@@ -266,13 +287,13 @@ class AuthManager: ObservableObject {
             AppLog.debug("✅ [AuthManager] Passwordless sign-up successful")
 
             // Save user info
-            UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(response.user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = response.user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = response.user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             // Set authenticated (session-based auth)
@@ -326,13 +347,13 @@ class AuthManager: ObservableObject {
             PrivacyLogger.debug("AuthManager", "apple_sign_in=success")
 
             // Save user info
-            UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(response.user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = response.user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = response.user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             // Set authenticated (session-based auth)
@@ -375,13 +396,13 @@ class AuthManager: ObservableObject {
             PrivacyLogger.debug("AuthManager", "google_sign_in=success")
 
             // Save user info
-            UserDefaults.standard.set(response.user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(response.user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(response.user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = response.user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = response.user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             // Set authenticated (session-based auth)
@@ -430,13 +451,13 @@ class AuthManager: ObservableObject {
             PrivacyLogger.debug("AuthManager", "passkey_sign_in=success")
 
             // Save user info
-            UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             // Set authenticated (session-based auth)
@@ -495,13 +516,13 @@ class AuthManager: ObservableObject {
 
             let user = response.user
             self.currentUser = user
-            UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             self.isAuthenticated = true
@@ -548,13 +569,13 @@ class AuthManager: ObservableObject {
             PrivacyLogger.debug("AuthManager", "passkey_sign_up=success")
 
             // Save user info
-            UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
-            UserDefaults.standard.set(user.email, forKey: Constants.UserDefaults.userEmail)
+            defaults.set(user.id, forKey: Constants.UserDefaults.userId)
+            defaults.set(user.email, forKey: Constants.UserDefaults.userEmail)
             if let name = user.name {
-                UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+                defaults.set(name, forKey: Constants.UserDefaults.userName)
             }
             if let image = user.image {
-                UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+                defaults.set(image, forKey: Constants.UserDefaults.userImage)
             }
 
             // Set authenticated (session-based auth)
@@ -603,7 +624,7 @@ class AuthManager: ObservableObject {
 
     func signOut() async throws {
         let departingUserId = currentUser?.id
-            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)
+            ?? defaults.string(forKey: Constants.UserDefaults.userId)
         isLoading = true
         defer { isLoading = false }
 
@@ -620,7 +641,7 @@ class AuthManager: ObservableObject {
         // ===== THE CORE'S CACHE AND JOURNAL =====
         // astrid-core holds the departing user's tasks, lists and unsent writes; replaying those
         // writes under the next session would cross-post. Its sign-out wipes both, locally.
-        try? await AppCore.shared.session.run(CoreCommand(kind: "signOut"))
+        try? await core.run(CoreCommand(kind: "signOut"))
 
         // ===== KEYCHAIN CLEANUP =====
         // Clear ALL keychain items to prevent credential leakage
@@ -632,46 +653,46 @@ class AuthManager: ObservableObject {
         // CRITICAL: Clear URLSession's cookie storage to prevent session leakage
         // This is essential for user data isolation - cached cookies can leak between users
         if let apiURL = URL(string: Constants.API.baseURL) {
-            if let cookies = HTTPCookieStorage.shared.cookies(for: apiURL) {
+            if let cookies = cookieStorage.cookies(for: apiURL) {
                 AppLog.debug("🍪 [AuthManager] Clearing \(cookies.count) cached cookies for \(apiURL.host ?? "unknown")...")
                 for cookie in cookies {
-                    HTTPCookieStorage.shared.deleteCookie(cookie)
+                    cookieStorage.deleteCookie(cookie)
                 }
             }
         }
         // Also clear all cookies for the domain (covers subdomains too)
-        if let allCookies = HTTPCookieStorage.shared.cookies {
+        if let allCookies = cookieStorage.cookies {
             let brandCookies = allCookies.filter { Brand.isBrandCookieDomain($0.domain) }
             AppLog.debug("🍪 [AuthManager] Clearing \(brandCookies.count) \(Brand.appName) domain cookies...")
             for cookie in brandCookies {
-                HTTPCookieStorage.shared.deleteCookie(cookie)
+                cookieStorage.deleteCookie(cookie)
             }
         }
 
         // ===== USERDEFAULTS - USER DATA =====
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userId)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userEmail)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userName)
-        UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userImage)
+        defaults.removeObject(forKey: Constants.UserDefaults.userId)
+        defaults.removeObject(forKey: Constants.UserDefaults.userEmail)
+        defaults.removeObject(forKey: Constants.UserDefaults.userName)
+        defaults.removeObject(forKey: Constants.UserDefaults.userImage)
 
         // ===== USERDEFAULTS - REMINDER SETTINGS =====
         // Clear all notification/reminder preferences (user-specific)
-        UserDefaults.standard.removeObject(forKey: "reminderPushEnabled")
-        UserDefaults.standard.removeObject(forKey: "reminderEmailEnabled")
-        UserDefaults.standard.removeObject(forKey: "defaultReminderOffset")
-        UserDefaults.standard.removeObject(forKey: "dailyDigestEnabled")
-        UserDefaults.standard.removeObject(forKey: "dailyDigestTime")
-        UserDefaults.standard.removeObject(forKey: "reminderTimezone")
-        UserDefaults.standard.removeObject(forKey: "quietHoursEnabled")
-        UserDefaults.standard.removeObject(forKey: "quietHoursStart")
-        UserDefaults.standard.removeObject(forKey: "quietHoursEnd")
-        UserDefaults.standard.removeObject(forKey: "reminderSettingsPending")
+        defaults.removeObject(forKey: "reminderPushEnabled")
+        defaults.removeObject(forKey: "reminderEmailEnabled")
+        defaults.removeObject(forKey: "defaultReminderOffset")
+        defaults.removeObject(forKey: "dailyDigestEnabled")
+        defaults.removeObject(forKey: "dailyDigestTime")
+        defaults.removeObject(forKey: "reminderTimezone")
+        defaults.removeObject(forKey: "quietHoursEnabled")
+        defaults.removeObject(forKey: "quietHoursStart")
+        defaults.removeObject(forKey: "quietHoursEnd")
+        defaults.removeObject(forKey: "reminderSettingsPending")
 
         // ===== USERDEFAULTS - OTHER USER DATA =====
-        UserDefaults.standard.removeObject(forKey: "GoogleOAuthCodeVerifier")
-        UserDefaults.standard.removeObject(forKey: "pendingAttachments")
-        UserDefaults.standard.removeObject(forKey: "oauth_token_cache")
-        UserDefaults.standard.removeObject(forKey: "oauth_token_expires_at")
+        defaults.removeObject(forKey: "GoogleOAuthCodeVerifier")
+        defaults.removeObject(forKey: "pendingAttachments")
+        defaults.removeObject(forKey: "oauth_token_cache")
+        defaults.removeObject(forKey: "oauth_token_expires_at")
 
         // ===== CORE DATA =====
         AppLog.debug("🗑️ [AuthManager] Clearing Core Data...")
@@ -698,8 +719,8 @@ class AuthManager: ObservableObject {
         // replaying them under a new session would cross-post). A pre-core `outbox.json` the
         // upgrade could not move goes too. Then every persisted sync ledger and cache, and the
         // services' in-memory state.
-        try? FileManager.default.removeItem(at: OutboxStore.defaultFileURL())
-        SyncStateReset.clearAll()
+        try? FileManager.default.removeItem(at: journalFileURL ?? OutboxStore.defaultFileURL())
+        SyncStateReset.clearAll(defaults: defaults)
         GitHubSyncService.shared.resetForSignOut()
         GoogleTasksSyncService.shared.resetForSignOut()
         FeatureFlagService.shared.clearCache(userId: departingUserId)
@@ -728,17 +749,17 @@ class AuthManager: ObservableObject {
         self.currentUser = user
 
         // Update UserDefaults
-        UserDefaults.standard.set(user.id, forKey: Constants.UserDefaults.userId)
-        UserDefaults.standard.set(user.email, forKey: Constants.UserDefaults.userEmail)
+        defaults.set(user.id, forKey: Constants.UserDefaults.userId)
+        defaults.set(user.email, forKey: Constants.UserDefaults.userEmail)
         if let name = user.name {
-            UserDefaults.standard.set(name, forKey: Constants.UserDefaults.userName)
+            defaults.set(name, forKey: Constants.UserDefaults.userName)
         } else {
-            UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userName)
+            defaults.removeObject(forKey: Constants.UserDefaults.userName)
         }
         if let image = user.image {
-            UserDefaults.standard.set(image, forKey: Constants.UserDefaults.userImage)
+            defaults.set(image, forKey: Constants.UserDefaults.userImage)
         } else {
-            UserDefaults.standard.removeObject(forKey: Constants.UserDefaults.userImage)
+            defaults.removeObject(forKey: Constants.UserDefaults.userImage)
         }
 
         AppLog.debug("✅ [AuthManager] Current user updated")
@@ -747,10 +768,10 @@ class AuthManager: ObservableObject {
     // MARK: - Helpers
 
     var userId: String? {
-        currentUser?.id ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId)
+        currentUser?.id ?? defaults.string(forKey: Constants.UserDefaults.userId)
     }
 
     var userEmail: String? {
-        currentUser?.email ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userEmail)
+        currentUser?.email ?? defaults.string(forKey: Constants.UserDefaults.userEmail)
     }
 }

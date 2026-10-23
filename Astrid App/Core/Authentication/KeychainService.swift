@@ -2,9 +2,15 @@ import Security
 @preconcurrency import Foundation
 
 final class KeychainService: @unchecked Sendable {
-    static let shared = KeychainService()
-    
-    private init() {}
+    static let shared = KeychainService(service: Constants.Keychain.service)
+
+    /// The keychain service every item is filed under. A test passes its own, so it reads and
+    /// writes a scratch namespace instead of the host app's session (AITD-535).
+    private let service: String
+
+    init(service: String) {
+        self.service = service
+    }
     
     // MARK: - Session Cookie Management
 
@@ -74,7 +80,7 @@ final class KeychainService: @unchecked Sendable {
     private func baseQuery(key: String) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
         #if os(macOS)
@@ -141,7 +147,7 @@ final class KeychainService: @unchecked Sendable {
         if status == errSecItemNotFound {
             var legacy: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: Constants.Keychain.service,
+                kSecAttrService as String: service,
                 kSecAttrAccount as String: key,
                 kSecReturnData as String: true,
                 kSecMatchLimit as String: kSecMatchLimitOne
@@ -178,7 +184,7 @@ final class KeychainService: @unchecked Sendable {
         // otherwise a stale session cookie survives on disk after the user signs out.
         var legacy: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.Keychain.service,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
         legacy[kSecUseDataProtectionKeychain as String] = false
