@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "対応しない";
 "tasks.sync_pending_chip" = "同期中";
 "tasks.sync_failed_chip" = "同期に失敗";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "このデバイスではパスキーがサポートされていません";
+"passkey.error.cancelled" = "パスキーの操作がキャンセルされました";
+"passkey.error.no_local_passkey" = "このデバイスで使用できるパスキーがありません。別のデバイスのパスキーを使うか、パスワードマネージャをパスキープロバイダとして有効にしてください。";
+"passkey.error.invalid_challenge" = "サーバーからのチャレンジが無効です";
+"passkey.error.invalid_user_id" = "ユーザーIDが無効です";
+"passkey.error.invalid_response" = "認証器からの応答が無効です";
+"passkey.error.authentication_failed" = "認証に失敗しました: %@";
+"passkey.error.registration_failed" = "登録に失敗しました: %@";
+"passkey.error.unknown" = "不明なエラー: %@";
+"passkey.error.existing_user_passkey" = "このメールアドレスのアカウントはすでに存在します。パスキーでサインインしてください。";
+"passkey.error.existing_user_other" = "このメールアドレスのアカウントはすでに存在します。別の方法でサインインしてください。";

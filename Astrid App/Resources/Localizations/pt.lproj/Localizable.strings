@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "Não será feito";
 "tasks.sync_pending_chip" = "Sincronizando";
 "tasks.sync_failed_chip" = "Falha na sincronização";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "As chaves-senha não são compatíveis com este dispositivo";
+"passkey.error.cancelled" = "A operação de chave-senha foi cancelada";
+"passkey.error.no_local_passkey" = "Nenhuma chave-senha disponível neste dispositivo. Use uma chave-senha de outro dispositivo ou ative seu gerenciador de senhas como provedor de chaves-senha.";
+"passkey.error.invalid_challenge" = "Desafio inválido do servidor";
+"passkey.error.invalid_user_id" = "ID de usuário inválido";
+"passkey.error.invalid_response" = "Resposta inválida do autenticador";
+"passkey.error.authentication_failed" = "Falha na autenticação: %@";
+"passkey.error.registration_failed" = "Falha no registro: %@";
+"passkey.error.unknown" = "Erro desconhecido: %@";
+"passkey.error.existing_user_passkey" = "Já existe uma conta com este e-mail. Entre com sua chave-senha.";
+"passkey.error.existing_user_other" = "Já existe uma conta com este e-mail. Entre com outro método.";

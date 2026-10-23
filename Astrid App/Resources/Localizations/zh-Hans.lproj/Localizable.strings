@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "不做";
 "tasks.sync_pending_chip" = "正在同步";
 "tasks.sync_failed_chip" = "同步失败";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "此设备不支持通行密钥";
+"passkey.error.cancelled" = "通行密钥操作已取消";
+"passkey.error.no_local_passkey" = "此设备上没有可用的通行密钥。请使用其他设备上的通行密钥，或将你的密码管理器启用为通行密钥提供方。";
+"passkey.error.invalid_challenge" = "服务器返回的质询无效";
+"passkey.error.invalid_user_id" = "用户 ID 无效";
+"passkey.error.invalid_response" = "验证器返回的响应无效";
+"passkey.error.authentication_failed" = "身份验证失败：%@";
+"passkey.error.registration_failed" = "注册失败：%@";
+"passkey.error.unknown" = "未知错误：%@";
+"passkey.error.existing_user_passkey" = "已存在使用此电子邮件的账户。请使用你的通行密钥登录。";
+"passkey.error.existing_user_other" = "已存在使用此电子邮件的账户。请使用其他方式登录。";

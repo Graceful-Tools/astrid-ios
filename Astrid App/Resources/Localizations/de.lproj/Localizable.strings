@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "Wird nicht erledigt";
 "tasks.sync_pending_chip" = "Wird synchronisiert";
 "tasks.sync_failed_chip" = "Synchronisierung fehlgeschlagen";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Passkeys werden auf diesem Gerät nicht unterstützt";
+"passkey.error.cancelled" = "Passkey-Vorgang wurde abgebrochen";
+"passkey.error.no_local_passkey" = "Auf diesem Gerät ist kein Passkey verfügbar. Verwende einen Passkey von einem anderen Gerät oder aktiviere deinen Passwortmanager als Passkey-Anbieter.";
+"passkey.error.invalid_challenge" = "Ungültige Challenge vom Server";
+"passkey.error.invalid_user_id" = "Ungültige Benutzer-ID";
+"passkey.error.invalid_response" = "Ungültige Antwort vom Authentifikator";
+"passkey.error.authentication_failed" = "Authentifizierung fehlgeschlagen: %@";
+"passkey.error.registration_failed" = "Registrierung fehlgeschlagen: %@";
+"passkey.error.unknown" = "Unbekannter Fehler: %@";
+"passkey.error.existing_user_passkey" = "Mit dieser E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich mit deinem Passkey an.";
+"passkey.error.existing_user_other" = "Mit dieser E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich auf andere Weise an.";

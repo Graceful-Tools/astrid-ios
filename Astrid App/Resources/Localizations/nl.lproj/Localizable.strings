@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "Doen we niet";
 "tasks.sync_pending_chip" = "Synchroniseren";
 "tasks.sync_failed_chip" = "Synchronisatie mislukt";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Passkeys worden niet ondersteund op dit apparaat";
+"passkey.error.cancelled" = "Passkey-bewerking is geannuleerd";
+"passkey.error.no_local_passkey" = "Er is geen passkey beschikbaar op dit apparaat. Gebruik een passkey van een ander apparaat of schakel je wachtwoordbeheerder in als passkey-aanbieder.";
+"passkey.error.invalid_challenge" = "Ongeldige challenge van de server";
+"passkey.error.invalid_user_id" = "Ongeldige gebruikers-ID";
+"passkey.error.invalid_response" = "Ongeldig antwoord van de authenticator";
+"passkey.error.authentication_failed" = "Authenticatie mislukt: %@";
+"passkey.error.registration_failed" = "Registratie mislukt: %@";
+"passkey.error.unknown" = "Onbekende fout: %@";
+"passkey.error.existing_user_passkey" = "Er bestaat al een account met dit e-mailadres. Log in met je passkey.";
+"passkey.error.existing_user_other" = "Er bestaat al een account met dit e-mailadres. Log in via een andere methode.";

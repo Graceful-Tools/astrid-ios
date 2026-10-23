@@ -723,34 +723,23 @@ enum PasskeyError: LocalizedError {
     case unknown(String)
     case existingUser(email: String, hasPasskey: Bool)
 
+    /// Shown to the user, so every case reads a `passkey.error.*` key (rule 8, AITD-537).
     var errorDescription: String? {
+        func text(_ key: String) -> String { NSLocalizedString("passkey.error.\(key)", comment: "") }
         switch self {
-        case .notSupported:
-            return "Passkeys are not supported on this device"
-        case .userCancelled:
-            return "Passkey operation was cancelled"
-        case .noLocalPasskey:
-            return "No passkey is available on this device. Use a passkey from another device, or enable your password manager as a passkey provider."
-        case .invalidChallenge:
-            return "Invalid challenge from server"
-        case .invalidUserId:
-            return "Invalid user ID"
-        case .invalidResponse:
-            return "Invalid response from authenticator"
-        case .authenticationFailed(let message):
-            return "Authentication failed: \(message)"
-        case .registrationFailed(let message):
-            return "Registration failed: \(message)"
-        case .serverError(let message):
-            return message
-        case .unknown(let message):
-            return "Unknown error: \(message)"
+        case .notSupported: return text("not_supported")
+        case .userCancelled: return text("cancelled")
+        case .noLocalPasskey: return text("no_local_passkey")
+        case .invalidChallenge: return text("invalid_challenge")
+        case .invalidUserId: return text("invalid_user_id")
+        case .invalidResponse: return text("invalid_response")
+        case .authenticationFailed(let message): return String(format: text("authentication_failed"), message)
+        case .registrationFailed(let message): return String(format: text("registration_failed"), message)
+        // The server's own message, passed through as the server wrote it.
+        case .serverError(let message): return message
+        case .unknown(let message): return String(format: text("unknown"), message)
         case .existingUser(_, let hasPasskey):
-            if hasPasskey {
-                return "An account with this email already exists. Please sign in with your passkey."
-            } else {
-                return "An account with this email already exists. Please sign in with another method."
-            }
+            return text(hasPasskey ? "existing_user_passkey" : "existing_user_other")
         }
     }
 }

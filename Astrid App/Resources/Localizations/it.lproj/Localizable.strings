@@ -1523,3 +1523,16 @@
 "tasks.wont_do_chip" = "Non verrà fatto";
 "tasks.sync_pending_chip" = "Sincronizzazione";
 "tasks.sync_failed_chip" = "Sincronizzazione non riuscita";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Le passkey non sono supportate su questo dispositivo";
+"passkey.error.cancelled" = "L’operazione passkey è stata annullata";
+"passkey.error.no_local_passkey" = "Nessuna passkey disponibile su questo dispositivo. Usa una passkey da un altro dispositivo oppure attiva il tuo gestore di password come fornitore di passkey.";
+"passkey.error.invalid_challenge" = "Challenge del server non valida";
+"passkey.error.invalid_user_id" = "ID utente non valido";
+"passkey.error.invalid_response" = "Risposta dell’autenticatore non valida";
+"passkey.error.authentication_failed" = "Autenticazione non riuscita: %@";
+"passkey.error.registration_failed" = "Registrazione non riuscita: %@";
+"passkey.error.unknown" = "Errore sconosciuto: %@";
+"passkey.error.existing_user_passkey" = "Esiste già un account con questa email. Accedi con la tua passkey.";
+"passkey.error.existing_user_other" = "Esiste già un account con questa email. Accedi con un altro metodo.";

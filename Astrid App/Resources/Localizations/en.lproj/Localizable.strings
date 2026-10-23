@@ -1531,3 +1531,16 @@
 "tasks.wont_do_chip" = "Won't do";
 "tasks.sync_pending_chip" = "Syncing";
 "tasks.sync_failed_chip" = "Sync failed";
+
+/* Passkey errors (AITD-537) */
+"passkey.error.not_supported" = "Passkeys are not supported on this device";
+"passkey.error.cancelled" = "Passkey operation was cancelled";
+"passkey.error.no_local_passkey" = "No passkey is available on this device. Use a passkey from another device, or enable your password manager as a passkey provider.";
+"passkey.error.invalid_challenge" = "Invalid challenge from server";
+"passkey.error.invalid_user_id" = "Invalid user ID";
+"passkey.error.invalid_response" = "Invalid response from authenticator";
+"passkey.error.authentication_failed" = "Authentication failed: %@";
+"passkey.error.registration_failed" = "Registration failed: %@";
+"passkey.error.unknown" = "Unknown error: %@";
+"passkey.error.existing_user_passkey" = "An account with this email already exists. Please sign in with your passkey.";
+"passkey.error.existing_user_other" = "An account with this email already exists. Please sign in with another method.";
