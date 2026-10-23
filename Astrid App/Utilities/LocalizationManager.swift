@@ -30,10 +30,9 @@ final class LocalizationManager {
         AppLog.debug("🌍 [LocalizationManager] Current locale: \(currentLocale.identifier)")
         AppLog.debug("🌍 [LocalizationManager] Preferred languages: \(preferredLanguages.prefix(3).joined(separator: ", "))")
 
-        // Find best matching language
-        let selectedLanguage = findBestMatchingLanguage(
-            locale: currentLocale,
-            preferredLanguages: preferredLanguages
+        let selectedLanguage = LanguageSelection.best(
+            preferredLanguages: preferredLanguages,
+            regionCode: currentLocale.region?.identifier
         )
 
         AppLog.debug("✅ [LocalizationManager] Selected language: \(selectedLanguage)")
@@ -59,17 +58,7 @@ final class LocalizationManager {
             return userOverride
         }
 
-        // Return the first preferred language that we support
-        let preferredLanguages = Locale.preferredLanguages
-        for langPref in preferredLanguages {
-            let langCode = extractLanguageCode(from: langPref)
-            if Constants.Localization.supportedLanguages.contains(langCode) {
-                return langCode
-            }
-        }
-
-        // Default to English
-        return "en"
+        return LanguageSelection.best(preferredLanguages: Locale.preferredLanguages, regionCode: nil)
     }
 
     /// Clear user language override and revert to automatic selection
@@ -124,81 +113,6 @@ final class LocalizationManager {
         return UserDefaults.standard.string(forKey: Constants.Localization.userLanguageOverrideKey)
     }
 
-    /// Find the best matching language based on locale and preferred languages
-    private func findBestMatchingLanguage(
-        locale: Locale,
-        preferredLanguages: [String]
-    ) -> String {
-        // Strategy:
-        // 1. Check primary preferred language against supported languages
-        // 2. Check if user's region suggests a different primary language (e.g., US user with Spanish preferences)
-        // 3. Check secondary preferred languages
-        // 4. Fall back to English
-
-        // Extract language codes from preferred languages
-        var languagePriority: [String] = []
-
-        for langPref in preferredLanguages {
-            let langCode = extractLanguageCode(from: langPref)
-            if Constants.Localization.supportedLanguages.contains(langCode) && !languagePriority.contains(langCode) {
-                languagePriority.append(langCode)
-            }
-        }
-
-        AppLog.debug("🌍 [LocalizationManager] Language priority from preferences: \(languagePriority)")
-
-        // Check for language-region affinity
-        // If user is in a Spanish-speaking region, prioritize Spanish
-        if let regionCode = locale.region?.identifier {
-            AppLog.debug("🌍 [LocalizationManager] User region: \(regionCode)")
-
-            // Check if this region has strong affinity with any of our supported languages
-            if let affinityLanguage = findLanguageAffinityForRegion(regionCode) {
-                AppLog.debug("🌍 [LocalizationManager] Region \(regionCode) has affinity with \(affinityLanguage)")
-
-                // If the affinity language is in preferred languages (even if not first), prioritize it
-                if languagePriority.contains(affinityLanguage) {
-                    AppLog.debug("✅ [LocalizationManager] Prioritizing \(affinityLanguage) based on region affinity")
-                    return affinityLanguage
-                }
-            }
-        }
-
-        // Return first supported language from priority list
-        if let firstSupported = languagePriority.first {
-            return firstSupported
-        }
-
-        // Default to English
-        AppLog.debug("🌍 [LocalizationManager] No matching language found, defaulting to English")
-        return "en"
-    }
-
-    /// Extract language code from locale identifier (e.g., "en-US" -> "en", "es" -> "es")
-    private func extractLanguageCode(from localeIdentifier: String) -> String {
-        // Handle both "en-US" and "en_US" formats
-        let components = localeIdentifier.components(separatedBy: CharacterSet(charactersIn: "-_"))
-        return components.first?.lowercased() ?? localeIdentifier.lowercased()
-    }
-
-    /// Check if a region has strong affinity with a supported language
-    private func findLanguageAffinityForRegion(_ regionCode: String) -> String? {
-        let upperRegion = regionCode.uppercased()
-
-        // Check Spanish-speaking regions
-        if Constants.Localization.spanishSpeakingRegions.contains(upperRegion) {
-            return "es"
-        }
-
-        // Check French-speaking regions
-        if Constants.Localization.frenchSpeakingRegions.contains(upperRegion) {
-            return "fr"
-        }
-
-        // No strong affinity found
-        return nil
-    }
-
     /// Apply the selected language to the app
     private func applyLanguage(_ languageCode: String) {
         AppLog.debug("🌍 [LocalizationManager] Applying language: \(languageCode)")
@@ -210,5 +124,48 @@ final class LocalizationManager {
 
         AppLog.debug("✅ [LocalizationManager] Language applied: \(languageCode)")
         AppLog.debug("🌍 [LocalizationManager] Note: Some UI elements may require app restart to update")
+    }
+}
+
+/// Which shipped localization a device's language settings ask for. Pure, so the rule is
+/// tested directly rather than through `UserDefaults` and the simulator's own locale.
+enum LanguageSelection {
+    /// The first supported preferred language — unless the region has an affinity with a
+    /// supported language the user also listed (a US-English user in Mexico who lists
+    /// Spanish gets Spanish). The region never adds a language the user did not list.
+    /// English when nothing matches.
+    static func best(preferredLanguages: [String], regionCode: String?) -> String {
+        var priority: [String] = []
+        for identifier in preferredLanguages {
+            if let code = supportedLanguage(from: identifier), !priority.contains(code) {
+                priority.append(code)
+            }
+        }
+        if let regionCode, let affinity = languageAffinity(forRegion: regionCode), priority.contains(affinity) {
+            return affinity
+        }
+        return priority.first ?? "en"
+    }
+
+    /// The shipped localization a preferred-language identifier names ("es-MX" → "es"), or nil.
+    static func supportedLanguage(from identifier: String) -> String? {
+        let parts = identifier.components(separatedBy: CharacterSet(charactersIn: "-_"))
+        guard let language = parts.first?.lowercased() else { return nil }
+        let code = language == "zh" ? chineseScript(parts.dropFirst().map { $0.uppercased() }) : language
+        return Constants.Localization.supportedLanguages.contains(code) ? code : nil
+    }
+
+    /// Chinese ships per script: an explicit script decides, else the region's.
+    private static func chineseScript(_ subtags: [String]) -> String {
+        if subtags.contains("HANT") { return "zh-Hant" }
+        if subtags.contains("HANS") { return "zh-Hans" }
+        return subtags.contains(where: ["TW", "HK", "MO"].contains) ? "zh-Hant" : "zh-Hans"
+    }
+
+    private static func languageAffinity(forRegion regionCode: String) -> String? {
+        let region = regionCode.uppercased()
+        if Constants.Localization.spanishSpeakingRegions.contains(region) { return "es" }
+        if Constants.Localization.frenchSpeakingRegions.contains(region) { return "fr" }
+        return nil
     }
 }

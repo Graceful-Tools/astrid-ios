@@ -24,25 +24,69 @@ final class LocalizationManagerTests: XCTestCase {
 
     // MARK: - Language Code Extraction Tests
 
-    func testExtractLanguageCodeFromSimpleLocale() {
-        // Test that we can extract language codes from various locale formats
-        let testCases: [(input: String, expected: String)] = [
+    /// A preferred-language identifier resolves to the localization the app ships, or none (AITD-538).
+    func testSupportedLanguageFromIdentifier() {
+        let testCases: [(input: String, expected: String?)] = [
             ("en", "en"),
             ("es", "es"),
-            ("fr", "fr"),
             ("en-US", "en"),
             ("es-MX", "es"),
             ("fr-CA", "fr"),
             ("en_US", "en"),
-            ("es_ES", "es")
+            ("es_ES", "es"),
+            ("ar", nil),
+            ("ar-SA", nil),
         ]
-
         for testCase in testCases {
-            let components = testCase.input.components(separatedBy: CharacterSet(charactersIn: "-_"))
-            let result = components.first?.lowercased() ?? testCase.input.lowercased()
-            XCTAssertEqual(result, testCase.expected,
-                         "Expected \(testCase.expected) from \(testCase.input), got \(result)")
+            XCTAssertEqual(LanguageSelection.supportedLanguage(from: testCase.input), testCase.expected, testCase.input)
         }
+    }
+
+    /// Chinese reached the app as "zh", which is not a localization it ships — Chinese users
+    /// got English. The script decides, and a bare region picks the script it writes (AITD-538).
+    func testChineseResolvesToItsScript() {
+        let testCases: [(input: String, expected: String)] = [
+            ("zh-Hans-CN", "zh-Hans"),
+            ("zh-Hans", "zh-Hans"),
+            ("zh-Hant-TW", "zh-Hant"),
+            ("zh-Hant-HK", "zh-Hant"),
+            ("zh_Hant", "zh-Hant"),
+            ("zh-TW", "zh-Hant"),
+            ("zh-HK", "zh-Hant"),
+            ("zh-MO", "zh-Hant"),
+            ("zh-CN", "zh-Hans"),
+            ("zh-SG", "zh-Hans"),
+            ("zh", "zh-Hans"),
+        ]
+        for testCase in testCases {
+            XCTAssertEqual(LanguageSelection.supportedLanguage(from: testCase.input), testCase.expected, testCase.input)
+        }
+    }
+
+    // MARK: - Best Language (region affinity)
+
+    func testBestLanguageIsTheFirstSupportedPreference() {
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["ar-SA", "de-DE", "en-US"], regionCode: "DE"), "de")
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["zh-Hant-TW", "en-US"], regionCode: "TW"), "zh-Hant")
+    }
+
+    /// A US user who lists Spanish second, living in Mexico, gets Spanish: the region lifts a
+    /// supported language the user already listed.
+    func testRegionAffinityLiftsAListedLanguage() {
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["en-US", "es-MX"], regionCode: "MX"), "es")
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["en-CA", "fr-CA"], regionCode: "ca"), "fr")
+    }
+
+    /// The region never imposes a language the user did not list.
+    func testRegionAffinityNeverAddsALanguage() {
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["en-US"], regionCode: "MX"), "en")
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["en-GB", "es-ES"], regionCode: "GB"), "en")
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["en-US", "es-US"], regionCode: nil), "en")
+    }
+
+    func testBestLanguageFallsBackToEnglish() {
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: ["ar-SA", "he-IL"], regionCode: "SA"), "en")
+        XCTAssertEqual(LanguageSelection.best(preferredLanguages: [], regionCode: nil), "en")
     }
 
     // MARK: - Language Override Tests

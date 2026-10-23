@@ -688,25 +688,12 @@ class AppleRemindersService: ObservableObject {
     /// Desired export state for a task — MUST mirror `updateReminder`'s
     /// transformations field-for-field (the dirty check compares these).
     func desiredSnapshot(for task: Task) -> AppleReminderSnapshot {
-        var dueComponents: DateComponents?
-        if let dueDateTime = task.dueDateTime {
-            if task.isAllDay {
-                var utc = Calendar.current
-                utc.timeZone = TimeZone(identifier: "UTC")!
-                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
-                components.calendar = nil
-                dueComponents = components
-            } else {
-                dueComponents = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
-            }
-        }
-        return AppleReminderSnapshot(
+        AppleReminderSnapshot(
             title: task.title,
             notes: task.description.isEmpty ? nil : task.description,
             isCompleted: task.completed,
             priority: mapPriorityToApple(task.priority),
-            dueKey: AppleExportPlanner.dueKey(dueComponents),
+            dueKey: AppleExportPlanner.dueKey(mapDueDateToApple(task.dueDateTime, isAllDay: task.isAllDay)),
             recurrenceKey: AppleExportPlanner.recurrenceKey(
                 mapRecurrenceToApple(task.repeating, data: task.repeatingData)),
             alarmKey: AppleExportPlanner.alarmKey(reminderTime: task.reminderTime))
@@ -729,23 +716,7 @@ class AppleRemindersService: ObservableObject {
         reminder.isCompleted = task.completed
         reminder.priority = mapPriorityToApple(task.priority)
 
-        // Due date. All-day dues are stored at UTC midnight — read their
-        // calendar day in UTC, or the reminder lands on the previous local day
-        // for anyone west of UTC.
-        if let dueDateTime = task.dueDateTime {
-            if task.isAllDay {
-                var utc = Calendar.current
-                utc.timeZone = TimeZone(identifier: "UTC")!
-                var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
-                components.calendar = nil
-                reminder.dueDateComponents = components
-            } else {
-                reminder.dueDateComponents = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute], from: dueDateTime)
-            }
-        } else {
-            reminder.dueDateComponents = nil
-        }
+        reminder.dueDateComponents = mapDueDateToApple(task.dueDateTime, isAllDay: task.isAllDay)
 
         // Recurrence
         reminder.recurrenceRules = nil
@@ -804,99 +775,19 @@ class AppleRemindersService: ObservableObject {
         }
     }
 
-    /// Map Astrid recurrence to Apple recurrence rule
-    func mapRecurrenceToApple(_ repeating: Task.Repeating?, data: CustomRepeatingPattern?) -> EKRecurrenceRule? {
-        guard let repeating = repeating else { return nil }
-
-        switch repeating {
-        case .never:
-            return nil
-        case .daily:
-            return EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
-        case .weekly:
-            return EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
-        case .monthly:
-            return EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: nil)
-        case .yearly:
-            return EKRecurrenceRule(recurrenceWith: .yearly, interval: 1, end: nil)
-        case .custom:
-            return buildCustomRecurrenceRule(from: data)
+    /// Map an Astrid due to Apple due date components. All-day dues are stored at
+    /// UTC midnight — read their calendar day in UTC, or the reminder lands on the
+    /// previous local day for anyone west of UTC.
+    func mapDueDateToApple(_ dueDateTime: Date?, isAllDay: Bool) -> DateComponents? {
+        guard let dueDateTime else { return nil }
+        if isAllDay {
+            var utc = Calendar.current
+            utc.timeZone = TimeZone(identifier: "UTC")!
+            var components = utc.dateComponents([.year, .month, .day], from: dueDateTime)
+            components.calendar = nil
+            return components
         }
-    }
-
-    private func buildCustomRecurrenceRule(from pattern: CustomRepeatingPattern?) -> EKRecurrenceRule? {
-        guard let pattern = pattern else { return nil }
-
-        let frequency: EKRecurrenceFrequency
-        switch pattern.unit {
-        case "days": frequency = .daily
-        case "weeks": frequency = .weekly
-        case "months": frequency = .monthly
-        case "years": frequency = .yearly
-        default: return nil
-        }
-
-        let interval = pattern.interval ?? 1
-        var end: EKRecurrenceEnd?
-
-        if pattern.endCondition == "after_occurrences", let count = pattern.endAfterOccurrences {
-            end = EKRecurrenceEnd(occurrenceCount: count)
-        } else if pattern.endCondition == "until_date", let date = pattern.endUntilDate {
-            end = EKRecurrenceEnd(end: date)
-        }
-
-        return EKRecurrenceRule(recurrenceWith: frequency, interval: interval, end: end)
-    }
-
-    /// Map Apple recurrence rule to Astrid recurrence
-    func mapRecurrenceFromApple(_ rule: EKRecurrenceRule?) -> (Task.Repeating?, CustomRepeatingPattern?) {
-        guard let rule = rule else { return (.never, nil) }
-
-        // Simple patterns
-        if rule.interval == 1 {
-            switch rule.frequency {
-            case .daily: return (.daily, nil)
-            case .weekly: return (.weekly, nil)
-            case .monthly: return (.monthly, nil)
-            case .yearly: return (.yearly, nil)
-            @unknown default: return (.never, nil)
-            }
-        }
-
-        // Custom pattern
-        let unit: String
-        switch rule.frequency {
-        case .daily: unit = "days"
-        case .weekly: unit = "weeks"
-        case .monthly: unit = "months"
-        case .yearly: unit = "years"
-        @unknown default: return (.never, nil)
-        }
-
-        var endCondition = "never"
-        var endAfterOccurrences: Int?
-        var endUntilDate: Date?
-
-        if let recurrenceEnd = rule.recurrenceEnd {
-            if recurrenceEnd.occurrenceCount > 0 {
-                endCondition = "after_occurrences"
-                endAfterOccurrences = recurrenceEnd.occurrenceCount
-            } else if let endDate = recurrenceEnd.endDate {
-                endCondition = "until_date"
-                endUntilDate = endDate
-            }
-        }
-
-        let pattern = CustomRepeatingPattern(
-            type: "custom",
-            unit: unit,
-            interval: rule.interval,
-            endCondition: endCondition,
-            endAfterOccurrences: endAfterOccurrences,
-            endUntilDate: endUntilDate
-        )
-
-        return (.custom, pattern)
+        return Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: dueDateTime)
     }
 
     /// Map Apple due date components to Astrid date and isAllDay
