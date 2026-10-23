@@ -57,7 +57,8 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
     /// The label has to carry what the removed chip used to say: this is also how a task
     /// reaches Done.
     func testTheCompleteButtonSaysCompleteSlashDone() {
-        XCTAssertEqual(NSLocalizedString("tasks.complete_task", comment: ""), "Complete / Done!")
+        XCTAssertNotEqual(NSLocalizedString("tasks.complete_task", comment: ""), "tasks.complete_task")
+        XCTAssertEqual(EnglishStrings.text("tasks.complete_task"), "Complete / Done!")
     }
 
     // MARK: - Both pickers must use the filter

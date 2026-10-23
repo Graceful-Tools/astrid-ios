@@ -1544,3 +1544,34 @@
 "passkey.error.unknown" = "Unknown error: %@";
 "passkey.error.existing_user_passkey" = "An account with this email already exists. Please sign in with your passkey.";
 "passkey.error.existing_user_other" = "An account with this email already exists. Please sign in with another method.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Export to Reminders";
+"apple_reminders.direction.bidirectional" = "Two-way Sync";
+"apple_reminders.direction.export_description" = "Push %@ tasks to Apple Reminders";
+"apple_reminders.direction.import_description" = "Pull Apple Reminders into %@";
+"apple_reminders.direction.bidirectional_description" = "Keep both apps in sync";
+"apple_reminders.error.not_authorized" = "Reminders access not authorized. Please enable in Settings.";
+"apple_reminders.error.no_calendar_source" = "No calendar source available for creating reminders.";
+"apple_reminders.error.list_not_found" = "%@ list not found.";
+"apple_reminders.error.list_not_linked" = "List is not linked to Apple Reminders.";
+"apple_reminders.error.calendar_not_found" = "Linked Reminders calendar not found.";
+"apple_reminders.error.sync_failed" = "Sync failed: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Denied — enable in System Settings › Privacy";
+"mac.reminders.status.limited" = "Limited access";
+"mac.ai_keys.not_set" = "Not set";
+"mac.ai_keys.key_set" = "Key set";
+"mac.ai_keys.invalid" = "%@ — invalid";
+"mac.repeat.every_one.days" = "Every day";
+"mac.repeat.every_one.weeks" = "Every week";
+"mac.repeat.every_one.months" = "Every month";
+"mac.repeat.every_one.years" = "Every year";
+"mac.repeat.every_n.days" = "Every %d days";
+"mac.repeat.every_n.weeks" = "Every %d weeks";
+"mac.repeat.every_n.months" = "Every %d months";
+"mac.repeat.every_n.years" = "Every %d years";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, until date";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

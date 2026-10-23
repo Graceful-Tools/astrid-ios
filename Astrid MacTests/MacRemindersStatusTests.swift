@@ -18,12 +18,20 @@ final class MacRemindersStatusTests: XCTestCase {
         XCTAssertFalse(MacRemindersStatus.isGranted(.restricted))
     }
 
-    func testLabel() {
-        XCTAssertEqual(MacRemindersStatus.label(.notDetermined), "Not connected")
-        XCTAssertEqual(MacRemindersStatus.label(.denied), "Denied — enable in System Settings › Privacy")
-        XCTAssertEqual(MacRemindersStatus.label(.restricted), "Denied — enable in System Settings › Privacy")
+    /// Rule 8 (AITD-537): each status reads its key, and the key resolves.
+    func testLabelsReadTheirKeys_AITD537() {
+        var expected: [(EKAuthorizationStatus, String)] = [
+            (.notDetermined, "sync.not_connected"),
+            (.denied, "mac.reminders.status.denied"),
+            (.restricted, "mac.reminders.status.denied"),
+        ]
         if #available(macOS 14.0, *) {
-            XCTAssertEqual(MacRemindersStatus.label(.fullAccess), "Connected")
+            expected.append((.fullAccess, "sync.connected"))
+            expected.append((.writeOnly, "mac.reminders.status.limited"))
+        }
+        for (status, key) in expected {
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is missing")
+            XCTAssertEqual(MacRemindersStatus.label(status), NSLocalizedString(key, comment: ""))
         }
     }
 }

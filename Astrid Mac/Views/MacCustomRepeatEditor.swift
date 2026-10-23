@@ -25,17 +25,18 @@ enum MacCustomRepeat {
     /// Human summary for the detail row.
     static func summary(_ p: CustomRepeatingPattern) -> String {
         let n = max(1, p.interval ?? 1)
-        let unit = p.unit ?? "weeks"
-        let base = n == 1 ? "Every \(singular(unit))" : "Every \(n) \(unit)"
+        let unit = ["days", "weeks", "months", "years"].contains(p.unit ?? "") ? p.unit! : "weeks"
+        let base = n == 1
+            ? NSLocalizedString("mac.repeat.every_one.\(unit)", comment: "")
+            : String(format: NSLocalizedString("mac.repeat.every_n.\(unit)", comment: ""), n)
         switch p.endCondition {
-        case "after_occurrences": return "\(base), \(p.endAfterOccurrences ?? 0)×"
-        case "until_date": return "\(base), until date"
+        case "after_occurrences":
+            return String(format: NSLocalizedString("mac.repeat.summary_times", comment: ""),
+                          base, p.endAfterOccurrences ?? 0)
+        case "until_date":
+            return String(format: NSLocalizedString("mac.repeat.summary_until_date", comment: ""), base)
         default: return base
         }
-    }
-
-    private static func singular(_ unit: String) -> String {
-        unit.hasSuffix("s") ? String(unit.dropLast()) : unit
     }
 }
 

@@ -41,15 +41,17 @@ final class MacDataStringsTests: XCTestCase {
     /// English one beside it. Owner is the role that had no route through here at all, hence the
     /// full sweep: nothing may come back as an unresolved key or as the raw wire value.
     func testEveryRoleIncludingOwnerResolvesToRealText() {
-        for role in ["member", "admin", "owner"] {
+        let keys = ["member": "lists.member_role", "admin": "lists.admin", "owner": "lists.owner"]
+        for (role, key) in keys {
             let title = MacMemberRoleLabel.title(for: role)
             XCTAssertFalse(title.isEmpty, "\(role) renders an empty label")
             XCTAssertFalse(title.hasPrefix("lists."), "\(role) shows an unresolved key: \(title)")
             XCTAssertNotEqual(title, role, "\(role) shows the raw wire value")
+            // In English a localized role reads the same as the capitalized wire value, so only
+            // equality with the key's own text proves the label came from it (AITD-537).
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is missing")
+            XCTAssertEqual(title, NSLocalizedString(key, comment: ""))
         }
-        // In English a localized role reads the same as the capitalized wire value, so equality
-        // with `role.capitalized` proves nothing here. What proves it is that the label came from
-        // a key at all — the source guard in MacRoleLabelGuardTests is what keeps views using it.
     }
 
     /// An unknown value still renders something readable rather than an empty row.

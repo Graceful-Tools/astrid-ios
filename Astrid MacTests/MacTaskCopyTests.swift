@@ -11,7 +11,8 @@ final class MacTaskCopyTests: XCTestCase {
         let targets = MacTaskCopy.targets(lists: [])
         XCTAssertEqual(targets.count, 1)
         XCTAssertNil(targets.first?.listId)
-        XCTAssertEqual(targets.first?.label, "My Tasks only")
+        XCTAssertEqual(targets.first?.label, NSLocalizedString("mac.my_tasks_only", comment: ""))
+        XCTAssertNotEqual(targets.first?.label, "mac.my_tasks_only")
     }
 
     /// AITD-506: a GitHub sprint, milestone or label is a tag, never a copy destination.

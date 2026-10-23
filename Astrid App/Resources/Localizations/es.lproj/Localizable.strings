@@ -1552,3 +1552,34 @@
 "passkey.error.unknown" = "Error desconocido: %@";
 "passkey.error.existing_user_passkey" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con tu llave de acceso.";
 "passkey.error.existing_user_other" = "Ya existe una cuenta con este correo electrónico. Inicia sesión con otro método.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "Exportar a Recordatorios";
+"apple_reminders.direction.bidirectional" = "Sincronización bidireccional";
+"apple_reminders.direction.export_description" = "Enviar tareas de %@ a Recordatorios de Apple";
+"apple_reminders.direction.import_description" = "Traer Recordatorios de Apple a %@";
+"apple_reminders.direction.bidirectional_description" = "Mantener ambas apps sincronizadas";
+"apple_reminders.error.not_authorized" = "No hay acceso a Recordatorios. Actívalo en Ajustes.";
+"apple_reminders.error.no_calendar_source" = "No hay ninguna fuente de calendario para crear recordatorios.";
+"apple_reminders.error.list_not_found" = "No se encontró la lista de %@.";
+"apple_reminders.error.list_not_linked" = "La lista no está vinculada a Recordatorios de Apple.";
+"apple_reminders.error.calendar_not_found" = "No se encontró el calendario de Recordatorios vinculado.";
+"apple_reminders.error.sync_failed" = "Error de sincronización: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Denegado — actívalo en Ajustes del Sistema › Privacidad";
+"mac.reminders.status.limited" = "Acceso limitado";
+"mac.ai_keys.not_set" = "Sin configurar";
+"mac.ai_keys.key_set" = "Clave configurada";
+"mac.ai_keys.invalid" = "%@ — no válida";
+"mac.repeat.every_one.days" = "Cada día";
+"mac.repeat.every_one.weeks" = "Cada semana";
+"mac.repeat.every_one.months" = "Cada mes";
+"mac.repeat.every_one.years" = "Cada año";
+"mac.repeat.every_n.days" = "Cada %d días";
+"mac.repeat.every_n.weeks" = "Cada %d semanas";
+"mac.repeat.every_n.months" = "Cada %d meses";
+"mac.repeat.every_n.years" = "Cada %d años";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, hasta una fecha";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

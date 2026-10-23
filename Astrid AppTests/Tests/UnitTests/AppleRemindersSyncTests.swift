@@ -254,16 +254,33 @@ final class AppleRemindersSyncTests: XCTestCase {
         XCTAssertEqual(SyncDirection.bidirectional.rawValue, "bidirectional")
     }
 
-    @MainActor func testSyncDirectionDisplayNames() {
-        XCTAssertEqual(SyncDirection.export.displayName, "Export to Reminders")
-        XCTAssertEqual(SyncDirection.import_.displayName, "Import from Reminders")
-        XCTAssertEqual(SyncDirection.bidirectional.displayName, "Two-way Sync")
+    /// The direction picker shows these (rule 8, AITD-537). Each reads its key, and the key
+    /// resolves — so this holds in every host language, not only English.
+    @MainActor func testSyncDirectionDisplayNamesReadTheirKeys_AITD537() {
+        let expected: [(SyncDirection, String)] = [
+            (.export, "apple_reminders.direction.export"),
+            (.import_, "reminders.import_from_reminders"),
+            (.bidirectional, "apple_reminders.direction.bidirectional"),
+        ]
+        for (direction, key) in expected {
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is missing")
+            XCTAssertEqual(direction.displayName, NSLocalizedString(key, comment: ""))
+        }
     }
 
-    @MainActor func testSyncDirectionDescriptions() {
-        XCTAssertEqual(SyncDirection.export.description, "Push Astrid tasks to Apple Reminders")
-        XCTAssertEqual(SyncDirection.import_.description, "Pull Apple Reminders into Astrid")
-        XCTAssertEqual(SyncDirection.bidirectional.description, "Keep both apps in sync")
+    @MainActor func testSyncDirectionDescriptionsReadTheirKeysAndNameTheBrand_AITD537() {
+        let expected: [(SyncDirection, String)] = [
+            (.export, "apple_reminders.direction.export_description"),
+            (.import_, "apple_reminders.direction.import_description"),
+            (.bidirectional, "apple_reminders.direction.bidirectional_description"),
+        ]
+        for (direction, key) in expected {
+            let format = NSLocalizedString(key, comment: "")
+            XCTAssertNotEqual(format, key, "\(key) is missing")
+            XCTAssertEqual(direction.description, String(format: format, Brand.appName))
+        }
+        XCTAssertTrue(SyncDirection.export.description.contains(Brand.appName))
+        XCTAssertTrue(SyncDirection.import_.description.contains(Brand.appName))
     }
 
     @MainActor func testSyncDirectionAllCases() {
@@ -275,33 +292,29 @@ final class AppleRemindersSyncTests: XCTestCase {
 
     // MARK: - AppleRemindersError Tests
 
-    @MainActor func testAppleRemindersErrorDescriptions() {
-        XCTAssertEqual(
-            AppleRemindersError.notAuthorized.errorDescription,
-            "Reminders access not authorized. Please enable in Settings."
-        )
-        XCTAssertEqual(
-            AppleRemindersError.noCalendarSource.errorDescription,
-            "No calendar source available for creating reminders."
-        )
-        XCTAssertEqual(
-            AppleRemindersError.listNotFound.errorDescription,
-            "Astrid list not found."
-        )
-        XCTAssertEqual(
-            AppleRemindersError.listNotLinked.errorDescription,
-            "List is not linked to Apple Reminders."
-        )
-        XCTAssertEqual(
-            AppleRemindersError.calendarNotFound.errorDescription,
-            "Linked Reminders calendar not found."
-        )
+    @MainActor func testAppleRemindersErrorsReadTheirKeys_AITD537() {
+        let expected: [(AppleRemindersError, String)] = [
+            (.notAuthorized, "apple_reminders.error.not_authorized"),
+            (.noCalendarSource, "apple_reminders.error.no_calendar_source"),
+            (.listNotLinked, "apple_reminders.error.list_not_linked"),
+            (.calendarNotFound, "apple_reminders.error.calendar_not_found"),
+        ]
+        for (error, key) in expected {
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is missing")
+            XCTAssertEqual(error.errorDescription, NSLocalizedString(key, comment: ""))
+        }
+        let notFound = NSLocalizedString("apple_reminders.error.list_not_found", comment: "")
+        XCTAssertNotEqual(notFound, "apple_reminders.error.list_not_found")
+        XCTAssertEqual(AppleRemindersError.listNotFound.errorDescription, String(format: notFound, Brand.appName))
     }
 
     @MainActor func testAppleRemindersErrorSyncFailed() {
         let underlyingError = NSError(domain: "TestDomain", code: 123, userInfo: [NSLocalizedDescriptionKey: "Test error"])
         let error = AppleRemindersError.syncFailed(underlyingError)
         XCTAssertTrue(error.errorDescription?.contains("Test error") ?? false)
+        let format = NSLocalizedString("apple_reminders.error.sync_failed", comment: "")
+        XCTAssertNotEqual(format, "apple_reminders.error.sync_failed")
+        XCTAssertEqual(error.errorDescription, String(format: format, "Test error"))
     }
 
     // MARK: - ReminderListLink Codable Tests

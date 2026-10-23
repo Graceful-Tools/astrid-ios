@@ -1536,3 +1536,34 @@
 "passkey.error.unknown" = "Unbekannter Fehler: %@";
 "passkey.error.existing_user_passkey" = "Mit dieser E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich mit deinem Passkey an.";
 "passkey.error.existing_user_other" = "Mit dieser E-Mail-Adresse existiert bereits ein Konto. Bitte melde dich auf andere Weise an.";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "In Erinnerungen exportieren";
+"apple_reminders.direction.bidirectional" = "Zwei-Wege-Synchronisierung";
+"apple_reminders.direction.export_description" = "%@-Aufgaben an Apple Erinnerungen senden";
+"apple_reminders.direction.import_description" = "Apple Erinnerungen in %@ übernehmen";
+"apple_reminders.direction.bidirectional_description" = "Beide Apps synchron halten";
+"apple_reminders.error.not_authorized" = "Kein Zugriff auf Erinnerungen. Bitte in den Einstellungen aktivieren.";
+"apple_reminders.error.no_calendar_source" = "Keine Kalenderquelle zum Erstellen von Erinnerungen verfügbar.";
+"apple_reminders.error.list_not_found" = "%@-Liste nicht gefunden.";
+"apple_reminders.error.list_not_linked" = "Liste ist nicht mit Apple Erinnerungen verknüpft.";
+"apple_reminders.error.calendar_not_found" = "Verknüpfter Erinnerungskalender nicht gefunden.";
+"apple_reminders.error.sync_failed" = "Synchronisierung fehlgeschlagen: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Verweigert — in Systemeinstellungen › Datenschutz aktivieren";
+"mac.reminders.status.limited" = "Eingeschränkter Zugriff";
+"mac.ai_keys.not_set" = "Nicht festgelegt";
+"mac.ai_keys.key_set" = "Schlüssel festgelegt";
+"mac.ai_keys.invalid" = "%@ — ungültig";
+"mac.repeat.every_one.days" = "Jeden Tag";
+"mac.repeat.every_one.weeks" = "Jede Woche";
+"mac.repeat.every_one.months" = "Jeden Monat";
+"mac.repeat.every_one.years" = "Jedes Jahr";
+"mac.repeat.every_n.days" = "Alle %d Tage";
+"mac.repeat.every_n.weeks" = "Alle %d Wochen";
+"mac.repeat.every_n.months" = "Alle %d Monate";
+"mac.repeat.every_n.years" = "Alle %d Jahre";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, bis Datum";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

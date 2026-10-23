@@ -14,12 +14,15 @@ enum MacSyncLinks {
         links.first { $0.astridListId == listId }
     }
     static func googleModeLabel(_ m: GoogleSyncMode) -> String {
+        // The same words as the iOS mode picker (divergences follow iOS).
+        let key: String
         switch m {
-        case .manual:             return "Link lists manually"
-        case .allGoogleToAstrid:  return "All Google → \(Brand.appName)"
-        case .allAstridToGoogle:  return "All \(Brand.appName) → Google"
-        case .allBidirectional:   return "Two-way (all lists)"
+        case .manual:             key = "sync.mode_manual"
+        case .allGoogleToAstrid:  key = "sync.mode_google_to_astrid"
+        case .allAstridToGoogle:  key = "sync.mode_astrid_to_google"
+        case .allBidirectional:   key = "sync.mode_bidirectional"
         }
+        return String(format: NSLocalizedString(key, comment: ""), Brand.appName)
     }
 }
 

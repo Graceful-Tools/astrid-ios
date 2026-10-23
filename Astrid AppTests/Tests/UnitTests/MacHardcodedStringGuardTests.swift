@@ -58,6 +58,171 @@ final class MacHardcodedStringGuardTests: XCTestCase {
             """)
     }
 
+    // MARK: - Helpers whose result is shown (AITD-537)
+
+    /// `Text(MacAIKeys.statusText(…))` passes the guard above: the nested call is stripped, because
+    /// a literal handed to a function is that function's input. But when the function RETURNS a
+    /// literal, the literal is what's on screen, and six Mac helpers shipped English that way, with
+    /// green tests pinning it. So every function called directly in a builder's first argument is
+    /// followed into its body, and its `return` expressions and `??` fallbacks are held to the same
+    /// rule.
+    func testHelpersShownInABuilderReturnNoLiterals_AITD537() throws {
+        let violations = helperLiteralViolations(in: try macSources())
+        XCTAssertEqual(violations, [], """
+            A String-returning helper whose result reaches Text/Button/… returned a literal.
+            Return NSLocalizedString(…) instead (or String(format: NSLocalizedString(…), …)).
+            \(violations.joined(separator: "\n"))
+            """)
+    }
+
+    /// The check has to catch the case it was written for: a helper re-hardcoded after the fix.
+    func testTheHelperCheckCatchesAReHardcodedHelper_AITD537() {
+        let fixture = ["Fixture.swift": """
+            enum Fixture {
+                static func statusText(hasKey: Bool) -> String {
+                    guard hasKey else { return "Not set" }
+                    return NSLocalizedString("mac.ai_keys.key_set", comment: "")
+                }
+                static func symbol() -> String { "gearshape" }
+            }
+            struct FixtureView: View {
+                var body: some View {
+                    Text(Fixture.statusText(hasKey: false))
+                    Image(systemName: Fixture.symbol())
+                }
+            }
+            """]
+        XCTAssertEqual(helperLiteralViolations(in: fixture), ["Fixture.swift: statusText — \"Not set\""])
+    }
+
+    private func macSources() throws -> [String: String] {
+        let macRoot = RepositoryLocator.root.appendingPathComponent("Astrid Mac")
+        guard let files = FileManager.default.enumerator(at: macRoot, includingPropertiesForKeys: nil) else {
+            XCTFail("Could not enumerate \(macRoot.path)")
+            return [:]
+        }
+        var sources: [String: String] = [:]
+        for case let fileURL as URL in files where fileURL.pathExtension == "swift" {
+            sources[fileURL.lastPathComponent] = try String(contentsOf: fileURL, encoding: .utf8)
+        }
+        return sources
+    }
+
+    private func helperLiteralViolations(in sources: [String: String]) -> [String] {
+        // 1. Which functions does a builder show directly?
+        var shown: Set<String> = []
+        for source in sources.values {
+            let lines = source.components(separatedBy: .newlines)
+            for (index, line) in lines.enumerated() {
+                let code = line.trimmingCharacters(in: .whitespaces)
+                guard !code.hasPrefix("//") else { continue }
+                for open in openingParens(ofUserFacingBuildersIn: code) {
+                    let argument = firstArgument(from: code, openParenAt: open, continuedBy: lines, after: index)
+                    shown.formUnion(outermostCallees(in: argument))
+                }
+            }
+        }
+
+        // 2. Do any of them return prose?
+        let declaration = try! NSRegularExpression(
+            pattern: "\\bfunc\\s+(\\w+)\\s*\\([^)]*\\)\\s*(?:throws\\s*)?->\\s*String\\??\\s*\\{")
+        var violations: [String] = []
+        for (file, source) in sources.sorted(by: { $0.key < $1.key }) {
+            let ns = source as NSString
+            for match in declaration.matches(in: source, range: NSRange(location: 0, length: ns.length)) {
+                let name = ns.substring(with: match.range(at: 1))
+                guard shown.contains(name) else { continue }
+                let braceAt = source.index(source.startIndex, offsetBy: match.range.upperBound - 1)
+                let body = String(source[source.index(after: braceAt)..<skipBalancedBraces(source, from: braceAt)].dropLast())
+                for expression in returnedExpressions(in: body) {
+                    let bare = strippingComparisons(from: strippingNestedCalls(from: expression))
+                    for literal in literals(in: bare) where !allowed.contains(literal) && isProse(literal) {
+                        violations.append("\(file): \(name) — \"\(literal)\"")
+                    }
+                }
+            }
+        }
+        return violations
+    }
+
+    /// The names of the calls at the top level of a builder argument — `statusText` in
+    /// `MacAIKeys.statusText(…)`, but not `favoriteLabelKey` in `NSLocalizedString(favoriteLabelKey(…))`,
+    /// which is a key, not what's shown. `String(format:)` is see-through, as in the main guard.
+    private func outermostCallees(in argument: String) -> [String] {
+        var names: [String] = []
+        var opens: [Bool] = []      // per open paren: does it count toward depth?
+        var preceding = ""
+        var inString = false
+        var escaped = false
+        for character in argument {
+            if escaped { escaped = false; continue }
+            if inString {
+                if character == "\\" { escaped = true }
+                if character == "\"" { inString = false }
+                continue
+            }
+            switch character {
+            case "\"": inString = true
+            case "(":
+                let name = String(preceding.suffix(identifierTailLength(preceding)))
+                let transparent = transparentWrappers.contains(name)
+                if !transparent, !opens.contains(true), !name.isEmpty { names.append(name) }
+                opens.append(!transparent)
+            case ")": _ = opens.popLast()
+            default: break
+            }
+            preceding.append(character)
+        }
+        return names
+    }
+
+    /// `return` expressions, `?? "…"` fallbacks, and a one-line body with no `return` at all.
+    private func returnedExpressions(in body: String) -> [String] {
+        var expressions: [String] = []
+        let lines = body.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+        for line in lines where !line.hasPrefix("//") {
+            if let range = line.range(of: "\\breturn\\s+", options: .regularExpression) {
+                expressions.append(String(line[range.upperBound...]))
+            }
+            var searchFrom = line.startIndex
+            while let range = line.range(of: "\\?\\?\\s*\"(\\\\.|[^\"\\\\])*\"", options: .regularExpression,
+                                         range: searchFrom..<line.endIndex) {
+                expressions.append(String(line[range].dropFirst(2)))
+                searchFrom = range.upperBound
+            }
+        }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.contains("\n"), !trimmed.contains("return") { expressions.append(trimmed) }
+        return expressions
+    }
+
+    /// The index just past the `}` closing the `{` at `start`.
+    private func skipBalancedBraces(_ text: String, from start: String.Index) -> String.Index {
+        var depth = 0
+        var index = start
+        var inString = false
+        var escaped = false
+        while index < text.endIndex {
+            let character = text[index]
+            index = text.index(after: index)
+            if escaped { escaped = false; continue }
+            if inString {
+                if character == "\\" { escaped = true }
+                if character == "\"" { inString = false }
+                continue
+            }
+            switch character {
+            case "\"": inString = true
+            case "{": depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 { return index }
+            default: break
+            }
+        }
+        return index
+    }
+
     // MARK: - Finding the prose
 
     /// The prose literals a human would read off the screen from the builders opening on this line.

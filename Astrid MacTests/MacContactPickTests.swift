@@ -8,7 +8,10 @@ import XCTest
 final class MacContactPickTests: XCTestCase {
 
     func testDisplayWithName() {
-        XCTAssertEqual(MacContactPick.display(name: "Ada Lovelace", email: "ada@x.com"), "Ada Lovelace — ada@x.com")
+        let format = NSLocalizedString("mac.contact_pick.name_email", comment: "")
+        XCTAssertNotEqual(format, "mac.contact_pick.name_email")  // AITD-537: read from a key
+        XCTAssertEqual(MacContactPick.display(name: "Ada Lovelace", email: "ada@x.com"),
+                       String(format: format, "Ada Lovelace", "ada@x.com"))
     }
 
     func testDisplayWithoutName() {

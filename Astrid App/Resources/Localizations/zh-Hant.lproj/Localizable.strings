@@ -1538,3 +1538,34 @@
 "passkey.error.unknown" = "未知錯誤：%@";
 "passkey.error.existing_user_passkey" = "已有使用此電子郵件的帳號。請使用你的通行密鑰登入。";
 "passkey.error.existing_user_other" = "已有使用此電子郵件的帳號。請使用其他方式登入。";
+
+/* Apple Reminders sync direction and errors (AITD-537) */
+"apple_reminders.direction.export" = "匯出到提醒事項";
+"apple_reminders.direction.bidirectional" = "雙向同步";
+"apple_reminders.direction.export_description" = "將 %@ 任務推送到 Apple 提醒事項";
+"apple_reminders.direction.import_description" = "將 Apple 提醒事項匯入 %@";
+"apple_reminders.direction.bidirectional_description" = "保持兩個 App 同步";
+"apple_reminders.error.not_authorized" = "未授權存取提醒事項。請在設定中啟用。";
+"apple_reminders.error.no_calendar_source" = "沒有可用於建立提醒事項的行事曆來源。";
+"apple_reminders.error.list_not_found" = "找不到 %@ 列表。";
+"apple_reminders.error.list_not_linked" = "列表未連結到 Apple 提醒事項。";
+"apple_reminders.error.calendar_not_found" = "找不到已連結的提醒事項行事曆。";
+"apple_reminders.error.sync_failed" = "同步失敗：%@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "已拒絕 — 請在系統設定 › 隱私權中啟用";
+"mac.reminders.status.limited" = "有限存取";
+"mac.ai_keys.not_set" = "未設定";
+"mac.ai_keys.key_set" = "已設定金鑰";
+"mac.ai_keys.invalid" = "%@ — 無效";
+"mac.repeat.every_one.days" = "每天";
+"mac.repeat.every_one.weeks" = "每週";
+"mac.repeat.every_one.months" = "每月";
+"mac.repeat.every_one.years" = "每年";
+"mac.repeat.every_n.days" = "每 %d 天";
+"mac.repeat.every_n.weeks" = "每 %d 週";
+"mac.repeat.every_n.months" = "每 %d 個月";
+"mac.repeat.every_n.years" = "每 %d 年";
+"mac.repeat.summary_times" = "%1$@，%2$d 次";
+"mac.repeat.summary_until_date" = "%@，直到指定日期";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

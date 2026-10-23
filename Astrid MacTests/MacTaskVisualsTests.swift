@@ -15,9 +15,17 @@ final class MacTaskVisualsTests: XCTestCase {
         XCTAssertEqual(MacTaskVisuals.prioritySymbol(.high), "!!!")
     }
 
-    func testPriorityLabels() {
-        XCTAssertEqual(MacTaskVisuals.priorityLabel(.none), "None")
-        XCTAssertEqual(MacTaskVisuals.priorityLabel(.high), "High")
+    /// Rule 8 (AITD-537): each label reads the shared `priority.*` key, and the key resolves —
+    /// so this holds in every host language, not only English.
+    func testPriorityLabelsReadTheirKeys_AITD537() {
+        let expected: [(Task.Priority, String)] = [
+            (.none, "priority.none"), (.low, "priority.low"),
+            (.medium, "priority.medium"), (.high, "priority.high"),
+        ]
+        for (priority, key) in expected {
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is missing")
+            XCTAssertEqual(MacTaskVisuals.priorityLabel(priority), NSLocalizedString(key, comment: ""))
+        }
     }
 
     func testAllPrioritiesOrderLowToHigh() {
