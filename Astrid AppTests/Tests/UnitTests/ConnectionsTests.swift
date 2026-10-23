@@ -205,6 +205,45 @@ final class ConnectionsTests: XCTestCase {
         XCTAssertTrue(screen.contains("section.localizedTitle"))
     }
 
+    // MARK: Loading fails (AITD-538)
+
+    /// The fake had no error hook, so `load`'s failure path ran in no test.
+    func testAITD538_AFailedLoadSaysWhatTheServerSaidAndStopsLoading() async throws {
+        let service = FakeConnectionsService()
+        service.getConnectionsError = AstridAPIError.httpError(statusCode: 500, message: #"{"error":"connections unavailable"}"#)
+        let model = await ConnectionsModel(service: service)
+
+        await model.load()
+
+        let message = await model.errorMessage
+        let loading = await model.isLoading
+        let rows = await model.connections
+        XCTAssertEqual(message, "connections unavailable")
+        XCTAssertFalse(loading, "a failed load must not leave the spinner up")
+        XCTAssertTrue(rows.isEmpty)
+    }
+
+    /// A refresh that fails keeps the rows already on screen, and the next good one clears the error.
+    func testAITD538_AFailedRefreshKeepsTheRowsAndAGoodOneClearsTheError() async throws {
+        let rows = try decodeFacetFixture()
+        let service = FakeConnectionsService()
+        service.rows = rows
+        let model = await ConnectionsModel(service: service)
+        await model.load()
+
+        service.getConnectionsError = URLError(.notConnectedToInternet)
+        await model.load()
+        let keptCount = await model.connections.count
+        let failedMessage = await model.errorMessage
+        XCTAssertEqual(keptCount, rows.count)
+        XCTAssertNotNil(failedMessage)
+
+        service.getConnectionsError = nil
+        await model.load()
+        let clearedMessage = await model.errorMessage
+        XCTAssertNil(clearedMessage)
+    }
+
     // MARK: Revoke
 
     func testRevokeIsOptimisticAndDropsTheRow() async throws {

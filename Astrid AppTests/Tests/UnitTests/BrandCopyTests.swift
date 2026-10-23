@@ -116,6 +116,39 @@ final class BrandCopyTests: DefaultsTestCase {
         XCTAssertLessThanOrEqual(stored!.count, BrandCopyStore.maxSetSize)
     }
 
+    // MARK: - Due and responses (AITD-538)
+
+    /// Every kind is sanitised, not just `.general`: the same untrusted endpoint feeds all three.
+    func testAITD538_DueAndResponsesAreSanitisedLikeGeneral() throws {
+        let huge = String(repeating: "B", count: BrandCopyStore.maxNagLength + 1)
+        let caps = try decodeCopy(#"{"copy":{"reminders":{"due":["  Due today  ","","\#(huge)"],"responses":["\n","Someone replied"]}}}"#)
+        store.store(caps.copy)
+
+        XCTAssertEqual(store.reminders(.due), ["Due today"])
+        XCTAssertEqual(store.reminders(.responses), ["Someone replied"])
+        XCTAssertNil(store.reminders(.general), "a kind the server did not send stays on the built-in voice")
+    }
+
+    /// One set that sanitises to nothing falls back alone; the others keep the brand's voice.
+    func testAITD538_ABlankSetFallsBackWithoutTakingTheOthersWithIt() throws {
+        let caps = try decodeCopy(#"{"copy":{"reminders":{"general":["Hey"],"due":["   "],"responses":["Reply waiting"]}}}"#)
+        store.store(caps.copy)
+
+        XCTAssertEqual(store.reminders(.general), ["Hey"])
+        XCTAssertNil(store.reminders(.due))
+        XCTAssertEqual(store.reminders(.responses), ["Reply waiting"])
+    }
+
+    func testAITD538_EachKindIsBoundedOnItsOwn() throws {
+        let many = (0..<(BrandCopyStore.maxSetSize + 50)).map { "\"nag \($0)\"" }.joined(separator: ",")
+        let caps = try decodeCopy("{\"copy\":{\"reminders\":{\"due\":[\(many)],\"responses\":[\(many)]}}}")
+        store.store(caps.copy)
+
+        XCTAssertEqual(store.reminders(.due)?.count, BrandCopyStore.maxSetSize)
+        XCTAssertEqual(store.reminders(.responses)?.count, BrandCopyStore.maxSetSize)
+        XCTAssertEqual(store.reminders(.due)?.first, "nag 0", "the cap keeps the first ones, in order")
+    }
+
     // MARK: - Wiring
 
     /// ReminderConstants is what actually schedules the notification text.
