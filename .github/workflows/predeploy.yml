@@ -25,7 +25,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Graceful-Tools/astrid-web
-          ref: 13585fa9ad5392d031afc85ec93100d790c39d91
+          # A tag astrid-web moves when the UI-test seeder's shape changes (AITD-527), not a
+          # bare sha that silently drifts from what run-tests.sh expects.
+          ref: uitest-run-accounts-v1
           path: astrid-web
           persist-credentials: false
 
@@ -73,14 +75,10 @@ jobs:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
         run: |
           set -euo pipefail
-          cookie="$(cd astrid-web && npx tsx scripts/uitest-account.ts --cookie)"
-          if [ -z "${cookie}" ]; then
-            echo "::error::UI test cookie mint returned empty output"
-            exit 1
-          fi
-          echo "::add-mask::${cookie}"
-          ASTRID_UITEST_COOKIE="${cookie}" npm run test:ui
-          unset cookie
+          # run-tests.sh mints an account of this run's own (gha-<run>-<attempt>), masks its
+          # cookie, and deletes the account when it exits (AITD-527). The shared account it
+          # replaces was wiped by every other runner's mint.
+          ASTRID_WEB_DIR="${GITHUB_WORKSPACE}/astrid-web" npm run test:ui
 
       - name: Run Mac tests (full)
         if: ${{ inputs.mode == 'full' }}

@@ -101,10 +101,15 @@ final class TaskUITests: XCTestCase {
         func checkbox(in row: XCUIElement) -> XCUIElement {
             row.buttons.matching(identifier: UITestLaunch.taskRowIdentifier).firstMatch
         }
-        // The first OPEN row: ticking one that is already done would un-complete it.
+        // The first OPEN row: ticking one that is already done would un-complete it. On a
+        // per-run account, the first open CLASSIC fixture: the run also seeds a daily-repeating
+        // task, and ticking that one rolls it forward instead of completing it (AITD-527).
+        let classic = Set(UITestLaunch.fixtures?.tasks.classic
+            .filter { $0.completed != true }.map(\.title) ?? [])
         guard let openRow = UITestLaunch.visibleRows(app).first(where: {
             let box = checkbox(in: $0)
-            return box.exists && !box.label.contains("_checked")
+            guard box.exists, !box.label.contains("_checked") else { return false }
+            return classic.isEmpty || classic.contains($0.staticTexts.firstMatch.label)
         }) else {
             throw UITestFailure("No open row with a checkbox — the seeded fixtures are open and unassigned")
         }
@@ -129,6 +134,12 @@ final class TaskUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.25)
         }
         XCTAssertTrue(ticked, "completing \"\(title)\" should tick its checkbox")
+
+        // And the server has it: a tick proves the app drew one, not that the completion went
+        // through TaskService and the Outbox (AITD-527). Only a per-run account knows the id.
+        if let fixture = UITestLaunch.fixtures?.task(titled: title) {
+            try UITestAPI.waitForTask(id: fixture.id, "completed == true") { $0.completed }
+        }
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "After Task Completion"
