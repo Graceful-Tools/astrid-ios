@@ -18,9 +18,6 @@ enum MacBoardExpand {
     static func toggle(current: String?, tapped: String) -> String? {
         current == tapped ? nil : tapped
     }
-    /// The field labels, in order, matching Astrid Web (locks the layout contract).
-    static let fieldLabels = ["Who", "Date", "Priority", "Lists", "Description"]
-
     enum HeaderControl: Equatable { case actionsMenu, collapse }
 
     /// What sits at the right of a card's header. The open card gets web's ⋮ beside the caret

@@ -331,104 +331,6 @@ class AstridAPIClient {
         return allTasks
     }
 
-    /// Builds the `CreateTaskRequest` wire body.
-    ///
-    /// Extracted from `createTask` so the request shape — in particular that a
-    /// parsed `repeatingData` survives to the server — is unit-testable without a
-    /// network round-trip. A prior version hardcoded `repeatingData: nil` here,
-    /// which silently turned "weekly Monday" tasks into a one-off Monday due date.
-    nonisolated static func makeCreateTaskRequest(
-        title: String,
-        description: String?,
-        priority: Int?,
-        assigneeId: String?,
-        dueDateTimeString: String?,
-        isAllDay: Bool?,
-        isPrivate: Bool?,
-        repeating: String?,
-        repeatingData: CustomRepeatingPattern?,
-        clientRequestId: String?
-    ) -> CreateTaskRequest {
-        CreateTaskRequest(
-            title: title,
-            description: description,
-            priority: priority,
-            repeating: repeating,
-            repeatingData: repeatingData,
-            isPrivate: isPrivate,
-            dueDateTime: dueDateTimeString,
-            isAllDay: isAllDay,
-            reminderTime: nil,
-            reminderType: nil,
-            listIds: nil,
-            assigneeId: assigneeId,
-            assigneeEmail: nil,
-            clientRequestId: clientRequestId
-        )
-    }
-
-    /// Create a new task
-    func createTask(
-        title: String,
-        listIds: [String]? = nil,
-        description: String? = nil,
-        priority: Int? = nil,
-        assigneeId: String? = nil,
-        dueDateTime: Date? = nil,  // The due date/time (UTC midnight for all-day tasks)
-        isAllDay: Bool? = nil,  // Whether this is an all-day task
-        isPrivate: Bool? = nil,
-        repeating: String? = nil,
-        repeatingData: CustomRepeatingPattern? = nil,  // Custom recurrence pattern (e.g. weekly Mon/Wed/Fri)
-        clientRequestId: String? = nil,  // Idempotency key for dedup
-        parentTaskId: String? = nil,  // Subtasks: parent task id
-        statusRole: String? = nil  // Board state when creating in a board column (task a2c58f53)
-    ) async throws -> Task {
-        // Convert Date to ISO8601 string for API
-        // Backend expects:
-        // - 'dueDateTime' = datetime (UTC midnight for all-day tasks, specific time for timed tasks)
-        // - 'isAllDay' = boolean flag
-
-        // CRITICAL: For all-day tasks, normalize to UTC midnight
-        let dueDateTimeString: String?
-        if let dueDateTime = dueDateTime {
-            if isAllDay == true {
-                // All-day task - normalize to midnight UTC
-                var utcCalendar = Calendar.current
-                utcCalendar.timeZone = TimeZone(identifier: "UTC")!
-                let startOfDay = utcCalendar.startOfDay(for: dueDateTime)
-                dueDateTimeString = WireDate.dueDateString(from: startOfDay)
-            } else {
-                // Timed task - use exact datetime
-                dueDateTimeString = WireDate.dueDateString(from: dueDateTime)
-            }
-        } else {
-            dueDateTimeString = nil
-        }
-
-        var body = Self.makeCreateTaskRequest(
-            title: title,
-            description: description,
-            priority: priority,
-            assigneeId: assigneeId,
-            dueDateTimeString: dueDateTimeString,
-            isAllDay: isAllDay,
-            isPrivate: isPrivate,
-            repeating: repeating,
-            repeatingData: repeatingData,
-            clientRequestId: clientRequestId
-        )
-        body.listIds = listIds
-        body.parentTaskId = parentTaskId
-        body.statusRole = statusRole
-
-        let response: TaskResponse = try await request(
-            method: "POST",
-            path: "/api/v1/tasks",
-            body: body
-        )
-        return response.task
-    }
-
     /// Update a task
     func updateTask(id: String, updates: UpdateTaskRequest) async throws -> Task {
         let response: TaskResponse = try await request(
@@ -548,12 +450,6 @@ class AstridAPIClient {
             body: body
         )
         return response.project
-    }
-
-    /// Builds the atomic Create Board request body. Extracted so the wire shape
-    /// is unit-testable without a network round-trip.
-    nonisolated static func makeCreateBoardFromListRequest(listId: String) -> CreateBoardFromListRequest {
-        CreateBoardFromListRequest(listId: listId)
     }
 
     /// Delete a project (owner only). Detaches domain lists, cascade-deletes
