@@ -135,11 +135,14 @@ final class E2EJourneyUITests: XCTestCase {
         titleField.tap()
         try waitFor("the keyboard for the title") { self.app.keyboards.count > 0 }
         // Replace the whole title: where a tap leaves the caret depends on how the title wraps.
-        titleField.typeKey("a", modifierFlags: .command)
-        titleField.typeText(newTitle + "\n")
-        try waitFor("the title field to hold \"\(newTitle)\" (has \"\(titleField.value as? String ?? "")\")") {
-            (titleField.value as? String) == newTitle
+        // Select-all can land before the field has settled its focus, and then the new title is
+        // typed into the middle of the old one — so check, and select again if it did.
+        for _ in 0..<3 where (titleField.value as? String) != newTitle {
+            titleField.typeKey("a", modifierFlags: .command)
+            titleField.typeText(newTitle)
         }
+        XCTAssertEqual(titleField.value as? String, newTitle, "the title field holds the new title")
+        titleField.typeText("\n")
 
         let description = "Description \(tag)"
         let display = try element("taskDetail.description")
