@@ -1024,12 +1024,7 @@ enum SyncDirection: String, Codable, CaseIterable {
     }
 
     var description: String {
-        let key: String
-        switch self {
-        case .export: key = "apple_reminders.direction.export_description"
-        case .import_: key = "apple_reminders.direction.import_description"
-        case .bidirectional: key = "apple_reminders.direction.bidirectional_description"
-        }
+        let key = "apple_reminders.direction.\(rawValue)_description"
         return String(format: NSLocalizedString(key, comment: ""), Brand.appName)
     }
 }
