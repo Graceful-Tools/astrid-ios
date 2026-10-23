@@ -125,19 +125,25 @@ final class TaskUITests: XCTestCase {
         // rather than held onto. Poll rather than sleep, and say WHICH title was being watched
         // if nothing changes — a bare timeout on a predicate cannot tell "the tap did nothing"
         // from "the wrong text was captured".
+        //
+        // On a per-run account a completed task LEAVES My Tasks rather than showing a tick (its
+        // list settings hide completed rows; the shared account's did not), so there "gone" is
+        // as good as "ticked" — and the server assertion below is what decides (AITD-527).
+        let fixture = UITestLaunch.fixtures?.task(titled: title)
         var ticked = false
         let deadline = Date().addingTimeInterval(10)
         while Date() < deadline {
-            let box = checkbox(in: app.cells.containing(titled).firstMatch)
-            ticked = box.exists && box.label.contains("_checked")
+            let row = app.cells.containing(titled).firstMatch
+            let box = checkbox(in: row)
+            ticked = (box.exists && box.label.contains("_checked")) || (fixture != nil && !row.exists)
             if ticked { break }
             Thread.sleep(forTimeInterval: 0.25)
         }
         XCTAssertTrue(ticked, "completing \"\(title)\" should tick its checkbox")
 
         // And the server has it: a tick proves the app drew one, not that the completion went
-        // through TaskService and the Outbox (AITD-527). Only a per-run account knows the id.
-        if let fixture = UITestLaunch.fixtures?.task(titled: title) {
+        // through TaskService and the Outbox. Only a per-run account knows the id.
+        if let fixture {
             try UITestAPI.waitForTask(id: fixture.id, "completed == true") { $0.completed }
         }
 

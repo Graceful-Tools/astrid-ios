@@ -89,7 +89,8 @@ final class SignedInPreconditionUITests: XCTestCase {
         //
         // A per-run account names its fixtures by id, so look for THIS run's first one by its
         // exact title; the shared account only has the seeder's prefix to go on (AITD-527).
-        let predicate = UITestLaunch.fixtures?.tasks.classic.first.map {
+        // An open one: My Tasks may hide the seeded completed fixture.
+        let predicate = UITestLaunch.fixtures?.tasks.classic.first(where: { $0.completed != true }).map {
             NSPredicate(format: "label == %@", $0.title)
         } ?? NSPredicate(format: "label BEGINSWITH %@", UITestFixtures.classicTitlePrefix)
         let fixture = app.staticTexts.matching(predicate).firstMatch
