@@ -1549,3 +1549,21 @@
 "apple_reminders.error.list_not_linked" = "Liste ist nicht mit Apple Erinnerungen verknüpft.";
 "apple_reminders.error.calendar_not_found" = "Verknüpfter Erinnerungskalender nicht gefunden.";
 "apple_reminders.error.sync_failed" = "Synchronisierung fehlgeschlagen: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Verweigert — in Systemeinstellungen › Datenschutz aktivieren";
+"mac.reminders.status.limited" = "Eingeschränkter Zugriff";
+"mac.ai_keys.not_set" = "Nicht festgelegt";
+"mac.ai_keys.key_set" = "Schlüssel festgelegt";
+"mac.ai_keys.invalid" = "%@ — ungültig";
+"mac.repeat.every_one.days" = "Jeden Tag";
+"mac.repeat.every_one.weeks" = "Jede Woche";
+"mac.repeat.every_one.months" = "Jeden Monat";
+"mac.repeat.every_one.years" = "Jedes Jahr";
+"mac.repeat.every_n.days" = "Alle %d Tage";
+"mac.repeat.every_n.weeks" = "Alle %d Wochen";
+"mac.repeat.every_n.months" = "Alle %d Monate";
+"mac.repeat.every_n.years" = "Alle %d Jahre";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, bis Datum";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

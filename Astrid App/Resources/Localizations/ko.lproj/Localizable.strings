@@ -1551,3 +1551,21 @@
 "apple_reminders.error.list_not_linked" = "목록이 Apple 미리 알림에 연결되어 있지 않습니다.";
 "apple_reminders.error.calendar_not_found" = "연결된 미리 알림 캘린더를 찾을 수 없습니다.";
 "apple_reminders.error.sync_failed" = "동기화 실패: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "거부됨 — 시스템 설정 › 개인정보 보호에서 허용하세요";
+"mac.reminders.status.limited" = "제한된 접근";
+"mac.ai_keys.not_set" = "설정 안 됨";
+"mac.ai_keys.key_set" = "키 설정됨";
+"mac.ai_keys.invalid" = "%@ — 유효하지 않음";
+"mac.repeat.every_one.days" = "매일";
+"mac.repeat.every_one.weeks" = "매주";
+"mac.repeat.every_one.months" = "매월";
+"mac.repeat.every_one.years" = "매년";
+"mac.repeat.every_n.days" = "%d일마다";
+"mac.repeat.every_n.weeks" = "%d주마다";
+"mac.repeat.every_n.months" = "%d개월마다";
+"mac.repeat.every_n.years" = "%d년마다";
+"mac.repeat.summary_times" = "%1$@, %2$d회";
+"mac.repeat.summary_until_date" = "%@, 날짜까지";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

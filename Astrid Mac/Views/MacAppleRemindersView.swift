@@ -17,9 +17,10 @@ enum MacRemindersStatus {
     }
     static func label(_ status: EKAuthorizationStatus) -> String {
         switch status {
-        case .notDetermined: return "Not connected"
-        case .denied, .restricted: return "Denied — enable in System Settings › Privacy"
-        default: return isGranted(status) ? "Connected" : "Limited access"
+        case .notDetermined: return NSLocalizedString("sync.not_connected", comment: "")
+        case .denied, .restricted: return NSLocalizedString("mac.reminders.status.denied", comment: "")
+        default:
+            return NSLocalizedString(isGranted(status) ? "sync.connected" : "mac.reminders.status.limited", comment: "")
         }
     }
 }

@@ -29,10 +29,10 @@ enum MacTaskVisuals {
 
     static func priorityLabel(_ p: Task.Priority) -> String {
         switch p {
-        case .none: return "None"
-        case .low: return "Low"
-        case .medium: return "Medium"
-        case .high: return "High"
+        case .none: return NSLocalizedString("priority.none", comment: "")
+        case .low: return NSLocalizedString("priority.low", comment: "")
+        case .medium: return NSLocalizedString("priority.medium", comment: "")
+        case .high: return NSLocalizedString("priority.high", comment: "")
         }
     }
 

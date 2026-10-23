@@ -1565,3 +1565,21 @@
 "apple_reminders.error.list_not_linked" = "La liste n’est pas liée à Rappels d’Apple.";
 "apple_reminders.error.calendar_not_found" = "Calendrier Rappels lié introuvable.";
 "apple_reminders.error.sync_failed" = "Échec de la synchronisation : %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Refusé — activez-le dans Réglages Système › Confidentialité";
+"mac.reminders.status.limited" = "Accès limité";
+"mac.ai_keys.not_set" = "Non définie";
+"mac.ai_keys.key_set" = "Clé définie";
+"mac.ai_keys.invalid" = "%@ — invalide";
+"mac.repeat.every_one.days" = "Chaque jour";
+"mac.repeat.every_one.weeks" = "Chaque semaine";
+"mac.repeat.every_one.months" = "Chaque mois";
+"mac.repeat.every_one.years" = "Chaque année";
+"mac.repeat.every_n.days" = "Tous les %d jours";
+"mac.repeat.every_n.weeks" = "Toutes les %d semaines";
+"mac.repeat.every_n.months" = "Tous les %d mois";
+"mac.repeat.every_n.years" = "Tous les %d ans";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, jusqu’à une date";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

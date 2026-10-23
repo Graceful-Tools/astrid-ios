@@ -1549,3 +1549,21 @@
 "apple_reminders.error.list_not_linked" = "リストは Apple リマインダーにリンクされていません。";
 "apple_reminders.error.calendar_not_found" = "リンクされたリマインダーのカレンダーが見つかりません。";
 "apple_reminders.error.sync_failed" = "同期に失敗しました: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "拒否されています — システム設定 › プライバシーで有効にしてください";
+"mac.reminders.status.limited" = "制限付きアクセス";
+"mac.ai_keys.not_set" = "未設定";
+"mac.ai_keys.key_set" = "キー設定済み";
+"mac.ai_keys.invalid" = "%@ — 無効";
+"mac.repeat.every_one.days" = "毎日";
+"mac.repeat.every_one.weeks" = "毎週";
+"mac.repeat.every_one.months" = "毎月";
+"mac.repeat.every_one.years" = "毎年";
+"mac.repeat.every_n.days" = "%d日ごと";
+"mac.repeat.every_n.weeks" = "%d週間ごと";
+"mac.repeat.every_n.months" = "%dか月ごと";
+"mac.repeat.every_n.years" = "%d年ごと";
+"mac.repeat.summary_times" = "%1$@、%2$d回";
+"mac.repeat.summary_until_date" = "%@、指定日まで";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

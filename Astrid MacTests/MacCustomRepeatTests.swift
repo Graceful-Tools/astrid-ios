@@ -39,10 +39,23 @@ final class MacCustomRepeatTests: XCTestCase {
         XCTAssertEqual(p.interval, 1)
     }
 
-    func testSummary() {
-        let weekly = MacCustomRepeat.make(interval: 1, unit: "weeks", endCondition: "never", endAfter: 1, endUntil: Date())
-        XCTAssertEqual(MacCustomRepeat.summary(weekly), "Every week")
-        let biweekly = MacCustomRepeat.make(interval: 2, unit: "weeks", endCondition: "never", endAfter: 1, endUntil: Date())
-        XCTAssertEqual(MacCustomRepeat.summary(biweekly), "Every 2 weeks")
+    /// Rule 8 (AITD-537): the summary is built from keys that resolve, in every unit.
+    func testSummaryReadsItsKeys_AITD537() {
+        func text(_ key: String) -> String {
+            let value = NSLocalizedString(key, comment: "")
+            XCTAssertNotEqual(value, key, "\(key) is missing")
+            return value
+        }
+        for unit in ["days", "weeks", "months", "years"] {
+            let one = MacCustomRepeat.make(interval: 1, unit: unit, endCondition: "never", endAfter: 1, endUntil: Date())
+            XCTAssertEqual(MacCustomRepeat.summary(one), text("mac.repeat.every_one.\(unit)"))
+            let two = MacCustomRepeat.make(interval: 2, unit: unit, endCondition: "never", endAfter: 1, endUntil: Date())
+            XCTAssertEqual(MacCustomRepeat.summary(two), String(format: text("mac.repeat.every_n.\(unit)"), 2))
+        }
+        let weekly = text("mac.repeat.every_one.weeks")
+        let times = MacCustomRepeat.make(interval: 1, unit: "weeks", endCondition: "after_occurrences", endAfter: 3, endUntil: Date())
+        XCTAssertEqual(MacCustomRepeat.summary(times), String(format: text("mac.repeat.summary_times"), weekly, 3))
+        let until = MacCustomRepeat.make(interval: 1, unit: "weeks", endCondition: "until_date", endAfter: 1, endUntil: Date())
+        XCTAssertEqual(MacCustomRepeat.summary(until), String(format: text("mac.repeat.summary_until_date"), weekly))
     }
 }

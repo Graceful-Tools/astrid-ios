@@ -1549,3 +1549,21 @@
 "apple_reminders.error.list_not_linked" = "L’elenco non è collegato a Promemoria di Apple.";
 "apple_reminders.error.calendar_not_found" = "Calendario Promemoria collegato non trovato.";
 "apple_reminders.error.sync_failed" = "Sincronizzazione non riuscita: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Negato — abilitalo in Impostazioni di Sistema › Privacy";
+"mac.reminders.status.limited" = "Accesso limitato";
+"mac.ai_keys.not_set" = "Non impostata";
+"mac.ai_keys.key_set" = "Chiave impostata";
+"mac.ai_keys.invalid" = "%@ — non valida";
+"mac.repeat.every_one.days" = "Ogni giorno";
+"mac.repeat.every_one.weeks" = "Ogni settimana";
+"mac.repeat.every_one.months" = "Ogni mese";
+"mac.repeat.every_one.years" = "Ogni anno";
+"mac.repeat.every_n.days" = "Ogni %d giorni";
+"mac.repeat.every_n.weeks" = "Ogni %d settimane";
+"mac.repeat.every_n.months" = "Ogni %d mesi";
+"mac.repeat.every_n.years" = "Ogni %d anni";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, fino a una data";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

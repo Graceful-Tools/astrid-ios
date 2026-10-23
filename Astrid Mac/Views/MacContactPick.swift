@@ -7,7 +7,9 @@ import Foundation
 enum MacContactPick {
     /// Suggestion label: "Name — email", or just the email when there's no name.
     static func display(name: String?, email: String) -> String {
-        if let n = name?.trimmingCharacters(in: .whitespaces), !n.isEmpty { return "\(n) — \(email)" }
+        if let n = name?.trimmingCharacters(in: .whitespaces), !n.isEmpty {
+            return String(format: NSLocalizedString("mac.contact_pick.name_email", comment: ""), n, email)
+        }
         return email
     }
 }

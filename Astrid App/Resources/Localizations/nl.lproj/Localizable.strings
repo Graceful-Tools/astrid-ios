@@ -1549,3 +1549,21 @@
 "apple_reminders.error.list_not_linked" = "Lijst is niet gekoppeld aan Apple Herinneringen.";
 "apple_reminders.error.calendar_not_found" = "Gekoppelde Herinneringen-agenda niet gevonden.";
 "apple_reminders.error.sync_failed" = "Synchronisatie mislukt: %@";
+
+/* Mac helper copy (AITD-537) */
+"mac.reminders.status.denied" = "Geweigerd — schakel in bij Systeeminstellingen › Privacy";
+"mac.reminders.status.limited" = "Beperkte toegang";
+"mac.ai_keys.not_set" = "Niet ingesteld";
+"mac.ai_keys.key_set" = "Sleutel ingesteld";
+"mac.ai_keys.invalid" = "%@ — ongeldig";
+"mac.repeat.every_one.days" = "Elke dag";
+"mac.repeat.every_one.weeks" = "Elke week";
+"mac.repeat.every_one.months" = "Elke maand";
+"mac.repeat.every_one.years" = "Elk jaar";
+"mac.repeat.every_n.days" = "Elke %d dagen";
+"mac.repeat.every_n.weeks" = "Elke %d weken";
+"mac.repeat.every_n.months" = "Elke %d maanden";
+"mac.repeat.every_n.years" = "Elke %d jaar";
+"mac.repeat.summary_times" = "%1$@, %2$d×";
+"mac.repeat.summary_until_date" = "%@, tot datum";
+"mac.contact_pick.name_email" = "%1$@ — %2$@";

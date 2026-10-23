@@ -19,11 +19,20 @@ final class MacSyncLinksTests: XCTestCase {
         XCTAssertNil(MacSyncLinks.link([], for: "a"))
     }
 
-    func testGoogleModeLabels() {
-        XCTAssertEqual(MacSyncLinks.googleModeLabel(.manual), "Link lists manually")
-        XCTAssertEqual(MacSyncLinks.googleModeLabel(.allGoogleToAstrid), "All Google → Astrid")
-        XCTAssertEqual(MacSyncLinks.googleModeLabel(.allAstridToGoogle), "All Astrid → Google")
-        XCTAssertEqual(MacSyncLinks.googleModeLabel(.allBidirectional), "Two-way (all lists)")
+    /// Rule 8 (AITD-537): the Mac picker reads the iOS picker's `sync.mode_*` keys, brand filled in.
+    func testGoogleModeLabelsReadTheIOSKeys_AITD537() {
+        let expected: [(GoogleSyncMode, String)] = [
+            (.manual, "sync.mode_manual"),
+            (.allGoogleToAstrid, "sync.mode_google_to_astrid"),
+            (.allAstridToGoogle, "sync.mode_astrid_to_google"),
+            (.allBidirectional, "sync.mode_bidirectional"),
+        ]
+        for (mode, key) in expected {
+            let format = NSLocalizedString(key, comment: "")
+            XCTAssertNotEqual(format, key, "\(key) is missing")
+            XCTAssertEqual(MacSyncLinks.googleModeLabel(mode), String(format: format, Brand.appName))
+        }
+        XCTAssertTrue(MacSyncLinks.googleModeLabel(.allGoogleToAstrid).contains(Brand.appName))
         // Every mode has a non-empty label.
         for m in GoogleSyncMode.allCases {
             XCTAssertFalse(MacSyncLinks.googleModeLabel(m).isEmpty)

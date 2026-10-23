@@ -16,9 +16,9 @@ enum MacAIKeys {
 
     /// A short status string for a provider given the keys response map.
     static func statusText(hasKey: Bool, preview: String?, isValid: Bool?) -> String {
-        guard hasKey else { return "Not set" }
-        let tail = preview.map { "•••\($0)" } ?? "Key set"
-        if isValid == false { return "\(tail) — invalid" }
+        guard hasKey else { return NSLocalizedString("mac.ai_keys.not_set", comment: "") }
+        let tail = preview.map { "•••\($0)" } ?? NSLocalizedString("mac.ai_keys.key_set", comment: "")
+        if isValid == false { return String(format: NSLocalizedString("mac.ai_keys.invalid", comment: ""), tail) }
         return tail
     }
 }
