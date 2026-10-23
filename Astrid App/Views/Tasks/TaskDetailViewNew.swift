@@ -1398,7 +1398,7 @@ struct TaskDetailViewNew: View {
                 repeatFrom: $editedRepeatFrom,
                 repeatingData: $editedRepeatingData,
                 onSave: saveRepeating,
-                onSaveCustom: saveCustomRepeating,
+                onSaveCustom: saveCustomRepeating, dueDate: isAllDay ? editedDueDate : (editedDueTime ?? editedDueDate), isAllDay: isAllDay,
                 showLabel: false,
                 compact: true
             )
