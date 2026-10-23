@@ -286,6 +286,19 @@ enum UITestLaunch {
         return app.keyboards.element.waitForExistence(timeout: timeout)
     }
 
+    /// Put the keyboard away the way a person can: Return in an empty quick add drops its focus
+    /// (`QuickAddTaskView`). Swiping does not — and on the way back from a task, quick add takes
+    /// focus again and the keyboard rises over the bottom of the list, where a task created a
+    /// moment ago sits, so no swipe ever brought it clear (AITD-543).
+    @MainActor
+    static func putQuickAddKeyboardAway(_ app: XCUIApplication) {
+        let field = quickAddField(app)
+        guard app.keyboards.count > 0, field.exists, (field.value as? String ?? "").isEmpty else { return }
+        field.typeText("\n")
+        let gone = NSPredicate(format: "count == 0")
+        _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: gone, object: app.keyboards)], timeout: 3)
+    }
+
     /// The first row on the current screen, or nil when nothing is on screen yet.
     @MainActor
     static func firstVisibleRow(_ app: XCUIApplication) -> XCUIElement? {
@@ -315,23 +328,45 @@ enum UITestLaunch {
         return firstVisibleRow(app)
     }
 
-    /// The static text naming a task just created, found even when it landed off screen.
+    /// The static text naming a task just created, scrolled into view if it landed off screen.
     ///
     /// Quick add keeps the keyboard up, which clips the list to the space above it — four rows
     /// on an iPhone 17 — and a new task sorts below the fixtures, out of the lazy accessibility
     /// tree. "My Tasks, 6" counted it while `waitForExistence` reported it missing, so every
-    /// creation test failed on a task that had been created (AITD-525). Look first, then put the
-    /// keyboard away and scroll down the list a few times before giving up.
+    /// creation test failed on a task that had been created (AITD-525).
+    ///
+    /// The scroll has to be the LIST's. This used to `app.swipeDown()` to put the keyboard away
+    /// and then `app.swipeUp()`, and neither did anything: the keyboard stayed up and the list
+    /// stayed at 0% through all four swipes, while one `swipeUp()` on the list's collection view
+    /// took it to 100%. The row the app had drawn sat just out of reach, and five tests went red
+    /// on a list that was right (AITD-543). A row counts only once it is inside the list's
+    /// visible frame and clear of the keyboard, so a caller never taps a key thinking it tapped
+    /// the row.
     @MainActor
     static func waitForCreatedTask(_ app: XCUIApplication, titled title: String,
                                    timeout: TimeInterval = 5) -> XCUIElement? {
         let text = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
-        if text.waitForExistence(timeout: timeout) { return text }
-        if app.keyboards.count > 0 { app.swipeDown() }
-        if text.waitForExistence(timeout: 2) { return text }
-        for _ in 0..<4 {
-            app.swipeUp()
-            if text.waitForExistence(timeout: 2) { return text }
+        let list = app.collectionViews.containing(.any, identifier: taskRowIdentifier).firstMatch
+        func onScreen() -> Bool {
+            guard text.exists else { return false }
+            let frame = text.frame
+            let centre = CGPoint(x: frame.midX, y: frame.midY)
+            // Quick add takes focus again on the way back from a task, and the keyboard rises
+            // over the list before the list shrinks for it: a tap there typed an "R" into quick
+            // add instead of opening the task (AITD-543).
+            let keyboard = app.keyboards.firstMatch
+            if keyboard.exists, keyboard.frame.contains(centre) { return false }
+            guard list.exists else { return true }
+            return list.frame.contains(centre)
+        }
+        if text.waitForExistence(timeout: timeout), onScreen() { return text }
+        putQuickAddKeyboardAway(app)
+        if onScreen() { return text }
+        // Down the list first, where a new task sorts; then back up, for a row scrolled past.
+        let surface = list.exists ? list : app
+        for down in [true, true, true, true, false, false, false, false] {
+            if down { surface.swipeUp() } else { surface.swipeDown() }
+            if text.waitForExistence(timeout: 2), onScreen() { return text }
         }
         return nil
     }
