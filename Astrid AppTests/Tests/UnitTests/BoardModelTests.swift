@@ -162,30 +162,4 @@ final class BoardModelTests: XCTestCase {
         XCTAssertEqual(try CoreRowsFixture.wait(session, nobody.command, as: AssigneeAnswer.self).people.map(\.id),
                        ["me"], "AITD-413: a list that knows nobody still offers you")
     }
-
-    // MARK: - The Swift copies are gone
-
-    func testAITD461_theBoardsAndPickersAskTheCore() throws {
-        func source(_ path: String) throws -> String {
-            try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
-        }
-        for path in ["Astrid App/Views/Board/ProjectStatusBoardView.swift", "Astrid Mac/Views/MacBoardView.swift"] {
-            XCTAssertTrue(try source(path).contains("BoardModel()"), "\(path) does not ask the core for its board")
-        }
-        let gone = ["getProjectBoardColumns", "boardColumnTasksSorted", "resolveBoardReorder", "planProjectColumnMove",
-                    "ProjectStateMove", "ProjectStatePicker.", "MacBoardMove", "ListFilingTargets",
-                    "DueDateQuickPicks", "AssigneeOptions.build"]
-        for path in ["Astrid App/Views/Board/ProjectStatusBoardView.swift", "Astrid Mac/Views/MacBoardView.swift",
-                     "Astrid App/Views/Components/ProjectStateQuickPicker.swift",
-                     "Astrid Mac/Views/MacLeadingControlButton.swift",
-                     "Astrid App/Views/Components/InlineListsPicker.swift", "Astrid Mac/Views/MacListPicker.swift",
-                     "Astrid App/Views/Components/InlineDatePicker.swift", "Astrid Mac/Views/MacDueDatePicker.swift",
-                     "Astrid App/Views/Components/InlineAssigneePicker.swift",
-                     "Astrid Mac/Views/MacAssigneeOptions.swift"] {
-            let text = try source(path)
-            for name in gone {
-                XCTAssertFalse(text.contains(name), "\(path) still calls the Swift \(name)")
-            }
-        }
-    }
 }

@@ -73,8 +73,11 @@ final class CompleteTaskRolloverTests: XCTestCase {
         let next = try XCTUnwrap(rolled.dueDateTime)
         let cal = Calendar.current
         XCTAssertGreaterThan(next, before)
-        XCTAssertLessThanOrEqual(next.timeIntervalSince(before), 3 * 86_400 + 3_600,
-                                 "the next selected weekday is at most three days on")
+        // The longest gap is completing in the first minutes of a Friday: the next slot is
+        // Monday 09:00, three days and nine hours on. A 3-day bound failed every Friday before
+        // 08:00 local (2026-10-23, 00:21).
+        XCTAssertLessThanOrEqual(next.timeIntervalSince(before), 3 * 86_400 + 9 * 3_600 + 60,
+                                 "the next selected weekday is at most Friday-to-Monday on")
         XCTAssertTrue([2, 4, 6].contains(cal.component(.weekday, from: next)), "a Mon, Wed or Fri")
         XCTAssertEqual(cal.component(.hour, from: next), 9, "the time of day is kept")
     }
