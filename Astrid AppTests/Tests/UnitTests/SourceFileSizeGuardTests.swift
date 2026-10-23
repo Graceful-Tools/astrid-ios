@@ -79,7 +79,9 @@ final class SourceFileSizeGuardTests: XCTestCase {
         // AITD-504: the account calls went to `+Account` as the legacy client's calls came in.
         // 1358 for AITD-535: `init(session:)` for tests came in, the uncalled `deleteTask` left.
         "Astrid App/Core/Networking/AstridAPIClient.swift": 1358,
-        "Astrid App/Core/Services/AppleRemindersService.swift": 1061,
+        // `AppleRemindersService.swift` left this list on 2026-10-23 at 949 lines: AITD-538 needed
+        // weekday and end handling in the recurrence mapping, and the mapping moved to
+        // `AppleRemindersService+Recurrence.swift` instead of the ceiling going up. No entry.
         // `QuickAddTaskView.swift` left this list on 2026-10-16 at 749 lines: AITD-491 moved its
         // priority/assignee sheet to `QuickAddPickerSheet.swift`. Under the threshold, no entry.
     ]

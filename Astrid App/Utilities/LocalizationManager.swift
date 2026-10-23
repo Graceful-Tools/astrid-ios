@@ -141,7 +141,7 @@ enum LanguageSelection {
                 priority.append(code)
             }
         }
-        if let affinity = regionCode.flatMap(languageAffinity(forRegion:)), priority.contains(affinity) {
+        if let regionCode, let affinity = languageAffinity(forRegion: regionCode), priority.contains(affinity) {
             return affinity
         }
         return priority.first ?? "en"
