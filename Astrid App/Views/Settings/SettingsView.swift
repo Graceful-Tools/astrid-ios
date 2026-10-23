@@ -337,6 +337,7 @@ struct SettingsView: View {
                                 Spacer()
                             }
                         }
+                        .accessibilityIdentifier("account.destructive.signOut")
                     }
                 }
                 } // end isReady else
@@ -383,6 +384,7 @@ struct SettingsView: View {
                     try? await authManager.signOut()
                 }
             }
+            .accessibilityIdentifier("account.destructive.signOutConfirm")
         } message: {
             Text(NSLocalizedString("are_you_sure_sign_out", comment: ""))
         }

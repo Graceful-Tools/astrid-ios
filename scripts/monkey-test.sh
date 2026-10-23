@@ -13,10 +13,44 @@
 #   ./scripts/monkey-test.sh ios --actions 400 --seed 7
 #
 # Every run ends with one line starting `RESULT:`. Findings land in build/monkey/.
+#   RESULT: OK       exit 0 — the app survived
+#   RESULT: FAILED   exit 1 — the app did not survive, or nothing was stressed
+#   RESULT: HARNESS  exit 3 — the machine could not run a UI test (locked screen, app never
+#                    reached the foreground). Says nothing about the app either way.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
+
+# The verdict, as a function of the xcodebuild log and its exit code alone, so
+# scripts/test-monkey-verdict.sh can pin it: `monkey-test.sh --classify <log> <rc>` prints
+# "<verdict> — <why>" and runs nothing.
+classify() {
+  local log="$1" rc="$2"
+  VERDICT="ok"; VERDICT_WHY=""
+  if grep -q "Failed to activate application" "$log" 2>/dev/null; then
+    # Checked first: it fails the test, but it is the machine, not the app (see the lock check).
+    VERDICT="harness"
+    VERDICT_WHY="${SCHEME:-the app} launched but never reached the foreground (locked screen or another app holding focus)"
+  elif grep -qiE "test case '.*monkeyuitests.*' skipped" "$log" 2>/dev/null; then
+    VERDICT="failed"
+    VERDICT_WHY="the monkey SKIPPED instead of running, so nothing was stressed"
+  elif [ "$rc" -ne 0 ]; then
+    VERDICT="failed"
+    VERDICT_WHY="${SCHEME:-the app} did not survive the run — search $log for XCTFail"
+  elif ! grep -qiE "test case '.*monkeyuitests.*' passed" "$log" 2>/dev/null; then
+    # Both output shapes: "Test case 'MonkeyUITests...' passed" under parallel testing, and
+    # "Test Case '-[Astrid_AppUITests.MonkeyUITests ...]' passed" without it.
+    VERDICT="failed"
+    VERDICT_WHY="xcodebuild exited 0 but no monkey test reported passing, so nothing was stressed"
+  fi
+}
+
+if [ "${1:-}" = "--classify" ]; then
+  classify "${2:?log path}" "${3:?exit code}"
+  echo "$VERDICT — ${VERDICT_WHY:-survived}"
+  exit 0
+fi
 
 TARGET="${1:-}"; shift || true
 ACTIONS=150; SEED=""; HANG=10
@@ -87,6 +121,18 @@ if [ "$TARGET" = "mac" ] && ! DevToolsSecurity -status 2>/dev/null | grep -q ena
   echo "RESULT: FAILED — developer mode is off on this Mac, so the UI-test runner cannot start."
   echo "  Fix (needs your password, once per machine): sudo DevToolsSecurity -enable"
   exit 1
+fi
+
+# A locked screen puts a shield window over every app, so the app under test launches but can
+# never come to the foreground. XCUITest then fails `launch()` itself with "Failed to activate
+# application … (current state: Running Background)", and the app log shows AppKit refusing to
+# vend accessibility elements because the window "is lower than shield(2001)". The weekly Mac run
+# hit exactly this four Mondays running and reported it as "did not survive" (AITD-530). Ask first.
+if [ "$TARGET" = "mac" ] && ioreg -n Root -d1 -a 2>/dev/null | plutil -extract IOConsoleUsers xml1 -o - - 2>/dev/null \
+     | grep -A1 CGSSessionScreenIsLocked | grep -q "<true/>"; then
+  echo ""
+  echo "RESULT: HARNESS — the screen is locked, so the Mac app cannot reach the foreground. Unlock it and re-run."
+  exit 3
 fi
 
 # The knobs travel in a bundle resource, not the environment: xcodebuild does not forward the
@@ -167,19 +213,7 @@ stop_log_capture
 
 # Whether the run counts is decided here, but NOT acted on until after the log sweep: the sweep is
 # the half of this that finds the quiet problems, and an early exit would throw it away.
-VERDICT="ok"; VERDICT_WHY=""
-if grep -qiE "test case '.*monkeyuitests.*' skipped" "$LOG" 2>/dev/null; then
-  VERDICT="failed"
-  VERDICT_WHY="the monkey SKIPPED instead of running, so nothing was stressed"
-elif [ "$TEST_RC" -ne 0 ]; then
-  VERDICT="failed"
-  VERDICT_WHY="$SCHEME did not survive the run — search $LOG for XCTFail"
-elif ! grep -qiE "test case '.*monkeyuitests.*' passed" "$LOG" 2>/dev/null; then
-  # Both output shapes: "Test case 'MonkeyUITests...' passed" under parallel testing, and
-  # "Test Case '-[Astrid_AppUITests.MonkeyUITests ...]' passed" without it.
-  VERDICT="failed"
-  VERDICT_WHY="xcodebuild exited 0 but no monkey test reported passing, so nothing was stressed"
-fi
+classify "$LOG" "$TEST_RC"
 
 step "What the app logged while being hammered"
 # Severity first, keywords second.
@@ -209,7 +243,7 @@ if [ "${TOTAL:-0}" -gt 0 ]; then
   # itself, and haptics on a device that has none. Whatever remains is worth a human's attention.
   echo "  after dropping known test-environment noise:" | tee -a "$FINDINGS"
   printf "%s" "$APP_ERRORS" \
-    | grep -viE "XCTAutomationSupport|CoreHaptics|AXRuntime|UIAccessibility" \
+    | grep -viE "XCTAutomationSupport|CoreHaptics|AXRuntime|UIAccessibility|AccessibilitySettingsLoader|libCoreFSCache" \
     | cut -c1-240 | head -20 | sed 's/^/    /' | tee -a "$FINDINGS" || true
 fi
 
@@ -220,7 +254,8 @@ for check in "crash:fatal error|Fatal Exception|SIGABRT|EXC_BAD_ACCESS" \
              "Swift runtime trap:Swift runtime failure|precondition failed" \
              "layout constraint break:Unable to simultaneously satisfy" \
              "Core Data error:com.apple.CoreData.*(error|Fault)|CoreData: error" \
-             "app hang:hang detected|Hang detected"; do
+             "app hang:hang detected|Hang detected" \
+             "log volume quarantined:QUARANTINED DUE TO HIGH LOGGING VOLUME"; do
   label="${check%%:*}"; pattern="${check#*:}"
   n=$(printf "%s" "$APP_ERRORS" | grep -ciE "$pattern" || true)
   printf "  %-24s %s\n" "$label" "${n:-0}" | tee -a "$FINDINGS"
@@ -229,6 +264,8 @@ done
 echo ""
 if [ "$VERDICT" = "ok" ]; then
   green "✓ The app survived: no crash, no hang, still driveable"
+elif [ "$VERDICT" = "harness" ]; then
+  echo "  ? $VERDICT_WHY — the run says nothing about the app"
 else
   echo "  ✗ $VERDICT_WHY"
 fi
@@ -239,6 +276,10 @@ echo ""
 if [ "$VERDICT" = "ok" ]; then
   echo "RESULT: OK — $SCHEME survived $ACTIONS random actions. Log findings counted in $FINDINGS"
   exit 0
+fi
+if [ "$VERDICT" = "harness" ]; then
+  echo "RESULT: HARNESS — $VERDICT_WHY. Details: $LOG"
+  exit 3
 fi
 echo "RESULT: FAILED — $VERDICT_WHY. Details: $LOG"
 exit 1

@@ -90,6 +90,7 @@ struct DeleteAccountView: View {
                             }
                         }
                         .disabled(!viewModel.canDeleteAccount || viewModel.isDeleting)
+                        .accessibilityIdentifier("account.destructive.deleteMyAccount")
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -117,6 +118,7 @@ struct DeleteAccountView: View {
                     }
                 }
             }
+            .accessibilityIdentifier("account.destructive.deleteForever")
         } message: {
             Text(NSLocalizedString("settings.account.delete_final_warning", comment: ""))
         }

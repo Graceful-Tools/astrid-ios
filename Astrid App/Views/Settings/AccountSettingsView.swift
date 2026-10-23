@@ -584,6 +584,7 @@ struct AccountSettingsView: View {
                 Label(NSLocalizedString("settings.account.delete_account", comment: ""), systemImage: "trash")
                     .foregroundColor(.red)
             }
+            .accessibilityIdentifier("account.destructive.deleteAccount")
         } header: {
             Text(NSLocalizedString("settings.account.danger_zone", comment: ""))
         } footer: {

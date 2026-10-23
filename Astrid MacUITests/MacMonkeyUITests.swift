@@ -34,10 +34,15 @@ final class MacMonkeyUITests: XCTestCase {
     func testMonkeyStressesTheMacAppWithoutCrashingOrHanging() throws {
         let app = MacUITestLaunch.makeApp()
         app.launch()
+        app.activate()
 
-        // Reach the shell the way the rest of the Mac suite does.
+        // Reach the shell the way the rest of the Mac suite does. Not reaching it is a failure,
+        // not a skip, as on iOS: a skipped monkey stressed nothing (AITD-530).
         let myTasks = MacUITestLaunch.enterShell(app)
-        try XCTSkipUnless(myTasks.exists, "Never reached the shell, so there is nothing to stress")
+        guard myTasks.exists else {
+            XCTFail("Never reached the shell, so there is nothing to stress")
+            return
+        }
 
         var rng = SeededGenerator(seed: seed)
         var journal: [String] = []
@@ -110,7 +115,9 @@ final class MacMonkeyUITests: XCTestCase {
             guard hasWindow, let snapshot = try? window.snapshot() else { break }
             let windowFrame = snapshot.frame
             let buttons = Self.buttons(in: snapshot).filter { button in
+                // Sign out / Delete account carry `account.destructive.` — never those (AITD-530).
                 button.isEnabled && !button.identifier.hasPrefix("_XCUI:")
+                    && !button.identifier.hasPrefix("account.destructive.")
                     && !button.frame.isEmpty && windowFrame.contains(CGPoint(x: button.frame.midX, y: button.frame.midY))
             }
             if let target = buttons.randomElement(using: &rng) {

@@ -135,8 +135,11 @@ final class MonkeyUITests: XCTestCase {
 
         case .tapRandomButton:
             let appFrame = app.frame
+            // Never Sign out or Delete account: after either, the rest of the run stresses the
+            // welcome screen instead of the app, and on a signed-in run it acts on the account
+            // (AITD-530). Those controls all carry the `account.destructive.` identifier prefix.
             let buttons = app.buttons.allElementsBoundByIndex.filter { button in
-                guard button.exists else { return false }
+                guard button.exists, !button.identifier.hasPrefix("account.destructive.") else { return false }
                 let frame = button.frame
                 return !frame.isEmpty && !frame.isNull && !frame.isInfinite && frame.intersects(appFrame)
             }
