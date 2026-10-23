@@ -444,6 +444,7 @@ struct ListSidebarView: View {
                     .foregroundColor(Theme.accent)
             }
         }
+        .accessibilityIdentifier("sidebar.addList")
     }
 
     private var toolbarContent: some ToolbarContent {
@@ -506,6 +507,7 @@ struct ListSidebarView: View {
             .contentShape(Rectangle())  // Make entire row area tappable
         }
         .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "my-tasks"))
+        .accessibilityIdentifier("sidebar.myTasks")
     }
 
     // MARK: - Computed Properties

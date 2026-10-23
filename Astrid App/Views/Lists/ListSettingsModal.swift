@@ -122,6 +122,7 @@ struct ListSettingsModal: View {
                     Button(NSLocalizedString("actions.done", comment: "")) {
                         dismiss()
                     }
+                    .accessibilityIdentifier("listSettings.done")
                 }
             }
             .alert(NSLocalizedString("lists.leave_list", comment: ""), isPresented: $showingLeaveConfirmation) {

@@ -463,6 +463,7 @@ struct BoardColumnView: View {
             HStack {
                 Text(column.name)
                     .font(.headline)
+                    .accessibilityIdentifier("board.column.\(column.id)")
                 Spacer()
                 countBadge
             }

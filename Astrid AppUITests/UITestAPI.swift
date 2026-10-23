@@ -18,6 +18,10 @@ enum UITestAPI {
         let completed: Bool
         let dueDateTime: String?
         let listIds: [String]
+        let description: String
+        let priority: Int
+        let statusRole: String?
+        let repeating: String?
 
         init?(_ json: [String: Any]) {
             guard let id = json["id"] as? String else { return nil }
@@ -25,11 +29,37 @@ enum UITestAPI {
             title = json["title"] as? String ?? ""
             completed = json["completed"] as? Bool ?? false
             dueDateTime = json["dueDateTime"] as? String
+            description = json["description"] as? String ?? ""
+            priority = json["priority"] as? Int ?? 0
+            statusRole = json["statusRole"] as? String
+            repeating = json["repeating"] as? String
             if let ids = json["listIds"] as? [String] {
                 listIds = ids
             } else {
                 listIds = (json["lists"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
             }
+        }
+    }
+
+    struct List {
+        let id: String
+        let name: String
+        /// This user's role on it, from `listMembers` — nil when they are not a member row
+        /// (an owner is the list's `ownerId`, not a member).
+        let memberRole: String?
+        let ownerId: String?
+
+        init?(_ json: [String: Any], userId: String?) {
+            guard let id = json["id"] as? String else { return nil }
+            self.id = id
+            name = json["name"] as? String ?? ""
+            ownerId = json["ownerId"] as? String
+            let members = json["listMembers"] as? [[String: Any]] ?? []
+            memberRole = members.first { member in
+                let memberUser = member["userId"] as? String
+                    ?? (member["user"] as? [String: Any])?["id"] as? String
+                return userId != nil && memberUser == userId
+            }?["role"] as? String
         }
     }
 
@@ -44,6 +74,17 @@ enum UITestAPI {
     static func tasks(inList listId: String) throws -> [Task] {
         let json = try get("/api/v1/tasks?listId=\(listId)&limit=1000")
         return (json?["tasks"] as? [[String: Any]] ?? []).compactMap(Task.init)
+    }
+
+    /// Every task this account can see — its own lists, no list, and the public lists it has.
+    static func allTasks() throws -> [Task] {
+        let json = try get("/api/v1/tasks?limit=1000")
+        return (json?["tasks"] as? [[String: Any]] ?? []).compactMap(Task.init)
+    }
+
+    static func lists(userId: String? = nil) throws -> [List] {
+        let json = try get("/api/v1/lists")
+        return (json?["lists"] as? [[String: Any]] ?? []).compactMap { List($0, userId: userId) }
     }
 
     static func comments(taskId: String) throws -> [[String: Any]] {
@@ -71,6 +112,36 @@ enum UITestAPI {
         let seen = last.map { "completed=\($0.completed) due=\($0.dueDateTime ?? "nil") lists=\($0.listIds)" }
             ?? "no task"
         throw UITestFailure("Server never showed \(what) for task \(id) within \(Int(timeout))s — last saw \(seen)")
+    }
+
+    /// Polls until a task with exactly this title exists and satisfies `condition` — for a task
+    /// the journey created, whose id only the server knows.
+    @discardableResult
+    static func waitForTask(titled title: String,
+                            timeout: TimeInterval = 20,
+                            _ what: String = "the task",
+                            until condition: (Task) -> Bool = { _ in true }) throws -> Task {
+        let deadline = Date().addingTimeInterval(timeout)
+        var seen: [Task] = []
+        repeat {
+            seen = try allTasks().filter { $0.title == title }
+            if let task = seen.first(where: condition) { return task }
+            Thread.sleep(forTimeInterval: 1)
+        } while Date() < deadline
+        let last = seen.map { "completed=\($0.completed) lists=\($0.listIds)" }.joined(separator: "; ")
+        throw UITestFailure("Server never showed \(what) titled \"\(title)\" within \(Int(timeout))s — "
+                            + (seen.isEmpty ? "no task with that title" : "last saw \(last)"))
+    }
+
+    /// The same poll for a list, by name.
+    @discardableResult
+    static func waitForList(named name: String, timeout: TimeInterval = 20) throws -> List {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let list = try lists().first(where: { $0.name == name }) { return list }
+            Thread.sleep(forTimeInterval: 1)
+        } while Date() < deadline
+        throw UITestFailure("Server never showed a list named \"\(name)\" within \(Int(timeout))s")
     }
 
     // MARK: - Transport
