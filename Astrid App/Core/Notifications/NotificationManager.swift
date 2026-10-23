@@ -98,6 +98,24 @@ class NotificationManager {
         AppLog.debug("✅ Scheduled notification for task '\(task.title)' at \(reminderDate)")
     }
 
+    /// The OS keeps at most this many pending local notifications per app.
+    nonisolated static let pendingNotificationLimit = 64
+
+    /// Which of `tasks` get a reminder: incomplete, with a due date whose reminder (`offset`
+    /// seconds before it) is still after `now`, capped at the first `pendingNotificationLimit`.
+    /// Skipping completed, undated and past tasks before the loop is what keeps a full sync from
+    /// making one scheduling round-trip per task (AITD-538: one home, and the test calls it).
+    nonisolated static func candidates(from tasks: [Task], offset: TimeInterval, now: Date) -> [Task] {
+        Array(tasks
+            .lazy
+            .filter { !$0.completed }
+            .filter {
+                guard let due = $0.dueDateTime else { return false }
+                return due.addingTimeInterval(-offset) > now
+            }
+            .prefix(pendingNotificationLimit))
+    }
+
     /// Schedule notifications for multiple tasks.
     ///
     /// Checks permission and pre-filters candidates **once** before the loop so we never
@@ -111,21 +129,8 @@ class NotificationManager {
         let status = await checkPermissionStatus()
         guard status == .authorized else { return }
 
-        // Pre-filter: only incomplete tasks whose reminder time is still in the future.
-        // This avoids iterating completed / undated / already-past tasks and keeps us
-        // under the OS limit of 64 pending local notifications.
-        let now = Date()
         let offsetSeconds = TimeInterval(settings.defaultReminderOffset.rawValue * 60)
-        let candidates = tasks
-            .lazy
-            .filter { !$0.completed }
-            .filter {
-                guard let due = $0.dueDateTime else { return false }
-                return due.addingTimeInterval(-offsetSeconds) > now
-            }
-            .prefix(64)
-
-        for task in candidates {
+        for task in Self.candidates(from: tasks, offset: offsetSeconds, now: Date()) {
             do {
                 try await scheduleNotification(for: task)
             } catch {

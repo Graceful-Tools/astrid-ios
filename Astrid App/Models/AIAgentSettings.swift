@@ -38,6 +38,13 @@ struct AvailableAgent: Identifiable, Codable, Equatable, Hashable {
         service == Self.defaultAssistantService
     }
 
+    /// The agents that can be picked as the model behind the assistant: everything but the
+    /// assistant itself, which is what "account default" already means. Every model picker —
+    /// iOS settings, the Mac agent hub, a Mac list's agent section — reads this (AITD-538).
+    static func modelOptions(_ agents: [AvailableAgent]) -> [AvailableAgent] {
+        agents.filter { !$0.isDefaultAssistant }
+    }
+
     /// Display-friendly service name
     var serviceDisplayName: String {
         switch service {
