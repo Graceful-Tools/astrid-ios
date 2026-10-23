@@ -115,7 +115,8 @@ final class TaskDueDateClearUITests: XCTestCase {
         guard let row = UITestLaunch.waitForCreatedTask(app, titled: title) else {
             throw UITestFailure("the new task should appear")
         }
-        if app.keyboards.count > 0 { app.swipeDown() }
+        // No swipe to put the keyboard away: it never did, and it scrolled the list back to the
+        // top, out from under the row `waitForCreatedTask` had just scrolled into view (AITD-543).
         UITestLaunch.tapCenter(row)
         XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should open")
 
@@ -145,8 +146,11 @@ final class TaskDueDateClearUITests: XCTestCase {
 
         // And the server agrees: reopening drains the journal and refetches the task.
         app.buttons[Self.back].tap()
-        let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", title)).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "the task should still be listed")
+        // Found the way it was found the first time: scrolled into view, since the list comes
+        // back at the top and the task sits below what is on screen (AITD-543).
+        guard let row = UITestLaunch.waitForCreatedTask(app, titled: title, timeout: 10) else {
+            throw UITestFailure("the task should still be listed")
+        }
         Thread.sleep(forTimeInterval: 3)
         UITestLaunch.tapCenter(row)
         XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should reopen")
