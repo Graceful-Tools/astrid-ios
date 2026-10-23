@@ -4,7 +4,9 @@
 //  (SyncSuppression, SyncAdoptionSafety, ProviderCursorCommitter…) have their own tests; these pin
 //  the orchestration the 2026-10-22 coverage audit found unexecuted — what a pulled issue becomes,
 //  what a local task pushes, that the pulled cursor is committed only after the pass applied, and
-//  how comments converge on a linked task: pulled, deleted and edited in each direction.
+//  how comments converge on a linked task: pulled, deleted and edited in each direction; how a
+//  linked pair that drifted adopts GitHub's completion; and that an issue gone from a complete
+//  listing detaches its task rather than deleting it.
 
 import XCTest
 @testable import Astrid_App
@@ -26,6 +28,8 @@ final class GitHubSyncPassTests: XCTestCase {
     private var upsertStatus = 200
     private var remoteComments: [[String: Any]] = []
     private var commentsStatus = 200
+    private var detachStatus = 200
+    private var closeStatus = 200
 
     override func setUp() async throws {
         try await super.setUp()
@@ -36,7 +40,7 @@ final class GitHubSyncPassTests: XCTestCase {
                                     defaults: defaults)
         taskLinks = []; pulledItems = []; fullItems = []
         pulledCursor = "cursor-2"; fullTruncated = false; upsertStatus = 200
-        remoteComments = []; commentsStatus = 200
+        remoteComments = []; commentsStatus = 200; detachStatus = 200; closeStatus = 200
     }
 
     override func tearDown() async throws {
@@ -53,9 +57,11 @@ final class GitHubSyncPassTests: XCTestCase {
 
     /// A task the server has already given its id. One created here stays `temp_` — the unit host
     /// is offline — and the push leaves those for the Outbox, so the push side needs this instead.
-    private func serverTask(in listId: String, title: String) -> Task {
+    private func serverTask(in listId: String, title: String, completed: Bool = false,
+                            updatedAt: Date = Date()) -> Task {
         let task = TestHelpers.createTestTask(id: "server-\(UUID().uuidString)", title: title,
-                                              listIds: [listId], updatedAt: Date())
+                                              completed: completed, listIds: [listId], updatedAt: updatedAt,
+                                              completedAt: completed ? updatedAt : nil)
         tasks.adoptForTesting(task)
         return task
     }
@@ -90,6 +96,7 @@ final class GitHubSyncPassTests: XCTestCase {
         let (repo, taskLinks, pulledItems, pulledCursor) = (repo, taskLinks, pulledItems, pulledCursor)
         let (fullItems, fullTruncated, upsertStatus) = (fullItems, fullTruncated, upsertStatus)
         let (remoteComments, commentsStatus) = (remoteComments, commentsStatus)
+        let (detachStatus, closeStatus) = (detachStatus, closeStatus)
         let json = Self.json
         let read = Self.read
         let now = WireDate.string(from: Date())
@@ -105,6 +112,8 @@ final class GitHubSyncPassTests: XCTestCase {
                 return json(["link": ["astridTaskId": body["astridTaskId"] ?? "",
                                       "remoteId": body["remoteId"] ?? "",
                                       "remoteContainerId": repo]], upsertStatus)
+            case ("DELETE", "/api/v1/sync/github/task-links"):
+                return json(["success": detachStatus == 200, "detached": detachStatus == 200], detachStatus)
             case ("GET", "/api/v1/sync/github/issues"):
                 if query.contains(where: { $0.name == "full" }) {
                     return json(["items": fullItems, "cursor": NSNull(), "truncated": fullTruncated], 200)
@@ -112,6 +121,9 @@ final class GitHubSyncPassTests: XCTestCase {
                 return json(["items": pulledItems, "cursor": pulledCursor], 200)
             case ("POST", "/api/v1/sync/github/issues"):
                 if body["action"] as? String == "commitCursor" { return json(["ok": true], 200) }
+                if body["state"] as? String == "closed", body["title"] == nil {
+                    return json(["remoteId": body["remoteId"] ?? "", "remoteUpdatedAt": now], closeStatus)
+                }
                 return json(["remoteId": "\(repo)#900", "remoteUpdatedAt": now], 200)
             case ("GET", "/api/v1/sync/github/comments"):
                 return json(["comments": remoteComments], commentsStatus)
@@ -154,6 +166,31 @@ final class GitHubSyncPassTests: XCTestCase {
                 && $0.jsonBody?["action"] == nil && $0.jsonBody?["remoteId"] == nil
         }
     }
+
+    private var fullListings: Int {
+        StubURLProtocol.requests.filter { $0.method == "GET" && $0.query["full"] != nil }.count
+    }
+
+    private var detaches: [StubURLProtocol.Recorded] {
+        StubURLProtocol.requests.filter { $0.method == "DELETE" && $0.path == "/api/v1/sync/github/task-links" }
+    }
+
+    private var closes: [String] {
+        StubURLProtocol.requests.filter {
+            $0.method == "POST" && $0.jsonBody?["state"] as? String == "closed" && $0.jsonBody?["title"] == nil
+        }.compactMap { $0.jsonBody?["remoteId"] as? String }
+    }
+
+    /// A second service on the same defaults, as after a relaunch: what it remembers is what was
+    /// persisted, and its pass floor starts clear so a second pass may run at once.
+    private func freshService() {
+        service.isConnected = false
+        StubURLProtocol.reset()
+        service = GitHubSyncService(apiClient: AstridAPIClient(session: StubURLProtocol.session()),
+                                    defaults: defaults)
+    }
+
+    private var ledger: SyncDeletionLedger { SyncDeletionLedger(provider: "github", defaults: defaults) }
 
     private var linkUpserts: [[String: Any]] {
         StubURLProtocol.requests.filter { $0.method == "PUT" }.compactMap(\.jsonBody)
@@ -407,5 +444,158 @@ final class GitHubSyncPassTests: XCTestCase {
         XCTAssertEqual(patch.jsonBody?["commentId"] as? String, "gh-9")
         XCTAssertEqual(patch.jsonBody?["body"] as? String, "Edited in Astrid")
         XCTAssertEqual(comments(on: task.id), ["Edited in Astrid"], "Astrid is canonical for its own comment")
+    }
+    // MARK: DRIFT REPAIR — a linked pair that disagrees, with nothing in the incremental pull
+
+    /// Drift repair reads the full listing the push side fetched, so each of these lists also holds
+    /// an unlinked server task, which is what makes the push side fetch it. The linked task itself is
+    /// made through the core, because drift repair completes it through the core, and its link was
+    /// written after its last edit — untouched since the last pass.
+    private func listWithAnUnlinkedTask() async throws -> String {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        _ = serverTask(in: list.id, title: name("Unlinked"))
+        return list.id
+    }
+
+    func testAnIssueClosedOnGitHubCompletesAnUntouchedTaskTheIncrementalPullMissed_AITD535() async throws {
+        let list = try await listWithAnUnlinkedTask()
+        let title = name("Closed elsewhere")
+        let task = try await tasks.createTask(listIds: [list], title: title)
+        taskLinks = [link(task: task.id, issue: 40, syncedAt: Date().addingTimeInterval(60))]
+        fullItems = [issue(40, title: title, completed: true)]
+
+        await runPass(listId: list)
+
+        XCTAssertEqual(fullListings, 1, "the push side's listing is reused, not fetched again")
+        XCTAssertEqual(tasks.tasksById[task.id]?.completed, true)
+    }
+
+    func testAnIssueReopenedOnGitHubReopensAnUntouchedCompletedTask_AITD535() async throws {
+        let list = try await listWithAnUnlinkedTask()
+        let title = name("Reopened elsewhere")
+        let created = try await tasks.createTask(listIds: [list], title: title)
+        let task = try await tasks.completeTask(id: created.id, completed: true, task: created)
+        XCTAssertEqual(tasks.tasksById[task.id]?.completed, true)
+        taskLinks = [link(task: task.id, issue: 41, syncedAt: Date().addingTimeInterval(60))]
+        fullItems = [issue(41, title: title, completed: false)]
+
+        await runPass(listId: list)
+
+        XCTAssertEqual(tasks.tasksById[task.id]?.completed, false)
+    }
+
+    /// A task completed in Astrid since the last pass pushes its state; the listing fetched before
+    /// that push still says open and must not undo the completion.
+    func testATaskCompletedLocallyIsPushedAndNotReopenedByTheStaleListing_AITD535() async throws {
+        let list = try await listWithAnUnlinkedTask()
+        let title = name("Done here")
+        let task = serverTask(in: list, title: title, completed: true)
+        taskLinks = [link(task: task.id, issue: 42, syncedAt: Date().addingTimeInterval(-3600))]
+        fullItems = [issue(42, title: title, completed: false)]
+
+        await runPass(listId: list)
+
+        let pushed = StubURLProtocol.requests.filter { $0.method == "POST" && $0.jsonBody?["remoteId"] as? String == "\(repo)#42" }
+        XCTAssertEqual(pushed.map { $0.jsonBody?["state"] as? String }, ["closed"], "the completion goes out to GitHub")
+        XCTAssertEqual(tasks.tasksById[task.id]?.completed, true)
+    }
+
+    // MARK: DETACH — an issue gone from a complete listing
+
+    func testAnIssueGoneFromACompleteListingDetachesItsTaskAndKeepsIt_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let task = try await tasks.createTask(listIds: [list.id], title: name("Transferred"))
+        taskLinks = [link(task: task.id, issue: 50, syncedAt: Date().addingTimeInterval(-3600))]
+        fullItems = [issue(51, title: name("Someone else"))]
+
+        await runPass(listId: list.id)
+
+        XCTAssertNil(service.lastError)
+        let detach = try XCTUnwrap(detaches.first, "the link is removed on the server")
+        XCTAssertEqual(detach.query["astridTaskId"], task.id)
+        XCTAssertEqual(detach.query["remoteId"], "\(repo)#50")
+        XCTAssertTrue(ledger.tombstonedRemoteIds.contains("\(repo)#50"), "so it is never re-adopted")
+        XCTAssertNotNil(tasks.tasksById[task.id], "a transferred issue is not a reason to delete the task")
+        XCTAssertNotNil(defaults.object(forKey: "githubLastFullPull:\(repo)"), "a complete listing stamps the throttle")
+    }
+
+    func testATruncatedListingDetachesNothingAndDoesNotStampTheThrottle_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let task = try await tasks.createTask(listIds: [list.id], title: name("Page two"))
+        taskLinks = [link(task: task.id, issue: 52, syncedAt: Date().addingTimeInterval(-3600))]
+        fullTruncated = true
+
+        await runPass(listId: list.id)
+
+        XCTAssertTrue(detaches.isEmpty, "a capped listing cannot prove the issue is gone")
+        XCTAssertTrue(ledger.tombstonedRemoteIds.isEmpty)
+        XCTAssertNil(defaults.object(forKey: "githubLastFullPull:\(repo)"), "so the next pass lists again")
+    }
+
+    func testARefusedDetachTombstonesNothingAndSaysSo_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let task = try await tasks.createTask(listIds: [list.id], title: name("Refused"))
+        taskLinks = [link(task: task.id, issue: 53, syncedAt: Date().addingTimeInterval(-3600))]
+        detachStatus = 500
+
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(detaches.count, 1)
+        XCTAssertEqual(service.lastError, "\(repo): failed to detach transferred issue")
+        XCTAssertTrue(ledger.tombstonedRemoteIds.isEmpty, "the next pass tries again")
+    }
+
+    /// The whole-repo listing is the expensive fetch, so a pass inside the five-minute window skips
+    /// it when nothing on the push side needed it.
+    func testAPassInsideTheThrottleWindowSkipsTheFullListing_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let task = try await tasks.createTask(listIds: [list.id], title: name("Quiet"))
+        taskLinks = [link(task: task.id, issue: 54, syncedAt: Date().addingTimeInterval(-3600))]
+        fullItems = [issue(54, title: task.title)]
+        await runPass(listId: list.id)
+        XCTAssertEqual(fullListings, 1)
+
+        // The pass floor is per instance; the stamp is in the defaults.
+        freshService()
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(fullListings, 0)
+        XCTAssertTrue(detaches.isEmpty)
+    }
+
+    // MARK: Astrid-side deletes — the twin is closed, then tombstoned
+
+    func testATaskDeletedInAstridClosesItsIssueOnTheNextPass_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        let task = try await tasks.createTask(listIds: [list.id], title: name("Deleted here"))
+        taskLinks = [link(task: task.id, issue: 60, syncedAt: Date().addingTimeInterval(-3600))]
+        fullItems = [issue(60, title: task.title)]
+        await runPass(listId: list.id)
+
+        await service.noteTaskDeleted(taskId: task.id)
+        service.isConnected = false  // the debounced pass it schedules is not the one under test
+        XCTAssertEqual(ledger.pending, ["\(repo)#60": repo], "the link was captured from the last pass")
+
+        taskLinks = []
+        freshService()
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(closes, ["\(repo)#60"], "GitHub cannot delete an issue, so it is closed")
+        XCTAssertEqual(ledger.pending, [:])
+    }
+
+    func testAPendingCloseRetriesOnFailureAndClearsWhenTheIssueIsAlreadyGone_AITD535() async throws {
+        let list = try await ListService.shared.createList(name: name("Mirror"))
+        ledger.recordPending(remoteId: "\(repo)#61", containerId: repo)
+        closeStatus = 500
+        await runPass(listId: list.id)
+        XCTAssertEqual(closes, ["\(repo)#61"])
+        XCTAssertEqual(ledger.pending, ["\(repo)#61": repo], "a failed close stays queued")
+
+        closeStatus = 404
+        freshService()
+        await runPass(listId: list.id)
+
+        XCTAssertEqual(ledger.pending, [:], "a 404 means the twin is already gone, which is done")
     }
 }
