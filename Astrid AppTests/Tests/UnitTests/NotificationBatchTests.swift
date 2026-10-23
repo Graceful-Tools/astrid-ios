@@ -44,15 +44,10 @@ final class NotificationBatchTests: XCTestCase {
         Task(id: id, title: id, listIds: [], createdAt: Date(), updatedAt: Date())
     }
 
-    /// Mirrors the pre-filter logic inside `scheduleNotifications(for:)`.
-    private func candidates(from tasks: [Task], offsetSeconds: TimeInterval = 0) -> [Task] {
-        let now = Date()
-        return tasks
-            .filter { !$0.completed }
-            .filter {
-                guard let due = $0.dueDateTime else { return false }
-                return due.addingTimeInterval(-offsetSeconds) > now
-            }
+    /// The production pre-filter (AITD-538). This file used to carry its own copy of the rule
+    /// and test that, so a change to `scheduleNotifications(for:)` could not fail it.
+    private func candidates(from tasks: [Task], offsetSeconds: TimeInterval = 0, now: Date = Date()) -> [Task] {
+        NotificationManager.candidates(from: tasks, offset: offsetSeconds, now: now)
     }
 
     // MARK: - Tests
@@ -103,8 +98,27 @@ final class NotificationBatchTests: XCTestCase {
 
     func testCandidatesRespect64NotificationLimit() {
         let tasks = (0..<100).map { futureTask(id: "t\($0)") }
-        let capped = candidates(from: tasks).prefix(64)
+        let capped = candidates(from: tasks)
         XCTAssertEqual(capped.count, 64,
                        "OS limit is 64 pending local notifications; pre-filter must be capped")
+        XCTAssertEqual(capped.map(\.id), (0..<64).map { "t\($0)" }, "the cap keeps the first 64, in order")
+    }
+
+    func testTheCapCountsOnlyTasksThatSurviveTheFilter_AITD538() {
+        let skipped = (0..<10).map { pastTask(id: "past\($0)") } + (0..<10).map { undatedTask(id: "u\($0)") }
+        let tasks = skipped + (0..<64).map { futureTask(id: "t\($0)") }
+
+        XCTAssertEqual(candidates(from: tasks).map(\.id), (0..<64).map { "t\($0)" },
+                       "skipped tasks do not use up the 64 slots")
+    }
+
+    func testAReminderFallingExactlyNowIsNotScheduled_AITD538() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let due = Task(id: "edge", title: "edge", dueDateTime: now.addingTimeInterval(15 * 60), listIds: [],
+                       createdAt: now, updatedAt: now)
+
+        XCTAssertTrue(candidates(from: [due], offsetSeconds: 15 * 60, now: now).isEmpty,
+                      "a reminder at this very moment has already fired")
+        XCTAssertEqual(candidates(from: [due], offsetSeconds: 15 * 60 - 1, now: now).map(\.id), ["edge"])
     }
 }
