@@ -25,27 +25,6 @@ struct UpdateAccountRequest: Codable {
     var image: String?
 }
 
-struct CreateTaskRequest: Codable {
-    var title: String
-    var description: String?
-    var priority: Int?
-    var repeating: String?
-    var repeatingData: CustomRepeatingPattern?
-    var repeatFrom: String?  // "DUE_DATE" or "COMPLETION_DATE"
-    var isPrivate: Bool?
-    var dueDateTime: String?  // Primary datetime field (ISO8601)
-    var isAllDay: Bool?  // Whether this is an all-day task
-    var reminderTime: String? // ISO8601
-    var reminderType: String?
-    var listIds: [String]?
-    var assigneeId: String?
-    var assigneeEmail: String?
-    var clientRequestId: String?  // Idempotency key for dedup (server unique constraint)
-    var timerDuration: Int?
-    var parentTaskId: String?  // Subtasks: parent task id (nil = top-level)
-    var statusRole: String?  // Board state when creating in a board column (task a2c58f53)
-}
-
 nonisolated struct UpdateTaskRequest: Codable {
     var title: String?
     var description: String?
@@ -243,13 +222,6 @@ struct CreateProjectRequest: Codable {
     var description: String?
     var color: String?
     var imageUrl: String?
-}
-
-/// Body for the atomic Create Board endpoint (`POST /api/v1/projects/from-list`):
-/// creates a project AND attaches the list in one transaction, replacing the
-/// two-step flow that could orphan a project.
-struct CreateBoardFromListRequest: Codable {
-    var listId: String
 }
 
 struct ProjectsResponse: Codable {
