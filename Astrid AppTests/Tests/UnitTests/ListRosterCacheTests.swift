@@ -11,48 +11,23 @@ import XCTest
 
 final class ListRosterCacheTests: XCTestCase {
 
-    private func user(_ id: String, _ name: String) -> User {
-        User(id: id, email: "\(id)@astrid.cc", name: name, image: nil)
-    }
+    /// A roster as an older build wrote it into `CDTaskList.listRosterJSON`, which the one-time
+    /// seed still reads: who the list knows survives, with names intact — an id alone would put a
+    /// bare uuid where a person's name belongs in the picker.
+    func testAStoredRosterDecodesWithItsPeopleNamed() {
+        let stored = """
+        {"owner":{"id":"jon","email":"jon@astrid.cc","name":"Jon"},
+         "members":[{"id":"lm-dana","listId":"list-1","userId":"dana","role":"MEMBER",
+                     "user":{"id":"dana","email":"dana@astrid.cc","name":"Dana"}}]}
+        """
 
-    private func member(_ user: User, listId: String = "list-1") -> ListMember {
-        ListMember(id: "lm-\(user.id)", listId: listId, userId: user.id, role: "MEMBER", user: user)
-    }
-
-    // MARK: - THE BUG
-
-    /// The whole point: who the list knows survives a relaunch, with names intact — an id alone
-    /// would put a bare uuid where a person's name belongs in the picker.
-    func testOwnerAndMembersSurviveARoundTrip() {
-        let owner = user("jon", "Jon")
-        let dana = user("dana", "Dana")
-
-        let restored = ListRosterCache.decode(
-            ListRosterCache.encode(owner: owner, members: [member(dana)]))
+        let restored = ListRosterCache.decode(stored)
 
         XCTAssertEqual(restored.owner?.id, "jon")
         XCTAssertEqual(restored.owner?.name, "Jon")
         XCTAssertEqual(restored.members?.map(\.userId), ["dana"])
         XCTAssertEqual(restored.members?.first?.user?.name, "Dana",
                        "the hydrated user is the part the picker needs — a userId cannot be shown")
-    }
-
-    /// nil means "leave what you had". A list can reach the cache unhydrated — an optimistic
-    /// local create, or a minimal API response — and letting that overwrite a good roster would
-    /// bring the empty picker straight back on the next launch.
-    func testAListWithNoPeopleEncodesToNothingRatherThanAnEmptyRoster() {
-        XCTAssertNil(ListRosterCache.encode(owner: nil, members: nil))
-        XCTAssertNil(ListRosterCache.encode(owner: nil, members: []))
-    }
-
-    /// An owner with no members is still worth keeping: a private list is exactly that shape,
-    /// and its owner is the one person you most want to be able to assign to offline.
-    func testAnOwnerAloneIsWorthRemembering() {
-        let restored = ListRosterCache.decode(
-            ListRosterCache.encode(owner: user("jon", "Jon"), members: nil))
-
-        XCTAssertEqual(restored.owner?.id, "jon")
-        XCTAssertNil(restored.members)
     }
 
     func testGarbageDecodesToAnEmptyRosterRatherThanThrowing() {
