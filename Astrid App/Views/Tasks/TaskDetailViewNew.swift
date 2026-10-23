@@ -931,7 +931,7 @@ struct TaskDetailViewNew: View {
     // MARK: - Comment Autocomplete
 
     private func handleCommentTextChange(_ text: String) {
-        insertedReferences.removeAll { ref in !text.contains(ref.displayText) }
+        insertedReferences = pruneReferences(insertedReferences, to: text)
         if let trigger = detectAutocompleteTrigger(in: text) {
             activeTrigger = trigger.type
             triggerPosition = trigger.position

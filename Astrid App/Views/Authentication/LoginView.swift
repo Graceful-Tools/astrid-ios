@@ -314,7 +314,7 @@ struct LoginView: View {
         showError = false
 
         do {
-            try await authManager.signUpWithPasskey(email: passkeyEmail)
+            try await authManager.signUpWithPasskey(email: EmailAddress.trimmed(passkeyEmail))
         } catch let error as PasskeyError {
             // Don't show error for user cancellation
             if case .userCancelled = error {
@@ -360,9 +360,7 @@ struct PasskeyEmailSheet: View {
     @Environment(\.colorScheme) var colorScheme
     @FocusState private var isEmailFocused: Bool
 
-    private var hasValidEmail: Bool {
-        !email.isEmpty && email.contains("@") && email.contains(".")
-    }
+    private var hasValidEmail: Bool { EmailAddress.isPlausible(email) }
 
     var body: some View {
         VStack(spacing: Theme.spacing20) {

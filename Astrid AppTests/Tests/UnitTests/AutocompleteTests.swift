@@ -148,23 +148,28 @@ final class AutocompleteTests: XCTestCase {
     // MARK: - Prune References Tests
 
     func testPruneRemovesDeletedReferences() {
-        var refs = [
+        let refs = [
             InsertedReference(id: "1", type: .mention, displayText: "@Jon"),
             InsertedReference(id: "2", type: .list, displayText: "#Career"),
         ]
-        let text = "hello #Career"  // @Jon was deleted
-        refs.removeAll { ref in !text.contains(ref.displayText) }
-        XCTAssertEqual(refs.count, 1)
-        XCTAssertEqual(refs.first?.displayText, "#Career")
+        let kept = pruneReferences(refs, to: "hello #Career")  // @Jon was deleted
+        XCTAssertEqual(kept.map(\.id), ["2"])
     }
 
     func testPruneKeepsAllWhenPresent() {
-        var refs = [
+        let refs = [
             InsertedReference(id: "1", type: .mention, displayText: "@Jon"),
             InsertedReference(id: "2", type: .list, displayText: "#Career"),
         ]
-        let text = "@Jon check #Career"
-        refs.removeAll { ref in !text.contains(ref.displayText) }
-        XCTAssertEqual(refs.count, 2)
+        let kept = pruneReferences(refs, to: "@Jon check #Career")
+        XCTAssertEqual(kept.map(\.id), ["1", "2"], "order is kept, so references reconstruct in place")
+    }
+
+    /// The editors call this on every keystroke; deleting one character of a reference drops it,
+    /// so the send does not link text the user has since edited (AITD-538).
+    func testPruneDropsAReferenceWhoseTextWasEdited_AITD538() {
+        let refs = [InsertedReference(id: "1", type: .task, displayText: "!Buy milk")]
+        XCTAssertTrue(pruneReferences(refs, to: "!Buy mil").isEmpty)
+        XCTAssertTrue(pruneReferences(refs, to: "").isEmpty)
     }
 }

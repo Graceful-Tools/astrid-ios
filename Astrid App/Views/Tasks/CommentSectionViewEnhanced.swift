@@ -326,7 +326,7 @@ struct CommentSectionViewEnhanced: View {
     }
 
     private func pruneCommentReferences() {
-        insertedReferences.removeAll { ref in !newCommentText.contains(ref.displayText) }
+        insertedReferences = pruneReferences(insertedReferences, to: newCommentText)
     }
 
 

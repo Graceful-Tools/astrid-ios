@@ -309,7 +309,7 @@ struct RichTextInput: View {
     // MARK: - Autocomplete
 
     private func handleTextChange(_ newValue: String) {
-        insertedReferences.removeAll { ref in !newValue.contains(ref.displayText) }
+        insertedReferences = pruneReferences(insertedReferences, to: newValue)
         if let trigger = detectAutocompleteTrigger(in: newValue) {
             AppLog.debug("🔍 [RichTextInput] Trigger detected: type=\(trigger.type), search='\(trigger.search)', text='\(newValue)'")
             activeTrigger = trigger.type
