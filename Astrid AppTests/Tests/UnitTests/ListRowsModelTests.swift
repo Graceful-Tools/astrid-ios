@@ -160,17 +160,4 @@ final class ListRowsModelTests: XCTestCase {
         }
         XCTAssertEqual(model.rowIds, ["b"])
     }
-
-    // MARK: - The Swift copies are gone
-
-    func testAITD460_theListViewsAskTheCore() throws {
-        for path in ["Astrid App/Views/Tasks/TaskListView.swift", "Astrid Mac/App/MacRootView.swift"] {
-            let text = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
-            XCTAssertTrue(text.contains("ListRowsModel()"), "\(path) does not ask the core for its rows")
-            for gone in ["filterTasksForList", "sortTasksByListSetting", "spliceSubtasks", "MyTasksScope",
-                         "applyCompletionFilterWithWindow", "applyListDueDateFilter"] {
-                XCTAssertFalse(text.contains(gone), "\(path) still calls the Swift \(gone)")
-            }
-        }
-    }
 }

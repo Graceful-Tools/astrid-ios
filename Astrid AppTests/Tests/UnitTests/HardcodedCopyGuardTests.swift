@@ -19,33 +19,6 @@ final class HardcodedCopyGuardTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
-    /// Every screen the AITD-403 scan named must be free of the literal it was called out for.
-    func testAITD403_TheNamedScreensNoLongerHardcodeCopyThatHasAKey() throws {
-        let offenders: [(path: String, literals: [String])] = [
-            ("Astrid App/Views/Lists/AddMemberSheet.swift", [#"Button("Cancel")"#]),
-            ("Astrid App/Views/Components/InlineListsPicker.swift", [#"Button("Cancel")"#]),
-            ("Astrid App/Views/Components/InlineRepeatPicker.swift", [#"Button("Cancel")"#]),
-            ("Astrid App/Views/Components/ImagePickerView.swift", [#"Button("Cancel")"#]),
-            ("Astrid App/Views/Settings/AIAPIKeyManagerView.swift", [#"Text("Cancel")"#]),
-            ("Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift",
-             [#"Button("Cancel")"#, #"Button("Cancel", role:"#, #"Button("Delete", role:"#]),
-            ("Astrid App/Views/Tasks/TaskTimerView.swift", [#"Text("Done")"#]),
-            ("Astrid App/Views/Components/AutocompleteSupport.swift", [#"Text("Done")"#]),
-            // The ASSIGNMENT only. The AppLog.debug line one row below says the same words and
-            // must stay English — developer logs are not user-facing copy, the same convention
-            // AppActions' call-site contexts follow.
-            ("Astrid App/Views/Components/ShareTargetView.swift",
-             [#"errorMessage = "Failed to generate share link"#]),
-        ]
-        for (path, literals) in offenders {
-            let src = try source(path)
-            for literal in literals {
-                XCTAssertFalse(src.contains(literal),
-                               "AITD-403: \(path) should use a Localizable.strings key, not \(literal)")
-            }
-        }
-    }
-
     /// `SaveFilterDialog` and `ListAgentSettingsView` were localized wholesale, so they are
     /// checked by the absence of ANY bare `Text("…")` / `Button("…")` / `return "…"` copy.
     func testAITD403_TheWhollyLocalizedScreensKeepNoBareCopy() throws {

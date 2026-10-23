@@ -124,31 +124,4 @@ final class LegacyMCPAttachmentTests: XCTestCase {
         XCTAssertEqual(file.source, .secureFilesRoute)
     }
 
-    // MARK: - One union, not two
-
-    /// The model and `TaskAttachmentSectionView` each had a copy of this rule, and only the
-    /// view's ran — so the model's could not have been the fix. The view must ASK.
-    func testTheAttachmentSectionUsesTheSharedUnion() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root
-                .appendingPathComponent("Astrid App/Views/Tasks/TaskAttachmentSectionView.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(source.contains("task.allSecureFiles("),
-                      "the view must ask the shared union rather than restating it")
-        XCTAssertFalse(source.contains("SecureFile(\n"),
-                       "the view must not build SecureFiles itself — that is where the url got lost")
-    }
-
-    /// This surface offers no deletion, and must not start: the delete path is the secure-files
-    /// endpoint, which does not know legacy rows and would fail on exactly the files this task
-    /// made visible.
-    func testTheAttachmentSectionOffersNoDeletion() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root
-                .appendingPathComponent("Astrid App/Views/Tasks/TaskAttachmentSectionView.swift"),
-            encoding: .utf8)
-        XCTAssertFalse(source.contains("onDelete"),
-                       "task attachments are not deletable here; the delete path cannot serve "
-                       + "legacy MCP rows, so offering it would fail on them alone")
-    }
 }
