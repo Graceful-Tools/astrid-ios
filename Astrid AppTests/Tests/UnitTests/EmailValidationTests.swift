@@ -1,13 +1,14 @@
 import XCTest
 @testable import Astrid_App
 
-/// Unit tests for email validation logic used in LoginView and PasskeyEmailSheet
-/// Tests the validation pattern: !email.isEmpty && email.contains("@") && email.contains(".")
+/// `EmailAddress.isPlausible`, the while-you-type check behind the passkey sign-up sheet (iOS and
+/// Mac), the Mac invite field and the assign-by-email row (AITD-538). These tests used to call a
+/// copy of the rule defined right here, so the four inline copies in the views could drift without
+/// one failing — and they had: the iOS sheet did not trim, the other three did.
 final class EmailValidationTests: XCTestCase {
 
-    // Helper function matching LoginView/PasskeyEmailSheet logic
     private func isValidEmail(_ email: String) -> Bool {
-        !email.isEmpty && email.contains("@") && email.contains(".")
+        EmailAddress.isPlausible(email)
     }
 
     // MARK: - Valid Email Tests
@@ -72,6 +73,18 @@ final class EmailValidationTests: XCTestCase {
 
     func testInvalidEmailWhitespace() {
         XCTAssertFalse(isValidEmail(" "))
+    }
+
+    // MARK: - Surrounding whitespace (AITD-538)
+
+    func testSurroundingSpacesAreIgnored_AITD538() {
+        XCTAssertTrue(isValidEmail("  ada@example.com "), "a trailing space from autocomplete is not a typo")
+        XCTAssertEqual(EmailAddress.trimmed("  ada@example.com "), "ada@example.com")
+    }
+
+    func testSpacesAloneAroundAnAtAndDotAreNotAnAddress_AITD538() {
+        XCTAssertFalse(isValidEmail("   "))
+        XCTAssertFalse(isValidEmail(" user@gmail "))
     }
 
     // MARK: - Edge Cases

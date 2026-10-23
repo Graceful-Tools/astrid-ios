@@ -234,7 +234,7 @@ struct MacListMembershipTab: View {
         }
     }
 
-    private var canInvite: Bool { email.contains("@") && email.contains(".") }
+    private var canInvite: Bool { EmailAddress.isPlausible(email) }
 
     // MARK: - AI agents
 
@@ -430,7 +430,7 @@ struct MacListMembershipTab: View {
 
     private func invite() {
         guard canInvite else { return }
-        let e = email.trimmingCharacters(in: .whitespaces)
+        let e = EmailAddress.trimmed(email)
         let role = inviteRole
         AppActions.perform("Invite \(e)") {
             _ = try await ListMembershipActions.addMember(listId: list.id, email: e, role: role)

@@ -154,10 +154,7 @@ struct MacLoginView: View {
         .offered(by: serverCapabilities.capabilities.auth, appleEntitled: MacSignInOptions.showsAppleSignIn)
     }
 
-    private var emailValid: Bool {
-        let e = email.trimmingCharacters(in: .whitespaces)
-        return e.contains("@") && e.contains(".")
-    }
+    private var emailValid: Bool { EmailAddress.isPlausible(email) }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -274,7 +271,7 @@ struct MacLoginView: View {
     private func signUp() {
         guard emailValid else { return }
         showSignUp = false
-        run { try await auth.signUpWithPasskey(email: email.trimmingCharacters(in: .whitespaces)) }
+        run { try await auth.signUpWithPasskey(email: EmailAddress.trimmed(email)) }
     }
 
     private func run(_ op: @escaping () async throws -> Void) {

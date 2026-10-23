@@ -254,7 +254,7 @@ struct InlineAssigneePicker: View {
                 Button(NSLocalizedString("actions.assign", comment: "Assign")) {
                     assignByEmail(someoneElseQuery)
                 }
-                .disabled(!isAssignableEmail(someoneElseQuery))
+                .disabled(!EmailAddress.isPlausible(someoneElseQuery))
             }
 
             ForEach(contactSuggestions) { contact in
@@ -293,10 +293,6 @@ struct InlineAssigneePicker: View {
         }
     }
 
-    private func isAssignableEmail(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        return trimmed.contains("@") && trimmed.contains(".")
-    }
 
     private func searchContacts() {
         let query = someoneElseQuery.trimmingCharacters(in: .whitespaces)
@@ -312,8 +308,8 @@ struct InlineAssigneePicker: View {
     /// with no access to it, so the membership has to come first. The error is surfaced rather
     /// than swallowed: silently not assigning is the worst outcome here.
     private func assignByEmail(_ rawEmail: String) {
-        let email = rawEmail.trimmingCharacters(in: .whitespaces)
-        guard isAssignableEmail(email) else { return }
+        let email = EmailAddress.trimmed(rawEmail)
+        guard EmailAddress.isPlausible(email) else { return }
         guard let listId = taskListIds.first else {
             someoneElseError = NSLocalizedString("assignee.needs_a_list", comment: "")
             return
