@@ -38,8 +38,8 @@ final class TaskDuplicateUITests: XCTestCase {
         guard UITestLaunch.focusQuickAdd(app) else {
             throw UITestFailure("Quick add never took keyboard focus")
         }
-        addTaskField.typeText(uniqueTitle)
-        app.keyboards.buttons["Return"].tap()
+        // A newline, not the Return key, whose name depends on the keyboard's language.
+        addTaskField.typeText(uniqueTitle + "\n")
 
         guard UITestLaunch.waitForCreatedTask(app, titled: uniqueTitle) != nil else {
             throw UITestFailure("Task '\(uniqueTitle)' should appear after submitting it")
@@ -48,8 +48,10 @@ final class TaskDuplicateUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", uniqueTitle)
         )
 
-        // A duplicate arrives after the first copy (the server echo), so give it the chance.
-        Thread.sleep(forTimeInterval: 2)
+        // A duplicate arrives after the first copy (the server echo), so give it the chance:
+        // wait for a second copy, and pass only if none turns up.
+        let duplicate = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count > 1"), object: taskCells)
+        _ = XCTWaiter().wait(for: [duplicate], timeout: 3)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Single Task Created"

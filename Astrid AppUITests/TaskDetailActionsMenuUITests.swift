@@ -22,11 +22,7 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
         // Open a task
-        let taskListLoaded = app.staticTexts
-            .matching(NSPredicate(format: "label CONTAINS[c] 'My Tasks' OR label CONTAINS[c] 'task'"))
-            .firstMatch
-            .waitForExistence(timeout: 10)
-        guard taskListLoaded else { throw UITestFailure("Task list not visible") }
+        guard UITestLaunch.waitForTaskList(app) else { throw UITestFailure("Task list not visible") }
 
         guard let firstTask = UITestLaunch.waitForFirstVisibleRow(app) else {
             throw UITestFailure("No tasks found in list")
@@ -46,8 +42,8 @@ final class TaskDetailActionsMenuUITests: XCTestCase {
 
         // Tap and verify a menu item shows up
         menu.tap()
-        let copyItem = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'copy'")).firstMatch
-        let shareItem = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'share'")).firstMatch
+        let copyItem = app.buttons["taskDetail.action.copy"].firstMatch
+        let shareItem = app.buttons["taskDetail.action.share"].firstMatch
         let menuOpened = copyItem.waitForExistence(timeout: 2) || shareItem.waitForExistence(timeout: 2)
         XCTAssertTrue(menuOpened, "Tapping the actions menu should reveal Copy/Share/Delete items")
     }

@@ -23,9 +23,9 @@ struct InlineTimePicker: View {
     // Quick time options — astrid-core's (`dueDateOptions`, AITD-461), the set the Mac reads too.
     // Only the names and hours: this picker holds a time, not the day it goes on.
     @ObservedObject private var duePicks = DuePicks.shared
-    private var quickOptions: [(String, Int)] {
+    private var quickOptions: [(String, Int, key: String)] {
         (DuePicks.options(nil, isAllDay: true)?.times ?? [])
-            .map { (NSLocalizedString($0.titleKey, comment: ""), $0.hour) }
+            .map { (NSLocalizedString($0.titleKey, comment: ""), $0.hour, key: $0.titleKey) }
     }
 
     var body: some View {
@@ -63,6 +63,7 @@ struct InlineTimePicker: View {
                         Button(NSLocalizedString("actions.close", comment: "Close")) {
                             isEditing = false
                         }
+                        .accessibilityIdentifier("sheet.close")
                     }
                 }
             }
@@ -130,6 +131,7 @@ struct InlineTimePicker: View {
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("timePicker.option." + option.key)
                         }
                     }
 

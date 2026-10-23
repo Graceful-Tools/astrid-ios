@@ -29,10 +29,8 @@ final class MacUndoUITests: XCTestCase {
         let nameField = app.descendants(matching: .any).matching(identifier: "listEdit.name").firstMatch
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click(); nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
-        let sidebarSearch = app.searchFields.firstMatch
-        if sidebarSearch.waitForExistence(timeout: 5) { sidebarSearch.click(); sidebarSearch.typeText(listName) }
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10)); listRow.click()
 
@@ -77,12 +75,12 @@ final class MacUndoUITests: XCTestCase {
 
         // …and taking it actually reverses the completion — the row's checkbox is the state,
         // not the menu label.
-        let done = app.buttons["Completed, mark incomplete"].firstMatch
+        let done = app.buttons[MacUITestLaunch.completedCheckboxIdentifier].firstMatch
         XCTAssertTrue(done.waitForExistence(timeout: 10), "The task should now read as completed")
         let editMenu = app.menuBars.menuBarItems["Edit"]
         editMenu.click()
         editMenu.menus.firstMatch.menuItems.element(boundBy: 0).click()
-        XCTAssertTrue(app.buttons["Not completed, mark complete"].firstMatch.waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons[MacUITestLaunch.openCheckboxIdentifier].firstMatch.waitForExistence(timeout: 10),
                       "⌘Z must un-complete the task, not just re-label the menu (task 9b603be4)")
     }
 

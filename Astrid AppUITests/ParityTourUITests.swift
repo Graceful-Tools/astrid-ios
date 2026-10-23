@@ -16,8 +16,21 @@ final class ParityTourUITests: XCTestCase {
         continueAfterFailure = true
     }
 
-    private func shot(_ name: String) {
-        sleep(1)
+    /// Waits for `element` to become (or stop being) reachable — what each step of the tour
+    /// actually waits for. Best-effort: a tour screenshot is still useful when it is late.
+    @MainActor
+    @discardableResult
+    private func waitUntil(_ element: XCUIElement, hittable: Bool = true, timeout: TimeInterval = 10) -> Bool {
+        let format = hittable ? "exists == true AND isHittable == true" : "exists == false OR isHittable == false"
+        let reached = XCTNSPredicateExpectation(predicate: NSPredicate(format: format), object: element)
+        return XCTWaiter().wait(for: [reached], timeout: timeout) == .completed
+    }
+
+    @MainActor
+    private func shot(_ name: String, of app: XCUIApplication) {
+        // Querying the app waits for it to be idle — animations included — which is what the
+        // one-second sleep that used to be here was guessing at (AITD-526).
+        _ = app.windows.firstMatch.frame
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
@@ -28,13 +41,16 @@ final class ParityTourUITests: XCTestCase {
         }
     }
 
-    /// The sidebar button sits in the floating header's top-left corner.
+    /// The sidebar button sits in the floating header's top-left corner. Open once its header
+    /// search can be reached — the closed sidebar keeps its elements in the tree.
+    @MainActor
     private func openSidebar(_ app: XCUIApplication) {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.11)).tap()
-        sleep(2)
+        waitUntil(app.buttons["sidebar.headerSearch"].firstMatch)
     }
 
     /// The one of several same-named buttons that is on screen (the hidden sidebar keeps its own).
+    @MainActor
     private func visibleButton(_ app: XCUIApplication, _ id: String) -> XCUIElement? {
         app.buttons.matching(identifier: id).allElementsBoundByIndex.first { $0.isHittable }
     }
@@ -42,51 +58,57 @@ final class ParityTourUITests: XCTestCase {
     @MainActor
     func testTour() throws {
         let app = UITestLaunch.makeApp()
-        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        // English is already `makeApp`'s (AITD-526), so the fixture names below read the same as
+        // Android's tour whatever the simulator is set to.
         app.launch()
-        XCTAssertTrue(app.staticTexts["UITEST Fixture — open task 2"].waitForExistence(timeout: 20))
-        shot("01-my-tasks")
+        // Fixture TITLES are test data, not app copy, so matching them is not matching a string
+        // the app translates.
+        let fixture = app.staticTexts["UITEST Fixture — open task 2"]
+        XCTAssertTrue(fixture.waitForExistence(timeout: 20))
+        shot("01-my-tasks", of: app)
 
-        app.staticTexts["UITEST Fixture — open task 2"].tap()
-        sleep(2)
-        shot("04-detail")
+        fixture.tap()
+        XCTAssertTrue(UITestLaunch.waitForTaskDetail(app))
+        shot("04-detail", of: app)
         app.swipeUp()
-        shot("04b-detail-scrolled")
+        shot("04b-detail-scrolled", of: app)
         app.swipeDown()
         UITestLaunch.swipeBackFromLeftEdge(app)
-        sleep(2)
+        UITestLaunch.waitForDisappearance(UITestLaunch.taskDetailHeader(app))
 
         openSidebar(app)
-        shot("02-sidebar")
+        shot("02-sidebar", of: app)
         // The sidebar's entry, not a task row's list chip with the same name.
         let list = app.staticTexts.matching(NSPredicate(format: "label == 'UI Test List' AND identifier != 'taskRow'")).firstMatch
         if list.exists {
             list.tap()
-            sleep(3)
+            // Picking a list closes the sidebar.
+            waitUntil(app.buttons["sidebar.headerSearch"].firstMatch, hittable: false)
         }
-        shot("03-list-or-board")
-        if let listSettings = visibleButton(app, "gearshape") {
+        shot("03-list-or-board", of: app)
+        if let listSettings = visibleButton(app, "listSettingsButton") {
             listSettings.tap()
-            sleep(2)
-            shot("08-list-settings")
+            // The sheet covers the button that opened it.
+            waitUntil(listSettings, hittable: false)
+            shot("08-list-settings", of: app)
             app.swipeDown(velocity: .fast)
-            sleep(1)
+            waitUntil(listSettings)
         }
 
         openSidebar(app)
-        if let search = visibleButton(app, "magnifyingglass") {
+        if let search = visibleButton(app, "sidebar.headerSearch") {
             search.tap()
-            sleep(2)
-            shot("05-search")
+            waitUntil(search, hittable: false)
+            shot("05-search", of: app)
         }
 
         openSidebar(app)
-        if let settings = visibleButton(app, "gearshape") {
+        if let settings = visibleButton(app, "sidebar.settings") {
             settings.tap()
-            sleep(2)
-            shot("06-settings")
+            waitUntil(app.descendants(matching: .any).matching(identifier: "settings.profile").firstMatch)
+            shot("06-settings", of: app)
             app.swipeUp()
-            shot("06b-settings-scrolled")
+            shot("06b-settings-scrolled", of: app)
         }
     }
 }

@@ -34,12 +34,9 @@ final class BoardViewUITests: XCTestCase {
     func testViewModeRotatorButtonAccessibilityLabelsExist() throws {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
-        // The rotator button cycles list → messages → board → list with
-        // each tap. Its accessibilityLabel reflects the *next* mode, so
-        // one of these three labels should be present in the header.
-        let rotator = app.buttons.matching(
-            NSPredicate(format: "label IN { 'Switch to list view', 'Switch to messages', 'Switch to board view' }")
-        ).firstMatch
+        // The rotator button cycles list → messages → board → list with each tap. Found by
+        // identifier: its label names the NEXT mode, so it is never the same word twice.
+        let rotator = app.buttons["taskList.viewModeRotator"].firstMatch
         XCTAssertTrue(rotator.waitForExistence(timeout: 5),
                       "The view-mode rotator should be in the header")
     }

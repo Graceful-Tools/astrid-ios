@@ -121,7 +121,9 @@ final class CommentUITests: XCTestCase {
         commentField.typeText(testComment)
 
         tapOutsideTheCommentBox()
-        Thread.sleep(forTimeInterval: 1)
+        // The draft is read once the tap has landed — the keyboard leaving is that signal, and
+        // if it never leaves the draft is still checked, which is the point of the test.
+        UITestLaunch.waitForDisappearance(app.keyboards.element, timeout: 3)
 
         attach("Comment Text After Dismissing Keyboard")
         XCTAssertEqual(commentField.value as? String, testComment,
@@ -141,26 +143,27 @@ final class CommentUITests: XCTestCase {
         let sent = "UI test comment \(UUID().uuidString.prefix(8))"
         commentField.typeText(sent)
 
-        let sendButton = app.buttons
-            .matching(NSPredicate(format: "identifier CONTAINS 'paperplane' OR label CONTAINS[c] 'Send'"))
-            .firstMatch
+        let sendButton = app.buttons["comment.send"].firstMatch
         guard sendButton.waitForExistence(timeout: 5) else {
             attach("Send Button Not Found")
             throw UITestFailure("Send button not found")
         }
 
         UITestLaunch.tapCenter(sendButton)
-        Thread.sleep(forTimeInterval: 1.5)
-        attach("After Tapping Send Button")
 
-        let remaining = commentField.value as? String ?? ""
-        XCTAssertTrue(remaining.isEmpty || remaining == "Add a comment...",
-                      "Sending must clear the box — got \(remaining)")
         // An emptied box is also what a send that was DROPPED looks like, so the comment has
-        // to be in the thread too (AITD-525).
+        // to be in the thread too (AITD-525) — and its arriving is what to wait on.
         let inThread = app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS %@", sent)).firstMatch
         XCTAssertTrue(inThread.waitForExistence(timeout: 10),
                       "The sent comment \"\(sent)\" should appear in the thread")
+        attach("After Tapping Send Button")
+
+        // The box no longer holds what was sent. Not "is empty": a TextEditor reports its
+        // placeholder as its value on some OS versions, and that placeholder is localized.
+        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate(format: "NOT (value CONTAINS %@)", sent),
+                                                object: commentField)
+        XCTAssertEqual(XCTWaiter().wait(for: [cleared], timeout: 5), .completed,
+                       "Sending must clear the box — got \(commentField.value as? String ?? "")")
     }
 }

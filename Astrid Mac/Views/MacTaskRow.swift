@@ -177,6 +177,8 @@ struct MacTaskRow: View {
                     .accessibilityLabel(task.completed ? NSLocalizedString("mac.a11y_completed_toggle", comment: "")
                                                       : NSLocalizedString("mac.a11y_not_completed_toggle", comment: ""))
                     .accessibilityAction { onToggle() }
+                    // The state, for the UI suite — the label above is localized (AITD-526).
+                    .accessibilityIdentifier(task.completed ? "taskRow.checkbox.completed" : "taskRow.checkbox.open")
             }
             }
             // Pinned where the add bar's checkbox sits, not centred in the column (AITD-508).

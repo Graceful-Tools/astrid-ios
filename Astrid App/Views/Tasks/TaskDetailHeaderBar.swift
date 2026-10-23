@@ -142,12 +142,14 @@ struct TaskDetailHeaderBar: View {
             } label: {
                 Label(NSLocalizedString("actions.copy", comment: ""), systemImage: "doc.on.doc")
             }
+            .accessibilityIdentifier("taskDetail.action.copy")
 
             Button {
                 showingShareSheet = true
             } label: {
                 Label(NSLocalizedString("actions.share", comment: ""), systemImage: "square.and.arrow.up")
             }
+            .accessibilityIdentifier("taskDetail.action.share")
 
             Divider()
 
