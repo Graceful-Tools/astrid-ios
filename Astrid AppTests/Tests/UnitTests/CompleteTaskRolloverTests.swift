@@ -19,12 +19,12 @@ final class CompleteTaskRolloverTests: XCTestCase {
     }
 
     private func pattern(
-        unit: String, weekdays: [String]? = nil, monthRepeatType: String? = nil,
+        unit: String, interval: Int = 1, weekdays: [String]? = nil, monthRepeatType: String? = nil,
         monthDay: Int? = nil, monthWeekday: CustomRepeatingPattern.MonthWeekday? = nil,
         endCondition: String = "never", endAfterOccurrences: Int? = nil
     ) -> CustomRepeatingPattern {
         CustomRepeatingPattern(
-            type: "custom", unit: unit, interval: 1,
+            type: "custom", unit: unit, interval: interval,
             endCondition: endCondition, endAfterOccurrences: endAfterOccurrences, endUntilDate: nil,
             weekdays: weekdays, monthRepeatType: monthRepeatType, monthDay: monthDay,
             monthWeekday: monthWeekday, month: nil, day: nil)
@@ -57,6 +57,20 @@ final class CompleteTaskRolloverTests: XCTestCase {
         XCTAssertEqual(rolled.dueDateTime, localDate(2024, 1, 17, hour: 9))
         XCTAssertEqual(service.tasksById[rolled.id]?.dueDateTime, localDate(2024, 1, 17, hour: 9),
                        "the row the list draws shows the next occurrence")
+    }
+
+    /// "Every 4 weeks on Friday, from the due date" rolled one week on, because the weekly step
+    /// never read its interval (AITD-547; astrid-core CONTRACTS D2). It lands four weeks on.
+    func testEveryFourWeeksOnFridayFromDueDateRollsFourWeeks_AITD547() async throws {
+        let rolled = try await complete(
+            due: localDate(2026, 10, 23, hour: 9), repeating: "custom",
+            pattern: pattern(unit: "weeks", interval: 4, weekdays: ["friday"]),
+            repeatFrom: .DUE_DATE)
+
+        XCTAssertFalse(rolled.completed, "a repeating task rolls on rather than closing")
+        XCTAssertEqual(rolled.dueDateTime, localDate(2026, 11, 20, hour: 9))
+        XCTAssertEqual(service.tasksById[rolled.id]?.dueDateTime, localDate(2026, 11, 20, hour: 9),
+                       "the row the list draws shows the occurrence four weeks on")
     }
 
     /// From the completion date the series restarts from now — the core reads the clock, not the
