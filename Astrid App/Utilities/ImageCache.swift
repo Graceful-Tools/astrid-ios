@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import Combine
-import ImageIO
 
 /// Coalesces simultaneous work for the same URL. A list can render the same person dozens of
 /// times before the first network response returns; URL-keyed in-flight work ensures those rows
@@ -166,10 +165,15 @@ nonisolated final class ImageCache: @unchecked Sendable {
     }
 
     /// Whether `data` holds a whole image rather than the start of one (AITD-551).
+    ///
+    /// The TRAILER is the test, because nothing else notices: `UIImage(data:)` and ImageIO's
+    /// `CGImageSourceGetStatusAtIndex` both read the header and call half a PNG complete. A PNG
+    /// ends with its `IEND` chunk. Only PNG is checked: JPEGs legitimately carry bytes after their
+    /// end marker, and a false "partial" would refetch that image on every read. The atomic write
+    /// in `store` is what keeps every format whole; this catches a file left from before it.
     static func isCompleteImage(_ data: Data) -> Bool {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              CGImageSourceGetCount(source) > 0 else { return false }
-        return CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete
+        guard data.starts(with: [0x89, 0x50, 0x4E, 0x47]) else { return !data.isEmpty }
+        return data.suffix(12).starts(with: [0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44])
     }
 
     /// The image with its bitmap decoded, so the first draw on main does not decode lazily.
