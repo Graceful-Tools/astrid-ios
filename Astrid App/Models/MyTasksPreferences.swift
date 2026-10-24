@@ -40,9 +40,18 @@ class MyTasksPreferencesService: ObservableObject {
 
     private let userDefaultsKey = "my_tasks_preferences"
 
-    private init() {
+    /// Where the snapshot lives and which core the account write goes to. Injected so a test uses
+    /// a defaults suite and an in-memory core of its own rather than the app's (AITD-534).
+    private let defaults: UserDefaults
+    private let core: @MainActor () -> CoreSession
+
+    init(defaults: UserDefaults = .standard,
+         core: @escaping @MainActor () -> CoreSession = { AppCore.shared.session },
+         fetchOnInit: Bool = true) {
+        self.defaults = defaults
+        self.core = core
         // Load from UserDefaults first (offline support)
-        if let savedData = UserDefaults.standard.data(forKey: userDefaultsKey),
+        if let savedData = defaults.data(forKey: userDefaultsKey),
            let savedPrefs = try? JSONDecoder().decode(MyTasksPreferences.self, from: savedData) {
             self.preferences = savedPrefs
             AppLog.debug("✅ [MyTasksPrefs] Loaded from UserDefaults")
@@ -53,6 +62,7 @@ class MyTasksPreferencesService: ObservableObject {
         }
 
         // Load from server in background
+        guard fetchOnInit else { return }
         _Concurrency.Task {
             await fetchPreferences()
         }
@@ -62,7 +72,7 @@ class MyTasksPreferencesService: ObservableObject {
     /// too. The UserDefaults snapshot has already drawn the screen, so a failure here is not one.
     func fetchPreferences() async {
         do {
-            let fetched = try await AppCore.shared.session.run(
+            let fetched = try await core().run(
                 CoreCommand(kind: "refreshMyTasks"), as: MyTasksPreferences.self)
             remember(fetched)
         } catch {
@@ -87,7 +97,7 @@ class MyTasksPreferencesService: ObservableObject {
             command.set("sortBy", updates.sortBy)
             command.set("manualSortOrder", updates.manualSortOrder)
             do {
-                try await AppCore.shared.session.run(command)
+                try await core().run(command)
             } catch {
                 AppLog.debug("❌ Error updating My Tasks preferences: \(error)")
             }
@@ -97,7 +107,7 @@ class MyTasksPreferencesService: ObservableObject {
     private func remember(_ preferences: MyTasksPreferences) {
         self.preferences = preferences
         if let encoded = try? JSONEncoder().encode(preferences) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            defaults.set(encoded, forKey: userDefaultsKey)
         }
     }
 
@@ -112,7 +122,7 @@ class MyTasksPreferencesService: ObservableObject {
         preferences = MyTasksPreferences()
 
         // Clear persisted data
-        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        defaults.removeObject(forKey: userDefaultsKey)
 
         AppLog.debug("🗑️ [MyTasksPrefs] Data cleared for logout")
     }

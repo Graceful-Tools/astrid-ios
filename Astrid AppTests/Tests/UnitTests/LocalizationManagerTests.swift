@@ -2,25 +2,13 @@ import XCTest
 @testable import Astrid_App
 
 @MainActor
-final class LocalizationManagerTests: XCTestCase {
-    var localizationManager: LocalizationManager!
+/// A manager on this test's own defaults suite (`DefaultsTestCase`): the language override and
+/// `AppleLanguages` it writes stay out of the test process's real defaults (AITD-534).
+final class LocalizationManagerTests: DefaultsTestCase {
+    /// Stateless apart from its defaults, so a fresh one on this test's suite each time is the same
+    /// manager — and needs no main-actor setUp override.
+    var localizationManager: LocalizationManager { LocalizationManager(defaults: defaults) }
     let testOverrideKey = "user_language_override"
-
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-        localizationManager = LocalizationManager.shared
-        // Clear any existing overrides before each test
-        UserDefaults.standard.removeObject(forKey: testOverrideKey)
-        UserDefaults.standard.synchronize()
-    }
-
-    override func tearDownWithError() throws {
-        // Clean up after tests
-        UserDefaults.standard.removeObject(forKey: testOverrideKey)
-        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        UserDefaults.standard.synchronize()
-        try super.tearDownWithError()
-    }
 
     // MARK: - Language Code Extraction Tests
 
@@ -95,7 +83,7 @@ final class LocalizationManagerTests: XCTestCase {
         // When user manually selects a language, it should be stored
         localizationManager.setLanguage("es")
 
-        let storedLanguage = UserDefaults.standard.string(forKey: testOverrideKey)
+        let storedLanguage = defaults.string(forKey: testOverrideKey)
         XCTAssertEqual(storedLanguage, "es", "Language override should be stored in UserDefaults")
     }
 
@@ -103,17 +91,17 @@ final class LocalizationManagerTests: XCTestCase {
         // Should reject unsupported language codes
         localizationManager.setLanguage("ar") // Arabic not supported
 
-        let storedLanguage = UserDefaults.standard.string(forKey: testOverrideKey)
+        let storedLanguage = defaults.string(forKey: testOverrideKey)
         XCTAssertNil(storedLanguage, "Unsupported language should not be stored")
     }
 
     func testClearLanguageOverride() {
         // Set an override, then clear it
         localizationManager.setLanguage("es")
-        XCTAssertNotNil(UserDefaults.standard.string(forKey: testOverrideKey))
+        XCTAssertNotNil(defaults.string(forKey: testOverrideKey))
 
         localizationManager.clearLanguageOverride()
-        XCTAssertNil(UserDefaults.standard.string(forKey: testOverrideKey),
+        XCTAssertNil(defaults.string(forKey: testOverrideKey),
                     "Language override should be cleared")
     }
 
@@ -143,7 +131,7 @@ final class LocalizationManagerTests: XCTestCase {
         // Test that applying a language sets the AppleLanguages preference
         localizationManager.setLanguage("es")
 
-        if let appleLanguages = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String] {
+        if let appleLanguages = defaults.array(forKey: "AppleLanguages") as? [String] {
             XCTAssertEqual(appleLanguages.first, "es",
                          "AppleLanguages should be set to the selected language")
         } else {
@@ -158,7 +146,7 @@ final class LocalizationManagerTests: XCTestCase {
                         "applyIntelligentLocale should not throw")
 
         // Verify that AppleLanguages was set
-        let appleLanguages = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String]
+        let appleLanguages = defaults.array(forKey: "AppleLanguages") as? [String]
         XCTAssertNotNil(appleLanguages, "AppleLanguages should be set")
         XCTAssertFalse(appleLanguages?.isEmpty ?? true, "AppleLanguages should not be empty")
     }

@@ -83,14 +83,17 @@ final class MacPerformanceTests: XCTestCase {
     // MARK: - Enforced budgets (ratios, not wall-clock — machine-independent)
 
     /// Median wall time of `block`, to damp scheduler noise.
-    private func medianSeconds(iterations: Int = 7, _ block: () -> Void) -> Double {
-        var times: [Double] = []
+    /// The FASTEST of several runs, not the median (AITD-534). Load on a shared runner only ever
+    /// adds time, so the fastest run is the one closest to what the code costs; a median still
+    /// moved with whatever else the machine was doing, and the 2x-vs-4x ratios below flaked on it.
+    private func fastestSeconds(iterations: Int = 9, _ block: () -> Void) -> Double {
+        var fastest = Double.infinity
         for _ in 0..<iterations {
             let start = DispatchTime.now().uptimeNanoseconds
             block()
-            times.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000)
+            fastest = min(fastest, Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000)
         }
-        return times.sorted()[times.count / 2]
+        return fastest
     }
 
     private func withSubtasks(_ n: Int, every k: Int = 2) -> [Task] {
@@ -106,8 +109,8 @@ final class MacPerformanceTests: XCTestCase {
         let small = try CoreSearchFixture.session(seeding: withSubtasks(5_000))
         let large = try CoreSearchFixture.session(seeding: withSubtasks(10_000))
         rows(small); rows(large)                              // warm caches, ignore first runs
-        let t1 = medianSeconds { self.rows(small) }
-        let t2 = medianSeconds { self.rows(large) }
+        let t1 = fastestSeconds { self.rows(small) }
+        let t2 = fastestSeconds { self.rows(large) }
         XCTAssertLessThan(t2, t1 * 3.2,
                           "Doubling to 10k cost \(t2 / max(t1, .leastNonzeroMagnitude))x — quadratic behaviour in the pipeline")
     }
@@ -125,8 +128,8 @@ final class MacPerformanceTests: XCTestCase {
         let flat = try CoreSearchFixture.session(seeding: makeTasks(10_000))
         let nested = try CoreSearchFixture.session(seeding: withSubtasks(10_000, every: 1))
         rows(flat); rows(nested)
-        let tFlat = medianSeconds { self.rows(flat) }
-        let tNested = medianSeconds { self.rows(nested) }
+        let tFlat = fastestSeconds { self.rows(flat) }
+        let tNested = fastestSeconds { self.rows(nested) }
         XCTAssertLessThan(tNested, tFlat * 6.0,
                           "Subtask-heavy shape cost \(tNested / max(tFlat, .leastNonzeroMagnitude))x the flat shape — splice is not scaling")
     }
@@ -135,8 +138,8 @@ final class MacPerformanceTests: XCTestCase {
     func testPaletteSearchScalesLinearly() {
         let small = makeTasks(5_000), large = makeTasks(10_000)
         _ = MacPaletteSearch.matchingTasks("alpha", tasks: small, limit: 6)
-        let t1 = medianSeconds { _ = MacPaletteSearch.matchingTasks("alpha", tasks: small, limit: 6) }
-        let t2 = medianSeconds { _ = MacPaletteSearch.matchingTasks("alpha", tasks: large, limit: 6) }
+        let t1 = fastestSeconds { _ = MacPaletteSearch.matchingTasks("alpha", tasks: small, limit: 6) }
+        let t2 = fastestSeconds { _ = MacPaletteSearch.matchingTasks("alpha", tasks: large, limit: 6) }
         XCTAssertLessThan(t2, t1 * 3.2,
                           "Palette search cost \(t2 / max(t1, .leastNonzeroMagnitude))x for 2x the tasks — not linear")
     }

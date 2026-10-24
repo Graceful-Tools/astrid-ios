@@ -66,17 +66,16 @@ final class MacSettingsDeepLinkTests: XCTestCase {
 
     /// AITD-458: routing a Connections link asks the Agent Hub for its Connections sheet.
     @MainActor
-    func testAITD458_routingConnectionsRequestsTheSheet() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: MacSettingsTab.connectionsRequestKey)
-        defer { defaults.removeObject(forKey: MacSettingsTab.connectionsRequestKey)
-                defaults.removeObject(forKey: MacSettingsTab.defaultsKey) }
+    func testAITD458_routingConnectionsRequestsTheSheet() throws {
+        let suite = "MacSettingsDeepLinkTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
 
-        MacDeepLinkRouter.select(.connections)
+        MacDeepLinkRouter.select(.connections, defaults: defaults)
         XCTAssertEqual(defaults.string(forKey: MacSettingsTab.defaultsKey), MacSettingsTab.ai.rawValue)
         XCTAssertTrue(defaults.bool(forKey: MacSettingsTab.connectionsRequestKey))
 
-        MacDeepLinkRouter.select(.agents)
+        MacDeepLinkRouter.select(.agents, defaults: defaults)
         XCTAssertFalse(defaults.bool(forKey: MacSettingsTab.connectionsRequestKey))
     }
 }

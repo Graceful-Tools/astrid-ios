@@ -115,10 +115,7 @@ final class BoardModelTests: XCTestCase {
         try await session.run(command)
         changed.send(())
 
-        let deadline = Date().addingTimeInterval(5)
-        while model.columnId(of: "a") != "ready", Date() < deadline {
-            try await _Concurrency.Task.sleep(nanoseconds: 20_000_000)
-        }
+        await waitUntil(model, "the card to move to Ready") { model.columnId(of: "a") == "ready" }
         XCTAssertEqual(model.columnId(of: "a"), "ready")
     }
 

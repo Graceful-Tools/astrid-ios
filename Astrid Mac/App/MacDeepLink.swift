@@ -73,8 +73,9 @@ enum MacDeepLinkRouter {
     /// Choose what the Settings window shows for a page. Select the tab first: the window reads
     /// it through @AppStorage, so this also switches a window that is already open. Connections
     /// is a sheet on the AI tab; asking for it is a flag the Agent Hub takes (AITD-458).
-    static func select(_ page: SettingsPage) {
-        let defaults = UserDefaults.standard
+    /// `defaults` is the app's own; a test passes a suite so it does not move the developer's
+    /// Settings tab (AITD-534).
+    static func select(_ page: SettingsPage, defaults: UserDefaults = .standard) {
         defaults.set(MacSettingsTab(page: page).rawValue, forKey: MacSettingsTab.defaultsKey)
         defaults.set(MacSettingsTab.opensConnections(page), forKey: MacSettingsTab.connectionsRequestKey)
     }

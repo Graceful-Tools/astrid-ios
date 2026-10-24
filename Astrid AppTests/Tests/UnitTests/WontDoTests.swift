@@ -46,7 +46,7 @@ final class WontDoTests: XCTestCase {
     // MARK: - The write, through the core
 
     func testClosingAsWontDoCompletesWithTheReasonAndReopeningClearsBoth_AITD496() async throws {
-        let service = TaskService.shared
+        let service = try isolatedTaskService()
         let made = try await service.createTask(listIds: [], title: "Won't do \(UUID().uuidString)")
 
         let closed = try await service.setClosedReason(taskId: made.id, reason: "canceled")
@@ -63,7 +63,7 @@ final class WontDoTests: XCTestCase {
     /// Web's rule (lib/task-update-handler.ts): a won't-do close is not an occurrence, so the
     /// series does not roll forward — the task closes, where a completion would leave it open.
     func testAWontDoCloseDoesNotRollARepeatingTaskForward_AITD496() async throws {
-        let service = TaskService.shared
+        let service = try isolatedTaskService()
         let due = Date(timeIntervalSince1970: 1_790_000_000)
         let made = try await service.createTask(
             listIds: [], title: "Daily \(UUID().uuidString)", whenTime: due, repeating: "daily")
@@ -76,12 +76,18 @@ final class WontDoTests: XCTestCase {
     /// Un-ticking the checkbox on a won't-do task reopens it properly: the reason goes too, or it
     /// would read as open and "won't do" at once.
     func testUncompletingAWontDoTaskClearsItsReason_AITD496() async throws {
-        let service = TaskService.shared
+        let service = try isolatedTaskService()
         let made = try await service.createTask(listIds: [], title: "Reopen \(UUID().uuidString)")
         _ = try await service.setClosedReason(taskId: made.id, reason: "canceled")
 
         let reopened = try await service.completeTask(id: made.id, completed: false)
         XCTAssertFalse(reopened.completed)
         XCTAssertNil(reopened.closedReason)
+    }
+
+    /// A service on an in-memory core of its own, so these writes never reach the process-wide
+    /// cache and journal `TaskService.shared` uses (AITD-534).
+    private func isolatedTaskService() throws -> TaskService {
+        TaskService(core: try CoreSearchFixture.session(seeding: []))
     }
 }

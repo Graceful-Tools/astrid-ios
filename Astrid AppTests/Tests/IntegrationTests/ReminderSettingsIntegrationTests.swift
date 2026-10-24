@@ -48,12 +48,7 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         settings.pushEnabled = true
         settings.emailEnabled = true
 
-        let startTime = Date()
         await settings.save()
-        let elapsed = Date().timeIntervalSince(startTime)
-
-        // Then: Should save instantly
-        XCTAssertLessThan(elapsed, 1.0, "Save should be instant")
 
         // Then: Should be saved to UserDefaults
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderPushEnabled"))

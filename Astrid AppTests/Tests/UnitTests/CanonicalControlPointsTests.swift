@@ -117,8 +117,14 @@ final class CanonicalControlPointsTests: XCTestCase {
     /// test exercises that contract end-to-end on `MyTasksPreferencesService`
     /// without touching the network.
     @MainActor
-    func testMyTasksPreferencesService_WritesToUserDefaultsOptimistically() async {
-        let service = MyTasksPreferencesService.shared
+    func testMyTasksPreferencesService_WritesToUserDefaultsOptimistically() async throws {
+        // A suite and an in-memory core of its own: this used to leave its sentinel in the test
+        // process's real `my_tasks_preferences`, and send it through the shared core (AITD-534).
+        let suite = "MyTasksPreferences.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let core = try CoreSearchFixture.session(seeding: [])
+        let service = MyTasksPreferencesService(defaults: defaults, core: { core }, fetchOnInit: false)
         let sentinel = "test-sentinel-\(UUID().uuidString)"
         let updates = MyTasksPreferences(
             filterPriority: [99],
@@ -133,7 +139,7 @@ final class CanonicalControlPointsTests: XCTestCase {
 
         // UserDefaults write happens synchronously before the debounced
         // network call fires, so we can read it back immediately.
-        let data = UserDefaults.standard.data(forKey: "my_tasks_preferences")
+        let data = defaults.data(forKey: "my_tasks_preferences")
         XCTAssertNotNil(data, "Preferences must persist to UserDefaults before network")
         let decoded = try? JSONDecoder().decode(MyTasksPreferences.self, from: data ?? Data())
         XCTAssertEqual(decoded?.filterAssignee, [sentinel])

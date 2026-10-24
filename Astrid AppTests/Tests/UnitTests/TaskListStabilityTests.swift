@@ -65,7 +65,7 @@ final class TaskListStabilityTests: XCTestCase {
     /// sync pass while the backfill drained.
     func testHistoryImportIsBornCompletedAndBackdated() async throws {
         let backdated = Date(timeIntervalSince1970: 1_288_000_000)
-        let task = try await TaskService.shared.createTask(
+        let task = try await isolatedTaskService().createTask(
             listIds: [], title: "history import \(UUID().uuidString)",
             source: .google, presumeCompletedAt: backdated)
         XCTAssertTrue(task.completed, "must never exist as an open row")
@@ -74,7 +74,7 @@ final class TaskListStabilityTests: XCTestCase {
     }
 
     func testNoOpServerRefreshDoesNotRepublishTasks() async throws {
-        let service = TaskService.shared
+        let service = try isolatedTaskService()
         _ = try await service.createTask(listIds: [], title: "steady \(UUID().uuidString)")
         await service.reloadAll()
 
@@ -101,5 +101,11 @@ final class TaskListStabilityTests: XCTestCase {
             0,
             "safe error logging must not evaluate Error.description (can crash for CoreData-backed NSError payloads)"
         )
+    }
+
+    /// A service on an in-memory core of its own, so these writes never reach the process-wide
+    /// cache and journal `TaskService.shared` uses (AITD-534).
+    private func isolatedTaskService() throws -> TaskService {
+        TaskService(core: try CoreSearchFixture.session(seeding: []))
     }
 }

@@ -59,8 +59,14 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
         ImageCache.shared.store(try bytes(image), image: image, for: url)
     }
 
+    /// A cache miss goes to the stub, which answers as a network that is down — never a socket
+    /// (AITD-534; the uncached test used to start a real fetch to example.test).
+    private let stub = StubURLProtocol.session()
+
     override func setUp() async throws {
         try await super.setUp()
+        StubURLProtocol.reset()
+        StubURLProtocol.respond = { _ in .failure(URLError(.notConnectedToInternet)) }
         ImageCache.shared.remove(url: urlA)
         ImageCache.shared.remove(url: urlB)
     }
@@ -82,7 +88,7 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
         XCTAssertNotNil(ImageCache.shared.get(url: urlA))
         XCTAssertNotNil(ImageCache.shared.get(url: urlB))
 
-        let loader = CachedImageLoader(url: urlA)
+        let loader = CachedImageLoader(url: urlA, session: stub)
         loader.load(url: urlA)
         let first = try bytes(try XCTUnwrap(loader.image, "the first image should resolve from cache"))
 
@@ -100,11 +106,11 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     func testARepointToAnUncachedURLClearsTheStaleImage() throws {
         try seed(.red, at: urlA)
 
-        let loader = CachedImageLoader(url: urlA)
+        let loader = CachedImageLoader(url: urlA, session: stub)
         loader.load(url: urlA)
         XCTAssertNotNil(loader.image)
 
-        loader.load(url: urlB)   // never cached; the network fetch will fail against example.test
+        loader.load(url: urlB)   // never cached; the stubbed fetch fails
         XCTAssertNil(loader.image,
                      "The stale image must be dropped so the placeholder shows while loading")
     }
@@ -114,7 +120,7 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
     func testReloadingTheSameURLKeepsTheImage() throws {
         try seed(.red, at: urlA)
 
-        let loader = CachedImageLoader(url: urlA)
+        let loader = CachedImageLoader(url: urlA, session: stub)
         loader.load(url: urlA)
         let before = try bytes(try XCTUnwrap(loader.image))
 

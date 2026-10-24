@@ -38,7 +38,10 @@ class TaskService: ObservableObject {
     /// which keeps the authoritative mapping; kept here so a lookup is synchronous.
     private var tempTaskIdMapping: [String: String] = [:]
 
-    private var core: CoreSession { AppCore.shared.session }
+    /// The core this service reads and writes. The app's is `AppCore.shared.session`; a test hands
+    /// in an in-memory one so its writes stay out of the process-wide cache and journal (AITD-534).
+    private let coreProvider: @MainActor () -> CoreSession
+    private var core: CoreSession { coreProvider() }
 
     /// Avoids `NSError.description` expansion in logs.
     static func safeErrorSummary(_ error: Error) -> String {
@@ -46,7 +49,17 @@ class TaskService: ObservableObject {
         return "\(nsError.domain)(\(nsError.code)): \(nsError.localizedDescription)"
     }
 
-    private init() {
+    private convenience init() {
+        self.init(coreProvider: { AppCore.shared.session })
+    }
+
+    /// A service on its own core — for tests. The app uses `shared`.
+    convenience init(core: CoreSession) {
+        self.init(coreProvider: { core })
+    }
+
+    private init(coreProvider: @escaping @MainActor () -> CoreSession) {
+        self.coreProvider = coreProvider
         // The tasks must be in memory before the first frame — offline, this is all there is to
         // show — so this one read waits on the calling thread. It is a cache read: no network.
         do {
