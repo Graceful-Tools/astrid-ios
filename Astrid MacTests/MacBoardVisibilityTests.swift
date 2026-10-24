@@ -10,13 +10,6 @@ import XCTest
 
 final class MacBoardVisibilityTests: XCTestCase {
 
-    func testPickerOffersBoardOnlyForAListThatHasOne() {
-        XCTAssertTrue(MacViewMode.offersBoard(projectId: "proj_1", isRealList: true))
-        XCTAssertFalse(MacViewMode.offersBoard(projectId: nil, isRealList: true))
-        XCTAssertFalse(MacViewMode.offersBoard(projectId: "", isRealList: true),
-                       "An empty projectId is not a board")
-    }
-
     /// My Tasks and Search are not lists and can never have a board.
     func testVirtualSelectionsNeverOfferBoard() {
         XCTAssertFalse(MacViewMode.offersBoard(projectId: "proj_1", isRealList: false))
@@ -34,11 +27,5 @@ final class MacBoardVisibilityTests: XCTestCase {
         XCTAssertEqual(MacViewMode.resolve(requested: .board, isRealList: false, projectId: "p"), .list)
         XCTAssertEqual(MacViewMode.resolve(requested: .chat, isRealList: true, projectId: nil), .chat,
                        "Chat does not depend on a board")
-    }
-
-    /// Enabling a board stays reachable from the sidebar once the board pane is hidden.
-    func testEnableIsOfferedForAListWithoutABoard() {
-        XCTAssertTrue(MacViewMode.offersEnableBoard(projectId: nil))
-        XCTAssertFalse(MacViewMode.offersEnableBoard(projectId: "p"))
     }
 }

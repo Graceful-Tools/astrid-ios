@@ -3,7 +3,7 @@
 //  astrid://google-tasks/... callback the backend redirects to: success vs error(message).
 
 import XCTest
-@testable import Astrid_Mac
+@testable import Astrid_App
 
 final class GoogleTasksConnectCallbackTests: XCTestCase {
 

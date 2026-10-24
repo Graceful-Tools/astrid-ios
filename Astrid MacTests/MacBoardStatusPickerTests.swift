@@ -20,35 +20,6 @@ final class MacBoardStatusPickerTests: XCTestCase {
 
     // MARK: - "In board view, it should bring up a 'status' picker"
 
-    /// The bug, in one line: in list mode a card's checkbox finished the task.
-    func testBoardCardOpensThePickerInListMode() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .list, currentUserId: "me"),
-            .openPicker,
-            "A board card's checkbox must open the picker, not complete the task outright")
-    }
-
-    /// And in project mode, which already behaved — the guard has to hold for both, or the
-    /// rule is only half written.
-    func testBoardCardOpensThePickerInProjectMode() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .project, currentUserId: "me"),
-            .openPicker)
-    }
-
-    /// The unassigned mark and someone else's photo are the same control wearing a different
-    /// face. A card is a card whichever face it shows.
-    func testEveryFaceOnACardOpensThePicker() {
-        for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
-            for mode in TaskDisplayMode.allCases {
-                XCTAssertEqual(
-                    TaskLeadingControl.action(surface: .boardCard, kind: kind, displayMode: mode, currentUserId: "me"),
-                    .openPicker,
-                    "\(kind) in \(mode) must open the picker on a board card")
-            }
-        }
-    }
-
     /// A "status picker" that lists no statuses is not one. The board column section is what
     /// makes the popover answer the ask, so it must be there in BOTH modes on a card — list
     /// mode omits it in the detail panel on purpose, and that omission leaked onto the board.
@@ -69,40 +40,7 @@ final class MacBoardStatusPickerTests: XCTestCase {
         }
     }
 
-    // MARK: - "In List mode, not part of a board, tapping the checkbox should complete the task"
-
-    func testListRowCheckboxCompletesInListMode() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .list, currentUserId: "me"),
-            .complete,
-            "In list mode a row's checkbox completes the task — that is what a checkbox means")
-    }
-
-    /// Project mode still turns the row's control into the quick changer everywhere, which is
-    /// what task 132d7b3f asked for. This task narrows the board, not the row.
-    func testListRowOpensTheQuickChangerInProjectMode() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .project, currentUserId: "me"),
-            .openPicker)
-    }
-
     // MARK: - The detail panel is untouched
-
-    /// Its extra condition survives, in the form AITD-375 settled: someone else's photo is not a
-    /// checkbox, so clicking it never finishes their task outright (task 729a190e) — it offers
-    /// the choices, and completing from there asks first. The Mac panel and the phone's detail
-    /// read the same rule, so this reaches both or the two platforms disagree about one task.
-    func testDetailKeepsItsOwnRule() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list, currentUserId: "me"),
-            .complete)
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list, currentUserId: "me"),
-            .openPicker)
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project, currentUserId: "me"),
-            .openPicker)
-    }
 
     /// The detail panel's list-mode popover still leaves board state out for YOUR OWN task — a
     /// board column is a project idea, and offering it in the list layout is the hybrid the

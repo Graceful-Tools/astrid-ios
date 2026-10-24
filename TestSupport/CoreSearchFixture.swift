@@ -2,10 +2,14 @@
 //  A throwaway astrid-core holding just the given tasks — for the search parity spec (AITD-459),
 //  which runs the tests the Swift `TaskSearch` had against the core's `searchTasks`.
 
-#if os(macOS)
 import AstridCore
 import Foundation
+// Compiled into both test targets (AITD-539): one copy, not a byte-for-byte twin per platform.
+#if os(macOS)
 @testable import Astrid_Mac
+#else
+@testable import Astrid_App
+#endif
 
 enum CoreSearchFixture {
     /// Nothing is ever signed in: the session never reaches the network.
@@ -15,14 +19,15 @@ enum CoreSearchFixture {
         func delete(key: String) -> Bool { true }
     }
 
-    /// An in-memory core whose cache holds exactly `tasks`.
-    static func session(seeding tasks: [Task]) throws -> CoreSession {
+    /// An in-memory core whose cache holds exactly `tasks`, and `comments` — which, unlike a
+    /// comment written in the offline unit host, can carry ids the server gave them.
+    static func session(seeding tasks: [Task], comments: [Comment] = []) throws -> CoreSession {
         let session = try CoreSession(cachePath: ":memory:", credentials: NoCredentials(), background: false)
         var command = CoreCommand(kind: "seedCache")
         command.set("tasks", tasks)
+        command.set("comments", comments)
         struct Seeded: Decodable { let seeded: Bool }
         _ = try session.runBlocking(command, as: Seeded.self)
         return session
     }
 }
-#endif

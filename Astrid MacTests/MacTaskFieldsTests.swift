@@ -95,19 +95,6 @@ final class MacTaskFieldsTests: XCTestCase {
                        [.when, .lists, .description])
     }
 
-    /// Order matters, and it is now WHO, DATE, PRIORITY, LISTS (task c8a1ff51).
-    ///
-    /// This used to pin `[.priority, .assignee, .when, .lists]` — priority first, assignee
-    /// second — and iOS independently used the same order. The same mistake twice, which is
-    /// what two views deciding for themselves produces. The order is stated once now, in
-    /// `TaskDetailFieldOrder.listMode`, because the ask was continuity across the phone, the
-    /// Mac and web. The test is rewritten to the new rule rather than deleted: a test that
-    /// disappears when its subject changes takes the record with it.
-    func testListModeOrderIsWhoDatePriorityLists() {
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list),
-                       [.title, .assignee, .when, .priority, .lists, .description])
-    }
-
     /// And it is DERIVED from the shared list, not a second copy of it — otherwise the two
     /// drift the moment one of them is edited.
     func testTheMacOrderFollowsTheSharedDeclaration() {

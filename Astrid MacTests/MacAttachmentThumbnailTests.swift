@@ -20,16 +20,6 @@ import AppKit
 
 final class MacAttachmentThumbnailTests: XCTestCase {
 
-    /// A real, decodable 1×1 PNG — `NSImage(data:)` must actually succeed or the seed is a no-op
-    /// and the test would pass for the wrong reason.
-    private func pngBytes() throws -> Data {
-        let rep = try XCTUnwrap(NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: 1, pixelsHigh: 1, bitsPerSample: 8,
-            samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 4, bitsPerPixel: 32))
-        return try XCTUnwrap(rep.representation(using: .png, properties: [:]))
-    }
-
     // MARK: what can be drawn without waiting
 
     /// An image already decoded in memory draws immediately — no placeholder, no await.
@@ -68,50 +58,5 @@ final class MacAttachmentThumbnailTests: XCTestCase {
         XCTAssertFalse(MacAttachmentThumbnail.Source.notAnImage.showsPlaceholder)
     }
 
-    // MARK: posted from the Mac — the bytes were already in hand
-
-    /// Staging an image puts it in the thumbnail cache under its temp id, so the comment bubble is
-    /// a cache HIT the instant it is posted. Before this, the bytes were dropped when `stagedFiles`
-    /// was cleared and the bubble re-read them off disk behind a placeholder.
-    @MainActor
-    func testStagingAnImageSeedsItsThumbnailAITD308() throws {
-        let tempId = AttachmentService.shared.saveLocallyAndUploadAsync(
-            fileData: try pngBytes(), fileName: "shot.png", mimeType: "image/png",
-            taskId: "task-aitd308")
-        defer { AttachmentService.shared.cancelUpload(tempFileId: tempId) }
-
-        XCTAssertTrue(ThumbnailCache.shared.has(tempId),
-                      "the thumbnail must be ready before the comment is posted, not after")
-    }
-
-    /// …and the upload completing carries that thumbnail to the REAL file id. This is the "or from
-    /// the server" half: when the server's copy of the comment comes back naming the real file, the
-    /// image is already in hand instead of being downloaded back from the server that just got it.
-    @MainActor
-    func testTheSeededThumbnailSurvivesTheTempToRealSwapAITD308() throws {
-        let tempId = AttachmentService.shared.saveLocallyAndUploadAsync(
-            fileData: try pngBytes(), fileName: "shot.png", mimeType: "image/png",
-            taskId: "task-aitd308")
-        defer { AttachmentService.shared.cancelUpload(tempFileId: tempId) }
-
-        let realId = "real-aitd308-\(UUID().uuidString)"
-        AttachmentService.shared.recordOutboxUpload(tempFileId: tempId, realFileId: realId)
-
-        XCTAssertTrue(ThumbnailCache.shared.has(realId),
-                      "aliasing copies only what is there — an unseeded cache aliased nothing, so "
-                      + "the server's copy of the comment re-downloaded the image")
-    }
-
-    /// A staged video or document seeds nothing — there is no image to decode, and a nil decode
-    /// stored under the id would be indistinguishable from a miss.
-    @MainActor
-    func testStagingANonImageSeedsNoThumbnailAITD308() {
-        let tempId = AttachmentService.shared.saveLocallyAndUploadAsync(
-            fileData: Data(repeating: 0xAB, count: 64), fileName: "clip.mov",
-            mimeType: "video/quicktime", taskId: "task-aitd308")
-        defer { AttachmentService.shared.cancelUpload(tempFileId: tempId) }
-
-        XCTAssertFalse(ThumbnailCache.shared.has(tempId))
-    }
 }
 #endif

@@ -1,11 +1,16 @@
 //  CoreRowsFixture.swift
 //  A list's rows, asked of a throwaway astrid-core holding just the given tasks — the parity spec
 //  for AITD-460, which runs the tests the Swift filters, sort and splice had against the core's
-//  `rowsForList` and `listCounts`. The Mac test target has the same file.
+//  `rowsForList` and `listCounts`.
 
 import AstridCore
 import Foundation
+// Compiled into both test targets (AITD-539): one copy, not a byte-for-byte twin per platform.
+#if os(macOS)
+@testable import Astrid_Mac
+#else
 @testable import Astrid_App
+#endif
 
 /// Where a detached wait leaves its answer; read only after the semaphore says it is there.
 final class WaitBox<Answer>: @unchecked Sendable {
@@ -67,5 +72,12 @@ enum CoreRowsFixture {
         }
         done.wait()
         return try box.result!.get()
+    }
+
+    /// My Tasks' rows as the given tasks — what the Mac's `MacMyTasks.filter` answered before it
+    /// gave way to the core (AITD-460). A task's id seen twice is one row.
+    static func myTasksTasks(_ tasks: [Task], userId: String?, preferences: MyTasksPreferences) -> [Task] {
+        let byId = Dictionary(tasks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return ((try? myTasks(tasks, userId: userId, preferences: preferences)) ?? []).compactMap { byId[$0] }
     }
 }

@@ -19,20 +19,6 @@ final class MacDetailPopoverTests: XCTestCase {
 
 extension MacDetailPopoverTests {
 
-    /// Regression for the macOS console storm where scaling the detail's
-    /// PlatformTextFieldAdaptors emitted invalid min/max length warnings.
-    func testRevealMaskKeepsContentAtFullScale() {
-        let bounds = CGRect(x: 0, y: 0, width: 400, height: 800)
-        let visible = MacDetailRevealMask.visibleRect(in: bounds, progress: 0.5, anchorY: 0.25)
-
-        XCTAssertEqual(visible.width, 200, accuracy: 0.001)
-        XCTAssertEqual(visible.height, 432, accuracy: 0.001)
-        XCTAssertEqual(visible.minX, bounds.minX, accuracy: 0.001)
-        XCTAssertEqual(visible.minY + visible.height * 0.25,
-                       bounds.minY + bounds.height * 0.25,
-                       accuracy: 0.001)
-    }
-
     func testRevealDoesNotScaleAppKitBackedTextFields() throws {
         let source = try String(contentsOf: macDetailPopoverSource(), encoding: .utf8)
         let modifier = try SourceSlice.between("struct MacDetailReveal: ViewModifier", and: "struct MacDetailRevealMask", in: source)

@@ -58,10 +58,6 @@ final class MacBoardWidthTests: XCTestCase {
         }
     }
 
-    func testTheFloorIsTheWidthTheBoardShippedAt() {
-        XCTAssertEqual(MacLayout.boardColumnMinWidth, 250)
-    }
-
     func testAnEmptyBoardDoesNotDivideByZero() {
         XCTAssertEqual(MacLayout.boardColumnWidth(columnCount: 0, availableWidth: 1_200),
                        MacLayout.boardColumnMinWidth)

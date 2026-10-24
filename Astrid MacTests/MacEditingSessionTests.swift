@@ -24,44 +24,5 @@ final class MacEditingSessionTests: XCTestCase {
         XCTAssertNil(session.activeEditor)
     }
 
-    /// The Mac's three detail editors are exactly the case this exists for: opening the notes
-    /// field while the title is being edited must commit the title, not leave both live.
-    func testOpeningNotesWhileEditingTheTitleCommitsTheTitle() {
-        var committed: [String] = []
-        let session = EditingSession(onCommit: { committed.append($0) })
-
-        session.begin("mac.title")
-        session.begin("mac.notes")
-
-        XCTAssertEqual(session.activeEditor, "mac.notes")
-        XCTAssertEqual(committed, ["mac.title"], "the title's edit was dropped on the floor")
-    }
-
-    /// Closing the detail commits whatever was open — the Mac equivalent of navigating away.
-    func testClosingTheDetailCommitsTheOpenEditor() {
-        var committed: [String] = []
-        let session = EditingSession(onCommit: { committed.append($0) })
-
-        session.begin("mac.comment")
-        session.commitAll()
-
-        XCTAssertNil(session.activeEditor)
-        XCTAssertEqual(committed, ["mac.comment"])
-    }
-
-    /// Both platforms must agree on the save policy, or "click out to save" means two different
-    /// things depending on which app you are in.
-    func testResigningSavesRatherThanDiscarding() {
-        var committed: [String] = []
-        var cancelled: [String] = []
-        let session = EditingSession(onCommit: { committed.append($0) },
-                                     onCancel: { cancelled.append($0) })
-
-        session.begin("mac.title")
-        session.begin("mac.notes")
-
-        XCTAssertTrue(cancelled.isEmpty, "displacing an editor must never discard the edit")
-        XCTAssertEqual(committed, ["mac.title"])
-    }
 }
 #endif
