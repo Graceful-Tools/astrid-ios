@@ -137,8 +137,20 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
     // MARK: - Swipe Right on Settings Closes Settings
 
+    /// Swiping right on Settings opens the sidebar — the same thing it does on a list (AITD-549).
+    ///
+    /// THE DECISION, and why the test changed rather than the app. Settings is a page in the
+    /// sidebar's navigation, like a list: the sidebar picks it, it fills the content area, and a
+    /// right swipe on it reveals the sidebar with the page still peeking at the right edge — the
+    /// same as `testSwipeRightOnTaskListOpensSidebar`. So after the swipe Settings is still in
+    /// the view tree, parked off to the right, by design. This used to assert that its profile row
+    /// no longer EXISTED, which failed in 5 of 7 runs on an app doing the right thing; whether it
+    /// passed depended on whether SwiftUI had happened to drop the parked view yet.
+    ///
+    /// What a person sees is what is asserted now: the sidebar is on screen and can be used, and
+    /// Settings is no longer what they can tap. No fixed sleeps — each step waits for its state.
     @MainActor
-    func testSwipeRightOnSettingsReturnsToTaskList() throws {
+    func testSwipeRightOnSettingsOpensTheSidebar_AITD549() throws {
         app.launch()
         try skipIfNotSignedIn()
 
@@ -146,63 +158,45 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
             throw UITestFailure("Task list not visible")
         }
 
-        // Open sidebar first (tap hamburger menu)
-        let menuButton = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'menu' OR label CONTAINS[c] 'sidebar' OR label CONTAINS[c] 'line.3.horizontal'")).firstMatch
-        if menuButton.exists {
-            menuButton.tap()
-            Thread.sleep(forTimeInterval: 0.3)
-        } else {
-            // Swipe right to open sidebar
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
-            // 0.15s, as in testSwipeRightOnTaskListOpensSidebar: a 0.05s flick can fall under
-            // the open threshold on a loaded simulator.
-            start.press(forDuration: 0.15, thenDragTo: end)
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-
-        // Tap settings button in sidebar
+        // Into Settings the way a person goes: the menu, then the gear.
+        let hittable = NSPredicate(format: "isHittable == true")
+        let menu = app.buttons.matching(identifier: "taskList.menu").firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout: 10), "the header's menu target")
+        menu.tap()
+        // The closed sidebar keeps its gear in the tree, so wait for it to be TAPPABLE.
         let settingsButton = app.buttons["sidebar.settings"]
-        // Must be hittable, not merely present: the closed sidebar keeps its gear button in
-        // the tree, and tapping an off-screen element fails rather than skipping.
-        guard settingsButton.waitForExistence(timeout: 3) else {
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
-            screenshot.name = "Settings Button Not Found"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-            throw UITestFailure("Settings button not found in sidebar")
-        }
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: hittable, object: settingsButton)],
+                                        timeout: 5), .completed, "the sidebar should open on the menu")
         UITestLaunch.tapCenter(settingsButton)
 
-        Thread.sleep(forTimeInterval: 0.5)
+        let settingsProfile = app.descendants(matching: .any).matching(identifier: "settings.profile").firstMatch
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: hittable, object: settingsProfile)],
+                                        timeout: 10), .completed, "Settings should be showing")
+        let before = XCTAttachment(screenshot: app.screenshot())
+        before.name = "Settings Before Swipe"
+        before.lifetime = .keepAlways
+        add(before)
 
-        // Verify settings is visible — by its profile row, which nothing else on screen carries.
-        let settingsProfile = app.descendants(matching: .any)
-            .matching(identifier: "settings.profile").firstMatch
-        guard settingsProfile.waitForExistence(timeout: 3) else {
-            throw UITestFailure("Settings view did not appear")
-        }
-
-        let beforeSwipe = XCTAttachment(screenshot: app.screenshot())
-        beforeSwipe.name = "Settings Before Swipe"
-        beforeSwipe.lifetime = .keepAlways
-        add(beforeSwipe)
-
-        // Swipe right to dismiss settings — the same recognised gesture the detail uses, from
-        // one place, so the two cannot drift into testing different things.
+        // The same recognised gesture the detail's back-swipe uses, from one place.
         UITestLaunch.swipeBackFromLeftEdge(app)
 
-        Thread.sleep(forTimeInterval: 1.0)
+        // The sidebar is on screen: its header search is tappable only once it has slid in.
+        let headerSearch = app.descendants(matching: .any).matching(identifier: "sidebar.headerSearch").firstMatch
+        let opened = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: hittable, object: headerSearch)],
+                                      timeout: 5)
+        let after = XCTAttachment(screenshot: app.screenshot())
+        after.name = "After Settings Swipe"
+        after.lifetime = .keepAlways
+        add(after)
+        XCTAssertEqual(opened, .completed, "swiping right on Settings should bring the sidebar on screen")
 
-        let afterSwipe = XCTAttachment(screenshot: app.screenshot())
-        afterSwipe.name = "After Settings Swipe"
-        afterSwipe.lifetime = .keepAlways
-        add(afterSwipe)
-
-        // Settings must be gone. "My Tasks" alone also matches the sidebar row while Settings
-        // is still open, so it cannot say the swipe worked (AITD-525).
-        XCTAssertFalse(settingsProfile.exists, "Settings should be dismissed after swiping back")
-        XCTAssertTrue(waitForTaskList(timeout: 3), "Task list should be visible after swiping back from settings")
+        // And Settings is parked: pushed off to the right, where at most its edge peeks out. Not
+        // "not hittable" — the peeking strip is still on screen, so XCUITest calls the row hittable
+        // whenever its hit point lands in it — and not "gone", which is the parked page by design.
+        let width = app.windows.firstMatch.frame.width
+        XCTAssertGreaterThan(settingsProfile.frame.minX, width * 0.5,
+                             "Settings should be parked to the right of the sidebar; its row is at "
+                             + "\(settingsProfile.frame) in a window \(width) wide")
     }
 
     // MARK: - Taps Still Work After Gesture Setup
