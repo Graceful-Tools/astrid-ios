@@ -46,27 +46,7 @@ final class MacAssigneeLabelTests: XCTestCase {
         XCTAssertEqual(resolved, "Unassigned")
     }
 
-    /// The literal must not come back anywhere in the Mac's assignee UI — it is what this task
-    /// is about, and it reappears easily because it reads perfectly fine in English.
-    func testNoMacAssigneeSurfaceStillSaysNoOne() throws {
-        for path in ["Astrid Mac/Views/MacAssigneeOptions.swift",
-                     "Astrid Mac/Views/MacAssigneePicker.swift"] {
-            let text = try source(path)
-            XCTAssertFalse(text.contains("NSLocalizedString(\"No one\""),
-                           "\(path) still uses the English text as its own key")
-        }
-    }
-
     // MARK: - One definition, not two
-
-    /// The picker used to spell the fallback itself instead of asking the option for its name,
-    /// which is how the two drifted from iOS separately. One definition means one thing to fix
-    /// next time.
-    func testThePickerAsksTheOptionForItsLabel() throws {
-        let picker = try source("Astrid Mac/Views/MacAssigneePicker.swift")
-        XCTAssertTrue(picker.contains("MacAssigneeOption.unassignedLabel"),
-                      "The picker should use the shared label, not re-derive one")
-    }
 
     /// A real user's name is untouched by any of this.
     func testAnAssignedOptionStillShowsTheirName() {

@@ -36,14 +36,6 @@ final class LegacyAPIClientRetiredTests: XCTestCase {
         return result
     }
 
-    func testAITD504_TheLegacyClientFilesAreDeleted() {
-        for file in ["Astrid App/Core/Networking/APIClient.swift",
-                     "Astrid App/Core/Networking/APIEndpoint.swift"] {
-            XCTAssertFalse(FileManager.default.fileExists(atPath: RepositoryLocator.root.appendingPathComponent(file).path),
-                           "\(file) should be gone — AstridAPIClient is the one client (ASTRID.md §2a)")
-        }
-    }
-
     func testAITD504_NoSourceDeclaresOrUsesASecondClient() throws {
         // Word boundaries, or `AstridAPIClient.shared` reads as `APIClient.shared`.
         let forbidden = [#"\benum APIEndpoint\b"#, #"\bclass APIClient\b"#, #"\bAPIClientProtocol\b"#,

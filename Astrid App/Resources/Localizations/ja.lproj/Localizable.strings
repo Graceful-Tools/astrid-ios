@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHubリポジトリ";
 "lists.no_repositories_found" = "リポジトリが見つかりません。GitHubアカウントが接続されていることを確認してください。";
 "lists.pending_invitations" = "保留中の招待";
+"lists.pending" = "保留中";
 "lists.invited" = "招待済み";
 "lists.cancel_invite" = "招待をキャンセル";
 "lists.ai_agents" = "AIエージェント";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "タスク支援のためのGoogle Gemini";
 "lists.default_agent_description" = "タスク支援のためのAIエージェント";
 "lists.ai_coding_agents" = "AIコーディングエージェント";
+"lists.ai_coding_agent" = "AIコーディングエージェント";
 "lists.connect_github_description" = "コーディングワークフローを有効にするためにGitHubリポジトリを接続";
 "lists.list_privacy" = "リストのプライバシー";
 "lists.make_public" = "公開にする";
@@ -952,6 +954,7 @@
 "sync.new_list" = "新規リスト";
 "sync.not_linked" = "未リンク";
 "sync.repository" = "リポジトリ";
+"sync.use_repo" = "%@ を使用";
 "sync.suffix_placeholder" = "リスト名の接尾辞（例: [GT]）";
 "sync.sync_mode" = "同期モード";
 "sync.sync_now" = "今すぐ同期";

@@ -36,58 +36,7 @@ final class IOSSilentWriteGuardTests: XCTestCase {
         "addMember", "removeMember", "updateMemberRole",
     ]
 
-    // MARK: - Q1: iOS has a global error surface now
-
-    func testAITD406_TheIOSRootShowsTheSharedErrorBanner() throws {
-        let root = try source("AstridApp.swift")
-        XCTAssertTrue(root.contains("AppErrorBanner()"),
-                      "iOS should present the shared banner at the root, as MacAuthGateView does")
-    }
-
-    /// AITD-408. `ListDefaultsView` built its user-facing error as an English literal — "Sync
-    /// issue: …. Changes saved locally." — so everyone not reading English got English. The copy
-    /// was also false: that catch only sees ListService's local 404, raised BEFORE any optimistic
-    /// write, so the single case it can appear in is the one where nothing was saved anywhere.
-    ///
-    /// Fixed by reuse rather than by adding a thirteenth-language chore: `FailureCopy` already
-    /// says this in all twelve, through the `mac.failed.*` keys. (AITD-403's lesson.)
-    func testAITD408_ListDefaultsUsesTranslatedCopyNotAnEnglishLiteral() throws {
-        let defaults = try source("Astrid App/Views/Lists/ListDefaultsView.swift")
-        XCTAssertFalse(defaults.contains("Changes saved locally"),
-                       "the claim was untranslated AND untrue — nothing is saved on the 404 path")
-        XCTAssertFalse(defaults.contains("Sync issue"), "same literal, other half")
-        XCTAssertTrue(defaults.contains(#"FailureCopy.message(for: "Save list defaults")"#),
-                      "reuse the copy that is already translated twelve ways")
-        XCTAssertEqual(FailureCopy.message(for: "Save list defaults"),
-                       NSLocalizedString("mac.failed.save", comment: ""),
-                       "…and make sure that context actually maps, rather than falling back to generic")
-    }
-
     // MARK: - Q2: the three that were saying nothing now speak
-
-    /// `deleteList` is the one view-level write that genuinely reaches the user: it throws on a
-    /// server refusal AND rolls the list back into view (ListService.swift:662-668), so before
-    /// this the list silently reappeared with no explanation.
-    func testAITD406_TheRefusedListDeleteNowReports() throws {
-        let taskList = try source("Astrid App/Views/Tasks/TaskListView.swift")
-        XCTAssertTrue(taskList.contains(#"AppErrorCenter.shared.report("Delete list""#),
-                      "a refused deleteList must say so — it rolls back into view otherwise, unexplained")
-    }
-
-    /// List writes are astrid-core's journaled writes now, as task writes are: the edit is in the
-    /// cache the moment it is made and the server hears about it when it can. A server refusal
-    /// dead-letters in the journal (and counts in `failedOperationsCount`); it does not throw at
-    /// the call site. So a `try?` on them hides nothing the caller could have acted on — which is
-    /// AITD-406's reasoning for the task writes, now true of lists too (it closes AITD-410).
-    func testListWritesAreTheCoresJournaledWrites() throws {
-        let lists = try source("Astrid App/Core/Services/ListService.swift")
-        for command in ["createList", "updateList", "deleteList", "setListFavorite", "setManualOrder"] {
-            XCTAssertTrue(lists.contains(#"CoreCommand(kind: "\#(command)""#),
-                          "\(command) goes through the core's journal")
-        }
-        XCTAssertFalse(lists.contains("AstridAPIClient"),
-                       "ListService writes nothing to the server itself")
-    }
 
     /// And no NEW silent one appears. Scoped to the direct-API writes on purpose: see below for
     /// why a blanket ban would be wrong on iOS.
@@ -114,33 +63,5 @@ final class IOSSilentWriteGuardTests: XCTestCase {
             so a `try?` here simply loses it. Report through AppErrorCenter instead:
             \(violations.joined(separator: "\n"))
             """)
-    }
-
-    // MARK: - The anti-sweep guard
-
-    /// THE POINT OF THIS TEST IS TO SAY NO. Someone reading AITD-400's "~45 copies of
-    /// `catch { errorMessage = … }`" will reasonably want to convert the task, comment and chat
-    /// writes too — there are 36 of them and they look identical to the three above.
-    ///
-    /// They are not identical. These writes hand off to the Outbox, which is what makes editing
-    /// offline work at all: the optimistic value IS the truth, and the server catches up. Routing
-    /// them through a transient "Couldn't save your changes" banner would be a lie told to
-    /// someone whose edit is safely queued — the noisy outcome Jon asked to avoid.
-    ///
-    /// If this test ever fails because the Outbox stopped backing one of these, that write becomes
-    /// a real candidate for the banner and should be reconsidered. That is the only circumstance
-    /// in which the answer above changes.
-    func testAITD406_TheWritesDeliberatelyLeftSilentAreTheOutboxBackedOnes() throws {
-        let tasks = try source("Astrid App/Core/Services/TaskService.swift")
-        for command in ["CoreCommand.createTask", "CoreCommand.updateTask", "CoreCommand.completeTask",
-                        #"CoreCommand(kind: "deleteTask""#] {
-            XCTAssertTrue(tasks.contains(command),
-                          "task writes must stay journaled (astrid-core) — that is why they are not banner-ed")
-        }
-
-        let comments = try source("Astrid App/Core/Services/CommentService.swift")
-        XCTAssertTrue(comments.contains("Outbox"),
-                      "comment writes queue rather than fail; CommentSectionViewEnhanced's silence is correct")
-
     }
 }

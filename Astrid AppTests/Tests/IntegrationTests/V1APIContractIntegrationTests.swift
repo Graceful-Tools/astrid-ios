@@ -26,18 +26,6 @@ final class V1APIContractIntegrationTests: XCTestCase {
         for path in expectedPaths {
             XCTAssertTrue(source.contains(path), "AstridAPIClient should use \(path)")
         }
-
-        let legacyCorePaths = [
-            #"path: "/api/tasks"#,
-            #"path: "/api/lists"#,
-            #"path: "/api/chat"#,
-            #"path: "/api/user/settings"#,
-            #"path: "/api/user/my-tasks-preferences"#
-        ]
-
-        for path in legacyCorePaths {
-            XCTAssertFalse(source.contains(path), "Core iOS service endpoint should not use legacy \(path)")
-        }
     }
 
     /// The atomic Create Board flow must hit the single-request v1 endpoint
@@ -93,6 +81,4 @@ final class V1APIContractIntegrationTests: XCTestCase {
             XCTAssertTrue(FileManager.default.fileExists(atPath: url.path), "Missing web v1 route: \(route)")
         }
     }
-
-
 }

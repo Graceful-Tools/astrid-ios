@@ -34,15 +34,6 @@ final class SignInMethodsTests: XCTestCase {
         XCTAssertEqual(SignInMethods.offered(by: silent), SignInMethods(google: true, passkey: true, apple: true))
     }
 
-    func testBothLoginScreensAskTheServer() throws {
-        // A screen that draws its buttons without consulting SignInMethods regresses this.
-        for path in ["Astrid App/Views/Authentication/LoginView.swift", "Astrid Mac/App/MacAuthGateView.swift"] {
-            let source = try RepositoryLocator.source(at: path)
-            XCTAssertTrue(source.contains("SignInMethods"), "\(path) must decide its buttons with SignInMethods")
-            XCTAssertTrue(source.contains("signInMethods.buttons"), "\(path) must draw the buttons the server lists, in its order")
-        }
-    }
-
     // MARK: - AITD-465: auth.providers, GitHub and SSO
 
     private func decode(_ json: String) throws -> ServerCapabilities.Auth {

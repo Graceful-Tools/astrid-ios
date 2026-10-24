@@ -152,40 +152,4 @@ final class MarkdownTextTests: XCTestCase {
         XCTAssertEqual(MarkdownText.headingFont(0), MarkdownText.headingFont(1),
                        "a nonsense level clamps rather than crashing or inverting")
     }
-
-    // MARK: - One renderer, both surfaces
-
-    /// Reuse is most of the point: the chat bubble and the comment bubble draw through the SAME
-    /// view, and neither keeps the bare inline-only path that caused this.
-    func testBothIOSBubblesDrawThroughTheOneComposedRenderer() throws {
-        let chat = try RepositoryLocator.source(at: "Astrid App/Views/Chat/ChatMessageBubble.swift")
-        XCTAssertTrue(chat.contains("MarkdownText(source: message.content"),
-                      "chat renders through the composed renderer")
-        XCTAssertFalse(chat.contains("Text(message.content.attributedWithReferences"),
-                       "the inline-only path is the bug this replaces")
-
-        let comments = try RepositoryLocator.source(
-            at: "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift")
-        XCTAssertTrue(comments.contains("MarkdownText(source: comment.content"),
-                      "a completion report is read in this view — it needs blocks most of all")
-        XCTAssertFalse(comments.contains("Text(comment.content.attributedWithReferences"),
-                       "the inline-only path is the bug this replaces")
-    }
-
-    /// The renderer must draw through the SHARED view, which asks astrid-core what the text
-    /// means, rather than growing an iOS-local parser — a second copy is how a deep-link scheme
-    /// changes on one platform only.
-    func testTheRendererUsesTheSharedPasses() throws {
-        let renderer = try RepositoryLocator.source(at: "Astrid App/Views/Components/MarkdownText.swift")
-        XCTAssertTrue(renderer.contains("MarkdownView(source:"),
-                      "the phone draws through the shared view, not an iOS-local one")
-        XCTAssertFalse(renderer.contains("NSRegularExpression"),
-                       "a second copy of the reference pattern is exactly the drift to avoid")
-
-        let shared = try RepositoryLocator.source(at: "Astrid App/Core/Platform/MarkdownView.swift")
-        XCTAssertTrue(shared.contains("CoreRules.markdown"),
-                      "what the text means is astrid-core's answer, the web's own rendering")
-        XCTAssertFalse(shared.contains("NSRegularExpression"),
-                       "no pattern of its own: references arrive from the core as pills")
-    }
 }

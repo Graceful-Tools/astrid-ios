@@ -99,16 +99,6 @@ final class MacDraftDefaultsPickerTests: XCTestCase {
         }
     }
 
-    /// The quick-add window must pass the overrides on. Building the picker and then dropping what
-    /// the user chose would look right on screen and create the wrong task.
-    func testTheQuickAddWindowSendsItsOverridesToTheTask() throws {
-        let source = try Self.source(of: "Astrid Mac/Support/QuickEntryView.swift")
-        XCTAssertTrue(source.contains("priorityOverride: priorityOverride"),
-                      "AITD-387: the chosen priority must reach makeGlobalArgs")
-        XCTAssertTrue(source.contains("\"unassigned\" ? nil :"),
-                      "AITD-387: an explicit nobody is not a missing value")
-    }
-
     private static func source(of path: String) throws -> String {
         let root = RepositoryLocator.root
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)

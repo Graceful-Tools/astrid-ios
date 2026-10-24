@@ -453,6 +453,7 @@
 "lists.github_repository" = "Репозиторий GitHub";
 "lists.no_repositories_found" = "Репозитории не найдены. Убедитесь, что ваш аккаунт GitHub подключён.";
 "lists.pending_invitations" = "Ожидающие приглашения";
+"lists.pending" = "Ожидает";
 "lists.invited" = "Приглашён";
 "lists.cancel_invite" = "Отменить приглашение";
 "lists.ai_agents" = "ИИ-агенты";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini для помощи с задачами";
 "lists.default_agent_description" = "ИИ-агент для помощи с задачами";
 "lists.ai_coding_agents" = "ИИ-агенты программирования";
+"lists.ai_coding_agent" = "ИИ-агент программирования";
 "lists.connect_github_description" = "Подключите репозиторий GitHub для рабочих процессов программирования";
 "lists.list_privacy" = "Приватность списка";
 "lists.make_public" = "Сделать публичным";
@@ -952,6 +954,7 @@
 "sync.new_list" = "Новый список";
 "sync.not_linked" = "Не связано";
 "sync.repository" = "Репозиторий";
+"sync.use_repo" = "Использовать %@";
 "sync.suffix_placeholder" = "Суффикс имени, напр. [GT]";
 "sync.sync_mode" = "Режим синхронизации";
 "sync.sync_now" = "Синхронизировать сейчас";

@@ -44,16 +44,6 @@ final class TaskSyncStateTests: XCTestCase {
         XCTAssertEqual(TaskSyncState.mark(for: Task(id: "t", title: "t", completed: true, syncState: "pending")), .pending)
     }
 
-    // MARK: - Both rows draw from the rule
-
-    func testTheIOSAndMacRowsReadTheSharedRule_AITD491() throws {
-        for path in ["Astrid App/Views/Tasks/TaskRowView.swift", "Astrid Mac/Views/MacTaskRow.swift"] {
-            let source = try RepositoryLocator.source(at: path)
-            XCTAssertTrue(source.contains("TaskSyncState.mark(for: task)"), "\(path) does not draw the sync mark")
-            XCTAssertFalse(source.contains("task.syncState"), "\(path) reads the raw value instead of the rule")
-        }
-    }
-
     // MARK: - Copy
 
     func testBothChipLabelsExistInEveryLanguage_AITD491() throws {

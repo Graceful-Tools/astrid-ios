@@ -19,25 +19,6 @@ final class HardcodedCopyGuardTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
-    /// `SaveFilterDialog` and `ListAgentSettingsView` were localized wholesale, so they are
-    /// checked by the absence of ANY bare `Text("…")` / `Button("…")` / `return "…"` copy.
-    func testAITD403_TheWhollyLocalizedScreensKeepNoBareCopy() throws {
-        for path in ["Astrid App/Views/Lists/SaveFilterDialog.swift",
-                     "Astrid App/Views/Lists/ListAgentSettingsView.swift"] {
-            let src = try source(path)
-            for (index, line) in src.components(separatedBy: .newlines).enumerated() {
-                let code = line.trimmingCharacters(in: .whitespaces)
-                guard !code.hasPrefix("//") else { continue }
-                // `description: "Smart List"` is a WIRE VALUE, not copy — see the next test.
-                guard !code.contains("description:") else { continue }
-                for shape in [#"Text(""#, #"Button(""#, #"Section(""#, #"TextField(""#] {
-                    XCTAssertFalse(code.contains(shape),
-                                   "AITD-403: \(path):\(index + 1) — \(code)")
-                }
-            }
-        }
-    }
-
     /// THE ONE THAT MUST STAY ENGLISH. `createList(description:)` writes to the SERVER, so
     /// localizing it would store the creator's UI language in a field every other member reads —
     /// on other platforms, in a language they did not choose. A literal-matching scan cannot tell

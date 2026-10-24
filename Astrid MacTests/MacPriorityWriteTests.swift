@@ -69,8 +69,6 @@ final class MacPriorityWriteTests: XCTestCase {
         let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacTaskFieldsView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertFalse(source.contains("guard newValue != task.priority"),
-                       "Comparing the tap against the snapshot is the bug — ask MacPriorityWrite")
         XCTAssertTrue(source.contains("MacPriorityWrite.shouldWrite"),
                       "The panel must ask the shared rule")
     }

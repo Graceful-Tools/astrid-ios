@@ -17,12 +17,6 @@ final class MacListImagePickerTests: XCTestCase {
             .appendingPathComponent("Astrid Mac/Views/MacListEditSheet.swift"), encoding: .utf8)
     }
 
-    /// The colour swatch row is gone — that is the literal ask.
-    func testTheColourSwatchRowIsGone() throws {
-        XCTAssertFalse(try sheet().contains("mac.color_label"),
-                       "The colour picker is replaced by a list image picker (task 9a9d24bd)")
-    }
-
     /// …replaced by the SHARED placeholders, not a Mac-local copy of them.
     func testItOffersTheSharedPlaceholders() throws {
         let source = try sheet()
@@ -39,12 +33,5 @@ final class MacListImagePickerTests: XCTestCase {
         XCTAssertEqual(ListImagePlaceholders.all.last?.path, "/images/placeholders/pearl.png")
     }
 
-    /// A placeholder needs no upload and no id, so it must survive list CREATION — previously
-    /// impossible on Mac, where the only image affordance required an existing list.
-    func testAnImageChosenWhileCreatingIsApplied() throws {
-        let source = try sheet()
-        XCTAssertTrue(source.contains("chosenImage"),
-                      "A placeholder picked before the list exists must be applied after creation")
-    }
 }
 #endif

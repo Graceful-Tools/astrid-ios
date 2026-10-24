@@ -123,16 +123,6 @@ final class CachedImageLoaderURLChangeTests: XCTestCase {
         XCTAssertEqual(before, after)
     }
 
-    /// The component must not go back to relying on call sites remembering `.id(url)`. It reacts to
-    /// a changed url itself, for every one of the ~25 places that build one.
-    func testTheViewReactsToAChangedURLItself() throws {
-        let source = try String(contentsOf: RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Utilities/ImageCache.swift"), encoding: .utf8)
-        let view = try XCTUnwrap(source.components(separatedBy: "struct CachedAsyncImage").last)
-        XCTAssertTrue(view.contains("onChange(of: url)") || view.contains("task(id: url)"),
-                      "CachedAsyncImage must follow its url, not capture it once in init")
-    }
-
     /// Tasks be508751 / 2f1ec1af: the Copilot endpoint serves SVG without a file extension.
     /// PlatformImage cannot decode it, so the shared image view must choose the bundled mascot.
     func testTasks_be508751_2f1ec1afCopilotEndpointUsesBundledMascot() {

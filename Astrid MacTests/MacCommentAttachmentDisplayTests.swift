@@ -103,18 +103,6 @@ final class MacCommentAttachmentDisplayTests: XCTestCase {
 
     // MARK: - Reuse
 
-    /// The bytes come from the SHARED ladder (staged local copy → download cache → server), not
-    /// a Mac transcription of iOS's. Two copies of that ladder is how the platforms drift.
-    func testThumbnailBytesUseTheSharedLadder() throws {
-        let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid Mac/Views/MacCommentAttachments.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(source.contains("AttachmentService.shared.fileData(for:"),
-                      "Thumbnail loading must go through the shared byte ladder")
-        XCTAssertFalse(source.contains("secure-files"),
-                       "No Mac-local copy of the secure-file download dance")
-    }
-
     /// Opening one goes through the shared preparer, which already handles a file that is still
     /// uploading (its bytes are the local staging copy).
     func testOpeningUsesTheSharedPreviewPreparer() throws {

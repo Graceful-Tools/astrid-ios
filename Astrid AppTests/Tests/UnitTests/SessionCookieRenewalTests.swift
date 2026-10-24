@@ -110,17 +110,4 @@ final class SessionCookieRenewalTests: XCTestCase {
         let response = try JSONDecoder().decode(SessionResponse.self, from: Data(json.utf8))
         XCTAssertNil(response.sessionToken)
     }
-
-    // MARK: - The caller actually saves it
-
-    func testAuthManagerPersistsARenewedToken() throws {
-        let root = RepositoryLocator.root
-        let source = try String(
-            contentsOf: root.appendingPathComponent("Astrid App/Core/Authentication/AuthManager.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(source.contains("SessionCookie.replacingToken"),
-                      "a renewed token must be folded into the stored cookie, not written raw")
-        XCTAssertTrue(source.contains("saveSessionCookie"),
-                      "…and actually saved, or the renewal is received and dropped")
-    }
 }

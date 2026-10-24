@@ -480,6 +480,7 @@
 "lists.github_repository" = "Dépôt GitHub";
 "lists.no_repositories_found" = "Aucun dépôt trouvé. Vérifiez que votre compte GitHub est connecté.";
 "lists.pending_invitations" = "Invitations en attente";
+"lists.pending" = "En attente";
 "lists.invited" = "Invité";
 "lists.cancel_invite" = "Annuler l'invitation";
 "lists.ai_agents" = "Agents IA";
@@ -500,6 +501,7 @@
 "lists.gemini_task_description" = "Google Gemini pour l'assistance de tâches";
 "lists.default_agent_description" = "Agent IA pour l'assistance de tâches";
 "lists.ai_coding_agents" = "Agents IA de programmation";
+"lists.ai_coding_agent" = "Agent IA de programmation";
 "lists.connect_github_description" = "Connecter un dépôt GitHub pour les flux de programmation";
 "lists.list_privacy" = "Confidentialité de la liste";
 "lists.make_public" = "Rendre publique";
@@ -968,6 +970,7 @@
 "sync.new_list" = "Nouvelle liste";
 "sync.not_linked" = "Non liée";
 "sync.repository" = "Dépôt";
+"sync.use_repo" = "Utiliser %@";
 "sync.suffix_placeholder" = "Suffixe du nom, p. ex. [GT]";
 "sync.sync_mode" = "Mode de synchronisation";
 "sync.sync_now" = "Synchroniser maintenant";

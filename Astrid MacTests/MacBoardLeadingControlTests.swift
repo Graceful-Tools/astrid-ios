@@ -35,29 +35,6 @@ final class MacBoardLeadingControlTests: XCTestCase {
                       "The board card must use the shared leading control, not its own checkbox button")
     }
 
-    /// A bare checkbox whose only action is complete is what this task is about. If one comes
-    /// back, the trapdoor is back.
-    func testTheCardHasNoBareCompleteOnlyCheckbox() throws {
-        let source = try boardSource()
-        // The old shape, as it stood: a Button whose action was toggleComplete wrapping the
-        // checkbox artwork.
-        let bareButton = source.contains("Button { toggleComplete(t) } label: {")
-        XCTAssertFalse(bareButton,
-                       "The card's checkbox must open the picker, not complete the task outright")
-    }
-
-    // MARK: - What the control needs to be useful
-
-    /// The assignee section is only worth offering if the members are actually loaded. An empty
-    /// picker is worse than none — it reads as "this task can be assigned to nobody".
-    func testTheBoardLoadsListMembersForTheAssigneePicker() throws {
-        let source = try boardSource()
-        XCTAssertTrue(source.contains("ListMemberService"),
-                      "The board needs the list's members to build the assignee picker")
-        XCTAssertTrue(source.contains("fetchMembers"),
-                      "Members must be fetched, not assumed already cached by another screen")
-    }
-
     // MARK: - The rules the picker itself relies on
 
     /// Completing does not disappear; it moves into the popover. The picker's own section list

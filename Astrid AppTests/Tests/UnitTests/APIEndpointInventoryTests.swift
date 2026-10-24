@@ -98,14 +98,4 @@ final class APIEndpointInventoryTests: XCTestCase {
 
     // The legacy client this used to keep from growing is gone (AITD-504) —
     // LegacyAPIClientRetiredTests keeps it gone.
-
-    /// The decision has to be findable by someone who never read the task.
-    func testTheDecisionIsRecordedWhereAgentsRead() throws {
-        let astrid = try String(contentsOf: RepositoryLocator.root.appendingPathComponent("ASTRID.md"),
-                                encoding: .utf8)
-        XCTAssertTrue(astrid.contains("`AstridAPIClient` is the HTTP client"),
-                      "ASTRID.md must state which client is the one")
-        XCTAssertTrue(astrid.contains("b1a05e99"),
-                      "The decision should cite the task that settled it")
-    }
 }

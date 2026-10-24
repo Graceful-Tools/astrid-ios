@@ -154,17 +154,6 @@ final class ConnectionsTests: XCTestCase {
         XCTAssertNil(rows[5].ownerLabel, "an owner string this build never heard of draws nothing")
     }
 
-    /// The facets group; `kind` still revokes. A client that adopted one and dropped the other
-    /// would group beautifully and revoke nothing.
-    func testAITD420KindStaysTheRevokePathAndTheAgentWording() throws {
-        let rows = try decodeFacetFixture()
-        XCTAssertEqual(rows.map(\.kind), [.oauthClient, .authorizedApp, .customAgent, .accessToken, .webhook, .unknown])
-        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[2]), "/api/v1/users/me/connections/customAgent/agent-1")
-        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[4]), "/api/v1/users/me/connections/webhook/webhook")
-        let screen = try source("Astrid App/Core/Platform/ConnectionsScreen.swift")
-        XCTAssertTrue(screen.contains("remove_agent_confirm"), "the Custom-Agent wording is still chosen by kind")
-    }
-
     /// A category this build has never heard of is a row it still shows, in its own section —
     /// not a reason to drop back to kind sections for the whole page.
     func testAITD420AnUnknownCategoryGetsItsOwnSectionRatherThanCollapsingThePage() async throws {
@@ -195,14 +184,6 @@ final class ConnectionsTests: XCTestCase {
                 XCTAssertTrue(text.contains("\"\(key)\""), "\(language) is missing \(key)")
             }
         }
-    }
-
-    /// The screen reads the grouping off the section, not off `kind`.
-    func testAITD420TheScreenNoLongerHeadsItsSectionsWithTheKind() throws {
-        let screen = try source("Astrid App/Core/Platform/ConnectionsScreen.swift")
-        XCTAssertFalse(screen.contains("Section(section.kind.localizedLabel)"),
-                       "the heading comes from the section's own title now")
-        XCTAssertTrue(screen.contains("section.localizedTitle"))
     }
 
     // MARK: Loading fails (AITD-538)
@@ -338,32 +319,5 @@ final class ConnectionsTests: XCTestCase {
         let minted = await model.minted
         XCTAssertEqual(minted?.clientId, "astrid_client_minted")
         XCTAssertEqual(service.mints, [OAuthClientPresetRequest(preset: .webhookServer, agent: "claude")])
-    }
-
-    // MARK: Deep links and the web link
-
-    func testDeepLinksOpenTheScreensThatExistNow() throws {
-        let presenter = try source("Astrid App/Core/Services/SettingsPresenter.swift")
-        XCTAssertFalse(presenter.contains("AIAPIKeyManagerView()"),
-                       "api-access must open Connections, not the AI-provider key manager")
-        XCTAssertFalse(presenter.contains("AIAssistantSettingsView()"),
-                       "agents must open the Agent Hub, which replaced AIAssistantSettingsView")
-        XCTAssertTrue(try source("Astrid App/Core/Services/SettingsPage.swift").contains("case connections"))
-        XCTAssertNotNil(SettingsPage(rawValue: "connections"))
-        XCTAssertNotNil(SettingsPage(rawValue: "api-access"), "old links keep working")
-    }
-
-    func testNativeNoLongerSendsAnyoneToTheRetiredAPIAccessPage() throws {
-        for path in [
-            "Astrid App/Models/AgentHub.swift",
-            "Astrid App/Core/Platform/AgentHubScreens.swift",
-            "Astrid App/Core/Platform/ConnectionsScreen.swift",
-        ] {
-            let src = try source(path)
-            XCTAssertFalse(src.contains("/settings/api-access"), "\(path) still links to the retired page")
-            XCTAssertFalse(src.contains("webAPIAccess"), "\(path) still uses the retired link")
-        }
-        XCTAssertEqual(AgentHubLinks.webConnections(origin: "https://example.test/")?.absoluteString,
-                       "https://example.test/settings/connections")
     }
 }

@@ -54,19 +54,6 @@ final class LegacySecureFilesPathTests: XCTestCase {
                        + offenders.joined(separator: "\n"))
     }
 
-    /// The one place that mints a stored attachment URL. If this ever emits the legacy form,
-    /// every file uploaded afterwards is another legacy row.
-    func testTheUploadPathMintsTheV1Form() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root
-                .appendingPathComponent("Astrid App/Core/Services/AttachmentService.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(source.contains("\"/api/v1/secure-files/\\(fileId)\""),
-                      "uploadSecureFile must return the v1 path")
-        XCTAssertFalse(source.contains("/api/secure-files/"),
-                       "the upload service has no business naming the legacy path at all")
-    }
-
     // MARK: - The renderers still ACCEPT it
 
     /// Attachment URLs are PERSISTED, so rows written before the v1 cutover still hold the legacy

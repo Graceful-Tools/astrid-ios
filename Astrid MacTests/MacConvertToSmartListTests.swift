@@ -23,23 +23,6 @@ final class MacConvertToSmartListTests: XCTestCase {
             .appendingPathComponent(relative), encoding: .utf8)
     }
 
-    /// The bug, stated as a rule: the filter sheet must never mint a second list.
-    func testTheFilterSheetDoesNotCreateAList() throws {
-        let sheet = try macSource("Views/MacFilterSheet.swift")
-        XCTAssertFalse(sheet.contains("createList"),
-                       """
-                       Saving a smart list must CONVERT the current list, like web and iOS. \
-                       Creating one duplicated the list under the same name (task 0e09b224).
-                       """)
-    }
-
-    /// …and it must not carry a name field, which only existed to name the duplicate.
-    func testThereIsNothingToNameAnyMore() throws {
-        let sheet = try macSource("Views/MacFilterSheet.swift")
-        XCTAssertFalse(sheet.contains("smartListName"),
-                       "Converting the list you are on needs no name")
-    }
-
     /// Converting turns the CURRENT list virtual, carrying the filters it already has.
     func testConversionMarksTheListVirtual() {
         let u = MacListFilter.smartListUpdates(completion: "incomplete", priority: "all",

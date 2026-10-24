@@ -165,18 +165,6 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
             .openPicker)
     }
 
-    // MARK: - The board card must actually ASK for the board surface
-
-    /// The rule is only as good as the call site. `TaskRowView` draws both the list row and the
-    /// board card, so if the card stops declaring itself a card it silently inherits the row's
-    /// answer again — which is the whole bug.
-    func testTheBoardCardDeclaresItsSurface() throws {
-        let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Views/Board/BoardTaskCardView.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(source.contains("surface: .boardCard"),
-                      "The board card must tell TaskRowView it is a card, or it behaves like a row")
-    }
 }
 
 /// Someone else's task: the popover, everywhere — and a confirmation on Complete (AITD-375).

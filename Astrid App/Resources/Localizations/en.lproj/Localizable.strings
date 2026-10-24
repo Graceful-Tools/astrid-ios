@@ -205,6 +205,7 @@
 "lists.github_repository" = "GitHub Repository";
 "lists.no_repositories_found" = "No repositories found. Make sure your GitHub account is connected.";
 "lists.pending_invitations" = "Pending Invitations";
+"lists.pending" = "Pending";
 "lists.invited" = "Invited";
 "lists.cancel_invite" = "Cancel Invite";
 "lists.ai_agents" = "AI Agents";
@@ -225,6 +226,7 @@
 "lists.gemini_task_description" = "Google Gemini for task assistance";
 "lists.default_agent_description" = "AI agent for task assistance";
 "lists.ai_coding_agents" = "AI Coding Agents";
+"lists.ai_coding_agent" = "AI Coding Agent";
 "lists.connect_github_description" = "Connect a GitHub repository to enable coding workflows";
 "lists.list_privacy" = "List Privacy";
 "lists.make_public" = "Make Public";
@@ -960,6 +962,7 @@
 "sync.new_list" = "New List";
 "sync.not_linked" = "Not linked";
 "sync.repository" = "Repository";
+"sync.use_repo" = "Use %@";
 "sync.suffix_placeholder" = "List name suffix, e.g. [GT]";
 "sync.sync_mode" = "Sync mode";
 "sync.sync_now" = "Sync now";
