@@ -37,7 +37,7 @@ struct MacTaskBlockersRow: View {
                 .macFont(MacTypography.label)
                 .popover(isPresented: $showingPicker, arrowEdge: .bottom) {
                     MacTaskBlockerPicker(task: task,
-                                         excludedIds: blockedBy.map(\.id) + dependentIds,
+                                         excludedIds: MacTaskBlockers.excludedIds(blockedBy: blockedBy, dependentIds: dependentIds),
                                          onBlockersChanged: { blockedBy = $0 })
                 }
         }
@@ -160,7 +160,8 @@ private struct MacTaskBlockerPicker: View {
         try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
         guard !_Concurrency.Task.isCancelled else { return }
         let found = (try? await service.candidates(query: query, task: task,
-                                                   excludedIds: excludedIds + added)) ?? []
+                                                   excludedIds: MacTaskBlockers.excludedIds(
+                                                       base: excludedIds, added: added))) ?? []
         guard !_Concurrency.Task.isCancelled else { return }
         hits = found
         highlighted = 0
@@ -181,6 +182,19 @@ private struct MacTaskBlockerPicker: View {
                                                  comment: "")
             }
         }
+    }
+}
+/// Which tasks the blocker search must not offer, beyond what the core already leaves out (the
+/// task itself, completed tasks): what already blocks it, what it already blocks — offering one of
+/// those would make a cycle — and what was added a moment ago and the core has not seen yet
+/// (AITD-540).
+enum MacTaskBlockers {
+    static func excludedIds(blockedBy: [TaskBlocker], dependentIds: [String]) -> [String] {
+        blockedBy.map(\.id) + dependentIds
+    }
+
+    static func excludedIds(base: [String], added: [String]) -> [String] {
+        base + added
     }
 }
 #endif

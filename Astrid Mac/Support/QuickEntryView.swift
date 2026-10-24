@@ -14,11 +14,20 @@ import Combine
 final class QuickEntryHotKeyController: ObservableObject {
     static let windowID = "quick-add"
     private var hotKey: GlobalHotKey?
+    /// How the key is made — Carbon in the app, a fake registrar in tests (AITD-540).
+    private let makeHotKey: (@escaping () -> Void) -> GlobalHotKey?
+
+    init(makeHotKey: @escaping (@escaping () -> Void) -> GlobalHotKey? = { GlobalHotKey(action: $0) }) {
+        self.makeHotKey = makeHotKey
+    }
+
+    /// Whether ⌥Space is registered. Read by tests; the app only ever asks to register.
+    var isRegistered: Bool { hotKey != nil }
 
     @MainActor func registerIfNeeded() {
         guard hotKey == nil else { return }
         // Default ⌥Space; make user-rebindable in M2.
-        hotKey = GlobalHotKey { [weak self] in self?.open() }
+        hotKey = makeHotKey { [weak self] in self?.open() }
         if hotKey == nil {
             NSLog("[Astrid][M0] GlobalHotKey registration FAILED — see docs/archive/MAC_M0_NOTES.md fallback.")
         }

@@ -14,7 +14,13 @@ import Foundation
 final class TaskBlockerService {
     static let shared = TaskBlockerService()
 
-    private var core: CoreSession { AppCore.shared.session }
+    /// The app's core, or an in-memory one a test hands in (AITD-540).
+    private let coreProvider: @MainActor () -> CoreSession
+    private var core: CoreSession { coreProvider() }
+
+    init(core: (@MainActor () -> CoreSession)? = nil) {
+        coreProvider = core ?? { AppCore.shared.session }
+    }
 
     /// What a task waits on and what waits on it — the server's, or the cache's when offline.
     func blockers(taskId: String) async throws -> TaskBlockersResponse {
