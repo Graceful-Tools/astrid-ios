@@ -24,7 +24,7 @@ struct MacListSettingsWindow: View {
     @StateObject private var listService = ListService.shared
     @State private var tab: Tab
 
-    enum Tab: Hashable { case sortFilters, membership, admin }
+    enum Tab: Hashable { case sortFilters, membership, insights, admin }
 
     /// Tall enough that the Filters tab shows every row at the default text size. The content
     /// must still FIT whatever this is — it was 560 with 667 of content, and what does not fit
@@ -68,6 +68,10 @@ struct MacListSettingsWindow: View {
             Picker("", selection: $tab) {
                 Text(NSLocalizedString("lists.filters", comment: "")).tag(Tab.sortFilters)
                 Text(NSLocalizedString("lists.members", comment: "")).tag(Tab.membership)
+                // Every list but a saved filter, whoever can see it — as on web (AITD-545).
+                if ListInsightsFormat.isAvailable(for: currentList) {
+                    Text(NSLocalizedString("listInsights.tab", comment: "")).tag(Tab.insights)
+                }
                 if canEditSettings {
                     Text(NSLocalizedString("lists.admin", comment: "")).tag(Tab.admin)
                 }
@@ -91,6 +95,8 @@ struct MacListSettingsWindow: View {
                     }
                 case .membership:
                     MacListMembershipTab(list: currentList)
+                case .insights:
+                    ListInsightsView(listId: currentList.id)
                 case .admin:
                     MacListAdminTab(list: currentList)
                 }

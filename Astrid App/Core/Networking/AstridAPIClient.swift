@@ -688,6 +688,17 @@ class AstridAPIClient {
         return response.results
     }
 
+    /// A list's activity over the last `days` days, bucketed in `timeZone` (AITD-545).
+    func getListInsights(listId: String, days: Int, timeZone: String) async throws -> ListInsights {
+        let response: ListInsightsResponse = try await request(
+            method: "GET",
+            path: "/api/v1/lists/\(listId)/insights",
+            queryItems: [URLQueryItem(name: "days", value: String(days)),
+                         URLQueryItem(name: "tz", value: timeZone)]
+        )
+        return response.insights
+    }
+
     /// Get recommended collaborators based on mutual address book presence
     func getRecommendedCollaborators(excludeListId: String? = nil, limit: Int = 20) async throws -> [RecommendedCollaborator] {
         var queryItems = [URLQueryItem(name: "limit", value: String(limit))]

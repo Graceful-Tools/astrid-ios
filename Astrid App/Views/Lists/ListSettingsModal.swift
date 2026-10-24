@@ -35,6 +35,11 @@ struct ListSettingsModal: View {
         ListPermissions.canEditSettings(currentList, userId: AuthManager.shared.userId)
     }
 
+    /// Every list but a saved filter has Insights (AITD-545), whoever can see it — as on web.
+    private var showsInsights: Bool {
+        ListInsightsFormat.isAvailable(for: currentList)
+    }
+
     /// Check if current user is the list owner.
     /// Through `TaskList.role(for:)` rather than comparing ids inline, so this cannot drift from
     /// web's `getUserRoleInList` (ASTRID.md §8 row 3, AITD-316).
@@ -71,12 +76,16 @@ struct ListSettingsModal: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Tab picker: admins get 3 tabs, non-admins get 2 (Filters + Members)
+                // Tab picker: Filters, Members, Insights (not on a saved filter), and Admin for admins
                 Picker("", selection: $selectedTab) {
                     Label(NSLocalizedString("lists.filters", comment: ""), systemImage: "line.3.horizontal.decrease.circle")
                         .tag(0)
                     Label(NSLocalizedString("lists.members", comment: ""), systemImage: "person.2")
                         .tag(1)
+                    if showsInsights {
+                        Label(NSLocalizedString("listInsights.tab", comment: ""), systemImage: "chart.xyaxis.line")
+                            .tag(3)
+                    }
                     if canEditSettings {
                         Label(NSLocalizedString("lists.admin", comment: ""), systemImage: "gearshape")
                             .tag(2)
@@ -100,6 +109,11 @@ struct ListSettingsModal: View {
                                       onLeave: { showingLeaveConfirmation = true },
                                       onListRelinquished: { onLeave?() })
                         .tag(1)
+
+                    if showsInsights {
+                        ListInsightsView(listId: currentList.id)
+                            .tag(3)
+                    }
 
                     if canEditSettings {
                         ListAdminTab(list: currentList, onUpdate: handleUpdate, onDelete: onDelete)

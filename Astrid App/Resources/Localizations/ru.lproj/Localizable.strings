@@ -1570,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, до даты";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Статистика";
+"listInsights.days7" = "7 дней";
+"listInsights.days30" = "30 дней";
+"listInsights.days90" = "90 дней";
+"listInsights.activity" = "Активность";
+"listInsights.created" = "Новые";
+"listInsights.completed" = "Выполненные";
+"listInsights.created_total" = "Новых: %@";
+"listInsights.completed_total" = "Выполнено: %@";
+"listInsights.time_to_complete" = "Медианное время до выполнения";
+"listInsights.time_in_lane" = "Медианное время в каждой колонке";
+"listInsights.sample_size" = "из %@";
+"listInsights.not_enough_history" = "Пока недостаточно истории";
+"listInsights.lane_history_note" = "Перемещения между колонками записываются с этого момента; данные появятся по мере перемещения карточек.";
+"listInsights.contributors" = "Самые активные участники";
+"listInsights.profile_counts" = "Выполнено %1$@ · Вдохновлено %2$@ · Поддержано %3$@";
+"listInsights.activity_counts" = "Создано %1$@ · Правок %2$@ · Комментариев %3$@";
+"listInsights.no_activity" = "Нет активности за этот период";
+"listInsights.load_failed" = "Не удалось загрузить статистику";
+"listInsights.loading" = "Загрузка статистики…";
+"listInsights.duration.minutes" = "%@ мин";
+"listInsights.duration.hours" = "%@ ч";
+"listInsights.duration.days" = "%@ д";

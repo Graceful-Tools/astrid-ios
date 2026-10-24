@@ -1570,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, fino a una data";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Statistiche";
+"listInsights.days7" = "7 giorni";
+"listInsights.days30" = "30 giorni";
+"listInsights.days90" = "90 giorni";
+"listInsights.activity" = "Attività";
+"listInsights.created" = "Nuove";
+"listInsights.completed" = "Completate";
+"listInsights.created_total" = "%@ nuove";
+"listInsights.completed_total" = "%@ completate";
+"listInsights.time_to_complete" = "Tempo mediano di completamento";
+"listInsights.time_in_lane" = "Tempo mediano in ogni colonna";
+"listInsights.sample_size" = "su %@";
+"listInsights.not_enough_history" = "Storico non ancora sufficiente";
+"listInsights.lane_history_note" = "Gli spostamenti tra colonne vengono registrati da ora in poi: i dati si riempiranno man mano che le schede si spostano.";
+"listInsights.contributors" = "Principali collaboratori";
+"listInsights.profile_counts" = "%1$@ completate · %2$@ ispirate · %3$@ supportate";
+"listInsights.activity_counts" = "%1$@ create · %2$@ modifiche · %3$@ commenti";
+"listInsights.no_activity" = "Nessuna attività in questo periodo";
+"listInsights.load_failed" = "Impossibile caricare le statistiche";
+"listInsights.loading" = "Caricamento statistiche…";
+"listInsights.duration.minutes" = "%@ min";
+"listInsights.duration.hours" = "%@ h";
+"listInsights.duration.days" = "%@ g";

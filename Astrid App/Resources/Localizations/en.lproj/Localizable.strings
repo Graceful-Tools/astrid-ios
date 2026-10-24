@@ -1578,3 +1578,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, until date";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Insights";
+"listInsights.days7" = "7 days";
+"listInsights.days30" = "30 days";
+"listInsights.days90" = "90 days";
+"listInsights.activity" = "Activity";
+"listInsights.created" = "New";
+"listInsights.completed" = "Completed";
+"listInsights.created_total" = "%@ new";
+"listInsights.completed_total" = "%@ completed";
+"listInsights.time_to_complete" = "Median time to complete";
+"listInsights.time_in_lane" = "Median time in each column";
+"listInsights.sample_size" = "from %@";
+"listInsights.not_enough_history" = "Not enough history yet";
+"listInsights.lane_history_note" = "Column moves are recorded from now on, so this fills in as cards move.";
+"listInsights.contributors" = "Top contributors";
+"listInsights.profile_counts" = "%1$@ completed · %2$@ inspired · %3$@ supported";
+"listInsights.activity_counts" = "%1$@ created · %2$@ edits · %3$@ comments";
+"listInsights.no_activity" = "No activity in this period";
+"listInsights.load_failed" = "Couldn't load insights";
+"listInsights.loading" = "Loading insights…";
+"listInsights.duration.minutes" = "%@ min";
+"listInsights.duration.hours" = "%@ h";
+"listInsights.duration.days" = "%@ d";

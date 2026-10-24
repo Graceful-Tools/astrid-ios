@@ -82,6 +82,7 @@ not by this client.)
 - `/api/v1/lists`
 - `/api/v1/lists/{id}`
 - `/api/v1/lists/{id}/copy`
+- `/api/v1/lists/{id}/insights`
 - `/api/v1/lists/{id}/leave`
 - `/api/v1/lists/{id}/transfer-ownership`
 
