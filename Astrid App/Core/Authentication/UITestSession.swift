@@ -189,6 +189,28 @@ enum UITestSession {
         return value
     }
 
+    /// The launch argument that stands in for the Share Extension (AITD-542). A test cannot drive
+    /// the system share sheet, so the app queues a share titled with this value in the App Group
+    /// at launch — exactly what the extension writes — and the ordinary drain makes it a task.
+    static let sharePayloadArgument = "-uiTestSharePayload"
+
+    /// The title to queue, only under the UI-test flag.
+    nonisolated static func sharePayload(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: sharePayloadArgument),
+              index + 1 < arguments.count
+        else { return nil }
+        let value = arguments[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    /// The share the extension would have queued for `title`: a web page, the address in its notes.
+    nonisolated static func sharePayloadTask(title: String) -> SharedTaskData {
+        SharedTaskData(title: title, description: sharePayloadURL)
+    }
+
+    nonisolated static let sharePayloadURL = "https://example.com/shared-from-safari"
+
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }

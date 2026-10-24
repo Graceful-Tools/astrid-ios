@@ -3,7 +3,8 @@ import SwiftUI
 /// Quick task creation UI for Share Extension
 /// Minimal interface focused on speed - full editing available in main app
 struct TaskQuickCreateView: View {
-    let fileData: SharedFileData?
+    let draft: SharedTaskDraft?
+    private var fileData: SharedFileData? { draft?.file }
     let onSave: (SharedTaskData) -> Void
     let onCancel: () -> Void
 
@@ -26,7 +27,7 @@ struct TaskQuickCreateView: View {
                 if let fileData = fileData {
                     Section {
                         HStack(spacing: 12) {
-                            Image(systemName: fileIcon(for: fileData.mimeType))
+                            Image(systemName: fileData.iconName)
                                 .font(.system(size: 32))
                                 .foregroundColor(.blue)
 
@@ -35,7 +36,7 @@ struct TaskQuickCreateView: View {
                                     .font(.subheadline)
                                     .lineLimit(2)
 
-                                Text(formatFileSize(fileData.fileSize))
+                                Text(fileData.formattedSize)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -112,13 +113,10 @@ struct TaskQuickCreateView: View {
                     isTitleFocused = true
                 }
 
-                // Pre-fill title from filename if available
-                if let fileName = fileData?.fileName, taskTitle.isEmpty {
-                    // Remove file extension and clean up
-                    let nameWithoutExt = (fileName as NSString).deletingPathExtension
-                    taskTitle = nameWithoutExt
-                        .replacingOccurrences(of: "_", with: " ")
-                        .replacingOccurrences(of: "-", with: " ")
+                // Pre-fill from what was shared (Shared/SharedContentLoader.swift)
+                if let draft, taskTitle.isEmpty {
+                    taskTitle = draft.title
+                    taskDescription = draft.notes
                 }
             }
         }
@@ -127,52 +125,11 @@ struct TaskQuickCreateView: View {
     // MARK: - Actions
 
     private func saveTask() {
-        let trimmedTitle = taskTitle.trimmingCharacters(in: .whitespaces)
-        guard !trimmedTitle.isEmpty else { return }
-
-        let taskData = SharedTaskData(
-            title: trimmedTitle,
-            description: taskDescription.isEmpty ? nil : taskDescription,
-            listId: nil, // Will use default list in main app
-            priority: selectedPriority == 0 ? nil : selectedPriority,
-            fileURL: fileData?.fileURL,
-            fileName: fileData?.fileName,
-            mimeType: fileData?.mimeType,
-            fileSize: fileData?.fileSize
-        )
-
-        AppLog.debug("✅ [TaskQuickCreateView] Task created: \(trimmedTitle)")
-        if fileData != nil {
-            AppLog.debug("   📎 With attachment: \(fileData!.fileName)")
-        }
-
+        guard let taskData = SharedTaskDraft.taskData(
+            title: taskTitle, notes: taskDescription, priority: selectedPriority, file: fileData
+        ) else { return }
+        AppLog.debug("✅ [TaskQuickCreateView] Task created: \(taskData.title)")
         onSave(taskData)
-    }
-
-    // MARK: - Helpers
-
-    private func fileIcon(for mimeType: String) -> String {
-        switch mimeType {
-        case let type where type.hasPrefix("image/"):
-            return "photo"
-        case let type where type.hasPrefix("video/"):
-            return "video"
-        case let type where type.contains("pdf"):
-            return "doc.fill"
-        case let type where type.contains("text"):
-            return "doc.text"
-        case let type where type.contains("zip"), let type where type.contains("archive"):
-            return "archivebox"
-        default:
-            return "doc"
-        }
-    }
-
-    private func formatFileSize(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
     }
 }
 
@@ -180,12 +137,12 @@ struct TaskQuickCreateView: View {
 
 #Preview("With Image") {
     TaskQuickCreateView(
-        fileData: SharedFileData(
+        draft: .file(SharedFileData(
             fileURL: URL(fileURLWithPath: "/tmp/test.jpg"),
             fileName: "vacation_photo.jpg",
             mimeType: "image/jpeg",
             fileSize: 2_500_000
-        ),
+        )),
         onSave: { _ in },
         onCancel: { }
     )
@@ -193,7 +150,7 @@ struct TaskQuickCreateView: View {
 
 #Preview("Without File") {
     TaskQuickCreateView(
-        fileData: nil,
+        draft: nil,
         onSave: { _ in },
         onCancel: { }
     )

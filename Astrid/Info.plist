@@ -32,12 +32,13 @@
 				<!-- Accept files (documents, PDFs, etc.) -->
 				<key>NSExtensionActivationSupportsFileWithMaxCount</key>
 				<integer>1</integer>
-				<!-- Accept URLs (for Files app) -->
+				<!-- Accept a web page: its title becomes the task, the address its notes (AITD-542) -->
 				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-				<integer>0</integer>
-				<!-- Disable text, movie support for now -->
+				<integer>1</integer>
+				<!-- Accept text: first line is the title, the rest the notes (AITD-542) -->
 				<key>NSExtensionActivationSupportsText</key>
-				<false/>
+				<true/>
+				<!-- No movie support for now -->
 				<key>NSExtensionActivationSupportsMovieWithMaxCount</key>
 				<integer>0</integer>
 			</dict>

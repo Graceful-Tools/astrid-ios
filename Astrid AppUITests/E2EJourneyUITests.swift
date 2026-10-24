@@ -21,6 +21,7 @@ import XCTest
 /// | 10 board status | `boardInbox` |
 /// | 11 offline Outbox | creates its own |
 /// | 12 search, sign out | classic "open task 3" |
+/// | 13 share extension hand-off | creates its own |
 ///
 /// Journeys 1 and 6 live with the tests they extend: `SignedInPreconditionUITests` and
 /// `TaskDueDateClearUITests`.
@@ -319,6 +320,24 @@ final class E2EJourneyUITests: XCTestCase {
         try launchSignedIn()
         try UITestAPI.waitForTask(titled: title, timeout: 45, "the offline task, delivered") {
             $0.listIds.contains(main)
+        }
+    }
+
+    // MARK: - 13. Share extension hand-off
+
+    /// A share the extension queued in the App Group becomes a task on the server (AITD-542).
+    ///
+    /// The share sheet cannot be driven from a test, so `-uiTestSharePayload` writes the queue
+    /// entry the extension would — same `ShareDataManager`, same container — and the launch's
+    /// drain carries it through `TaskService` to the server. A wrong App Group id breaks here:
+    /// the write and the read would reach no container.
+    @MainActor
+    func test13_ASharedPageBecomesATaskOnTheServer() throws {
+        let title = "T-\(fixtures.runId)-share-\(tag)"
+        app = UITestLaunch.makeApp(sharePayload: title)
+        try launchSignedIn()
+        try UITestAPI.waitForTask(titled: title, timeout: 45, "the shared page, as a task") {
+            $0.description == "https://example.com/shared-from-safari" && !$0.completed
         }
     }
 
