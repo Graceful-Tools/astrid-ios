@@ -26,7 +26,7 @@ struct CommandPaletteView: View {
         }
     }
 
-    private var allTasks: [Task] { listService.lists.flatMap { taskService.getTasksForList($0.id) } }
+    private var allTasks: [Task] { MacGlanceTasks.all(lists: listService.lists, tasksForList: taskService.getTasksForList) }
 
     private var rows: [Row] {
         var out = registry.search(query).map { Row.command($0) }
@@ -74,8 +74,10 @@ struct CommandPaletteView: View {
     }
 
     private func runSelectedOrFirst() {
-        if let id = selection, let row = rows.first(where: { $0.id == id }) { run(row) }
-        else if let first = rows.first { run(first) }
+        let rows = self.rows
+        guard let id = CommandPalettePick.rowToRun(selection: selection, rowIds: rows.map(\.id)),
+              let row = rows.first(where: { $0.id == id }) else { return }
+        run(row)
     }
 
     private func run(_ row: Row) {
@@ -90,6 +92,14 @@ struct CommandPaletteView: View {
     private func complete(_ t: Task) {
         AppActions.perform("Complete task") { _ = try await taskService.completeTask(id: t.id, completed: true, task: t) }
         dismiss()
+    }
+}
+/// Return in the palette runs the selected row — or the first, when nothing is selected or the
+/// selection has filtered away (AITD-540).
+enum CommandPalettePick {
+    static func rowToRun(selection: String?, rowIds: [String]) -> String? {
+        if let selection, rowIds.contains(selection) { return selection }
+        return rowIds.first
     }
 }
 #endif

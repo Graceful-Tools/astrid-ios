@@ -32,7 +32,7 @@ struct MacSortMenu: View {
                     set: { newValue in
                         AppActions.perform("Update sort") {
                             _ = try await ListService.shared.updateListAdvanced(
-                                listId: list.id, updates: ["sortBy": newValue])
+                                listId: list.id, updates: MacSortMenu.listUpdates(sortBy: newValue))
                         }
                     }
                 )) {
@@ -61,6 +61,13 @@ struct MacSortMenu: View {
         .fixedSize()
         .help(NSLocalizedString("mac.sort_tasks", comment: ""))
         .accessibilityIdentifier("list.sortMenu")
+    }
+
+    /// What picking a sort writes to a list: its `sortBy` and nothing else — the same key and
+    /// value `ListSettingsPayload` sends from the settings sheet (AITD-540). Sort is a per-user
+    /// view field (AITD-394), so carrying anything more would revert someone's other choices.
+    static func listUpdates(sortBy value: String) -> [String: Any] {
+        ["sortBy": value]
     }
 }
 #endif

@@ -17,22 +17,32 @@ enum MacWakeRecovery {
     }
 
     nonisolated(unsafe) private static var observer: NSObjectProtocol?
+    nonisolated(unsafe) private static var observedCenter: NotificationCenter?
 
-    /// Observe wake. Idempotent — installing twice would reconnect twice per wake.
+    /// Watch for wake. Idempotent — a second call while watching adds no second observer, so one
+    /// wake never reconnects twice. The center and the reconnect are injectable for tests
+    /// (AITD-540); the app passes neither.
     @MainActor
-    static func start() {
+    static func start(center: NotificationCenter = NSWorkspace.shared.notificationCenter,
+                      reconnect: @escaping @MainActor () -> Void = {
+                          guard shouldReconnect(isAuthenticated: AuthManager.shared.isAuthenticated,
+                                                isOfflineOnly: ConnectionModeManager.shared.isOfflineOnly) else { return }
+                          AppLog.debug("☀️ [Wake] Reviving live updates after sleep")
+                          AppCore.shared.networkRestored()
+                      }) {
         guard observer == nil else { return }
-        observer = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { _ in
-            _Concurrency.Task { @MainActor in
-                guard shouldReconnect(isAuthenticated: AuthManager.shared.isAuthenticated,
-                                      isOfflineOnly: ConnectionModeManager.shared.isOfflineOnly) else { return }
-                AppLog.debug("☀️ [Wake] Reviving live updates after sleep")
-                // Writes waiting for the network go, and the stream starts over.
-                AppCore.shared.networkRestored()
-            }
+        observedCenter = center
+        observer = center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            _Concurrency.Task { @MainActor in reconnect() }
         }
+    }
+
+    /// Stop watching — for tests, so each starts from nothing.
+    @MainActor
+    static func stop() {
+        if let observer { observedCenter?.removeObserver(observer) }
+        observer = nil
+        observedCenter = nil
     }
 }
 #endif
