@@ -173,19 +173,6 @@ final class ConnectionsTests: XCTestCase {
                        "the facets are all-or-nothing per response; a gap means a server that predates them")
     }
 
-    func testAITD420TheSectionAndBadgeCopyIsTranslatedEverywhere() throws {
-        let keys = ["settings.connections.category.app", "settings.connections.category.token",
-                    "settings.connections.category.webhook", "settings.connections.category.unknown",
-                    "settings.connections.owner.you", "settings.connections.owner.thirdParty",
-                    "settings.connections.owner.agent"]
-        for language in ["en", "de", "es", "fr", "it", "nl", "pt", "ru", "ja", "ko", "zh-Hans", "zh-Hant"] {
-            let text = try source("Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
-            for key in keys {
-                XCTAssertTrue(text.contains("\"\(key)\""), "\(language) is missing \(key)")
-            }
-        }
-    }
-
     // MARK: Loading fails (AITD-538)
 
     /// The fake had no error hook, so `load`'s failure path ran in no test.

@@ -82,6 +82,30 @@ final class APIEndpointInventoryTests: XCTestCase {
                       + undocumented.sorted().map { "- `\($0)`" }.joined(separator: "\n"))
     }
 
+    /// A path outside `/api/v1` is invisible to the two tests above, which only read `/api/v1/`
+    /// literals — so it is either a named exception, with its reason in docs/API_ENDPOINTS.md, or
+    /// a failure here (AITD-533). `AgentHubTests` pinned `/api/mcp/user-tokens` in the client while
+    /// this inventory could not see it.
+    private static let nonV1Exceptions: Set<String> = ["/api/mcp/user-tokens"]
+
+    func testEveryPathOutsideV1IsANamedException() throws {
+        var outside: Set<String> = []
+        let pattern = try NSRegularExpression(pattern: "\"(/api/(?!v1/)[^\"]*)\"")
+        for file in Self.currentClientFiles {
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(file), encoding: .utf8)
+            for match in pattern.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
+                if let r = Range(match.range(at: 1), in: source) { outside.insert(String(source[r])) }
+            }
+        }
+        XCTAssertEqual(outside, Self.nonV1Exceptions,
+                       "API paths are /api/v1 only (CLAUDE.md rule 5); anything else is a named exception")
+        let doc = try String(contentsOf: RepositoryLocator.root.appendingPathComponent("docs/API_ENDPOINTS.md"),
+                             encoding: .utf8)
+        for path in Self.nonV1Exceptions {
+            XCTAssertTrue(doc.contains("`\(path)`"), "\(path) is an exception docs/API_ENDPOINTS.md must name")
+        }
+    }
+
     /// The other direction. A path that lingers after the call site is deleted is how a list
     /// stops describing the app while still looking authoritative.
     func testNothingIsDocumentedThatTheCodeNoLongerCalls() throws {

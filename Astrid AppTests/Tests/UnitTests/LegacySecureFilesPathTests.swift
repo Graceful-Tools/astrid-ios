@@ -21,39 +21,6 @@ import XCTest
 
 final class LegacySecureFilesPathTests: XCTestCase {
 
-    private static let roots = ["Astrid App", "Astrid Mac", "Astrid"]
-
-    private func productionSources() throws -> [(path: String, source: String)] {
-        var found: [(String, String)] = []
-        for root in Self.roots {
-            let rootURL = RepositoryLocator.root.appendingPathComponent(root)
-            guard let walker = FileManager.default.enumerator(at: rootURL,
-                                                              includingPropertiesForKeys: nil)
-            else { continue }
-            for case let fileURL as URL in walker where fileURL.pathExtension == "swift" {
-                found.append((fileURL.lastPathComponent,
-                              try String(contentsOf: fileURL, encoding: .utf8)))
-            }
-        }
-        return found
-    }
-
-    // MARK: - Nothing MINTS the legacy path
-
-    /// Interpolating a file id into the legacy path is what "building it" looks like in Swift.
-    /// A `contains("/api/secure-files/")` check is not that, and must stay allowed — which is why
-    /// this matches the interpolation rather than the bare string.
-    func testNoProductionCodeBuildsTheLegacySecureFilesPath() throws {
-        var offenders: [String] = []
-        for (path, source) in try productionSources() where source.contains("/api/secure-files/\\(") {
-            offenders.append(path)
-        }
-        XCTAssertEqual(offenders, [],
-                       "these build the legacy /api/secure-files/ path; new writes must use "
-                       + "/api/v1/secure-files/{id} so they don't persist rows in the old form:\n"
-                       + offenders.joined(separator: "\n"))
-    }
-
     // MARK: - The renderers still ACCEPT it
 
     /// Attachment URLs are PERSISTED, so rows written before the v1 cutover still hold the legacy

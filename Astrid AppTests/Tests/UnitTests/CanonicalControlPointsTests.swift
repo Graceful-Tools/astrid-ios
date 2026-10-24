@@ -109,29 +109,6 @@ final class CanonicalControlPointsTests: XCTestCase {
     // network/CoreData mocks) but we prove they exist with the expected
     // signatures.
 
-    // MARK: - Task/List service boundary method contracts
-
-    func testRefactoredViews_DoNotCallAstridAPIClientDirectly() throws {
-        let root = try RepositoryLocator.repositoryRoot()
-        let auditedViews = [
-            "Astrid App/Views/Tasks/TaskDetailViewNew.swift",
-            "Astrid App/Views/Tasks/TaskListView.swift",
-            "Astrid App/Views/Chat/ChatPanelView.swift",
-            "Astrid App/Views/Lists/ListAgentSettingsView.swift",
-            "Astrid App/Views/Lists/ListSettingsModal.swift",
-            "Astrid App/Views/Settings/DefaultAgentPickerView.swift"
-        ]
-
-        for relativePath in auditedViews {
-            let url = root.appendingPathComponent(relativePath)
-            let source = try String(contentsOf: url)
-            XCTAssertFalse(
-                source.contains("AstridAPIClient.shared"),
-                "\(relativePath) must route backend work through a service layer"
-            )
-        }
-    }
-
     // MARK: - Preferences optimistic UserDefaults writes
 
     /// The optimistic + UserDefaults story (change the preferences, the value

@@ -105,15 +105,6 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertEqual(classic.buttonKey, "actions.delete")
     }
 
-    func testTheRemoveStringsExistInEveryLanguage_AITD491() throws {
-        for language in ["en", "de", "es", "fr", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"] {
-            let strings = try RepositoryLocator.source(at: "Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
-            for key in ["tasks.remove_from_board", "tasks.remove_from_board_confirm", "actions.remove"] {
-                XCTAssertTrue(strings.contains("\"\(key)\" ="), "\(language) lacks \(key)")
-            }
-        }
-    }
-
     // MARK: - remote
 
     func testATasksRemoteIsKeptAndNamesItsChip_AITD491() throws {

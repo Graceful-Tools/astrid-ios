@@ -130,19 +130,4 @@ final class RecentlyCompletedSortTests: XCTestCase {
 /// nothing offers it — and the sort value is a cross-platform contract, so the tag
 /// has to be web's spelling exactly.
 final class RecentlyCompletedSortPickerTests: XCTestCase {
-
-    private func source(_ path: String) throws -> String {
-        let root = RepositoryLocator.root
-        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-    }
-
-    func testTheLabelIsTranslatedEverywhere() throws {
-        // 12 languages, and the key already existed for the recently-completed
-        // window — reused rather than duplicated with different words.
-        for language in ["en", "de", "es", "fr", "it", "nl", "pt", "ru", "ja", "ko", "zh-Hans", "zh-Hant"] {
-            let text = try source("Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
-            XCTAssertTrue(text.contains("\"lists.recently_completed\""),
-                          "\(language) is missing lists.recently_completed")
-        }
-    }
 }

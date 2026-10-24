@@ -35,8 +35,7 @@ extension MacDetailPopoverTests {
 
     func testRevealDoesNotScaleAppKitBackedTextFields() throws {
         let source = try String(contentsOf: macDetailPopoverSource(), encoding: .utf8)
-        let modifier = try XCTUnwrap(source.components(separatedBy: "struct MacDetailReveal: ViewModifier").last?
-            .components(separatedBy: "struct MacDetailRevealMask").first)
+        let modifier = try SourceSlice.between("struct MacDetailReveal: ViewModifier", and: "struct MacDetailRevealMask", in: source)
 
         XCTAssertFalse(modifier.contains(".scaleEffect("),
                        "Scaling the detail hierarchy produces PlatformTextFieldAdaptor constraint warnings")

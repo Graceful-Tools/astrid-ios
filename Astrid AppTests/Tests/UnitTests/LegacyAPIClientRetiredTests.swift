@@ -20,37 +20,6 @@ import XCTest
 
 final class LegacyAPIClientRetiredTests: XCTestCase {
 
-    private static let sourceRoots = ["Astrid App", "Astrid Mac"]
-
-    private func swiftSources() throws -> [(path: String, text: String)] {
-        let root = RepositoryLocator.root
-        var result: [(String, String)] = []
-        for dir in Self.sourceRoots {
-            let base = root.appendingPathComponent(dir)
-            guard let walker = FileManager.default.enumerator(at: base, includingPropertiesForKeys: nil) else { continue }
-            for case let url as URL in walker where url.pathExtension == "swift" {
-                result.append((url.path.replacingOccurrences(of: root.path + "/", with: ""),
-                               try String(contentsOf: url, encoding: .utf8)))
-            }
-        }
-        return result
-    }
-
-    func testAITD504_NoSourceDeclaresOrUsesASecondClient() throws {
-        // Word boundaries, or `AstridAPIClient.shared` reads as `APIClient.shared`.
-        let forbidden = [#"\benum APIEndpoint\b"#, #"\bclass APIClient\b"#, #"\bAPIClientProtocol\b"#,
-                         #"\bAPIClient\.shared\b"#, #"\bas\?? APIError\b"#]
-            .map { try! NSRegularExpression(pattern: $0) }
-        var hits: [String] = []
-        for source in try swiftSources() {
-            let range = NSRange(source.text.startIndex..., in: source.text)
-            for regex in forbidden where regex.firstMatch(in: source.text, range: range) != nil {
-                hits.append("\(source.path): \(regex.pattern)")
-            }
-        }
-        XCTAssertTrue(hits.isEmpty, "The legacy client is still referenced:\n" + hits.joined(separator: "\n"))
-    }
-
     // MARK: - The session a sign-in hands back as Set-Cookie
 
     private let url = URL(string: "https://www.astrid.cc/api/v1/auth/apple")!

@@ -35,7 +35,7 @@ final class MacSubtasksTogglePlacementTests: XCTestCase {
     /// It writes on its own, guarded — never as part of the bulk filter payload.
     func testItIsNotFoldedIntoTheBulkFilterSave() throws {
         let sheet = try macSource("Views/MacFilterSheet.swift")
-        let save = try XCTUnwrap(sheet.components(separatedBy: "private func save()").last)
+        let save = try SourceSlice.after("private func save()", in: sheet)
         XCTAssertFalse(save.contains("showSubtasks"),
                        "save() posts every filter field; including this would reset the toggle")
     }

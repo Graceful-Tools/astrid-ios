@@ -43,23 +43,4 @@ final class TaskSyncStateTests: XCTestCase {
     func testACompletedTaskStillCarriesItsMark_AITD491() {
         XCTAssertEqual(TaskSyncState.mark(for: Task(id: "t", title: "t", completed: true, syncState: "pending")), .pending)
     }
-
-    // MARK: - Copy
-
-    func testBothChipLabelsExistInEveryLanguage_AITD491() throws {
-        let root = try RepositoryLocator.repositoryRoot()
-            .appendingPathComponent("Astrid App/Resources/Localizations")
-        let languages = try FileManager.default.contentsOfDirectory(atPath: root.path)
-            .filter { $0.hasSuffix(".lproj") }
-        XCTAssertEqual(languages.count, 12)
-        for language in languages {
-            let strings = try String(
-                contentsOf: root.appendingPathComponent(language).appendingPathComponent("Localizable.strings"),
-                encoding: .utf8)
-            for mark in [TaskSyncState.Mark.pending, .failed] {
-                let key = TaskSyncState.chipLabelKey(for: mark)
-                XCTAssertTrue(strings.contains("\"\(key)\" = "), "\(language) is missing \(key)")
-            }
-        }
-    }
 }

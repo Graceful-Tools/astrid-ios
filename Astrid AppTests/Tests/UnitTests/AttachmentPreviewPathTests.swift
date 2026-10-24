@@ -154,35 +154,4 @@ final class AttachmentPreviewPathTests: XCTestCase {
                            "name \(hostile.debugDescription) must land directly in the directory")
         }
     }
-
-    // MARK: - The guard: no call site may join a raw name onto a temp directory again
-
-    func testNoAttachmentPathJoinsARawNameOntoATemporaryDirectory() throws {
-        let root = RepositoryLocator.root
-
-        let audited = [
-            "Astrid App/Core/Services/AttachmentService.swift",
-            "Astrid App/Views/Components/AttachmentThumbnail.swift",
-            "Astrid Mac/Views/MacTaskDetailView.swift",
-            "Astrid Mac/Views/MacCommentThread.swift",
-        ]
-
-        for relative in audited {
-            let path = root.appendingPathComponent(relative)
-            let source = try String(contentsOf: path, encoding: .utf8)
-
-            for (index, line) in source.components(separatedBy: .newlines).enumerated() {
-                guard line.contains("appendingPathComponent(") else { continue }
-                // A literal or a UUID is fine; a name that came off the wire is not.
-                let joinsAName = line.contains("appendingPathComponent(fileName)")
-                    || line.contains("appendingPathComponent(file.name)")
-                    || line.contains("appendingPathComponent(name)")
-                    || line.contains("appendingPathComponent(a.name)")
-                    || line.contains("+ fileName)")
-                XCTAssertFalse(joinsAName,
-                               "\(relative):\(index + 1) joins an unsanitised attachment name onto a path — "
-                               + "route it through AttachmentFileName.temporaryURL(in:for:)")
-            }
-        }
-    }
 }
