@@ -1,5 +1,5 @@
 {
-  "_about": "Per-directory line-coverage minimums (AITD-541), checked by scripts/coverage-report.mjs after each unit run: iOS in npm run predeploy (scripts/run-tests.sh), Mac in npm run test:mac. Each floor started at the 2026-10-23 measurement, rounded down, less one point of slack for run-to-run noise. A drop below a floor fails the run. RAISE a floor when coverage rises — that is the point; LOWER one only with a reason in measured_2026_10_23 or a note here.",
+  "_about": "Per-directory line-coverage minimums (AITD-541), checked by scripts/coverage-report.mjs after each unit run: iOS in npm run predeploy (scripts/run-tests.sh), Mac in npm run test:mac. Each floor started at the 2026-10-23 measurement, rounded down from the lower of two runs, less two points: the same code measured Core/Services at 52.3% and then 50.6% \u2014 background and async paths run or do not depending on timing, so a tighter floor fails on noise. A drop below a floor fails the run. RAISE a floor when coverage rises \u2014 that is the point; LOWER one only with a reason in measured_2026_10_23 or a note here.",
   "measured_2026_10_23": {
     "ios": {
       "target:Astrid App.app": 17.4,
@@ -44,20 +44,33 @@
     }
   },
   "ios": {
-    "target:Astrid App.app": 16,
-    "Astrid App/Core/Services": 51,
-    "Astrid App/Core/Sync": 77,
-    "Astrid App/Core/Authentication": 27,
-    "Astrid App/Core/Networking": 38,
-    "Astrid App/Core/Outbox": 65,
-    "Astrid App/Core/Persistence": 54,
-    "Astrid App/Models": 79,
-    "Shared": 12
+    "target:Astrid App.app": 15,
+    "Astrid App/Core/Services": 48,
+    "Astrid App/Core/Sync": 76,
+    "Astrid App/Core/Authentication": 26,
+    "Astrid App/Core/Networking": 37,
+    "Astrid App/Core/Outbox": 64,
+    "Astrid App/Core/Persistence": 53,
+    "Astrid App/Models": 78,
+    "Shared": 11
   },
   "mac": {
-    "target:Astrid.app": 8,
-    "Astrid Mac/App": 15,
-    "Astrid Mac/Commands": 30,
-    "Astrid Mac/Views": 11
+    "target:Astrid.app": 7,
+    "Astrid Mac/App": 14,
+    "Astrid Mac/Commands": 29,
+    "Astrid Mac/Views": 10
+  },
+  "measured_2026_10_23_second_run": {
+    "ios": {
+      "target:Astrid App.app": 17.3,
+      "Astrid App/Core/Services": 50.6,
+      "Astrid App/Core/Sync": 78.1,
+      "Astrid App/Core/Authentication": 28.7,
+      "Astrid App/Core/Networking": 39.3,
+      "Astrid App/Core/Outbox": 66.7,
+      "Astrid App/Core/Persistence": 55.0,
+      "Astrid App/Models": 80.5,
+      "Shared": 13.1
+    }
   }
 }
