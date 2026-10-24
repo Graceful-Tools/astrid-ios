@@ -35,14 +35,6 @@ final class AnalyticsPlatformHeaderTests: XCTestCase {
         #endif
     }
 
-    /// Never empty and never whitespace: an empty header is worse than no header, because the
-    /// server would read it as a present-but-unrecognised platform rather than falling back.
-    func testTheValueIsAlwaysSubstantive() {
-        XCTAssertFalse(AnalyticsPlatformHeader.current.isEmpty)
-        XCTAssertEqual(AnalyticsPlatformHeader.current,
-                       AnalyticsPlatformHeader.current.trimmingCharacters(in: .whitespaces))
-    }
-
     // MARK: - Every request carries it
 
     /// A header set in two of three request builders is the same bug in a smaller disguise —

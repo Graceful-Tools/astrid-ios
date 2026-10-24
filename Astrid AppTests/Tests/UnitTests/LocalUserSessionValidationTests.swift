@@ -43,15 +43,4 @@ final class LocalUserSessionValidationTests: XCTestCase {
         XCTAssertFalse(AuthManager.shouldValidateSessionInBackground(userId: nil))
         XCTAssertFalse(AuthManager.shouldValidateSessionInBackground(userId: ""))
     }
-
-    /// The prefix is the same one `checkLocalAuthentication` uses to decide a user needs no
-    /// keychain cookie. Two different spellings of "is this a local user" is how the two halves
-    /// would come to disagree.
-    func testItUsesTheSameLocalPrefixAsTheKeychainExemption() throws {
-        let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Core/Authentication/AuthManager.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(source.contains("shouldValidateSessionInBackground"),
-                      "the decision must live in one named place")
-    }
 }

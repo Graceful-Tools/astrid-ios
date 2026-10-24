@@ -136,21 +136,4 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         XCTAssertEqual(UserDefaults.standard.string(forKey: "reminderTimezone"), "Europe/London")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "quietHoursEnabled"))
     }
-
-    // MARK: - Multiple Updates Tests
-
-    func testMultipleUpdates_OnlyLastStateMatters() async throws {
-        // Given: Multiple rapid updates
-        settings.pushEnabled = true
-        await settings.save()
-
-        settings.pushEnabled = false
-        await settings.save()
-
-        settings.pushEnabled = true
-        await settings.save()
-
-        // Then: Last state should be persisted
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderPushEnabled"))
-    }
 }

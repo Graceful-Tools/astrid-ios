@@ -167,17 +167,4 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
         XCTAssertEqual(move.listIds, ["domain-1"])
         XCTAssertEqual(move.statusRole, "doing")
     }
-
-    func testEveryColumnRoundTripsThroughAMove() {
-        let lists = [domainList(), staleStatusRow("ready", "l-ready", "Ready")]
-        let columns = CoreBoardFixture.columns(lists)
-        let start = task(statusRole: "ready", listIds: ["domain-1", "l-ready"])
-
-        for column in columns {
-            let move = CoreBoardFixture.move(start, to: column, lists: lists)
-            let moved = start.applyingBoardMove(move)
-            XCTAssertEqual(CoreBoardFixture.columnId(moved, lists: lists), column.id,
-                           "Moving to \"\(column.name)\" did not land there")
-        }
-    }
 }

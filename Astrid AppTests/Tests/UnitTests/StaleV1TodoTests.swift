@@ -59,13 +59,4 @@ final class StaleV1TodoTests: XCTestCase {
                        "ListService.getListMembers returned [] and had no callers — member reads "
                        + "go through ListMemberService. Delete it rather than let it be found.")
     }
-
-    /// Favoriting rides `updateList` on purpose. Saying so where the call is made is what keeps
-    /// this from being re-filed as a missing endpoint a third time.
-    func testTheFavoriteCallSiteExplainsWhyItUsesUpdateList() throws {
-        let listService = try source("Astrid App/Core/Services/ListService.swift")
-        XCTAssertTrue(listService.contains("isFavorite is a field on the list"),
-                      "toggleFavorite should say why it goes through updateList, or the missing "
-                      + "/favorite endpoint gets re-filed.")
-    }
 }

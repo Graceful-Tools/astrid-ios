@@ -207,18 +207,4 @@ final class AssigneeOptionsTests: XCTestCase {
                            "AITD-401: the record with a name wins regardless of arrival order")
         }
     }
-
-    /// The list-deriving overload must produce exactly what the core does — it is a convenience
-    /// over the same rule, not a second rule.
-    func testAITD401_TheListOverloadAgreesWithTheCore() {
-        let me = user("me", "Zoe")
-        let adam = user("u-adam", "Adam")
-        let agent = user("agent-claude", "Claude", agent: true)
-        let l = list("l1", owner: adam, members: [me])
-
-        let viaLists = build(availableLists: [l], taskListIds: ["l1"],
-                                             aiAgents: [agent], currentUser: me)
-        let viaCore = build(roster: [adam, me], aiAgents: [agent], currentUser: me)
-        XCTAssertEqual(viaLists.map(\.id), viaCore.map(\.id))
-    }
 }

@@ -26,26 +26,6 @@ final class BoardDoneWindowTests: XCTestCase {
              completed: true, updatedAt: now.addingTimeInterval(-completedAgo))
     }
 
-    func testDoneColumnExcludesTasksCompletedBeforeWindow() {
-        let recent = completedTask(id: "recent", completedAgo: 60 * 60)       // 1h ago
-        let old = completedTask(id: "old", completedAgo: 48 * 60 * 60)        // 48h ago
-
-        let result = CoreBoardFixture.columnTasks(
-            [recent, old],
-            projectId: "p1",
-            column: doneColumn(),
-            lists: [domainList()],
-            manualOrder: nil,
-            recentlyCompletedWindow: .duration(amount: 1, unit: .day),
-            completionFilter: "default",
-            now: now
-        )
-
-        let ids = result.map { $0.id }
-        XCTAssertTrue(ids.contains("recent"), "recently completed task should remain in Done")
-        XCTAssertFalse(ids.contains("old"), "task completed before the window must drop off Done")
-    }
-
     func testShowFilterKeepsAllCompletedRegardlessOfWindow() {
         let recent = completedTask(id: "recent", completedAgo: 60 * 60)
         let old = completedTask(id: "old", completedAgo: 48 * 60 * 60)

@@ -72,6 +72,19 @@ final class ListPermissionsContractTests: XCTestCase {
         XCTAssertTrue(list.isMember(userId: "owner-1"))
     }
 
+    /// Moved from SharedListTests (AITD-531), whose other assertions read back what they built.
+    func testListMembersOfEitherRoleAreMembers() {
+        var list = legacyOnlyList()
+        list.listMembers = [
+            ListMember(id: "lm1", listId: "list-1", userId: "real-admin", role: "admin", user: user("real-admin")),
+            ListMember(id: "lm2", listId: "list-1", userId: "real-member", role: "member", user: user("real-member")),
+        ]
+        XCTAssertTrue(list.isMember(userId: "owner-1"))
+        XCTAssertTrue(list.isMember(userId: "real-admin"))
+        XCTAssertTrue(list.isMember(userId: "real-member"))
+        XCTAssertFalse(list.isMember(userId: "stranger"))
+    }
+
     func testSettingsPermissionIgnoresTheLegacyArrays() {
         let list = legacyOnlyList()
         XCTAssertFalse(ListPermissions.canEditSettings(list, userId: "legacy-admin"),
