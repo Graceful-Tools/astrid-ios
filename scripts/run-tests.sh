@@ -106,6 +106,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -destination "$DESTINATION" \
             -only-testing:"Astrid AppTests" \
             -resultBundlePath "$UNIT_RESULT" \
+            -enableCodeCoverage YES \
             "${DIAGNOSTICS_FLAGS[@]}" \
             -quiet 2>&1 | tee /tmp/unit_tests.log
 
@@ -116,6 +117,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -destination "$DESTINATION" \
             -only-testing:"Astrid AppTests" \
             -resultBundlePath "$UNIT_RESULT" \
+            -enableCodeCoverage YES \
             "${DIAGNOSTICS_FLAGS[@]}" 2>&1 | tee /tmp/unit_tests.log
 
         UNIT_EXIT=${PIPESTATUS[0]}
@@ -125,6 +127,10 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     if [[ $UNIT_EXIT -eq 0 ]]; then
         echo ""
         echo -e "${GREEN}✓ Unit tests passed ($("$PROJECT_DIR/scripts/xcresult-summary.sh" counts "$UNIT_RESULT"))${NC}"
+        # Coverage by directory, against the committed floor (AITD-541). A drop fails the run.
+        echo ""
+        node "$PROJECT_DIR/scripts/coverage-report.mjs" ios "$UNIT_RESULT" \
+            --floor "$PROJECT_DIR/scripts/coverage-floor.json" || exit 1
     else
         echo ""
         echo -e "${RED}✗ Unit tests failed${NC}"
