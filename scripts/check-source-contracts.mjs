@@ -652,6 +652,16 @@ export const rules = [
       for (const key of macKeys.keys()) if (!webKeys.has(key)) v.push({ file: macFile, line: 0, message: `Mac-only bare key "${key}" — web has no such shortcut` })
       return v
     },
+  },  {
+    id: 'no-palette-pngs',
+    why: 'UIKit cannot decompress an 8-bit colormap PNG for display: it logs "Error -17102 decompressing image -- possibly corrupt" for every row that draws one, on as many threads (AITD-551). Re-encode as RGBA.',
+    run(ctx) {
+      // PNG colour type is byte 25 — the IHDR chunk's — and 3 is indexed colour.
+      const isPalette = (b) => b.length > 25 && b.toString('latin1', 12, 16) === 'IHDR' && b[25] === 3
+      return ctx.files(['Astrid App', 'Astrid Mac', 'Shared', 'Brands'], ['.png'])
+        .filter((file) => isPalette(fs.readFileSync(ctx.abs(file))))
+        .map((file) => ({ file, line: 0, message: 'is a palette (colormap) PNG — re-encode it as RGBA' }))
+    },
   },
 ]
 
