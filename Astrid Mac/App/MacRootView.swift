@@ -161,7 +161,6 @@ struct MacRootView: View {
     @State private var editingList: TaskList?
     /// The list whose Settings window is open — Sort & Filters, Membership, Admin (AITD-388).
     @State private var settingsList: TaskList?
-    @State private var listToDelete: TaskList?
     @State private var showPublicLists = false
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
     /// they change rarely and this is a browse affordance, not live data.
@@ -236,8 +235,7 @@ struct MacRootView: View {
         MacListMenuActions(
             listSettings: { settingsList = list },
             toggleFavorite: { toggleFavorite(list) },
-            enableBoard: { enableBoard(list) },
-            delete: { listToDelete = list }
+            enableBoard: { enableBoard(list) }
         )
     }
 
@@ -641,8 +639,8 @@ struct MacRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Sort, filter and the list-settings gear — the list's header (AITD-522), above the rows they
-    /// act on (9998d83a). They used to be
+    /// Filter, above the rows it acts on (9998d83a). Sort and the list-settings gear sat here too
+    /// (AITD-522) until they moved beside the list/board picker (AITD-552). They used to be
     /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
     /// 3-column mode they right-aligned above the CHAT column and read as its controls.
     @ViewBuilder
@@ -654,7 +652,7 @@ struct MacRootView: View {
         // A board suppressed this strip entirely, which took list settings with it — the sidebar
         // right-click was the only way in, and that row is not what you are looking at while
         // working the columns (AITD-373).
-        let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil, isListMode: isList)
+        let showsListMenu = MacListChrome.stripShowsListMenu(isRealList: currentRealList != nil, isListMode: isList)
         let showsSort = MacListChrome.headerShowsSort(hasSelection: selectedListId != nil,
             isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
             isListMode: isList)
@@ -999,7 +997,7 @@ struct MacRootView: View {
             hasSelection: !selectedTaskIds.isEmpty,
             isTextFieldFocused: false,
             isModalPresented: appModel.showPalette || appModel.showShortcutsHelp
-                || showNewList || showPublicLists || editingList != nil || settingsList != nil || listToDelete != nil)
+                || showNewList || showPublicLists || editingList != nil || settingsList != nil)
         guard let action = KeyboardShortcutHandler.action(for: key, context: ctx),
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
@@ -1230,17 +1228,32 @@ struct MacRootView: View {
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    // Drawn only when there is something to switch BETWEEN — see
-                    // MacViewMode.showsModePicker (task 6d709a75).
-                    if MacViewMode.showsModePicker(modes: availableContentModes,
-                                                   isSwitchable: contentModeIsSwitchable) {
-                        Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
-                            ForEach(availableContentModes, id: \.self) { mode in
-                                Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
+                    HStack(spacing: 8) {
+                        // Drawn only when there is something to switch BETWEEN — see
+                        // MacViewMode.showsModePicker (task 6d709a75).
+                        if MacViewMode.showsModePicker(modes: availableContentModes,
+                                                       isSwitchable: contentModeIsSwitchable) {
+                            Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
+                                ForEach(availableContentModes, id: \.self) { mode in
+                                    Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
+                                }
                             }
+                            .pickerStyle(.segmented)
                         }
-                        .pickerStyle(.segmented)
+                        // Sort and the list's gear, beside the picker (AITD-552).
+                        if MacListChrome.titleBarShowsSort(hasSelection: selectedListId != nil,
+                                isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
+                                isListMode: contentMode == .list) {
+                            sortMenu
+                        }
+                        if MacListChrome.titleBarShowsListMenu(isRealList: currentRealList != nil,
+                                                               isListMode: contentMode == .list),
+                           let list = currentRealList {
+                            MacListSettingsButton(list: list, userId: auth.userId,
+                                                  actions: listMenuActions(list))
+                        }
                     }
+                    .labelStyle(.iconOnly)
                 }
                 // Manual refresh (0f525a89) — the one control that DOES belong to the window
                 // rather than to the task list: it reconciles everything, not just these rows.
@@ -1401,20 +1414,12 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
-        .sheet(item: $settingsList) { MacListSettingsWindow(list: $0) }
+        .sheet(item: $settingsList) { MacListSettingsWindow(list: $0, onDelete: deleteList) }
         .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
         .sheet(isPresented: $showFilterSheet) {
             if let list = currentRealList { MacFilterSheet(list: list) }
         }
         .sheet(isPresented: $showMyTasksFilterSheet) { MacMyTasksFilterSheet() }
-        .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
-                            isPresented: Binding(get: { listToDelete != nil },
-                                                 set: { if !$0 { listToDelete = nil } }),
-                            presenting: listToDelete) { list in
-            Button(String(format: NSLocalizedString("mac.delete_list_named", comment: ""), list.name),
-                   role: .destructive) { deleteList(list) }
-            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-        }
         .safeAreaInset(edge: .bottom) {
             if !network.isConnected {
                 HStack(spacing: 6) {

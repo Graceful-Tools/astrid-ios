@@ -27,8 +27,6 @@ enum MacListMenu {
         case listSettings
         case toggleFavorite
         case enableBoard
-        case divider
-        case delete
     }
 
     /// What this user may do to this list, in order.
@@ -39,12 +37,12 @@ enum MacListMenu {
     /// route to the roster at all — they could not see who else was on a list they were on, and
     /// could not leave it. Web has always opened its modal for them.
     ///
-    /// Favourite is a personal view preference rather than a change to the list. Delete is
-    /// stricter than everything else — it destroys other people's work — so an admin who may
-    /// change every setting still does not see it.
+    /// Favourite is a personal view preference rather than a change to the list.
     ///
-    /// The divider is emitted only when Delete follows it. A separator with nothing behind it is
-    /// a menu that looks truncated.
+    /// DELETE IS NOT HERE (AITD-552: "move the delete quick action to the admin"). A one-click
+    /// route to destroying a list — and everyone's work on it — sat beside Favourite in the gear
+    /// and the sidebar right-click. It lives in List Settings ▸ Admin now, as on iOS
+    /// (`ListAdminTab`'s Danger Zone); `MacListAdminTab.offersDelete` keeps the owner-only rule.
     static func items(for list: TaskList, userId: String?) -> [Item] {
         let canEdit = ListPermissions.canEditSettings(list, userId: userId)
         var items: [Item] = []
@@ -55,10 +53,6 @@ enum MacListMenu {
             if MacViewMode.offersEnableBoard(projectId: list.projectId) {
                 items.append(.enableBoard)
             }
-        }
-        if ListPermissions.canDelete(list, userId: userId) {
-            items.append(.divider)
-            items.append(.delete)
         }
         return items
     }
@@ -75,11 +69,10 @@ struct MacListMenuActions {
     var listSettings: () -> Void
     var toggleFavorite: () -> Void
     var enableBoard: () -> Void
-    var delete: () -> Void
 }
 
-/// The gear that opens the menu in the header above a list's rows or a board's columns
-/// (AITD-373, AITD-522). The sidebar needs no equivalent — a right-click is its affordance.
+/// The gear that opens the menu beside the list/board picker in the window toolbar (AITD-373,
+/// AITD-522, AITD-552). The sidebar needs no equivalent — a right-click is its affordance.
 ///
 /// Here rather than in `MacRootView` because it is presentation of this menu, and because that
 /// file is on the AITD-346 ratchet: the extraction is the answer the ratchet asks for.
@@ -130,13 +123,6 @@ struct MacListMenuContent: View {
 
         case .enableBoard:
             Button(NSLocalizedString("mac.enable_board", comment: ""), action: actions.enableBoard)
-
-        case .divider:
-            Divider()
-
-        case .delete:
-            Button(NSLocalizedString("actions.delete", comment: ""),
-                   role: .destructive, action: actions.delete)
         }
     }
 }

@@ -20,6 +20,9 @@ import SwiftUI
 
 struct MacListSettingsWindow: View {
     let list: TaskList
+    /// Deleting the list, from the Admin tab (AITD-552). The opener owns it — it clears the
+    /// selection that pointed at the list — so the window only closes itself and hands it over.
+    var onDelete: (TaskList) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @StateObject private var listService = ListService.shared
     @State private var tab: Tab
@@ -31,8 +34,9 @@ struct MacListSettingsWindow: View {
     /// is centred, so the title came off the top and Done off the bottom (AITD-483).
     static let size = CGSize(width: 460, height: 680)
 
-    init(list: TaskList, initialTab: Tab = .sortFilters) {
+    init(list: TaskList, initialTab: Tab = .sortFilters, onDelete: @escaping (TaskList) -> Void = { _ in }) {
         self.list = list
+        self.onDelete = onDelete
         _tab = State(initialValue: initialTab)
     }
 
@@ -98,7 +102,10 @@ struct MacListSettingsWindow: View {
                 case .insights:
                     ListInsightsView(listId: currentList.id)
                 case .admin:
-                    MacListAdminTab(list: currentList)
+                    MacListAdminTab(list: currentList) {
+                        dismiss()
+                        onDelete(currentList)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -119,15 +126,53 @@ struct MacListSettingsWindow: View {
 /// `MacListEditSheet` already owns name, description, colour, image, task defaults, the
 /// recently-completed window and the per-list AI model, and it is still the sheet that CREATES a
 /// list — so it is embedded here with its own chrome suppressed instead of being reimplemented.
+///
+/// It also holds Delete (AITD-552), which used to be a quick action in the list's gear menu and
+/// sidebar right-click. Destroying a list belongs with the settings that change it for everyone,
+/// behind a confirmation — iOS's `ListAdminTab` has kept it in a Danger Zone all along.
 struct MacListAdminTab: View {
     let list: TaskList
+    var onDelete: () -> Void = {}
+    @State private var confirmingDelete = false
+
+    /// Owner only: an admin may change every setting but not destroy other people's work. The
+    /// rule is `ListPermissions`', never restated (PRODUCT_CONTRACT.md).
+    static func offersDelete(for list: TaskList, userId: String?) -> Bool {
+        ListPermissions.canDelete(list, userId: userId)
+    }
 
     var body: some View {
         // Scrolls: a list with an image, task defaults and an AI model is taller than the
         // window, and a plain stack pushed the window's title and Done out of it (AITD-483).
         ScrollView {
-            MacListEditSheet(existing: list, embedded: true)
+            VStack(alignment: .leading, spacing: 16) {
+                MacListEditSheet(existing: list, embedded: true)
+                if Self.offersDelete(for: list, userId: AuthManager.shared.userId) {
+                    dangerZone
+                }
+            }
         }
+        .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
+                            isPresented: $confirmingDelete) {
+            Button(String(format: NSLocalizedString("mac.delete_list_named", comment: ""), list.name),
+                   role: .destructive, action: onDelete)
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("lists.delete_confirm", comment: ""))
+        }
+    }
+
+    private var dangerZone: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text(NSLocalizedString("messages.danger_zone", comment: ""))
+                .macFont(.headline).foregroundStyle(Theme.textPrimary)
+            Button(role: .destructive) { confirmingDelete = true } label: {
+                Label(NSLocalizedString("lists.delete_list", comment: ""), systemImage: "trash")
+            }
+            .accessibilityIdentifier("listSettings.deleteList")
+        }
+        .padding(.horizontal, 4)
     }
 }
 #endif
