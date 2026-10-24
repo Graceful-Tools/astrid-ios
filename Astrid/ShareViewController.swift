@@ -21,9 +21,9 @@ class ShareViewController: UIViewController {
             guard let self = self else { return }
 
             switch result {
-            case .success(let fileData):
-                self.sharedFileData = fileData
-                self.setupUI(with: fileData)
+            case .success(let draft):
+                self.sharedFileData = draft?.file
+                self.setupUI(with: draft)
             case .failure(let error):
                 AppLog.debug("❌ [ShareExtension] Failed to extract content: \(error)")
                 self.showError(error)
@@ -33,11 +33,11 @@ class ShareViewController: UIViewController {
 
     // MARK: - UI Setup
 
-    private func setupUI(with fileData: SharedFileData?) {
+    private func setupUI(with draft: SharedTaskDraft?) {
         AppLog.debug("🎨 [ShareExtension] Setting up UI")
 
         let quickCreateView = TaskQuickCreateView(
-            fileData: fileData,
+            draft: draft,
             onSave: { [weak self] taskData in
                 self?.saveAndClose(taskData: taskData)
             },
@@ -64,171 +64,15 @@ class ShareViewController: UIViewController {
 
     // MARK: - Extract Shared Content
 
-    private func extractSharedContent(completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        guard let extensionItem = extensionContext?.inputItems.first as? NSExtensionItem,
-              let itemProvider = extensionItem.attachments?.first else {
-            AppLog.debug("⚠️ [ShareExtension] No attachments found")
-            completion(.success(nil))
-            return
-        }
-
-        AppLog.debug("📎 [ShareExtension] Found attachment")
-
-        // Try to load as image first
-        if itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-            loadImage(from: itemProvider, completion: completion)
-        }
-        // Then try other file types
-        else if itemProvider.hasItemConformingToTypeIdentifier(UTType.data.identifier) {
-            loadFile(from: itemProvider, completion: completion)
-        }
-        // Try URL (for files from Files app)
-        else if itemProvider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            loadFileURL(from: itemProvider, completion: completion)
-        }
-        else {
-            AppLog.debug("⚠️ [ShareExtension] Unsupported content type")
-            completion(.success(nil))
-        }
-    }
-
-    private func loadImage(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        itemProvider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] (item, error) in
-            if let error = error {
-                AppLog.debug("❌ [ShareExtension] Error loading image: \(error)")
+    /// The mapping lives in `Shared/SharedContentLoader.swift`, where the unit tests reach it.
+    private func extractSharedContent(completion: @escaping (Result<SharedTaskDraft?, Error>) -> Void) {
+        let items = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem } ?? []
+        _Concurrency.Task { @MainActor in
+            do {
+                completion(.success(try await SharedContentLoader(manager: .shared).draft(from: items)))
+            } catch {
                 completion(.failure(error))
-                return
             }
-
-            guard let self = self else { return }
-
-            // Handle image data
-            if let url = item as? URL {
-                self.processFileURL(url, completion: completion)
-            } else if let data = item as? Data {
-                self.processImageData(data, completion: completion)
-            } else if let image = item as? UIImage {
-                self.processUIImage(image, completion: completion)
-            } else {
-                AppLog.debug("⚠️ [ShareExtension] Unknown image format")
-                completion(.success(nil))
-            }
-        }
-    }
-
-    private func loadFile(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        itemProvider.loadItem(forTypeIdentifier: UTType.data.identifier, options: nil) { [weak self] (item, error) in
-            if let error = error {
-                AppLog.debug("❌ [ShareExtension] Error loading file: \(error)")
-                completion(.failure(error))
-                return
-            }
-
-            guard let self = self else { return }
-
-            if let url = item as? URL {
-                self.processFileURL(url, completion: completion)
-            } else if let data = item as? Data {
-                self.processFileData(data, suggestedName: "file", completion: completion)
-            } else {
-                AppLog.debug("⚠️ [ShareExtension] Unknown file format")
-                completion(.success(nil))
-            }
-        }
-    }
-
-    private func loadFileURL(from itemProvider: NSItemProvider, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        itemProvider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { [weak self] (item, error) in
-            if let error = error {
-                AppLog.debug("❌ [ShareExtension] Error loading file URL: \(error)")
-                completion(.failure(error))
-                return
-            }
-
-            guard let self = self, let url = item as? URL else {
-                completion(.success(nil))
-                return
-            }
-
-            self.processFileURL(url, completion: completion)
-        }
-    }
-
-    // MARK: - Process Content
-
-    private func processFileURL(_ url: URL, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        AppLog.debug("📁 [ShareExtension] Processing file URL: \(url.lastPathComponent)")
-
-        do {
-            // Copy file to shared container
-            let sharedURL = try ShareDataManager.shared.copyFileToSharedContainer(from: url)
-
-            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            let fileSize = attributes[.size] as? Int64 ?? 0
-
-            let mimeType = getMimeType(for: url.pathExtension)
-
-            let fileData = SharedFileData(
-                fileURL: sharedURL,
-                fileName: url.lastPathComponent,
-                mimeType: mimeType,
-                fileSize: fileSize
-            )
-
-            AppLog.debug("✅ [ShareExtension] File processed: \(url.lastPathComponent) (\(fileSize) bytes)")
-            completion(.success(fileData))
-        } catch {
-            AppLog.debug("❌ [ShareExtension] Failed to process file: \(error)")
-            completion(.failure(error))
-        }
-    }
-
-    private func processImageData(_ data: Data, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        AppLog.debug("🖼️ [ShareExtension] Processing image data (\(data.count) bytes)")
-
-        let fileName = "image_\(Int(Date().timeIntervalSince1970)).jpg"
-        processFileData(data, suggestedName: fileName, completion: completion)
-    }
-
-    private func processUIImage(_ image: UIImage, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        AppLog.debug("🖼️ [ShareExtension] Processing UIImage")
-
-        guard let data = image.jpegData(compressionQuality: 0.8) else {
-            AppLog.debug("❌ [ShareExtension] Failed to convert image to JPEG")
-            completion(.success(nil))
-            return
-        }
-
-        let fileName = "image_\(Int(Date().timeIntervalSince1970)).jpg"
-        processFileData(data, suggestedName: fileName, completion: completion)
-    }
-
-    private func processFileData(_ data: Data, suggestedName: String, completion: @escaping (Result<SharedFileData?, Error>) -> Void) {
-        do {
-            // Write to temporary file first
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(suggestedName)
-            try data.write(to: tempURL)
-
-            // Copy to shared container
-            let sharedURL = try ShareDataManager.shared.copyFileToSharedContainer(from: tempURL)
-
-            // Clean up temp file
-            try? FileManager.default.removeItem(at: tempURL)
-
-            let mimeType = getMimeType(for: (suggestedName as NSString).pathExtension)
-
-            let fileData = SharedFileData(
-                fileURL: sharedURL,
-                fileName: suggestedName,
-                mimeType: mimeType,
-                fileSize: Int64(data.count)
-            )
-
-            AppLog.debug("✅ [ShareExtension] File data processed: \(suggestedName) (\(data.count) bytes)")
-            completion(.success(fileData))
-        } catch {
-            AppLog.debug("❌ [ShareExtension] Failed to process file data: \(error)")
-            completion(.failure(error))
         }
     }
 
@@ -274,22 +118,4 @@ class ShareViewController: UIViewController {
         })
         present(alert, animated: true)
     }
-
-    // MARK: - Helpers
-
-    private func getMimeType(for fileExtension: String) -> String {
-        if let type = UTType(filenameExtension: fileExtension) {
-            return type.preferredMIMEType ?? "application/octet-stream"
-        }
-        return "application/octet-stream"
-    }
-}
-
-// MARK: - Shared File Data
-
-struct SharedFileData {
-    let fileURL: URL
-    let fileName: String
-    let mimeType: String
-    let fileSize: Int64
 }

@@ -69,3 +69,11 @@ struct SharedTaskItem: Codable {
         self.updatedAt = Date()
     }
 }
+
+/// A file the extension copied into the App Group, waiting to be attached.
+struct SharedFileData: Equatable {
+    let fileURL: URL
+    let fileName: String
+    let mimeType: String
+    let fileSize: Int64
+}

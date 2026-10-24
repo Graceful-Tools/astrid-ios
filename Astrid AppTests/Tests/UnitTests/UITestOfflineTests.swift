@@ -60,4 +60,18 @@ final class UITestOfflineTests: XCTestCase {
         XCTAssertNotEqual(AppCore.uiTestCacheURL(named: nil), AppCore.uiTestCacheURL(named: nil),
                           "an unnamed run still gets a fresh cache per launch")
     }
+
+    // MARK: - The share stand-in (AITD-542)
+
+    func testASharePayloadIsOnlyReadUnderTheFlag_AITD542() {
+        XCTAssertEqual(UITestSession.sharePayload(arguments: ["-uiTesting", "-uiTestSharePayload", " Read later "]),
+                       "Read later")
+        XCTAssertNil(UITestSession.sharePayload(arguments: ["-uiTestSharePayload", "Read later"]),
+                     "a stray argument must never queue a share in the real app")
+        XCTAssertNil(UITestSession.sharePayload(arguments: ["-uiTesting", "-uiTestSharePayload"]))
+        XCTAssertNil(UITestSession.sharePayload(arguments: ["-uiTesting", "-uiTestSharePayload", "  "]))
+        let task = UITestSession.sharePayloadTask(title: "Read later")
+        XCTAssertEqual(task.title, "Read later")
+        XCTAssertEqual(task.description, UITestSession.sharePayloadURL)
+    }
 }

@@ -31,6 +31,10 @@ struct AstridApp: App {
         configureNotifications()
         configureBadgeManagement()
         validateAppGroupAccess()
+        if let title = UITestSession.sharePayload(arguments: ProcessInfo.processInfo.arguments) {
+            // Stands in for the Share Extension in a UI test (AITD-542)
+            try? ShareDataManager.shared.saveSharedTask(UITestSession.sharePayloadTask(title: title))
+        }
 
         // Register background tasks (skipped in test environment)
         BackgroundSyncHandler.shared.registerBackgroundTasks()
@@ -373,105 +377,13 @@ struct AstridApp: App {
         }
 
         AppLog.debug("📥 [AstridApp] Checking for shared tasks...")
-
-        do {
-            let pendingTasks = try ShareDataManager.shared.loadPendingTasks()
-            guard !pendingTasks.isEmpty else {
-                AppLog.debug("📭 [AstridApp] No pending shared tasks")
-                return
-            }
-
-            AppLog.debug("📋 [AstridApp] Found \(pendingTasks.count) pending shared task(s)")
-
-            for item in pendingTasks where item.status == .pending {
-                await processSingleSharedTask(item)
-            }
-
-            // Clean up completed tasks
-            try ShareDataManager.shared.removeCompletedTasks()
-        } catch {
-            AppLog.debug("❌ [AstridApp] Failed to process shared tasks: \(error)")
-        }
+        await SharedTaskInbox(shares: .shared, tasks: .shared).drain()
     }
 
     private func updateAppBadge() async {
         AppLog.debug("📛 [AstridApp] Updating app badge...")
         let taskService = TaskService.shared
         await BadgeManager.shared.updateBadge(with: taskService.tasks)
-    }
-
-    private func processSingleSharedTask(_ item: SharedTaskItem) async {
-        let taskData = item.data
-        AppLog.debug("🔄 [AstridApp] Processing shared task: \(taskData.title)")
-
-        do {
-            // Update status to creating
-            try ShareDataManager.shared.updateTaskStatus(
-                taskId: taskData.id,
-                status: .creating
-            )
-
-            // Create task via MCP
-            let taskService = TaskService.shared
-            let createdTask = try await taskService.createTask(
-                listIds: taskData.listId.map { [$0] } ?? [],
-                title: taskData.title,
-                description: taskData.description ?? "",
-                priority: taskData.priority,
-                whenDate: nil,
-                whenTime: nil,
-                assigneeId: AuthManager.shared.userId,
-                isPrivate: nil,
-                repeating: nil
-            )
-
-            AppLog.debug("✅ [AstridApp] Task created: \(createdTask.id)")
-
-            // If there's a file attachment, upload it
-            if let fileURL = taskData.fileURL,
-               let fileName = taskData.fileName,
-               let mimeType = taskData.mimeType {
-
-                AppLog.debug("📤 [AstridApp] Uploading attachment: \(fileName)")
-
-                // Update status to uploading
-                try ShareDataManager.shared.updateTaskStatus(
-                    taskId: taskData.id,
-                    status: .uploading,
-                    createdTaskId: createdTask.id
-                )
-
-                // Upload file
-                let attachmentService = AttachmentService.shared
-                _ = try await attachmentService.uploadSharedFile(
-                    fileURL: fileURL,
-                    fileName: fileName,
-                    mimeType: mimeType,
-                    taskId: createdTask.id
-                )
-
-                AppLog.debug("✅ [AstridApp] Attachment uploaded successfully")
-            }
-
-            // Mark as completed
-            try ShareDataManager.shared.updateTaskStatus(
-                taskId: taskData.id,
-                status: .completed,
-                createdTaskId: createdTask.id
-            )
-
-            AppLog.debug("✅ [AstridApp] Shared task processed successfully")
-
-        } catch {
-            AppLog.debug("❌ [AstridApp] Failed to process shared task: \(error)")
-
-            // Mark as failed
-            try? ShareDataManager.shared.updateTaskStatus(
-                taskId: taskData.id,
-                status: .failed,
-                error: error.localizedDescription
-            )
-        }
     }
 
     private func reviveLiveUpdates() async {
