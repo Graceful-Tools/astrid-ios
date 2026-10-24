@@ -54,3 +54,12 @@ jobs:
         with:
           manifest-path: core/Cargo.toml
           command: check ${{ matrix.checks }}
+
+  # The binding layer's own Rust tests (AITD-541). Nothing ran them before: this job only ever ran
+  # cargo-deny. Pure Rust, so ubuntu does; the Swift package's tests run in `npm run test:core`.
+  rust-tests:
+    name: cargo test (astrid-apple)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --manifest-path core/Cargo.toml

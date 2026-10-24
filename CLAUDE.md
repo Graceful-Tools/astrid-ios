@@ -54,13 +54,14 @@ npm run predeploy             # Run standard checks before pushing
 | Command | What it runs |
 |---------|--------------|
 | `npm run predeploy:quick` | Version check + localizations + source contracts + brand literals + build (no tests) |
-| `npm run predeploy` | Quick + partner-brand audit + unit tests + script self-test — **the standard gate before pushing** |
+| `npm run predeploy` | Quick + partner-brand audit + unit tests (with the per-directory coverage table, failing below `scripts/coverage-floor.json`) + script self-tests + `test:core` — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (needs a minted test-account session) + Mac unit tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
 | `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `make-brand-variant.sh`, `monkey-test.sh`'s verdict, the source-contract rules) |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
-| `npm run test:mac` | Mac unit tests (`Astrid MacTests`); never alongside `predeploy`, whose brand audit rewrites the Info.plists |
+| `npm run test:mac` | Mac unit tests (`Astrid MacTests`), unsandboxed and with coverage against the same floor; never alongside `predeploy`, whose brand audit rewrites the Info.plists |
+| `npm run test:core` | The `Packages/AstridCore` Swift tests and `core/astrid-apple`'s Rust tests (a missing toolchain is a visible skip) |
 | `npm run test:all` | Unit + UI tests |
 | `npm run check:localizations` | Validate translations (12 languages) |
 | `npm run check:contracts` | Source contracts the compiler cannot check — no `URLSession.shared`, no network client in a view, every key in every language, the Mac entitlement allowlist… (`scripts/check-source-contracts.mjs --list`); a new tree-wide rule goes here, not into a unit test that greps source |

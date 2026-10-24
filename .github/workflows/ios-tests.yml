@@ -63,6 +63,16 @@ jobs:
             *.xcresult
           retention-days: 14
 
+      # The per-directory coverage the run measured (AITD-541), kept so the trend is visible.
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-ios
+          path: build/coverage/*.json
+          if-no-files-found: warn
+          retention-days: 90
+
   ui-tests:
     name: 'UI Tests (Simulator / Device)'
     runs-on: ${{ fromJSON(inputs.runner == 'macos-latest' && '["macos-latest"]' || '["self-hosted","astrid-ios"]') }}
@@ -181,6 +191,15 @@ jobs:
       - name: Run Mac tests
         run: npm run test:mac
         timeout-minutes: 30
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-mac
+          path: build/coverage/*.json
+          if-no-files-found: warn
+          retention-days: 90
 
   build-check:
     name: 'Build Check'

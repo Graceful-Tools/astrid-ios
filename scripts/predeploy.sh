@@ -198,6 +198,9 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-xcresult-summary.sh"
     gate "monkey verdict script tests passed" "monkey verdict script tests failed" \
         "$SCRIPT_DIR/test-monkey-verdict.sh"
+    # The AstridCore package's tests and the Rust binding tests, which nothing ran (AITD-541).
+    gate "astrid-core package and binding tests passed" "astrid-core package or binding tests failed" \
+        "$SCRIPT_DIR/test-core.sh"
 fi
 
 # Step 9: UI tests (only with --full)
