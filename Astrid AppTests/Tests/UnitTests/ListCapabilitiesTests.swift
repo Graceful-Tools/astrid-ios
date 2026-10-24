@@ -64,20 +64,6 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertTrue(TaskCapabilities.allows(.dueDate, listIds: [], lists: lists))
     }
 
-    func testTheIOSDetailAsksTheRuleForTheWhenAndPriorityRows_AITD491() throws {
-        let source = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskDetailViewNew.swift")
-        XCTAssertTrue(source.contains("TaskCapabilities.allows(.dueDate"))
-        XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"))
-    }
-
-    /// Project mode keeps priority behind the leading control's popover, which still offered it
-    /// on a board that refuses the write.
-    func testTheIOSQuickChangerAsksTheRuleForPriority_AITD491() throws {
-        let source = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift")
-        XCTAssertTrue(source.contains("TaskCapabilities.allows(.priority"),
-                      "the popover still offers priority on a board that refuses it")
-    }
-
     // MARK: - Membership
 
     /// On a GitHub board the roster is GitHub's (`supports.membership == false`), so an owner
@@ -90,15 +76,6 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertTrue(ListPermissions.canManageMembers(home, userId: "me"))
         // Membership support never grants what the role does not.
         XCTAssertFalse(ListPermissions.canManageMembers(home, userId: "someone-else"))
-    }
-
-    func testBothMembershipTabsAskTheRosterRule_AITD491() throws {
-        for path in ["Astrid App/Views/Lists/ListMembershipTab.swift",
-                     "Astrid Mac/Views/MacListMembershipTab.swift"] {
-            let source = try RepositoryLocator.source(at: path)
-            XCTAssertTrue(source.contains("ListPermissions.canManageMembers("),
-                          "\(path) still offers invites on a GitHub board")
-        }
     }
 
     // MARK: - Delete wording
@@ -128,26 +105,6 @@ final class ListCapabilitiesTests: XCTestCase {
         XCTAssertEqual(classic.buttonKey, "actions.delete")
     }
 
-    func testEveryDeleteSurfaceAsksTheWording_AITD491() throws {
-        for path in ["Astrid App/Views/Tasks/TaskActionsView.swift",
-                     "Astrid App/Views/Tasks/TaskDetailViewNew.swift",
-                     "Astrid App/Views/Tasks/TaskDetailHeaderBar.swift",
-                     "Astrid Mac/Views/MacTaskDetailView.swift",
-                     "Astrid Mac/Views/MacTaskRowMenu.swift"] {
-            let source = try RepositoryLocator.source(at: path)
-            XCTAssertTrue(source.contains("TaskCapabilities.deleteWording("), "\(path) still says Delete on a GitHub board")
-        }
-    }
-
-    func testTheRemoveStringsExistInEveryLanguage_AITD491() throws {
-        for language in ["en", "de", "es", "fr", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"] {
-            let strings = try RepositoryLocator.source(at: "Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
-            for key in ["tasks.remove_from_board", "tasks.remove_from_board_confirm", "actions.remove"] {
-                XCTAssertTrue(strings.contains("\"\(key)\" ="), "\(language) lacks \(key)")
-            }
-        }
-    }
-
     // MARK: - remote
 
     func testATasksRemoteIsKeptAndNamesItsChip_AITD491() throws {
@@ -164,14 +121,6 @@ final class ListCapabilitiesTests: XCTestCase {
         let draft = try task(#","remote":{"kind":"draft_issue","url":null,"nodeId":"D_1","version":null,"repo":null,"number":null}"#)
         XCTAssertNil(try XCTUnwrap(draft.remote).chipLabel)
         XCTAssertNil(try task("").remote)
-    }
-
-    func testBothRowsDrawTheRepoChip_AITD491() throws {
-        for path in ["Astrid App/Views/Tasks/TaskRowView.swift", "Astrid Mac/Views/MacTaskRow.swift"] {
-            let source = try RepositoryLocator.source(at: path)
-            XCTAssertTrue(source.contains("task.remote?.chipLabel"), "\(path) does not draw the repo chip")
-            XCTAssertTrue(source.contains("taskRow.remoteChip"), "\(path) does not identify the repo chip")
-        }
     }
 
     // MARK: - New tasks
@@ -242,36 +191,5 @@ final class ListCapabilitiesTests: XCTestCase {
             XCTAssertFalse(TaskCapabilities.allows(control, on: board), "\(control) offered on a board that refuses it")
             XCTAssertTrue(TaskCapabilities.allows(control, on: home))
         }
-    }
-
-    /// The gap the earlier passes left: a board with no Priority field still offered a DEFAULT
-    /// priority, and one with no date field a default due date and time. `createTask` drops
-    /// them now, so the setting looked as if it worked and did nothing.
-    func testBothListDefaultsScreensAskTheRule_AITD491() throws {
-        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListDefaultsView.swift")
-        for control in ["priority", "dueDate", "privateTasks"] {
-            XCTAssertTrue(ios.contains("TaskCapabilities.allows(.\(control)"),
-                          "the iOS defaults screen still offers a default \(control) a board refuses")
-        }
-        let mac = try RepositoryLocator.source(at: "Astrid Mac/Views/MacListEditSheet.swift")
-        for control in ["priority", "dueDate"] {
-            XCTAssertTrue(mac.contains("TaskCapabilities.allows(.\(control)"),
-                          "the Mac list editor still offers a default \(control) a board refuses")
-        }
-    }
-
-    /// Every create goes through the service, so that is where the rule is asked: quick add on
-    /// both apps, the board column, the list's defaults and smart parsing all pass through it.
-    func testEveryNewTaskAsksTheRule_AITD491() throws {
-        let service = try RepositoryLocator.source(at: "Astrid App/Core/Services/TaskService.swift")
-        XCTAssertTrue(service.contains("TaskCapabilities.admitted("), "createTask does not drop refused values")
-    }
-
-    /// The quick-add pickers do not offer a priority the board would drop.
-    func testBothQuickAddPickersAskTheRuleForPriority_AITD491() throws {
-        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Tasks/QuickAddPickerSheet.swift")
-        XCTAssertTrue(ios.contains("TaskCapabilities.allows(.priority"), "the iOS quick-add sheet still offers priority")
-        let mac = try RepositoryLocator.source(at: "Astrid Mac/Views/MacQuickAddBar.swift")
-        XCTAssertTrue(mac.contains("TaskCapabilities.allows(.priority"), "the Mac add bar still offers priority")
     }
 }

@@ -127,16 +127,4 @@ final class CommentVisibilityTests: XCTestCase {
             }
         }
     }
-
-    // MARK: - The view must ask, not repeat
-
-    func testTheViewUsesTheSharedRule() throws {
-        let root = RepositoryLocator.root
-        let view = try String(
-            contentsOf: root.appendingPathComponent("Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(view.contains("CommentVisibility.displayed("))
-        XCTAssertTrue(view.contains("CommentVisibility.count("))
-        XCTAssertTrue(view.contains("CommentVisibility.isSystem("))
-    }
 }

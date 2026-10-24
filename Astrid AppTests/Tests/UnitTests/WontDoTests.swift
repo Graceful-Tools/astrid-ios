@@ -84,23 +84,4 @@ final class WontDoTests: XCTestCase {
         XCTAssertFalse(reopened.completed)
         XCTAssertNil(reopened.closedReason)
     }
-
-    // MARK: - Strings
-
-    /// The menu reads Copy / Share / Won't do / Delete, as web's does.
-    func testEveryLanguageHasTheWontDoStrings_AITD496() throws {
-        let root = try RepositoryLocator.repositoryRoot()
-            .appendingPathComponent("Astrid App/Resources/Localizations")
-        let languages = try FileManager.default.contentsOfDirectory(atPath: root.path)
-            .filter { $0.hasSuffix(".lproj") }
-        XCTAssertEqual(languages.count, 12)
-        for language in languages {
-            let strings = try String(
-                contentsOf: root.appendingPathComponent(language).appendingPathComponent("Localizable.strings"),
-                encoding: .utf8)
-            for key in ["tasks.wont_do", "tasks.reopen", "tasks.wont_do_chip"] {
-                XCTAssertTrue(strings.contains("\"\(key)\" = "), "\(language) is missing \(key)")
-            }
-        }
-    }
 }

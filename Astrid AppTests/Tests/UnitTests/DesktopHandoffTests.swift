@@ -95,9 +95,4 @@ final class DesktopHandoffTests: XCTestCase {
         XCTAssertEqual(DesktopHandoff.cookieHeader(token: "jwt", cookieName: "evil"), "next-auth.session-token=jwt")
         XCTAssertEqual(DesktopHandoff.cookieHeader(token: "jwt", cookieName: nil), "next-auth.session-token=jwt")
     }
-
-    func testAITD465_ExchangeGoesThroughTheV1Route() throws {
-        let source = try RepositoryLocator.source(at: "Astrid App/Core/Networking/AstridAPIClient+Auth.swift")
-        XCTAssertTrue(source.contains("\"/api/v1/auth/desktop/exchange\""))
-    }
 }

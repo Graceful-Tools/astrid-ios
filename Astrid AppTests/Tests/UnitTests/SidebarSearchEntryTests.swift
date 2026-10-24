@@ -16,28 +16,4 @@ final class SidebarSearchEntryTests: XCTestCase {
         let destinations = SidebarSearchEntry.allCases.map(\.destination)
         XCTAssertEqual(destinations, Array(repeating: .search, count: destinations.count))
     }
-
-    /// Pinned at the source, as web's `sidebar-header-search.test.ts` is: a render of either
-    /// sidebar needs the services, the session and the list store to say what the markup does.
-    /// iOS dropped its Search row in AITD-497 (`SidebarAccountFooterTests`); the Mac keeps both.
-    func test_aitd494_bothSidebarsOpenSearchFromTheHeader() throws {
-        let ios = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListSidebarView.swift")
-        XCTAssertTrue(ios.contains("openSearch(.headerIcon)"), "iOS: the header icon is gone")
-        XCTAssertEqual(ios.components(separatedBy: "selectedListId = \"search\"").count - 1, 1,
-                       "iOS: search is opened in exactly one place")
-
-        let mac = try RepositoryLocator.source(at: "Astrid Mac/App/MacRootView.swift")
-        XCTAssertTrue(mac.contains("MacSidebarHeader("), "Mac: the brand header is gone")
-        XCTAssertTrue(mac.contains("\"sidebar.search\""), "Mac: the Search row stays")
-    }
-
-    func test_aitd494_theHeaderPutsTheLogoLeftAndSearchRight() throws {
-        let header = try RepositoryLocator.source(at: "Astrid App/Core/Layout/SidebarBrandHeader.swift")
-        // The brand's character, resolved through Brand since AITD-514.
-        let logo = try XCTUnwrap(header.range(of: "Brand.characterImage"))
-        let search = try XCTUnwrap(header.range(of: "\"magnifyingglass\""))
-        XCTAssertLessThan(logo.lowerBound, search.lowerBound)
-        // Labelled for a screen reader rather than shipped as a bare icon.
-        XCTAssertTrue(header.contains(".accessibilityLabel(NSLocalizedString(\"actions.search\""))
-    }
 }

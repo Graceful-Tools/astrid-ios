@@ -494,6 +494,7 @@
 "lists.github_repository" = "Repositorio de GitHub";
 "lists.no_repositories_found" = "No se encontraron repositorios. Asegúrate de que tu cuenta de GitHub esté conectada.";
 "lists.pending_invitations" = "Invitaciones pendientes";
+"lists.pending" = "Pendiente";
 "lists.invited" = "Invitado";
 "lists.cancel_invite" = "Cancelar invitación";
 "lists.ai_agents" = "Agentes de IA";
@@ -514,6 +515,7 @@
 "lists.gemini_task_description" = "Google Gemini para asistencia de tareas";
 "lists.default_agent_description" = "Agente de IA para asistencia de tareas";
 "lists.ai_coding_agents" = "Agentes de programación IA";
+"lists.ai_coding_agent" = "Agente de programación IA";
 "lists.connect_github_description" = "Conecta un repositorio de GitHub para flujos de programación";
 "lists.list_privacy" = "Privacidad de lista";
 "lists.make_public" = "Hacer pública";
@@ -968,6 +970,7 @@
 "sync.new_list" = "Nueva lista";
 "sync.not_linked" = "No vinculada";
 "sync.repository" = "Repositorio";
+"sync.use_repo" = "Usar %@";
 "sync.suffix_placeholder" = "Sufijo del nombre, p. ej. [GT]";
 "sync.sync_mode" = "Modo de sincronización";
 "sync.sync_now" = "Sincronizar ahora";

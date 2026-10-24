@@ -67,52 +67,6 @@ final class ListPermissionsTests: XCTestCase {
         XCTAssertFalse(ListPermissions.canDelete(l, userId: nil))
     }
 
-    // MARK: - One rule, not four copies
-
-    /// Every place that DECIDES must read the shared helper. The Mac copy comparing role STRINGS
-    /// against a different roster is exactly how the two platforms answered this differently.
-    ///
-    /// `MacRootView` is no longer on this list: AITD-373 moved its decision into `MacListMenu`,
-    /// which the sidebar and the board's strip both render. The check followed the decision — it
-    /// did not go away — and `MacRootView` stays in the ban sweep below, so a hand-rolled rule
-    /// creeping back into it still fails.
-    private static let mustAskTheRule = [
-        "Astrid App/Views/Lists/ListMembershipTab.swift",
-        "Astrid App/Views/Lists/ListSettingsModal.swift",
-        // The Mac's membership UI moved here in AITD-388 (the `MacListMembersView` it replaced
-        // has been deleted).
-        "Astrid Mac/Views/MacListMembershipTab.swift",
-        "Astrid Mac/Views/MacListSettingsWindow.swift",
-        "Astrid Mac/Views/MacListMenu.swift",
-    ]
-
-    /// Everywhere the hand-rolled forms are banned, decision or not.
-    private static let mustNotHandRollIt = mustAskTheRule + ["Astrid Mac/App/MacRootView.swift"]
-
-    func testEveryDecidingCallSiteAsksTheSharedRule() throws {
-        for relative in Self.mustAskTheRule {
-            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
-                                    encoding: .utf8)
-            XCTAssertTrue(source.contains("ListPermissions."),
-                          "\(relative) must ask the shared rule")
-        }
-    }
-
-    func testNoCallSiteHandRollsTheRule() throws {
-        for relative in Self.mustNotHandRollIt {
-            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relative),
-                                    encoding: .utf8)
-            // Only the hand-rolled OWNER-OR-ADMIN forms are banned. Comparing a role string is
-            // fine elsewhere — ListMembershipTab legitimately does it to render and toggle
-            // ANOTHER member's role, which is a different question from "may I edit this list".
-            for handRolled in ["role == .owner || role == .admin",
-                               #"myRole == "owner""#] {
-                XCTAssertFalse(source.contains(handRolled),
-                               "\(relative) still hand-rolls the permission rule: \(handRolled)")
-            }
-        }
-    }
-
     // MARK: - Task-level rules moved out of TaskListView (2026-09-13)
 
     private func list(privacy: TaskList.Privacy, publicListType: String? = nil,

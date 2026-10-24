@@ -83,22 +83,4 @@ final class PublicListMappingTests: XCTestCase {
         XCTAssertEqual(TaskList(publicList: try publicListData(privacy: "PUBLIC")).privacy, .PUBLIC)
         XCTAssertEqual(TaskList(publicList: try publicListData(privacy: "PRIVATE")).privacy, .PRIVATE)
     }
-
-    /// The guard: nobody writes a fourth copy.
-    func testNoSurfaceHandRollsTheMappingAgain() throws {
-        let root = RepositoryLocator.root
-
-        let audited = [
-            "Astrid App/Views/Lists/ListSidebarView.swift",
-            "Astrid App/Views/Lists/PublicListBrowserView.swift",
-            "Astrid Mac/App/MacRootView.swift",
-        ]
-
-        for relative in audited {
-            let source = try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
-            XCTAssertFalse(source.contains("listData.owner.id") || source.contains("data.owner.id"),
-                           "\(relative) builds a TaskList from a public list by hand — "
-                           + "use TaskList(publicList:) (AITD-319)")
-        }
-    }
 }

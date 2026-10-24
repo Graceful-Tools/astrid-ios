@@ -26,32 +26,6 @@ final class StaleV1TodoTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 
-    private func swiftSources() throws -> [(path: String, text: String)] {
-        let fm = FileManager.default
-        var results: [(String, String)] = []
-        for target in ["Astrid App", "Astrid Mac"] {
-            let root = RepositoryLocator.root.appendingPathComponent(target)
-            guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: nil) else { continue }
-            for case let url as URL in walker where url.pathExtension == "swift" {
-                let text = try String(contentsOf: url, encoding: .utf8)
-                results.append((url.lastPathComponent, text))
-            }
-        }
-        return results
-    }
-
-    /// The claim itself. Any file asserting v1 lacks something is either wrong or describes work
-    /// that should be a task rather than a comment nobody is accountable for.
-    func testNoSourceFileClaimsAnEndpointIsMissingFromAPIV1() throws {
-        let offenders = try swiftSources()
-            .filter { $0.text.range(of: #"(?i)(not yet|TODO).{0,60}API v1"#, options: .regularExpression) != nil }
-            .map(\.path)
-
-        XCTAssertTrue(offenders.isEmpty,
-                      "These files still claim API v1 is missing an endpoint (AITD-349): "
-                      + offenders.sorted().joined(separator: ", "))
-    }
-
     /// The stub that silently reported every shared list as empty.
     func testListServiceHasNoMemberReadingStub() throws {
         let listService = try source("Astrid App/Core/Services/ListService.swift")

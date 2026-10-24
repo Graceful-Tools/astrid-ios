@@ -18,6 +18,12 @@ settings and the live stream go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
+**One path outside `/api/v1`.** `/api/mcp/user-tokens` mints the Copilot cloud agent's MCP token
+(`AstridAPIClient.createCopilotCloudAgentToken`, Agent hub); web serves it only there. It is
+named in `APIEndpointInventoryTests.nonV1Exceptions` so a second one cannot appear unseen. (The
+passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` through `AstridHTTP`,
+not by this client.)
+
 
 ## `AstridAPIClient` — the only client (54 paths)
 

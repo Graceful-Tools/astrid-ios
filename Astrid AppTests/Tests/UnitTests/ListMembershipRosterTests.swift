@@ -218,20 +218,4 @@ final class ListMembershipRosterTests: XCTestCase {
             XCTFail("unexpected error: \(error)")
         }
     }
-
-    /// Neither tab may re-grow its own wrappers: that is how they came to disagree.
-    func testAITD399_NeitherMembershipTabCallsTheMemberServiceDirectly() throws {
-        let root = RepositoryLocator.root
-        for path in ["Astrid App/Views/Lists/ListMembershipTab.swift",
-                     "Astrid Mac/Views/MacListMembershipTab.swift"] {
-            let src = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-            for call in ["memberService.addMember", "memberService.updateMemberRole",
-                         "memberService.removeMember", "memberService.cancelInvitation",
-                         "svc.addMember", "svc.updateMemberRole", "svc.removeMember",
-                         "svc.cancelInvitation", "svc.updateInvitationRole"] {
-                XCTAssertFalse(src.contains(call),
-                               "\(path) should go through ListMembershipActions, not \(call)")
-            }
-        }
-    }
 }

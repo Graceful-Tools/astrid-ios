@@ -77,7 +77,7 @@ final class MacFlowRowsTests: XCTestCase {
         let source = try String(
             contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacListPicker.swift"),
             encoding: .utf8)
-        let chips = try XCTUnwrap(source.components(separatedBy: "private var chips").last)
+        let chips = try SourceSlice.after("private var chips", in: source)
         XCTAssertTrue(chips.contains("lineLimit(1)"),
                       "a pill must not wrap its own name onto a second line")
         XCTAssertTrue(chips.contains("FlowLayout"),

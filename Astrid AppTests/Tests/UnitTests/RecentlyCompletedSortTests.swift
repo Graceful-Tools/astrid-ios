@@ -130,36 +130,4 @@ final class RecentlyCompletedSortTests: XCTestCase {
 /// nothing offers it — and the sort value is a cross-platform contract, so the tag
 /// has to be web's spelling exactly.
 final class RecentlyCompletedSortPickerTests: XCTestCase {
-
-    private func source(_ path: String) throws -> String {
-        let root = RepositoryLocator.root
-        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-    }
-
-    func testEverySortPickerOffersRecentlyCompleted() throws {
-        for path in ["Astrid App/Views/Lists/ListSortFiltersTab.swift",
-                     "Astrid Mac/Views/MacListFilter.swift"] {
-            let text = try source(path)
-            XCTAssertTrue(text.contains("completedAt"),
-                          "\(path) has no \"completedAt\" sort option")
-            XCTAssertTrue(text.contains("lists.recently_completed"),
-                          "\(path) hardcodes the label instead of using the shared key")
-        }
-    }
-
-    func testTheLabelIsTranslatedEverywhere() throws {
-        // 12 languages, and the key already existed for the recently-completed
-        // window — reused rather than duplicated with different words.
-        for language in ["en", "de", "es", "fr", "it", "nl", "pt", "ru", "ja", "ko", "zh-Hans", "zh-Hant"] {
-            let text = try source("Astrid App/Resources/Localizations/\(language).lproj/Localizable.strings")
-            XCTAssertTrue(text.contains("\"lists.recently_completed\""),
-                          "\(language) is missing lists.recently_completed")
-        }
-    }
-
-    func testASavedFilterNamesTheSortInsteadOfShowingTheRawKey() throws {
-        let text = try source("Astrid App/Views/Lists/SaveFilterDialog.swift")
-        XCTAssertTrue(text.contains("case \"completedAt\":"),
-                      "a saved filter would render the raw \"completedAt\"")
-    }
 }

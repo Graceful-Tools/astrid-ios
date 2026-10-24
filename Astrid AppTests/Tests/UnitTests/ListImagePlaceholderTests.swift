@@ -50,16 +50,4 @@ final class ListImagePlaceholderTests: XCTestCase {
         XCTAssertFalse(ListImagePlaceholders.isPlaceholder(nil))
         XCTAssertFalse(ListImagePlaceholders.isPlaceholder(""))
     }
-
-    /// iOS must read the shared list rather than keeping its own copy, or the extraction bought
-    /// nothing and the two can drift again.
-    func testIOSUsesTheSharedPalette() throws {
-        let picker = try String(contentsOf: RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Views/Components/ImagePickerView.swift"),
-            encoding: .utf8)
-        XCTAssertTrue(picker.contains("ListImagePlaceholders"),
-                      "ImagePickerView should read the shared palette")
-        XCTAssertFalse(picker.contains("/images/placeholders/lavender.png"),
-                       "…and should no longer carry its own copy of the paths")
-    }
 }

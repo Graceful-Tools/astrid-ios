@@ -21,18 +21,6 @@ final class MacBoardQuickAddTests: XCTestCase {
 
     // MARK: - Layout
 
-    /// The central bar is gone from the board: `boardColumn` draws the board and nothing under it.
-    func testTheBoardNoLongerDrawsTheCentralQuickAdd() throws {
-        let source = try macSource("Astrid Mac/App/MacRootView.swift")
-        guard let start = source.range(of: "private func boardColumn(") else {
-            return XCTFail("MacRootView.boardColumn not found — did it move?")
-        }
-        let tail = source[start.upperBound...]
-        let end = tail.range(of: "\n    /// ")?.lowerBound ?? tail.endIndex
-        XCTAssertFalse(String(tail[..<end]).contains("quickAddBar"),
-                       "the board's columns each have an add bar; a second one under the board is the duplicate")
-    }
-
     /// One component, both places: the list's bar and every column's bar are the same view.
     func testTheColumnsAndTheListDrawTheSameBar() throws {
         XCTAssertTrue(try macSource("Astrid Mac/App/MacRootView.swift").contains("MacQuickAddBar("),

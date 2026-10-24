@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub 儲存庫";
 "lists.no_repositories_found" = "找不到儲存庫。請確保您的 GitHub 帳戶已連接。";
 "lists.pending_invitations" = "待處理邀請";
+"lists.pending" = "待處理";
 "lists.invited" = "已邀請";
 "lists.cancel_invite" = "取消邀請";
 "lists.ai_agents" = "AI 代理";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini 用於任務協助";
 "lists.default_agent_description" = "AI 代理用於任務協助";
 "lists.ai_coding_agents" = "AI 程式設計代理";
+"lists.ai_coding_agent" = "AI 程式設計代理";
 "lists.connect_github_description" = "連接 GitHub 儲存庫以啟用程式設計工作流程";
 "lists.list_privacy" = "列表隱私";
 "lists.make_public" = "設為公開";
@@ -954,6 +956,7 @@
 "sync.new_list" = "新增清單";
 "sync.not_linked" = "未關聯";
 "sync.repository" = "儲存庫";
+"sync.use_repo" = "使用 %@";
 "sync.suffix_placeholder" = "清單名稱後綴，如 [GT]";
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";

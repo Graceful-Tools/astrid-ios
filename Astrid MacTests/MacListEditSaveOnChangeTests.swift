@@ -23,7 +23,7 @@ final class MacListEditSaveOnChangeTests: XCTestCase {
     /// The bug: the colour that comes with the image has to be persisted with it.
     func testPickingAnImageSavesItsColourToo() throws {
         let source = try sheet()
-        let picker = try XCTUnwrap(source.components(separatedBy: "func choosePlaceholder").last)
+        let picker = try SourceSlice.after("func choosePlaceholder", in: source)
         let write = try XCTUnwrap(picker.components(separatedBy: "updateListAdvanced").dropFirst().first)
         XCTAssertTrue(write.contains("imageUrl"), "the image must be sent")
         XCTAssertTrue(write.contains("color"),

@@ -68,16 +68,4 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
             .appendingPathComponent(relativePath)
         return try String(contentsOf: url, encoding: .utf8)
     }
-
-    func testTheIOSPickerAsksTheSharedFilter() throws {
-        XCTAssertTrue(try source("Astrid App/Views/Components/ProjectStateQuickPicker.swift")
-                        .contains("TaskStatusOptions"),
-                      "the iOS picker must read the core's answer")
-    }
-
-    func testTheMacPickerAsksTheSharedFilter() throws {
-        XCTAssertTrue(try source("Astrid Mac/Views/MacLeadingControlButton.swift")
-                        .contains("TaskStatusOptions"),
-                      "the Mac picker must read the same answer, or the two drift")
-    }
 }

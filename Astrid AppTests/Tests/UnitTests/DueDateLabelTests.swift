@@ -331,38 +331,4 @@ final class DueDateLabelSharedSurfaceTests: XCTestCase {
         XCTAssertNotEqual(older, NSLocalizedString("time.yesterday", comment: ""))
         XCTAssertFalse(older.isEmpty)
     }
-
-    // MARK: - The guard: nobody hand-rolls these three words again
-
-    func testNoSurfaceHardcodesTheDayNames() throws {
-        let root = RepositoryLocator.root
-
-        let audited = [
-            "Astrid App/Views/Components/CompactTaskRow.swift",
-            "Astrid App/Views/Tasks/TaskRowView.swift",
-            "Astrid App/Views/Chat/ChatMessageListView.swift",
-            "Astrid App/Views/Chat/ChatMessageBubble.swift",
-            "Astrid Mac/Views/MacTaskRow.swift",
-            "Astrid Mac/App/MacQuickAddPreview.swift",
-        ]
-
-        for relative in audited {
-            let source = try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
-
-            for (index, line) in source.components(separatedBy: .newlines).enumerated() {
-                let code = line.trimmingCharacters(in: .whitespaces)
-                guard !code.hasPrefix("//") else { continue }
-
-                for literal in ["\"Today\"", "\"Tomorrow\"", "\"Yesterday\""] {
-                    XCTAssertFalse(code.contains(literal),
-                                   "\(relative):\(index + 1) writes \(literal) as an English literal — "
-                                   + "route it through DueDateLabel, which is localized and "
-                                   + "handles all-day dates (AITD-317)")
-                }
-                XCTAssertFalse(code.contains("isDateInToday") || code.contains("isDateInYesterday"),
-                               "\(relative):\(index + 1) re-implements the day comparison — "
-                               + "it is wrong for all-day dates west of UTC (AITD-317)")
-            }
-        }
-    }
 }

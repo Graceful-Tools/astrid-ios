@@ -1,0 +1,28 @@
+{
+  "_about": "Source-size ratchet (AITD-346), checked by scripts/check-source-contracts.mjs (rule source-file-size). No production file may cross `threshold` lines except those listed, and a listed file may not grow past its `lines`. Lowering an entry is always welcome; RAISING one is a decision with a reason in `why` — that reflex is how six files over 1,000 became nine. An entry whose file shrank more than `slack` below its ceiling must be lowered, so removed lines cannot quietly come back. Line counts are `wc -l` (newlines).",
+  "roots": ["Astrid App", "Astrid Mac", "Astrid"],
+  "threshold": 1000,
+  "slack": 150,
+  "ceilings": {
+    "Astrid App/Views/Tasks/TaskDetailViewNew.swift": {
+      "lines": 1836,
+      "why": "Was 2090, then 1914. AITD-363 extracted the leading control into TaskDetailLeadingControl.swift rather than raising this; AITD-425 moved the custom header to TaskDetailHeaderBar.swift. Down to 1836, not up to 1928."
+    },
+    "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": {
+      "lines": 1822,
+      "why": "Over the line on 2026-09-07, at this length."
+    },
+    "Astrid App/Views/Tasks/TaskListView.swift": {
+      "lines": 1466,
+      "why": "Was 1766. Permission rules moved to ListPermissions (2026-09-13); AITD-409 moved the settings diff to ListSettingsPayload; shared search/splice helpers (2026-10-03); AITD-460 moved filtering, sorting and splicing to astrid-core's rowsForList."
+    },
+    "Astrid Mac/App/MacRootView.swift": {
+      "lines": 1460,
+      "why": "Was 1674. AITD-387 lifted the quick-add options popover into MacDraftDefaultsPicker; AITD-431 moved the quick-add bar to MacQuickAddBar; AITD-460 put rows in astrid-core and MacRowPipeline; AITD-461 took the board column count from BoardModel."
+    },
+    "Astrid App/Core/Networking/AstridAPIClient.swift": {
+      "lines": 1358,
+      "why": "Was 1639. AITD-388 moved the member/invitation endpoints to +ListMembers; dead methods and DTOs left on 2026-09-13 and 2026-10-03; AITD-504 moved account calls to +Account; AITD-535 added init(session:) and removed the uncalled deleteTask."
+    }
+  }
+}

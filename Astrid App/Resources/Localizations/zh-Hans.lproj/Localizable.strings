@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub 仓库";
 "lists.no_repositories_found" = "未找到仓库。请确保您的 GitHub 账户已连接。";
 "lists.pending_invitations" = "待处理邀请";
+"lists.pending" = "待处理";
 "lists.invited" = "已邀请";
 "lists.cancel_invite" = "取消邀请";
 "lists.ai_agents" = "AI 代理";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini 用于任务协助";
 "lists.default_agent_description" = "AI 代理用于任务协助";
 "lists.ai_coding_agents" = "AI 编程代理";
+"lists.ai_coding_agent" = "AI 编程代理";
 "lists.connect_github_description" = "连接 GitHub 仓库以启用编程工作流";
 "lists.list_privacy" = "列表隐私";
 "lists.make_public" = "设为公开";
@@ -952,6 +954,7 @@
 "sync.new_list" = "新建列表";
 "sync.not_linked" = "未关联";
 "sync.repository" = "仓库";
+"sync.use_repo" = "使用 %@";
 "sync.suffix_placeholder" = "列表名称后缀，如 [GT]";
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";

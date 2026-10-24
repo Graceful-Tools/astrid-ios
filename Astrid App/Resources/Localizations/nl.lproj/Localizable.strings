@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub-repository";
 "lists.no_repositories_found" = "Geen repositories gevonden. Zorg dat je GitHub-account is verbonden.";
 "lists.pending_invitations" = "Uitnodigingen in afwachting";
+"lists.pending" = "In afwachting";
 "lists.invited" = "Uitgenodigd";
 "lists.cancel_invite" = "Uitnodiging annuleren";
 "lists.ai_agents" = "AI-agenten";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini voor taakondersteuning";
 "lists.default_agent_description" = "AI-agent voor taakondersteuning";
 "lists.ai_coding_agents" = "AI-programmeeragenten";
+"lists.ai_coding_agent" = "AI-programmeeragent";
 "lists.connect_github_description" = "Verbind een GitHub-repository om programmeerworkflows in te schakelen";
 "lists.list_privacy" = "Lijstprivacy";
 "lists.make_public" = "Openbaar maken";
@@ -952,6 +954,7 @@
 "sync.new_list" = "Nieuwe lijst";
 "sync.not_linked" = "Niet gekoppeld";
 "sync.repository" = "Repository";
+"sync.use_repo" = "%@ gebruiken";
 "sync.suffix_placeholder" = "Naamachtervoegsel, bijv. [GT]";
 "sync.sync_mode" = "Synchronisatiemodus";
 "sync.sync_now" = "Nu synchroniseren";

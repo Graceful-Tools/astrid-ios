@@ -85,36 +85,4 @@ final class AppActionsSharedTests: XCTestCase {
 
         XCTAssertNotEqual(first?.id, center.current?.id, "a repeat failure must redraw, not look like nothing happened")
     }
-
-    /// The mechanism must live where BOTH targets compile it, and must not be re-declared under
-    /// `Astrid Mac/` — a second copy there is exactly the regression this removed.
-    func testAITD400_TheMechanismIsSharedAndNotRedeclaredOnTheMac() throws {
-        let shared = try source("Astrid App/Core/Platform/AppActions.swift")
-        for type in ["final class AppErrorCenter", "enum FailureCopy", "enum AppActions"] {
-            XCTAssertTrue(shared.contains(type), "\(type) belongs in the shared AppActions.swift")
-        }
-        XCTAssertTrue(try source("Astrid App/Core/Platform/AppErrorBanner.swift")
-                        .contains("struct AppErrorBanner"))
-
-        // Membership is by synchronized group: the Mac compiles everything under "Astrid App"
-        // that is NOT an exception. Listing either file would take the mechanism away again.
-        let project = try source("Astrid App.xcodeproj/project.pbxproj")
-        for path in ["Core/Platform/AppActions.swift", "Core/Platform/AppErrorBanner.swift"] {
-            XCTAssertFalse(project.contains("\(path),"),
-                           "\(path) must stay OFF the Mac exception list")
-        }
-
-        let macFiles = FileManager.default.enumerator(
-            at: RepositoryLocator.root.appendingPathComponent("Astrid Mac"),
-            includingPropertiesForKeys: nil
-        )
-        for case let url as URL in macFiles! where url.pathExtension == "swift" {
-            let src = try String(contentsOf: url, encoding: .utf8)
-            for decl in ["class MacErrorCenter", "enum MacActions", "enum MacFailureCopy",
-                         "struct MacErrorBanner"] {
-                XCTAssertFalse(src.contains(decl),
-                               "\(url.lastPathComponent) re-declares \(decl); it is shared now")
-            }
-        }
-    }
 }

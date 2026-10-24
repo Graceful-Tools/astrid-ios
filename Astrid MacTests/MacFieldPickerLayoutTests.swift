@@ -59,40 +59,6 @@ final class MacFieldPickerLayoutTests: XCTestCase {
                        "The other field popovers' width is the floor — rows still have to be readable")
     }
 
-    /// Sizing to the calendar is the point; a literal width puts the dead space back.
-    func testTheDatePopoverDoesNotHardCodeItsWidth() {
-        let source = try? String(contentsOf: macSource("Views/MacDueDatePicker.swift"), encoding: .utf8)
-        XCTAssertNotNil(source)
-        XCTAssertFalse(source?.contains(".frame(width: 300)") ?? true,
-                       "MacDueDatePicker must size to its calendar via MacFieldPicker.popoverWidth(forCalendarWidth:)")
-    }
-
-    // MARK: - The choice rows are centred
-
-    /// Every popover row is centre-aligned, so a column of short labels reads as a column
-    /// rather than as text shoved against the left wall.
-    func testPickerRowsCentreTheirTitle() throws {
-        let source = try String(contentsOf: macSource("Views/MacFieldPickerChrome.swift"), encoding: .utf8)
-        let row = try XCTUnwrap(source.components(separatedBy: "struct MacPickerRow").last)
-        XCTAssertFalse(row.contains("alignment: .leading"),
-                       "MacPickerRow titles are centred (task d4f663a3)")
-        XCTAssertTrue(row.contains("alignment: .center"),
-                      "MacPickerRow should say plainly that its title is centred")
-    }
-
-    /// The popovers themselves stack their content centred, so the rows are centred *in* them.
-    func testTheFieldPopoversStackTheirContentCentred() throws {
-        for file in ["Views/MacDueDatePicker.swift", "Views/MacRepeatPicker.swift"] {
-            let source = try String(contentsOf: macSource(file), encoding: .utf8)
-            for (index, line) in source.components(separatedBy: .newlines).enumerated() {
-                let code = line.trimmingCharacters(in: .whitespaces)
-                guard !code.hasPrefix("//") else { continue }
-                XCTAssertFalse(code.contains("VStack(alignment: .leading"),
-                               "\(file):\(index + 1) stacks its popover content leading; it should be centred")
-            }
-        }
-    }
-
     // MARK: -
 
     private func macSource(_ relative: String) -> URL {

@@ -60,15 +60,6 @@ final class AITD455DateFormatterCacheTests: XCTestCase {
                        "a cached formatter keeps the old locale (and 12/24-hour choice) forever")
     }
 
-    func testAITD455RowsAndLabelsNoLongerBuildFormattersPerCall() throws {
-        for path in ["Astrid App/Core/Layout/DueDateLabel.swift", "Astrid App/Views/Tasks/TaskRowView.swift"] {
-            let code = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-                .joined(separator: "\n")
-            XCTAssertFalse(code.contains("DateFormatter()"), "\(path) still builds a DateFormatter per call")
-        }
-    }
 }
 
 // MARK: - Sidebar and list rows
@@ -79,21 +70,6 @@ final class AITD455ViewMemoizationTests: XCTestCase {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
     }
 
-    func testAITD455SidebarCountsEveryListInOnePass() throws {
-        let text = try source("Astrid App/Views/Lists/ListSidebarView.swift")
-        XCTAssertFalse(text.contains("ListTaskCount.count("),
-                       "counting per row is O(lists × tasks) on every redraw — use counts(…), as the Mac does")
-        XCTAssertTrue(text.contains("ListTaskCount.counts("))
-    }
-
-    func testAITD455ListRowsAreMemoized() throws {
-        let text = try source("Astrid App/Views/Tasks/TaskListView.swift")
-        // Since AITD-460 the rows are astrid-core's answer; what is memoized is looking it up.
-        let start = try XCTUnwrap(text.range(of: "private var answeredRows: [Task]? {"))
-        let body = String(text[start.upperBound...].prefix(1200))
-        XCTAssertTrue(body.contains("rowsMemo.value("),
-                      "filteredTasks filtered, sorted and spliced every task on every redraw")
-    }
 }
 
 // MARK: - ImageCache
@@ -133,28 +109,5 @@ final class AITD455ImageCacheTests: XCTestCase {
         ImageCache.shared.store(jpeg, image: image, for: url)
         XCTAssertEqual(ImageCache.shared.sweepCount, before,
                        "a few KB written must not trigger a full directory scan")
-    }
-
-    func testAITD455DiskReadsLeaveTheMainActor() async throws {
-        let (jpeg, image) = try makeJPEG()
-        let url = try XCTUnwrap(URL(string: "https://example.com/aitd455-\(UUID().uuidString).jpg"))
-        defer { ImageCache.shared.remove(url: url) }
-        ImageCache.shared.store(jpeg, image: image, for: url)
-        ImageCache.shared.clearMemoryCache()
-
-        let loaded = await ImageCache.shared.getAsync(url: url)
-        XCTAssertNotNil(loaded)
-        XCTAssertNotNil(ImageCache.shared.memoryImage(for: url), "a disk hit is promoted to memory")
-
-        // Comment lines stripped: the doc comment names the old hop, and a comment must not be
-        // able to satisfy or break a check on the code (the AITD-348 trap).
-        let text = try String(contentsOf: RepositoryLocator.root
-            .appendingPathComponent("Astrid App/Utilities/ImageCache.swift"), encoding: .utf8)
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined(separator: "\n")
-        XCTAssertTrue(text.contains("@concurrent func getAsync"),
-                      "ImageCache is main-actor isolated by default, so getAsync read and decoded on main")
-        XCTAssertFalse(text.contains("MainActor.run"))
     }
 }
