@@ -7,7 +7,13 @@ import Foundation
 final class LocalizationManager {
     static let shared = LocalizationManager()
 
-    private init() {}
+    /// The store the language choice lives in. Injected so a test uses a suite of its own instead
+    /// of writing `AppleLanguages` for the whole test process (AITD-534).
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     // MARK: - Public Methods
 
@@ -48,7 +54,7 @@ final class LocalizationManager {
         }
 
         AppLog.debug("🌍 [LocalizationManager] User manually selected language: \(languageCode)")
-        UserDefaults.standard.set(languageCode, forKey: Constants.Localization.userLanguageOverrideKey)
+        defaults.set(languageCode, forKey: Constants.Localization.userLanguageOverrideKey)
         applyLanguage(languageCode)
     }
 
@@ -64,7 +70,7 @@ final class LocalizationManager {
     /// Clear user language override and revert to automatic selection
     func clearLanguageOverride() {
         AppLog.debug("🌍 [LocalizationManager] Clearing language override...")
-        UserDefaults.standard.removeObject(forKey: Constants.Localization.userLanguageOverrideKey)
+        defaults.removeObject(forKey: Constants.Localization.userLanguageOverrideKey)
         applyIntelligentLocale()
     }
 
@@ -110,7 +116,7 @@ final class LocalizationManager {
     // MARK: - Private Methods
 
     private func getUserLanguageOverride() -> String? {
-        return UserDefaults.standard.string(forKey: Constants.Localization.userLanguageOverrideKey)
+        return defaults.string(forKey: Constants.Localization.userLanguageOverrideKey)
     }
 
     /// Apply the selected language to the app
@@ -119,8 +125,8 @@ final class LocalizationManager {
 
         // Set the AppleLanguages user default to override app language
         // This affects Bundle.main.localizedString lookups
-        UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
-        UserDefaults.standard.synchronize()
+        defaults.set([languageCode], forKey: "AppleLanguages")
+        defaults.synchronize()
 
         AppLog.debug("✅ [LocalizationManager] Language applied: \(languageCode)")
         AppLog.debug("🌍 [LocalizationManager] Note: Some UI elements may require app restart to update")

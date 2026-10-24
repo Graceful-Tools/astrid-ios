@@ -46,17 +46,19 @@ final class MacRowKeyTests: XCTestCase {
     /// references, so hashing their bytes is not automatically faster. What the key must be is
     /// LINEAR — one pass, no accidental n² — because it runs on every body evaluation.
     func testKeyCostStaysLinearInRowCount() {
-        func median(_ rows: [Task]) -> Double {
-            var times: [Double] = []
+        // The fastest of nine, not the median: load only adds time, so the fastest run is the
+        // stable one, and this ratio stopped flaking on a busy runner (AITD-534).
+        func fastest(_ rows: [Task]) -> Double {
+            var best = Double.infinity
             for _ in 0..<9 {
                 let start = DispatchTime.now().uptimeNanoseconds
                 _ = MacRowKey.key(rows)
-                times.append(Double(DispatchTime.now().uptimeNanoseconds - start))
+                best = min(best, Double(DispatchTime.now().uptimeNanoseconds - start))
             }
-            return times.sorted()[times.count / 2]
+            return best
         }
-        let small = median(tasks((0..<5_000).map { "id-\($0)" }))
-        let large = median(tasks((0..<10_000).map { "id-\($0)" }))
+        let small = fastest(tasks((0..<5_000).map { "id-\($0)" }))
+        let large = fastest(tasks((0..<10_000).map { "id-\($0)" }))
         // Linear lands near 2x; quadratic near 4x. 3x fails well before users feel it.
         XCTAssertLessThan(large / max(small, 1), 3.0,
                           "Doubling the rows took \(large / max(small, 1))x — the key is not linear")

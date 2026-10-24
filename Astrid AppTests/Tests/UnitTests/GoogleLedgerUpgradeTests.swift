@@ -9,11 +9,12 @@ import XCTest
 @MainActor
 final class GoogleLedgerUpgradeTests: XCTestCase {
     private var defaults: UserDefaults!
-    private let suite = "GoogleLedgerUpgradeTests"
+    /// Unique per test, so parallel clones never share or clear each other's domain (AITD-534).
+    private var suite = ""
 
     override func setUp() {
         super.setUp()
-        UserDefaults().removePersistentDomain(forName: suite)
+        suite = "GoogleLedgerUpgradeTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)
     }
 

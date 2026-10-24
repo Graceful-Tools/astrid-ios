@@ -266,9 +266,13 @@ class CachedImageLoader: ObservableObject {
     /// after a profile photo change, an assignee swapped on a row (Task 16f39f36).
     private var url: URL
     private var loadTask: _Concurrency.Task<Void, Never>?
+    /// The session images are fetched on — the app's hardened one; a test passes a stub so a cache
+    /// miss never opens a socket (AITD-534).
+    private let session: URLSession
 
-    init(url: URL) {
+    init(url: URL, session: URLSession = AstridHTTP.session) {
         self.url = url
+        self.session = session
     }
 
     /// Point the loader at `url` and fetch it.
@@ -313,6 +317,7 @@ class CachedImageLoader: ObservableObject {
                 return
             }
 
+            let session = self.session
             let loadedImage = await Self.loadCoordinator.load(for: requested) {
                 do {
                     let data: Data
@@ -323,11 +328,11 @@ class CachedImageLoader: ObservableObject {
                         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
                         }
-                        let (responseData, _) = try await AstridHTTP.session.data(for: request)
+                        let (responseData, _) = try await session.data(for: request)
                         data = responseData
                     } else {
                         // Public URL, no auth needed
-                        let (responseData, _) = try await AstridHTTP.session.data(from: requested)
+                        let (responseData, _) = try await session.data(from: requested)
                         data = responseData
                     }
 

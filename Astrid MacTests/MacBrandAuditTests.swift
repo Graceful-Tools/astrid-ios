@@ -60,15 +60,18 @@ final class MacBrandAuditTests: XCTestCase {
         }
 
         let astridBlue = Color(hex: Brand.defaultAccentHex)
-        let key = "themeMode"
-        let saved = UserDefaults.standard.string(forKey: key)
+        // A suite of its own: the Mac test host is the app, so `.standard` is the developer's
+        // real theme (AITD-534).
+        let suite = "MacBrandAuditTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        Theme.readMode(from: defaults)
         defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) }
-            else { UserDefaults.standard.removeObject(forKey: key) }
+            Theme.readMode(from: .standard)
+            defaults.removePersistentDomain(forName: suite)
         }
 
         for mode in ["light", "dark", "ocean"] {
-            UserDefaults.standard.set(mode, forKey: key)
+            defaults.set(mode, forKey: "themeMode")
             XCTAssertEqual(Theme.accent, Brand.accentColor, "accent wrong in \(mode)")
             XCTAssertEqual(Theme.borderFocus, Brand.accentColor, "focus border wrong in \(mode)")
             XCTAssertNotEqual(Theme.accent, astridBlue, "still Astrid blue in \(mode)")
