@@ -52,7 +52,7 @@
     "Astrid App/Core/Outbox": 64,
     "Astrid App/Core/Persistence": 53,
     "Astrid App/Models": 78,
-    "Shared": 11
+    "Shared": 93
   },
   "mac": {
     "target:Astrid.app": 7,
@@ -72,5 +72,13 @@
       "Astrid App/Models": 80.5,
       "Shared": 13.1
     }
+  },
+  "measured_2026_10_24": {
+    "ios": {
+      "Shared": 95.5,
+      "target:Astrid.appex": 39.6,
+      "Astrid": 0
+    },
+    "_note": "AITD-542 moved the Share Extension's logic into Shared/ and tested it: Shared 13.1% -> 95.5%, the appex target 2.4% -> 39.6%. Astrid/ itself stays at 0 \u2014 no test host loads the appex, so what is left there is UIKit glue. Shared's floor is that run less two points, rounded down."
   }
 }
