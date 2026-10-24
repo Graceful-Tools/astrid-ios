@@ -577,7 +577,8 @@ export const rules = [
       'settings.connections.category.unknown', 'settings.connections.owner.you', 'settings.connections.owner.thirdParty',
       'settings.connections.owner.agent', 'lists.recently_completed', 'notifications.due_soon_title',
       'tasks.wont_do', 'tasks.reopen', 'tasks.wont_do_chip', 'tasks.remove_from_board', 'tasks.remove_from_board_confirm',
-      'actions.remove', 'lists.sort_filters_personal_note', 'mac.quick_add_placeholder', 'update.available_title'],
+      'actions.remove', 'lists.sort_filters_personal_note', 'mac.quick_add_placeholder', 'update.available_title',
+      'listInsights.days7', 'listInsights.days30', 'listInsights.days90'],
     retiredKeys: ['lists.sort_filters_shared_note'],
     run(ctx) {
       const v = []

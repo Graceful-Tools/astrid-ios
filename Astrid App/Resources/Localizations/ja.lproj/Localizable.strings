@@ -1570,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@、%2$d回";
 "mac.repeat.summary_until_date" = "%@、指定日まで";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "インサイト";
+"listInsights.days7" = "7日間";
+"listInsights.days30" = "30日間";
+"listInsights.days90" = "90日間";
+"listInsights.activity" = "アクティビティ";
+"listInsights.created" = "新規";
+"listInsights.completed" = "完了";
+"listInsights.created_total" = "新規 %@ 件";
+"listInsights.completed_total" = "完了 %@ 件";
+"listInsights.time_to_complete" = "完了までの時間（中央値）";
+"listInsights.time_in_lane" = "各列での滞在時間（中央値）";
+"listInsights.sample_size" = "%@ 件から";
+"listInsights.not_enough_history" = "まだ十分な履歴がありません";
+"listInsights.lane_history_note" = "列の移動は今後記録されます。カードが移動するにつれて表示されます。";
+"listInsights.contributors" = "上位の貢献者";
+"listInsights.profile_counts" = "完了 %1$@ · インスパイア %2$@ · サポート %3$@";
+"listInsights.activity_counts" = "作成 %1$@ · 編集 %2$@ · コメント %3$@";
+"listInsights.no_activity" = "この期間のアクティビティはありません";
+"listInsights.load_failed" = "インサイトを読み込めませんでした";
+"listInsights.loading" = "インサイトを読み込み中…";
+"listInsights.duration.minutes" = "%@ 分";
+"listInsights.duration.hours" = "%@ 時間";
+"listInsights.duration.days" = "%@ 日";
