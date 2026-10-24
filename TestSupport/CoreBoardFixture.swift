@@ -3,11 +3,16 @@
 //  — the parity spec for AITD-461, which runs the tests the Swift `ProjectStatus` rules had
 //  (columns, which column a card is in, a column's cards, moves, drops) against the core's
 //  `board`, `taskStatusOptions`, `setTaskStatus`, `moveTaskToColumn` and `dropBoardCard`.
-//  The Mac test target has the same file.
+// 
 
 import AstridCore
 import Foundation
+// Compiled into both test targets (AITD-539): one copy, not a byte-for-byte twin per platform.
+#if os(macOS)
+@testable import Astrid_Mac
+#else
 @testable import Astrid_App
+#endif
 
 enum CoreBoardFixture {
     /// The board a test's lists stand for when none of them carries a project.

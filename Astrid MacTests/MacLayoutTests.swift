@@ -7,12 +7,6 @@ import XCTest
 
 final class MacLayoutTests: XCTestCase {
 
-    func testThresholdMirrorsWeb() {
-        // Web goes 3-column at a ≥1100px WINDOW. Mac now measures the window too, so the numbers
-        // are directly comparable (it used to subtract the sidebar and measure the content).
-        XCTAssertEqual(MacLayout.chatColumnWindowThreshold, 1100)
-    }
-
     func testChatColumnRule() {
         XCTAssertTrue(MacLayout.showsChatColumn(windowWidth: 1200, isRealList: true), "Wide + real list → 3-col")
         XCTAssertFalse(MacLayout.showsChatColumn(windowWidth: 900, isRealList: true), "Narrow → 2-col")

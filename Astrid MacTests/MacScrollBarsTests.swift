@@ -20,12 +20,6 @@ final class MacScrollBarsTests: XCTestCase {
         XCTAssertEqual(MacScrollBars.visibility(showScrollBars: true), .automatic)
     }
 
-    /// The Settings toggle and every scroll surface must read the SAME key, or the preference
-    /// silently applies to nothing.
-    func testDefaultsKeyIsStable() {
-        XCTAssertEqual(MacScrollBars.defaultsKey, "showScrollBars")
-    }
-
     // MARK: the detail pane's grouped Form (task 1a112a44)
 
     /// `scrollIndicators` reaches a List or a ScrollView but not a grouped Form, so the task

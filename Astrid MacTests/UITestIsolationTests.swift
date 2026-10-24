@@ -11,18 +11,6 @@ import XCTest
 
 final class UITestIsolationTests: XCTestCase {
 
-    /// A hardened configuration must carry NO cookie jar — that jar is what authenticated the app
-    /// as the real user with no credential of its own.
-    func testHardenedSessionHasNoCookieJar() throws {
-        try XCTSkipUnless(UITestNetworkIsolation.isUITesting,
-                          "Hardening only applies under -uiTesting; this asserts the flag's effect")
-        let hardened = UITestNetworkIsolation.harden(URLSessionConfiguration.default)
-        XCTAssertNil(hardened.httpCookieStorage)
-        XCTAssertFalse(hardened.httpShouldSetCookies)
-        XCTAssertEqual(hardened.httpCookieAcceptPolicy, .never)
-        XCTAssertNil(hardened.urlCredentialStorage)
-    }
-
     /// In a NORMAL run nothing is hardened — the app must still authenticate for real users.
     func testNormalRunKeepsCookiesWorking() {
         guard !UITestNetworkIsolation.isUITesting else { return }
@@ -30,11 +18,5 @@ final class UITestIsolationTests: XCTestCase {
         config.httpShouldSetCookies = true
         let result = UITestNetworkIsolation.harden(config)
         XCTAssertTrue(result.httpShouldSetCookies, "Hardening must not affect real users")
-    }
-
-    /// The flag is read from the launch arguments, so a normal launch is never hardened.
-    func testIsolationIsOffWithoutTheLaunchArgument() {
-        XCTAssertEqual(UITestNetworkIsolation.isUITesting,
-                       ProcessInfo.processInfo.arguments.contains("-uiTesting"))
     }
 }

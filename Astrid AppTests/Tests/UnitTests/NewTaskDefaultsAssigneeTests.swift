@@ -6,9 +6,8 @@
 //  Mac was collapsing nil and "unassigned" into "no assignee", so a list whose default is the
 //  creator produced UNASSIGNED tasks — and the quick-add showed "??" for a user it could not name.
 
-#if os(macOS)
 import XCTest
-@testable import Astrid_Mac
+@testable import Astrid_App
 
 final class NewTaskDefaultsAssigneeTests: XCTestCase {
 
@@ -40,4 +39,3 @@ final class NewTaskDefaultsAssigneeTests: XCTestCase {
         XCTAssertEqual(NewTaskDefaults.assignee("", currentUserId: me), me)
     }
 }
-#endif

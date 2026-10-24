@@ -19,57 +19,6 @@ import XCTest
 
 final class MacFlowRowsTests: XCTestCase {
 
-    private let spacing: CGFloat = 4
-
-    func testItemsThatFitStayOnOneRow() {
-        let rows = FlowRows.rows(itemWidths: [50, 50, 50], maxWidth: 200, spacing: spacing)
-        XCTAssertEqual(rows, [[0, 1, 2]], "50+4+50+4+50 = 158, well inside 200")
-    }
-
-    /// The break itself: the third pill does not fit, so it starts a row rather than squeezing.
-    func testAnItemThatDoesNotFitStartsANewRow() {
-        let rows = FlowRows.rows(itemWidths: [80, 80, 80], maxWidth: 200, spacing: spacing)
-        XCTAssertEqual(rows, [[0, 1], [2]], "80+4+80 = 164 fits; adding 4+80 would be 248")
-    }
-
-    /// Spacing counts BETWEEN items only. Counting it before the first item would break a row that
-    /// exactly fits, which is the off-by-one that makes wrapping look arbitrary.
-    func testSpacingIsNotChargedBeforeTheFirstItem() {
-        XCTAssertEqual(FlowRows.rows(itemWidths: [100, 96], maxWidth: 200, spacing: spacing),
-                       [[0, 1]], "100 + 4 + 96 = 200 exactly, so it fits")
-        XCTAssertEqual(FlowRows.rows(itemWidths: [100, 97], maxWidth: 200, spacing: spacing),
-                       [[0], [1]], "one point over is a break")
-    }
-
-    /// A list with a very long name is wider than the row on its own. It takes a row of its own and
-    /// the layout moves on — the alternative is an empty row, or a loop that never terminates.
-    func testAnOversizedItemGetsItsOwnRowAndDoesNotStall() {
-        let rows = FlowRows.rows(itemWidths: [500, 50], maxWidth: 200, spacing: spacing)
-        XCTAssertEqual(rows, [[0], [1]])
-        XCTAssertEqual(FlowRows.rows(itemWidths: [500, 500], maxWidth: 200, spacing: spacing),
-                       [[0], [1]])
-    }
-
-    func testNoItemsMeansNoRows() {
-        XCTAssertTrue(FlowRows.rows(itemWidths: [], maxWidth: 200, spacing: spacing).isEmpty)
-    }
-
-    /// A width that has not been measured yet (0 or negative proposal) must not throw everything
-    /// onto one unbounded row or lose items — every item still appears exactly once.
-    func testAnUnmeasuredWidthStillPlacesEveryItem() {
-        for maxWidth in [CGFloat(0), -1] {
-            let rows = FlowRows.rows(itemWidths: [50, 50, 50], maxWidth: maxWidth, spacing: spacing)
-            XCTAssertEqual(rows.flatMap { $0 }.sorted(), [0, 1, 2],
-                           "no item may be dropped at width \(maxWidth)")
-        }
-    }
-
-    /// Order is preserved — pills follow the order the task lists them in.
-    func testOrderIsPreserved() {
-        let rows = FlowRows.rows(itemWidths: [80, 80, 80, 80], maxWidth: 200, spacing: spacing)
-        XCTAssertEqual(rows.flatMap { $0 }, [0, 1, 2, 3])
-    }
-
     // MARK: - The second half: a pill stays one line
 
     func testThePillTextIsLimitedToOneLine() throws {

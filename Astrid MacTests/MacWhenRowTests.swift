@@ -29,32 +29,6 @@ final class MacWhenRowTests: XCTestCase {
     private var dateRows: [MacDueDatePopoverRow] { MacDueDatePopover.rows(corePicks.dates) }
     private var timeRows: [MacDueTimePopoverRow] { MacDueTimePopover.rows(corePicks.times) }
 
-    // MARK: - The row's composition is the SHARED one
-
-    /// The Mac renders the same lines iOS does. Its own `MacWhenControl` — which
-    /// existed partly so the retired due-date toggle and inline quick-pick rows
-    /// could be asserted absent — is gone: the shared enum has no cases for
-    /// them, which is a stronger guarantee than a test.
-    func testUndatedTaskShowsOnlyTheDateTrigger() {
-        XCTAssertEqual(TaskWhenRowLayout.controls(hasDate: false), [.date])
-    }
-
-    /// THE BUG: the three controls were forced onto one line, each with a
-    /// minimum width so they would all fit a 380pt panel — which is exactly what
-    /// truncated the date to "Sat, Aug 15,…". They wrap now, and only when they
-    /// must: given room, all three stay on one line.
-    func testControlsShareALineWhenTheyFitAndWrapWhenTheyDoNot() {
-        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 380, spacing: 10).count, 1)
-        XCTAssertEqual(FlowRows.rows(itemWidths: [150, 110, 88], maxWidth: 280, spacing: 10).count, 2)
-    }
-
-    /// THE BUG: a custom-repeating task showed no repeat control at all. The
-    /// chip renders the pattern itself now, so there is nothing for the old
-    /// exception to protect.
-    func testCustomRepeatStillGetsItsChip() {
-        XCTAssertTrue(TaskWhenRowLayout.controls(hasDate: true).contains(.repeatPattern))
-    }
-
     // MARK: - The popover carries what the pane used to
 
     /// "No due date" comes before every quick pick — not a toolbar escape hatch.

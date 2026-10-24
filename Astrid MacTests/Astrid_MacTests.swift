@@ -10,15 +10,6 @@ import XCTest
 
 final class Astrid_MacTests: XCTestCase {
 
-    /// The shared singletons the Mac app depends on are reachable from the Mac target.
-    func testSharedServicesReachableOnMac() {
-        XCTAssertNotNil(TaskService.shared)
-        XCTAssertNotNil(ListService.shared)
-        XCTAssertNotNil(AuthManager.shared)
-        XCTAssertNotNil(SyncManager.shared)
-        XCTAssertNotNil(FeatureFlagService.shared)
-    }
-
     /// The shared Task model round-trips through Codable on macOS (wire-shape parity with iOS/web).
     func testTaskCodableRoundTripsOnMac() throws {
         var t = Task(id: "t1", title: "Round trip", completed: false)

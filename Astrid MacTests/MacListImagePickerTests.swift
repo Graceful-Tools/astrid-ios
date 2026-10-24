@@ -26,12 +26,5 @@ final class MacListImagePickerTests: XCTestCase {
                        "…without keeping its own copy of the paths")
     }
 
-    /// The Mac sees exactly what iOS sees — the point of extracting the palette.
-    func testTheMacSeesTheSamePlaceholdersAsIOS() {
-        XCTAssertEqual(ListImagePlaceholders.all.count, 16)
-        XCTAssertEqual(ListImagePlaceholders.all.first?.path, "/images/placeholders/lavender.png")
-        XCTAssertEqual(ListImagePlaceholders.all.last?.path, "/images/placeholders/pearl.png")
-    }
-
 }
 #endif

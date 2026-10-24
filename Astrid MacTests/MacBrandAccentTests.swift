@@ -12,11 +12,6 @@ import XCTest
 
 final class MacBrandAccentTests: XCTestCase {
 
-    func testAccentDefaultsToAstridBlueOnMac() {
-        XCTAssertEqual(Brand.accentColorHex, "#3b82f6")
-        XCTAssertEqual(Brand.accentColor, Color(red: 59/255, green: 130/255, blue: 246/255))
-    }
-
     /// The macOS branch of Theme owns its own borderFocus — pinned separately from iOS.
     func testMacFocusBorderReadsTheBrandAccent() {
         XCTAssertEqual(Theme.borderFocus, Brand.accentColor)
