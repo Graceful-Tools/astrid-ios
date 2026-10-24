@@ -152,14 +152,33 @@ nonisolated final class ImageCache: @unchecked Sendable {
         }
 
         guard let decoded = PlatformImage(data: data) else { return nil }
-        #if canImport(UIKit)
-        let image = decoded.preparingForDisplay() ?? decoded
-        #else
-        let image = decoded
-        #endif
+        let image = Self.preparedForDisplay(decoded)
         remember(image, for: url)
         AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
         return image
+    }
+
+    /// The image with its bitmap decoded, so the first draw on main does not decode lazily.
+    ///
+    /// A PALETTE image is drawn into an RGB bitmap instead (AITD-551). `preparingForDisplay()`
+    /// cannot decompress an 8-bit colormap PNG — the agent avatars are exactly that — so it
+    /// logged "Error -17102 decompressing image -- possibly corrupt" and returned nil, once per
+    /// row that showed the avatar, and the image was left to decode lazily on main after all.
+    /// The renderer is thread-safe, so this stays off the main actor with the rest of `getAsync`.
+    static func preparedForDisplay(_ image: PlatformImage) -> PlatformImage {
+        #if canImport(UIKit)
+        if image.cgImage?.colorSpace?.model == .indexed {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = image.scale
+            format.opaque = false
+            return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: image.size))
+            }
+        }
+        return image.preparingForDisplay() ?? image
+        #else
+        return image
+        #endif
     }
 
     /// What an image costs NSCache: its decoded bitmap, not its file size (AITD-455).
