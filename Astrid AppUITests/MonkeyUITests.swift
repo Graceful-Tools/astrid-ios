@@ -113,9 +113,9 @@ final class MonkeyUITests: XCTestCase {
     /// Performs the action and returns how long the APP took to absorb it.
     ///
     /// The clock starts once the harness has chosen what to do: `tapRandomButton` first
-    /// snapshots the accessibility tree (`allElementsBoundByIndex`, then `exists` and `frame`
-    /// per button), which on a CI simulator showing the due-date sheet — five quick options
-    /// plus a 31-day calendar — costs ten seconds by itself. Timing that as if it were the tap
+    /// snapshots the accessibility tree, which on a CI simulator showing the due-date sheet —
+    /// five quick options plus a 31-day calendar — cost ten seconds by itself when it was a
+    /// snapshot per button property (one snapshot since AITD-548). Timing that as if it were the tap
     /// reported a beachball the app never had: every run since 2026-09-15 failed at
     /// "tapRandomButton took 13.6s" with the tap itself sub-second. The hang threshold is
     /// about the app; the query cost is ours.
@@ -134,18 +134,18 @@ final class MonkeyUITests: XCTestCase {
             }
 
         case .tapRandomButton:
-            let appFrame = app.frame
-            // Never Sign out or Delete account: after either, the rest of the run stresses the
-            // welcome screen instead of the app, and on a signed-in run it acts on the account
-            // (AITD-530). Those controls all carry the `account.destructive.` identifier prefix.
-            let buttons = app.buttons.allElementsBoundByIndex.filter { button in
-                guard button.exists, !button.identifier.hasPrefix("account.destructive.") else { return false }
-                let frame = button.frame
-                return !frame.isEmpty && !frame.isNull && !frame.isInfinite && frame.intersects(appFrame)
-            }
-            if let target = buttons.randomElement(using: &rng) {
+            // ONE snapshot of the tree, then a tap by coordinate (AITD-548). Reading `exists`,
+            // `identifier` and `frame` off each `XCUIElement` re-resolved it — a fresh snapshot
+            // per property per button, ~150 a tap on a busy screen. XCTest logs inside the app
+            // for every snapshot, so a 200-action run made the app emit 3M lines and the OS
+            // quarantined its log, hiding every error after that point.
+            guard let root = try? app.snapshot() else { break }
+            let targets = Self.tappableButtons(in: root)
+            if let target = targets.randomElement(using: &rng) {
                 started = Date()
-                UITestLaunch.tapCenter(target)
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: target.midX - root.frame.minX, dy: target.midY - root.frame.minY))
+                    .tap()
             }
 
         case .type(let text):
@@ -166,6 +166,24 @@ final class MonkeyUITests: XCTestCase {
             }
         }
         return Date().timeIntervalSince(started)
+    }
+
+    /// The frames of the buttons worth tapping, from one snapshot. Never Sign out or Delete
+    /// account: after either, the rest of the run stresses the welcome screen instead of the app,
+    /// and on a signed-in run it acts on the account (AITD-530). Those controls all carry the
+    /// `account.destructive.` identifier prefix.
+    static func tappableButtons(in root: XCUIElementSnapshot) -> [CGRect] {
+        var frames: [CGRect] = []
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            stack.append(contentsOf: node.children)
+            guard node.elementType == .button, !node.identifier.hasPrefix("account.destructive.") else { continue }
+            let frame = node.frame
+            if !frame.isEmpty, !frame.isNull, !frame.isInfinite, frame.intersects(root.frame) {
+                frames.append(frame)
+            }
+        }
+        return frames
     }
 
     @MainActor

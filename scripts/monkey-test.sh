@@ -263,10 +263,12 @@ if [ "${TOTAL:-0}" -gt 0 ]; then
   echo "" | tee -a "$FINDINGS"
 
   # What is left after the frameworks that are noisy BY DESIGN in a test simulator: the harness
-  # itself, and haptics on a device that has none. Whatever remains is worth a human's attention.
+  # itself, and haptics on a device that has none (CoreHaptics, and the keyboard's
+  # UIKBFeedbackGenerator failing to build a CHHapticPattern). Whatever remains is worth a human's attention.
   echo "  after dropping known test-environment noise:" | tee -a "$FINDINGS"
-  printf "%s" "$APP_ERRORS" \
-    | grep -viE "XCTAutomationSupport|CoreHaptics|AXRuntime|UIAccessibility|AccessibilitySettingsLoader|libCoreFSCache" \
+  # 2>/dev/null: `head` closes the pipe early, and printf would report the broken pipe.
+  printf "%s" "$APP_ERRORS" 2>/dev/null \
+    | grep -viE "XCTAutomationSupport|CoreHaptics|UIKBFeedbackGenerator|AXRuntime|UIAccessibility|AccessibilitySettingsLoader|libCoreFSCache" \
     | cut -c1-240 | head -20 | sed 's/^/    /' | tee -a "$FINDINGS" || true
 fi
 
