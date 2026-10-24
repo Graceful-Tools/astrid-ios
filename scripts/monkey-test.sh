@@ -52,6 +52,28 @@ if [ "${1:-}" = "--classify" ]; then
   exit 0
 fi
 
+# The level the system log is captured at (AITD-548). NOT debug: debug messages are generated only
+# while someone streams at that level, so `--level debug` switched on every framework's debug
+# logging inside the app. XCTest's accessibility snapshot on each action then made the app emit
+# ~1.5M lines in 200 actions — Accessibility naming colours through CFBundle string lookups,
+# CFPrefs reading XCTest's automation keys — the OS quarantined its log (QUARANTINED DUE TO HIGH
+# LOGGING VOLUME) and dropped every line after, real errors included. The app's own code wrote
+# six. The sweep below reads only Error and Fault lines, which `info` keeps; debug also wrote the
+# run's session cookie into the file, as CFPrefs echoed the launch argument.
+# ASTRID_MONKEY_LOG_LEVEL=debug still gets a debug capture, for a deliberate deep dive.
+capture_level() {
+  case "${ASTRID_MONKEY_LOG_LEVEL:-info}" in
+    default|info|debug) echo "${ASTRID_MONKEY_LOG_LEVEL:-info}" ;;
+    *) echo "  ? ASTRID_MONKEY_LOG_LEVEL=$ASTRID_MONKEY_LOG_LEVEL is not default, info or debug — using info" >&2
+       echo info ;;
+  esac
+}
+
+if [ "${1:-}" = "--capture-level" ]; then
+  capture_level
+  exit 0
+fi
+
 TARGET="${1:-}"; shift || true
 ACTIONS=150; SEED=""; HANG=10
 while [ $# -gt 0 ]; do
@@ -150,13 +172,14 @@ echo "  Config written for the test bundle"
 # macOS the system log filtered to the app. Started before the run and stopped after, so the
 # window covers exactly the monkey's actions and nothing else.
 STREAM_PID=""
+LOG_LEVEL=$(capture_level)
 start_log_capture() {
   if [ "$TARGET" = "ios" ]; then
     [ -n "${SIM_UDID:-}" ] || return 0
-    xcrun simctl spawn "$SIM_UDID" log stream --level debug \
+    xcrun simctl spawn "$SIM_UDID" log stream --level "$LOG_LEVEL" \
       --predicate 'processImagePath CONTAINS "Astrid"' > "$OUT/system-$TARGET.log" 2>/dev/null &
   else
-    log stream --level debug --predicate 'processImagePath CONTAINS "Astrid"' \
+    log stream --level "$LOG_LEVEL" --predicate 'processImagePath CONTAINS "Astrid"' \
       > "$OUT/system-$TARGET.log" 2>/dev/null &
   fi
   STREAM_PID=$!
