@@ -59,4 +59,43 @@ final class ImageDisplayPreparationTests: XCTestCase {
         throw XCTSkip("UIKit-only")
         #endif
     }
+
+    // MARK: - A half-written cache file (AITD-551, second cause)
+
+    /// The palette avatars were not the whole story: after that fix a 200-action run still logged
+    /// -17102 five times on five threads, and a breakpoint on the log put every one in `getAsync`
+    /// for `astrid.cc/icons/default_list_2.png` — a 65×65 RGBA PNG that prepares fine on its own.
+    /// What those rows read was a file another row's fetch was still writing: `store` wrote
+    /// non-atomically, and `UIImage(data:)` accepts a PNG from its header alone, so the truncated
+    /// bytes only failed later, in the decompressor. A partial file must read as a miss (and be
+    /// removed, so the next load refetches it) rather than be handed to UIKit to fail on.
+    func testATruncatedCacheFileIsAMissNotADecompressorError_AITD551() async throws {
+        #if canImport(UIKit)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let full = try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 65, height: 65), format: format).image { ctx in
+            for row in 0..<65 {
+                UIColor(hue: CGFloat(row) / 65, saturation: 1, brightness: 1, alpha: 0.8).setFill()
+                ctx.fill(CGRect(x: 0, y: row, width: 65, height: 1))
+            }
+        }.pngData())
+        let truncated = full.prefix(full.count / 2)
+        XCTAssertNotNil(UIImage(data: truncated), "fixture: UIKit accepts the half-written PNG from its header")
+
+        let url = try XCTUnwrap(URL(string: "https://example.com/aitd551-\(UUID().uuidString).png"))
+        defer { ImageCache.shared.remove(url: url) }
+        let file = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ListImageCache", isDirectory: true)
+            .appendingPathComponent(url.absoluteString.replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: ":", with: "_"))
+        try Data(truncated).write(to: file)
+
+        let read = await ImageCache.shared.getAsync(url: url)
+        XCTAssertNil(read, "AITD-551: a partial cache file must be a miss, not an image UIKit fails to decompress")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path),
+                       "the partial file must go, or every launch reads it again")
+        #else
+        throw XCTSkip("UIKit-only")
+        #endif
+    }
 }

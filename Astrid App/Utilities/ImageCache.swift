@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import ImageIO
 
 /// Coalesces simultaneous work for the same URL. A list can render the same person dozens of
 /// times before the first network response returns; URL-keyed in-flight work ensures those rows
@@ -151,11 +152,24 @@ nonisolated final class ImageCache: @unchecked Sendable {
             return nil
         }
 
-        guard let decoded = PlatformImage(data: data) else { return nil }
+        // A PARTIAL file is a miss, and goes (AITD-551). `PlatformImage(data:)` accepts a PNG from
+        // its header alone, so half-written bytes surfaced later, as UIKit's "Error -17102
+        // decompressing image -- possibly corrupt", once per row that read them.
+        guard Self.isCompleteImage(data), let decoded = PlatformImage(data: data) else {
+            try? FileManager.default.removeItem(at: fileURL)
+            return nil
+        }
         let image = Self.preparedForDisplay(decoded)
         remember(image, for: url)
         AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
         return image
+    }
+
+    /// Whether `data` holds a whole image rather than the start of one (AITD-551).
+    static func isCompleteImage(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0 else { return false }
+        return CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete
     }
 
     /// The image with its bitmap decoded, so the first draw on main does not decode lazily.
@@ -210,7 +224,9 @@ nonisolated final class ImageCache: @unchecked Sendable {
     /// both smaller and free, and they are already in hand at the one call site.
     func store(_ data: Data, image: PlatformImage, for url: URL) {
         remember(image, for: url)
-        try? data.write(to: diskCacheURL(for: url))
+        // Atomic, so a row reading this URL from disk while it is written never sees half of it —
+        // rows coalesce the fetch but each does its own disk read (AITD-551).
+        try? data.write(to: diskCacheURL(for: url), options: .atomic)
         AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
 
         // Sweep once enough has been written to matter, not after every store (AITD-455).
