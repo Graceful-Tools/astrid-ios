@@ -7,8 +7,9 @@
 //  which is above the chat column. Sort and filter act on the rows, so they read as belonging to
 //  the message list, and the toolbar's "+" looked like an add button for chat.
 //
-//  Filter, sort and the list-settings gear live in a strip at the top of the list column — the
-//  list's header (AITD-522). Sort spent a while in the toolbar (AITD-509), when it was alone in
+//  Filter lives in a strip at the top of the list column; sort and the list-settings gear sit
+//  beside the list/board picker in the window toolbar's centre (AITD-552), after a spell in that
+//  strip (AITD-522). Sort spent a while in the toolbar (AITD-509), when it was alone in
 //  the strip and a row for one icon was the complaint. The "+" is gone entirely:
 //  the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is bound in AstridCommands, so
 //  the toolbar copy was a third way to do the same thing — in the wrong place.
@@ -54,7 +55,7 @@ enum MacListChrome {
         isRealList && isListMode
     }
 
-    /// The list's own settings menu — Edit, Sharing, Enable board, Delete (AITD-373).
+    /// The list's own settings menu — List Settings, Favourite, Enable board (AITD-373, AITD-552).
     ///
     /// Sort and filter act on ROWS, so they ride with the rows and a board has neither. The
     /// settings menu is not a rows control: it configures the list itself, which a board is just
@@ -92,13 +93,46 @@ enum MacListChrome {
                                                    isListMode: isListMode))
     }
 
-    /// The header's sort menu (AITD-522): wherever the toolbar does not carry it and no sheet
-    /// already sorts — which, with both sheets' Sort sections gone, is every list-mode selection.
+    /// Sort and the list-settings gear sit in the window toolbar's CENTRE, beside the list/board
+    /// picker, rather than in the strip above the rows (AITD-552: "move the SORT button and the
+    /// Settings button to the header, next to the board/list selector").
+    ///
+    /// This is not the trailing-edge problem that sent them out of the toolbar (9998d83a): that
+    /// was `.primaryAction`, which right-aligns over the chat column. The principal slot is the
+    /// picker's, and the picker already switches what the LIST column shows, so the controls that
+    /// configure that view read as its neighbours. The strip keeps the filter button.
+    static let titleBarCarriesListControls = true
+
+    /// The sort menu beside the list/board picker (AITD-552): every list-mode selection, since no
+    /// sheet sorts any more (AITD-522).
+    static func titleBarShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
+                                  isListMode: Bool) -> Bool {
+        titleBarCarriesListControls && !toolbarOffersSort
+            && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+                         filterSheetOffersSort: sheetOffersSort(isRealList: isRealList,
+                                                                isMyTasks: isMyTasks,
+                                                                isListMode: isListMode))
+    }
+
+    /// The list-settings gear beside the picker (AITD-552) — any real list, either mode.
+    static func titleBarShowsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
+        titleBarCarriesListControls && showsListMenu(isRealList: isRealList, isListMode: isListMode)
+    }
+
+    /// The strip's sort menu (AITD-522): wherever neither toolbar spot carries it and no sheet
+    /// already sorts. Since AITD-552 the title bar carries it, so the strip never does.
     static func headerShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
                                 isListMode: Bool) -> Bool {
-        !toolbarOffersSort && showsSort(hasSelection: hasSelection, isListMode: isListMode,
-            filterSheetOffersSort: sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
-                                                   isListMode: isListMode))
+        !toolbarOffersSort && !titleBarCarriesListControls
+            && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+                         filterSheetOffersSort: sheetOffersSort(isRealList: isRealList,
+                                                                isMyTasks: isMyTasks,
+                                                                isListMode: isListMode))
+    }
+
+    /// The strip's gear (AITD-522), until the title bar took it (AITD-552).
+    static func stripShowsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
+        !titleBarCarriesListControls && showsListMenu(isRealList: isRealList, isListMode: isListMode)
     }
 
     /// Whether the strip above the rows is drawn: only when it has something in it.

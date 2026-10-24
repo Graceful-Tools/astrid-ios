@@ -32,16 +32,23 @@ final class MacListChromeTests: XCTestCase {
     /// Sort used to hide in two places at once: inside the filter popover on a real list or My
     /// Tasks (AITD-305/467), and in the window toolbar everywhere else (AITD-509). It now sits in
     /// the strip above the rows on every list-mode selection, so the popovers no longer sort.
-    func testSortSitsInTheHeaderForEveryListModeSelectionAITD522() {
+    ///
+    /// AITD-552 then moved "the header" to the window toolbar's centre, beside the list/board
+    /// picker — so this asks the title bar, and the strip carries no sort at all.
+    func testSortSitsBesideTheModePickerForEveryListModeSelectionAITD552() {
+        XCTAssertTrue(MacListChrome.titleBarCarriesListControls)
         for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
-            XCTAssertTrue(MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+            XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                                         isMyTasks: isMyTasks, isListMode: true),
+                           "the strip no longer sorts")
+            XCTAssertTrue(MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: isRealList,
                                                         isMyTasks: isMyTasks, isListMode: true),
                           "isRealList=\(isRealList) isMyTasks=\(isMyTasks): sort belongs in the header")
         }
-        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: true, isRealList: true,
-                                                     isMyTasks: false, isListMode: false),
+        XCTAssertFalse(MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: true,
+                                                       isMyTasks: false, isListMode: false),
                        "a board is not a sorted row list")
-        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: false, isRealList: false,
+        XCTAssertFalse(MacListChrome.titleBarShowsSort(hasSelection: false, isRealList: false,
                                                      isMyTasks: false, isListMode: true),
                        "nothing selected, nothing to sort")
     }
@@ -63,8 +70,14 @@ final class MacListChromeTests: XCTestCase {
         for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
             let sheetSorts = MacListChrome.sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
                                                            isListMode: true)
-            let headerSorts = MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
-                                                            isMyTasks: isMyTasks, isListMode: true)
+            let headerSorts = [
+                MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                              isMyTasks: isMyTasks, isListMode: true),
+                MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: isRealList,
+                                                isMyTasks: isMyTasks, isListMode: true),
+                MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: isRealList,
+                                               isMyTasks: isMyTasks, isListMode: true),
+            ].filter { $0 }.count == 1
             XCTAssertNotEqual(sheetSorts, headerSorts,
                               "isRealList=\(isRealList) isMyTasks=\(isMyTasks) offers sort \(sheetSorts && headerSorts ? "twice" : "not at all")")
         }
