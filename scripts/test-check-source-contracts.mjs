@@ -148,6 +148,12 @@ const trips = {
       { de: { 'present.key': null, 'mac.quick_add_placeholder': 'Aufgabe (z.B. #arbeit)' }, fr: { 'update.available_title': 'Un nouvel Astrid' } }),
     'Astrid App/V.swift': 'Text(NSLocalizedString("present.key", comment: ""))\nText(NSLocalizedString("missing.key", comment: ""))\n',
   }),
+  // A PNG header whose IHDR colour type (byte 25) is 3, indexed — enough for the rule to read.
+  'no-palette-pngs': () => fixture({
+    'Astrid App/Assets.xcassets/ai-x.imageset/x.png': Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52,
+      0, 0, 0, 4, 0, 0, 0, 4, 8, 3, 0, 0, 0]),
+  }),
   'keyboard-shortcuts-match-web': () => {
     const root = fixture({ 'ios/Astrid Mac/Keyboard/KeyboardShortcuts.swift':
       'KeyBinding(keys: ["n"], action: .newTask, requiresSelection: false, webAction: "onNewTask", title: "")\n'
