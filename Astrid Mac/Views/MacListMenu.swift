@@ -71,28 +71,28 @@ struct MacListMenuActions {
     var enableBoard: () -> Void
 }
 
-/// The gear that opens the menu beside the list/board picker in the window toolbar (AITD-373,
-/// AITD-522, AITD-552). The sidebar needs no equivalent — a right-click is its affordance.
+/// The gear beside the list/board picker in the window toolbar (AITD-373, AITD-522, AITD-552).
+/// It OPENS List Settings — it is not a menu (AITD-553: "tapping the button should just open the
+/// lists settings (shouldn't have this intermediate drop down list)"). The menu it used to show
+/// put List Settings first and Favorite / Enable Board under it; those two are in the window now
+/// (`MacListSettingsWindow.tab(for:)`). The sidebar's right-click still shows `MacListMenuContent`.
 ///
-/// Here rather than in `MacRootView` because it is presentation of this menu, and because that
-/// file is on the AITD-346 ratchet: the extraction is the answer the ratchet asks for.
+/// Here rather than in `MacRootView` because that file is on the AITD-346 ratchet.
 struct MacListSettingsButton: View {
-    let list: TaskList
-    let userId: String?
-    let actions: MacListMenuActions
+    let open: () -> Void
 
     /// A gear, the Mac's settings glyph (AITD-522). It was `slider.horizontal.3`, which beside
     /// the filter button read as a second filter.
     static let symbol = "gearshape"
 
+    /// A plain button, not a `Menu` (AITD-553).
+    static let isMenu = false
+
     var body: some View {
-        Menu {
-            MacListMenuContent(list: list, userId: userId, actions: actions)
-        } label: {
+        Button(action: open) {
             Label(NSLocalizedString("lists.list_settings", comment: ""),
                   systemImage: Self.symbol)
         }
-        .fixedSize()
         .help(NSLocalizedString("lists.list_settings", comment: ""))
         .accessibilityIdentifier("board.listSettings")
     }

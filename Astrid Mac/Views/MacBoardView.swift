@@ -16,7 +16,6 @@ struct MacBoardView: View {
     @StateObject private var board = BoardModel()
     @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
-    @State private var boardBusy = false
     @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
     /// The card whose title field should take the caret when it opens — set by Rename (AITD-471).
     @State private var renamingCardId: String?
@@ -47,7 +46,13 @@ struct MacBoardView: View {
     }
 
     private var list: TaskList? { listService.lists.first { $0.id == listId } }
-    private var boardEnabled: Bool { MacBoardControl.isEnabled(projectId: list?.projectId) }
+
+    /// The board draws no header of its own (AITD-553: "this separate header needs to go!").
+    /// Its only control was a ⋯ holding Disable Board; that is in List Settings ▸ Admin now, and
+    /// the window toolbar is the one header — the board is only ever shown when it is enabled
+    /// (`MacViewMode.offersBoard`), so its Enable branch never drew.
+    static let hasHeaderStrip = false
+
     private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
     /// Each column's cards, from the core's ids: the service's own tasks.
@@ -58,23 +63,6 @@ struct MacBoardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Spacer()
-                if boardEnabled {
-                    Menu {
-                        Button(NSLocalizedString("mac.disable_board", comment: ""), role: .destructive) { disableBoard() }
-                    } label: { Image(systemName: "ellipsis.circle") }.fixedSize()
-                } else {
-                    Button { enableBoard() } label: {
-                        HStack { Label(NSLocalizedString("mac.enable_board", comment: ""), systemImage: "square.grid.2x2")
-                            if boardBusy { ProgressView().controlSize(.small) } }
-                    }
-                    .disabled(boardBusy)
-                    .help(NSLocalizedString("mac.board_create_columns_hint", comment: ""))
-                }
-            }
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            Divider()
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: MacLayout.boardColumnSpacing) {
                     let buckets = cardsByColumn()
@@ -94,24 +82,6 @@ struct MacBoardView: View {
         // opened the members sheet first, which is not something the board can assume.
         .task(id: listId) { try? await memberService.fetchMembers(listId: listId) }
         .task(id: BoardModel.Query(listId: listId)) { board.update(BoardModel.Query(listId: listId)) }
-    }
-
-    private func enableBoard() {
-        guard let list else { return }
-        boardBusy = true
-        AppActions.perform("Enable board") {
-            defer { boardBusy = false }
-            _ = try await ProjectService.shared.createBoardForList(list)
-            _ = try? await ListService.shared.fetchLists()
-        }
-    }
-
-    private func disableBoard() {
-        guard let projectId = list?.projectId else { return }
-        AppActions.perform("Disable board") {
-            _ = try await ProjectService.shared.deleteProject(id: projectId)
-            _ = try? await ListService.shared.fetchLists()
-        }
     }
 
     private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {

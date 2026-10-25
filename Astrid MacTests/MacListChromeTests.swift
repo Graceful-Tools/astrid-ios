@@ -91,25 +91,19 @@ final class MacListChromeTests: XCTestCase {
         XCTAssertFalse(MacListChrome.showsFilter(isRealList: true, isListMode: false))
     }
 
-    /// Filter stays out of the window toolbar: it opens the list's sheet, which belongs to the rows.
+    /// Filter stays off the toolbar's trailing edge, which is the chat column in 3-column mode. It
+    /// sits in the centre beside sort since AITD-553, which is a different place.
     func testFilterIsNotAWindowToolbarItem() {
         XCTAssertFalse(MacListChrome.toolbarOffersFilter)
     }
 
-    // MARK: the strip (AITD-509, AITD-522)
+    // MARK: the strip (AITD-509, AITD-522) — gone (AITD-553)
 
-    /// With nothing to show there is still no strip — AITD-509's complaint was an empty-ish row.
-    func testNoControlsMeansNoStrip() {
-        XCTAssertFalse(MacListChrome.showsStrip(showsSort: false, showsFilter: false,
-                                                showsMyTasksFilter: false, showsListMenu: false))
-    }
-
-    /// Each control in the header is enough to draw it — sort included, now that it lives there.
-    func testTheStripDrawsForEachHeaderControlAITD522() {
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: true, showsFilter: false, showsMyTasksFilter: false, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: true, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: false, showsListMenu: true))
+    /// The strip above the rows held only the filter once sort and the gear moved to the title
+    /// bar (AITD-552). AITD-553 moved filter up too, so there is no strip to draw — the list has
+    /// one header. `MacOneHeaderTests` pins what that header holds.
+    func testThereIsNoStripAboveTheRows_AITD553() {
+        XCTAssertFalse(MacListChrome.listColumnHasStrip)
     }
 
     // MARK: the extra + (10d2cd34)

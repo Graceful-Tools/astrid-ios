@@ -632,47 +632,48 @@ struct MacRootView: View {
     /// over the chat column instead (which is sized to contain it), so selecting a task cannot
     /// reflow the rows (task 89e42f29 follow-up).
     private var listColumn: some View {
-        VStack(spacing: 0) {
-            listChrome
-            taskTable
-        }
+        taskTable
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Filter, above the rows it acts on (9998d83a). Sort and the list-settings gear sat here too
-    /// (AITD-522) until they moved beside the list/board picker (AITD-552). They used to be
-    /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
-    /// 3-column mode they right-aligned above the CHAT column and read as its controls.
+    /// The title bar's centre (AITD-553: one header). Which controls, in which groups, is
+    /// `MacListChrome.titleBarGroups`; this only draws them.
+    private var titleBarGroups: [[MacListChrome.TitleBarControl]] {
+        MacListChrome.titleBarGroups(
+            showsModePicker: MacViewMode.showsModePicker(modes: availableContentModes,
+                                                         isSwitchable: contentModeIsSwitchable),
+            hasSelection: selectedListId != nil, isRealList: currentRealList != nil,
+            isMyTasks: selectedListId == Self.myTasksId, isListMode: contentMode == .list)
+    }
+
     @ViewBuilder
-    private var listChrome: some View {
-        let isList = contentMode == .list
-        let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil, isListMode: isList)
-        // My Tasks has no TaskList, but it has saved, synced filters (ebdf94a1).
-        let showsMyTasksFilter = selectedListId == Self.myTasksId && isList
-        // A board suppressed this strip entirely, which took list settings with it — the sidebar
-        // right-click was the only way in, and that row is not what you are looking at while
-        // working the columns (AITD-373).
-        let showsListMenu = MacListChrome.stripShowsListMenu(isRealList: currentRealList != nil, isListMode: isList)
-        let showsSort = MacListChrome.headerShowsSort(hasSelection: selectedListId != nil,
-            isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
-            isListMode: isList)
-        if MacListChrome.showsStrip(showsSort: showsSort, showsFilter: showsFilter,
-                                    showsMyTasksFilter: showsMyTasksFilter, showsListMenu: showsListMenu) {
-            HStack(spacing: 8) {
-                Spacer(minLength: 0)
-                if showsSort { sortMenu }
-                if showsFilter, let list = currentRealList { filterButton(list) }
-                if showsMyTasksFilter { myTasksFilterButton }
-                if showsListMenu, let list = currentRealList {
-                    MacListSettingsButton(list: list, userId: auth.userId,
-                                          actions: listMenuActions(list))
+    private func titleBarControl(_ control: MacListChrome.TitleBarControl) -> some View {
+        switch control {
+        case .modePicker:
+            Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
+                ForEach(availableContentModes, id: \.self) { mode in
+                    Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
                 }
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .padding(.horizontal, MacLayout.rowTrailingGap)
-            .padding(.vertical, 4)
+            .pickerStyle(.segmented)
+        case .sort:
+            sortMenu
+        case .filter:
+            if let list = currentRealList { filterButton(list) }
+        case .myTasksFilter:
+            myTasksFilterButton
+        case .listSettings:
+            if let list = currentRealList {
+                MacListSettingsButton { settingsList = list }
+            }
         }
+    }
+
+    private func titleBarGroup(_ controls: [MacListChrome.TitleBarControl]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(controls, id: \.self) { titleBarControl($0) }
+        }
+        .labelStyle(.iconOnly)
     }
 
     /// The sidebar's surface colour, resolved from the mode this view OBSERVES.
@@ -1227,33 +1228,19 @@ struct MacRootView: View {
                              : selectedListId == Self.myTasksId ? NSLocalizedString("navigation.my_tasks", comment: "")
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        // Drawn only when there is something to switch BETWEEN — see
-                        // MacViewMode.showsModePicker (task 6d709a75).
-                        if MacViewMode.showsModePicker(modes: availableContentModes,
-                                                       isSwitchable: contentModeIsSwitchable) {
-                            Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
-                                ForEach(availableContentModes, id: \.self) { mode in
-                                    Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-                        // Sort and the list's gear, beside the picker (AITD-552).
-                        if MacListChrome.titleBarShowsSort(hasSelection: selectedListId != nil,
-                                isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
-                                isListMode: contentMode == .list) {
-                            sortMenu
-                        }
-                        if MacListChrome.titleBarShowsListMenu(isRealList: currentRealList != nil,
-                                                               isListMode: contentMode == .list),
-                           let list = currentRealList {
-                            MacListSettingsButton(list: list, userId: auth.userId,
-                                                  actions: listMenuActions(list))
-                        }
-                    }
-                    .labelStyle(.iconOnly)
+                // Two groups, drawn apart: the list/board picker, then sort / filter / settings
+                // (AITD-553). Fixed slots, so the groups never swap places between selections.
+                let groups = titleBarGroups
+                let pickerGroup = groups.first { $0.contains(.modePicker) }
+                let controlGroup = groups.first { !$0.contains(.modePicker) }
+                if let pickerGroup {
+                    ToolbarItem(placement: .principal) { titleBarGroup(pickerGroup) }
+                }
+                if pickerGroup != nil, controlGroup != nil, #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .principal)
+                }
+                if let controlGroup {
+                    ToolbarItem(placement: .principal) { titleBarGroup(controlGroup) }
                 }
                 // Manual refresh (0f525a89) — the one control that DOES belong to the window
                 // rather than to the task list: it reconciles everything, not just these rows.
