@@ -23,6 +23,7 @@
 //  `-uiTestSelectTask=<id>` and acts through the menu bar and the detail — the paths a keyboard
 //  user takes. No fixed sleeps: every wait polls for what it is waiting for.
 
+import AppKit
 import XCTest
 
 final class MacE2EJourneyUITests: XCTestCase {
@@ -152,6 +153,39 @@ final class MacE2EJourneyUITests: XCTestCase {
         } while Date() < deadline
         XCTAssertTrue(comments.contains { ($0["content"] as? String) == text },
                       "the server has the comment (had \(before), now \(comments.count))")
+    }
+
+    // MARK: - 7. Paste an image into the detail's comment (AITD-557)
+
+    /// "[mac] couldn't paste image directly into task details comments." ⌘V with an image on the
+    /// clipboard, in the detail's comment field, stages it — and a staged file is what turns the
+    /// trailing slot into Send while no text has been typed.
+    @MainActor
+    func test07_PastingAnImageIntoTheDetailCommentStagesIt_AITD557() throws {
+        let fixture = try named("withComment")
+        let app = try launchSignedIn(selecting: fixture.id)
+        try openMyTasks(app)
+
+        let rep = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4,
+                                                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                                 isPlanar: false, colorSpaceName: .deviceRGB,
+                                                 bytesPerRow: 0, bitsPerPixel: 0))
+        let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setData(png, forType: .png)
+        defer { NSPasteboard.general.clearContents() }
+
+        let field = try element(app, "comment.input", timeout: 30)
+        field.click()
+        XCTAssertFalse(app.descendants(matching: .any)["comment.send"].exists,
+                       "nothing to send before the paste")
+        field.typeKey("v", modifierFlags: .command)
+
+        let send = app.descendants(matching: .any)["comment.send"]
+        if !send.waitForExistence(timeout: 10) {
+            attachScreenshot(app, "after paste")
+            XCTFail("⌘V with an image on the clipboard staged nothing")
+        }
     }
 
     // MARK: - Helpers
