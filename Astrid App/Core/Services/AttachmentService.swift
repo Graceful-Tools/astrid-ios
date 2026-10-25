@@ -517,16 +517,43 @@ class AttachmentService: ObservableObject {
             throw AttachmentError.uploadFailed
         }
 
-        // Parse response to get upload URL and token
+        // Parse response to get upload URL and token. Two shapes, either or both (AITD-558):
+        // `presigned` is the whole request, composed server-side with `@vercel/blob`'s
+        // `presignUrl` — its signed query is the credential, so no bearer token goes with it.
+        // `uploadToken` + `uploadUrl` is the legacy shape, derived from the server's
+        // `BLOB_READ_WRITE_TOKEN`; it stays until every build that reads only it has drained.
         struct UploadUrlResponse: Codable {
-            let uploadToken: String
+            struct Presigned: Codable {
+                let uploadUrl: String
+                let headers: [String: String]?
+            }
+            let uploadToken: String?
             let pathname: String
             let fileId: String
-            let uploadUrl: String
+            let uploadUrl: String?
+            let presigned: Presigned?
         }
 
         let decoder = JSONDecoder()
         let uploadUrlResponse = try decoder.decode(UploadUrlResponse.self, from: urlData)
+
+        var blobRequest: URLRequest
+        if let presigned = uploadUrlResponse.presigned {
+            blobRequest = URLRequest(url: try AstridHTTP.remoteURL(presigned.uploadUrl))
+            for (key, value) in presigned.headers ?? [:] {
+                blobRequest.setValue(value, forHTTPHeaderField: key)
+            }
+        } else if let uploadToken = uploadUrlResponse.uploadToken, let uploadUrl = uploadUrlResponse.uploadUrl {
+            blobRequest = URLRequest(url: try AstridHTTP.remoteURL(uploadUrl))
+            // Vercel Blob expects the client token in the Authorization header
+            blobRequest.setValue("Bearer \(uploadToken)", forHTTPHeaderField: "Authorization")
+            // A presigned PUT may not set this — `uploadPresigned` refuses `cacheControlMaxAge`
+            // client-side, since it is part of what the server signs — so only the legacy path does.
+            blobRequest.setValue("public, max-age=31536000", forHTTPHeaderField: "x-cache-control-max-age")
+        } else {
+            PrivacyLogger.error("AttachmentService", code: "upload_url_unusable", status: httpResponse.statusCode)
+            throw AttachmentError.uploadFailed
+        }
 
         PrivacyLogger.debug("AttachmentService", "upload_url=received")
         uploadProgress = 0.1
@@ -536,12 +563,8 @@ class AttachmentService: ObservableObject {
 
         // No platform header: Vercel Blob is a third party, and our analytics contract is
         // with our own server only (AITD-301).
-        var blobRequest = URLRequest(url: try AstridHTTP.remoteURL(uploadUrlResponse.uploadUrl))
         blobRequest.httpMethod = "PUT"
-        // Vercel Blob expects the client token in the Authorization header
-        blobRequest.setValue("Bearer \(uploadUrlResponse.uploadToken)", forHTTPHeaderField: "Authorization")
         blobRequest.setValue(mimeType, forHTTPHeaderField: "Content-Type")
-        blobRequest.setValue("public, max-age=31536000", forHTTPHeaderField: "x-cache-control-max-age")
 
         // Use upload delegate to track progress
         let delegate = UploadProgressDelegate(onProgress: { [weak self] progress in

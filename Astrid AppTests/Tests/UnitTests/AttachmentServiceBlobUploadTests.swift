@@ -78,6 +78,76 @@ final class AttachmentServiceBlobUploadTests: XCTestCase {
         XCTAssertFalse(service.isUploading)
     }
 
+    // MARK: Presigned upload (AITD-558)
+    //
+    // The server is moving off `BLOB_READ_WRITE_TOKEN`, which every `uploadToken` is derived
+    // from. A presigned server sends `presigned: { uploadUrl, headers }` — the whole request,
+    // composed with `@vercel/blob`'s `presignUrl`, so the vendor's query and header rules live
+    // on the server and move with its SDK rather than being frozen into an App Store build.
+
+    private static let presignedURL =
+        "https://blob.example/api/blob/?pathname=files%2Fu%2Ff-big.mov&vercel-blob-delegation=d.e&vercel-blob-signature=s1"
+
+    func testAPresignedResponseIsPutAsGivenWithNoBearerToken_AITD558() async throws {
+        try keychain.saveSessionCookie(Self.cookie)
+        StubURLProtocol.respond = { request in
+            request.url?.host == "blob.example"
+                ? .json(#"{"url":"https://blob.example/files/u/f-big.mov","pathname":"files/u/f-big.mov"}"#)
+                : .json(#"{"pathname":"files/u/f-big.mov","fileId":"f-big","presigned":{"uploadUrl":"\#(Self.presignedURL)","headers":{"x-api-version":"12","x-vercel-blob-store-id":"abc","x-vercel-blob-access":"public"}}}"#)
+        }
+
+        let fileId = try await service.uploadToSecureEndpoint(fileData: largeFile, fileName: "big.mov",
+                                                              mimeType: "video/quicktime", context: ["taskId": "t-1"])
+
+        XCTAssertEqual(fileId, "f-big")
+        let sent = StubURLProtocol.requests
+        XCTAssertEqual(sent.count, 2)
+        let put = sent[1]
+        XCTAssertEqual(put.method, "PUT")
+        XCTAssertEqual(put.request.url?.absoluteString, Self.presignedURL,
+                       "the signed query is the credential — it must reach Blob untouched")
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "x-api-version"), "12")
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "x-vercel-blob-store-id"), "abc")
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "x-vercel-blob-access"), "public")
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "Content-Type"), "video/quicktime")
+        XCTAssertNil(put.request.value(forHTTPHeaderField: "Authorization"),
+                     "a presigned PUT carries no bearer token — there is none to send")
+        XCTAssertNil(put.request.value(forHTTPHeaderField: "Cookie"), "the session cookie never goes to Blob")
+        XCTAssertEqual(put.body, largeFile)
+        XCTAssertEqual(service.uploadProgress, 1.0)
+    }
+
+    func testAResponseCarryingBothShapesTakesThePresignedOne_AITD558() async throws {
+        // The additive migration step: the server sends the legacy fields alongside the new ones.
+        try keychain.saveSessionCookie(Self.cookie)
+        StubURLProtocol.respond = { request in
+            request.url?.host == "blob.example"
+                ? .json("{}")
+                : .json(#"{"uploadToken":"tok","uploadUrl":"https://legacy.example/p","pathname":"p","fileId":"f","presigned":{"uploadUrl":"\#(Self.presignedURL)","headers":{}}}"#)
+        }
+
+        _ = try await service.uploadToSecureEndpoint(fileData: largeFile, fileName: "big.mov",
+                                                     mimeType: "video/quicktime", context: [:])
+
+        let put = StubURLProtocol.requests[1]
+        XCTAssertEqual(put.request.url?.host, "blob.example")
+        XCTAssertNil(put.request.value(forHTTPHeaderField: "Authorization"))
+    }
+
+    func testAResponseWithNeitherShapeFailsBeforeBlob_AITD558() async throws {
+        try keychain.saveSessionCookie(Self.cookie)
+        StubURLProtocol.respond = { _ in .json(#"{"pathname":"p","fileId":"f"}"#) }
+
+        do {
+            _ = try await service.uploadToSecureEndpoint(fileData: largeFile, fileName: "big.mov",
+                                                         mimeType: "video/quicktime", context: [:])
+            XCTFail("a response with no way to upload must throw")
+        } catch {
+            XCTAssertEqual(error as? AttachmentError, .uploadFailed)
+        }
+        XCTAssertEqual(StubURLProtocol.requests.count, 1)
+    }
+
     func testALargeFileWithNoSessionCookieSendsNothing_AITD535() async throws {
         do {
             _ = try await service.uploadToSecureEndpoint(fileData: largeFile, fileName: "big.mov",
@@ -178,6 +248,33 @@ final class AttachmentServiceBlobUploadTests: XCTestCase {
         await fulfillment(of: [updated], timeout: 1)
         XCTAssertEqual(service.uploadProgress, 1.0)
         XCTAssertFalse(service.isUploading)
+    }
+
+    func testUpdatingAnAttachmentTakesAPresignedRequestWithNoAppChange_AITD558() async throws {
+        // `secure-files/:id/upload-url` already hands out the whole request (URL + headers), so
+        // the server can swap in a presigned one and this path keeps working as shipped.
+        try keychain.saveSessionCookie(Self.cookie)
+        let signed = "https://blob.example/api/blob/?pathname=f-9.png&vercel-blob-delegation=d.e&vercel-blob-signature=s1"
+        StubURLProtocol.respond = { request in
+            switch request.url?.path {
+            case "/api/v1/secure-files/f-9/upload-url":
+                return .json(#"{"uploadUrl":"\#(signed)","pathname":"f-9.png","headers":{"x-api-version":"12","x-vercel-blob-store-id":"abc"}}"#)
+            case "/api/blob":
+                return .json(#"{"url":"https://blob.example/f-9-v2.png","pathname":"f-9-v2.png"}"#)
+            case "/api/v1/secure-files/f-9/confirm-upload":
+                return .json(#"{"id":"f-9","originalName":"shot.png","mimeType":"image/png","fileSize":4,"updatedAt":"2026-10-23T00:00:00Z","success":true}"#)
+            default:
+                return .json(#"{"url":"https://blob.example/f-9-v2.png"}"#)
+            }
+        }
+
+        _ = try await service.updateAttachment(fileId: "f-9", newFileData: Data("new!".utf8), mimeType: "image/png")
+
+        let put = StubURLProtocol.requests[1]
+        XCTAssertEqual(put.request.url?.absoluteString, signed)
+        XCTAssertEqual(put.request.value(forHTTPHeaderField: "x-vercel-blob-store-id"), "abc")
+        XCTAssertNil(put.request.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(StubURLProtocol.requests[2].jsonBody?["blobUrl"] as? String, "https://blob.example/f-9-v2.png")
     }
 
     func testUpdatingAnAttachmentDropsItsCachedDownload_AITD535() async throws {
