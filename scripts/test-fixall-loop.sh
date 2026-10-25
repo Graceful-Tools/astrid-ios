@@ -27,6 +27,8 @@ cd "$(dirname "$0")/.."
 LOOP="$PWD/scripts/fixall-loop.sh"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin"
+mkdir -p "$TMP/shared-tooling"
+export ASTRID_WEB_DIR="$TMP/shared-tooling"
 export CALLS="$TMP/calls.log"
 
 # The fake tsx: answers for every script the loop shells out to, and records the argv of each.
@@ -41,10 +43,12 @@ case "$*" in
     [ "${STUB_YIELD_EXIT:-0}" = "1" ] && echo "boom"
     exit "${STUB_YIELD_EXIT:-0}" ;;
   *post-list-message.ts*)   exit 0 ;;
+  *open-fixall-prs.ts*)     exit "${STUB_PR_EXIT:-0}" ;;
+  *release-stuck-doing.ts*--claims-file*) exit "${STUB_RELEASE_EXIT:-0}" ;;
   *agent-queue-status.ts*--mark-seen*)
-    echo "SEEN: recorded"; exit 0 ;;
+    echo "SEEN: recorded"; exit "${STUB_SEEN_EXIT:-0}" ;;
   *agent-queue-status.ts*)
-    echo "QUEUE: 1 task ready for claude"
+    echo "${STUB_QUEUE_LINE:-QUEUE: 1 task ready for claude}"
     echo 'KEYS: ["comment:c1","task:t1"]'
     exit "${STUB_QUEUE_EXIT:-0}" ;;
 esac
@@ -84,6 +88,14 @@ bad()  { FAIL=$((FAIL+1)); echo "✗ $1"; [ -n "${2:-}" ] && echo "$2" | sed 's/
 # The loop's output goes to a FILE, never a command substitution: the watchdog it spawns
 # outlives the run (killing the subshell orphans its `sleep`), and an orphan holding the read
 # end of a pipe would make `$(…)` block for the whole watchdog interval.
+invoke_loop() {
+  if [ "${TEST_SHIM:-0}" = 1 ]; then
+    node "${LOOP%/*}/run-fixall-loop.mjs"
+  else
+    "$LOOP"
+  fi
+}
+
 run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv log), $STATUS
   : > "$CALLS"
   : > "$CLAUDE_PID_FILE"
@@ -91,16 +103,17 @@ run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv
   STUB_CLAUDE_SLEEP="${STUB_CLAUDE_SLEEP:-0}" \
   STUB_YIELD_EXIT="${STUB_YIELD_EXIT:-0}" \
   FIXALL_STALL_STATE="$TMP/stall.state" \
+  FIXALL_RUN_STATE="$TMP/run-state" \
   FIXALL_FORCE=1 \
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
   FIXALL_CLOSE_BUILT= \
-  CLAUDE_BIN="$TMP/bin/claude" \
+  CLAUDE_BIN="${TEST_CLAUDE_BIN:-$TMP/bin/claude}" \
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \
   STUB_CLAUDE_EXIT="$1" \
   STUB_QUEUE_EXIT="$2" \
-  "$LOOP" > "$TMP/out.txt" 2>&1
+  invoke_loop > "$TMP/out.txt" 2>&1
   STATUS=$?
   OUT=$(cat "$TMP/out.txt")
 }
@@ -244,6 +257,7 @@ run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \
   FIXALL_STALL_STATE="$STALL_STATE" \
+  FIXALL_RUN_STATE="$TMP/sandbox-run-state" \
   FIXALL_STALL_ALERT_AFTER=3 \
   STUB_CLAUDE_EXIT=0 \
   STUB_QUEUE_EXIT=0 \
@@ -498,6 +512,172 @@ PRS_LINE=$(grep -n "open-fixall-prs.ts --claims-file" "$CALLS" | head -1 | cut -
 if [ -n "$PRS_LINE" ] && [ "$PRS_LINE" -gt "$CLAUDE_LINE" ] && [ "$PRS_LINE" -lt "$CLAIMS_LINE" ] \
    && grep "open-fixall-prs.ts" "$CALLS" | grep -q -- "--repo .*/sandbox/repo$"; then ok
 else bad "completed work gets its PR opened after the run, against this repo, before claims are released" "$(cat "$CALLS")"; fi
+clean_sandbox
+
+# --- Apple lifecycle: bookkeeping is durable, not a success-shaped fallback --------
+STUB_PR_EXIT=1 run 0 0
+if [ "$STATUS" != 0 ] && echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED'; then ok
+else bad "Apple lifecycle: failed PR bookkeeping cannot report OK" "$OUT"; fi
+not_called "--mark-seen" "failed bookkeeping must not acknowledge the wake"
+if [ -f "$TMP/run-state/active/claims" ] && [ -f "$TMP/run-state/active/keys" ]; then ok
+else bad "claims and exact wake keys survive a bookkeeping failure" "$OUT"; fi
+
+# Recovery happens before even a quiet preflight; it does not pay for another agent.
+run 0 3
+called "pending bookkeeping is retried before a quiet tick" "open-fixall-prs.ts" "--claims-file"
+called "recovery acknowledges the original exact wake keys" "--mark-seen" "--seen-keys" '["comment:c1","task:t1"]' "!--failed"
+not_called "^claude " "recovery must not launch another agent on an empty queue"
+if [ ! -d "$TMP/run-state/active" ]; then ok
+else bad "successful recovery clears only its pending run" "$OUT"; fi
+
+STUB_RELEASE_EXIT=1 run 0 0
+not_called "--mark-seen" "failed claims recovery must not acknowledge the wake"
+if [ "$STATUS" != 0 ]; then ok
+else bad "claims recovery failure is a failed tick" "$OUT"; fi
+run 0 3
+called "failed claims recovery is retried next tick" "release-stuck-doing.ts" "--claims-file"
+not_called "open-fixall-prs.ts" "successful PR bookkeeping is not repeated during recovery"
+
+STUB_SEEN_EXIT=1 run 0 0
+if [ "$STATUS" != 0 ] && [ -f "$TMP/run-state/active/keys" ]; then ok
+else bad "wake acknowledgement failure is reported and preserves its keys" "$OUT"; fi
+run 0 3
+called "failed wake acknowledgement is retried" "--mark-seen" '["comment:c1","task:t1"]'
+
+# A crash before recording an outcome defaults to failure, never a success ack.
+mkdir -p "$TMP/run-state/active"
+printf '%s\n' '["comment:interrupted"]' > "$TMP/run-state/active/keys"
+: > "$TMP/run-state/active/claims"
+run 0 3
+called "an interrupted run strikes its original wake key" "--mark-seen" "--failed" '["comment:interrupted"]'
+not_called "^claude " "interrupted-run bookkeeping needs no new agent"
+
+# Tooling may live anywhere on the dedicated Apple machine, not beside this worktree.
+mkdir -p "$TMP/shared-tooling"
+ASTRID_WEB_DIR="$TMP/shared-tooling" run 0 3
+called "shared tooling override is used from the iOS working-tree lock" "$TMP/shared-tooling/scripts/fixall-session.ts"
+
+# Ready may be empty while inbox replies still wake the existing intake.
+STUB_QUEUE_LINE="QUEUE: no Ready tasks; one inbox reply for claude" run 0 0
+called "mailbox wake uses the same board-scoped Claude intake" "agent-queue-status.ts" "--agent claude" "--board ios" "--no-write-seen"
+called "an inbox-only preflight wakes the agent" "claude -p /fixall"
+
+# A surviving child owns the pending run, even if the wrapper is gone.
+mkdir -p "$TMP/run-state/active"
+echo "$$" > "$TMP/run-state/active/child.pid"
+printf '%s\n' '["comment:still-running"]' > "$TMP/run-state/active/keys"
+: > "$TMP/run-state/active/claims"
+run 0 0
+not_called "^claude " "a pending live agent prevents a duplicate run"
+not_called "--mark-seen" "a live agent's wake keys remain unacknowledged"
+rm -f "$TMP/run-state/active/child.pid"
+run 0 3
+called "recovery proceeds once the old child is gone" "--mark-seen" "--failed" '["comment:still-running"]'
+
+mkdir -p "$TMP/run-state/active"
+echo "$$" > "$TMP/run-state/active/child.pid"
+echo "before this boot" > "$TMP/run-state/active/child.started"
+printf '%s\n' '["comment:reused-pid"]' > "$TMP/run-state/active/keys"
+: > "$TMP/run-state/active/claims"
+run 0 3
+called "a reused PID after reboot does not strand recovery" "--mark-seen" "--failed" '["comment:reused-pid"]'
+not_called "^claude " "PID-reuse recovery does not launch an unnecessary agent"
+
+# TERM must stop the whole workload before unlocking, not orphan a build/test process.
+export SIGNAL_LAUNCHER_PID="$TMP/signal-launcher.pid"
+export SIGNAL_DESCENDANT_PID="$TMP/signal-descendant.pid"
+cat > "$TMP/bin/claude-signal" <<'STUB'
+#!/bin/bash
+echo "claude $*" >> "$CALLS"
+echo "$PPID" > "$SIGNAL_LAUNCHER_PID"
+trap 'exit 0' TERM
+bash -c 'trap "" TERM; while :; do sleep 1; done' &
+echo "$!" > "$SIGNAL_DESCENDANT_PID"
+wait
+STUB
+chmod +x "$TMP/bin/claude-signal"
+for SIGNAL_MODE in direct shim; do
+rm -f "$SIGNAL_LAUNCHER_PID" "$SIGNAL_DESCENDANT_PID"
+TEST_SHIM=0
+[ "$SIGNAL_MODE" != shim ] || TEST_SHIM=1
+TEST_CLAUDE_BIN="$TMP/bin/claude-signal" FIXALL_KILL_GRACE_SECONDS=1 run 0 0 &
+SIGNAL_TEST_PID=$!
+for attempt in $(seq 1 100); do
+  [ -s "$SIGNAL_DESCENDANT_PID" ] && break
+  sleep 0.05
+done
+if [ -s "$SIGNAL_DESCENDANT_PID" ]; then
+  TARGET_PID=$(cat "$SIGNAL_LAUNCHER_PID")
+  if [ "$SIGNAL_MODE" = shim ]; then
+    TARGET_PID=$(ps -p "$TARGET_PID" -o ppid= | tr -d ' ')
+  fi
+  kill -TERM "$TARGET_PID"
+else
+  bad "signal regression agent started"
+fi
+wait "$SIGNAL_TEST_PID"
+OUT=$(cat "$TMP/out.txt")
+called "TERM records a failed wake, not a successful acknowledgement" "--mark-seen" "--failed"
+DESCENDANT_STATE=$(ps -p "$(cat "$SIGNAL_DESCENDANT_PID")" -o stat= 2>/dev/null || true)
+case "$DESCENDANT_STATE" in
+  ""|*Z*) ok ;;
+  *) bad "TERM stops even a descendant that ignores TERM" "$DESCENDANT_STATE" ;;
+esac
+if echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED — launcher interrupted'; then ok
+else bad "TERM completes recovery and reports interruption" "$OUT"; fi
+SEEN_LINE=$(grep -n -- "--mark-seen" "$CALLS" | tail -1 | cut -d: -f1)
+UNLOCK_LINE=$(grep -n "fixall-session.ts release" "$CALLS" | tail -1 | cut -d: -f1)
+if [ -n "$SEEN_LINE" ] && [ -n "$UNLOCK_LINE" ] && [ "$SEEN_LINE" -lt "$UNLOCK_LINE" ]; then ok
+else bad "interruption keeps the tree lock until bookkeeping finishes" "$(cat "$CALLS")"; fi
+done
+unset TEST_SHIM
+
+# Exercise the real one-minute watchdog, including its escalation grace. The agent
+# exits 0 on TERM while its child ignores it: neither is a finished run, and stopping
+# the watchdog too early orphans the child.
+TEST_CLAUDE_BIN="$TMP/bin/claude-signal" FIXALL_KILL_GRACE_SECONDS=1 run 0 0
+DESCENDANT_STATE=$(ps -p "$(cat "$SIGNAL_DESCENDANT_PID")" -o stat= 2>/dev/null || true)
+case "$DESCENDANT_STATE" in
+  ""|*Z*) ok ;;
+  *) bad "watchdog finishes escalation before releasing the tree" "$DESCENDANT_STATE" ;;
+esac
+called "watchdog strikes the wake keys" "--mark-seen" "--failed"
+if echo "$OUT" | tail -1 | grep -q '^RESULT: FAILED — killed after 1m'; then ok
+else bad "watchdog timeout reports failure after descendant cleanup" "$OUT"; fi
+
+# Abrupt wrapper death also leaves clean-start provenance for WIP recovery next tick.
+mkdir -p "$TMP/sandbox-run-state/active"
+printf '%s\n' '["comment:crashed"]' > "$TMP/sandbox-run-state/active/keys"
+: > "$TMP/sandbox-run-state/active/claims"
+: > "$TMP/sandbox-run-state/active/guard-clean"
+dirty_sandbox
+run_sandbox
+if [ -z "$(sgit status --porcelain)" ] && [ "$(sgit branch --show-current)" = main ]; then ok
+else bad "an interrupted clean-start run saves WIP before the dirty-tree guard" "$OUT"; fi
+called "abrupt interruption strikes its saved exact key" "--mark-seen" "--failed" '["comment:crashed"]'
+posted "abrupt interruption is reported on the board" "recovered an interrupted run"
+
+# A failed push must retain the branch/journal and retry, not claim a clean handoff.
+sgit remote set-url --push origin "$TMP/missing-origin"
+run_sandbox "$TMP/bin/claude-leaves-mess"
+if [ "$STATUS" != 0 ] && [ -d "$TMP/sandbox-run-state/active" ] \
+   && [ "$(sgit branch --show-current)" != main ]; then ok
+else bad "failed WIP push retains both branch and journal" "$OUT"; fi
+not_called "--mark-seen" "failed WIP push does not acknowledge its wake"
+sgit remote set-url --push origin "$SANDBOX/origin.git"
+run_sandbox
+if [ "$(sgit branch --show-current)" = main ] && [ ! -d "$TMP/sandbox-run-state/active" ]; then ok
+else bad "next tick completes the failed WIP push before new work" "$OUT"; fi
+called "failed WIP run is acknowledged as failed after recovery" "--mark-seen" "--failed"
+
+# Once the checkout was restored, later human edits do not belong to that run.
+STUB_PR_EXIT=1 run_sandbox
+dirty_sandbox
+run_sandbox
+if [ -f "$SANDBOX/repo/work-in-progress.txt" ] && [ -n "$(sgit status --porcelain)" ] \
+   && [ "$(sgit branch --show-current)" = main ]; then ok
+else bad "bookkeeping retry does not scoop later human edits into WIP" "$OUT"; fi
+not_called "^claude " "later human edits still trigger the dirty-tree guard"
 clean_sandbox
 
 echo ""

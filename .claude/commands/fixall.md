@@ -19,6 +19,11 @@ are work: a `RECHECK` task's blocking condition has to be re-verified, and a `RE
 one sitting in `Waiting` with no date and no marker, which means nobody knows what it is waiting
 for.
 
+**Inbox work counts even when Ready is empty.** Read `attention.tasks` and list-chat attention
+from the same board-scoped queue. A scheduled run respects `ASTRID_FIXALL_MAX_TASKS` (the
+launcher defaults to one newly claimed task); that cap is not permission to ignore a question
+or the reply that woke it.
+
 **This runs on a schedule.** `cc.astrid.fixall` (see `scripts/launchd/cc.astrid.fixall.plist.template`,
 installed with `scripts/launchd/install.sh`)
 fires an unattended pass at `:00` and `:30`, interleaved with the Copilot workflow's `:15`/`:45`.
@@ -27,10 +32,51 @@ Most ticks are no-ops, which is the design — see `scripts/fixall-loop.sh` for 
 
 **A quiet tick must not cost a session.** The runner asks
 `GET /api/v1/agent-queue` (via `scripts/agent-queue-status.ts`) *before* starting Claude, and
-skips on `empty`. Booting a session — this file, CLAUDE.md, the MCP tool schemas — to call
+skips only when the shared helper finds no Ready, inbox, or lane work. Booting a session —
+this file, CLAUDE.md, the MCP tool schemas — to call
 `get_agent_queue` once and learn there is no work is most of a day's tokens at two ticks an
 hour, for an answer one HTTP request already had. Inside a run the MCP tool is still the way to
 re-check after every task; the pre-check only decides whether there is a run at all.
+
+### The existing dedicated Apple device
+
+The iOS/Mac Claude Code launcher runs on the dedicated Apple device, **not on the coordinating
+Mac**. Upgrade that device's existing checkout/job in place at a quiet moment; do not install a
+second launcher or overwrite its credentials, permissions, or working configuration. The job
+continues to use Claude Code, the iOS board, and the `claude` mailbox. Other harnesses use their
+own shared harness/mailbox mapping and the same atomic claims; never impersonate Claude to
+consume another harness's attention.
+
+`ASTRID_WEB_DIR` may name an absolute path to that device's shared `astrid-web` tooling
+checkout; otherwise the launcher keeps the sibling-checkout default. It is exported to the
+agent too. In the commands below, substitute that path for `../astrid-web` when configured.
+Run the working-tree lock from the **iOS** checkout; run OAuth helpers from the **web tooling**
+checkout. Configure the session's existing Astrid MCP connection to use that same tooling;
+setting the path does not install dependencies, build MCP, or provision credentials.
+
+The launcher keeps private per-checkout recovery state under
+`~/Library/Application Support/Astrid/fixall-ios/<checkout-checksum>/active`
+(`FIXALL_RUN_STATE` overrides its parent directory). Claims, exact wake keys, output and
+phase receipts survive a wrapper crash/reboot or dependency reinstall. `TERM`/`INT` forwarded
+through the node shim stop the agent **and its descendants**, allow a short grace, then
+escalate before releasing the tree lock. A pending live child prevents a duplicate run.
+After an interrupted run, the next tick saves clean-start WIP on an unverified branch,
+then retries PR/claim bookkeeping and the original wake acknowledgement **before** its queue
+preflight, even if Ready is empty. A failed helper retains state and reports failure; it does
+not report OK or mute the wake. Successful bookkeeping phases are not repeated. The shared
+wake helper still owns bounded failed-run strikes, and shared claim recovery owns retry/
+handback policy; the Apple launcher does not invent another retry counter or task marker.
+Waiting tasks and tasks with an `**Awaiting build:**` report are excluded by shared claim
+recovery; they are not abandoned work.
+
+On-device rollout checks (not coordinator checks): pull the merged changes on the existing
+Apple host, confirm the configured tooling/MCP and mailbox, then let the existing schedule
+run (or deliberately restart that existing job when idle). Verify a Ready task claims only
+the iOS board; a question/reply wakes a run with no Ready tasks; interruption saves WIP and
+resumes bookkeeping without duplicate agents; and an awaiting-TestFlight task stays Doing
+until the existing build closer sees a VALID carrying build. Run `npm run predeploy` on that
+host, serializing simulator-sensitive work. These checks do not authorize an App Store
+submission or local upload.
 
 ## One session per working tree — take the lock first
 
@@ -156,8 +202,38 @@ between them is how two sessions came to work AWTD-865 at the same time on 2026-
 `set-task-status.ts` is still exactly right for `Waiting` and for handing a task back — only
 the *claim* has to be atomic.
 
-If those fail (OAuth flakiness), say so on the task with `add_comment` and carry on — a
-missing status change is a cosmetic gap; a task worked through the DB is not.
+If the atomic claim fails (other than a conflict), report it and **do not execute that task**.
+Never substitute a status update or database write for a successful claim. Failures of the
+other status/assignment helpers must also be reported on the task; they do not prove that a
+transition happened.
+
+### Questions and ordinary task-comment replies
+
+This adapter depends on the shared web handback/resume API **and** its matching
+`claim-fixall-task.ts` deployment. Until both are deployed, report missing resume support;
+do not simulate it with a manual status change, reassignment, or a fresh Ready claim.
+
+When the agent needs an answer, post the question as the actual agent mailbox, ending the
+comment with the exact line `AGENT-HANDBACK: claude`, then move the task to Waiting and assign
+the intended human. Jon can answer in that task's ordinary comments; he need not issue a
+command or reassign the task. The marker is mailbox attribution, **not approval** for a
+submission, upload, or other privileged action.
+
+A qualifying human reply appears in `attention.tasks` with a `resume` object containing
+`listId`, `assigneeId`, `handbackCommentId`, `replyCommentId`, and `commentWatermark`. Read the
+task and its comments first; pass that **unchanged** resume object and watermark to the
+shared helper from the configured web tooling checkout:
+
+```bash
+npx tsx scripts/claim-fixall-task.ts <taskId> resume <commentWatermark> \
+  --agent claude --resume-context '<JSON resume object>'
+```
+
+Proceed only on exit 0. Exit 2 / `CLAIM_CONFLICT` means the task, reply or assignment changed;
+re-fetch rather than overriding it. The server checks board membership, mailbox/marker
+authorship, human assignee, Waiting state, due date and exact reply/watermark atomically.
+Never resume another board or another agent's question. Re-check the queue after responding,
+and use the usual strategy/progress/completion comments for the resumed work.
 
 ## The workflow itself is shared
 

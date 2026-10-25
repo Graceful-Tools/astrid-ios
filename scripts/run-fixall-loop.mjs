@@ -24,10 +24,21 @@
 // still stands, so the shim stays.
 //
 // Do not "simplify" this away by pointing launchd straight at the shell script.
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const script = join(dirname(fileURLToPath(import.meta.url)), 'fixall-loop.sh')
-const { status } = spawnSync('/bin/zsh', ['-l', script, ...process.argv.slice(2)], { stdio: 'inherit' })
-process.exit(status ?? 1)
+const child = spawn('/bin/zsh', ['-l', script, ...process.argv.slice(2)], { stdio: 'inherit' })
+// Keep launchd's node process alive until the shell has stopped its workload and
+// journaled the outcome. spawnSync cannot forward signals while blocked.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => child.kill(signal))
+}
+child.once('error', error => {
+  console.error(`RESULT: FAILED — cannot start fixall launcher: ${error.message}`)
+  process.exitCode = 1
+})
+child.once('exit', code => {
+  process.exitCode = code ?? 1
+})

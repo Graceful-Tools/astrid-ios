@@ -37,12 +37,17 @@
 #                       scripts/sync-prod-branches.sh; empty = skip, as the test does)
 #   FIXALL_CLOSE_BUILT  closes Doing tasks whose TestFlight build is VALID (default:
 #                       node scripts/close-built-tasks.mjs; empty = skip, as the test does)
+#   ASTRID_WEB_DIR      shared task tooling checkout (default: sibling astrid-web)
+#   FIXALL_RUN_STATE    durable per-checkout run state (default: under ~/Library/Application
+#                       Support/Astrid; never in node_modules or a temporary directory)
+#   FIXALL_KILL_GRACE_SECONDS  grace before escalating a stopped process tree (default: 5)
 
 set -u
 export PATH="/opt/homebrew/bin:$PATH"
 
 REPO="${0:A:h:h}"
-WEB="$REPO/../astrid-web"
+WEB="${ASTRID_WEB_DIR:-$REPO/../astrid-web}"
+export ASTRID_WEB_DIR="$WEB"
 TSX="${FIXALL_TSX:-$WEB/node_modules/.bin/tsx}"
 CLAUDE="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
 MODEL="${FIXALL_MODEL:-opus}"
@@ -56,10 +61,21 @@ STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}
 STALL_ALERT_AFTER="${FIXALL_STALL_ALERT_AFTER:-3}"
 PROD_SYNC="${FIXALL_PROD_SYNC-$REPO/scripts/sync-prod-branches.sh}"
 CLOSE_BUILT="${FIXALL_CLOSE_BUILT-node $REPO/scripts/close-built-tasks.mjs}"
+RUN_STATE="${FIXALL_RUN_STATE:-$HOME/Library/Application Support/Astrid/fixall-ios/$(printf '%s' "$REPO" | cksum | awk '{print $1}')}"
+ACTIVE_RUN="$RUN_STATE/active"
+KILL_GRACE="${FIXALL_KILL_GRACE_SECONDS:-5}"
+if [[ "$MAX_MINUTES" != <-> ]] || [ "$MAX_MINUTES" -eq 0 ] || [[ "$KILL_GRACE" != <-> ]]; then
+  echo "RESULT: FAILED — watchdog minutes must be positive and kill grace must be nonnegative integers"
+  exit 1
+fi
 
 echo "──────── fixall loop $(date '+%Y-%m-%d %H:%M:%S') ────────"
 
 cd "$REPO" || { echo "RESULT: FAILED — cannot enter $REPO"; exit 1; }
+if [ ! -d "$WEB" ]; then
+  echo "RESULT: FAILED — no shared tooling checkout at $WEB (set ASTRID_WEB_DIR)"
+  exit 1
+fi
 
 # Post run-level news where Jon actually reads it. Per-task detail is already on
 # the tasks as comments; this is only for the things no task owns — a crash, a
@@ -170,7 +186,91 @@ fi
 release_lock() {
   "$TSX" "$WEB/scripts/fixall-session.ts" release --pid $$ >/dev/null 2>&1
 }
-trap release_lock EXIT INT TERM
+trap release_lock EXIT
+
+# One pending run per locked checkout. Each successful phase gets its own receipt, so
+# repairing a failed acknowledgement never re-runs an agent or re-releases its claims.
+finalize_run() {
+  local result
+  if [ ! -f "$ACTIVE_RUN/prs-done" ]; then
+    ( cd "$WEB" && "$TSX" scripts/open-fixall-prs.ts --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" )
+    result=$?
+    [ "$result" -eq 0 ] || return "$result"
+    touch "$ACTIVE_RUN/prs-done" || return 1
+  fi
+  if [ ! -f "$ACTIVE_RUN/claims-released" ]; then
+    ( cd "$WEB" && "$TSX" scripts/release-stuck-doing.ts --agent claude --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" )
+    result=$?
+    [ "$result" -eq 0 ] || return "$result"
+    touch "$ACTIVE_RUN/claims-released" || return 1
+  fi
+  if [ ! -f "$ACTIVE_RUN/wake-recorded" ]; then
+    local keys outcome=failed
+    keys=$(cat "$ACTIVE_RUN/keys") || return 1
+    [ ! -f "$ACTIVE_RUN/outcome" ] || outcome=$(cat "$ACTIVE_RUN/outcome")
+    local -a failed_args
+    failed_args=()
+    [ "$outcome" = "finished" ] || failed_args=(--failed)
+    if [ -n "$keys" ]; then
+      ( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" \
+          --mark-seen "${failed_args[@]}" --seen-keys "$keys" ) || return 1
+    fi
+    touch "$ACTIVE_RUN/wake-recorded" || return 1
+  fi
+  rm -f "$ACTIVE_RUN/claims" "$ACTIVE_RUN/keys" "$ACTIVE_RUN/outcome" "$ACTIVE_RUN/run.out" \
+    "$ACTIVE_RUN/child.pid" "$ACTIVE_RUN/child.started" "$ACTIVE_RUN/guard-clean" "$ACTIVE_RUN/prs-done" \
+    "$ACTIVE_RUN/claims-released" "$ACTIVE_RUN/wake-recorded" "$ACTIVE_RUN/watchdog-fired" || return 1
+  rmdir "$ACTIVE_RUN"
+}
+
+# This runs only for a checkout proven clean before the agent started. Never put WIP
+# on main; retain it on its own branch before allowing the next tick to claim work.
+restore_checkout() {
+  local end_branch dirty_after
+  end_branch=$(git rev-parse --abbrev-ref HEAD) || return 1
+  dirty_after=$(git status --porcelain) || return 1
+  if [ -n "$dirty_after" ]; then
+    LEFT_DIRTY="$dirty_after"
+    if [ "$end_branch" = "main" ] || [ "$end_branch" = "HEAD" ]; then
+      end_branch="wip/fixall-ios-$(date +%Y%m%d-%H%M%S)-$$"
+      git checkout -q -b "$end_branch" || return 1
+    fi
+    git add -A && git commit -q --no-verify -m "wip: scheduled /fixall run ended mid-task — UNFINISHED, UNVERIFIED
+
+Saved by scripts/fixall-loop.sh so the checkout can return to main.
+The build and tests have not been run on this. Continue from here; do not ship it.
+
+Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>" || return 1
+    SAVED_BRANCH="$end_branch"
+    echo "  run left uncommitted changes — saved as a WIP commit on $end_branch"
+  fi
+  if [ "$end_branch" != "main" ]; then
+    git push -q -u origin "$end_branch" || return 1
+    echo "  run left $end_branch — pushed it to origin for review"
+    git checkout -q main || return 1
+    echo "  returned to main from $end_branch"
+  fi
+  rm -f "$ACTIVE_RUN/guard-clean"
+}
+
+LEFT_DIRTY=""
+SAVED_BRANCH=""
+if [ -d "$ACTIVE_RUN" ]; then
+  OLD_CHILD=$(cat "$ACTIVE_RUN/child.pid" 2>/dev/null)
+  OLD_STARTED=$(cat "$ACTIVE_RUN/child.started" 2>/dev/null)
+  if [[ "$OLD_CHILD" == <-> ]] && kill -0 "$OLD_CHILD" 2>/dev/null \
+     && { [ -z "$OLD_STARTED" ] || [ "$OLD_STARTED" = "$(ps -p "$OLD_CHILD" -o lstart= 2>/dev/null)" ]; }; then
+    echo "RESULT: SKIPPED — previous agent process $OLD_CHILD is still alive; retaining its recovery state"
+    exit 0
+  fi
+  echo "  recovering interrupted /fixall bookkeeping from $ACTIVE_RUN"
+  if { [ -f "$ACTIVE_RUN/guard-clean" ] && ! restore_checkout; } || ! finalize_run; then
+    post_to_list "**Scheduled /fixall recovery failed** — work and wake keys are retained in \`$ACTIVE_RUN\`. No new agent was started. Check the Apple host log before retrying."
+    echo "RESULT: FAILED — could not recover the previous run; durable state retained"
+    exit 1
+  fi
+  post_to_list "**Scheduled /fixall recovered an interrupted run** — unfinished claims and wake keys were reconciled before checking for new work.${SAVED_BRANCH:+ Unverified work was saved on \`$SAVED_BRANCH\`.}"
+fi
 
 # The lock is held by THIS script, whose pid the agent cannot see. Inside
 # `claude -p`, $PPID is the claude process — a different LIVE pid — so the
@@ -329,22 +429,58 @@ fi
 BUDGET_ARGS=()
 [ -n "$MAX_USD" ] && BUDGET_ARGS=(--max-budget-usd "$MAX_USD")
 
-# The run's output goes to a file as well as the log, because the loop has to read
-# it back: see RUN_VERDICT below. A plain redirect, not a pipe to tee, so $! is
-# still claude itself and the watchdog kills the right process. `claude -p` prints
-# only its final message, so nothing is lost by echoing it once the run ends.
-RUN_OUT=$(mktemp -t fixall-run) || RUN_OUT=/dev/null
-# Every task this run claims is recorded here (astrid-web's claim-fixall-task.ts),
-# so the ones it leaves in Doing are released after it — exactly, no heuristic.
-CLAIMS_FILE=$(mktemp -t fixall-ios-claims)
+# Keep claims, output and exact wake keys through wrapper crashes/reboots. A missing
+# outcome is a failed run; only verified completion may turn it into "finished".
+umask 077
+if ! mkdir -p "$RUN_STATE" || ! mkdir "$ACTIVE_RUN" \
+   || ! printf '%s\n' "${QUEUE_KEYS:-}" > "$ACTIVE_RUN/keys" \
+   || ! touch "$ACTIVE_RUN/claims" \
+   || { [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ] && ! touch "$ACTIVE_RUN/guard-clean"; }; then
+  echo "RESULT: FAILED — cannot prepare durable run state at $ACTIVE_RUN"
+  exit 1
+fi
+RUN_OUT="$ACTIVE_RUN/run.out"
+CLAIMS_FILE="$ACTIVE_RUN/claims"
 export ASTRID_FIXALL_CLAIMS_FILE="$CLAIMS_FILE"
 
+# Snapshot the tree before sending TERM: children may be reparented when their
+# parent exits. Escalation targets only these specific pids, never process names.
+stop_run() {
+  local -a pids
+  pids=("${(@f)$(process_tree "$CLAUDE_PID")}")
+  local pid
+  for pid in "${pids[@]}"; do kill -TERM "$pid" 2>/dev/null || true; done
+  sleep "$KILL_GRACE"
+  for pid in "${pids[@]}"; do kill -KILL "$pid" 2>/dev/null || true; done
+}
+
+process_tree() {
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do process_tree "$child"; done
+  echo "$1"
+}
+
+INTERRUPTED=0
+CLAUDE_PID=""
+interrupt_run() {
+  INTERRUPTED=1
+  [ -z "$CLAUDE_PID" ] || stop_run
+}
+
 echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})"
+trap interrupt_run INT TERM
 "$CLAUDE" -p "/fixall" \
   --model "$MODEL" \
   --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" \
   "${BUDGET_ARGS[@]}" > "$RUN_OUT" 2>&1 &
 CLAUDE_PID=$!
+if ! printf '%s\n' "$CLAUDE_PID" > "$ACTIVE_RUN/child.pid" \
+   || ! ps -p "$CLAUDE_PID" -o lstart= > "$ACTIVE_RUN/child.started"; then
+  # A very short run may have already exited before ps; that is not a write failure.
+  if kill -0 "$CLAUDE_PID" 2>/dev/null; then
+    interrupt_run
+  fi
+fi
 
 # A run may last MAX_MINUTES and this loop's runs include xcodebuild simulator
 # suites, so it is the most sleep-exposed unattended run on this Mac: idle sleep
@@ -369,18 +505,33 @@ elif [ -n "$CAFFEINATE_BIN" ]; then
   echo "  ⚠️  no caffeinate at $CAFFEINATE_BIN — idle sleep may kill this run"
 fi
 
-( sleep $((MAX_MINUTES * 60)); kill -TERM "$CLAUDE_PID" 2>/dev/null ) &
+watch_run() {
+  sleep $((MAX_MINUTES * 60)) &
+  local sleeper=$!
+  trap 'kill "$sleeper" 2>/dev/null; exit 0' TERM INT
+  wait "$sleeper"
+  touch "$ACTIVE_RUN/watchdog-fired"
+  stop_run
+}
+watch_run &
 WATCHDOG_PID=$!
 
 wait "$CLAUDE_PID"
 STATUS=$?
+[ "$INTERRUPTED" -eq 0 ] || { wait "$CLAUDE_PID" 2>/dev/null; STATUS=143; }
+trap 'exit 143' INT TERM
 if [ -n "$CAFFEINATE_PID" ]; then
   kill "$CAFFEINATE_PID" 2>/dev/null || true
 fi
-kill "$WATCHDOG_PID" 2>/dev/null
+if [ ! -f "$ACTIVE_RUN/watchdog-fired" ]; then
+  kill "$WATCHDOG_PID" 2>/dev/null
+fi
+wait "$WATCHDOG_PID" 2>/dev/null
+if [ -f "$ACTIVE_RUN/watchdog-fired" ] && [ "$STATUS" -lt 128 ]; then
+  STATUS=143
+fi
 cat "$RUN_OUT" 2>/dev/null
 RUN_VERDICT=$(grep -E '^RESULT: ' "$RUN_OUT" 2>/dev/null | tail -1)
-[ "$RUN_OUT" != /dev/null ] && rm -f "$RUN_OUT"
 
 # The other half of AITD-426. `claude -p` exiting 0 is not enough: the 17:30 run
 # exited 0 with four files still uncommitted, so this recorded OK, the wake keys
@@ -402,38 +553,13 @@ RUN_VERDICT=$(grep -E '^RESULT: ' "$RUN_OUT" 2>/dev/null | tail -1)
 # held someone's work before the run, and that is not the loop's to commit.
 LEFT_DIRTY=""
 SAVED_BRANCH=""
+RESTORE_FAILED=0
 if [ "$GUARDS_CONFIRMED_CLEAN" -eq 1 ]; then
-  END_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-  DIRTY_AFTER=$(git status --porcelain 2>/dev/null)
-  if [ -n "$DIRTY_AFTER" ]; then
-    if [ "$STATUS" -eq 0 ]; then
-      LEFT_DIRTY="$DIRTY_AFTER"
-      STATUS=90
-    fi
-    if [ "$END_BRANCH" = "main" ] || [ "$END_BRANCH" = "HEAD" ]; then
-      END_BRANCH="wip/fixall-ios-$(date +%Y%m%d-%H%M%S)"
-      git checkout -q -b "$END_BRANCH"
-    fi
-    if git add -A && git commit -q --no-verify -m "wip: scheduled /fixall run ended mid-task — UNFINISHED, UNVERIFIED
-
-Saved by scripts/fixall-loop.sh (claude exit $STATUS) so the checkout can return
-to main. The build and tests have not been run on this. Continue from here; do
-not ship it."; then
-      SAVED_BRANCH="$END_BRANCH"
-      echo "  run left uncommitted changes — saved as a WIP commit on $END_BRANCH"
-    else
-      echo "  ⚠️  run left $END_BRANCH with uncommitted changes and they could not be committed — leaving it for a human"
-    fi
+  if ! restore_checkout; then
+    RESTORE_FAILED=1
+    [ "$STATUS" -ne 0 ] || STATUS=92
   fi
-  if [ "$END_BRANCH" != "main" ] && [ -z "$(git status --porcelain 2>/dev/null)" ]; then
-    if git push -q -u origin "$END_BRANCH" 2>/dev/null; then
-      echo "  run left $END_BRANCH — pushed it to origin for review"
-    else
-      echo "  ⚠️  run left $END_BRANCH and it could not be pushed"
-      post_to_list "**Scheduled /fixall left unpushed work on \`$END_BRANCH\`** — the push failed. The branch is still in $REPO; the loop has gone back to main."
-    fi
-    git checkout -q main && echo "  returned to main from $END_BRANCH"
-  fi
+  [ -z "$LEFT_DIRTY" ] || [ "$STATUS" -ne 0 ] || STATUS=90
 fi
 
 # A run that SAYS it failed has failed, whatever it exits (AITD-440). On
@@ -451,35 +577,15 @@ if [ "$STATUS" -eq 0 ] && [[ "$RUN_VERDICT" == "RESULT: FAILED"* ]]; then
   STATUS=91
 fi
 
-# A completed task's branch gets a PR. `gh` is denied inside the session, so
-# finished work sat on pushed branches nobody was asked to review (astrid-web,
-# 2026-09-29). The runner can run gh; --repo points it at THIS repo's origin.
-PR_OUT=$( cd "$WEB" && "$TSX" scripts/open-fixall-prs.ts --claims-file "$CLAIMS_FILE" --repo "$REPO" 2>&1 )
-PR_STATUS=$?
-[ -n "$PR_OUT" ] && echo "$PR_OUT" | sed 's/^/ /'
-if [ "$PR_STATUS" -eq 3 ]; then
-  post_to_list "**Scheduled /fixall finished work but could not open its PR** — open it by hand so it gets reviewed:
-
-$(echo "$PR_OUT" | grep 'PR: FAILED')"
-fi
-
-# A finished task is completed, a blocked one is in Waiting: anything this run
-# claimed that is STILL in Doing was abandoned mid-task. Release it after the
-# branch above is pushed, so its comment can point at the work.
-( cd "$WEB" && "$TSX" scripts/release-stuck-doing.ts --agent claude --claims-file "$CLAIMS_FILE" --repo "$REPO" 2>&1 ) | sed 's/^/ /'
-rm -f "$CLAIMS_FILE"
-
-# Phase two of waking, before the RESULT lines so that line stays last (the
-# header promises it). A finished run had its chance at the preflight's items:
-# they are marked seen and will not wake another run. A run that died gives them
-# a strike instead. Same `cd "$WEB"` as the preflight — loadScriptEnv() reads
-# .env.local from the cwd, and that file lives in astrid-web.
-if [ -n "${QUEUE_KEYS:-}" ]; then
-  if [ "$STATUS" -eq 0 ]; then
-    ( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --mark-seen --seen-keys "$QUEUE_KEYS" 2>&1 ) | sed 's/^/  /'
-  else
-    ( cd "$WEB" && "$TSX" scripts/agent-queue-status.ts --agent claude --list "$IOS_LIST_ID" --mark-seen --failed --seen-keys "$QUEUE_KEYS" 2>&1 ) | sed 's/^/  /'
-  fi
+# Record completion before any bookkeeping: after a reboot the same outcome and
+# exact keys must be used. If recovery fails, do not acknowledge anything yet.
+OUTCOME=failed
+[ "$STATUS" -ne 0 ] || OUTCOME=finished
+if ! printf '%s\n' "$OUTCOME" > "$ACTIVE_RUN/outcome" \
+   || [ "$RESTORE_FAILED" -ne 0 ] || ! finalize_run; then
+  post_to_list "**Scheduled /fixall bookkeeping failed** — its claims, output and wake keys remain in \`$ACTIVE_RUN\`. The next tick retries recovery before starting any new agent; no successful wake acknowledgement was recorded."
+  echo "RESULT: FAILED — post-run recovery incomplete; durable state retained"
+  exit 1
 fi
 
 if [ "$STATUS" -eq 0 ]; then
@@ -489,7 +595,7 @@ fi
 
 # A run that died cannot write its own completion comment, and this is precisely
 # the outcome worth hearing about, so the wrapper says it on the board itself.
-if [ -n "$LEFT_DIRTY" ]; then
+if [ -n "$LEFT_DIRTY" ] && [ "$STATUS" -eq 90 ]; then
   REASON="run left the tree dirty"
   post_to_list "## Scheduled /fixall left work uncommitted
 
@@ -516,7 +622,9 @@ Its wake items got a strike rather than being marked seen, so the next tick trie
   exit 1
 fi
 
-if [ "$STATUS" -ge 128 ]; then
+if [ "$INTERRUPTED" -ne 0 ]; then
+  REASON="launcher interrupted (signal $((STATUS - 128)))"
+elif [ "$STATUS" -ge 128 ]; then
   REASON="killed after ${MAX_MINUTES}m watchdog timeout (signal $((STATUS - 128)))"
 else
   REASON="claude exited $STATUS"

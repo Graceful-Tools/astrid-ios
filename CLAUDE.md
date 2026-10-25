@@ -197,7 +197,11 @@ session starts, so a quiet tick costs nothing. A run is bounded by both a wall-c
 and `--max-budget-usd`. Three skips in a row on a dirty tree or the wrong branch posts once to
 the iOS list chat, and a run that hands back a dirty tree is `RESULT: FAILED`, not `OK` —
 a correct one-tick skip used to become an invisible 12-hour stall (AITD-426). Every tick, session or not, also runs `scripts/close-built-tasks.mjs`, which completes Doing tasks once a VALID TestFlight build carries the commit named in their `**Awaiting build:**` comment. Before this, tasks sat in Doing whenever the queue was quiet. `npm run fixall:loop` runs one pass by hand; the log is
-`~/Library/Logs/astrid-fixall.log`.
+`~/Library/Logs/astrid-fixall.log`. The existing launcher belongs on the dedicated Apple
+device, not the coordinating Mac. Its durable run journal retries interrupted bookkeeping
+before checking for new work, and the node shim forwards stop signals through workload
+cleanup. Tooling-path configuration, ordinary-comment handback/resume prerequisites, recovery
+details and on-device rollout checks live in `.claude/commands/fixall.md`.
 
 **Run summaries go to the iOS list's Astrid chat, not to chat here** — per-task detail stays in
 each task's completion comment, and the terminal gets one `RESULT:` line. See
