@@ -128,6 +128,9 @@ struct LoginView: View {
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
                             .disabled(isLoading || isCreatingLocalUser)
                             .opacity(isLoading || isCreatingLocalUser ? 0.6 : 1.0)
+                            // The same identifier as WelcomeChoiceView's button: signing out lands
+                            // HERE, and the UI suite finds "signed out" by it (AITD-526).
+                            .accessibilityIdentifier("login.useWithoutAccount")
 
                             // Description text
                             Text(NSLocalizedString("auth.local_mode_description", comment: "Your tasks stay on this device. Sign in later to sync across devices."))
