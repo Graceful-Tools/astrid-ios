@@ -45,10 +45,12 @@ struct MacAccountView: View {
 
             Section {
                 Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
+                    .accessibilityIdentifier("account.destructive.signOut")
             }
 
             Section(NSLocalizedString("messages.danger_zone", comment: "")) {
                 Button(NSLocalizedString("settings.account.delete_account", comment: ""), role: .destructive) { showDelete = true }
+                    .accessibilityIdentifier("account.destructive.deleteAccount")
             }
         }
         .formStyle(.grouped).macThemedSurface()
@@ -84,8 +86,7 @@ struct MacAccountView: View {
     }
 
     private func saveName() {
-        let n = name.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty, n != auth.currentUser?.name else { return }
+        guard let n = MacAccountRules.renamed(from: auth.currentUser?.name, to: name) else { return }
         AppActions.perform("Update name") {
             _ = try await AccountService.shared.updateAccount(name: n, email: nil, image: nil)
             savedFlash = true
@@ -110,7 +111,7 @@ struct MacDeleteAccountSheet: View {
                 Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }.keyboardShortcut(.escape, modifiers: [])
                 Button(NSLocalizedString("settings.account.delete_account", comment: ""), role: .destructive, action: delete)
                     .buttonStyle(.borderedProminent).tint(Theme.error)
-                    .disabled(confirm != "DELETE" || working)
+                    .disabled(!MacAccountRules.mayDelete(confirmation: confirm, working: working))
             }
         }
         .padding(20)
@@ -126,6 +127,22 @@ struct MacDeleteAccountSheet: View {
             try? await AuthManager.shared.signOut()
             dismiss()
         }
+    }
+}
+/// The account screen's two guards (AITD-540). Rename and delete both go through `AccountService`;
+/// these decide whether either is sent at all.
+enum MacAccountRules {
+    /// The name to save, or nil when there is nothing to save — empty after trimming, or unchanged.
+    static func renamed(from current: String?, to typed: String) -> String? {
+        let name = typed.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, name != current else { return nil }
+        return name
+    }
+
+    /// Delete asks first: the button stays disabled until "DELETE" is typed exactly, and while a
+    /// delete is already on its way.
+    static func mayDelete(confirmation: String, working: Bool) -> Bool {
+        confirmation == "DELETE" && !working
     }
 }
 #endif

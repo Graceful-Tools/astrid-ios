@@ -60,6 +60,8 @@ struct ProjectStateQuickPicker: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(column.name)
+                // The column id is its role (`done`, `doing`…), so this reads the same in French.
+                .accessibilityIdentifier("projectState.\(column.id)")
             }
         }
         .task(id: askKey) { await options.refresh(task.id) }

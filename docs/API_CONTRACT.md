@@ -39,8 +39,8 @@ The cap is the contract. The server attaches `deletedIds` only to a request that
 `updatedSince`, and web expires deletion tombstones after 30 days (`DELETION_LOG_RETENTION_DAYS`,
 AWTD-993). A cursor older than that would yield a delta that no longer mentions the deletion, and
 the local copy would stay visible forever with nothing raising anything. An Apple app can sit
-unlaunched for months, so the full-pull fallback is not optional. `DeltaSyncCursorGuardTests` only
-keeps Swift code from adding a second, uncapped cursor beside the core's. See AITD-427.
+unlaunched for months, so the full-pull fallback is not optional. The cap and its tests live in
+astrid-core (`sync::max_delta_age`); the Swift side sends no cursor of its own. See AITD-427.
 
 ---
 

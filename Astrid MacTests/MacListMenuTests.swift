@@ -27,22 +27,38 @@ final class MacListMenuTests: XCTestCase {
 
     // MARK: - Who sees what
 
-    /// The owner sees everything, Delete included.
+    /// The owner sees everything — which no longer includes Delete (AITD-552).
     ///
     /// `edit` and `sharing` became one `listSettings` item in AITD-388 — two sheets for one
     /// list's settings, with the roster hidden behind whichever you happened to pick.
     func testOwnerSeesEveryItem_AITD373() {
         let items = MacListMenu.items(for: list(), userId: owner)
-        XCTAssertEqual(items, [.listSettings, .toggleFavorite, .enableBoard, .divider, .delete])
+        XCTAssertEqual(items, [.listSettings, .toggleFavorite, .enableBoard])
     }
 
-    /// An admin may reconfigure the list but not destroy it — deleting a shared list destroys
-    /// other people's work, so it stays with the owner. Same split ListPermissions draws.
-    func testAdminSeesEverythingButDelete_AITD373() {
-        let items = MacListMenu.items(for: list(), userId: admin)
-        XCTAssertTrue(items.contains(.listSettings))
-        XCTAssertFalse(items.contains(.delete))
-        XCTAssertFalse(items.contains(.divider), "no divider with nothing behind it")
+    /// An admin may reconfigure the list, the same as the owner in this menu.
+    func testAdminSeesTheSameMenuAsTheOwner_AITD373() {
+        XCTAssertEqual(MacListMenu.items(for: list(), userId: admin),
+                       MacListMenu.items(for: list(), userId: owner))
+    }
+
+    // MARK: - Delete lives in Admin (AITD-552)
+
+    /// AITD-552: "Move the 'delete' quick action to the admin." Destroying a list was one click
+    /// away in the gear and the sidebar right-click; it is in List Settings ▸ Admin now.
+    func testDeleteIsInTheAdminTabNotTheQuickMenu_AITD552() {
+        // The menu has no Delete case to offer; the owner's full menu is just these three.
+        XCTAssertEqual(MacListMenu.items(for: list(), userId: owner),
+                       [.listSettings, .toggleFavorite, .enableBoard])
+        XCTAssertTrue(MacListAdminTab.offersDelete(for: list(), userId: owner))
+    }
+
+    /// The owner-only rule moves with it: an admin may change every setting but not destroy
+    /// other people's work, and a member never sees the Admin tab at all.
+    func testOnlyTheOwnerIsOfferedDeleteInAdmin_AITD552() {
+        XCTAssertFalse(MacListAdminTab.offersDelete(for: list(), userId: admin))
+        XCTAssertFalse(MacListAdminTab.offersDelete(for: list(), userId: member))
+        XCTAssertFalse(MacListAdminTab.offersDelete(for: list(), userId: nil))
     }
 
     /// A plain member now gets List Settings too (AITD-388). The WINDOW decides which tabs they
@@ -57,7 +73,6 @@ final class MacListMenuTests: XCTestCase {
     /// asks `ListPermissions` for itself, so offering the entry gives nothing away.
     func testAStrangerSeesNoAdminItems_AITD373() {
         let items = MacListMenu.items(for: list(), userId: nil)
-        XCTAssertFalse(items.contains(.delete))
         XCTAssertFalse(items.contains(.enableBoard))
     }
 
@@ -95,6 +110,17 @@ final class MacListMenuTests: XCTestCase {
     /// used to be reachable only by right-clicking the sidebar row (AITD-373 kept it off).
     func testListModeHeaderOffersTheListMenu_AITD522() {
         XCTAssertTrue(MacListChrome.showsListMenu(isRealList: true, isListMode: true))
+    }
+
+    /// AITD-552: the gear sits beside the list/board picker in the window toolbar, in both modes,
+    /// and the strip above the rows no longer draws a second one.
+    func testTheGearSitsBesideTheModePicker_AITD552() {
+        for isListMode in [true, false] {
+            XCTAssertTrue(MacListChrome.titleBarShowsListMenu(isRealList: true, isListMode: isListMode))
+            XCTAssertFalse(MacListChrome.stripShowsListMenu(isRealList: true, isListMode: isListMode))
+        }
+        XCTAssertFalse(MacListChrome.titleBarShowsListMenu(isRealList: false, isListMode: true),
+                       "My Tasks owns no list settings")
     }
 
     /// …behind a gear, the Mac's settings glyph, rather than the sliders that read as filters.

@@ -13,10 +13,66 @@
 #   ./scripts/monkey-test.sh ios --actions 400 --seed 7
 #
 # Every run ends with one line starting `RESULT:`. Findings land in build/monkey/.
+#   RESULT: OK       exit 0 — the app survived
+#   RESULT: FAILED   exit 1 — the app did not survive, or nothing was stressed
+#   RESULT: HARNESS  exit 3 — the machine could not run a UI test (locked screen, app never
+#                    reached the foreground). Says nothing about the app either way.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
+
+# The verdict, as a function of the xcodebuild log and its exit code alone, so
+# scripts/test-monkey-verdict.sh can pin it: `monkey-test.sh --classify <log> <rc>` prints
+# "<verdict> — <why>" and runs nothing.
+classify() {
+  local log="$1" rc="$2"
+  VERDICT="ok"; VERDICT_WHY=""
+  if grep -q "Failed to activate application" "$log" 2>/dev/null; then
+    # Checked first: it fails the test, but it is the machine, not the app (see the lock check).
+    VERDICT="harness"
+    VERDICT_WHY="${SCHEME:-the app} launched but never reached the foreground (locked screen or another app holding focus)"
+  elif grep -qiE "test case '.*monkeyuitests.*' skipped" "$log" 2>/dev/null; then
+    VERDICT="failed"
+    VERDICT_WHY="the monkey SKIPPED instead of running, so nothing was stressed"
+  elif [ "$rc" -ne 0 ]; then
+    VERDICT="failed"
+    VERDICT_WHY="${SCHEME:-the app} did not survive the run — search $log for XCTFail"
+  elif ! grep -qiE "test case '.*monkeyuitests.*' passed" "$log" 2>/dev/null; then
+    # Both output shapes: "Test case 'MonkeyUITests...' passed" under parallel testing, and
+    # "Test Case '-[Astrid_AppUITests.MonkeyUITests ...]' passed" without it.
+    VERDICT="failed"
+    VERDICT_WHY="xcodebuild exited 0 but no monkey test reported passing, so nothing was stressed"
+  fi
+}
+
+if [ "${1:-}" = "--classify" ]; then
+  classify "${2:?log path}" "${3:?exit code}"
+  echo "$VERDICT — ${VERDICT_WHY:-survived}"
+  exit 0
+fi
+
+# The level the system log is captured at (AITD-548). NOT debug: debug messages are generated only
+# while someone streams at that level, so `--level debug` switched on every framework's debug
+# logging inside the app. XCTest's accessibility snapshot on each action then made the app emit
+# ~1.5M lines in 200 actions — Accessibility naming colours through CFBundle string lookups,
+# CFPrefs reading XCTest's automation keys — the OS quarantined its log (QUARANTINED DUE TO HIGH
+# LOGGING VOLUME) and dropped every line after, real errors included. The app's own code wrote
+# six. The sweep below reads only Error and Fault lines, which `info` keeps; debug also wrote the
+# run's session cookie into the file, as CFPrefs echoed the launch argument.
+# ASTRID_MONKEY_LOG_LEVEL=debug still gets a debug capture, for a deliberate deep dive.
+capture_level() {
+  case "${ASTRID_MONKEY_LOG_LEVEL:-info}" in
+    default|info|debug) echo "${ASTRID_MONKEY_LOG_LEVEL:-info}" ;;
+    *) echo "  ? ASTRID_MONKEY_LOG_LEVEL=$ASTRID_MONKEY_LOG_LEVEL is not default, info or debug — using info" >&2
+       echo info ;;
+  esac
+}
+
+if [ "${1:-}" = "--capture-level" ]; then
+  capture_level
+  exit 0
+fi
 
 TARGET="${1:-}"; shift || true
 ACTIONS=150; SEED=""; HANG=10
@@ -89,6 +145,18 @@ if [ "$TARGET" = "mac" ] && ! DevToolsSecurity -status 2>/dev/null | grep -q ena
   exit 1
 fi
 
+# A locked screen puts a shield window over every app, so the app under test launches but can
+# never come to the foreground. XCUITest then fails `launch()` itself with "Failed to activate
+# application … (current state: Running Background)", and the app log shows AppKit refusing to
+# vend accessibility elements because the window "is lower than shield(2001)". The weekly Mac run
+# hit exactly this four Mondays running and reported it as "did not survive" (AITD-530). Ask first.
+if [ "$TARGET" = "mac" ] && ioreg -n Root -d1 -a 2>/dev/null | plutil -extract IOConsoleUsers xml1 -o - - 2>/dev/null \
+     | grep -A1 CGSSessionScreenIsLocked | grep -q "<true/>"; then
+  echo ""
+  echo "RESULT: HARNESS — the screen is locked, so the Mac app cannot reach the foreground. Unlock it and re-run."
+  exit 3
+fi
+
 # The knobs travel in a bundle resource, not the environment: xcodebuild does not forward the
 # shell environment to the UI-test runner, so `--actions 25` silently ran 150 until this existed.
 CONFIG_PLIST="$ROOT/$CONFIG_DIR/MonkeyConfig.plist"
@@ -104,13 +172,14 @@ echo "  Config written for the test bundle"
 # macOS the system log filtered to the app. Started before the run and stopped after, so the
 # window covers exactly the monkey's actions and nothing else.
 STREAM_PID=""
+LOG_LEVEL=$(capture_level)
 start_log_capture() {
   if [ "$TARGET" = "ios" ]; then
     [ -n "${SIM_UDID:-}" ] || return 0
-    xcrun simctl spawn "$SIM_UDID" log stream --level debug \
+    xcrun simctl spawn "$SIM_UDID" log stream --level "$LOG_LEVEL" \
       --predicate 'processImagePath CONTAINS "Astrid"' > "$OUT/system-$TARGET.log" 2>/dev/null &
   else
-    log stream --level debug --predicate 'processImagePath CONTAINS "Astrid"' \
+    log stream --level "$LOG_LEVEL" --predicate 'processImagePath CONTAINS "Astrid"' \
       > "$OUT/system-$TARGET.log" 2>/dev/null &
   fi
   STREAM_PID=$!
@@ -167,19 +236,7 @@ stop_log_capture
 
 # Whether the run counts is decided here, but NOT acted on until after the log sweep: the sweep is
 # the half of this that finds the quiet problems, and an early exit would throw it away.
-VERDICT="ok"; VERDICT_WHY=""
-if grep -qiE "test case '.*monkeyuitests.*' skipped" "$LOG" 2>/dev/null; then
-  VERDICT="failed"
-  VERDICT_WHY="the monkey SKIPPED instead of running, so nothing was stressed"
-elif [ "$TEST_RC" -ne 0 ]; then
-  VERDICT="failed"
-  VERDICT_WHY="$SCHEME did not survive the run — search $LOG for XCTFail"
-elif ! grep -qiE "test case '.*monkeyuitests.*' passed" "$LOG" 2>/dev/null; then
-  # Both output shapes: "Test case 'MonkeyUITests...' passed" under parallel testing, and
-  # "Test Case '-[Astrid_AppUITests.MonkeyUITests ...]' passed" without it.
-  VERDICT="failed"
-  VERDICT_WHY="xcodebuild exited 0 but no monkey test reported passing, so nothing was stressed"
-fi
+classify "$LOG" "$TEST_RC"
 
 step "What the app logged while being hammered"
 # Severity first, keywords second.
@@ -206,10 +263,12 @@ if [ "${TOTAL:-0}" -gt 0 ]; then
   echo "" | tee -a "$FINDINGS"
 
   # What is left after the frameworks that are noisy BY DESIGN in a test simulator: the harness
-  # itself, and haptics on a device that has none. Whatever remains is worth a human's attention.
+  # itself, and haptics on a device that has none (CoreHaptics, and the keyboard's
+  # UIKBFeedbackGenerator failing to build a CHHapticPattern). Whatever remains is worth a human's attention.
   echo "  after dropping known test-environment noise:" | tee -a "$FINDINGS"
-  printf "%s" "$APP_ERRORS" \
-    | grep -viE "XCTAutomationSupport|CoreHaptics|AXRuntime|UIAccessibility" \
+  # 2>/dev/null: `head` closes the pipe early, and printf would report the broken pipe.
+  printf "%s" "$APP_ERRORS" 2>/dev/null \
+    | grep -viE "XCTAutomationSupport|CoreHaptics|UIKBFeedbackGenerator|AXRuntime|UIAccessibility|AccessibilitySettingsLoader|libCoreFSCache" \
     | cut -c1-240 | head -20 | sed 's/^/    /' | tee -a "$FINDINGS" || true
 fi
 
@@ -220,7 +279,8 @@ for check in "crash:fatal error|Fatal Exception|SIGABRT|EXC_BAD_ACCESS" \
              "Swift runtime trap:Swift runtime failure|precondition failed" \
              "layout constraint break:Unable to simultaneously satisfy" \
              "Core Data error:com.apple.CoreData.*(error|Fault)|CoreData: error" \
-             "app hang:hang detected|Hang detected"; do
+             "app hang:hang detected|Hang detected" \
+             "log volume quarantined:QUARANTINED DUE TO HIGH LOGGING VOLUME"; do
   label="${check%%:*}"; pattern="${check#*:}"
   n=$(printf "%s" "$APP_ERRORS" | grep -ciE "$pattern" || true)
   printf "  %-24s %s\n" "$label" "${n:-0}" | tee -a "$FINDINGS"
@@ -229,6 +289,8 @@ done
 echo ""
 if [ "$VERDICT" = "ok" ]; then
   green "✓ The app survived: no crash, no hang, still driveable"
+elif [ "$VERDICT" = "harness" ]; then
+  echo "  ? $VERDICT_WHY — the run says nothing about the app"
 else
   echo "  ✗ $VERDICT_WHY"
 fi
@@ -239,6 +301,10 @@ echo ""
 if [ "$VERDICT" = "ok" ]; then
   echo "RESULT: OK — $SCHEME survived $ACTIONS random actions. Log findings counted in $FINDINGS"
   exit 0
+fi
+if [ "$VERDICT" = "harness" ]; then
+  echo "RESULT: HARNESS — $VERDICT_WHY. Details: $LOG"
+  exit 3
 fi
 echo "RESULT: FAILED — $VERDICT_WHY. Details: $LOG"
 exit 1

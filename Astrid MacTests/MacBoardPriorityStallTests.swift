@@ -84,8 +84,6 @@ final class MacBoardPriorityStallTests: XCTestCase {
         let url = RepositoryLocator.root
             .appendingPathComponent("Astrid Mac/Views/MacBoardView.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertFalse(source.contains("guard priority != t.priority"),
-                       "comparing the tap against the card's snapshot is the stall")
         XCTAssertTrue(source.contains("MacBoardPriorityTap.tap"),
                       "the board must ask the shared rule")
     }

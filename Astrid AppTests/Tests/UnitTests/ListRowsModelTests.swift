@@ -154,10 +154,7 @@ final class ListRowsModelTests: XCTestCase {
         try await session.run(command)
         changed.send(())
 
-        let deadline = Date().addingTimeInterval(5)
-        while model.rowIds.count == 2, Date() < deadline {
-            try await _Concurrency.Task.sleep(nanoseconds: 20_000_000)
-        }
+        await waitUntil(model, "the re-prioritised row to leave the filter") { model.rowIds.count != 2 }
         XCTAssertEqual(model.rowIds, ["b"])
     }
 }

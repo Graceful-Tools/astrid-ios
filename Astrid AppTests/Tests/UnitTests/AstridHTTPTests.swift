@@ -85,9 +85,22 @@ final class AstridHTTPTests: XCTestCase {
                        Constants.API.timeout)
     }
 
-    func testTheSharedSessionIsBuiltThroughTheUITestHardening() {
-        // Outside a UI test `harden` is a no-op, so the observable claim is that the session is
-        // NOT the shared one — which is what carries the ambient cookie jar.
+    /// The configuration AstridHTTP builds, asserted field by field rather than as "not
+    /// URLSession.shared" (AITD-534): outside a UI test `harden` leaves it alone, so this is the
+    /// session the app ships — cookie auth on, the app's own timeout.
+    func testTheSharedSessionIsConfiguredForCookieAuth() {
+        let configuration = AstridHTTP.session.configuration
         XCTAssertFalse(AstridHTTP.session === URLSession.shared)
+        XCTAssertEqual(configuration.httpCookieAcceptPolicy, .always)
+        XCTAssertTrue(configuration.httpShouldSetCookies, "requests must carry the session cookie")
+        XCTAssertEqual(configuration.timeoutIntervalForRequest, Constants.API.timeout)
+    }
+
+    /// And the ephemeral one the passkey exchange uses keeps no stored state of its own.
+    func testTheEphemeralSessionKeepsNothing() {
+        let configuration = AstridHTTP.ephemeralSession().configuration
+        XCTAssertEqual(configuration.urlCache?.diskCapacity ?? 0, 0, "ephemeral: nothing written to disk")
+        XCTAssertEqual(configuration.timeoutIntervalForRequest, Constants.API.timeout)
+        XCTAssertEqual(configuration.timeoutIntervalForResource, Constants.API.timeout)
     }
 }

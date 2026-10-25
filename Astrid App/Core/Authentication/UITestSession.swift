@@ -106,17 +106,111 @@ enum UITestSession {
     /// id, so `debug_server_url` is the DEVELOPER'S setting sitting in the same container. A run
     /// that inherited it would point at whatever host they last used and fail somewhere else
     /// entirely — the same class of leak the keychain guard exists to prevent.
+    ///
+    /// **`uiTestBaseURL` is the one exception, and it is explicit** (AITD-527): a run handed
+    /// `-uiTestBaseURL <url>` goes there instead of production, so a staging deploy can be
+    /// tested before it ships. Unlike the debug preference, nobody inherits it — the test
+    /// runner passes it per launch — and outside a test run it is ignored.
     static func resolvedBaseURL(isUITesting: Bool,
+                                isOffline: Bool = false,
+                                uiTestBaseURL: String? = nil,
                                 debugPreference: String?,
                                 defaultURL: String,
                                 productionURL: String) -> String {
-        if isUITesting { return productionURL }
+        if isUITesting && isOffline { return unreachableBaseURL }
+        if isUITesting { return nonEmpty(uiTestBaseURL) ?? productionURL }
         if let preference = nonEmpty(debugPreference) { return preference }
         return defaultURL
     }
 
     /// An unset shell variable expands to the empty string, and a blank credential produces a
     /// puzzling 401 rather than an obviously signed-out app.
+    /// The launch argument that points a UI-test run at another server (AITD-527).
+    static let baseURLArgument = "-uiTestBaseURL"
+
+    /// The server this run was told to use, or nil for production.
+    ///
+    /// Only under the UI-test flag, and only an http(s) URL with a host: a malformed value
+    /// would point the run at nothing, which fails exactly like being signed out. A trailing
+    /// slash is dropped, since every path the app builds starts with one.
+    static func baseURLOverride(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: baseURLArgument),
+              index + 1 < arguments.count,
+              var value = nonEmpty(arguments[index + 1]),
+              let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty
+        else { return nil }
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }
+
+    static var baseURLOverride: String? {
+        baseURLOverride(arguments: ProcessInfo.processInfo.arguments)
+    }
+
+    /// The launch argument that cuts a UI-test run off from every server (AITD-528).
+    ///
+    /// The Outbox journey quick-adds with no network and relaunches online to see the write
+    /// arrive. The simulator cannot be taken offline from a test, so the app is pointed at an
+    /// address nothing listens on: every request — the core's, `AstridAPIClient`'s, `AstridHTTP`'s,
+    /// all of which build on `Constants.API.baseURL` — fails at once, the way a dead network does.
+    static let offlineArgument = "-uiTestOffline"
+
+    /// Loopback's discard port: refused immediately, never reaches anyone.
+    static let unreachableBaseURL = "http://127.0.0.1:9"
+
+    /// Only under the UI-test flag, so a stray argument can never take the real app offline.
+    nonisolated static func isOffline(arguments: [String]) -> Bool {
+        isUITesting(arguments: arguments) && arguments.contains(offlineArgument)
+    }
+
+    static var isOffline: Bool { isOffline(arguments: ProcessInfo.processInfo.arguments) }
+
+    /// The launch argument naming the run's scratch cache, so a relaunch reopens it (AITD-528).
+    ///
+    /// Each UI-test process otherwise gets a fresh one (`AppCore.uiTestCacheURL`), which is the
+    /// right default and the wrong thing for a write queued offline: the relaunch that should
+    /// deliver it would open an empty journal.
+    static let cacheNameArgument = "-uiTestCacheName"
+
+    /// The name, if it is one: letters, digits and dashes only, since it becomes a directory.
+    nonisolated static func cacheName(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: cacheNameArgument),
+              index + 1 < arguments.count
+        else { return nil }
+        let value = arguments[index + 1]
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-"))
+        guard !value.isEmpty, value.count <= 64,
+              value.unicodeScalars.allSatisfy({ allowed.contains($0) && $0.isASCII })
+        else { return nil }
+        return value
+    }
+
+    /// The launch argument that stands in for the Share Extension (AITD-542). A test cannot drive
+    /// the system share sheet, so the app queues a share titled with this value in the App Group
+    /// at launch — exactly what the extension writes — and the ordinary drain makes it a task.
+    static let sharePayloadArgument = "-uiTestSharePayload"
+
+    /// The title to queue, only under the UI-test flag.
+    nonisolated static func sharePayload(arguments: [String]) -> String? {
+        guard isUITesting(arguments: arguments),
+              let index = arguments.firstIndex(of: sharePayloadArgument),
+              index + 1 < arguments.count
+        else { return nil }
+        let value = arguments[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    /// The share the extension would have queued for `title`: a web page, the address in its notes.
+    nonisolated static func sharePayloadTask(title: String) -> SharedTaskData {
+        SharedTaskData(title: title, description: sharePayloadURL)
+    }
+
+    nonisolated static let sharePayloadURL = "https://example.com/shared-from-safari"
+
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }

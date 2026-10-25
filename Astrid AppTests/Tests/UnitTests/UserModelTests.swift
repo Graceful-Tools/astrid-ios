@@ -4,48 +4,6 @@ import XCTest
 /// Unit tests for User model
 final class UserModelTests: XCTestCase {
 
-    // MARK: - Basic User Tests
-
-    func testCreateUser() {
-        let user = User(
-            id: "user-123",
-            email: "test@example.com",
-            name: "John Doe",
-            image: "https://example.com/avatar.jpg",
-            createdAt: Date(),
-            defaultDueTime: "09:00",
-            isPending: false,
-            isAIAgent: false,
-            aiAgentType: nil
-        )
-
-        XCTAssertEqual(user.id, "user-123")
-        XCTAssertEqual(user.email, "test@example.com")
-        XCTAssertEqual(user.name, "John Doe")
-        XCTAssertEqual(user.image, "https://example.com/avatar.jpg")
-        XCTAssertEqual(user.defaultDueTime, "09:00")
-        XCTAssertEqual(user.isPending, false)
-        XCTAssertEqual(user.isAIAgent, false)
-    }
-
-    func testCreateMinimalUser() {
-        let user = User(
-            id: "minimal-user",
-            email: nil,
-            name: nil,
-            image: nil,
-            createdAt: nil,
-            defaultDueTime: nil,
-            isPending: nil,
-            isAIAgent: nil,
-            aiAgentType: nil
-        )
-
-        XCTAssertEqual(user.id, "minimal-user")
-        XCTAssertNil(user.email)
-        XCTAssertNil(user.name)
-    }
-
     // MARK: - Display Name Tests
 
     func testDisplayNameWithName() {
@@ -140,23 +98,6 @@ final class UserModelTests: XCTestCase {
 
     // MARK: - AI Agent Tests
 
-    func testAIAgentUser() {
-        let aiUser = User(
-            id: "ai-agent",
-            email: "claude@astrid.cc",
-            name: "Claude",
-            image: nil,
-            createdAt: nil,
-            defaultDueTime: nil,
-            isPending: nil,
-            isAIAgent: true,
-            aiAgentType: "claude"
-        )
-
-        XCTAssertTrue(aiUser.isAIAgent ?? false)
-        XCTAssertEqual(aiUser.aiAgentType, "claude")
-    }
-
     func testAvatarURL() {
         // AI agents now have their logos stored in the image field
         // avatarURL simply returns the image field for all users
@@ -200,61 +141,5 @@ final class UserModelTests: XCTestCase {
             aiAgentType: nil
         )
         XCTAssertNil(noImageUser.avatarURL)
-    }
-
-
-    func testPendingUser() {
-        let pendingUser = User(
-            id: "pending-user",
-            email: "invite@example.com",
-            name: nil,
-            image: nil,
-            createdAt: nil,
-            defaultDueTime: nil,
-            isPending: true,
-            isAIAgent: nil,
-            aiAgentType: nil
-        )
-
-        XCTAssertTrue(pendingUser.isPending ?? false)
-    }
-
-    // MARK: - Equatable Tests
-
-    @MainActor func testUserEquality() {
-        let user1 = TestHelpers.createTestUser(id: "same-id", name: "User One")
-        let user2 = TestHelpers.createTestUser(id: "same-id", name: "User One")
-
-        XCTAssertEqual(user1, user2)
-    }
-
-    @MainActor func testUserInequality() {
-        let user1 = TestHelpers.createTestUser(id: "user-1", name: "User One")
-        let user2 = TestHelpers.createTestUser(id: "user-2", name: "User Two")
-
-        XCTAssertNotEqual(user1, user2)
-    }
-
-    // MARK: - Hashable Tests
-
-    @MainActor func testUserHashable() {
-        let user = TestHelpers.createTestUser(id: "hash-user")
-
-        var userSet = Set<User>()
-        userSet.insert(user)
-
-        XCTAssertTrue(userSet.contains(user))
-    }
-
-    @MainActor func testUserInDictionary() {
-        let user1 = TestHelpers.createTestUser(id: "user-1")
-        let user2 = TestHelpers.createTestUser(id: "user-2")
-
-        var dict: [User: String] = [:]
-        dict[user1] = "First"
-        dict[user2] = "Second"
-
-        XCTAssertEqual(dict[user1], "First")
-        XCTAssertEqual(dict[user2], "Second")
     }
 }

@@ -96,16 +96,6 @@ final class MacCommentReferenceLinkTests: XCTestCase {
         }
     }
 
-    /// …and iOS does not move. Chat and the iOS comment list call the shared extension with no
-    /// font argument and must keep the `.body` they have always had.
-    func testTheSharedDefaultStillCarriesBodyForTheCallersThatRelyOnIt() {
-        let attributed = "see ![Sync bug](abc123)".attributedWithReferences(defaultColor: .primary)
-        let referenceRuns = attributed.runs.filter { $0.link != nil }
-        XCTAssertEqual(referenceRuns.count, 1)
-        XCTAssertEqual(referenceRuns.first?.font, .body,
-                       "the default is unchanged — only the Mac block renderer opts out")
-    }
-
     // MARK: - One renderer, both surfaces
 
     /// Reuse is most of the point. The comment bubble and the chat bubble draw through the SAME

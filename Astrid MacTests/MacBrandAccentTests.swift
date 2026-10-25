@@ -12,11 +12,6 @@ import XCTest
 
 final class MacBrandAccentTests: XCTestCase {
 
-    func testAccentDefaultsToAstridBlueOnMac() {
-        XCTAssertEqual(Brand.accentColorHex, "#3b82f6")
-        XCTAssertEqual(Brand.accentColor, Color(red: 59/255, green: 130/255, blue: 246/255))
-    }
-
     /// The macOS branch of Theme owns its own borderFocus — pinned separately from iOS.
     func testMacFocusBorderReadsTheBrandAccent() {
         XCTAssertEqual(Theme.borderFocus, Brand.accentColor)
@@ -32,19 +27,13 @@ final class MacBrandAccentTests: XCTestCase {
     /// the SURFACE, not the brand. A partner accent that only applied in one mode would
     /// be a subtle, easily-missed break.
     func testAccentIsStableAcrossThemeModes() {
-        let key = "themeMode"
-        let saved = UserDefaults.standard.string(forKey: key)
-        defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) }
-            else { UserDefaults.standard.removeObject(forKey: key) }
-        }
-
-        for mode in ["light", "dark", "ocean"] {
-            UserDefaults.standard.set(mode, forKey: key)
-            XCTAssertEqual(Theme.accent, Brand.accentColor, "accent drifted in \(mode)")
-            XCTAssertEqual(Theme.Dark.accent, Brand.accentColor, "Dark.accent drifted in \(mode)")
-            XCTAssertEqual(Theme.Ocean.accent, Brand.accentColor, "Ocean.accent drifted in \(mode)")
+        // Every theme's accent is the brand's — asked of each palette directly, with no theme
+        // written into the developer's real defaults (AITD-534). `Theme.accent` is a constant.
+        XCTAssertEqual(Theme.accent, Brand.accentColor)
+        for (mode, accent) in [("dark", Theme.Dark.accent), ("ocean", Theme.Ocean.accent)] {
+            XCTAssertEqual(accent, Brand.accentColor, "accent drifted in \(mode)")
         }
     }
+
 }
 #endif

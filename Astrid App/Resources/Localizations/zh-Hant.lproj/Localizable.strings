@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub 儲存庫";
 "lists.no_repositories_found" = "找不到儲存庫。請確保您的 GitHub 帳戶已連接。";
 "lists.pending_invitations" = "待處理邀請";
+"lists.pending" = "待處理";
 "lists.invited" = "已邀請";
 "lists.cancel_invite" = "取消邀請";
 "lists.ai_agents" = "AI 代理";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini 用於任務協助";
 "lists.default_agent_description" = "AI 代理用於任務協助";
 "lists.ai_coding_agents" = "AI 程式設計代理";
+"lists.ai_coding_agent" = "AI 程式設計代理";
 "lists.connect_github_description" = "連接 GitHub 儲存庫以啟用程式設計工作流程";
 "lists.list_privacy" = "列表隱私";
 "lists.make_public" = "設為公開";
@@ -954,6 +956,7 @@
 "sync.new_list" = "新增清單";
 "sync.not_linked" = "未關聯";
 "sync.repository" = "儲存庫";
+"sync.use_repo" = "使用 %@";
 "sync.suffix_placeholder" = "清單名稱後綴，如 [GT]";
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";
@@ -1569,3 +1572,28 @@
 "mac.repeat.summary_times" = "%1$@，%2$d 次";
 "mac.repeat.summary_until_date" = "%@，直到指定日期";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "洞察";
+"listInsights.days7" = "7 天";
+"listInsights.days30" = "30 天";
+"listInsights.days90" = "90 天";
+"listInsights.activity" = "活動";
+"listInsights.created" = "新增";
+"listInsights.completed" = "已完成";
+"listInsights.created_total" = "新增 %@ 項";
+"listInsights.completed_total" = "完成 %@ 項";
+"listInsights.time_to_complete" = "完成所需時間（中位數）";
+"listInsights.time_in_lane" = "各欄停留時間（中位數）";
+"listInsights.sample_size" = "依據 %@ 項";
+"listInsights.not_enough_history" = "歷史紀錄還不夠";
+"listInsights.lane_history_note" = "從現在開始記錄欄位移動，隨著卡片移動這裡會逐漸有資料。";
+"listInsights.contributors" = "主要貢獻者";
+"listInsights.profile_counts" = "完成 %1$@ · 啟發 %2$@ · 支持 %3$@";
+"listInsights.activity_counts" = "建立 %1$@ · 編輯 %2$@ · 留言 %3$@";
+"listInsights.no_activity" = "此期間沒有活動";
+"listInsights.load_failed" = "無法載入洞察";
+"listInsights.loading" = "正在載入洞察…";
+"listInsights.duration.minutes" = "%@ 分鐘";
+"listInsights.duration.hours" = "%@ 小時";
+"listInsights.duration.days" = "%@ 天";

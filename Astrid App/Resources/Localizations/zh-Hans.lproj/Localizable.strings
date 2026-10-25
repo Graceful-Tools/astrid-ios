@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub 仓库";
 "lists.no_repositories_found" = "未找到仓库。请确保您的 GitHub 账户已连接。";
 "lists.pending_invitations" = "待处理邀请";
+"lists.pending" = "待处理";
 "lists.invited" = "已邀请";
 "lists.cancel_invite" = "取消邀请";
 "lists.ai_agents" = "AI 代理";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini 用于任务协助";
 "lists.default_agent_description" = "AI 代理用于任务协助";
 "lists.ai_coding_agents" = "AI 编程代理";
+"lists.ai_coding_agent" = "AI 编程代理";
 "lists.connect_github_description" = "连接 GitHub 仓库以启用编程工作流";
 "lists.list_privacy" = "列表隐私";
 "lists.make_public" = "设为公开";
@@ -952,6 +954,7 @@
 "sync.new_list" = "新建列表";
 "sync.not_linked" = "未关联";
 "sync.repository" = "仓库";
+"sync.use_repo" = "使用 %@";
 "sync.suffix_placeholder" = "列表名称后缀，如 [GT]";
 "sync.sync_mode" = "同步模式";
 "sync.sync_now" = "立即同步";
@@ -1567,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@，%2$d 次";
 "mac.repeat.summary_until_date" = "%@，直到指定日期";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "洞察";
+"listInsights.days7" = "7 天";
+"listInsights.days30" = "30 天";
+"listInsights.days90" = "90 天";
+"listInsights.activity" = "活动";
+"listInsights.created" = "新建";
+"listInsights.completed" = "已完成";
+"listInsights.created_total" = "新建 %@ 项";
+"listInsights.completed_total" = "完成 %@ 项";
+"listInsights.time_to_complete" = "完成所需时间（中位数）";
+"listInsights.time_in_lane" = "各列停留时间（中位数）";
+"listInsights.sample_size" = "基于 %@ 项";
+"listInsights.not_enough_history" = "历史记录还不够";
+"listInsights.lane_history_note" = "从现在开始记录列的移动，随着卡片移动这里会逐渐有数据。";
+"listInsights.contributors" = "主要贡献者";
+"listInsights.profile_counts" = "完成 %1$@ · 启发 %2$@ · 支持 %3$@";
+"listInsights.activity_counts" = "创建 %1$@ · 编辑 %2$@ · 评论 %3$@";
+"listInsights.no_activity" = "此期间没有活动";
+"listInsights.load_failed" = "无法加载洞察";
+"listInsights.loading" = "正在加载洞察…";
+"listInsights.duration.minutes" = "%@ 分钟";
+"listInsights.duration.hours" = "%@ 小时";
+"listInsights.duration.days" = "%@ 天";

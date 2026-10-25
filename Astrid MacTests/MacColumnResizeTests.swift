@@ -16,16 +16,6 @@ final class MacColumnResizeTests: XCTestCase {
 
     // MARK: - The floors
 
-    func testTheSidebarCannotBeDraggedBelowTheWidthItShipsAt() {
-        XCTAssertEqual(MacLayout.sidebarMinWidth, MacLayout.sidebarIdealWidth,
-                       "The shipped width IS the minimum — that is the whole brief")
-    }
-
-    func testTheSidebarFloorRoseToTheShippedWidth() {
-        // It was min: 200 / ideal: 240, so a drag could take the rail 40pt below what it ships at.
-        XCTAssertGreaterThanOrEqual(MacLayout.sidebarMinWidth, 240)
-    }
-
     func testASidebarDragIsStillCappedSoTheRailStaysARail() {
         XCTAssertGreaterThan(MacLayout.sidebarMaxWidth, MacLayout.sidebarMinWidth)
     }

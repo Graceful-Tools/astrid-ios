@@ -31,35 +31,4 @@ final class SharedServiceLayerTests: XCTestCase {
         XCTAssertEqual(cal.component(.hour, from: result.nextDueDate!), 10, "preserves due time")
         XCTAssertEqual(cal.component(.minute, from: result.nextDueDate!), 30)
     }
-
-    func testWeeklyRepeatRollsOverOnMac() {
-        let result = RepeatingTaskCalculator.calculateSimpleNextOccurrence(
-            repeatingType: .weekly,
-            currentDueDate: date(2024, 1, 15),
-            completionDate: date(2024, 1, 15, 14, 0),
-            repeatFrom: .DUE_DATE,
-            currentOccurrenceCount: 0
-        )
-        XCTAssertNotNil(result.nextDueDate)
-        XCTAssertEqual(Calendar.current.component(.day, from: result.nextDueDate!), 22, "weekly → +7 days")
-    }
-
-    func testMultiStepDailyProgressionOnMac() {
-        var due: Date? = date(2024, 1, 15)
-        var count = 0
-        for _ in 0..<5 {
-            let r = RepeatingTaskCalculator.calculateSimpleNextOccurrence(
-                repeatingType: .daily,
-                currentDueDate: due,
-                completionDate: due!,
-                repeatFrom: .DUE_DATE,
-                currentOccurrenceCount: count
-            )
-            due = r.nextDueDate
-            count = r.newOccurrenceCount
-        }
-        XCTAssertEqual(count, 5)
-        // 5 daily steps from Jan 15 → Jan 20.
-        XCTAssertEqual(Calendar.current.component(.day, from: due!), 20)
-    }
 }

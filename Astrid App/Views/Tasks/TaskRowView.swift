@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskRowView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.usesSplitLayout) private var usesSplitLayout
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @EnvironmentObject var authManager: AuthManager
     /// The row follows the display mode too (task 132d7b3f) — the task box in rows and boards
@@ -282,7 +283,7 @@ struct TaskRowView: View {
                 }
 
                 // Arrow indicator pointing to task details (iPad only, when selected)
-                if isSelected && UIDevice.current.userInterfaceIdiom == .pad {
+                if isSelected && usesSplitLayout {
                     SelectionArrow(color: getCardBackground())
                         .offset(x: 20)  // Position arrow at right edge, extending into gap
                 }

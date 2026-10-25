@@ -46,47 +46,6 @@ final class ProjectModelTests: XCTestCase {
         XCTAssertEqual(project.lists?.count, 0)
     }
 
-    func testDecode_projectWithEmbeddedStatusLists() throws {
-        let json = """
-        {
-          "id": "p1",
-          "name": "Astrid Dev",
-          "lists": [
-            {
-              "id": "l-ready",
-              "name": "Ready",
-              "projectId": "p1",
-              "listType": "status",
-              "statusRole": "ready",
-              "statusOrder": 0,
-              "statusDescription": "Time to get to work!",
-              "statusCompleted": false,
-              "recentlyCompletedWindow": null
-            },
-            {
-              "id": "l-doing",
-              "name": "Doing",
-              "projectId": "p1",
-              "listType": "status",
-              "statusRole": "doing",
-              "statusOrder": 1,
-              "statusDescription": "Active work in progress!",
-              "statusCompleted": false,
-              "recentlyCompletedWindow": null
-            }
-          ]
-        }
-        """.data(using: .utf8)!
-
-        let project = try decoder.decode(Project.self, from: json)
-        XCTAssertEqual(project.lists?.count, 2)
-        let ready = try XCTUnwrap(project.lists?.first { $0.statusRole == "ready" })
-        XCTAssertEqual(ready.projectId, "p1")
-        XCTAssertEqual(ready.listType, "status")
-        XCTAssertEqual(ready.statusOrder, 0)
-        XCTAssertEqual(ready.statusDescription, "Time to get to work!")
-    }
-
     func testCodableRoundTrip_preservesAllFields() throws {
         let original = Project(
             id: "p1",

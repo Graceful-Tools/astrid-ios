@@ -1,0 +1,84 @@
+{
+  "_about": "Per-directory line-coverage minimums (AITD-541), checked by scripts/coverage-report.mjs after each unit run: iOS in npm run predeploy (scripts/run-tests.sh), Mac in npm run test:mac. Each floor started at the 2026-10-23 measurement, rounded down from the lower of two runs, less two points: the same code measured Core/Services at 52.3% and then 50.6% \u2014 background and async paths run or do not depending on timing, so a tighter floor fails on noise. A drop below a floor fails the run. RAISE a floor when coverage rises \u2014 that is the point; LOWER one only with a reason in measured_2026_10_23 or a note here.",
+  "measured_2026_10_23": {
+    "ios": {
+      "target:Astrid App.app": 17.4,
+      "target:Astrid.appex": 2.4,
+      "Astrid App/Core/Services": 52.3,
+      "Astrid App/Core/Sync": 78.1,
+      "Astrid App/Core/Authentication": 28.7,
+      "Astrid App/Core/Networking": 39.3,
+      "Astrid App/Core/Outbox": 66.7,
+      "Astrid App/Core/Persistence": 55,
+      "Astrid App/Core/Layout": 74.8,
+      "Astrid App/Core/Tasks": 82.5,
+      "Astrid App/Core/Board": 87.6,
+      "Astrid App/Core/Filters": 100,
+      "Astrid App/Core": 44.9,
+      "Astrid App/Models": 80.5,
+      "Astrid App/Views/Settings": 0,
+      "Astrid App/Views": 6.2,
+      "Shared": 13.1,
+      "Astrid": 0
+    },
+    "mac": {
+      "target:Astrid.app": 9.5,
+      "Astrid App/Core/Services": 4.1,
+      "Astrid App/Core/Sync": 0,
+      "Astrid App/Core/Authentication": 3.8,
+      "Astrid App/Core/Networking": 3.8,
+      "Astrid App/Core/Outbox": 0,
+      "Astrid App/Core/Persistence": 0,
+      "Astrid App/Core/Layout": 16.1,
+      "Astrid App/Core/Tasks": 14.5,
+      "Astrid App/Core/Board": 1.8,
+      "Astrid App/Core/Filters": 4.5,
+      "Astrid App/Core": 4.4,
+      "Astrid App/Models": 13,
+      "Astrid App/Views": 0,
+      "Shared": 1.6,
+      "Astrid Mac/App": 16.3,
+      "Astrid Mac/Commands": 31.5,
+      "Astrid Mac/Views": 12.3,
+      "Astrid Mac": 13.8
+    }
+  },
+  "ios": {
+    "target:Astrid App.app": 15,
+    "Astrid App/Core/Services": 48,
+    "Astrid App/Core/Sync": 76,
+    "Astrid App/Core/Authentication": 26,
+    "Astrid App/Core/Networking": 37,
+    "Astrid App/Core/Outbox": 64,
+    "Astrid App/Core/Persistence": 53,
+    "Astrid App/Models": 78,
+    "Shared": 93
+  },
+  "mac": {
+    "target:Astrid.app": 7,
+    "Astrid Mac/App": 14,
+    "Astrid Mac/Commands": 29,
+    "Astrid Mac/Views": 10
+  },
+  "measured_2026_10_23_second_run": {
+    "ios": {
+      "target:Astrid App.app": 17.3,
+      "Astrid App/Core/Services": 50.6,
+      "Astrid App/Core/Sync": 78.1,
+      "Astrid App/Core/Authentication": 28.7,
+      "Astrid App/Core/Networking": 39.3,
+      "Astrid App/Core/Outbox": 66.7,
+      "Astrid App/Core/Persistence": 55.0,
+      "Astrid App/Models": 80.5,
+      "Shared": 13.1
+    }
+  },
+  "measured_2026_10_24": {
+    "ios": {
+      "Shared": 95.5,
+      "target:Astrid.appex": 39.6,
+      "Astrid": 0
+    },
+    "_note": "AITD-542 moved the Share Extension's logic into Shared/ and tested it: Shared 13.1% -> 95.5%, the appex target 2.4% -> 39.6%. Astrid/ itself stays at 0 \u2014 no test host loads the appex, so what is left there is UIKit glue. Shared's floor is that run less two points, rounded down."
+  }
+}

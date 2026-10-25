@@ -32,16 +32,23 @@ final class MacListChromeTests: XCTestCase {
     /// Sort used to hide in two places at once: inside the filter popover on a real list or My
     /// Tasks (AITD-305/467), and in the window toolbar everywhere else (AITD-509). It now sits in
     /// the strip above the rows on every list-mode selection, so the popovers no longer sort.
-    func testSortSitsInTheHeaderForEveryListModeSelectionAITD522() {
+    ///
+    /// AITD-552 then moved "the header" to the window toolbar's centre, beside the list/board
+    /// picker — so this asks the title bar, and the strip carries no sort at all.
+    func testSortSitsBesideTheModePickerForEveryListModeSelectionAITD552() {
+        XCTAssertTrue(MacListChrome.titleBarCarriesListControls)
         for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
-            XCTAssertTrue(MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+            XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                                         isMyTasks: isMyTasks, isListMode: true),
+                           "the strip no longer sorts")
+            XCTAssertTrue(MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: isRealList,
                                                         isMyTasks: isMyTasks, isListMode: true),
                           "isRealList=\(isRealList) isMyTasks=\(isMyTasks): sort belongs in the header")
         }
-        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: true, isRealList: true,
-                                                     isMyTasks: false, isListMode: false),
+        XCTAssertFalse(MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: true,
+                                                       isMyTasks: false, isListMode: false),
                        "a board is not a sorted row list")
-        XCTAssertFalse(MacListChrome.headerShowsSort(hasSelection: false, isRealList: false,
+        XCTAssertFalse(MacListChrome.titleBarShowsSort(hasSelection: false, isRealList: false,
                                                      isMyTasks: false, isListMode: true),
                        "nothing selected, nothing to sort")
     }
@@ -63,8 +70,14 @@ final class MacListChromeTests: XCTestCase {
         for (isRealList, isMyTasks) in [(true, false), (false, true), (false, false)] {
             let sheetSorts = MacListChrome.sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
                                                            isListMode: true)
-            let headerSorts = MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
-                                                            isMyTasks: isMyTasks, isListMode: true)
+            let headerSorts = [
+                MacListChrome.headerShowsSort(hasSelection: true, isRealList: isRealList,
+                                              isMyTasks: isMyTasks, isListMode: true),
+                MacListChrome.titleBarShowsSort(hasSelection: true, isRealList: isRealList,
+                                                isMyTasks: isMyTasks, isListMode: true),
+                MacListChrome.toolbarShowsSort(hasSelection: true, isRealList: isRealList,
+                                               isMyTasks: isMyTasks, isListMode: true),
+            ].filter { $0 }.count == 1
             XCTAssertNotEqual(sheetSorts, headerSorts,
                               "isRealList=\(isRealList) isMyTasks=\(isMyTasks) offers sort \(sheetSorts && headerSorts ? "twice" : "not at all")")
         }
@@ -78,25 +91,19 @@ final class MacListChromeTests: XCTestCase {
         XCTAssertFalse(MacListChrome.showsFilter(isRealList: true, isListMode: false))
     }
 
-    /// Filter stays out of the window toolbar: it opens the list's sheet, which belongs to the rows.
+    /// Filter stays off the toolbar's trailing edge, which is the chat column in 3-column mode. It
+    /// sits in the centre beside sort since AITD-553, which is a different place.
     func testFilterIsNotAWindowToolbarItem() {
         XCTAssertFalse(MacListChrome.toolbarOffersFilter)
     }
 
-    // MARK: the strip (AITD-509, AITD-522)
+    // MARK: the strip (AITD-509, AITD-522) — gone (AITD-553)
 
-    /// With nothing to show there is still no strip — AITD-509's complaint was an empty-ish row.
-    func testNoControlsMeansNoStrip() {
-        XCTAssertFalse(MacListChrome.showsStrip(showsSort: false, showsFilter: false,
-                                                showsMyTasksFilter: false, showsListMenu: false))
-    }
-
-    /// Each control in the header is enough to draw it — sort included, now that it lives there.
-    func testTheStripDrawsForEachHeaderControlAITD522() {
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: true, showsFilter: false, showsMyTasksFilter: false, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: true, showsMyTasksFilter: false, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: true, showsListMenu: false))
-        XCTAssertTrue(MacListChrome.showsStrip(showsSort: false, showsFilter: false, showsMyTasksFilter: false, showsListMenu: true))
+    /// The strip above the rows held only the filter once sort and the gear moved to the title
+    /// bar (AITD-552). AITD-553 moved filter up too, so there is no strip to draw — the list has
+    /// one header. `MacOneHeaderTests` pins what that header holds.
+    func testThereIsNoStripAboveTheRows_AITD553() {
+        XCTAssertFalse(MacListChrome.listColumnHasStrip)
     }
 
     // MARK: the extra + (10d2cd34)

@@ -90,22 +90,4 @@ final class ProjectStateMoveTests: XCTestCase {
     private func source(_ path: String) throws -> String {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path), encoding: .utf8)
     }
-
-    func testTheDetailViewAdoptsTheMovedTask() throws {
-        // The plumbing only helps if the view actually takes the value. `TaskDetailViewNew.task`
-        // is `@State`, replaced nowhere except pull-to-refresh and the timer sheet — so without
-        // this assignment the chips still render a snapshot from before the move.
-        let view = try source("Astrid App/Views/Tasks/TaskDetailViewNew.swift")
-        XCTAssertTrue(view.contains("onTaskUpdated:"),
-                      "the state pickers in task details must feed the moved task back into the "
-                      + "view's snapshot, or the chips keep rendering the pre-move state (AITD-352)")
-    }
-
-    func testThePickerOffersTheHandBack() throws {
-        let picker = try source("Astrid App/Views/Components/ProjectStateQuickPicker.swift")
-        XCTAssertTrue(picker.contains("onTaskUpdated"),
-                      "ProjectStateQuickPicker must report the task its move produced")
-        XCTAssertTrue(picker.contains("moveToBoardColumn"),
-                      "the move is the core's, through the service — not re-spelled in the view")
-    }
 }

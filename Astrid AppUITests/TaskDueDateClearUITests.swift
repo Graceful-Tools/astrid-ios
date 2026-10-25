@@ -34,8 +34,8 @@ final class TaskDueDateClearUITests: XCTestCase {
         let morning = app.buttons[Self.morning].firstMatch
         XCTAssertTrue(morning.waitForExistence(timeout: 5), "the time sheet should offer Morning")
         morning.tap()
-        // Picking a time saves and closes the sheet; the date chip is reachable again once it has.
-        XCTAssertTrue(UITestLaunch.waitForDisappearance(morning), "the time sheet should close after Morning")
+        XCTAssertTrue(UITestLaunch.waitForLabel(time, contains: morningUnset, false),
+                      "after Morning the time chip should show a time, got \(time.label)")
         try clearAndExpectNoDueDate(chip)
     }
 
@@ -48,7 +48,37 @@ final class TaskDueDateClearUITests: XCTestCase {
         let daily = app.buttons[Self.daily].firstMatch
         XCTAssertTrue(daily.waitForExistence(timeout: 5), "the repeat sheet should offer Daily")
         daily.tap()
-        XCTAssertTrue(UITestLaunch.waitForDisappearance(daily, timeout: 10), "the repeat sheet should close after Daily")
+        XCTAssertTrue(UITestLaunch.waitForLabel(repeatChip, contains: dailyLabel),
+                      "after Daily the repeat chip should say so, got \(repeatChip.label)")
+        try clearAndExpectNoDueDate(chip)
+    }
+
+    /// Journey 6 of the E2E set (AITD-528): Today, Morning and Daily all reach the server, and
+    /// No due date then clears the date there too — not just on the chip.
+    @MainActor
+    func testTodayMorningDailyReachTheServerThenClear_AITD528() throws {
+        try XCTSkipUnless(UITestAPI.isAvailable, "needs a session to ask the server")
+        let chip = try openNewTaskWithToday()
+        let time = app.buttons[Self.timeTrigger]
+        XCTAssertTrue(time.waitForExistence(timeout: 5), "a dated task offers a time")
+        time.tap()
+        let morning = app.buttons[Self.morning].firstMatch
+        XCTAssertTrue(morning.waitForExistence(timeout: 5), "the time sheet should offer Morning")
+        morning.tap()
+        XCTAssertTrue(UITestLaunch.waitForLabel(time, contains: morningUnset, false),
+                      "after Morning the time chip should show a time, got \(time.label)")
+        let repeatChip = app.buttons[Self.repeatTrigger]
+        XCTAssertTrue(repeatChip.waitForExistence(timeout: 5), "a dated task offers a repeat")
+        repeatChip.tap()
+        let daily = app.buttons[Self.daily].firstMatch
+        XCTAssertTrue(daily.waitForExistence(timeout: 5), "the repeat sheet should offer Daily")
+        daily.tap()
+        XCTAssertTrue(UITestLaunch.waitForLabel(repeatChip, contains: dailyLabel),
+                      "after Daily the repeat chip should say so, got \(repeatChip.label)")
+
+        try UITestAPI.waitForTask(titled: title, "a dated, daily task") {
+            $0.dueDateTime != nil && $0.repeating == "daily"
+        }
         try clearAndExpectNoDueDate(chip)
     }
 
@@ -142,7 +172,12 @@ final class TaskDueDateClearUITests: XCTestCase {
         XCTAssertTrue(UITestLaunch.waitForLabel(chip, contains: noDueDate),
                       "after No due date the chip must say so, got \(chip.label)")
 
-        // And the server agrees: reopening drains the journal and refetches the task.
+        // The server agrees — asked directly when the run has a session to ask with (AITD-528).
+        if UITestAPI.isAvailable {
+            try UITestAPI.waitForTask(titled: title, "no due date") { $0.dueDateTime == nil }
+        }
+
+        // And so does the app after a round trip: reopening drains the journal and refetches.
         app.buttons[Self.back].tap()
         // Found the way it was found the first time: scrolled into view, since the list comes
         // back at the top and the task sits below what is on screen (AITD-543).
@@ -168,6 +203,10 @@ final class TaskDueDateClearUITests: XCTestCase {
     /// What the chip says with no date — read from the app's table, since the state is only in
     /// the label (AITD-526).
     private let noDueDate = UITestStrings.en("picker.no_due_date")
+    /// The time chip's label before a time is chosen.
+    private let morningUnset = UITestStrings.en("picker.add_time")
+    /// What the repeat chip says once Daily is picked.
+    private let dailyLabel = UITestStrings.en("repeating.daily")
 
     /// `InlineDatePicker`'s trigger and the sheets' option identifiers (AITD-526): the controls
     /// are found by identifier, so a localized simulator cannot hide them.

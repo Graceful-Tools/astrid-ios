@@ -77,4 +77,50 @@ final class UITestBaseURLTests: XCTestCase {
                                           productionURL: production),
             localhost)
     }
+
+    // MARK: - -uiTestBaseURL (AITD-527)
+
+    /// A run can be pointed at a staging deploy, so a server change is tested before it ships.
+    /// The override replaces production; it does not reopen the debug-preference leak above.
+    func testAUITestRunCanBePointedAtStaging() {
+        XCTAssertEqual(
+            UITestSession.resolvedBaseURL(isUITesting: true,
+                                          uiTestBaseURL: "https://staging.astrid.cc",
+                                          debugPreference: "http://192.0.2.10:3000",
+                                          defaultURL: localhost,
+                                          productionURL: production),
+            "https://staging.astrid.cc")
+    }
+
+    /// Outside a test run the argument means nothing: a launch argument must not be able to
+    /// redirect a real user's app.
+    func testTheOverrideIsIgnoredOutsideATestRun() {
+        XCTAssertEqual(
+            UITestSession.resolvedBaseURL(isUITesting: false,
+                                          uiTestBaseURL: "https://staging.astrid.cc",
+                                          debugPreference: nil,
+                                          defaultURL: localhost,
+                                          productionURL: production),
+            localhost)
+    }
+
+    /// Read from the launch arguments, and only under the UI-test flag.
+    func testTheOverrideIsReadFromTheLaunchArguments() {
+        XCTAssertEqual(
+            UITestSession.baseURLOverride(arguments: ["-uiTesting", "-uiTestBaseURL", "https://staging.astrid.cc/"]),
+            "https://staging.astrid.cc")
+        XCTAssertNil(UITestSession.baseURLOverride(arguments: ["-uiTestBaseURL", "https://staging.astrid.cc"]),
+                     "No -uiTesting, no override")
+        XCTAssertNil(UITestSession.baseURLOverride(arguments: ["-uiTesting", "-uiTestBaseURL"]),
+                     "A trailing flag with no value must not read past the end")
+    }
+
+    /// Something that is not an http(s) URL with a host falls back to production rather than
+    /// pointing the run at nothing, which would look exactly like being signed out.
+    func testAMalformedOverrideIsIgnored() {
+        for bad in ["", "   ", "staging.astrid.cc", "ftp://staging.astrid.cc", "https://"] {
+            XCTAssertNil(UITestSession.baseURLOverride(arguments: ["-uiTesting", "-uiTestBaseURL", bad]),
+                         "'\(bad)' is not a base URL")
+        }
+    }
 }

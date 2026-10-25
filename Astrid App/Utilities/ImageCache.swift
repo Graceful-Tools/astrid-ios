@@ -151,15 +151,52 @@ nonisolated final class ImageCache: @unchecked Sendable {
             return nil
         }
 
-        guard let decoded = PlatformImage(data: data) else { return nil }
-        #if canImport(UIKit)
-        let image = decoded.preparingForDisplay() ?? decoded
-        #else
-        let image = decoded
-        #endif
+        // A PARTIAL file is a miss, and goes (AITD-551). `PlatformImage(data:)` accepts a PNG from
+        // its header alone, so half-written bytes surfaced later, as UIKit's "Error -17102
+        // decompressing image -- possibly corrupt", once per row that read them.
+        guard Self.isCompleteImage(data), let decoded = PlatformImage(data: data) else {
+            try? FileManager.default.removeItem(at: fileURL)
+            return nil
+        }
+        let image = Self.preparedForDisplay(decoded)
         remember(image, for: url)
         AppLog.debug("💾 [ImageCache] Disk hit: \(url.lastPathComponent)")
         return image
+    }
+
+    /// Whether `data` holds a whole image rather than the start of one (AITD-551).
+    ///
+    /// The TRAILER is the test, because nothing else notices: `UIImage(data:)` and ImageIO's
+    /// `CGImageSourceGetStatusAtIndex` both read the header and call half a PNG complete. A PNG
+    /// ends with its `IEND` chunk. Only PNG is checked: JPEGs legitimately carry bytes after their
+    /// end marker, and a false "partial" would refetch that image on every read. The atomic write
+    /// in `store` is what keeps every format whole; this catches a file left from before it.
+    static func isCompleteImage(_ data: Data) -> Bool {
+        guard data.starts(with: [0x89, 0x50, 0x4E, 0x47]) else { return !data.isEmpty }
+        return data.suffix(12).starts(with: [0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44])
+    }
+
+    /// The image with its bitmap decoded, so the first draw on main does not decode lazily.
+    ///
+    /// A PALETTE image is drawn into an RGB bitmap instead (AITD-551). `preparingForDisplay()`
+    /// cannot decompress an 8-bit colormap PNG — the agent avatars are exactly that — so it
+    /// logged "Error -17102 decompressing image -- possibly corrupt" and returned nil, once per
+    /// row that showed the avatar, and the image was left to decode lazily on main after all.
+    /// The renderer is thread-safe, so this stays off the main actor with the rest of `getAsync`.
+    static func preparedForDisplay(_ image: PlatformImage) -> PlatformImage {
+        #if canImport(UIKit)
+        if image.cgImage?.colorSpace?.model == .indexed {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = image.scale
+            format.opaque = false
+            return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: image.size))
+            }
+        }
+        return image.preparingForDisplay() ?? image
+        #else
+        return image
+        #endif
     }
 
     /// What an image costs NSCache: its decoded bitmap, not its file size (AITD-455).
@@ -191,7 +228,9 @@ nonisolated final class ImageCache: @unchecked Sendable {
     /// both smaller and free, and they are already in hand at the one call site.
     func store(_ data: Data, image: PlatformImage, for url: URL) {
         remember(image, for: url)
-        try? data.write(to: diskCacheURL(for: url))
+        // Atomic, so a row reading this URL from disk while it is written never sees half of it —
+        // rows coalesce the fetch but each does its own disk read (AITD-551).
+        try? data.write(to: diskCacheURL(for: url), options: .atomic)
         AppLog.debug("💾 [ImageCache] Cached: \(url.lastPathComponent) (\(data.count / 1024) KB)")
 
         // Sweep once enough has been written to matter, not after every store (AITD-455).
@@ -266,9 +305,13 @@ class CachedImageLoader: ObservableObject {
     /// after a profile photo change, an assignee swapped on a row (Task 16f39f36).
     private var url: URL
     private var loadTask: _Concurrency.Task<Void, Never>?
+    /// The session images are fetched on — the app's hardened one; a test passes a stub so a cache
+    /// miss never opens a socket (AITD-534).
+    private let session: URLSession
 
-    init(url: URL) {
+    init(url: URL, session: URLSession = AstridHTTP.session) {
         self.url = url
+        self.session = session
     }
 
     /// Point the loader at `url` and fetch it.
@@ -313,6 +356,7 @@ class CachedImageLoader: ObservableObject {
                 return
             }
 
+            let session = self.session
             let loadedImage = await Self.loadCoordinator.load(for: requested) {
                 do {
                     let data: Data
@@ -323,11 +367,11 @@ class CachedImageLoader: ObservableObject {
                         if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
                             request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
                         }
-                        let (responseData, _) = try await AstridHTTP.session.data(for: request)
+                        let (responseData, _) = try await session.data(for: request)
                         data = responseData
                     } else {
                         // Public URL, no auth needed
-                        let (responseData, _) = try await AstridHTTP.session.data(from: requested)
+                        let (responseData, _) = try await session.data(from: requested)
                         data = responseData
                     }
 

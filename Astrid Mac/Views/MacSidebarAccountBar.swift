@@ -50,6 +50,7 @@ struct MacSidebarAccountBar: View {
                 }
                 Divider()
                 Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
+                    .accessibilityIdentifier("account.destructive.signOut")
             } label: {
                 Image(systemName: "gearshape").foregroundStyle(Theme.textSecondary)
             }

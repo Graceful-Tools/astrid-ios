@@ -59,16 +59,5 @@ final class MacChatLoadStateTests: XCTestCase {
                       "auto resolves to light or dark, never to a theme-specific token")
     }
 
-    /// The global-state version is gone. If it comes back, so does the flake.
-    ///
-    /// The needle is assembled at runtime on purpose: written as one literal it would match
-    /// ITSELF, and the guard would fail the moment it was added — which is exactly what happened
-    /// on the first attempt.
-    func testThisSuiteDoesNotWriteTheGlobalThemeKey() throws {
-        let needle = "UserDefaults.standard" + ".set"
-        let source = try String(contentsOf: URL(fileURLWithPath: #filePath), encoding: .utf8)
-        XCTAssertFalse(source.contains(needle),
-                       "Writing themeMode here is what made this suite flake under parallel execution")
-    }
 }
 #endif

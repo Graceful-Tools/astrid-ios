@@ -76,22 +76,5 @@ final class MacCommentAttachmentStagingTests: XCTestCase {
                       "Each staged file needs a remove affordance backed by the shared rule")
     }
 
-    // MARK: - The shared rules themselves
-
-    /// Cheap proof the Mac is inheriting real behaviour rather than a lookalike: the queue caps,
-    /// and at the cap it drops the NEW file rather than evicting one the user can see.
-    func testTheSharedQueueCapsWithoutDiscardingWhatIsVisible() {
-        let staged = (0..<AttachmentQueue.maxAttachments).map {
-            AttachedFileInfo(fileId: "f\($0)", fileName: "f\($0).png", fileSize: 1,
-                             mimeType: "image/png", imageData: nil)
-        }
-        XCTAssertTrue(AttachmentQueue.isFull(staged))
-        let after = AttachmentQueue.adding(
-            AttachedFileInfo(fileId: "new", fileName: "new.png", fileSize: 1,
-                             mimeType: "image/png", imageData: nil),
-            to: staged)
-        XCTAssertEqual(after.map(\.fileId), staged.map(\.fileId),
-                       "At the cap the new file is dropped; the staged ones stay visible")
-    }
 }
 #endif

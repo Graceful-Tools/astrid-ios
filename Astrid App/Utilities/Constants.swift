@@ -13,6 +13,8 @@ import Foundation
             // fails, which is what left the whole suite signed out. See `resolvedBaseURL`.
             let resolved = UITestSession.resolvedBaseURL(
                 isUITesting: UITestSession.isUITesting,
+                isOffline: UITestSession.isOffline,
+                uiTestBaseURL: UITestSession.baseURLOverride,
                 debugPreference: Foundation.UserDefaults.standard.string(forKey: "debug_server_url"),
                 defaultURL: environment.baseURL,
                 productionURL: Environment.production.baseURL)

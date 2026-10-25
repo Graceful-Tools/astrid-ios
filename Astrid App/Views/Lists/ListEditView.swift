@@ -39,6 +39,7 @@ struct ListEditView: View {
                             .padding(.horizontal, Theme.spacing16)
 
                         TextField(NSLocalizedString("lists.enter_name", comment: ""), text: $name)
+                            .accessibilityIdentifier("listEdit.name")
                             .font(.system(size: 19, weight: .medium))
                             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
                             .textFieldStyle(.plain)
@@ -167,6 +168,7 @@ struct ListEditView: View {
                             _Concurrency.Task { await saveList() }
                         }
                         .disabled(name.isEmpty)
+                        .accessibilityIdentifier("listEdit.save")
                     }
                 }
             }

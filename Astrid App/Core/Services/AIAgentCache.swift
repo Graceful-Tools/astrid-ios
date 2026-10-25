@@ -5,7 +5,7 @@ import Foundation
 final class AIAgentCache {
     static let shared = AIAgentCache()
 
-    private let userDefaults = UserDefaults.standard
+    private let userDefaults: UserDefaults
     private let cacheKey = "cached_ai_agents"
     private let cacheTimestampKey = "cached_ai_agents_timestamp"
 
@@ -33,7 +33,12 @@ final class AIAgentCache {
     /// memo needs guarding.
     private let lock = NSLock()
 
-    private init() {}
+    /// The store is injected so a test can use a suite of its own rather than the app's
+    /// (AITD-534); the app always uses `shared`, on `.standard` — the store the share extension
+    /// writes to as well.
+    init(defaults: UserDefaults = .standard) {
+        userDefaults = defaults
+    }
 
     /// Save AI agents to local cache
     func save(_ agents: [User]) {

@@ -34,36 +34,4 @@ final class AnalyticsPlatformHeaderTests: XCTestCase {
         XCTAssertEqual(AnalyticsPlatformHeader.current, AnalyticsPlatformHeader.iOS)
         #endif
     }
-
-    /// Never empty and never whitespace: an empty header is worse than no header, because the
-    /// server would read it as a present-but-unrecognised platform rather than falling back.
-    func testTheValueIsAlwaysSubstantive() {
-        XCTAssertFalse(AnalyticsPlatformHeader.current.isEmpty)
-        XCTAssertEqual(AnalyticsPlatformHeader.current,
-                       AnalyticsPlatformHeader.current.trimmingCharacters(in: .whitespaces))
-    }
-
-    // MARK: - Every request carries it
-
-    /// A header set in two of three request builders is the same bug in a smaller disguise —
-    /// the dashboard would under-count by whichever calls happened to use the third.
-    func testEveryRequestBuilderSendsTheHeader() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root
-                .appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift"),
-            encoding: .utf8)
-
-        let acceptHeaders = source.components(separatedBy: "forHTTPHeaderField: \"Accept\"").count - 1
-        // Counted by the CONSTANT, not by the literal "x-platform": call sites must go through
-        // the shared value, or the cross-repo contract has a second definition to drift from.
-        let platformHeaders = source
-            .components(separatedBy: "AnalyticsPlatformHeader.headerName").count - 1
-
-        XCTAssertGreaterThan(acceptHeaders, 0, "Sanity: the Accept header should exist")
-        XCTAssertGreaterThanOrEqual(
-            platformHeaders, acceptHeaders,
-            "Every request builder that sets Accept must also identify the platform")
-        XCTAssertFalse(source.contains("\"x-platform\""),
-                       "Use AnalyticsPlatformHeader.headerName rather than the raw string")
-    }
 }

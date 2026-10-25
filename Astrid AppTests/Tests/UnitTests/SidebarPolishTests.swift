@@ -32,35 +32,4 @@ final class SidebarPolishTests: XCTestCase {
     func test_aitd502_theLogoIsTwentyPercentLarger() {
         XCTAssertEqual(SidebarBrandHeader.logoSize, 24 * 1.2, accuracy: 0.01)
     }
-
-    // MARK: - Icon column
-
-    /// The icon sits centred in a column as wide as the logo, starting where the logo starts, and
-    /// the name follows after the header's own gap — so the names line up with the wordmark.
-    func test_aitd502_listIconsSitInTheLogoColumn() throws {
-        for (name, source) in [("list row", try rowSource()), ("My Tasks row", try myTasksRowSource())] {
-            XCTAssertTrue(source.contains(".frame(width: SidebarBrandHeader.logoSize)"),
-                          "the \(name)'s icon is not in the logo's column")
-            XCTAssertTrue(source.contains("HStack(spacing: SidebarBrandHeader.spacing)"),
-                          "the \(name)'s name does not follow the icon by the header's gap")
-            XCTAssertFalse(source.contains(".padding(.horizontal, Theme.spacing12)"),
-                           "the \(name) still pads its leading edge, which pushes the icon right of the logo")
-        }
-    }
-
-    // MARK: - Count
-
-    func test_aitd502_theCountIsNearlyTheSizeOfTheName() throws {
-        for (name, source) in [("list row", try rowSource()), ("My Tasks row", try myTasksRowSource())] {
-            XCTAssertTrue(source.contains("Theme.Typography.callout()"), "the \(name)'s count is not callout-sized")
-            XCTAssertFalse(source.contains("Theme.Typography.caption1()"), "the \(name)'s count is still caption-sized")
-        }
-    }
-
-    func test_aitd502_theCountSitsCloserToTheRightEdge() throws {
-        for (name, source) in [("list row", try rowSource()), ("My Tasks row", try myTasksRowSource())] {
-            XCTAssertTrue(source.contains(".padding(.trailing, Theme.spacing4)"),
-                          "the \(name)'s count keeps the old trailing inset")
-        }
-    }
 }

@@ -37,6 +37,9 @@ struct InlineTextAreaEditor: View {
     @Binding var text: String
     var placeholder: String = ""
     var onSave: (() -> Void)?
+    /// Stamped on the display text and on the editor that replaces it, and on nothing else —
+    /// on the container it would land on the label too (AITD-528).
+    var accessibilityIdentifier: String? = nil
 
     @State private var isEditing = false
     @FocusState private var isFocused: Bool
@@ -81,6 +84,7 @@ struct InlineTextAreaEditor: View {
                         .frame(minHeight: 100)
                         .padding(InlineTextAreaMetrics.containerPadding)
                         .focused($isFocused)
+                        .accessibilityIdentifier(accessibilityIdentifier ?? "")
                         .onChange(of: isFocused) { _, focused in
                             if !focused && isEditing {
                                 isEditing = false
@@ -118,6 +122,7 @@ struct InlineTextAreaEditor: View {
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     }
                 }
+                .accessibilityIdentifier(accessibilityIdentifier ?? "")
                 .onTapGesture {
                     isEditing = true
                     isFocused = true

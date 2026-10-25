@@ -15,14 +15,23 @@ struct Theme {
     nonisolated(unsafe) private static var _cachedMode: String?
     nonisolated(unsafe) private static var _modeObserver: NSObjectProtocol?
 
+    /// Where the mode is read from: the app's own defaults, except in a test that hands in a suite
+    /// so it can switch themes without writing the developer's real `themeMode` (AITD-534).
+    nonisolated(unsafe) private(set) static var modeDefaults: UserDefaults = .standard
+
+    static func readMode(from defaults: UserDefaults) {
+        modeDefaults = defaults
+        _cachedMode = nil
+    }
+
     static var currentThemeMode: String {
         if let m = _cachedMode { return m }
-        let m = UserDefaults.standard.string(forKey: "themeMode") ?? "ocean"
+        let m = modeDefaults.string(forKey: "themeMode") ?? "ocean"
         _cachedMode = m
         if _modeObserver == nil {
             _modeObserver = NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification, object: nil, queue: nil) { _ in
-                _cachedMode = UserDefaults.standard.string(forKey: "themeMode") ?? "ocean"
+                _cachedMode = modeDefaults.string(forKey: "themeMode") ?? "ocean"
             }
         }
         return m

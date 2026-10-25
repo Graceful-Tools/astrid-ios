@@ -21,6 +21,7 @@ private struct ConditionalRefreshable: ViewModifier {
 
 struct TaskListView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.usesSplitLayout) private var usesSplitLayout
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
@@ -384,6 +385,7 @@ struct TaskListView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .focused($isSearchFieldFocused)
+                    .accessibilityIdentifier("search.field")
 
                 if !searchText.isEmpty {
                     Button {
@@ -416,6 +418,7 @@ struct TaskListView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("taskList.menu")
             .offset(x: 8, y: 8)
             .allowsHitTesting(true)
             .transaction { transaction in
@@ -543,6 +546,7 @@ struct TaskListView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("taskList.menu")
             .offset(x: 8, y: 8)  // Align with header padding
             .allowsHitTesting(true)
             .transaction { transaction in
@@ -588,7 +592,7 @@ struct TaskListView: View {
                                         // board stays visible in the left column, just like
                                         // the flat list does. Tapping the open task again
                                         // closes it. iPhone / forced-push: full screen.
-                                        if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
+                                        if usesSplitLayout && !forcePushNavigation {
                                             selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                                         } else {
                                             TaskPresenter.shared.showTask(task)
@@ -619,7 +623,7 @@ struct TaskListView: View {
                             selectedList: selectedList,
                             onTaskCreated: { task in
                                 // iPad: Show in side panel (replacing any existing), iPhone/forcePush: Push navigation
-                                if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
+                                if usesSplitLayout && !forcePushNavigation {
                                     withAnimation(.easeInOut(duration: 0.25)) {
                                         selectedTaskForPanel = task
                                     }
@@ -639,7 +643,7 @@ struct TaskListView: View {
                         // owns horizontal pans in that mode. Mirrors the
                         // web's shouldHandleMobileListSwipe gate.
                         let gate = MobileListSwipeGateState(
-                            isMobile: UIDevice.current.userInterfaceIdiom == .phone,
+                            isMobile: !usesSplitLayout,
                             mobileView: "list",
                             showMobileSidebar: false, // sidebar is owned by parent; this view fires only when sidebar is closed
                             isBoardMode: taskViewMode == .board
@@ -656,7 +660,7 @@ struct TaskListView: View {
                     }
             )
             .leadingEdgeSwipe(
-                isEnabled: UIDevice.current.userInterfaceIdiom == .phone && taskViewMode != .board
+                isEnabled: !usesSplitLayout && taskViewMode != .board
             ) {
                 onMenuTap?()
             }
@@ -847,7 +851,7 @@ struct TaskListView: View {
                         showingCopySheet = true
                     },
                     isSelected: selectedTaskForPanel?.id == task.id,
-                    compactMode: UIDevice.current.userInterfaceIdiom == .pad,  // Always truncate on iPad
+                    compactMode: usesSplitLayout,  // Always truncate in the split layout
                     hiddenListIds: rowHiddenListIds
                 )
                 // The nesting indent is PADDING INSIDE the row, not a row inset (task 4eb92ce1).
@@ -869,7 +873,7 @@ struct TaskListView: View {
                     // Set instantly so the row's selected state changes immediately;
                     // the panel's slide is animated by the container. iPhone /
                     // forced-push: push to navigation.
-                    if UIDevice.current.userInterfaceIdiom == .pad && !forcePushNavigation {
+                    if usesSplitLayout && !forcePushNavigation {
                         selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                     } else {
                         taskToNavigateTo = task

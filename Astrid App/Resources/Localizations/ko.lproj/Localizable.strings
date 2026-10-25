@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub 저장소";
 "lists.no_repositories_found" = "저장소를 찾을 수 없습니다. GitHub 계정이 연결되어 있는지 확인하세요.";
 "lists.pending_invitations" = "대기 중인 초대";
+"lists.pending" = "대기 중";
 "lists.invited" = "초대됨";
 "lists.cancel_invite" = "초대 취소";
 "lists.ai_agents" = "AI 에이전트";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "작업 지원을 위한 Google Gemini";
 "lists.default_agent_description" = "작업 지원을 위한 AI 에이전트";
 "lists.ai_coding_agents" = "AI 코딩 에이전트";
+"lists.ai_coding_agent" = "AI 코딩 에이전트";
 "lists.connect_github_description" = "코딩 워크플로를 활성화하려면 GitHub 저장소를 연결하세요";
 "lists.list_privacy" = "목록 개인정보";
 "lists.make_public" = "공개로 설정";
@@ -954,6 +956,7 @@
 "sync.new_list" = "새 목록";
 "sync.not_linked" = "연결 안 됨";
 "sync.repository" = "저장소";
+"sync.use_repo" = "%@ 사용";
 "sync.suffix_placeholder" = "목록 이름 접미사(예: [GT])";
 "sync.sync_mode" = "동기화 모드";
 "sync.sync_now" = "지금 동기화";
@@ -1569,3 +1572,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d회";
 "mac.repeat.summary_until_date" = "%@, 날짜까지";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "인사이트";
+"listInsights.days7" = "7일";
+"listInsights.days30" = "30일";
+"listInsights.days90" = "90일";
+"listInsights.activity" = "활동";
+"listInsights.created" = "새 작업";
+"listInsights.completed" = "완료";
+"listInsights.created_total" = "새 작업 %@개";
+"listInsights.completed_total" = "완료 %@개";
+"listInsights.time_to_complete" = "완료까지 걸린 시간(중앙값)";
+"listInsights.time_in_lane" = "열별 머문 시간(중앙값)";
+"listInsights.sample_size" = "%@개 기준";
+"listInsights.not_enough_history" = "아직 기록이 충분하지 않습니다";
+"listInsights.lane_history_note" = "열 이동은 지금부터 기록됩니다. 카드가 이동하면 채워집니다.";
+"listInsights.contributors" = "주요 기여자";
+"listInsights.profile_counts" = "완료 %1$@ · 영감 %2$@ · 지원 %3$@";
+"listInsights.activity_counts" = "생성 %1$@ · 편집 %2$@ · 댓글 %3$@";
+"listInsights.no_activity" = "이 기간에 활동이 없습니다";
+"listInsights.load_failed" = "인사이트를 불러오지 못했습니다";
+"listInsights.loading" = "인사이트 불러오는 중…";
+"listInsights.duration.minutes" = "%@분";
+"listInsights.duration.hours" = "%@시간";
+"listInsights.duration.days" = "%@일";

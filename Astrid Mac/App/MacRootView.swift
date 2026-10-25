@@ -160,8 +160,9 @@ struct MacRootView: View {
     @State private var showNewList = false
     @State private var editingList: TaskList?
     /// The list whose Settings window is open — Sort & Filters, Membership, Admin (AITD-388).
-    @State private var settingsList: TaskList?
-    @State private var listToDelete: TaskList?
+    /// Whether the selected list's Settings popover is open — Sort & Filters, Membership, Admin
+    /// (AITD-388). A popover on the toolbar gear since AITD-553, so a click outside closes it.
+    @State private var settingsOpen = false
     @State private var showPublicLists = false
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
     /// they change rarely and this is a browse affordance, not live data.
@@ -169,7 +170,6 @@ struct MacRootView: View {
     /// Tasks of a PUBLIC list you are only viewing (dfb037c7). They are not in the local store —
     /// that holds YOUR tasks — so selecting one fetches its tasks from the server on demand.
     @State private var publicListTasks: [String: [Task]] = [:]
-    @State private var showFilterSheet = false
     @State private var showMyTasksFilterSheet = false
 
     /// The currently-selected real (non-virtual) list — drives the filter editor + Save-as-Smart-List.
@@ -234,10 +234,14 @@ struct MacRootView: View {
     /// items exist is `MacListMenu`'s business, and both surfaces that show it use this.
     private func listMenuActions(_ list: TaskList) -> MacListMenuActions {
         MacListMenuActions(
-            listSettings: { settingsList = list },
+            // The popover hangs off the toolbar gear, which belongs to the selected list — so a
+            // right-click on another list selects it first (AITD-553).
+            listSettings: {
+                selectedListId = list.id
+                settingsOpen = true
+            },
             toggleFavorite: { toggleFavorite(list) },
-            enableBoard: { enableBoard(list) },
-            delete: { listToDelete = list }
+            enableBoard: { enableBoard(list) }
         )
     }
 
@@ -634,47 +638,46 @@ struct MacRootView: View {
     /// over the chat column instead (which is sized to contain it), so selecting a task cannot
     /// reflow the rows (task 89e42f29 follow-up).
     private var listColumn: some View {
-        VStack(spacing: 0) {
-            listChrome
-            taskTable
-        }
+        taskTable
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// Sort, filter and the list-settings gear — the list's header (AITD-522), above the rows they
-    /// act on (9998d83a). They used to be
-    /// `.primaryAction` toolbar items, but the window toolbar spans the whole detail area — so in
-    /// 3-column mode they right-aligned above the CHAT column and read as its controls.
+    /// The title bar's centre (AITD-553: one header). Which controls, in which groups, is
+    /// `MacListChrome.titleBarGroups`; this only draws them.
+    private var titleBarGroups: [[MacListChrome.TitleBarControl]] {
+        MacListChrome.titleBarGroups(
+            showsModePicker: MacViewMode.showsModePicker(modes: availableContentModes,
+                                                         isSwitchable: contentModeIsSwitchable),
+            hasSelection: selectedListId != nil, isRealList: currentRealList != nil,
+            isMyTasks: selectedListId == Self.myTasksId, isListMode: contentMode == .list)
+    }
+
     @ViewBuilder
-    private var listChrome: some View {
-        let isList = contentMode == .list
-        let showsFilter = MacListChrome.showsFilter(isRealList: currentRealList != nil, isListMode: isList)
-        // My Tasks has no TaskList, but it has saved, synced filters (ebdf94a1).
-        let showsMyTasksFilter = selectedListId == Self.myTasksId && isList
-        // A board suppressed this strip entirely, which took list settings with it — the sidebar
-        // right-click was the only way in, and that row is not what you are looking at while
-        // working the columns (AITD-373).
-        let showsListMenu = MacListChrome.showsListMenu(isRealList: currentRealList != nil, isListMode: isList)
-        let showsSort = MacListChrome.headerShowsSort(hasSelection: selectedListId != nil,
-            isRealList: currentRealList != nil, isMyTasks: selectedListId == Self.myTasksId,
-            isListMode: isList)
-        if MacListChrome.showsStrip(showsSort: showsSort, showsFilter: showsFilter,
-                                    showsMyTasksFilter: showsMyTasksFilter, showsListMenu: showsListMenu) {
-            HStack(spacing: 8) {
-                Spacer(minLength: 0)
-                if showsSort { sortMenu }
-                if showsFilter, let list = currentRealList { filterButton(list) }
-                if showsMyTasksFilter { myTasksFilterButton }
-                if showsListMenu, let list = currentRealList {
-                    MacListSettingsButton(list: list, userId: auth.userId,
-                                          actions: listMenuActions(list))
+    private func titleBarControl(_ control: MacListChrome.TitleBarControl) -> some View {
+        switch control {
+        case .modePicker:
+            Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
+                ForEach(availableContentModes, id: \.self) { mode in
+                    Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
                 }
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .padding(.horizontal, MacLayout.rowTrailingGap)
-            .padding(.vertical, 4)
+            .pickerStyle(.segmented)
+        case .sort:
+            sortMenu
+        case .myTasksFilter:
+            myTasksFilterButton
+        case .listSettings:
+            if let list = currentRealList {
+                MacListSettingsButton(list: list, isPresented: $settingsOpen, onDelete: deleteList)
+            }
         }
+    }
+
+    private func titleBarGroup(_ controls: [MacListChrome.TitleBarControl]) -> some View {
+        HStack(spacing: 8) {
+            ForEach(controls, id: \.self) { titleBarControl($0) }
+        }
+        .labelStyle(.iconOnly)
     }
 
     /// The sidebar's surface colour, resolved from the mode this view OBSERVES.
@@ -706,24 +709,8 @@ struct MacRootView: View {
         }
         .help(NSLocalizedString("mac.filter_tasks", comment: ""))
         .accessibilityIdentifier("myTasks.filterButton")
-    }
-
-    /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
-    private func filterButton(_ list: TaskList) -> some View {
-        Button { showFilterSheet = true } label: {
-            // All six dimensions, so the badge lights for a repeating-only filter too — it used
-            // to count four and stay dark on a list that was very much filtered (70d849f8).
-            let active = MacListFilter.activeCount(completion: list.filterCompletion,
-                                                   priority: list.filterPriority,
-                                                   dueDate: list.filterDueDate,
-                                                   assignee: list.filterAssignee,
-                                                   repeating: list.filterRepeating,
-                                                   assignedBy: list.filterAssignedBy)
-            Label(NSLocalizedString("actions.filter", comment: ""),
-                  systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
-                                          : "line.3.horizontal.decrease.circle")
-        }
-        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
+        // A popover, so a click outside closes it (AITD-553).
+        .popover(isPresented: $showMyTasksFilterSheet, arrowEdge: .bottom) { MacMyTasksFilterSheet() }
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
@@ -999,7 +986,7 @@ struct MacRootView: View {
             hasSelection: !selectedTaskIds.isEmpty,
             isTextFieldFocused: false,
             isModalPresented: appModel.showPalette || appModel.showShortcutsHelp
-                || showNewList || showPublicLists || editingList != nil || settingsList != nil || listToDelete != nil)
+                || showNewList || showPublicLists || editingList != nil || settingsOpen)
         guard let action = KeyboardShortcutHandler.action(for: key, context: ctx),
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
@@ -1229,18 +1216,19 @@ struct MacRootView: View {
                              : selectedListId == Self.myTasksId ? NSLocalizedString("navigation.my_tasks", comment: "")
                              : (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // Drawn only when there is something to switch BETWEEN — see
-                    // MacViewMode.showsModePicker (task 6d709a75).
-                    if MacViewMode.showsModePicker(modes: availableContentModes,
-                                                   isSwitchable: contentModeIsSwitchable) {
-                        Picker(NSLocalizedString("mac.view", comment: ""), selection: $contentMode) {
-                            ForEach(availableContentModes, id: \.self) { mode in
-                                Image(systemName: MacViewMode.symbol(for: mode)).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
+                // Two groups, drawn apart: the list/board picker, then sort / filter / settings
+                // (AITD-553). Fixed slots, so the groups never swap places between selections.
+                let groups = titleBarGroups
+                let pickerGroup = groups.first { $0.contains(.modePicker) }
+                let controlGroup = groups.first { !$0.contains(.modePicker) }
+                if let pickerGroup {
+                    ToolbarItem(placement: .principal) { titleBarGroup(pickerGroup) }
+                }
+                if pickerGroup != nil, controlGroup != nil, #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .principal)
+                }
+                if let controlGroup {
+                    ToolbarItem(placement: .principal) { titleBarGroup(controlGroup) }
                 }
                 // Manual refresh (0f525a89) — the one control that DOES belong to the window
                 // rather than to the task list: it reconciles everything, not just these rows.
@@ -1370,7 +1358,9 @@ struct MacRootView: View {
                                                       projectId: currentRealList?.projectId)
                 }
             case .showFilters:
-                if currentRealList != nil { showFilterSheet = true }
+                // A list's filters are List Settings ▸ Filters (AITD-553); My Tasks has its own.
+                if currentRealList != nil { settingsOpen = true }
+                else if selectedListId == Self.myTasksId { showMyTasksFilterSheet = true }
             }
         }
         .onChange(of: taskService.tasks) {
@@ -1401,20 +1391,7 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
-        .sheet(item: $settingsList) { MacListSettingsWindow(list: $0) }
         .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
-        .sheet(isPresented: $showFilterSheet) {
-            if let list = currentRealList { MacFilterSheet(list: list) }
-        }
-        .sheet(isPresented: $showMyTasksFilterSheet) { MacMyTasksFilterSheet() }
-        .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
-                            isPresented: Binding(get: { listToDelete != nil },
-                                                 set: { if !$0 { listToDelete = nil } }),
-                            presenting: listToDelete) { list in
-            Button(String(format: NSLocalizedString("mac.delete_list_named", comment: ""), list.name),
-                   role: .destructive) { deleteList(list) }
-            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-        }
         .safeAreaInset(edge: .bottom) {
             if !network.isConnected {
                 HStack(spacing: 6) {

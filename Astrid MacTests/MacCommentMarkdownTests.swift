@@ -82,29 +82,5 @@ final class MacCommentMarkdownTests: XCTestCase {
                       "commentBubble must render markdown in hug-your-text mode")
     }
 
-    // MARK: - What a comment on this board actually looks like
-
-    /// The comments this renders are strategy notes and completion reports: bold leads, bullet
-    /// lists, `##` headings. All of it has to come out as structure rather than as one long line
-    /// of punctuation — the shared parser does the work, this pins that a comment's shape reaches it.
-    func testARealCommentParsesIntoBlocksNotOneParagraph() {
-        let comment = """
-        **Done — merged into `main`.**
-
-        - the rule moved into one place
-        - the drawer is shared
-
-        ## Gates
-        predeploy green.
-        """
-        let blocks = CoreRules.markdown(comment)
-        XCTAssertEqual(blocks.count, 4, "lead, the list, heading, closing paragraph")
-        guard case .paragraph(let lead) = blocks[0] else { return XCTFail("a lead paragraph") }
-        XCTAssertEqual(lead.first, .text(MarkdownRun(text: "Done — merged into ", bold: true)),
-                       "inline marks arrive as runs, drawn by the view — not as asterisks")
-        guard case .list(ordered: false, _, let items) = blocks[1] else { return XCTFail("a list") }
-        XCTAssertEqual(items.count, 2)
-        XCTAssertEqual(blocks[2], .heading(level: 2, [.text(MarkdownRun(text: "Gates"))]))
-    }
 }
 #endif

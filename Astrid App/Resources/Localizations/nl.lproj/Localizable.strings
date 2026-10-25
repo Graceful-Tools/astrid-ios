@@ -453,6 +453,7 @@
 "lists.github_repository" = "GitHub-repository";
 "lists.no_repositories_found" = "Geen repositories gevonden. Zorg dat je GitHub-account is verbonden.";
 "lists.pending_invitations" = "Uitnodigingen in afwachting";
+"lists.pending" = "In afwachting";
 "lists.invited" = "Uitgenodigd";
 "lists.cancel_invite" = "Uitnodiging annuleren";
 "lists.ai_agents" = "AI-agenten";
@@ -473,6 +474,7 @@
 "lists.gemini_task_description" = "Google Gemini voor taakondersteuning";
 "lists.default_agent_description" = "AI-agent voor taakondersteuning";
 "lists.ai_coding_agents" = "AI-programmeeragenten";
+"lists.ai_coding_agent" = "AI-programmeeragent";
 "lists.connect_github_description" = "Verbind een GitHub-repository om programmeerworkflows in te schakelen";
 "lists.list_privacy" = "Lijstprivacy";
 "lists.make_public" = "Openbaar maken";
@@ -952,6 +954,7 @@
 "sync.new_list" = "Nieuwe lijst";
 "sync.not_linked" = "Niet gekoppeld";
 "sync.repository" = "Repository";
+"sync.use_repo" = "%@ gebruiken";
 "sync.suffix_placeholder" = "Naamachtervoegsel, bijv. [GT]";
 "sync.sync_mode" = "Synchronisatiemodus";
 "sync.sync_now" = "Nu synchroniseren";
@@ -1567,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, tot datum";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Inzichten";
+"listInsights.days7" = "7 dagen";
+"listInsights.days30" = "30 dagen";
+"listInsights.days90" = "90 dagen";
+"listInsights.activity" = "Activiteit";
+"listInsights.created" = "Nieuw";
+"listInsights.completed" = "Voltooid";
+"listInsights.created_total" = "%@ nieuw";
+"listInsights.completed_total" = "%@ voltooid";
+"listInsights.time_to_complete" = "Mediane tijd tot voltooiing";
+"listInsights.time_in_lane" = "Mediane tijd per kolom";
+"listInsights.sample_size" = "uit %@";
+"listInsights.not_enough_history" = "Nog niet genoeg geschiedenis";
+"listInsights.lane_history_note" = "Kolomverplaatsingen worden vanaf nu vastgelegd; dit vult zich naarmate kaarten verschuiven.";
+"listInsights.contributors" = "Topbijdragers";
+"listInsights.profile_counts" = "%1$@ voltooid · %2$@ geïnspireerd · %3$@ ondersteund";
+"listInsights.activity_counts" = "%1$@ gemaakt · %2$@ bewerkingen · %3$@ reacties";
+"listInsights.no_activity" = "Geen activiteit in deze periode";
+"listInsights.load_failed" = "Inzichten konden niet worden geladen";
+"listInsights.loading" = "Inzichten laden…";
+"listInsights.duration.minutes" = "%@ min";
+"listInsights.duration.hours" = "%@ u";
+"listInsights.duration.days" = "%@ d";

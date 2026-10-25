@@ -82,29 +82,6 @@ final class BoardColumnsFromConfigTests: XCTestCase {
 
     // MARK: - While the rows still exist
 
-    func testABackedRoleIsStillKeyedByItsRole() {
-        // This asserted `readyColumn.id == "l-ready"` while the dual-write needed
-        // the list id. The rows are deleted, so the id is the role whether or not
-        // a client still has one cached — see BoardColumnIdIsTheRoleTests (e5c74b5e).
-        let ready = statusList("ready", "l-ready", "Ready")
-        let columns = CoreBoardFixture.columns([domainList(), ready])
-        let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
-
-        XCTAssertEqual(readyColumn.id, "ready")
-    }
-
-    func testABackedMoveDoesNotPersistStatusMembership() {
-        let ready = statusList("ready", "l-ready", "Ready")
-        let lists = [domainList(), ready]
-        let columns = CoreBoardFixture.columns(lists)
-        let readyColumn = try! XCTUnwrap(columns.first { $0.name == "Ready" })
-
-        let move = CoreBoardFixture.move(task(statusRole: nil), to: readyColumn, lists: lists)
-
-        XCTAssertEqual(move.statusRole, "ready")
-        XCTAssertEqual(move.listIds, ["domain-1"])
-    }
-
     func testARenamedDefaultKeepsItsListName() {
         let renamed = statusList("ready", "l-ready", "Backlog")
         let columns = CoreBoardFixture.columns([domainList(), renamed])

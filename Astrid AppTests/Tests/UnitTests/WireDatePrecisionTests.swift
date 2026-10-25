@@ -55,27 +55,6 @@ final class WireDatePrecisionTests: XCTestCase {
         XCTAssertEqual(parsed.timeIntervalSince1970, date.timeIntervalSince1970, accuracy: 0.001)
     }
 
-    // MARK: - The call site
-
-    /// The format is only as good as the one place that writes it. `TaskService` builds every
-    /// task update in the app, and a bare `ISO8601DateFormatter()` on its `completedAt` line is
-    /// precisely the regression — one that would be invisible until someone next tried to order
-    /// two completions and found they were the same instant.
-    func testTaskServiceStampsCompletedAtThroughWireDate() throws {
-        let source = try String(
-            contentsOf: RepositoryLocator.root
-                .appendingPathComponent("Astrid App/Core/Services/TaskService.swift"),
-            encoding: .utf8)
-
-        // Matched on the expression rather than the line: the write wraps across two lines, and
-        // a line-shaped assertion would go quietly green the next time someone reformatted it.
-        XCTAssertTrue(source.contains("completedAt.map { WireDate.string(from: $0) }"),
-                      "completedAt must be stamped through WireDate")
-        XCTAssertFalse(source.contains("ISO8601DateFormatter().string(from: completedAt"),
-                       "completedAt must not be stamped with a bare formatter — that truncates to "
-                       + "the second, which is AITD-369")
-    }
-
     // MARK: - AITD-404: reading, and the due-date half
 
     /// THE BUG ON THE WAY IN. A bare `ISO8601DateFormatter` does not truncate a fractional
@@ -121,22 +100,5 @@ final class WireDatePrecisionTests: XCTestCase {
         let original = Date(timeIntervalSince1970: 1788876157)
         let parsed = try XCTUnwrap(WireDate.date(from: WireDate.dueDateString(from: original)))
         XCTAssertEqual(parsed.timeIntervalSince1970, original.timeIntervalSince1970, accuracy: 0.001)
-    }
-
-    /// The sites that were parsing by hand must ask WireDate now. Listed explicitly rather than
-    /// swept: several OTHER bare formatters in the tree are correct (SyncSuppression's are stored,
-    /// UTC-pinned and already carry both shapes) and a blanket ban would be wrong about them.
-    func testAITD404_TheHandRolledParsesNowAskWireDate() throws {
-        let root = RepositoryLocator.root
-        for path in ["Astrid App/Core/Tasks/NewTaskDefaults.swift",
-                     "Astrid App/Views/Tasks/QuickAddTaskView.swift",
-                     "Astrid App/Core/Platform/AgentHubScreens.swift",  // was Views/Settings/CustomAgentsSettingsView.swift until AITD-405
-                     "Astrid App/Views/Settings/AccountSettingsView.swift"] {
-            let src = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-            XCTAssertTrue(src.contains("WireDate.date(from:"),
-                          "AITD-404: \(path) should parse through WireDate")
-            XCTAssertFalse(src.contains("ISO8601DateFormatter()"),
-                           "AITD-404: \(path) should not build its own parser")
-        }
     }
 }

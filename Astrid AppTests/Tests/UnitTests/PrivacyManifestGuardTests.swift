@@ -76,6 +76,19 @@ final class PrivacyManifestGuardTests: XCTestCase {
         }
     }
 
+    /// The exact reason codes, not just "some reason": a code that does not match the API's use
+    /// is rejected as surely as none (task f1904994; moved from PrivacyManifestTests, AITD-531).
+    func testEachCategoryCarriesTheReasonCoreActuallyHas() throws {
+        let types = try XCTUnwrap(manifest()["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
+        let reasons = Dictionary(uniqueKeysWithValues: types.compactMap { entry -> (String, [String])? in
+            guard let type = entry["NSPrivacyAccessedAPIType"] as? String,
+                  let values = entry["NSPrivacyAccessedAPITypeReasons"] as? [String] else { return nil }
+            return (type, values)
+        })
+        XCTAssertEqual(reasons["NSPrivacyAccessedAPICategoryUserDefaults"], ["CA92.1"])
+        XCTAssertEqual(reasons["NSPrivacyAccessedAPICategoryFileTimestamp"], ["C617.1"])
+    }
+
     func testTheAppDoesNotClaimToTrackUsers() throws {
         XCTAssertEqual(try manifest()["NSPrivacyTracking"] as? Bool, false)
     }

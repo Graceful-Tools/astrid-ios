@@ -192,6 +192,7 @@
 "lists.github_repository" = "GitHub-Repository";
 "lists.no_repositories_found" = "Keine Repositories gefunden. Stellen Sie sicher, dass Ihr GitHub-Konto verbunden ist.";
 "lists.pending_invitations" = "Ausstehende Einladungen";
+"lists.pending" = "Ausstehend";
 "lists.invited" = "Eingeladen";
 "lists.cancel_invite" = "Einladung abbrechen";
 "lists.ai_agents" = "KI-Agenten";
@@ -212,6 +213,7 @@
 "lists.gemini_task_description" = "Google Gemini für Aufgabenhilfe";
 "lists.default_agent_description" = "KI-Agent für Aufgabenhilfe";
 "lists.ai_coding_agents" = "KI-Programmieragenten";
+"lists.ai_coding_agent" = "KI-Programmieragent";
 "lists.connect_github_description" = "GitHub-Repository verbinden, um Programmier-Workflows zu aktivieren";
 "lists.list_privacy" = "Listenschutz";
 "lists.make_public" = "Öffentlich machen";
@@ -952,6 +954,7 @@
 "sync.new_list" = "Neue Liste";
 "sync.not_linked" = "Nicht verknüpft";
 "sync.repository" = "Repository";
+"sync.use_repo" = "%@ verwenden";
 "sync.suffix_placeholder" = "Namenszusatz, z. B. [GT]";
 "sync.sync_mode" = "Synchronisierungsmodus";
 "sync.sync_now" = "Jetzt synchronisieren";
@@ -1567,3 +1570,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, bis Datum";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Statistiken";
+"listInsights.days7" = "7 Tage";
+"listInsights.days30" = "30 Tage";
+"listInsights.days90" = "90 Tage";
+"listInsights.activity" = "Aktivität";
+"listInsights.created" = "Neu";
+"listInsights.completed" = "Erledigt";
+"listInsights.created_total" = "%@ neu";
+"listInsights.completed_total" = "%@ erledigt";
+"listInsights.time_to_complete" = "Mittlere Zeit bis zur Erledigung";
+"listInsights.time_in_lane" = "Mittlere Zeit pro Spalte";
+"listInsights.sample_size" = "aus %@";
+"listInsights.not_enough_history" = "Noch nicht genug Verlauf";
+"listInsights.lane_history_note" = "Spaltenwechsel werden ab jetzt erfasst; die Werte füllen sich, sobald Karten verschoben werden.";
+"listInsights.contributors" = "Top-Beitragende";
+"listInsights.profile_counts" = "%1$@ erledigt · %2$@ inspiriert · %3$@ unterstützt";
+"listInsights.activity_counts" = "%1$@ erstellt · %2$@ Änderungen · %3$@ Kommentare";
+"listInsights.no_activity" = "Keine Aktivität in diesem Zeitraum";
+"listInsights.load_failed" = "Statistiken konnten nicht geladen werden";
+"listInsights.loading" = "Statistiken werden geladen…";
+"listInsights.duration.minutes" = "%@ Min.";
+"listInsights.duration.hours" = "%@ Std.";
+"listInsights.duration.days" = "%@ T.";

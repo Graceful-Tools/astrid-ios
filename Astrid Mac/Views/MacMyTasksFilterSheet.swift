@@ -7,7 +7,7 @@
 //  set on the phone was already stored and simply did nothing on the desktop — which reads as the
 //  Mac being broken rather than as a missing feature.
 //
-//  WHY THIS IS A SEPARATE SHEET FROM `MacFilterSheet`. That one edits a LIST: it writes six
+//  WHY THIS IS SEPARATE FROM A LIST'S FILTERS (List Settings ▸ Filters). Those edit a LIST: it writes six
 //  filter fields plus sort onto the TaskList record, and offers "saved filter" and per-list
 //  subtasks. My Tasks is virtual — it has no record to write to, its preferences live in the
 //  account-wide `MyTasksPreferences`, and four of those six dimensions are meaningless here
@@ -24,6 +24,7 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacMyTasksFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -39,25 +40,22 @@ struct MacMyTasksFilterSheet: View {
             Text(NSLocalizedString("navigation.my_tasks", comment: ""))
                 .macFont(.headline).foregroundStyle(Theme.textPrimary)
 
-            Form {
+            // The same non-scrolling grid as List Settings' Filters tab (AITD-553).
+            MacFilterGrid {
                 // Sort is the header's menu now (AITD-522), not a section here.
                 if MacListChrome.myTasksSheetOffersSort {
-                    Section(NSLocalizedString("actions.sort", comment: "")) {
-                        picker(NSLocalizedString("lists.sort_order", comment: ""),
-                               selection: $sortBy, options: MacListFilter.sort)
-                    }
+                    MacFilterRows.header(NSLocalizedString("actions.sort", comment: ""))
+                    MacFilterRows.row(NSLocalizedString("lists.sort_order", comment: ""),
+                                      selection: $sortBy, options: MacListFilter.sort)
                 }
-                Section(NSLocalizedString("lists.filters", comment: "")) {
-                    picker(NSLocalizedString("lists.task_completion", comment: ""),
-                           selection: $completion, options: MacListFilter.completion)
-                    picker(NSLocalizedString("tasks.priority", comment: ""),
-                           selection: $priority, options: MacListFilter.priority)
-                    picker(NSLocalizedString("tasks.due_date", comment: ""),
-                           selection: $dueDate, options: MacListFilter.dueDate)
-                }
+                MacFilterRows.header(NSLocalizedString("lists.filters", comment: ""))
+                MacFilterRows.row(NSLocalizedString("lists.task_completion", comment: ""),
+                                  selection: $completion, options: MacListFilter.completion)
+                MacFilterRows.row(NSLocalizedString("tasks.priority", comment: ""),
+                                  selection: $priority, options: MacListFilter.priority)
+                MacFilterRows.row(NSLocalizedString("tasks.due_date", comment: ""),
+                                  selection: $dueDate, options: MacListFilter.dueDate)
             }
-            .formStyle(.grouped).macThemedSurface()
-            .frame(height: MacListChrome.myTasksSheetOffersSort ? 240 : 180)
 
             HStack {
                 // Clears the filters, not the sort — as the list sheet's Clear does.
@@ -72,7 +70,10 @@ struct MacMyTasksFilterSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 340)
+        // Wider when the screen has room (AITD-553); shown as a popover, so a click outside
+        // closes it as well as Done.
+        .frame(width: MacListChrome.filterPopoverWidth(
+            screenWidth: NSScreen.main?.visibleFrame.width ?? 1440))
         .background(Theme.bgPrimary)
         .accessibilityIdentifier("myTasks.filterSheet")
         // Load BEFORE the controls can write. A picker that starts on the default and is then
@@ -91,13 +92,6 @@ struct MacMyTasksFilterSheet: View {
     private var activeFilters: Int {
         MacListFilter.activeCount(completion: completion, priority: priority, dueDate: dueDate,
                                   assignee: "all", repeating: "all", assignedBy: "all")
-    }
-
-    private func picker(_ title: String, selection: Binding<String>,
-                        options: [MacListFilter.Option]) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(options) { Text($0.label).tag($0.value) }
-        }
     }
 
     private func load() {

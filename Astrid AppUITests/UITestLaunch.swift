@@ -46,15 +46,47 @@ enum UITestLaunch {
     ///
     /// Mint one with:
     ///
-    ///     cd ../astrid-web && npx tsx scripts/uitest-account.ts --cookie
+    ///     cd ../astrid-web && npx tsx scripts/uitest-account.ts --run <id>
     ///
     /// `npm run test:ui` does it for you.
     static let sessionCookie: String? = {
         if let fromEnvironment = nonEmpty(ProcessInfo.processInfo.environment[cookieKey]) {
             return fromEnvironment
         }
-        return nonEmpty(cookieFromBundle())
+        return nonEmpty(sessionResource[sessionResourceKey] as? String)
     }()
+
+    /// This run's seeded fixtures by id, or nil on the shared-account path (AITD-527).
+    ///
+    /// Only when the cookie in use is the one the plist was written with — fixture ids from one
+    /// account are meaningless under another's session.
+    static let fixtures: UITestFixtures? = {
+        guard let cookie = sessionCookie,
+              cookie == nonEmpty(sessionResource[sessionResourceKey] as? String),
+              let json = sessionResource["fixtures"] as? String
+        else { return nil }
+        return UITestFixtures.decode(json)
+    }()
+
+    /// The server the app under test — and `UITestAPI` — talks to (AITD-527).
+    ///
+    /// Production unless the runner wrote a `baseURL` (`ASTRID_UITEST_BASE_URL`), which the app
+    /// receives as `-uiTestBaseURL`; see `UITestSession.baseURLOverride`.
+    static let baseURL: String = {
+        var value = nonEmpty(sessionResource["baseURL"] as? String) ?? productionBaseURL
+        while value.hasSuffix("/") { value.removeLast() }
+        return value
+    }()
+
+    static let productionBaseURL = "https://www.astrid.cc"
+    static let baseURLArgument = "-uiTestBaseURL"
+
+    /// Points every request at an address nothing answers. Must match `UITestSession.offlineArgument`.
+    static let offlineArgument = "-uiTestOffline"
+    /// Reopens one scratch cache across launches. Must match `UITestSession.cacheNameArgument`.
+    static let cacheNameArgument = "-uiTestCacheName"
+    /// Queues a share in the App Group at launch. Must match `UITestSession.sharePayloadArgument`.
+    static let sharePayloadArgument = "-uiTestSharePayload"
 
     /// True when this run is expected to be signed in. Tests that assert signed-in behaviour
     /// use this to tell "no credential was supplied" (a fair skip) from "a credential was
@@ -69,14 +101,25 @@ enum UITestLaunch {
     /// The one way the suite launches the app. Every test target file uses this, so the flag
     /// and the credential cannot drift apart between suites — they already did once, and the
     /// suites that lacked the block skipped for a different reason than the ones that had it.
-    static func makeApp() -> XCUIApplication {
+    static func makeApp(cacheName: String? = nil, offline: Bool = false, sharePayload: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [flag] + englishArguments
+        // The Outbox journey's two switches (AITD-528). Must match `UITestSession`.
+        if let cacheName { app.launchArguments += [cacheNameArgument, cacheName] }
+        if offline { app.launchArguments += [offlineArgument] }
+        if let sharePayload { app.launchArguments += [sharePayloadArgument, sharePayload] }
         if let cookie = sessionCookie {
             // Both channels: the argument is what the app reads first, the environment is
             // there because an argument list is visible in `ps` and an environment is not.
             app.launchArguments += [cookieArgument, cookie]
             app.launchEnvironment[cookieKey] = cookie
+        }
+        if baseURL != productionBaseURL {
+            app.launchArguments += [baseURLArgument, baseURL]
+        }
+        if let fixtures {
+            // Not read by the app today; there so a crash log or a screenshot names the run.
+            app.launchEnvironment["ASTRID_UITEST_RUN_ID"] = fixtures.runId
         }
         return app
     }
@@ -416,15 +459,17 @@ enum UITestLaunch {
 
     // MARK: - Private
 
-    private static func cookieFromBundle() -> String? {
+    /// `UITestSession.plist`, written by `scripts/run-tests.sh`: the cookie, and for a per-run
+    /// account the fixtures document, the run id and an optional base URL.
+    private static let sessionResource: [String: Any] = {
         let bundle = Bundle(for: UITestLaunchBundleToken.self)
         guard let url = bundle.url(forResource: sessionResourceName, withExtension: "plist"),
               let data = try? Data(contentsOf: url),
               let plist = try? PropertyListSerialization.propertyList(from: data,
                                                                      format: nil) as? [String: Any]
-        else { return nil }
-        return plist[sessionResourceKey] as? String
-    }
+        else { return [:] }
+        return plist
+    }()
 
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),

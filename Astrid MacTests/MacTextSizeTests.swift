@@ -79,28 +79,5 @@ final class MacTextSizeTests: XCTestCase {
                        NSFont.preferredFont(forTextStyle: .caption1).pointSize * 2)
     }
 
-    // MARK: - Nothing bypasses it
-
-    /// A raw `.font(.caption)` in a Mac view ignores the setting, and there were 160 of them.
-    /// Glyphs drawn to fit a fixed frame (`size * ratio`) are the exception: they scale with
-    /// their frame, not with the text.
-    func testNoMacViewSetsAFontThatIgnoresTheTextSize() throws {
-        let root = RepositoryLocator.root.appendingPathComponent("Astrid Mac")
-        let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)!
-            .compactMap { $0 as? URL }
-            .filter { $0.pathExtension == "swift" && $0.lastPathComponent != "MacTextSize.swift" }
-        var offenders: [String] = []
-        for file in files {
-            let lines = try String(contentsOf: file, encoding: .utf8).components(separatedBy: "\n")
-            // `.font(scale:)` is MacFont resolving itself, not a view setting a font.
-            for (i, line) in lines.enumerated()
-            where line.range(of: #"\.font\((?!scale:)"#, options: .regularExpression) != nil {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.hasPrefix("//") || line.contains("size: size *") { continue }
-                offenders.append("\(file.lastPathComponent):\(i + 1): \(trimmed)")
-            }
-        }
-        XCTAssertEqual(offenders, [], "Use .macFont(...) so the text size reaches it")
-    }
 }
 #endif

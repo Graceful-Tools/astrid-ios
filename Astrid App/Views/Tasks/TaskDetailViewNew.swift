@@ -490,7 +490,7 @@ struct TaskDetailViewNew: View {
                         label: "Description",
                         text: $editedDescription,
                         placeholder: NSLocalizedString("task_edit.add_description", comment: "Add a description..."),
-                        onSave: saveDescription
+                        onSave: saveDescription, accessibilityIdentifier: "taskDetail.description"
                     )
                     .padding(.horizontal, Theme.spacing16)
                 }
@@ -1302,7 +1302,7 @@ struct TaskDetailViewNew: View {
             .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
             .textFieldStyle(.plain)
             .disabled(isReadOnly)
-            .focused($isTitleFocused)
+            .focused($isTitleFocused).accessibilityIdentifier("taskDetail.title")
             .onChange(of: editedTitle) { _, newValue in
                 // Detect return key press (newline) and dismiss keyboard
                 if newValue.contains("\n") {
@@ -1398,7 +1398,7 @@ struct TaskDetailViewNew: View {
                 repeatFrom: $editedRepeatFrom,
                 repeatingData: $editedRepeatingData,
                 onSave: saveRepeating,
-                onSaveCustom: saveCustomRepeating,
+                onSaveCustom: saveCustomRepeating, dueDate: isAllDay ? editedDueDate : (editedDueTime ?? editedDueDate), isAllDay: isAllDay,
                 showLabel: false,
                 compact: true
             )

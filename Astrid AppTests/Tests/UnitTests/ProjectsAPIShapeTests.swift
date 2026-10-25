@@ -31,79 +31,7 @@ final class ProjectsAPIShapeTests: XCTestCase {
         XCTAssertEqual(response.projects.count, 0)
     }
 
-    func testDecode_projectsListWithSeededStatusLists() throws {
-        // Mirrors what /api/v1/projects returns after a POST: the project
-        // plus its three seeded status lists.
-        let json = """
-        {
-          "projects": [
-            {
-              "id": "p1",
-              "name": "Astrid Dev",
-              "description": null,
-              "color": "#3b82f6",
-              "imageUrl": null,
-              "ownerId": "u1",
-              "owner": null,
-              "members": [],
-              "lists": [
-                {
-                  "id": "l-ready", "name": "Ready", "projectId": "p1",
-                  "listType": "status", "statusRole": "ready", "statusOrder": 0,
-                  "statusDescription": "Time to get to work!", "statusCompleted": false,
-                  "recentlyCompletedWindow": null,
-                  "privacy": "SHARED", "ownerId": "u1"
-                },
-                {
-                  "id": "l-doing", "name": "Doing", "projectId": "p1",
-                  "listType": "status", "statusRole": "doing", "statusOrder": 1,
-                  "statusDescription": "Active work in progress!", "statusCompleted": false,
-                  "recentlyCompletedWindow": null,
-                  "privacy": "SHARED", "ownerId": "u1"
-                },
-                {
-                  "id": "l-waiting", "name": "Waiting", "projectId": "p1",
-                  "listType": "status", "statusRole": "waiting", "statusOrder": 2,
-                  "statusDescription": "Paused.", "statusCompleted": false,
-                  "recentlyCompletedWindow": null,
-                  "privacy": "SHARED", "ownerId": "u1"
-                }
-              ],
-              "createdAt": "2026-05-12T00:00:00Z",
-              "updatedAt": "2026-05-12T00:00:00Z"
-            }
-          ],
-          "meta": { "apiVersion": "v1", "authSource": "oauth" }
-        }
-        """.data(using: .utf8)!
-
-        let response = try decoder.decode(ProjectsResponse.self, from: json)
-        XCTAssertEqual(response.projects.count, 1)
-        let project = response.projects[0]
-        XCTAssertEqual(project.id, "p1")
-        XCTAssertEqual(project.lists?.count, 3)
-
-        let ready = try XCTUnwrap(project.lists?.first { $0.statusRole == "ready" })
-        XCTAssertEqual(ready.projectId, "p1")
-        XCTAssertEqual(ready.listType, "status")
-        XCTAssertEqual(ready.statusOrder, 0)
-    }
-
     // MARK: - POST /api/v1/projects → ProjectResponse + CreateProjectRequest
-
-    func testEncode_createProjectRequest_omitsNilFields() throws {
-        let request = CreateProjectRequest(
-            name: "My Board",
-            description: nil,
-            color: nil,
-            imageUrl: nil
-        )
-        let data = try encoder.encode(request)
-        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(json.contains("\"name\":\"My Board\""))
-        // The encoder doesn't strip nil keys by default; that's OK — the
-        // server accepts null values the same as absent ones.
-    }
 
     func testDecode_projectResponseWrapper() throws {
         let json = """

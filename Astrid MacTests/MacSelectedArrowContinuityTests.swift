@@ -62,17 +62,6 @@ final class MacSelectedArrowContinuityTests: XCTestCase {
         XCTAssertGreaterThan(MacSelectionStyle.selectedWidth, MacSelectionStyle.unselectedWidth)
     }
 
-    /// "Apply to all themes" costs nothing as long as the pop-out never decides for itself: it
-    /// asks MacSelectionStyle, which resolves Theme.accent, which is themed. A per-theme branch
-    /// in the pop-out is how one theme ends up with a border the rest do not have.
-    func testThePopoutHasNoPerThemeBorderBranch() throws {
-        let body = try popoutBody()
-        XCTAssertFalse(body.contains("Theme.Dark."),
-                       "The pop-out must not name a single theme's palette — the token is already themed")
-        XCTAssertFalse(body.contains("currentThemeMode"),
-                       "No theme branching in the pop-out; MacSelectionStyle answers for every theme")
-    }
-
     // MARK: - …and it continues around the notch
 
     /// The arrow's fill erases the card's border where it overlaps, so without an outline of its

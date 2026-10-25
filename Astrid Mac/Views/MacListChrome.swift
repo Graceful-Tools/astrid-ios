@@ -7,18 +7,20 @@
 //  which is above the chat column. Sort and filter act on the rows, so they read as belonging to
 //  the message list, and the toolbar's "+" looked like an add button for chat.
 //
-//  Filter, sort and the list-settings gear live in a strip at the top of the list column — the
-//  list's header (AITD-522). Sort spent a while in the toolbar (AITD-509), when it was alone in
-//  the strip and a row for one icon was the complaint. The "+" is gone entirely:
-//  the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is bound in AstridCommands, so
-//  the toolbar copy was a third way to do the same thing — in the wrong place.
+//  Sort, filter and the list-settings gear sit beside the list/board picker in the window
+//  toolbar's centre (AITD-552, AITD-553), after a spell in a strip at the top of the list column
+//  (AITD-522) — the strip is gone, so the list has one header. Sort spent a while in the
+//  toolbar (AITD-509), when it was alone in the strip and a row for one icon was the complaint.
+//  The "+" is gone entirely: the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is
+//  bound in AstridCommands, so the toolbar copy was a third way to do the same thing — in the
+//  wrong place.
 
 #if os(macOS)
 import Foundation
 
 enum MacListChrome {
 
-    /// Whether `MacFilterSheet` — the popover behind the header's filter button — has a Sort
+    /// Whether a list's filter editor outside List Settings — once `MacFilterSheet` — has a Sort
     /// section. It did (AITD-305), which is why the header had no sort menu of its own. AITD-522
     /// ("move list sort to the header") turned that round: sort is a header control, so the
     /// popover drops it and sort still has one control, not two. The List Settings window's
@@ -28,7 +30,7 @@ enum MacListChrome {
     /// The same for `MacMyTasksFilterSheet` (AITD-467 gave it Sort; AITD-522 moved it out).
     static let myTasksSheetOffersSort = false
 
-    /// Whether the sheet behind the strip's filter button already sorts this selection.
+    /// Whether the sheet behind the filter button already sorts this selection.
     static func sheetOffersSort(isRealList: Bool, isMyTasks: Bool, isListMode: Bool) -> Bool {
         (showsFilter(isRealList: isRealList, isListMode: isListMode) && filterSheetOffersSort)
             || (isMyTasks && isListMode && myTasksSheetOffersSort)
@@ -54,7 +56,7 @@ enum MacListChrome {
         isRealList && isListMode
     }
 
-    /// The list's own settings menu — Edit, Sharing, Enable board, Delete (AITD-373).
+    /// The list's own settings menu — List Settings, Favourite, Enable board (AITD-373, AITD-552).
     ///
     /// Sort and filter act on ROWS, so they ride with the rows and a board has neither. The
     /// settings menu is not a rows control: it configures the list itself, which a board is just
@@ -92,19 +94,104 @@ enum MacListChrome {
                                                    isListMode: isListMode))
     }
 
-    /// The header's sort menu (AITD-522): wherever the toolbar does not carry it and no sheet
-    /// already sorts — which, with both sheets' Sort sections gone, is every list-mode selection.
-    static func headerShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
-                                isListMode: Bool) -> Bool {
-        !toolbarOffersSort && showsSort(hasSelection: hasSelection, isListMode: isListMode,
-            filterSheetOffersSort: sheetOffersSort(isRealList: isRealList, isMyTasks: isMyTasks,
-                                                   isListMode: isListMode))
+    /// Sort and the list-settings gear sit in the window toolbar's CENTRE, beside the list/board
+    /// picker, rather than in the strip above the rows (AITD-552: "move the SORT button and the
+    /// Settings button to the header, next to the board/list selector").
+    ///
+    /// This is not the trailing-edge problem that sent them out of the toolbar (9998d83a): that
+    /// was `.primaryAction`, which right-aligns over the chat column. The principal slot is the
+    /// picker's, and the picker already switches what the LIST column shows, so the controls that
+    /// configure that view read as its neighbours. Filter joined them in AITD-553.
+    static let titleBarCarriesListControls = true
+
+    /// The sort menu beside the list/board picker (AITD-552): every list-mode selection, since no
+    /// sheet sorts any more (AITD-522).
+    static func titleBarShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
+                                  isListMode: Bool) -> Bool {
+        titleBarCarriesListControls && !toolbarOffersSort
+            && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+                         filterSheetOffersSort: sheetOffersSort(isRealList: isRealList,
+                                                                isMyTasks: isMyTasks,
+                                                                isListMode: isListMode))
     }
 
-    /// Whether the strip above the rows is drawn: only when it has something in it.
-    static func showsStrip(showsSort: Bool, showsFilter: Bool, showsMyTasksFilter: Bool,
-                           showsListMenu: Bool) -> Bool {
-        showsSort || showsFilter || showsMyTasksFilter || showsListMenu
+    /// The list-settings gear beside the picker (AITD-552) — any real list, either mode.
+    static func titleBarShowsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
+        titleBarCarriesListControls && showsListMenu(isRealList: isRealList, isListMode: isListMode)
+    }
+
+    /// The strip's sort menu (AITD-522): wherever neither toolbar spot carries it and no sheet
+    /// already sorts. Since AITD-552 the title bar carries it, so the strip never does.
+    static func headerShowsSort(hasSelection: Bool, isRealList: Bool, isMyTasks: Bool,
+                                isListMode: Bool) -> Bool {
+        !toolbarOffersSort && !titleBarCarriesListControls
+            && showsSort(hasSelection: hasSelection, isListMode: isListMode,
+                         filterSheetOffersSort: sheetOffersSort(isRealList: isRealList,
+                                                                isMyTasks: isMyTasks,
+                                                                isListMode: isListMode))
+    }
+
+    /// The strip's gear (AITD-522), until the title bar took it (AITD-552).
+    static func stripShowsListMenu(isRealList: Bool, isListMode: Bool) -> Bool {
+        !titleBarCarriesListControls && showsListMenu(isRealList: isRealList, isListMode: isListMode)
+    }
+
+    /// There is no strip above the rows any more (AITD-553: "there should be only one HEADER on
+    /// the mac"). Its last tenant, the filter button, joined sort and the gear in the title bar,
+    /// where Jon asked for it — "next to settings and sort".
+    static let listColumnHasStrip = false
+
+    /// One control in the title bar's centre.
+    enum TitleBarControl: Hashable {
+        case modePicker, sort, myTasksFilter, listSettings
+    }
+
+    /// A real list has no filter button of its own (AITD-553: "remove the separate filter menu on
+    /// lists since there is a filter tab in the settings menu"). The gear opens List Settings on
+    /// its Filters tab — one editor, one way in. My Tasks has no list settings, so it keeps its
+    /// button.
+    static let realListHasFilterButton = false
+
+    /// The filter editor and List Settings open as POPOVERS (AITD-553: "tapping out of the filter
+    /// menu should dismiss the menu vs just the done button"). A popover closes on a click
+    /// outside it; a sheet only on its own button.
+    static let filterAndSettingsArePopovers = true
+
+    /// The filter popover's width: wider when the screen has room, never narrower than the 340
+    /// it was, and capped where a row would only get emptier.
+    static func filterPopoverWidth(screenWidth: CGFloat) -> CGFloat {
+        min(520, max(340, (screenWidth * 0.4).rounded()))
+    }
+
+    /// The tallest the List Settings popover gets, and what its Filters tab needs at the default
+    /// text size: sort, six filters, two toggles and Clear, above the title, tabs and Done.
+    static let settingsPopoverMaxHeight: CGFloat = 760
+    static let filtersTabNeededHeight: CGFloat = 640
+    /// Room left around the popover on a screen too short for the full height.
+    static let settingsPopoverScreenMargin: CGFloat = 140
+
+    /// List Settings' size: wider when the screen allows (never narrower than the 460 window it
+    /// replaces), and as tall as the screen allows up to the cap, so the Filters tab does not
+    /// scroll anywhere it can fit.
+    static func settingsPopoverSize(screen: CGSize) -> CGSize {
+        CGSize(width: min(640, max(460, (screen.width * 0.4).rounded())),
+               height: min(settingsPopoverMaxHeight, screen.height - settingsPopoverScreenMargin))
+    }
+
+    /// The title bar's centre, as groups drawn apart from each other (AITD-553: "make the toggle
+    /// separate from the sort/settings/filter button bar"). The list/board picker switches what
+    /// the column SHOWS; the rest configure it — so they are two groups, not one capsule.
+    /// Empty groups are dropped, so nothing draws a capsule around nothing.
+    static func titleBarGroups(showsModePicker: Bool, hasSelection: Bool, isRealList: Bool,
+                               isMyTasks: Bool, isListMode: Bool) -> [[TitleBarControl]] {
+        var controls: [TitleBarControl] = []
+        if titleBarShowsSort(hasSelection: hasSelection, isRealList: isRealList,
+                             isMyTasks: isMyTasks, isListMode: isListMode) { controls.append(.sort) }
+        if isMyTasks && isListMode { controls.append(.myTasksFilter) }
+        if titleBarShowsListMenu(isRealList: isRealList, isListMode: isListMode) {
+            controls.append(.listSettings)
+        }
+        return [showsModePicker ? [.modePicker] : [], controls].filter { !$0.isEmpty }
     }
 
     /// Undo DOES belong in the window toolbar (AITD-374), and this constant is here beside the

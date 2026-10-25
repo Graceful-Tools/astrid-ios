@@ -41,8 +41,7 @@ struct MacQuickChanger: View {
                 MacPriorityPicker(selection: $priority, onSelect: { newValue in
                     onDismiss()
                     AppActions.perform("Save priority") {
-                        _ = try await taskService.updateTask(taskId: task.id,
-                                                             priority: newValue.rawValue, task: task)
+                        try await MacQuickChangerWrite.priority(newValue).apply(to: taskService, task: task)
                     }
                 })
             }
@@ -56,8 +55,7 @@ struct MacQuickChanger: View {
                     onSelect: { newId in
                         onDismiss()
                         AppActions.perform("Set assignee") {
-                            _ = try await taskService.updateTask(taskId: task.id,
-                                                                 assigneeId: newId ?? "", task: task)
+                            try await MacQuickChangerWrite.assignee(newId).apply(to: taskService, task: task)
                         }
                     }
                 )
@@ -74,10 +72,7 @@ struct MacQuickChanger: View {
             Button {
                 onDismiss()
                 AppActions.perform("Toggle completion") {
-                    // `completeTask`, never `updateTask(completed:)` — the only path that rolls
-                    // a repeating task forward (ASTRID.md rule 2).
-                    _ = try await taskService.completeTask(id: task.id,
-                                                           completed: !task.completed, task: task)
+                    try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)
                 }
             } label: {
                 Label(task.completed
@@ -96,6 +91,45 @@ struct MacQuickChanger: View {
             // Refreshes the roster the core answers the assignee picker from.
             try? await ListMemberService.shared.fetchMembers(listId: listId)
         }
+    }
+}
+/// What each control in the quick changer writes, and through which call (AITD-540).
+///
+/// Completion goes through `completeTask`, never `updateTask(completed:)` — the only path that
+/// rolls a repeating task forward (ASTRID.md rule 2). Clearing the assignee sends "", which the
+/// service reads as unassigned.
+enum MacQuickChangerWrite: Equatable {
+    case priority(Task.Priority)
+    case assignee(String?)
+    case toggleCompletion
+
+    @MainActor
+    func apply(to writer: MacTaskWriting, task: Task) async throws {
+        switch self {
+        case .priority(let priority): try await writer.writePriority(priority.rawValue, of: task)
+        case .assignee(let id): try await writer.writeAssignee(id ?? "", of: task)
+        case .toggleCompletion: try await writer.writeCompletion(!task.completed, of: task)
+        }
+    }
+}
+
+/// The three task writes a quick change can make. `TaskService` in the app; a recorder in tests.
+@MainActor
+protocol MacTaskWriting {
+    func writePriority(_ priority: Int, of task: Task) async throws
+    func writeAssignee(_ assigneeId: String, of task: Task) async throws
+    func writeCompletion(_ completed: Bool, of task: Task) async throws
+}
+
+extension TaskService: MacTaskWriting {
+    func writePriority(_ priority: Int, of task: Task) async throws {
+        _ = try await updateTask(taskId: task.id, priority: priority, task: task)
+    }
+    func writeAssignee(_ assigneeId: String, of task: Task) async throws {
+        _ = try await updateTask(taskId: task.id, assigneeId: assigneeId, task: task)
+    }
+    func writeCompletion(_ completed: Bool, of task: Task) async throws {
+        _ = try await completeTask(id: task.id, completed: completed, task: task)
     }
 }
 #endif

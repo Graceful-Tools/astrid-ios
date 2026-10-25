@@ -11,10 +11,11 @@ import XCTest
 @MainActor
 final class AppUpdateServiceTests: XCTestCase {
 
-    /// A UserDefaults nobody else is using, so a dismissal in one test cannot silence another.
+    /// A UserDefaults nobody else is using, so a dismissal in one test cannot silence another —
+    /// unique per call, so two parallel clones running the same test cannot share it (AITD-534).
     private func scratchDefaults(_ name: String = #function) -> UserDefaults {
-        let suite = "AppUpdateServiceTests.\(name)"
-        UserDefaults().removePersistentDomain(forName: suite)
+        let suite = "AppUpdateServiceTests.\(name).\(UUID().uuidString)"
+        addTeardownBlock { UserDefaults().removePersistentDomain(forName: suite) }
         return UserDefaults(suiteName: suite)!
     }
 

@@ -31,19 +31,27 @@ final class MacSymbolsTests: XCTestCase {
                        "If Apple ever adds this, the workaround in MacSymbols can be revisited")
     }
 
-    /// Every SF Symbol the Mac chrome names. A blank button is invisible in review but obvious here.
-    func testEveryMacSymbolResolves() {
-        let names = [
-            "arrow.clockwise", "arrowshape.turn.up.left", "bubble.left.and.bubble.right",
-            "checklist", "checkmark", "chevron.down", "circle", "ellipsis.circle",
-            "exclamationmark.triangle.fill", "eye", "flame.fill", "gearshape",
-            "line.3.horizontal.decrease.circle", "list.bullet", "magnifyingglass",
-            "minus.circle.fill", "paperclip", "person.crop.circle.fill", "plus",
-            "plus.circle", "plus.circle.fill", "sparkles", "square.and.arrow.up",
-            "square.grid.2x2", "timer", "trash", "wifi.slash", "xmark", "xmark.circle.fill",
-        ]
-        for name in names {
-            XCTAssertTrue(resolves(name), "SF Symbol '\(name)' does not resolve on macOS")
+    /// Every SF Symbol the Mac target names, read from its source rather than a hand-kept list
+    /// (AITD-539) — a list goes stale the first time someone adds a button without adding a line
+    /// here, and the blank button ships. Interpolated names are skipped; they are not literals.
+    func testEveryMacSymbolResolves() throws {
+        let root = RepositoryLocator.root.appendingPathComponent("Astrid Mac")
+        let files = try XCTUnwrap(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" }
+        let literal = try NSRegularExpression(pattern: #"(?:systemName|systemImage|systemSymbolName):\s*"([^"\\]+)""#)
+        var names: [String: String] = [:]
+        for file in files {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for match in literal.matches(in: source, range: NSRange(source.startIndex..., in: source)) {
+                guard let range = Range(match.range(at: 1), in: source) else { continue }
+                names[String(source[range]), default: file.lastPathComponent] = file.lastPathComponent
+            }
+        }
+        XCTAssertGreaterThan(names.count, 20, "found only \(names.count) symbols — the scan is reading nothing")
+        for (name, file) in names.sorted(by: { $0.key < $1.key }) where !resolves(name) {
+            // The one deliberate non-symbol, pinned by the test above.
+            guard name != "ellipsis.vertical" else { continue }
+            XCTFail("SF Symbol '\(name)' (\(file)) does not resolve on macOS — it renders as a blank control")
         }
     }
 }

@@ -91,18 +91,4 @@ final class PasskeySignInPlanTests: XCTestCase {
         XCTAssertFalse(text.isEmpty)
         XCTAssertTrue(text.localizedCaseInsensitiveContains("passkey"))
     }
-
-    // MARK: - The Mac login view follows the rule
-
-    func testAITD298_MacLoginUsesThePlanAndOffersTheFallback() throws {
-        let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid Mac/App/MacAuthGateView.swift")
-        let source = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(source.contains("PasskeySignInPlan.initialPresentation(isMac: true)"),
-                      "the sign-in button must ask for local passkeys first")
-        XCTAssertTrue(source.contains("PasskeySignInPlan.otherDevicePresentation"),
-                      "the QR path must remain available as an explicit fallback")
-        XCTAssertTrue(source.contains("PasskeySignInPlan.passwordOptionsSettingsURL"),
-                      "the password-manager route must be offered")
-    }
 }

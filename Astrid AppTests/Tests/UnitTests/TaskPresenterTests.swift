@@ -5,12 +5,6 @@ import SwiftUI
 @MainActor
 final class TaskPresenterTests: XCTestCase {
 
-    func testTaskPresenterSingletonExists() {
-        // Verify the singleton instance can be accessed
-        let presenter = TaskPresenter.shared
-        XCTAssertNotNil(presenter, "TaskPresenter singleton should exist")
-    }
-
     func testShowTaskWithObject() {
         // Given: A TaskPresenter instance and a mock task
         let presenter = TaskPresenter.shared
@@ -60,13 +54,5 @@ final class TaskPresenterTests: XCTestCase {
         // Then: The state should be cleared
         XCTAssertNil(presenter.taskToShow, "taskToShow should be nil after dismiss")
         XCTAssertFalse(presenter.isShowingTask, "isShowingTask should be false after dismiss")
-    }
-
-    func testViewModifierAccessible() {
-        // Verify that the view modifier extension is accessible
-        // This is a compile-time check - if this compiles, the extension works
-        let testView = Text("Test")
-        let modifiedView = testView.withTaskPresentation()
-        XCTAssertNotNil(modifiedView, "View modifier should be accessible")
     }
 }

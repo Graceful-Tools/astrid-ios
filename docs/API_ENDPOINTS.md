@@ -18,6 +18,12 @@ settings and the live stream go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
+**One path outside `/api/v1`.** `/api/mcp/user-tokens` mints the Copilot cloud agent's MCP token
+(`AstridAPIClient.createCopilotCloudAgentToken`, Agent hub); web serves it only there. It is
+named in `APIEndpointInventoryTests.nonV1Exceptions` so a second one cannot appear unseen. (The
+passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` through `AstridHTTP`,
+not by this client.)
+
 
 ## `AstridAPIClient` — the only client (54 paths)
 
@@ -76,6 +82,7 @@ is what the Swift client still calls itself.
 - `/api/v1/lists`
 - `/api/v1/lists/{id}`
 - `/api/v1/lists/{id}/copy`
+- `/api/v1/lists/{id}/insights`
 - `/api/v1/lists/{id}/leave`
 - `/api/v1/lists/{id}/transfer-ownership`
 
@@ -103,6 +110,10 @@ is what the Swift client still calls itself.
 - `/api/v1/tasks`
 - `/api/v1/tasks/{id}`
 - `/api/v1/tasks/{id}/comments`
+
+The UI suite's `UITestAPI` (`Astrid AppUITests/UITestAPI.swift`) reads these three and
+`/api/v1/lists`, and only these, to check what a journey persisted (AITD-527, AITD-528). A new
+path there belongs in this list too.
 
 ### `/api/v1/upload`
 

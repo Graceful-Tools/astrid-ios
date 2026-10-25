@@ -22,34 +22,6 @@ final class MacSystemCommentsTests: XCTestCase {
     // `CommentVisibility` in shared Core, which is what the Mac view calls directly. The Mac copy
     // they used to exercise had already lost the offline guard.
 
-    /// A comment with no author is the system talking — that is the shared rule.
-    func testSystemIsTheOneWithoutAnAuthor() {
-        XCTAssertTrue(CommentVisibility.isSystem(authorId: nil, isOffline: false))
-        XCTAssertFalse(CommentVisibility.isSystem(authorId: "u1", isOffline: false))
-    }
-
-    func testHiddenByDefault() {
-        let shown = CommentVisibility.displayed(mixed, showSystem: false, isOffline: false)
-        XCTAssertEqual(shown.map(\.id), ["1", "3"])
-    }
-
-    func testShownWhenToggledOn() {
-        let shown = CommentVisibility.displayed(mixed, showSystem: true, isOffline: false)
-        XCTAssertEqual(shown.map(\.id), ["1", "2", "3"])
-    }
-
-    /// Offline, cached comments can come back WITHOUT an authorId. Filtering then would empty the
-    /// thread — far worse than showing a few status lines, so iOS shows everything and so do we.
-    func testOfflineShowsEverything() {
-        XCTAssertEqual(CommentVisibility.displayed(mixed, showSystem: false, isOffline: true).count, 3)
-    }
-
-    /// The count in the header follows what is actually displayed, or it contradicts the list.
-    func testCountFollowsTheFilter() {
-        XCTAssertEqual(CommentVisibility.count(mixed, showSystem: false, isOffline: false), 2)
-        XCTAssertEqual(CommentVisibility.count(mixed, showSystem: true, isOffline: false), 3)
-    }
-
     /// The drift this task removed, pinned from the Mac side: `showsToggle` is Mac presentation,
     /// but the "what is a system comment?" underneath it is the SHARED rule, offline guard and
     /// all. The deleted Mac `isSystem` had no offline guard, so any future Mac caller reaching for

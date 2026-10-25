@@ -74,12 +74,12 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 STEP=0
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=10
+    TOTAL_STEPS=11
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
-    TOTAL_STEPS=6
+    TOTAL_STEPS=7
 fi
 
 # Print the numbered banner for the next step.
@@ -142,6 +142,12 @@ gate "App version table matches the App Store" \
 step "Checking localizations..."
 gate "Localization checks passed" "Localization checks failed" "$SCRIPT_DIR/check-localizations.sh"
 
+# Step 3b: Source contracts (AITD-533) — the rules the compiler cannot check (no URLSession.shared,
+# no network client in a view, every key in every language, the Mac's entitlement allowlist…),
+# run once here rather than as source greps inside both simulator test runs.
+step "Checking source contracts..."
+gate "Source contracts hold" "Source contracts broken" node "$SCRIPT_DIR/check-source-contracts.mjs"
+
 # Step 4: Brand-literal checks (whitelabel — task 97208a72)
 # Its own gate, not folded into the unit tests, so a whitelabel regression is reported
 # as itself rather than as one failure among 1200. A brand literal is invisible on an
@@ -190,6 +196,11 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-ios-destination.sh"
     gate "xcresult summary script tests passed" "xcresult summary script tests failed" \
         "$SCRIPT_DIR/test-xcresult-summary.sh"
+    gate "monkey verdict script tests passed" "monkey verdict script tests failed" \
+        "$SCRIPT_DIR/test-monkey-verdict.sh"
+    # The AstridCore package's tests and the Rust binding tests, which nothing ran (AITD-541).
+    gate "astrid-core package and binding tests passed" "astrid-core package or binding tests failed" \
+        "$SCRIPT_DIR/test-core.sh"
 fi
 
 # Step 9: UI tests (only with --full)

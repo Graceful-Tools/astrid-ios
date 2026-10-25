@@ -54,6 +54,7 @@ struct TaskDetailLeadingControl: View {
             face
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("taskDetail.leadingControl")
         .popover(isPresented: $showingPicker) {
             pickerContent.presentationCompactAdaptation(.popover)
         }

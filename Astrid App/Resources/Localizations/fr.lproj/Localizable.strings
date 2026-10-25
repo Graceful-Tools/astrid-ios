@@ -480,6 +480,7 @@
 "lists.github_repository" = "Dépôt GitHub";
 "lists.no_repositories_found" = "Aucun dépôt trouvé. Vérifiez que votre compte GitHub est connecté.";
 "lists.pending_invitations" = "Invitations en attente";
+"lists.pending" = "En attente";
 "lists.invited" = "Invité";
 "lists.cancel_invite" = "Annuler l'invitation";
 "lists.ai_agents" = "Agents IA";
@@ -500,6 +501,7 @@
 "lists.gemini_task_description" = "Google Gemini pour l'assistance de tâches";
 "lists.default_agent_description" = "Agent IA pour l'assistance de tâches";
 "lists.ai_coding_agents" = "Agents IA de programmation";
+"lists.ai_coding_agent" = "Agent IA de programmation";
 "lists.connect_github_description" = "Connecter un dépôt GitHub pour les flux de programmation";
 "lists.list_privacy" = "Confidentialité de la liste";
 "lists.make_public" = "Rendre publique";
@@ -968,6 +970,7 @@
 "sync.new_list" = "Nouvelle liste";
 "sync.not_linked" = "Non liée";
 "sync.repository" = "Dépôt";
+"sync.use_repo" = "Utiliser %@";
 "sync.suffix_placeholder" = "Suffixe du nom, p. ex. [GT]";
 "sync.sync_mode" = "Mode de synchronisation";
 "sync.sync_now" = "Synchroniser maintenant";
@@ -1583,3 +1586,28 @@
 "mac.repeat.summary_times" = "%1$@, %2$d×";
 "mac.repeat.summary_until_date" = "%@, jusqu’à une date";
 "mac.contact_pick.name_email" = "%1$@ — %2$@";
+
+/* List Insights (AITD-545) — from astrid-web lib/i18n/locales listInsights.* */
+"listInsights.tab" = "Statistiques";
+"listInsights.days7" = "7 jours";
+"listInsights.days30" = "30 jours";
+"listInsights.days90" = "90 jours";
+"listInsights.activity" = "Activité";
+"listInsights.created" = "Nouvelles";
+"listInsights.completed" = "Terminées";
+"listInsights.created_total" = "%@ nouvelles";
+"listInsights.completed_total" = "%@ terminées";
+"listInsights.time_to_complete" = "Délai médian de réalisation";
+"listInsights.time_in_lane" = "Temps médian par colonne";
+"listInsights.sample_size" = "sur %@";
+"listInsights.not_enough_history" = "Pas encore assez d'historique";
+"listInsights.lane_history_note" = "Les déplacements entre colonnes sont enregistrés à partir de maintenant ; ces valeurs se rempliront au fil des déplacements.";
+"listInsights.contributors" = "Principaux contributeurs";
+"listInsights.profile_counts" = "%1$@ terminées · %2$@ inspirées · %3$@ soutenues";
+"listInsights.activity_counts" = "%1$@ créées · %2$@ modifications · %3$@ commentaires";
+"listInsights.no_activity" = "Aucune activité sur cette période";
+"listInsights.load_failed" = "Impossible de charger les statistiques";
+"listInsights.loading" = "Chargement des statistiques…";
+"listInsights.duration.minutes" = "%@ min";
+"listInsights.duration.hours" = "%@ h";
+"listInsights.duration.days" = "%@ j";

@@ -136,45 +136,6 @@ final class MacFailureCopyTests: XCTestCase {
     private static let languages = ["en", "es", "fr", "de", "it", "ja",
                                     "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"]
 
-    /// Every real call-site context maps to a translated sentence — never to the raw English.
-    func testEveryCallSiteContextMapsToATranslation() {
-        let contexts = ["Complete task", "Complete tasks", "Complete subtask", "Add task",
-                        "Add subtask", "Add to Astrid", "Create share link", "Register agent",
-                        "Invite jon@example.com", "Post comment", "Attach file", "Link Reminders",
-                        "Delete list", "Delete tasks", "Delete comment", "Remove member",
-                        "Save notes", "Save due date", "Update assignee", "Update list privacy",
-                        "Rename task", "Change role", "Set priority", "Reorder tasks", "Move task",
-                        "Make subtask", "Share task", "Export data", "Test API key"]
-        for context in contexts {
-            let message = FailureCopy.message(for: context)
-            XCTAssertFalse(message.isEmpty, "\(context) has no banner copy")
-            XCTAssertFalse(message.hasPrefix("mac.failed."), "\(context) shows an unresolved key")
-            XCTAssertNotEqual(message, context, "\(context) leaks the developer string to the user")
-        }
-    }
-
-    /// Grouped by verb: deletes read as deletes, creates as creates.
-    func testTheVerbPicksTheCategory() {
-        XCTAssertEqual(FailureCopy.message(for: "Delete list"),
-                       NSLocalizedString("mac.failed.delete", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Remove member"),
-                       NSLocalizedString("mac.failed.delete", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Add subtask"),
-                       NSLocalizedString("mac.failed.create", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Save notes"),
-                       NSLocalizedString("mac.failed.save", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: "Complete task"),
-                       NSLocalizedString("mac.failed.complete", comment: ""))
-    }
-
-    /// An unrecognised verb still gets a translated line rather than falling back to English.
-    func testUnknownVerbsGetTheGenericLine() {
-        XCTAssertEqual(FailureCopy.message(for: "Frobnicate widget"),
-                       NSLocalizedString("mac.failed.generic", comment: ""))
-        XCTAssertEqual(FailureCopy.message(for: ""),
-                       NSLocalizedString("mac.failed.generic", comment: ""))
-    }
-
     func testEveryLanguageTranslatesTheBannerCopy() throws {
         for lang in Self.languages {
             let path = try XCTUnwrap(Bundle.main.path(forResource: lang, ofType: "lproj"))

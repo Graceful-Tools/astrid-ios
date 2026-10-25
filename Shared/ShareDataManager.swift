@@ -23,9 +23,9 @@ class ShareDataManager {
             .flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
         ?? "group.gracefultools.astrid"
 
-    private var sharedContainerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier)
-    }
+    /// The App Group container, or nil when this process is not entitled to the group — then
+    /// every read and write throws `appGroupNotConfigured` rather than quietly going nowhere.
+    private let sharedContainerURL: URL?
 
     private var pendingTasksURL: URL? {
         sharedContainerURL?.appendingPathComponent("pending_tasks.json")
@@ -35,7 +35,15 @@ class ShareDataManager {
         sharedContainerURL?.appendingPathComponent("shared_files")
     }
 
-    private init() {
+    private convenience init() {
+        self.init(containerURL: FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier))
+    }
+
+    /// A manager over `containerURL` — a test's temporary directory, or nil for an App Group the
+    /// process cannot open (AITD-542).
+    init(containerURL: URL?) {
+        sharedContainerURL = containerURL
         // Create shared files directory if it doesn't exist
         if let sharedFilesDir = sharedFilesDirectory {
             try? FileManager.default.createDirectory(at: sharedFilesDir, withIntermediateDirectories: true)
@@ -73,7 +81,15 @@ class ShareDataManager {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
-        let tasks = try decoder.decode([SharedTaskItem].self, from: data)
+        // Dropped, not thrown: `saveSharedTask` loads first, so one unreadable file used to fail
+        // every share after it, for good (AITD-542). An entry this build cannot read costs only
+        // that entry.
+        guard let entries = try? decoder.decode([LossyItem].self, from: data) else {
+            AppLog.debug("⚠️ [ShareDataManager] Pending tasks file is unreadable — dropping it")
+            try? FileManager.default.removeItem(at: url)
+            return []
+        }
+        let tasks = entries.compactMap(\.item)
         AppLog.debug("📥 [ShareDataManager] Loaded \(tasks.count) pending tasks")
         return tasks
     }
@@ -173,6 +189,14 @@ class ShareDataManager {
 
         let data = try encoder.encode(tasks)
         try data.write(to: url, options: .atomic)
+    }
+
+    /// One queue entry, or nil when it does not decode.
+    private struct LossyItem: Decodable {
+        let item: SharedTaskItem?
+        init(from decoder: Decoder) throws {
+            item = try? SharedTaskItem(from: decoder)
+        }
     }
 
     // MARK: - Validation

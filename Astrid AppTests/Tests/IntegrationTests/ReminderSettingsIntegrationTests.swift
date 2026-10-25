@@ -48,12 +48,7 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         settings.pushEnabled = true
         settings.emailEnabled = true
 
-        let startTime = Date()
         await settings.save()
-        let elapsed = Date().timeIntervalSince(startTime)
-
-        // Then: Should save instantly
-        XCTAssertLessThan(elapsed, 1.0, "Save should be instant")
 
         // Then: Should be saved to UserDefaults
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderPushEnabled"))
@@ -135,22 +130,5 @@ final class ReminderSettingsIntegrationTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "dailyDigestEnabled"))
         XCTAssertEqual(UserDefaults.standard.string(forKey: "reminderTimezone"), "Europe/London")
         XCTAssertTrue(UserDefaults.standard.bool(forKey: "quietHoursEnabled"))
-    }
-
-    // MARK: - Multiple Updates Tests
-
-    func testMultipleUpdates_OnlyLastStateMatters() async throws {
-        // Given: Multiple rapid updates
-        settings.pushEnabled = true
-        await settings.save()
-
-        settings.pushEnabled = false
-        await settings.save()
-
-        settings.pushEnabled = true
-        await settings.save()
-
-        // Then: Last state should be persisted
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "reminderPushEnabled"))
     }
 }

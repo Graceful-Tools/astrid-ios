@@ -12,15 +12,7 @@ struct MacMenuBarView: View {
 
     /// Open tasks across lists, most-relevant first (due date, then priority) — not an arbitrary slice.
     private var openTasks: [Task] {
-        listService.lists.flatMap { taskService.getTasksForList($0.id) }
-            .filter { !$0.completed }
-            .sorted { a, b in
-                let ad = a.dueDateTime ?? .distantFuture, bd = b.dueDateTime ?? .distantFuture
-                if ad != bd { return ad < bd }
-                return a.priority.rawValue > b.priority.rawValue
-            }
-            .prefix(8)
-            .map { $0 }
+        MacGlanceTasks.open(lists: listService.lists, tasksForList: taskService.getTasksForList)
     }
 
     var body: some View {
@@ -67,6 +59,29 @@ struct MacMenuBarView: View {
                 whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)
         }
+    }
+}
+/// The tasks the menu-bar extra and the command palette show (AITD-540).
+///
+/// Every task in every list — and a task filed in two lists is ONE task. Both surfaces built this
+/// with `flatMap` over the lists, so a task on two lists showed twice in the menu bar (taking two of
+/// its eight slots) and twice in the palette.
+enum MacGlanceTasks {
+    static func all(lists: [TaskList], tasksForList: (String) -> [Task]) -> [Task] {
+        var seen = Set<String>()
+        return lists.flatMap { tasksForList($0.id) }.filter { seen.insert($0.id).inserted }
+    }
+
+    /// The open ones, soonest due first and higher priority breaking ties, at most `limit`.
+    static func open(lists: [TaskList], tasksForList: (String) -> [Task], limit: Int = 8) -> [Task] {
+        Array(all(lists: lists, tasksForList: tasksForList)
+            .filter { !$0.completed }
+            .sorted { a, b in
+                let ad = a.dueDateTime ?? .distantFuture, bd = b.dueDateTime ?? .distantFuture
+                if ad != bd { return ad < bd }
+                return a.priority.rawValue > b.priority.rawValue
+            }
+            .prefix(limit))
     }
 }
 #endif
