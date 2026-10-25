@@ -95,6 +95,102 @@ final class ListInsightsTests: XCTestCase {
         } catch {}
     }
 
+    // MARK: - Not hammering the route (AITD-554)
+
+    /// A service on the stub, with a clock and an account the test controls.
+    private func cachingService(now: @escaping () -> Date, userId: @escaping @MainActor () -> String? = { "u1" })
+        -> ListInsightsService {
+        ListInsightsService(apiClient: AstridAPIClient(session: StubURLProtocol.session()),
+                            now: now, userId: userId)
+    }
+
+    /// Swiping back to the Insights page, or reopening List Settings, used to send the same GET
+    /// again every time. Within the server's own cache TTL the answer cannot have changed, so the
+    /// client asks once.
+    func testTheSameWindowIsAskedOnceWithinTheServersCacheTTL_AITD554() async throws {
+        StubURLProtocol.reset()
+        defer { StubURLProtocol.reset() }
+        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
+        var clock = Date(timeIntervalSince1970: 1_800_000_000)
+        let service = cachingService(now: { clock })
+        let la = TimeZone(identifier: "America/Los_Angeles")!
+
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
+        clock += ListInsightsService.freshFor - 1
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
+        XCTAssertEqual(StubURLProtocol.requests.count, 1, "a second look inside the TTL is served locally")
+
+        clock += 2
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
+        XCTAssertEqual(StubURLProtocol.requests.count, 2, "past the TTL it asks again")
+    }
+
+    /// The TTL is the server's: caching longer would show numbers the server has moved past.
+    func testTheClientTTLIsTheServers_AITD554() {
+        XCTAssertEqual(ListInsightsService.freshFor, 300,
+                       "astrid-web LIST_INSIGHTS_CACHE_TTL_SECONDS")
+    }
+
+    /// Another window, list, zone or account is another answer.
+    func testEachWindowListZoneAndAccountIsItsOwnAnswer_AITD554() async throws {
+        StubURLProtocol.reset()
+        defer { StubURLProtocol.reset() }
+        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
+        var user: String? = "u1"
+        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) }, userId: { user })
+        let la = TimeZone(identifier: "America/Los_Angeles")!
+
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
+        _ = try await service.insights(listId: "list-1", days: 30, timeZone: la)
+        _ = try await service.insights(listId: "list-2", days: 7, timeZone: la)
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: TimeZone(identifier: "UTC")!)
+        user = "u2"
+        _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
+        XCTAssertEqual(StubURLProtocol.requests.count, 5)
+    }
+
+    /// Two views asking at once — the iOS pages preloading, a double open — share one request.
+    func testConcurrentAsksShareOneRequest_AITD554() async throws {
+        StubURLProtocol.reset()
+        defer { StubURLProtocol.reset() }
+        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
+        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) })
+
+        async let first = service.insights(listId: "list-1", days: 30)
+        async let second = service.insights(listId: "list-1", days: 30)
+        _ = try await (first, second)
+        XCTAssertEqual(StubURLProtocol.requests.count, 1)
+    }
+
+    /// A failure is not remembered: the next look asks again — once, because there is no retry
+    /// loop, only the person choosing to look.
+    func testAFailureIsNotCached_AITD554() async throws {
+        StubURLProtocol.reset()
+        defer { StubURLProtocol.reset() }
+        var fail = true
+        StubURLProtocol.respond = { _ in fail ? .json(#"{"error":"boom"}"#, status: 500) : .json(self.boardAnswer) }
+        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) })
+
+        do { _ = try await service.insights(listId: "list-1", days: 7); XCTFail("500 surfaces") } catch {}
+        XCTAssertEqual(StubURLProtocol.requests.count, 1, "no retry loop")
+        fail = false
+        _ = try await service.insights(listId: "list-1", days: 7)
+        XCTAssertEqual(StubURLProtocol.requests.count, 2)
+    }
+
+    /// A window that failed once read "couldn't load" forever: the failure was never cleared, so
+    /// coming back to it showed the error over a perfectly good answer.
+    func testASuccessClearsThatWindowsFailure_AITD554() {
+        var state = ListInsightsLoadState()
+        state.failed(days: 7)
+        XCTAssertTrue(state.showsFailure(for: 7))
+        state.loaded(days: 7)
+        XCTAssertFalse(state.showsFailure(for: 7), "the answer arrived; the error must go")
+        state.failed(days: 30)
+        XCTAssertFalse(state.showsFailure(for: 7))
+        XCTAssertTrue(state.showsFailure(for: 30))
+    }
+
     // MARK: - Presentation (web's ListInsightsPanel)
 
     /// Minutes under an hour, hours under two days, then days — at most one decimal, none when whole.
