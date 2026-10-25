@@ -7,12 +7,13 @@
 //  which is above the chat column. Sort and filter act on the rows, so they read as belonging to
 //  the message list, and the toolbar's "+" looked like an add button for chat.
 //
-//  Filter lives in a strip at the top of the list column; sort and the list-settings gear sit
-//  beside the list/board picker in the window toolbar's centre (AITD-552), after a spell in that
-//  strip (AITD-522). Sort spent a while in the toolbar (AITD-509), when it was alone in
-//  the strip and a row for one icon was the complaint. The "+" is gone entirely:
-//  the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is bound in AstridCommands, so
-//  the toolbar copy was a third way to do the same thing — in the wrong place.
+//  Sort, filter and the list-settings gear sit beside the list/board picker in the window
+//  toolbar's centre (AITD-552, AITD-553), after a spell in a strip at the top of the list column
+//  (AITD-522) — the strip is gone, so the list has one header. Sort spent a while in the
+//  toolbar (AITD-509), when it was alone in the strip and a row for one icon was the complaint.
+//  The "+" is gone entirely: the floating quick-add bar's ⊕ adds a task AND opens it, and ⌘N is
+//  bound in AstridCommands, so the toolbar copy was a third way to do the same thing — in the
+//  wrong place.
 
 #if os(macOS)
 import Foundation
@@ -29,7 +30,7 @@ enum MacListChrome {
     /// The same for `MacMyTasksFilterSheet` (AITD-467 gave it Sort; AITD-522 moved it out).
     static let myTasksSheetOffersSort = false
 
-    /// Whether the sheet behind the strip's filter button already sorts this selection.
+    /// Whether the sheet behind the filter button already sorts this selection.
     static func sheetOffersSort(isRealList: Bool, isMyTasks: Bool, isListMode: Bool) -> Bool {
         (showsFilter(isRealList: isRealList, isListMode: isListMode) && filterSheetOffersSort)
             || (isMyTasks && isListMode && myTasksSheetOffersSort)
@@ -100,7 +101,7 @@ enum MacListChrome {
     /// This is not the trailing-edge problem that sent them out of the toolbar (9998d83a): that
     /// was `.primaryAction`, which right-aligns over the chat column. The principal slot is the
     /// picker's, and the picker already switches what the LIST column shows, so the controls that
-    /// configure that view read as its neighbours. The strip keeps the filter button.
+    /// configure that view read as its neighbours. Filter joined them in AITD-553.
     static let titleBarCarriesListControls = true
 
     /// The sort menu beside the list/board picker (AITD-552): every list-mode selection, since no
@@ -135,10 +136,31 @@ enum MacListChrome {
         !titleBarCarriesListControls && showsListMenu(isRealList: isRealList, isListMode: isListMode)
     }
 
-    /// Whether the strip above the rows is drawn: only when it has something in it.
-    static func showsStrip(showsSort: Bool, showsFilter: Bool, showsMyTasksFilter: Bool,
-                           showsListMenu: Bool) -> Bool {
-        showsSort || showsFilter || showsMyTasksFilter || showsListMenu
+    /// There is no strip above the rows any more (AITD-553: "there should be only one HEADER on
+    /// the mac"). Its last tenant, the filter button, joined sort and the gear in the title bar,
+    /// where Jon asked for it — "next to settings and sort".
+    static let listColumnHasStrip = false
+
+    /// One control in the title bar's centre.
+    enum TitleBarControl: Hashable {
+        case modePicker, sort, filter, myTasksFilter, listSettings
+    }
+
+    /// The title bar's centre, as groups drawn apart from each other (AITD-553: "make the toggle
+    /// separate from the sort/settings/filter button bar"). The list/board picker switches what
+    /// the column SHOWS; the rest configure it — so they are two groups, not one capsule.
+    /// Empty groups are dropped, so nothing draws a capsule around nothing.
+    static func titleBarGroups(showsModePicker: Bool, hasSelection: Bool, isRealList: Bool,
+                               isMyTasks: Bool, isListMode: Bool) -> [[TitleBarControl]] {
+        var controls: [TitleBarControl] = []
+        if titleBarShowsSort(hasSelection: hasSelection, isRealList: isRealList,
+                             isMyTasks: isMyTasks, isListMode: isListMode) { controls.append(.sort) }
+        if showsFilter(isRealList: isRealList, isListMode: isListMode) { controls.append(.filter) }
+        if isMyTasks && isListMode { controls.append(.myTasksFilter) }
+        if titleBarShowsListMenu(isRealList: isRealList, isListMode: isListMode) {
+            controls.append(.listSettings)
+        }
+        return [showsModePicker ? [.modePicker] : [], controls].filter { !$0.isEmpty }
     }
 
     /// Undo DOES belong in the window toolbar (AITD-374), and this constant is here beside the

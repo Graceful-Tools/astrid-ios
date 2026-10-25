@@ -29,6 +29,20 @@ struct MacListSettingsWindow: View {
 
     enum Tab: Hashable { case sortFilters, membership, insights, admin }
 
+    /// Settings that were quick actions in the gear's menu until the gear opened this window
+    /// directly (AITD-553).
+    enum Setting { case favorite, board }
+
+    /// Where each one lives. Favourite is yours alone, so it sits with the other personal view
+    /// settings; a board changes the list for everyone, so it is an admin's — as on iOS, whose
+    /// `ListAdminTab` has the Create / Disable Board button.
+    static func tab(for setting: Setting) -> Tab {
+        switch setting {
+        case .favorite: return .sortFilters
+        case .board: return .admin
+        }
+    }
+
     /// Tall enough that the Filters tab shows every row at the default text size. The content
     /// must still FIT whatever this is — it was 560 with 667 of content, and what does not fit
     /// is centred, so the title came off the top and Done off the bottom (AITD-483).
@@ -95,6 +109,15 @@ struct MacListSettingsWindow: View {
                         Text(NSLocalizedString("lists.sort_filters_personal_note", comment: ""))
                             .macFont(.caption).foregroundStyle(Theme.textMuted)
                             .fixedSize(horizontal: false, vertical: true)
+                        Toggle(NSLocalizedString("lists.favorite", comment: ""), isOn: Binding(
+                            get: { currentList.isFavorite ?? false },
+                            set: { isOn in
+                                AppActions.perform("Update favourite") {
+                                    _ = try await listService.toggleFavorite(listId: currentList.id,
+                                                                             isFavorite: isOn)
+                                }
+                            }))
+                            .accessibilityIdentifier("listSettings.favorite")
                         MacListSortFiltersContent(list: currentList, fillsHeight: true)
                     }
                 case .membership:
@@ -141,11 +164,27 @@ struct MacListAdminTab: View {
         ListPermissions.canDelete(list, userId: userId)
     }
 
+    /// Enable / Disable Board (AITD-553), which was in the gear's menu and the board's own ⋯
+    /// strip. Anyone who may edit the list's settings — the rule the menu used.
+    static func offersBoardSwitch(for list: TaskList, userId: String?) -> Bool {
+        ListPermissions.canEditSettings(list, userId: userId)
+    }
+
+    /// The label names what the click will DO.
+    static func boardSwitchLabelKey(hasBoard: Bool) -> String {
+        hasBoard ? "mac.disable_board" : "mac.enable_board"
+    }
+
+    @State private var boardBusy = false
+
     var body: some View {
         // Scrolls: a list with an image, task defaults and an AI model is taller than the
         // window, and a plain stack pushed the window's title and Done out of it (AITD-483).
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if Self.offersBoardSwitch(for: list, userId: AuthManager.shared.userId) {
+                    boardSwitch
+                }
                 MacListEditSheet(existing: list, embedded: true)
                 if Self.offersDelete(for: list, userId: AuthManager.shared.userId) {
                     dangerZone
@@ -159,6 +198,36 @@ struct MacListAdminTab: View {
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
         } message: {
             Text(NSLocalizedString("lists.delete_confirm", comment: ""))
+        }
+    }
+
+    private var boardSwitch: some View {
+        let hasBoard = MacBoardControl.isEnabled(projectId: list.projectId)
+        return HStack {
+            Button(role: hasBoard ? .destructive : nil) { toggleBoard(hasBoard: hasBoard) } label: {
+                Label(NSLocalizedString(Self.boardSwitchLabelKey(hasBoard: hasBoard), comment: ""),
+                      systemImage: "square.grid.2x2")
+            }
+            .disabled(boardBusy)
+            .help(hasBoard ? "" : NSLocalizedString("mac.board_create_columns_hint", comment: ""))
+            .accessibilityIdentifier("listSettings.boardSwitch")
+            if boardBusy { ProgressView().controlSize(.small) }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func toggleBoard(hasBoard: Bool) {
+        boardBusy = true
+        let list = list
+        AppActions.perform(hasBoard ? "Disable board" : "Enable board") {
+            defer { boardBusy = false }
+            if hasBoard {
+                guard let projectId = list.projectId else { return }
+                _ = try await ProjectService.shared.deleteProject(id: projectId)
+            } else {
+                _ = try await ProjectService.shared.createBoardForList(list)
+            }
+            _ = try? await ListService.shared.fetchLists()
         }
     }
 

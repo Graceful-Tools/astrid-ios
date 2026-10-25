@@ -26,41 +26,53 @@ struct MacSortMenu: View {
 
     var body: some View {
         Menu {
-            if let list {
-                Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
-                    get: { list.sortBy ?? "auto" },
-                    set: { newValue in
-                        AppActions.perform("Update sort") {
-                            _ = try await ListService.shared.updateListAdvanced(
-                                listId: list.id, updates: MacSortMenu.listUpdates(sortBy: newValue))
-                        }
-                    }
-                )) {
-                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
-                }
-            } else if isMyTasks {
-                Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
-                    get: { myTasksPreferences.preferences.sortBy ?? "auto" },
-                    set: { newValue in
-                        var updated = myTasksPreferences.preferences
-                        updated.sortBy = newValue
-                        _Concurrency.Task { await myTasksPreferences.updatePreferences(updated) }
-                    }
-                )) {
-                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
-                }
-            } else {
-                Picker(NSLocalizedString("actions.sort", comment: ""), selection: $override) {
-                    Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
-                    ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
-                }
-            }
+            options
+                // The options ARE the menu (AITD-553: "don't show this sub menu! just go
+                // directly to the sort menu"). A Picker in a Menu draws as a "Sort ›" submenu.
+                .pickerStyle(.inline)
+                .labelsHidden()
         } label: {
             Label(NSLocalizedString("actions.sort", comment: ""), systemImage: "arrow.up.arrow.down")
         }
         .fixedSize()
         .help(NSLocalizedString("mac.sort_tasks", comment: ""))
         .accessibilityIdentifier("list.sortMenu")
+    }
+
+    /// The sort options are listed in the menu itself, with no submenu (AITD-553).
+    static let optionsInline = true
+
+    @ViewBuilder
+    private var options: some View {
+        if let list {
+            Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
+                get: { list.sortBy ?? "auto" },
+                set: { newValue in
+                    AppActions.perform("Update sort") {
+                        _ = try await ListService.shared.updateListAdvanced(
+                            listId: list.id, updates: MacSortMenu.listUpdates(sortBy: newValue))
+                    }
+                }
+            )) {
+                ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
+            }
+        } else if isMyTasks {
+            Picker(NSLocalizedString("actions.sort", comment: ""), selection: Binding(
+                get: { myTasksPreferences.preferences.sortBy ?? "auto" },
+                set: { newValue in
+                    var updated = myTasksPreferences.preferences
+                    updated.sortBy = newValue
+                    _Concurrency.Task { await myTasksPreferences.updatePreferences(updated) }
+                }
+            )) {
+                ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
+            }
+        } else {
+            Picker(NSLocalizedString("actions.sort", comment: ""), selection: $override) {
+                Text(NSLocalizedString("mac.list_default", comment: "")).tag("")
+                ForEach(MacListFilter.sort) { Text($0.label).tag($0.value) }
+            }
+        }
     }
 
     /// What picking a sort writes to a list: its `sortBy` and nothing else — the same key and
