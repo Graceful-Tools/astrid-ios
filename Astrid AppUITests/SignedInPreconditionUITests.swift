@@ -35,7 +35,7 @@ final class SignedInPreconditionUITests: XCTestCase {
     /// a misleading reason ("No tasks found" on an account that was never loaded).
     @MainActor
     private func welcomeScreenIsShowing(timeout: TimeInterval = 10) -> Bool {
-        app.buttons["Use without account"].waitForExistence(timeout: timeout)
+        app.buttons[UITestLaunch.useWithoutAccountIdentifier].waitForExistence(timeout: timeout)
     }
 
     @MainActor
@@ -71,8 +71,7 @@ final class SignedInPreconditionUITests: XCTestCase {
         app.launch()
         XCTAssertFalse(welcomeScreenIsShowing(), "Not signed in — see the test above.")
 
-        let header = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'My Tasks'")).firstMatch
-        XCTAssertTrue(header.waitForExistence(timeout: 20),
+        XCTAssertTrue(UITestLaunch.waitForTaskList(app, timeout: 20),
                       "Signed in, but the task list never appeared.")
 
         // Look for a fixture BY NAME rather than counting cells.

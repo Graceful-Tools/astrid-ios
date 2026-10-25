@@ -93,12 +93,17 @@ enum UITestLaunch {
     /// supplied and did not work" (a failure, and the bug this file documents).
     static var hasSession: Bool { sessionCookie != nil }
 
+    /// The app runs in English whatever the simulator is set to (AITD-526). The suite finds
+    /// controls by identifier, so this is not what keeps it working in Spanish — it is what makes
+    /// the few label READS (`UITestStrings`, the menus) mean one thing on every host.
+    static let englishArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+
     /// The one way the suite launches the app. Every test target file uses this, so the flag
     /// and the credential cannot drift apart between suites — they already did once, and the
     /// suites that lacked the block skipped for a different reason than the ones that had it.
     static func makeApp(cacheName: String? = nil, offline: Bool = false, sharePayload: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [flag]
+        app.launchArguments = [flag] + englishArguments
         // The Outbox journey's two switches (AITD-528). Must match `UITestSession`.
         if let cacheName { app.launchArguments += [cacheNameArgument, cacheName] }
         if offline { app.launchArguments += [offlineArgument] }
@@ -132,8 +137,8 @@ enum UITestLaunch {
     @MainActor
     static func skipUnlessSignedIn(_ app: XCUIApplication,
                                    timeout: TimeInterval = 5) throws {
-        guard app.buttons["Use without account"].waitForExistence(timeout: timeout)
-                || app.buttons["Sign in"].exists
+        guard app.buttons[useWithoutAccountIdentifier].waitForExistence(timeout: timeout)
+                || app.buttons[signInIdentifier].exists
         else { return }
 
         // Signed out WITH a session is the app failing to sign in, not a missing precondition.
@@ -143,6 +148,44 @@ enum UITestLaunch {
             throw UITestFailure("Signed out despite being given a session — see SignedInPreconditionUITests.")
         }
         throw XCTSkip("No test-account session — run `npm run test:ui`, which mints one.")
+    }
+
+    /// The welcome screen's two choices. Must match `WelcomeChoiceView`.
+    static let useWithoutAccountIdentifier = "login.useWithoutAccount"
+    static let signInIdentifier = "login.signIn"
+
+    /// The task list header's title. Must match `TaskListView.standardHeader`.
+    static let taskListTitleIdentifier = "taskList.title"
+
+    /// Waits for the task list's header — by identifier, so not the welcome screen's subtitle and
+    /// not the words "My Tasks", which are not the words on a Spanish simulator.
+    @MainActor
+    static func waitForTaskList(_ app: XCUIApplication, timeout: TimeInterval = 10) -> Bool {
+        app.descendants(matching: .any).matching(identifier: taskListTitleIdentifier).firstMatch
+            .waitForExistence(timeout: timeout)
+    }
+
+    /// Waits until `element` stops existing. The negative of `waitForExistence`, which XCUITest
+    /// does not provide — and the thing a fixed sleep before `XCTAssertFalse(x.exists)` was
+    /// standing in for.
+    @MainActor
+    @discardableResult
+    static func waitForDisappearance(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: element)
+        return XCTWaiter().wait(for: [gone], timeout: timeout) == .completed
+    }
+
+    /// Waits until `element`'s label does (or, with `false`, does not) contain `text`. For state
+    /// that is only in a label — the date chip — instead of sleeping past the change and reading
+    /// it once.
+    @MainActor
+    @discardableResult
+    static func waitForLabel(_ element: XCUIElement, contains text: String, _ expected: Bool = true,
+                             timeout: TimeInterval = 10) -> Bool {
+        let format = expected ? "exists == true AND label CONTAINS %@"
+                              : "exists == true AND NOT (label CONTAINS %@)"
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: format, text), object: element)
+        return XCTWaiter().wait(for: [changed], timeout: timeout) == .completed
     }
 
     /// Identifier the app stamps on every task row. Must match `TaskRowView`.

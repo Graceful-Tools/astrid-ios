@@ -95,7 +95,7 @@ final class MonkeyUITests: XCTestCase {
     /// stresses the whole UI. Either way something gets hammered.
     @MainActor
     private func enterTheApp(_ app: XCUIApplication) {
-        let offline = app.buttons["Use without account"]
+        let offline = app.buttons[UITestLaunch.useWithoutAccountIdentifier]
         if offline.waitForExistence(timeout: 15) {
             UITestLaunch.tapCenter(offline)
             print("MONKEY_MODE offline — no test-account session, stressing the local app")

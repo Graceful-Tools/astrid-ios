@@ -31,6 +31,7 @@ struct ViewModeRotatorButton: View {
                 .accessibilityLabel(Text(accessibilityLabel))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("taskList.viewModeRotator")
     }
 
     private func next(after current: HeaderToggleSegment) -> HeaderToggleSegment {

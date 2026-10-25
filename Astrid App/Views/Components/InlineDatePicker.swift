@@ -103,6 +103,7 @@ struct InlineDatePicker: View {
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("datePicker.option.none")
 
                             ForEach(quickOptions, id: \.daysFromToday) { option in
                                 Button {
@@ -124,6 +125,7 @@ struct InlineDatePicker: View {
                                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("datePicker.option." + option.titleKey)
                             }
                         }
                         .padding(.horizontal, Theme.spacing16)
@@ -223,6 +225,7 @@ struct InlineDatePicker: View {
                             Button(NSLocalizedString("actions.close", comment: "Close")) {
                                 showingPicker = false
                             }
+                            .accessibilityIdentifier("sheet.close")
                         }
                     }
                 }

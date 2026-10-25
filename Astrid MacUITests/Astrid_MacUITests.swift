@@ -89,7 +89,7 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click()
         nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10))
@@ -112,8 +112,7 @@ final class Astrid_MacUITests: XCTestCase {
     func testMyTasksShowsBrandedEmptyState() {
         let app = enterOfflineShell()
         app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch.click()
-        let empty = app.staticTexts.containing(NSPredicate(format: "value CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                                                           "All clear", "All clear")).firstMatch
+        let empty = app.descendants(matching: .any).matching(identifier: "emptyState.noTasks").firstMatch
         XCTAssertTrue(empty.waitForExistence(timeout: 10), "My Tasks should show the branded empty state")
     }
 
@@ -149,7 +148,7 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click()
         nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         // Select the new list. There is no sidebar filter to narrow it with — the list-name
         // search was removed in task 1b0f034d — so the row is found by its name directly.
@@ -191,7 +190,7 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click()
         nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10))
@@ -204,17 +203,17 @@ final class Astrid_MacUITests: XCTestCase {
         quickAdd.typeText(taskTitle + "\n")
         XCTAssertTrue(app.staticTexts[taskTitle].firstMatch.waitForExistence(timeout: 10))
 
-        // The checkbox announces its state through its accessibility label.
+        // The checkbox carries its state in its identifier; its label is the localized wording.
         // Diagnostic: click the title first (row-content selection tap) so the log shows whether
         // ANY interaction inside a row reaches the app.
         app.staticTexts[taskTitle].firstMatch.click()
 
-        let unchecked = app.buttons["Not completed, mark complete"].firstMatch
+        let unchecked = app.buttons[MacUITestLaunch.openCheckboxIdentifier].firstMatch
         XCTAssertTrue(unchecked.waitForExistence(timeout: 10),
                       "New task should show an unchecked checkbox")
         unchecked.click()
 
-        XCTAssertTrue(app.buttons["Completed, mark incomplete"].firstMatch.waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons[MacUITestLaunch.completedCheckboxIdentifier].firstMatch.waitForExistence(timeout: 10),
                       "Clicking the checkbox must complete the task (task 652edb22)")
     }
 
@@ -233,7 +232,7 @@ final class Astrid_MacUITests: XCTestCase {
         let nameField = app.descendants(matching: .any).matching(identifier: "listEdit.name").firstMatch
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click(); nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10)); listRow.click()
