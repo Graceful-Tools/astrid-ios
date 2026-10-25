@@ -6,8 +6,9 @@
 //  Same contract as the iOS monkey: the app must stay in the foreground, no single action may
 //  take longer than the hang threshold, and the app must still be driveable at the end.
 //
-//  HERMETIC. Runs in offline mode, like every other Mac UI test — the Mac suite shares the real
-//  app container, so a run that signed in would be operating on a real account.
+//  HERMETIC. Runs in offline mode. The scripts give the app under test its own bundle id, and so
+//  its own container (AITD-529), but a random walk that signed in would still be clicking
+//  through a real account's lists.
 //
 //  TWO THINGS THE MONKEY DELIBERATELY DOES NOT TOUCH, both of which would produce false
 //  failures rather than findings:

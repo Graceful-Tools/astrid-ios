@@ -38,47 +38,24 @@ enum UITestLaunch {
     /// Environment variable carrying the test account's session cookie.
     static let cookieKey = "ASTRID_UITEST_COOKIE"
 
-    /// Generated bundle resource holding the same value. Written by the test script.
-    static let sessionResourceName = "UITestSession"
-    static let sessionResourceKey = "sessionCookie"
-
-    /// The session this run was given, or nil when it was given none.
+    /// The session this run was given, or nil when it was given none. Read by
+    /// `UITestSessionResource`, which the Mac suite shares (AITD-529).
     ///
     /// Mint one with:
     ///
     ///     cd ../astrid-web && npx tsx scripts/uitest-account.ts --run <id>
     ///
     /// `npm run test:ui` does it for you.
-    static let sessionCookie: String? = {
-        if let fromEnvironment = nonEmpty(ProcessInfo.processInfo.environment[cookieKey]) {
-            return fromEnvironment
-        }
-        return nonEmpty(sessionResource[sessionResourceKey] as? String)
-    }()
+    static var sessionCookie: String? { UITestSessionResource.sessionCookie }
 
     /// This run's seeded fixtures by id, or nil on the shared-account path (AITD-527).
-    ///
-    /// Only when the cookie in use is the one the plist was written with — fixture ids from one
-    /// account are meaningless under another's session.
-    static let fixtures: UITestFixtures? = {
-        guard let cookie = sessionCookie,
-              cookie == nonEmpty(sessionResource[sessionResourceKey] as? String),
-              let json = sessionResource["fixtures"] as? String
-        else { return nil }
-        return UITestFixtures.decode(json)
-    }()
+    static var fixtures: UITestFixtures? { UITestSessionResource.fixtures }
 
-    /// The server the app under test — and `UITestAPI` — talks to (AITD-527).
-    ///
-    /// Production unless the runner wrote a `baseURL` (`ASTRID_UITEST_BASE_URL`), which the app
-    /// receives as `-uiTestBaseURL`; see `UITestSession.baseURLOverride`.
-    static let baseURL: String = {
-        var value = nonEmpty(sessionResource["baseURL"] as? String) ?? productionBaseURL
-        while value.hasSuffix("/") { value.removeLast() }
-        return value
-    }()
+    /// The server the app under test — and `UITestAPI` — talks to (AITD-527). Production unless
+    /// the runner wrote a `baseURL`, which the app receives as `-uiTestBaseURL`.
+    static var baseURL: String { UITestSessionResource.baseURL }
 
-    static let productionBaseURL = "https://www.astrid.cc"
+    static let productionBaseURL = UITestSessionResource.productionBaseURL
     static let baseURLArgument = "-uiTestBaseURL"
 
     /// Points every request at an address nothing answers. Must match `UITestSession.offlineArgument`.
@@ -456,41 +433,4 @@ enum UITestLaunch {
         }
         return nil
     }
-
-    // MARK: - Private
-
-    /// `UITestSession.plist`, written by `scripts/run-tests.sh`: the cookie, and for a per-run
-    /// account the fixtures document, the run id and an optional base URL.
-    private static let sessionResource: [String: Any] = {
-        let bundle = Bundle(for: UITestLaunchBundleToken.self)
-        guard let url = bundle.url(forResource: sessionResourceName, withExtension: "plist"),
-              let data = try? Data(contentsOf: url),
-              let plist = try? PropertyListSerialization.propertyList(from: data,
-                                                                     format: nil) as? [String: Any]
-        else { return [:] }
-        return plist
-    }()
-
-    private static func nonEmpty(_ value: String?) -> String? {
-        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !trimmed.isEmpty else { return nil }
-        return trimmed
-    }
-}
-
-/// Only exists to locate the test bundle.
-private final class UITestLaunchBundleToken {}
-
-/// A precondition the harness GUARANTEES did not hold — so it is the app's failure, not a reason
-/// to skip.
-///
-/// The suite threw `XCTSkip` for "no task rows", "detail did not open", "quick add never took
-/// focus" and the like, from before the seeder guaranteed an account with five fixture tasks.
-/// Since then every one of those has been a failure wearing a skip, and the suite reported
-/// green while asserting nothing (AITD-525). XCTest records a thrown error as a failure carrying
-/// this message, so the reason still reads in the result.
-struct UITestFailure: Error, CustomStringConvertible, LocalizedError {
-    let description: String
-    init(_ description: String) { self.description = description }
-    var errorDescription: String? { description }
 }

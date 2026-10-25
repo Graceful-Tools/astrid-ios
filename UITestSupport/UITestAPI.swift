@@ -9,7 +9,7 @@ import XCTest
 /// (`TaskDueDateClearUITests`). This asks `/api/v1` directly with the run's own session cookie.
 ///
 /// Every path here is in `docs/API_ENDPOINTS.md`. It talks to the same host as the app under
-/// test (`UITestLaunch.baseURL`), so a `-uiTestBaseURL` staging run checks staging.
+/// test (`UITestSessionResource.baseURL`), so a `-uiTestBaseURL` staging run checks staging.
 enum UITestAPI {
 
     struct Task {
@@ -64,7 +64,7 @@ enum UITestAPI {
     }
 
     /// Nil without a session — there is nothing to ask the server as.
-    static var isAvailable: Bool { UITestLaunch.sessionCookie != nil }
+    static var isAvailable: Bool { UITestSessionResource.sessionCookie != nil }
 
     static func task(id: String) throws -> Task? {
         let json = try get("/api/v1/tasks/\(id)")
@@ -147,11 +147,11 @@ enum UITestAPI {
     // MARK: - Transport
 
     private static func get(_ path: String) throws -> [String: Any]? {
-        guard let cookie = UITestLaunch.sessionCookie else {
+        guard let cookie = UITestSessionResource.sessionCookie else {
             throw UITestFailure("UITestAPI needs a session — run `npm run test:ui`, which mints one")
         }
-        guard let url = URL(string: UITestLaunch.baseURL + path) else {
-            throw UITestFailure("Bad API URL: \(UITestLaunch.baseURL + path)")
+        guard let url = URL(string: UITestSessionResource.baseURL + path) else {
+            throw UITestFailure("Bad API URL: \(UITestSessionResource.baseURL + path)")
         }
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.setValue(cookie, forHTTPHeaderField: "Cookie")

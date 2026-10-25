@@ -227,6 +227,7 @@ struct MacTaskFieldsView: View {
                 .foregroundStyle(task.completed ? Theme.textMuted : Theme.textPrimary)
                 .focused($titleFocused)
                 .onSubmit(saveTitle)
+                .accessibilityIdentifier("taskDetail.title")   // the Mac E2E journeys (AITD-529)
                 // Resign-to-save, like every other editor (55010e29).
                 .onChange(of: titleFocused) { _, focused in
                     if focused { editing.begin(Self.titleEditor) }

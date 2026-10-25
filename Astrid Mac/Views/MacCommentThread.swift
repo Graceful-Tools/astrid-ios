@@ -231,6 +231,7 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
                     .focused(focus)
                     .onChange(of: draft.text) { draft.updateSuggestions(members: members) }
                     .onSubmit(addComment)
+                    .accessibilityIdentifier("comment.input")   // the Mac E2E journeys (AITD-529)
                 accessory()
                 // The trailing slot becomes Send as soon as there is something to send (AITD-303).
                 // Return already posted; nothing said so, and a staged screenshot had no visible

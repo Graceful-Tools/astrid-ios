@@ -220,10 +220,23 @@ fi
 
 start_log_capture
 
+# On the Mac the app is built first and given its own bundle id, so the monkey hammers a copy
+# with its own container instead of the installed Astrid's settings (AITD-529,
+# lib/mac-uitest-identity.sh). The simulator already has its own containers.
+TEST_ACTION=(test)
+if [ "$TARGET" = "mac" ]; then
+  step "Building"
+  MAC_DD=/tmp/astrid-mac-monkey-dd
+  xcodebuild build-for-testing -scheme "$SCHEME" -destination "$DESTINATION" \
+    -derivedDataPath "$MAC_DD" -quiet
+  "$ROOT/scripts/lib/mac-uitest-identity.sh" "$MAC_DD/Build/Products/Debug/Astrid.app"
+  TEST_ACTION=(test-without-building -derivedDataPath "$MAC_DD")
+fi
+
 step "Running"
 set +e
 env MONKEY_ACTIONS="$ACTIONS" MONKEY_HANG_SECONDS="$HANG" ${SEED:+MONKEY_SEED=$SEED} \
-  xcodebuild test \
+  xcodebuild "${TEST_ACTION[@]}" \
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -only-testing:"$SUITE" \

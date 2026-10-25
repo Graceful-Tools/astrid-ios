@@ -201,6 +201,84 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
+  # The Mac UI suite, signed in with a per-run account (AITD-529). Self-hosted only: it needs
+  # developer mode (`sudo DevToolsSecurity -enable`) and an unlocked console session — the same
+  # two conditions as the weekly Mac monkey (scripts/launchd/cc.astrid.monkey.weekly.plist.template).
+  # After mac-tests, so the two Mac suites never share the screen.
+  mac-ui-tests:
+    name: 'Mac UI Tests'
+    runs-on: ["self-hosted", "astrid-ios"]
+    needs: mac-tests
+    if: >
+      (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+        (github.event_name == 'workflow_dispatch' && inputs.include_ui_tests == true)
+      ) &&
+      (
+        github.event_name != 'pull_request' ||
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) &&
+      inputs.runner != 'macos-latest'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout Astrid UI test helper
+        uses: actions/checkout@v4
+        with:
+          repository: Graceful-Tools/astrid-web
+          ref: uitest-run-accounts-v1
+          path: astrid-web
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            astrid-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Astrid UI test helper dependencies
+        working-directory: astrid-web
+        run: npm ci
+
+      - name: Ensure Xcode tools on PATH
+        run: |
+          XCODE_PATH=$(xcode-select -p 2>/dev/null || echo "/Applications/Xcode.app/Contents/Developer")
+          echo "${XCODE_PATH}/usr/bin" >> "${GITHUB_PATH}"
+          echo "DEVELOPER_DIR=${XCODE_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Run Mac UI tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          set +e
+          ASTRID_WEB_DIR="${GITHUB_WORKSPACE}/astrid-web" npm run test:mac:ui
+          rc=$?
+          # 3 = the screen is locked: the harness cannot run, which says nothing about the app.
+          if [ "$rc" -eq 3 ]; then
+            echo "::warning::Mac UI tests not run — the runner's screen is locked"
+            exit 0
+          fi
+          exit "$rc"
+        timeout-minutes: 30
+
+      - name: Upload Mac UI test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-ui-test-results
+          path: test-results/mac-ui-*.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
   build-check:
     name: 'Build Check'
     runs-on: ${{ fromJSON(inputs.runner == 'macos-latest' && '["macos-latest"]' || '["self-hosted","astrid-ios"]') }}
