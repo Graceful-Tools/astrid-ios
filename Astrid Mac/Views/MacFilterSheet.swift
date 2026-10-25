@@ -1,5 +1,6 @@
 //  MacFilterSheet.swift
-//  Astrid for Mac — native filter editor for a list (Task a2bf6ccb).
+//  Astrid for Mac — native filter editor for a list (Task a2bf6ccb). Its own sheet went in
+//  AITD-553; the editor is List Settings ▸ Filters, and these are its controls.
 //
 //  Previously Mac filters were READ-ONLY (the empty state told users to "adjust filters on iOS or
 //  the web"). This writes the saved sort/filter fields through the canonical service
@@ -15,32 +16,6 @@
 #if os(macOS)
 import SwiftUI
 
-/// The sheet the toolbar's filter button opens: the shared controls plus Done.
-///
-/// Thin on purpose (AITD-388). The controls themselves moved to `MacListSortFiltersContent` so
-/// the "Sort & Filters" tab of `MacListSettingsWindow` offers exactly the same ones — two
-/// renderers of one editor is how they drift, and this editor writes your own view of it.
-struct MacFilterSheet: View {
-    let list: TaskList
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(String(format: NSLocalizedString("mac.filter_title", comment: ""), list.name))
-                .macFont(.headline).foregroundStyle(Theme.textPrimary)
-            MacListSortFiltersContent(list: list, showsSort: MacListChrome.filterSheetOffersSort)
-            HStack {
-                Spacer()
-                Button(NSLocalizedString("actions.done", comment: "")) { dismiss() }
-                    .buttonStyle(.borderedProminent).keyboardShortcut(.return)
-            }
-        }
-        .padding(20)
-        .frame(width: 340)
-        .background(Theme.bgPrimary)
-    }
-}
-
 /// The sort and filter controls for one list.
 ///
 /// THESE ARE NOT PERSONAL SETTINGS, however much they read like them: sort, the six filters,
@@ -49,12 +24,8 @@ struct MacFilterSheet: View {
 /// loud rather than implying a private view that does not exist (AITD-388).
 struct MacListSortFiltersContent: View {
     let list: TaskList
-    /// Whether the form takes the height its host has left, rather than its own fixed one. The
-    /// List Settings window is a fixed size and sets this; the filter sheet sizes to its content
-    /// and does not (AITD-483).
-    private let fillsHeight: Bool
-    /// Whether the form has its Sort section. The filter popover leaves it to the header's sort
-    /// menu (AITD-522); the List Settings window keeps it.
+    /// Whether the form has its Sort section. The List Settings window keeps it (the header's
+    /// sort menu is the quick way, AITD-522).
     private let showsSort: Bool
 
     @State private var completion: String
@@ -71,9 +42,8 @@ struct MacListSortFiltersContent: View {
     /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
     @State private var showSubtasks: Bool
 
-    init(list: TaskList, fillsHeight: Bool = false, showsSort: Bool = true) {
+    init(list: TaskList, showsSort: Bool = true) {
         self.list = list
-        self.fillsHeight = fillsHeight
         self.showsSort = showsSort
         _completion = State(initialValue: list.filterCompletion ?? "default")
         _priority   = State(initialValue: list.filterPriority ?? "all")
@@ -86,40 +56,27 @@ struct MacListSortFiltersContent: View {
         _showSubtasks = State(initialValue: ListSubtaskVisibility.listShowsSubtasks(list.showSubtasks))
     }
 
-    /// Every row at the default text size.
-    private static let formHeight: CGFloat = 360
-    /// What the Sort section adds to that, so the popover without it is not left with a gap.
-    private static let sortSectionHeight: CGFloat = 60
-    private var fixedFormHeight: CGFloat {
-        showsSort ? Self.formHeight : Self.formHeight - Self.sortSectionHeight
-    }
-    /// The form scrolls, so squeezed it still works — but below a few rows it stops reading as
-    /// a list of filters.
-    private static let minimumFormHeight: CGFloat = 140
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Form {
+            // A grid, not a scrolling Form (AITD-553: "make it so that the filter list doesn't
+            // need to scroll"). It takes the height its rows need; the host decides what happens
+            // on a screen too short for that.
+            MacFilterGrid {
                 // Sort lives WITH the filters and persists, exactly like iOS — the old Mac sort
                 // was a window-local override that never persisted or synced (2b886104). It is
                 // saved per-user against the list, not as a column of it (AITD-394).
                 if showsSort {
-                    Section(NSLocalizedString("actions.sort", comment: "")) {
-                        filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
-                    }
+                    MacFilterRows.header(NSLocalizedString("actions.sort", comment: ""))
+                    filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
                 }
-                Section(NSLocalizedString("lists.filters", comment: "")) {
-                    filterPicker(NSLocalizedString("lists.task_completion", comment: ""), selection: $completion, options: MacListFilter.completion)
-                    filterPicker(NSLocalizedString("tasks.priority", comment: ""), selection: $priority, options: MacListFilter.priority)
-                    filterPicker(NSLocalizedString("tasks.due_date", comment: ""), selection: $dueDate, options: MacListFilter.dueDate)
-                    filterPicker(NSLocalizedString("tasks.assignee", comment: ""), selection: $assignee, options: MacListFilter.assignee)
-                    filterPicker(NSLocalizedString("lists.assigned_by", comment: ""), selection: $assignedBy, options: MacListFilter.assignedBy)
-                    filterPicker(NSLocalizedString("lists.repeating", comment: ""), selection: $repeatingFilter, options: MacListFilter.repeating)
-                }
+                MacFilterRows.header(NSLocalizedString("lists.filters", comment: ""))
+                filterPicker(NSLocalizedString("lists.task_completion", comment: ""), selection: $completion, options: MacListFilter.completion)
+                filterPicker(NSLocalizedString("tasks.priority", comment: ""), selection: $priority, options: MacListFilter.priority)
+                filterPicker(NSLocalizedString("tasks.due_date", comment: ""), selection: $dueDate, options: MacListFilter.dueDate)
+                filterPicker(NSLocalizedString("tasks.assignee", comment: ""), selection: $assignee, options: MacListFilter.assignee)
+                filterPicker(NSLocalizedString("lists.assigned_by", comment: ""), selection: $assignedBy, options: MacListFilter.assignedBy)
+                filterPicker(NSLocalizedString("lists.repeating", comment: ""), selection: $repeatingFilter, options: MacListFilter.repeating)
             }
-            .formStyle(.grouped).macThemedSurface()
-            .frame(minHeight: fillsHeight ? Self.minimumFormHeight : fixedFormHeight,
-                   maxHeight: fillsHeight ? .infinity : fixedFormHeight)
 
             // Saved filter: converts THIS list, exactly as web's checkbox and iOS's toggle do.
             // It used to create a NEW list and copy the filters over, pre-filled with this list's
@@ -192,10 +149,8 @@ struct MacListSortFiltersContent: View {
     }
 
     private func filterPicker(_ title: String, selection: Binding<String>, options: [MacListFilter.Option]) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(options) { Text($0.label).tag($0.value) }
-        }
-        .onChange(of: selection.wrappedValue) { save() }
+        MacFilterRows.row(title, selection: selection, options: options)
+            .onChange(of: selection.wrappedValue) { save() }
     }
 
     /// Persist sort + every filter field through the canonical service (offline-first + server),
@@ -214,6 +169,47 @@ struct MacListSortFiltersContent: View {
         if showsSort { updates["sortBy"] = sortBy }
         AppActions.perform("Update filters") {
             _ = try await ListService.shared.updateListAdvanced(listId: list.id, updates: updates)
+        }
+    }
+}
+
+/// The filter rows as a two-column grid that sizes to its content — label, then a menu picker —
+/// on a themed card. Shared by List Settings' Filters tab and My Tasks' filter popover, so the
+/// two cannot drift (AITD-553). It replaced a `Form`, which is a scroll view with a fixed frame:
+/// six filters in 300pt scrolled.
+struct MacFilterGrid<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+            content
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bgSecondary))
+    }
+}
+
+/// The rows a `MacFilterGrid` holds.
+enum MacFilterRows {
+    /// A section label spanning both columns.
+    static func header(_ title: String) -> some View {
+        GridRow {
+            Text(title).macFont(.caption).foregroundStyle(Theme.textMuted)
+                .gridCellColumns(2)
+        }
+    }
+
+    static func row(_ title: String, selection: Binding<String>,
+                    options: [MacListFilter.Option]) -> some View {
+        GridRow {
+            Text(title).foregroundStyle(Theme.textPrimary)
+                .gridColumnAlignment(.leading)
+            Picker(title, selection: selection) {
+                ForEach(options) { Text($0.label).tag($0.value) }
+            }
+            .labelsHidden()
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }
