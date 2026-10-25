@@ -12,26 +12,38 @@ struct ListInsightsView: View {
 
     @State private var days = ListInsightsFormat.defaultWindow
     @State private var insights: ListInsights?
-    /// Which window failed, so choosing another is a fresh attempt.
-    @State private var failedDays: Int?
+    @State private var loadState = ListInsightsLoadState()
 
     var body: some View {
         ScrollView {
             ListInsightsContent(insights: insights?.window.days == days ? insights : nil,
-                                failed: failedDays == days,
+                                failed: loadState.showsFailure(for: days),
                                 days: $days)
                 .padding(16)
         }
+        // One ask per window per look; the service serves a repeat from its cache (AITD-554).
         .task(id: days) {
+            let asked = days
             do {
-                let answer = try await load(listId, days)
+                let answer = try await load(listId, asked)
                 insights = answer
+                loadState.loaded(days: asked)
             } catch is CancellationError {
             } catch {
-                failedDays = days
+                loadState.failed(days: asked)
             }
         }
     }
+}
+
+/// Which window last failed to load. A success clears it — it used to stay set, so a window that
+/// failed once read "couldn't load" over a perfectly good answer from then on (AITD-554).
+struct ListInsightsLoadState: Equatable {
+    private var failedDays: Int?
+
+    mutating func failed(days: Int) { failedDays = days }
+    mutating func loaded(days: Int) { if failedDays == days { failedDays = nil } }
+    func showsFailure(for days: Int) -> Bool { failedDays == days }
 }
 
 /// The tab's content for a given answer — no fetching, so a test can render any state.
