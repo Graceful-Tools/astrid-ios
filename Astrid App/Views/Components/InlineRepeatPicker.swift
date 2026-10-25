@@ -91,6 +91,7 @@ struct InlineRepeatPicker: View {
                             isEditing = false
                             showingCustomEditor = false
                         }
+                        .accessibilityIdentifier("sheet.close")
                     }
                 }
             }
@@ -188,6 +189,7 @@ struct InlineRepeatPicker: View {
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("repeatPicker.option." + pattern.rawValue)
                         }
                     }
 

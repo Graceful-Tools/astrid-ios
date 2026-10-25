@@ -25,13 +25,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         try UITestLaunch.skipUnlessSignedIn(app)
     }
 
-    /// Waits for the task list "My Tasks" header to appear.
-    /// Uses an exact match on the localized header so we don't accidentally match
-    /// the welcome screen subtitle "Your intelligent task manager".
+    /// Waits for the task list's header, by identifier (AITD-526).
     @MainActor
     private func waitForTaskList(timeout: TimeInterval = 10) -> Bool {
-        let header = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'My Tasks'")).firstMatch
-        return header.waitForExistence(timeout: timeout)
+        UITestLaunch.waitForTaskList(app, timeout: timeout)
     }
 
     @MainActor
@@ -54,10 +51,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
 
         UITestLaunch.tapCenter(firstTask)
 
-        // Wait for task detail to appear
-        // The custom header shows "Task Details" text
+        // Wait for task detail to appear — at the helper's own timeout, which says why five
+        // seconds was too short.
         let detailHeader = UITestLaunch.taskDetailHeader(app)
-        let detailAppeared = detailHeader.waitForExistence(timeout: 5)
+        let detailAppeared = UITestLaunch.waitForTaskDetail(app)
 
         if !detailAppeared {
             let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -79,9 +76,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         // reads as the app having lost its back-swipe rather than the test never performing one
         // (task b86c97c5).
         UITestLaunch.swipeBackFromLeftEdge(app)
-
-        // Wait a moment for animation
-        Thread.sleep(forTimeInterval: 1.0)
+        let dismissed = UITestLaunch.waitForDisappearance(detailHeader)
 
         // Take screenshot after swipe
         let afterSwipe = XCTAttachment(screenshot: app.screenshot())
@@ -89,8 +84,7 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         afterSwipe.lifetime = .keepAlways
         add(afterSwipe)
 
-        // Verify task detail is gone — "Task Details" header should no longer be visible
-        XCTAssertFalse(detailHeader.exists, "Task detail should be dismissed after swipe-back")
+        XCTAssertTrue(dismissed, "Task detail should be dismissed after swipe-back")
     }
 
     // MARK: - Swipe Right on Task List Opens Sidebar
@@ -112,17 +106,6 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         let swipeEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.25))
         swipeStart.press(forDuration: 0.15, thenDragTo: swipeEnd)
 
-        // Let the sidebar's spring open-animation (≈0.25s) settle before asserting, matching
-        // the robust pattern used by the other swipe tests in this file. Asserting mid-animation
-        // is the root cause of this test's flakiness — the accessibility tree is unstable while
-        // the sidebar scales/fades in.
-        Thread.sleep(forTimeInterval: 0.5)
-
-        let afterSwipe = XCTAttachment(screenshot: app.screenshot())
-        afterSwipe.name = "After Sidebar Swipe"
-        afterSwipe.lifetime = .keepAlways
-        add(afterSwipe)
-
         // The closed sidebar keeps its cells in the accessibility tree, so "a Lists header
         // exists" passed whether or not the swipe opened anything (AITD-525). Its header search
         // is only HITTABLE once the sidebar is actually on screen.
@@ -132,6 +115,10 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         let hittable = NSPredicate(format: "isHittable == true")
         let opened = XCTWaiter().wait(
             for: [XCTNSPredicateExpectation(predicate: hittable, object: headerSearch)], timeout: 5)
+        let afterSwipe = XCTAttachment(screenshot: app.screenshot())
+        afterSwipe.name = "After Sidebar Swipe"
+        afterSwipe.lifetime = .keepAlways
+        add(afterSwipe)
         XCTAssertEqual(opened, .completed, "Sidebar should be on screen after swipe-right on task list")
     }
 
@@ -217,7 +204,6 @@ final class TaskDetailSwipeBackUITests: XCTestCase {
         UITestLaunch.tapCenter(firstTask)
 
         // Task detail should appear
-        let detailHeader = UITestLaunch.taskDetailHeader(app)
-        XCTAssertTrue(detailHeader.waitForExistence(timeout: 5), "Task detail should open when tapping a task row")
+        XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "Task detail should open when tapping a task row")
     }
 }

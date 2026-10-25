@@ -17,6 +17,7 @@
 
 #if os(macOS)
 import SwiftUI
+import AppKit
 
 struct MacListSettingsWindow: View {
     let list: TaskList
@@ -43,10 +44,14 @@ struct MacListSettingsWindow: View {
         }
     }
 
-    /// Tall enough that the Filters tab shows every row at the default text size. The content
-    /// must still FIT whatever this is — it was 560 with 667 of content, and what does not fit
-    /// is centred, so the title came off the top and Done off the bottom (AITD-483).
-    static let size = CGSize(width: 460, height: 680)
+    /// Sized to the screen (AITD-553): wider where there is room, and tall enough that the
+    /// Filters tab shows every row without scrolling. The content must still FIT whatever this
+    /// is — what does not fit is centred, so the title came off the top and Done off the bottom
+    /// (AITD-483) — which is why the tabs' own content scrolls inside it, not the window.
+    static var size: CGSize {
+        MacListChrome.settingsPopoverSize(screen: NSScreen.main?.visibleFrame.size
+                                          ?? CGSize(width: 1440, height: 900))
+    }
 
     init(list: TaskList, initialTab: Tab = .sortFilters, onDelete: @escaping (TaskList) -> Void = { _ in }) {
         self.list = list
@@ -100,6 +105,9 @@ struct MacListSettingsWindow: View {
             Group {
                 switch tab {
                 case .sortFilters:
+                    // Scrolls only on a screen too short for the popover's full height; anywhere
+                    // it fits, the grid shows every filter at once (AITD-553).
+                    ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
                         // Said out loud, because a window called List Settings suggests
                         // otherwise: since AITD-394 these are the VIEWER's, stored per-user on
@@ -118,7 +126,8 @@ struct MacListSettingsWindow: View {
                                 }
                             }))
                             .accessibilityIdentifier("listSettings.favorite")
-                        MacListSortFiltersContent(list: currentList, fillsHeight: true)
+                        MacListSortFiltersContent(list: currentList)
+                    }
                     }
                 case .membership:
                     MacListMembershipTab(list: currentList)

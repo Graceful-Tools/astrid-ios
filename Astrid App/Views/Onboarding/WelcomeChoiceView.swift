@@ -70,6 +70,7 @@ struct WelcomeChoiceView: View {
                         .background(Theme.accent)
                         .foregroundColor(.white)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
+                        .accessibilityIdentifier("login.signIn")
 
                         // Local mode option (secondary)
                         Button {
@@ -94,6 +95,7 @@ struct WelcomeChoiceView: View {
                         .foregroundColor(textColor)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
                         .disabled(isCreatingLocalUser)
+                        .accessibilityIdentifier("login.useWithoutAccount")
                     }
                     .padding(.horizontal, Theme.spacing32)
 

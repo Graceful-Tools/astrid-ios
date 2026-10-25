@@ -44,10 +44,8 @@ final class TaskUITests: XCTestCase {
         guard UITestLaunch.focusQuickAdd(app) else {
             throw UITestFailure("Quick add never took keyboard focus")
         }
-        taskInput.typeText(taskTitle)
-
-        // Submit task (press return or tap add button)
-        app.keyboards.buttons["Return"].tap()
+        // Submit with a newline — the Return key's name depends on the keyboard's language.
+        taskInput.typeText(taskTitle + "\n")
 
         // Wait for task to appear in list
         let taskCreated = UITestLaunch.waitForCreatedTask(app, titled: taskTitle) != nil

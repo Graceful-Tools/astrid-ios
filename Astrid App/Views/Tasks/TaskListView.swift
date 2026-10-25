@@ -445,6 +445,7 @@ struct TaskListView: View {
             // Title (with colored priority indicators for My Tasks filters, including ○)
             navigationTitleView
                 .font(Theme.Typography.headline())
+                .accessibilityIdentifier("taskList.title")
 
             Spacer()
 

@@ -16,6 +16,18 @@ enum MacUITestLaunch {
     /// Must match `UITestSession.baseURLArgument`.
     static let baseURLArgument = "-uiTestBaseURL"
 
+    /// English whatever the host is set to (AITD-526). Controls are found by identifier; what
+    /// this keeps meaningful is the menu-bar titles (`View`, `Task ▸ Complete`, AppKit's
+    /// `Undo …`), which have no identifiers to find them by.
+    static let englishArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+
+    /// The list sheet's Create/Save button. Must match `MacListEditSheet.saveButton`.
+    static let listSaveIdentifier = "listEdit.save"
+
+    /// A task row's checkbox, by state. Must match `MacTaskRow`.
+    static let openCheckboxIdentifier = "taskRow.checkbox.open"
+    static let completedCheckboxIdentifier = "taskRow.checkbox.completed"
+
     /// An app configured for UI testing but not yet launched, so a test can add arguments.
     ///
     /// `signedIn: false` (the default) is the hermetic launch: no credential, so the app shows
@@ -24,7 +36,7 @@ enum MacUITestLaunch {
     /// through `UITestSessionResource`; the app signs in with it and nothing else.
     static func makeApp(arguments: [String] = [], signedIn: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += [uiTestingFlag] + arguments
+        app.launchArguments += [uiTestingFlag] + englishArguments + arguments
         if signedIn, let cookie = UITestSessionResource.sessionCookie {
             app.launchArguments += [cookieArgument, cookie]
             app.launchEnvironment[UITestSessionResource.cookieEnvironmentKey] = cookie

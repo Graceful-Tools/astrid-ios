@@ -46,6 +46,8 @@ struct MacEmptyState: View {
                 Text(copy.message)
                     .macFont(.system(size: 14, weight: .medium))
                     .foregroundStyle(Theme.textPrimary)
+                    // Which empty state, for the UI suite — the copy is localized (AITD-526).
+                    .accessibilityIdentifier("emptyState.\(copy)")
                 if let d = copy.detail {
                     Text(d).macFont(.caption).foregroundStyle(Theme.textMuted)
                 }

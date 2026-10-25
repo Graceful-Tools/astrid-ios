@@ -76,7 +76,7 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click()
         nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         let listRow = app.staticTexts[listName].firstMatch
         XCTAssertTrue(listRow.waitForExistence(timeout: 10))
@@ -99,8 +99,7 @@ final class Astrid_MacUITests: XCTestCase {
     func testMyTasksShowsBrandedEmptyState() {
         let app = enterOfflineShell()
         app.descendants(matching: .any).matching(identifier: "sidebar.myTasks").firstMatch.click()
-        let empty = app.staticTexts.containing(NSPredicate(format: "value CONTAINS[c] %@ OR label CONTAINS[c] %@",
-                                                           "All clear", "All clear")).firstMatch
+        let empty = app.descendants(matching: .any).matching(identifier: "emptyState.noTasks").firstMatch
         XCTAssertTrue(empty.waitForExistence(timeout: 10), "My Tasks should show the branded empty state")
     }
 
@@ -136,7 +135,7 @@ final class Astrid_MacUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 10))
         nameField.click()
         nameField.typeText(listName)
-        app.buttons["Create"].firstMatch.click()
+        app.buttons[MacUITestLaunch.listSaveIdentifier].firstMatch.click()
 
         // Select the new list. There is no sidebar filter to narrow it with — the list-name
         // search was removed in task 1b0f034d — so the row is found by its name directly.

@@ -173,10 +173,12 @@ struct MacListEditSheet: View {
                                     : NSLocalizedString("actions.save", comment: "")
         if embedded {
             Button(label, action: save).buttonStyle(.borderedProminent).disabled(!isValid)
+                .accessibilityIdentifier("listEdit.save")
         } else {
             Button(label, action: save).buttonStyle(.borderedProminent)
                 .keyboardShortcut(.return, modifiers: [])
                 .disabled(!isValid)
+                .accessibilityIdentifier("listEdit.save")
         }
     }
 

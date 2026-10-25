@@ -20,7 +20,7 @@ import Foundation
 
 enum MacListChrome {
 
-    /// Whether `MacFilterSheet` — the popover behind the header's filter button — has a Sort
+    /// Whether a list's filter editor outside List Settings — once `MacFilterSheet` — has a Sort
     /// section. It did (AITD-305), which is why the header had no sort menu of its own. AITD-522
     /// ("move list sort to the header") turned that round: sort is a header control, so the
     /// popover drops it and sort still has one control, not two. The List Settings window's
@@ -143,7 +143,39 @@ enum MacListChrome {
 
     /// One control in the title bar's centre.
     enum TitleBarControl: Hashable {
-        case modePicker, sort, filter, myTasksFilter, listSettings
+        case modePicker, sort, myTasksFilter, listSettings
+    }
+
+    /// A real list has no filter button of its own (AITD-553: "remove the separate filter menu on
+    /// lists since there is a filter tab in the settings menu"). The gear opens List Settings on
+    /// its Filters tab — one editor, one way in. My Tasks has no list settings, so it keeps its
+    /// button.
+    static let realListHasFilterButton = false
+
+    /// The filter editor and List Settings open as POPOVERS (AITD-553: "tapping out of the filter
+    /// menu should dismiss the menu vs just the done button"). A popover closes on a click
+    /// outside it; a sheet only on its own button.
+    static let filterAndSettingsArePopovers = true
+
+    /// The filter popover's width: wider when the screen has room, never narrower than the 340
+    /// it was, and capped where a row would only get emptier.
+    static func filterPopoverWidth(screenWidth: CGFloat) -> CGFloat {
+        min(520, max(340, (screenWidth * 0.4).rounded()))
+    }
+
+    /// The tallest the List Settings popover gets, and what its Filters tab needs at the default
+    /// text size: sort, six filters, two toggles and Clear, above the title, tabs and Done.
+    static let settingsPopoverMaxHeight: CGFloat = 760
+    static let filtersTabNeededHeight: CGFloat = 640
+    /// Room left around the popover on a screen too short for the full height.
+    static let settingsPopoverScreenMargin: CGFloat = 140
+
+    /// List Settings' size: wider when the screen allows (never narrower than the 460 window it
+    /// replaces), and as tall as the screen allows up to the cap, so the Filters tab does not
+    /// scroll anywhere it can fit.
+    static func settingsPopoverSize(screen: CGSize) -> CGSize {
+        CGSize(width: min(640, max(460, (screen.width * 0.4).rounded())),
+               height: min(settingsPopoverMaxHeight, screen.height - settingsPopoverScreenMargin))
     }
 
     /// The title bar's centre, as groups drawn apart from each other (AITD-553: "make the toggle
@@ -155,7 +187,6 @@ enum MacListChrome {
         var controls: [TitleBarControl] = []
         if titleBarShowsSort(hasSelection: hasSelection, isRealList: isRealList,
                              isMyTasks: isMyTasks, isListMode: isListMode) { controls.append(.sort) }
-        if showsFilter(isRealList: isRealList, isListMode: isListMode) { controls.append(.filter) }
         if isMyTasks && isListMode { controls.append(.myTasksFilter) }
         if titleBarShowsListMenu(isRealList: isRealList, isListMode: isListMode) {
             controls.append(.listSettings)

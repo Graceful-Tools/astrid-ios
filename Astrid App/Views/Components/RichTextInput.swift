@@ -200,6 +200,7 @@ struct RichTextInput: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend || isSubmitting)
+                    .accessibilityIdentifier("comment.send")
                 }
             }
         }

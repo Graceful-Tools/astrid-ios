@@ -31,10 +31,10 @@ final class TaskDueDateClearUITests: XCTestCase {
         let time = app.buttons[Self.timeTrigger]
         XCTAssertTrue(time.waitForExistence(timeout: 5), "a dated task offers a time")
         time.tap()
-        let morning = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", Self.morning)).firstMatch
+        let morning = app.buttons[Self.morning].firstMatch
         XCTAssertTrue(morning.waitForExistence(timeout: 5), "the time sheet should offer Morning")
         morning.tap()
-        XCTAssertTrue(waitForChip(time, notLabelled: Self.morningUnset),
+        XCTAssertTrue(UITestLaunch.waitForLabel(time, contains: morningUnset, false),
                       "after Morning the time chip should show a time, got \(time.label)")
         try clearAndExpectNoDueDate(chip)
     }
@@ -48,7 +48,7 @@ final class TaskDueDateClearUITests: XCTestCase {
         let daily = app.buttons[Self.daily].firstMatch
         XCTAssertTrue(daily.waitForExistence(timeout: 5), "the repeat sheet should offer Daily")
         daily.tap()
-        XCTAssertTrue(waitForLabel(repeatChip, toContain: Self.daily),
+        XCTAssertTrue(UITestLaunch.waitForLabel(repeatChip, contains: dailyLabel),
                       "after Daily the repeat chip should say so, got \(repeatChip.label)")
         try clearAndExpectNoDueDate(chip)
     }
@@ -62,10 +62,10 @@ final class TaskDueDateClearUITests: XCTestCase {
         let time = app.buttons[Self.timeTrigger]
         XCTAssertTrue(time.waitForExistence(timeout: 5), "a dated task offers a time")
         time.tap()
-        let morning = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", Self.morning)).firstMatch
+        let morning = app.buttons[Self.morning].firstMatch
         XCTAssertTrue(morning.waitForExistence(timeout: 5), "the time sheet should offer Morning")
         morning.tap()
-        XCTAssertTrue(waitForChip(time, notLabelled: Self.morningUnset),
+        XCTAssertTrue(UITestLaunch.waitForLabel(time, contains: morningUnset, false),
                       "after Morning the time chip should show a time, got \(time.label)")
         let repeatChip = app.buttons[Self.repeatTrigger]
         XCTAssertTrue(repeatChip.waitForExistence(timeout: 5), "a dated task offers a repeat")
@@ -73,7 +73,7 @@ final class TaskDueDateClearUITests: XCTestCase {
         let daily = app.buttons[Self.daily].firstMatch
         XCTAssertTrue(daily.waitForExistence(timeout: 5), "the repeat sheet should offer Daily")
         daily.tap()
-        XCTAssertTrue(waitForLabel(repeatChip, toContain: Self.daily),
+        XCTAssertTrue(UITestLaunch.waitForLabel(repeatChip, contains: dailyLabel),
                       "after Daily the repeat chip should say so, got \(repeatChip.label)")
 
         try UITestAPI.waitForTask(titled: title, "a dated, daily task") {
@@ -107,10 +107,10 @@ final class TaskDueDateClearUITests: XCTestCase {
         let today = app.buttons[Self.today].firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 5), "the date sheet should offer Today")
         today.tap()
-        XCTAssertTrue(waitForChip(chip, notLabelled: Self.noDueDate),
+        XCTAssertTrue(UITestLaunch.waitForLabel(chip, contains: noDueDate, false, timeout: 5),
                       "after Today the chip should show a date, got \(chip.label)")
         chip.tap()
-        let none = app.buttons[Self.noDueDate].firstMatch
+        let none = app.buttons[Self.noDueDateOption].firstMatch
         XCTAssertTrue(none.waitForExistence(timeout: 5), "the date sheet should offer No due date")
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.lifetime = .keepAlways
@@ -123,7 +123,7 @@ final class TaskDueDateClearUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(none.frame.minY, close.frame.maxY,
                                     "No due date must be drawn inside the sheet, not clipped above it")
         none.tap()
-        XCTAssertTrue(waitForLabel(chip, toContain: Self.noDueDate),
+        XCTAssertTrue(UITestLaunch.waitForLabel(chip, contains: noDueDate),
                       "after No due date the chip must say so, got \(chip.label)")
     }
 
@@ -137,10 +137,9 @@ final class TaskDueDateClearUITests: XCTestCase {
         guard field.waitForExistence(timeout: 10), UITestLaunch.focusQuickAdd(app) else {
             throw UITestFailure("Quick add not available")
         }
-        field.typeText(title)
-        // iPad's keyboard names the key "return", and with a hardware keyboard there is none.
-        let returnKey = app.keyboards.buttons["Return"]
-        if returnKey.exists { returnKey.tap() } else { field.typeText("\n") }
+        // A newline, not the Return key: the key is named per keyboard language, "return" on
+        // iPad, and absent with a hardware keyboard.
+        field.typeText(title + "\n")
 
         guard let row = UITestLaunch.waitForCreatedTask(app, titled: title) else {
             throw UITestFailure("the new task should appear")
@@ -156,7 +155,7 @@ final class TaskDueDateClearUITests: XCTestCase {
         let today = app.buttons[Self.today].firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 5), "the date sheet should offer Today")
         today.tap()
-        XCTAssertTrue(waitForChip(chip, notLabelled: Self.noDueDate),
+        XCTAssertTrue(UITestLaunch.waitForLabel(chip, contains: noDueDate, false, timeout: 5),
                       "after Today the chip should show a date, got \(chip.label)")
         return chip
     }
@@ -165,13 +164,12 @@ final class TaskDueDateClearUITests: XCTestCase {
     private func clearAndExpectNoDueDate(_ chip: XCUIElement) throws {
         let title = self.title
         chip.tap()
-        let none = app.buttons[Self.noDueDate].firstMatch
+        let none = app.buttons[Self.noDueDateOption].firstMatch
         XCTAssertTrue(none.waitForExistence(timeout: 5), "the date sheet should offer No due date")
         none.tap()
 
-        // Past the sheet's dismissal, the picker's 0.3s auto-save and the save's round trip —
-        // polled rather than slept (AITD-528).
-        XCTAssertTrue(waitForLabel(chip, toContain: Self.noDueDate),
+        // Past the sheet's dismissal and the picker's 0.3s auto-save: polled, not slept.
+        XCTAssertTrue(UITestLaunch.waitForLabel(chip, contains: noDueDate),
                       "after No due date the chip must say so, got \(chip.label)")
 
         // The server agrees — asked directly when the run has a session to ask with (AITD-528).
@@ -190,48 +188,35 @@ final class TaskDueDateClearUITests: XCTestCase {
         XCTAssertTrue(UITestLaunch.waitForTaskDetail(app), "task detail should reopen")
         let reopened = app.buttons[Self.trigger]
         XCTAssertTrue(reopened.waitForExistence(timeout: 5))
-        // Polled for long enough to catch the date coming BACK, which is the bug: the refetch
-        // lands a moment after the detail opens.
-        let deadline = Date().addingTimeInterval(5)
-        while Date() < deadline {
-            XCTAssertTrue(reopened.label.contains(Self.noDueDate),
-                          "after reopening the task it must still have no date, got \(reopened.label)")
-            Thread.sleep(forTimeInterval: 0.5)
-        }
+        // The reopened detail first shows the cached task and then the refetched one, so the
+        // label is waited on: a date that came back from the server shows up within this window,
+        // and that is the regression. The old fixed 5s wait asserted the same thing, slower.
+        let cleared = UITestLaunch.waitForLabel(reopened, contains: noDueDate)
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.lifetime = .keepAlways
         add(shot)
+        XCTAssertTrue(cleared, "after reopening the task it must still have no date, got \(reopened.label)")
+        XCTAssertFalse(UITestLaunch.waitForLabel(reopened, contains: noDueDate, false, timeout: 3),
+                       "the date must not come back once the refetch lands, got \(reopened.label)")
     }
 
-    private func waitForChip(_ chip: XCUIElement, notLabelled text: String) -> Bool {
-        let deadline = Date().addingTimeInterval(5)
-        while Date() < deadline {
-            if !chip.label.contains(text) { return true }
-            Thread.sleep(forTimeInterval: 0.2)
-        }
-        return false
-    }
+    /// What the chip says with no date — read from the app's table, since the state is only in
+    /// the label (AITD-526).
+    private let noDueDate = UITestStrings.en("picker.no_due_date")
+    /// The time chip's label before a time is chosen.
+    private let morningUnset = UITestStrings.en("picker.add_time")
+    /// What the repeat chip says once Daily is picked.
+    private let dailyLabel = UITestStrings.en("repeating.daily")
 
-    private func waitForLabel(_ element: XCUIElement, toContain text: String,
-                              timeout: TimeInterval = 8) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if element.label.contains(text) { return true }
-            Thread.sleep(forTimeInterval: 0.2)
-        }
-        return false
-    }
-
-    /// `InlineDatePicker`'s trigger, and the English `picker.*` strings the suite runs under.
+    /// `InlineDatePicker`'s trigger and the sheets' option identifiers (AITD-526): the controls
+    /// are found by identifier, so a localized simulator cannot hide them.
     static let trigger = "datePicker.trigger"
-    static let today = "Today"
-    static let noDueDate = "No due date"
+    static let today = "datePicker.option.picker.today"
+    static let noDueDateOption = "datePicker.option.none"
     static let timeTrigger = "timePicker.trigger"
     static let repeatTrigger = "repeatPicker.trigger"
-    static let morning = "Morning"
-    /// The time chip's label before a time is chosen.
-    static let morningUnset = "Add time"
-    static let daily = "Daily"
+    static let morning = "timePicker.option.picker.morning"
+    static let daily = "repeatPicker.option.daily"
     static let back = "taskDetail.back"
-    static let close = "Close"
+    static let close = "sheet.close"
 }

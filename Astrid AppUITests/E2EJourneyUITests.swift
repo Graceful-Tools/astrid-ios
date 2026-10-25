@@ -186,9 +186,7 @@ final class E2EJourneyUITests: XCTestCase {
         try waitFor("the keyboard for the comment") { self.app.keyboards.count > 0 }
         let text = "Comment \(tag)"
         field.typeText(text)
-        let send = app.buttons
-            .matching(NSPredicate(format: "identifier CONTAINS 'paperplane' OR label CONTAINS[c] 'Send'"))
-            .firstMatch
+        let send = app.buttons["comment.send"].firstMatch
         XCTAssertTrue(send.waitForExistence(timeout: 5), "a typed comment can be sent")
         UITestLaunch.tapCenter(send)
 
@@ -380,7 +378,7 @@ final class E2EJourneyUITests: XCTestCase {
         signOut.tap()
         try element("account.destructive.signOutConfirm").tap()
 
-        let welcome = app.buttons["Use without account"]
+        let welcome = app.buttons["login.useWithoutAccount"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 15), "signing out shows the welcome screen")
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {
