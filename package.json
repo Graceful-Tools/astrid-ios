@@ -11,6 +11,7 @@
     "test:ui": "./scripts/run-tests.sh --ui --no-unit",
     "test:all": "./scripts/run-tests.sh --ui",
     "test:mac": "./scripts/run-mac-tests.sh",
+    "test:mac:ui": "./scripts/run-mac-tests.sh --ui",
     "simulator:prepare": "./scripts/prepare-ios-simulator.sh",
     "check:contracts": "node scripts/check-source-contracts.mjs",
     "check:localizations": "./scripts/check-localizations.sh",

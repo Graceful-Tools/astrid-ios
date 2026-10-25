@@ -44,11 +44,23 @@ struct MacAuthGateView: View {
             // Under XCTest, keep the host inert: these long-lived loops (sync/hotkey)
             // otherwise prevent a clean process exit and make teardown hang (Task 90fa7975).
             guard !MacRuntime.isRunningTests else { return }
-            // UI testing: start from a clean signed-out state with no network work, so the sign-in
-            // screen shows deterministically regardless of the machine's saved session (6c30df95).
-            if MacUITestArgs.isUITesting {
+            switch MacUITestArgs.launchAuth {
+            case .normal:
+                break
+            case .signedOut:
+                // UI testing with no session: a clean signed-out state with no network work, so
+                // the sign-in screen shows deterministically regardless of the machine's saved
+                // session (6c30df95).
                 auth.isCheckingAuth = false
                 auth.isAuthenticated = false
+                return
+            case .injectedSession:
+                // UI testing with the per-run account (AITD-529): sign in with it — the keychain
+                // returns only the injected cookie under the flag — and start nothing else. No
+                // Services entry, notification prompt or global hotkey: a modal prompt swallows
+                // every click beneath it (task b86c97c5).
+                await auth.checkAuthentication()
+                if auth.isAuthenticated { await startSession() }
                 return
             }
             MacServiceProvider.register()          // Services menu "Add to Astrid" (Task 3b9883d0)

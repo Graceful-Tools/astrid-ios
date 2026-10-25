@@ -71,7 +71,7 @@ struct MacRootView: View {
     // single-token `-uiTestSelectRow=<n>` form the hook actually supports (69ff12e7) — a raw
     // `contains("-uiTestSelectRow")` missed it and let the scroll handler clear the selection.
     private static let uiTestSelectsRow =
-        MacUITestArgs.selectedRowIndex(from: ProcessInfo.processInfo.arguments) != nil
+        MacUITestArgs.selectsRow(arguments: ProcessInfo.processInfo.arguments)
 
     private var chatSource: MacChatSource? {
         MacChatSource.forSelection(selectedListId: selectedListId,
@@ -798,15 +798,17 @@ struct MacRootView: View {
         }
     }
 
-    /// Test-only: honour `-uiTestSelectRow <index>` so UI tests can capture selection-dependent
-    /// layout (the pop-out + its arrow). No effect in a normal run.
+    /// Test-only: honour `-uiTestSelectRow=<index>` or `-uiTestSelectTask=<id>` (AITD-529) so UI
+    /// tests can select a row — XCUITest cannot click one. No effect in a normal run.
     private func selectRowForUITestingIfRequested(_ rows: [Task]) {
         // Synchronous on purpose: an async `.task(id:)` version was cancelled every time `rows`
         // changed, and `Task.sleep` returns immediately once cancelled, so the retry loop burned
         // out before the rows settled and the row was never selected.
-        guard let n = MacUITestArgs.selectedRowIndex(from: ProcessInfo.processInfo.arguments),
-              rows.indices.contains(n), selectedTaskIds.isEmpty else { return }
-        selectedTaskIds = [rows[n].id]
+        guard Self.uiTestSelectsRow, selectedTaskIds.isEmpty,
+              let id = MacUITestArgs.requestedRow(in: rows.map(\.id),
+                                                  arguments: ProcessInfo.processInfo.arguments)
+        else { return }
+        selectedTaskIds = [id]
     }
 
     @ViewBuilder private func taskRow(_ task: Task) -> some View {

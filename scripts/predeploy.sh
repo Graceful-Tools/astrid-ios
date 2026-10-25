@@ -76,7 +76,7 @@ echo ""
 STEP=0
 TOTAL_STEPS=9
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
-    TOTAL_STEPS=11
+    TOTAL_STEPS=12
 fi
 if [[ "$QUICK_MODE" == "true" ]]; then
     TOTAL_STEPS=7
@@ -213,6 +213,13 @@ fi
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
     step "Running Mac tests..."
     gate "Mac tests passed" "Mac tests failed" "$SCRIPT_DIR/run-mac-tests.sh"
+fi
+
+# Step 11: Mac UI tests, signed in with a per-run account (AITD-529; only with --full). After the
+# Mac unit tests, never alongside them: both drive the same Mac.
+if [[ "$RUN_UI_TESTS" == "true" ]]; then
+    step "Running Mac UI tests..."
+    gate "Mac UI tests passed" "Mac UI tests failed" "$SCRIPT_DIR/run-mac-tests.sh" --ui
 fi
 
 # Summary
