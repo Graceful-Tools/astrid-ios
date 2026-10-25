@@ -61,7 +61,7 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:mac` | Mac unit tests (`Astrid MacTests`), unsandboxed and with coverage against the same floor; never alongside `predeploy`, whose brand audit rewrites the Info.plists |
-| `npm run test:mac:ui` | Mac UI tests (`Astrid MacUITests`, monkey excepted), signed in with a per-run test account and checked against the server (AITD-529); needs developer mode and an unlocked screen |
+| `npm run test:mac:ui` | Mac UI tests (`Astrid MacUITests`, monkey excepted), signed in with a per-run test account and checked against the server, run as a re-identified copy (`…Astrid-App.uitest`) so it never touches the installed app's settings (AITD-529); needs developer mode and an unlocked screen |
 | `npm run test:core` | The `Packages/AstridCore` Swift tests and `core/astrid-apple`'s Rust tests (a missing toolchain is a visible skip) |
 | `npm run test:all` | Unit + UI tests |
 | `npm run check:localizations` | Validate translations (12 languages) |

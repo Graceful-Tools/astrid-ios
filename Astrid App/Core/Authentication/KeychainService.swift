@@ -177,6 +177,10 @@ final class KeychainService: @unchecked Sendable {
     }
     
     private func delete(key: String) throws {
+        // Reads and writes never touch the keychain under test, so neither may sign-out: the Mac
+        // UI run is ad-hoc signed under its own bundle id and has no keychain entitlement, and a
+        // delete there fails with errSecMissingEntitlement (AITD-529).
+        if Self.isUITesting { return }
         let status = SecItemDelete(baseQuery(key: key) as CFDictionary)
 
         #if os(macOS)

@@ -58,20 +58,24 @@ if [[ "${1:-}" == "--ui" ]]; then
     write_uitest_session
 
     UI_RESULT="$PROJECT_DIR/test-results/mac-ui-${GITHUB_RUN_ID:-local}-$(date +%s).xcresult"
+    # Built, then given its own bundle id before anything launches it (AITD-529): under the
+    # shipping id the app opens the installed Astrid's container and reads the owner's saved
+    # settings. See lib/mac-uitest-identity.sh. One test at a time — the suite shares one screen.
+    UI_ARGS=(
+        -scheme "Astrid Mac"
+        -destination "platform=macOS,arch=arm64"
+        -derivedDataPath /tmp/astrid-mac-ui-dd
+        -quiet
+    )
+    xcodebuild build-for-testing "${UI_ARGS[@]}"
+    "$SCRIPT_DIR/lib/mac-uitest-identity.sh" /tmp/astrid-mac-ui-dd/Build/Products/Debug/Astrid.app
     set +e
-    # Signed as the app normally is (like the monkey): the UI suite drives the real app, so it is
-    # built without the unit run's coverage/ad-hoc settings. One test at a time — the suite shares
-    # one screen.
-    xcodebuild test \
-        -scheme "Astrid Mac" \
-        -destination "platform=macOS,arch=arm64" \
-        -derivedDataPath /tmp/astrid-mac-ui-dd \
+    xcodebuild test-without-building "${UI_ARGS[@]}" \
         -only-testing:"Astrid MacUITests" \
         -skip-testing:"Astrid MacUITests/MacMonkeyUITests" \
         -parallel-testing-enabled NO \
         -collect-test-diagnostics never \
-        -resultBundlePath "$UI_RESULT" \
-        -quiet
+        -resultBundlePath "$UI_RESULT"
     UI_EXIT=$?
     set -e
     echo "Mac UI tests: $("$SCRIPT_DIR/xcresult-summary.sh" counts "$UI_RESULT")"
