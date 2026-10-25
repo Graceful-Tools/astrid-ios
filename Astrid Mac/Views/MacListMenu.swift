@@ -72,14 +72,19 @@ struct MacListMenuActions {
 }
 
 /// The gear beside the list/board picker in the window toolbar (AITD-373, AITD-522, AITD-552).
-/// It OPENS List Settings — it is not a menu (AITD-553: "tapping the button should just open the
+/// It OPENS List Settings, as a popover — it is not a menu (AITD-553: "tapping the button should just open the
 /// lists settings (shouldn't have this intermediate drop down list)"). The menu it used to show
 /// put List Settings first and Favorite / Enable Board under it; those two are in the window now
 /// (`MacListSettingsWindow.tab(for:)`). The sidebar's right-click still shows `MacListMenuContent`.
 ///
 /// Here rather than in `MacRootView` because that file is on the AITD-346 ratchet.
 struct MacListSettingsButton: View {
-    let open: () -> Void
+    let list: TaskList
+    /// Owned by the root view, so the Filters command and the sidebar right-click can open the
+    /// same popover from elsewhere.
+    @Binding var isPresented: Bool
+    var initialTab: MacListSettingsWindow.Tab = .sortFilters
+    var onDelete: (TaskList) -> Void = { _ in }
 
     /// A gear, the Mac's settings glyph (AITD-522). It was `slider.horizontal.3`, which beside
     /// the filter button read as a second filter.
@@ -89,12 +94,16 @@ struct MacListSettingsButton: View {
     static let isMenu = false
 
     var body: some View {
-        Button(action: open) {
+        Button { isPresented.toggle() } label: {
             Label(NSLocalizedString("lists.list_settings", comment: ""),
                   systemImage: Self.symbol)
         }
         .help(NSLocalizedString("lists.list_settings", comment: ""))
         .accessibilityIdentifier("board.listSettings")
+        // A popover, so a click outside closes it (AITD-553) — the sheet it was needed Done.
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            MacListSettingsWindow(list: list, initialTab: initialTab, onDelete: onDelete)
+        }
     }
 }
 

@@ -27,12 +27,14 @@ final class MacOneHeaderTests: XCTestCase {
 
     // MARK: one header
 
-    /// "this List filter button should be on the top header (next to settings and sort)", and
-    /// "make the toggle separate from the sort/settings/filter button bar".
-    func testARealListsHeaderIsThePickerThenSortFilterAndSettings_AITD553() {
+    /// "make the toggle separate from the sort/settings/filter button bar" — and then "remove the
+    /// separate filter menu on lists since there is a filter tab in the settings menu". A real
+    /// list's filters are List Settings ▸ Filters, which the gear opens.
+    func testARealListsHeaderIsThePickerThenSortAndSettings_AITD553() {
         XCTAssertEqual(MacListChrome.titleBarGroups(showsModePicker: true, hasSelection: true,
                                                     isRealList: true, isMyTasks: false, isListMode: true),
-                       [[.modePicker], [.sort, .filter, .listSettings]])
+                       [[.modePicker], [.sort, .listSettings]])
+        XCTAssertFalse(MacListChrome.realListHasFilterButton)
     }
 
     /// My Tasks has its own filter (account preferences) and no list settings.
@@ -94,6 +96,36 @@ final class MacOneHeaderTests: XCTestCase {
     /// drawn as a "Sort ›" submenu unless it is inline.
     func testSortOptionsAreInlineInTheMenu_AITD553() {
         XCTAssertTrue(MacSortMenu.optionsInline)
+    }
+
+    // MARK: popovers, sized to the screen (AITD-553 follow-up)
+
+    /// "tapping out of the filter menu should dismiss the menu vs just the done button" — a
+    /// popover closes on a click outside it; a sheet does not. Same for List Settings.
+    func testFilterAndSettingsAreTransientPopovers_AITD553() {
+        XCTAssertTrue(MacListChrome.filterAndSettingsArePopovers)
+    }
+
+    /// "make it wider if the screen can accommodate": the filter popover grows with the screen,
+    /// between the old 340 and a width past which rows only get emptier.
+    func testTheFilterPopoverWidensWithTheScreen_AITD553() {
+        XCTAssertEqual(MacListChrome.filterPopoverWidth(screenWidth: 1000), 400)
+        XCTAssertEqual(MacListChrome.filterPopoverWidth(screenWidth: 700), 340, "never narrower than before")
+        XCTAssertEqual(MacListChrome.filterPopoverWidth(screenWidth: 3000), 520, "capped")
+    }
+
+    /// List Settings likewise, and tall enough that the Filters tab never scrolls; it shrinks
+    /// only on a screen too short to hold it.
+    func testTheSettingsPopoverSizesToTheScreen_AITD553() {
+        let roomy = MacListChrome.settingsPopoverSize(screen: CGSize(width: 1800, height: 1100))
+        XCTAssertEqual(roomy.width, 640)
+        XCTAssertEqual(roomy.height, MacListChrome.settingsPopoverMaxHeight)
+        XCTAssertGreaterThanOrEqual(MacListChrome.settingsPopoverMaxHeight,
+                                    MacListChrome.filtersTabNeededHeight, "the Filters tab fits without scrolling")
+
+        let small = MacListChrome.settingsPopoverSize(screen: CGSize(width: 1000, height: 600))
+        XCTAssertEqual(small.width, 460, "never narrower than the old window")
+        XCTAssertEqual(small.height, 600 - MacListChrome.settingsPopoverScreenMargin)
     }
 }
 #endif

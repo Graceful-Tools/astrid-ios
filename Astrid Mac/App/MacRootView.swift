@@ -160,7 +160,9 @@ struct MacRootView: View {
     @State private var showNewList = false
     @State private var editingList: TaskList?
     /// The list whose Settings window is open — Sort & Filters, Membership, Admin (AITD-388).
-    @State private var settingsList: TaskList?
+    /// Whether the selected list's Settings popover is open — Sort & Filters, Membership, Admin
+    /// (AITD-388). A popover on the toolbar gear since AITD-553, so a click outside closes it.
+    @State private var settingsOpen = false
     @State private var showPublicLists = false
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
     /// they change rarely and this is a browse affordance, not live data.
@@ -168,7 +170,6 @@ struct MacRootView: View {
     /// Tasks of a PUBLIC list you are only viewing (dfb037c7). They are not in the local store —
     /// that holds YOUR tasks — so selecting one fetches its tasks from the server on demand.
     @State private var publicListTasks: [String: [Task]] = [:]
-    @State private var showFilterSheet = false
     @State private var showMyTasksFilterSheet = false
 
     /// The currently-selected real (non-virtual) list — drives the filter editor + Save-as-Smart-List.
@@ -233,7 +234,12 @@ struct MacRootView: View {
     /// items exist is `MacListMenu`'s business, and both surfaces that show it use this.
     private func listMenuActions(_ list: TaskList) -> MacListMenuActions {
         MacListMenuActions(
-            listSettings: { settingsList = list },
+            // The popover hangs off the toolbar gear, which belongs to the selected list — so a
+            // right-click on another list selects it first (AITD-553).
+            listSettings: {
+                selectedListId = list.id
+                settingsOpen = true
+            },
             toggleFavorite: { toggleFavorite(list) },
             enableBoard: { enableBoard(list) }
         )
@@ -658,13 +664,11 @@ struct MacRootView: View {
             .pickerStyle(.segmented)
         case .sort:
             sortMenu
-        case .filter:
-            if let list = currentRealList { filterButton(list) }
         case .myTasksFilter:
             myTasksFilterButton
         case .listSettings:
             if let list = currentRealList {
-                MacListSettingsButton { settingsList = list }
+                MacListSettingsButton(list: list, isPresented: $settingsOpen, onDelete: deleteList)
             }
         }
     }
@@ -705,24 +709,8 @@ struct MacRootView: View {
         }
         .help(NSLocalizedString("mac.filter_tasks", comment: ""))
         .accessibilityIdentifier("myTasks.filterButton")
-    }
-
-    /// The saved-filter editor. Lifted out of the toolbar with `sortMenu` (9998d83a).
-    private func filterButton(_ list: TaskList) -> some View {
-        Button { showFilterSheet = true } label: {
-            // All six dimensions, so the badge lights for a repeating-only filter too — it used
-            // to count four and stay dark on a list that was very much filtered (70d849f8).
-            let active = MacListFilter.activeCount(completion: list.filterCompletion,
-                                                   priority: list.filterPriority,
-                                                   dueDate: list.filterDueDate,
-                                                   assignee: list.filterAssignee,
-                                                   repeating: list.filterRepeating,
-                                                   assignedBy: list.filterAssignedBy)
-            Label(NSLocalizedString("actions.filter", comment: ""),
-                  systemImage: active > 0 ? "line.3.horizontal.decrease.circle.fill"
-                                          : "line.3.horizontal.decrease.circle")
-        }
-        .help(NSLocalizedString("mac.filter_tasks", comment: ""))
+        // A popover, so a click outside closes it (AITD-553).
+        .popover(isPresented: $showMyTasksFilterSheet, arrowEdge: .bottom) { MacMyTasksFilterSheet() }
     }
 
     /// Inline draft: a task is created only when the user commits non-empty text — so an
@@ -998,7 +986,7 @@ struct MacRootView: View {
             hasSelection: !selectedTaskIds.isEmpty,
             isTextFieldFocused: false,
             isModalPresented: appModel.showPalette || appModel.showShortcutsHelp
-                || showNewList || showPublicLists || editingList != nil || settingsList != nil)
+                || showNewList || showPublicLists || editingList != nil || settingsOpen)
         guard let action = KeyboardShortcutHandler.action(for: key, context: ctx),
               MacAppModel.handledActions.contains(action) else { return false }
         appModel.perform(action)
@@ -1370,7 +1358,9 @@ struct MacRootView: View {
                                                       projectId: currentRealList?.projectId)
                 }
             case .showFilters:
-                if currentRealList != nil { showFilterSheet = true }
+                // A list's filters are List Settings ▸ Filters (AITD-553); My Tasks has its own.
+                if currentRealList != nil { settingsOpen = true }
+                else if selectedListId == Self.myTasksId { showMyTasksFilterSheet = true }
             }
         }
         .onChange(of: taskService.tasks) {
@@ -1401,12 +1391,7 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showNewList) { MacListEditSheet(existing: nil) }
         .sheet(item: $editingList) { MacListEditSheet(existing: $0) }
-        .sheet(item: $settingsList) { MacListSettingsWindow(list: $0, onDelete: deleteList) }
         .sheet(isPresented: $showPublicLists) { MacPublicListsView() }
-        .sheet(isPresented: $showFilterSheet) {
-            if let list = currentRealList { MacFilterSheet(list: list) }
-        }
-        .sheet(isPresented: $showMyTasksFilterSheet) { MacMyTasksFilterSheet() }
         .safeAreaInset(edge: .bottom) {
             if !network.isConnected {
                 HStack(spacing: 6) {
