@@ -32,10 +32,16 @@ final class TaskDetailProjectStateRowTests: XCTestCase {
         XCTAssertFalse(isVisible(.list, inProject: false))
     }
 
-    func testProjectModeStillHasNoStateRow() {
-        // Board state already lives in the leading control's quick changer there (task 729a190e);
-        // a row would say it twice, and the compact detail is compact on purpose.
-        XCTAssertFalse(isVisible(.project, inProject: true))
+    func testProjectModeShowsTheStateRowToo_AITD555() {
+        // "[mac] board status is not in task details should be." Project mode used to leave state
+        // to the leading control's quick changer (task 729a190e) — but that popover is a MOVER you
+        // have to open, and the control itself depicts who and priority, never the column. So the
+        // detail never said where the task was, in the mode built for boards.
+        XCTAssertTrue(isVisible(.project, inProject: true))
+    }
+
+    func testProjectModeStillHasNoStateRowOffABoard_AITD555() {
+        XCTAssertFalse(isVisible(.project, inProject: false))
     }
 
     func testTheReadOnlyViewHasNoStateRow() {
@@ -48,25 +54,16 @@ final class TaskDetailProjectStateRowTests: XCTestCase {
 
     func testEveryModeAndStateAgreesWithTheConjunction() {
         // Stated as the conjunction it is, so a later "just one more condition" at a call site
-        // shows up here as a failure rather than as a platform that quietly differs.
+        // shows up here as a failure rather than as a platform that quietly differs. The display
+        // mode is not part of it since AITD-555: a task on a board shows its column in both.
         for mode in TaskDisplayMode.allCases {
             for inProject in [true, false] {
                 for readOnly in [true, false] {
-                    let expected = mode.showsSeparateAssigneeAndPriorityRows && inProject && !readOnly
                     XCTAssertEqual(isVisible(mode, inProject: inProject, readOnly: readOnly),
-                                   expected,
+                                   inProject && !readOnly,
                                    "mode: \(mode), inProject: \(inProject), readOnly: \(readOnly)")
                 }
             }
-        }
-    }
-
-    func testTheRowTracksTheOtherListModeRowsRatherThanTheModeName() {
-        // It appears exactly where Who and Priority appear. Asked of the named question, not of
-        // `== .list`, so a third display mode arrives at all three rows together or at none.
-        for mode in TaskDisplayMode.allCases {
-            XCTAssertEqual(isVisible(mode, inProject: true),
-                           mode.showsSeparateAssigneeAndPriorityRows)
         }
     }
 }
