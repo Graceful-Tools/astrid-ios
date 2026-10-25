@@ -55,6 +55,31 @@ final class MacProjectStateRowTests: XCTestCase {
         XCTAssertEqual(withState, rows(.list, inProject: false))
     }
 
+    func testProjectModeShowsTheStateRowAfterLists_AITD555() {
+        // "[mac] board status is not in task details should be." The project-mode detail left
+        // state to the leading control's popover, so nothing on the pane said which column the
+        // task was in.
+        let ordered = rows(.project, inProject: true)
+
+        guard let lists = ordered.firstIndex(of: .lists),
+              let state = ordered.firstIndex(of: .projectState),
+              let description = ordered.firstIndex(of: .description) else {
+            return XCTFail("Expected lists, state and description rows, got \(ordered)")
+        }
+        XCTAssertLessThan(lists, state)
+        XCTAssertLessThan(state, description)
+    }
+
+    func testProjectModeHasNoStateRowOffABoard_AITD555() {
+        XCTAssertFalse(rows(.project, inProject: false).contains(.projectState))
+    }
+
+    func testTheBoardCardEditorDoesNotRepeatTheColumnItIsDrawnIn_AITD555() {
+        // The inline card editor sits inside the column; a row naming that column says it twice.
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: false, displayMode: .project, isInProject: true)
+            .contains(.projectState))
+    }
+
     func testTheStateRowIsEditableLikeEveryOtherRow() {
         // The Lists row shipped read-only once; a field the user can see and not change is the bug.
         XCTAssertTrue(MacTaskFields.isEditable(.projectState))

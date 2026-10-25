@@ -119,9 +119,13 @@ enum MacTaskFields {
         let occurrences: [MacTaskFieldRow] = hasOccurrenceLinks ? [.occurrences] : []
         guard displayMode.showsSeparateAssigneeAndPriorityRows else {
             // Project mode: priority and assignee are not rows at all — the leading control
-            // depicts both (task 42013da7) — and board state is in that same popover, so there
-            // is no order to share and no state row to add.
-            return leading + [.when, .lists] + blockers + occurrences + [.description]
+            // depicts both (task 42013da7). Board state is in that popover too, but the control
+            // never DEPICTS it, so the detail gets the row as well (AITD-555). Not the board's
+            // inline card editor (`showsTitle == false`): that is drawn inside the column.
+            let state: [MacTaskFieldRow] = showsTitle && TaskDetailProjectStateRow.isVisible(
+                displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
+                ? [.projectState] : []
+            return leading + [.when, .lists] + state + blockers + occurrences + [.description]
         }
         // Board state gets a row in LIST mode when the task is in a project (AITD-327), and the
         // reasoning behind that lives with the rule in `TaskDetailProjectStateRow`. It was
