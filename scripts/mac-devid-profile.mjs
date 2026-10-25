@@ -4,7 +4,11 @@
 // export with "No Accounts". The App Store Connect API can, using the same key Xcode Cloud uses.
 import fs from 'fs';
 import os from 'os';
+//
+// `--recreate` replaces an existing profile that is not built on the newest Developer ID certificate
+// — the step after issuing a G2 replacement for the Sub-CA that expires 2027-02-01 (AITD-447).
 import { pick, ascRequest as api } from './lib/asc-jwt.mjs';
+import { pickDeveloperIdCert } from './lib/developer-id.mjs';
 
 
 const NAME = 'Astrid Mac Developer ID';
@@ -18,16 +22,32 @@ const install = p => {
   console.log(`✓ Profile "${p.attributes.name}" (${p.attributes.profileState}) → ${path}`);
 };
 
-const existing = (await api('/v1/profiles?limit=200')).body?.data
+const recreate = process.argv.includes('--recreate');
+const cert = pickDeveloperIdCert((await api('/v1/certificates?limit=200')).body?.data);
+
+let existing = (await api('/v1/profiles?limit=200')).body?.data
   ?.find(p => p.attributes.name === NAME && p.attributes.profileState === 'ACTIVE');
+if (existing && cert) {
+  // A profile on the old certificate stops working with it; say so, and replace it on request.
+  const onCerts = (await api(`/v1/profiles/${existing.id}/certificates?limit=50`)).body?.data ?? [];
+  if (!onCerts.some(c => c.id === cert.id)) {
+    if (!recreate) {
+      console.warn(`! "${NAME}" is not built on the newest Developer ID certificate (${cert.attributes.certificateType}, ` +
+        `expires ${cert.attributes.expirationDate}). Rerun with --recreate to replace it.`);
+    } else {
+      const removed = await api(`/v1/profiles/${existing.id}`, { method: 'DELETE' });
+      if (removed.status !== 204) { console.error('Profile delete failed', removed.status); process.exit(1); }
+      console.log(`✓ Deleted the old "${NAME}" profile`);
+      existing = null;
+    }
+  }
+}
 if (existing) {
   // The list endpoint omits profileContent; fetch the profile itself to get it.
   install((await api(`/v1/profiles/${existing.id}`)).body.data);
 } else {
   const bundleId = (await api(`/v1/bundleIds?filter[identifier]=${BUNDLE}&limit=5`)).body?.data
     ?.find(b => b.attributes.identifier === BUNDLE);
-  const cert = (await api('/v1/certificates?limit=200')).body?.data
-    ?.find(c => c.attributes.certificateType === 'DEVELOPER_ID_APPLICATION');
   if (!bundleId || !cert) { console.error('Missing bundle id or Developer ID certificate'); process.exit(1); }
   const created = await api('/v1/profiles', { method: 'POST', body: JSON.stringify({ data: {
     type: 'profiles',
