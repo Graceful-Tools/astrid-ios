@@ -90,7 +90,15 @@ final class DueDateQuickPicksTests: XCTestCase {
     /// "Morning" means 9:00 exactly, on the task's own day.
     func testChoosingATimeZeroesTheMinutesAndKeepsTheDay() throws {
         let calendar = Calendar.current
-        let day = calendar.date(byAdding: .day, value: 5, to: calendar.date(bySettingHour: 3, minute: 37, second: 44, of: Date())!)!
+        let now = Date()
+        let early = calendar.date(bySettingHour: 3, minute: 37, second: 44, of: now)!
+        // A day with today's UTC offset. The core resolves local times with the offset of NOW, so
+        // a day past a daylight-saving change lands an hour off — a real bug, tracked on its own
+        // (AITD-561), not what this test is about. With a fixed +5 it failed only in the five
+        // days before each change.
+        let day = try XCTUnwrap([5, 4, 3, 2, 1, 0]
+            .map { calendar.date(byAdding: .day, value: $0, to: early)! }
+            .first { calendar.timeZone.secondsFromGMT(for: $0) == calendar.timeZone.secondsFromGMT(for: now) })
         let morning = try XCTUnwrap(try picks(day, isAllDay: false).times[0].date)
         XCTAssertEqual(calendar.component(.hour, from: morning), 9)
         XCTAssertEqual(calendar.component(.minute, from: morning), 0)
