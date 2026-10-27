@@ -10,7 +10,6 @@ struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
     @StateObject private var userSettings = UserSettingsService.shared
     @ObservedObject private var featureFlags = FeatureFlagService.shared
-    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
     @ObservedObject private var textSize = MacTextSize.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
@@ -38,15 +37,6 @@ struct MacSettingsView: View {
                     }
                     .accessibilityIdentifier("settings.textSize")
                     Toggle(NSLocalizedString("mac.show_scroll_bars", comment: ""), isOn: $showScrollBars)
-                    // Effective value; flipping it stores an explicit choice that wins over the
-                    // hide_list_images experiment on every device (AITD-468).
-                    Toggle(NSLocalizedString("settings.appearance.list_images.label", comment: ""), isOn: Binding(
-                        get: { listImages.showListImages },
-                        set: { listImages.setShowListImages($0) }
-                    ))
-                    .accessibilityIdentifier("settings.showListImages")
-                    Text(NSLocalizedString("settings.appearance.list_images.off_description", comment: ""))
-                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                 }
                 Section(NSLocalizedString("tasks.tasks", comment: "")) {
                     // Smart Task Creation — gates the shared SmartTaskParser in quick-add (a840511d).

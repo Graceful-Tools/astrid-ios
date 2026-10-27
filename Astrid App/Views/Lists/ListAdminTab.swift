@@ -46,7 +46,6 @@ struct ListAdminTab: View {
     @StateObject private var githubSync = GitHubSyncService.shared
     @StateObject private var googleSync = GoogleTasksSyncService.shared
     @StateObject private var featureFlags = FeatureFlagService.shared
-    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
     @State private var syncRepos: [GitHubRepoDTO] = []
     @State private var syncTasklists: [GoogleTasklistDTO] = []
     @State private var selectedSyncRepo: String?
@@ -104,38 +103,35 @@ struct ListAdminTab: View {
                     }
             }
 
-            // List Appearance. The image row is absent while list images are hidden (AITD-468): an
-            // image the app never draws is not something to set up. The colour row is there in
-            // both arms, as on web — it is what marks the list once the image is gone (AITD-500).
+            // List Appearance: the image, and the colour that marks the list where there is no
+            // image (AITD-500).
             Section(NSLocalizedString("lists.list_appearance", comment: "")) {
-                if listImages.showListImages {
-                    HStack(spacing: Theme.spacing16) {
-                        // Current list image preview (with live update)
-                        ListImageViewLarge(list: listWithCurrentImage, size: 64)
-                            .id(currentImageUrl ?? "default") // Force view refresh when image changes
+                HStack(spacing: Theme.spacing16) {
+                    // Current list image preview (with live update)
+                    ListImageViewLarge(list: listWithCurrentImage, size: 64)
+                        .id(currentImageUrl ?? "default") // Force view refresh when image changes
 
-                        VStack(alignment: .leading, spacing: Theme.spacing4) {
-                            Text(NSLocalizedString("lists.list_image", comment: ""))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    VStack(alignment: .leading, spacing: Theme.spacing4) {
+                        Text(NSLocalizedString("lists.list_image", comment: ""))
+                            .font(Theme.Typography.body())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
 
-                            Text(NSLocalizedString("lists.list_image_description", comment: ""))
-                                .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Button {
-                            showingImagePicker = true
-                        } label: {
-                            Text(NSLocalizedString("actions.change", comment: ""))
-                                .font(Theme.Typography.body())
-                                .foregroundColor(Theme.accent)
-                        }
+                        Text(NSLocalizedString("lists.list_image_description", comment: ""))
+                            .font(Theme.Typography.caption2())
+                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
                     }
-                    .padding(.vertical, Theme.spacing8)
+
+                    Spacer()
+
+                    Button {
+                        showingImagePicker = true
+                    } label: {
+                        Text(NSLocalizedString("actions.change", comment: ""))
+                            .font(Theme.Typography.body())
+                            .foregroundColor(Theme.accent)
+                    }
                 }
+                .padding(.vertical, Theme.spacing8)
 
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("lists.list_color", comment: ""))

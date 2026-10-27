@@ -1,9 +1,9 @@
 //  ListColorsTests.swift
 //  AITD-500 — "Add color picker to list setting for users in no list image test".
 //
-//  The hide_list_images test (AITD-468) draws a list's colour where its image was, and dropped
-//  the image row from list settings — which left the colour as the one thing that identifies a
-//  list and nothing on iOS that could change it. Web has had "List Color" in list settings since
+//  The hide_list_images test (AITD-468, since removed by AITD-560) drew a list's colour where its
+//  image was, and dropped the image row from list settings — which left the colour as the one
+//  thing that identified a list and nothing on iOS that could change it. Web has had "List Color" in list settings since
 //  the day after (astrid-web components/list-admin/ListColorSection.tsx).
 //
 //  What must not drift from web: the palette (a swatch web cannot tick reads as "custom" there),

@@ -9,8 +9,6 @@ import SwiftUI
 struct MacListIcon: View {
     let list: TaskList
     var size: CGFloat = 14
-    /// hide_list_images / "Show list images" (AITD-468).
-    @ObservedObject private var listImages = ListImagesVisibilityStore.shared
 
     var body: some View {
         Color.clear
@@ -21,8 +19,6 @@ struct MacListIcon: View {
                     Image(systemName: tagSymbol)
                         .font(.system(size: size * 0.85))
                         .foregroundStyle(Color(hex: list.displayColor) ?? Theme.accent)
-                } else if !listImages.showListImages {
-                    ListColorGlyph(list: list, size: size)
                 } else if let url = ListImageHelper.getFullImageUrl(list: list) {
                     // This used to carry an `.id(url)`, because CachedAsyncImage captured its URL
                     // once and a new identity was the only way to make it refetch. The component
