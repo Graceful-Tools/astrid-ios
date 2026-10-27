@@ -1,13 +1,12 @@
 import SwiftUI
 
-// Shared with the Mac target, like ListColorGlyph.
+// Shared with the Mac target.
 
 /// The list colour choices: the palette swatches plus a custom picker (AITD-500), as web's
 /// ListColorSection draws them.
 ///
-/// The colour is what identifies a list once hide_list_images removes its image, so this is the
-/// setting that replaces the image picker rather than an extra. `ListColors` owns what may be
-/// picked and stored; this only draws it.
+/// The colour is what marks a list that has no image. `ListColors` owns what may be picked and
+/// stored; this only draws it.
 struct ListColorSwatches: View {
     /// The list's stored colour.
     let color: String
