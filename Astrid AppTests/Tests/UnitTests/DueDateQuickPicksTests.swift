@@ -92,17 +92,17 @@ final class DueDateQuickPicksTests: XCTestCase {
         let calendar = Calendar.current
         let now = Date()
         let early = calendar.date(bySettingHour: 3, minute: 37, second: 44, of: now)!
-        // A day with today's UTC offset. The core resolves local times with the offset of NOW, so
-        // a day past a daylight-saving change lands an hour off — a real bug, tracked on its own
-        // (AITD-561), not what this test is about. With a fixed +5 it failed only in the five
-        // days before each change.
-        let day = try XCTUnwrap([5, 4, 3, 2, 1, 0]
-            .map { calendar.date(byAdding: .day, value: $0, to: early)! }
-            .first { calendar.timeZone.secondsFromGMT(for: $0) == calendar.timeZone.secondsFromGMT(for: now) })
-        let morning = try XCTUnwrap(try picks(day, isAllDay: false).times[0].date)
-        XCTAssertEqual(calendar.component(.hour, from: morning), 9)
-        XCTAssertEqual(calendar.component(.minute, from: morning), 0)
-        XCTAssertTrue(calendar.isDate(morning, inSameDayAs: day))
+        // Every day of the coming fortnight, so a daylight-saving change inside it is crossed too:
+        // the core used to resolve every day with today's offset, and "Morning" past a change
+        // landed at 08:00 (AITD-561). The DST case itself is pinned in astrid-core
+        // (`aitd_561_morning_across_a_dst_change_is_nine_local`), which does not depend on today.
+        for days in 0...14 {
+            let day = calendar.date(byAdding: .day, value: days, to: early)!
+            let morning = try XCTUnwrap(try picks(day, isAllDay: false).times[0].date)
+            XCTAssertEqual(calendar.component(.hour, from: morning), 9, "+\(days) days")
+            XCTAssertEqual(calendar.component(.minute, from: morning), 0, "+\(days) days")
+            XCTAssertTrue(calendar.isDate(morning, inSameDayAs: day), "+\(days) days")
+        }
     }
 
     /// D48: an all-day task's time goes on ITS date — the local reading of its UTC midnight is the
