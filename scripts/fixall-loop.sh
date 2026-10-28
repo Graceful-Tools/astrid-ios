@@ -193,9 +193,20 @@ trap release_lock EXIT
 finalize_run() {
   local result
   if [ ! -f "$ACTIVE_RUN/prs-done" ]; then
-    ( cd "$WEB" && "$TSX" scripts/open-fixall-prs.ts --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" )
+    local pr_out
+    pr_out=$( cd "$WEB" && "$TSX" scripts/open-fixall-prs.ts --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" 2>&1 )
     result=$?
-    [ "$result" -eq 0 ] || return "$result"
+    [ -n "$pr_out" ] && echo "$pr_out"
+    # 3 = the run's work is pushed but a PR could not be opened (expired gh login, no commits
+    # between branches). That needs a human, not a retry: retrying it every tick wedged the
+    # worker in recovery and kept the run's claims in Doing (AITD-559). 1 = a crash, retried.
+    if [ "$result" -eq 3 ]; then
+      post_to_list "**Scheduled /fixall finished work but could not open its PR** — open it by hand so it gets reviewed:
+
+$(echo "$pr_out" | grep 'PR: FAILED')"
+    elif [ "$result" -ne 0 ]; then
+      return "$result"
+    fi
     touch "$ACTIVE_RUN/prs-done" || return 1
   fi
   if [ ! -f "$ACTIVE_RUN/claims-released" ]; then
@@ -238,9 +249,7 @@ restore_checkout() {
     git add -A && git commit -q --no-verify -m "wip: scheduled /fixall run ended mid-task — UNFINISHED, UNVERIFIED
 
 Saved by scripts/fixall-loop.sh so the checkout can return to main.
-The build and tests have not been run on this. Continue from here; do not ship it.
-
-Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>" || return 1
+The build and tests have not been run on this. Continue from here; do not ship it." || return 1
     SAVED_BRANCH="$end_branch"
     echo "  run left uncommitted changes — saved as a WIP commit on $end_branch"
   fi

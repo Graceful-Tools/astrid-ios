@@ -43,7 +43,9 @@ case "$*" in
     [ "${STUB_YIELD_EXIT:-0}" = "1" ] && echo "boom"
     exit "${STUB_YIELD_EXIT:-0}" ;;
   *post-list-message.ts*)   exit 0 ;;
-  *open-fixall-prs.ts*)     exit "${STUB_PR_EXIT:-0}" ;;
+  *open-fixall-prs.ts*)
+    [ "${STUB_PR_EXIT:-0}" = "3" ] && echo "PR: FAILED AITD-1 fix/aitd-1 — gh: no commits between main and fix/aitd-1"
+    exit "${STUB_PR_EXIT:-0}" ;;
   *release-stuck-doing.ts*--claims-file*) exit "${STUB_RELEASE_EXIT:-0}" ;;
   *agent-queue-status.ts*--mark-seen*)
     echo "SEEN: recorded"; exit "${STUB_SEEN_EXIT:-0}" ;;
@@ -529,6 +531,19 @@ called "recovery acknowledges the original exact wake keys" "--mark-seen" "--see
 not_called "^claude " "recovery must not launch another agent on an empty queue"
 if [ ! -d "$TMP/run-state/active" ]; then ok
 else bad "successful recovery clears only its pending run" "$OUT"; fi
+
+# AITD-559: exit 3 is "a PR could not be opened" — a message for a human, not a
+# failed recovery. Retrying it every tick would wedge the worker on one expired gh login.
+STUB_PR_EXIT=3 run 0 0
+called "AITD-559: an unopened PR still releases the run's claims" "release-stuck-doing.ts" "--claims-file"
+posted "AITD-559: an unopened PR is reported on the board" "could not open its PR" "PR: FAILED AITD-1"
+if [ ! -d "$TMP/run-state/active" ]; then ok
+else bad "AITD-559: an unopened PR does not leave a pending recovery behind" "$OUT"; fi
+run 0 0
+if grep -q '^claude ' "$CALLS"; then ok
+else bad "AITD-559: the tick after an unopened PR still starts an agent" "$OUT"; fi
+if ! echo "$OUT" | grep -q "recovering interrupted\|could not recover"; then ok
+else bad "AITD-559: an unopened PR is not a failed recovery" "$OUT"; fi
 
 STUB_RELEASE_EXIT=1 run 0 0
 not_called "--mark-seen" "failed claims recovery must not acknowledge the wake"
