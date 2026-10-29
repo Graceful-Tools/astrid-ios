@@ -192,14 +192,14 @@ struct CustomRepeatingPatternEditor: View {
                                         .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
 
                                     Menu {
-                                        Button(NSLocalizedString("repeating.1st", comment: "")) { pattern.monthWeekday?.weekOfMonth = 1 }
-                                        Button(NSLocalizedString("repeating.2nd", comment: "")) { pattern.monthWeekday?.weekOfMonth = 2 }
-                                        Button(NSLocalizedString("repeating.3rd", comment: "")) { pattern.monthWeekday?.weekOfMonth = 3 }
-                                        Button(NSLocalizedString("repeating.4th", comment: "")) { pattern.monthWeekday?.weekOfMonth = 4 }
-                                        Button(NSLocalizedString("repeating.5th", comment: "")) { pattern.monthWeekday?.weekOfMonth = 5 }
+                                        ForEach(CustomRepeatSummary.weekOfMonthChoices, id: \.value) { choice in
+                                            Button(NSLocalizedString(choice.labelKey, comment: "")) {
+                                                pattern.monthWeekday?.weekOfMonth = choice.value
+                                            }
+                                        }
                                     } label: {
                                         HStack {
-                                            Text(ordinal(pattern.monthWeekday?.weekOfMonth ?? 1))
+                                            Text(weekOfMonthLabel(pattern.monthWeekday?.weekOfMonth ?? 1))
                                                 .font(Theme.Typography.body())
                                             Spacer()
                                             Image(systemName: "chevron.down")
@@ -477,6 +477,13 @@ struct CustomRepeatingPatternEditor: View {
         }
     }
 
+    private func weekOfMonthLabel(_ week: Int) -> String {
+        guard let choice = CustomRepeatSummary.weekOfMonthChoices.first(where: { $0.value == week }) else {
+            return ordinal(week)
+        }
+        return NSLocalizedString(choice.labelKey, comment: "")
+    }
+
     private func getPatternSummary() -> String {
         let interval = pattern.interval ?? 1
         let unit = pattern.unit ?? "days"
@@ -494,7 +501,7 @@ struct CustomRepeatingPatternEditor: View {
             if pattern.monthRepeatType == "same_date", let day = pattern.monthDay {
                 summary += " on the \(ordinal(day))"
             } else if pattern.monthRepeatType == "same_weekday", let monthWeekday = pattern.monthWeekday {
-                summary += " on the \(ordinal(monthWeekday.weekOfMonth)) \(monthWeekday.weekday.capitalized)"
+                summary += " on the \(CustomRepeatSummary.weekOfMonth(monthWeekday.weekOfMonth)) \(monthWeekday.weekday.capitalized)"
             }
 
         case "years":

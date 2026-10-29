@@ -589,6 +589,7 @@
 "repeating.3rd" = "셋째";
 "repeating.4th" = "넷째";
 "repeating.5th" = "다섯째";
+"repeating.last" = "마지막";
 
 /* Filter Labels */
 "filters.sort_by" = "정렬 기준";

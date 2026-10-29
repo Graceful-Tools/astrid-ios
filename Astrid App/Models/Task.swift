@@ -277,7 +277,7 @@ nonisolated struct CustomRepeatingPattern: Codable, Equatable, Hashable {
 
     nonisolated struct MonthWeekday: Codable, Equatable, Hashable {
         var weekday: String  // "monday", "tuesday", etc.
-        var weekOfMonth: Int  // 1-5
+        var weekOfMonth: Int  // 1-5, or -1 for the last (AITD-562)
     }
 }
 

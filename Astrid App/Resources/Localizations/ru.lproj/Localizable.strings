@@ -587,6 +587,7 @@
 "repeating.3rd" = "3-я";
 "repeating.4th" = "4-я";
 "repeating.5th" = "5-я";
+"repeating.last" = "Последняя";
 
 /* Filter Labels */
 "filters.sort_by" = "Сортировать по";

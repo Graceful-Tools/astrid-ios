@@ -587,6 +587,7 @@
 "repeating.3rd" = "第3";
 "repeating.4th" = "第4";
 "repeating.5th" = "第5";
+"repeating.last" = "最后一个";
 
 /* Filter Labels */
 "filters.sort_by" = "排序方式";
