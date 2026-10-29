@@ -405,18 +405,13 @@ struct MacRootView: View {
     /// The tasks the selection draws from, before its filters — what a row action finds the
     /// selected ids in, and what tells "nothing here" from "all filtered out".
     private var tasksForSelection: [Task] {
-        guard let id = selectedListId else { return [] }
-        // My Tasks' scope is its filter: its rows are everything it has.
-        if id == Self.myTasksId { return renderedTasks }
-        // Saved-filter / virtual lists (isVirtual) filter across ALL tasks (efd05e56), like iOS.
-        if listService.lists.first(where: { $0.id == id })?.isVirtual == true {
-            return taskService.tasks
-        }
-        // A public list you do not belong to has no tasks in the local store, which holds only
-        // yours — so its rows come from the on-demand fetch instead of showing empty (dfb037c7).
-        let mine = taskService.getTasksForList(id)
-        if mine.isEmpty, let fetched = publicListTasks[id] { return fetched }
-        return mine
+        MacRowPipeline.tasksForSelection(selection: selectedListId, myTasksId: Self.myTasksId,
+                                         searchId: Self.searchId, lists: listService.lists,
+                                         rendered: renderedTasks,
+                                         searchResults: search.results(in: taskService.tasksById),
+                                         allTasks: taskService.tasks,
+                                         tasksInList: taskService.getTasksForList,
+                                         publicListTasks: publicListTasks)
     }
 
     /// Which detail the content area is showing right now — see `MacDetailPresentation`.
