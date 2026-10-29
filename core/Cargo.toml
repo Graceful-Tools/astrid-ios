@@ -23,7 +23,7 @@ publish = false
 # version as a wildcard and fails `bans` on it (AITD-507). It is also a real check — a core whose
 # crate version leaves 0.1 stops resolving here, which is the signal a breaking bump should give.
 # The scripts in scripts/core/ read the rev from this line; keep `git` and `rev` first.
-astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "0f0029669ad4dc611536191f56de8eb39ceeffbf", version = "0.1" }
+astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "cd47d052553fd49c3fcdd75174c6a1379aac3275", version = "0.1" }
 uniffi = "0.32"
 
 [profile.release]

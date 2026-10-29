@@ -27,7 +27,7 @@ enum CustomRepeatSummary {
             if pattern.monthRepeatType == "same_date", let day = pattern.monthDay {
                 summary += " on the \(ordinal(day))"
             } else if pattern.monthRepeatType == "same_weekday", let monthWeekday = pattern.monthWeekday {
-                summary += " on the \(ordinal(monthWeekday.weekOfMonth)) \(monthWeekday.weekday.capitalized)"
+                summary += " on the \(weekOfMonth(monthWeekday.weekOfMonth)) \(monthWeekday.weekday.capitalized)"
             }
 
         case "years":
@@ -61,6 +61,21 @@ enum CustomRepeatSummary {
 
         return summary
     }
+
+    /// `weekOfMonth` -1 is "the last" (AITD-562, astrid-core AWTD-1295): it counts back from the
+    /// month's last day. "The -1th Thursday" is not a sentence, so it reads as a word, not an ordinal.
+    static let lastWeekOfMonth = -1
+
+    static func weekOfMonth(_ week: Int) -> String {
+        week == lastWeekOfMonth ? "last" : ordinal(week)
+    }
+
+    /// The week-of-month menu, in order. "Last" writes -1 and never 5: 5 walks into the next month
+    /// when the month has only four of that weekday, -1 never leaves it.
+    static let weekOfMonthChoices: [(value: Int, labelKey: String)] = [
+        (1, "repeating.1st"), (2, "repeating.2nd"), (3, "repeating.3rd"),
+        (4, "repeating.4th"), (5, "repeating.5th"), (lastWeekOfMonth, "repeating.last"),
+    ]
 
     static func ordinal(_ num: Int) -> String {
         if num >= 11 && num <= 13 { return "\(num)th" }

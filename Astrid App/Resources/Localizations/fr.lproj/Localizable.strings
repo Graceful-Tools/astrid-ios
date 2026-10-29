@@ -603,6 +603,7 @@
 "repeating.3rd" = "3e";
 "repeating.4th" = "4e";
 "repeating.5th" = "5e";
+"repeating.last" = "Dernier";
 
 /* Filter Labels */
 "filters.sort_by" = "Trier par";

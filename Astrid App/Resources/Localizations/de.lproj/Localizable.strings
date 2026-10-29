@@ -587,6 +587,7 @@
 "repeating.3rd" = "3.";
 "repeating.4th" = "4.";
 "repeating.5th" = "5.";
+"repeating.last" = "Letzte";
 
 /* Filter Labels */
 "filters.sort_by" = "Sortieren nach";
