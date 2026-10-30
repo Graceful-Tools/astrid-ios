@@ -6,6 +6,7 @@ One repository, two shipping apps: the `Astrid App` scheme (iOS/iPadOS) and the
 
 **Repository:** https://github.com/Graceful-Tools/astrid-ios
 **Web App:** https://github.com/Graceful-Tools/astrid-web
+**Shared core:** https://github.com/Graceful-Tools/astrid-core
 **Production:** https://astrid.cc
 
 ## Download
@@ -38,8 +39,8 @@ fails on click (see `MacSignInOptions`).
 - Task management (create, edit, complete, delete)
 - List management with colors and privacy
 - Offline-first on [astrid-core](https://github.com/Graceful-Tools/astrid-core), the Rust engine the
-  Windows app shares: a local cache, a journal that sends every change when the network returns,
-  sync and the live update stream (`docs/CORE_MIGRATION.md`)
+  Windows and Android apps share: a local cache, a journal that sends every change when the network
+  returns, sync and the live update stream (see [Where astrid-core fits](#where-astrid-core-fits))
 - iPad optimized layouts
 - **Share Extension** - Create tasks from Photos, Files, Safari
 - **GitHub Integration** - Two-way GitHub Issues sync (tasks, sub-issues, comments, assignees) + repository links for AI coding agents
@@ -224,6 +225,35 @@ cutting a second release or it collides with the previous tag.
 
 ## Architecture
 
+### Where astrid-core fits
+
+```
+SwiftUI views ── Services (Astrid App/Core/Services) ── AstridCore (Packages/AstridCore)
+                                                            │ UniFFI (core/astrid-apple)
+                                                            ▼
+                                                  astrid-core, pinned by revision
+                                                            │ HTTPS /api/v1/*
+                                                            ▼
+                                                  astrid-web (astrid.cc)
+```
+
+[astrid-core](https://github.com/Graceful-Tools/astrid-core) is a separate Rust repository. It
+holds the models, the API client, the SQLite cache, the Outbox write journal, sync, the live
+stream, and every rule that must read the same on all platforms (repeating rollover, permissions,
+board columns, search and quick-add parsing…). The Windows and Android apps embed the same core,
+and astrid-web's server runs its rules as WebAssembly.
+
+- **The Swift services are faces over the core.** They hold no business rules of their own. A
+  rule change starts in astrid-web's TypeScript, reaches astrid-core through generated fixtures,
+  and reaches this app only when the pin moves.
+- **The pin** is the astrid-core revision in `core/Cargo.toml`. Bumping it is a deliberate change with
+  its own tests. [docs/CORE_MIGRATION.md](./docs/CORE_MIGRATION.md) records what has moved into
+  the core and what still lives in Swift.
+- **When this app and web disagree, the core follows iOS** and web adopts that behaviour later. See
+  astrid-core's [CONTRACTS.md](https://github.com/Graceful-Tools/astrid-core/blob/main/docs/CONTRACTS.md).
+
+### Local-first
+
 Local-first: every write applies optimistically, then journals through the unified Outbox;
 reads are cache-first. [ASTRID.md](./ASTRID.md) holds the rules and control points,
 [docs/LOCAL_FIRST_PATTERN.md](./docs/LOCAL_FIRST_PATTERN.md) the mechanism.
@@ -237,8 +267,11 @@ reads are cache-first. [ASTRID.md](./ASTRID.md) holds the rules and control poin
 
 ## Related Repositories
 
-- **Web App & Backend**: https://github.com/Graceful-Tools/astrid-web
-- **iOS App**: This repository
+- **Web App & Backend** (and the source of the shared rules): https://github.com/Graceful-Tools/astrid-web
+- **Shared core** (Rust; this app's cache, sync and rules): https://github.com/Graceful-Tools/astrid-core
+- **Windows app** (on the same core): https://github.com/Graceful-Tools/astrid-windows
+- **Android app** (on the same core): https://github.com/Graceful-Tools/astrid-android
+- **iOS and Mac apps**: This repository
 
 ## Support
 
