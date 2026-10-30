@@ -29,10 +29,15 @@ struct CommandPaletteView: View {
     private var allTasks: [Task] { MacGlanceTasks.all(lists: listService.lists, tasksForList: taskService.getTasksForList) }
 
     private var rows: [Row] {
-        var out = registry.search(query).map { Row.command($0) }
-        out += MacPaletteSearch.matchingLists(query, lists: listService.lists).map { Row.list($0) }
-        out += MacPaletteSearch.matchingTasks(query, tasks: allTasks).map { Row.task($0) }
-        return out
+        let tasks = allTasks
+        let commands = registry.search(query).map { Row.command($0) }
+        let lists = MacPaletteSearch.matchingLists(query, lists: listService.lists).map { Row.list($0) }
+        let taskRows = MacPaletteSearch.matchingTasks(query, tasks: tasks).map { Row.task($0) }
+        // A task id is the most specific thing the box can hold: its task leads, so Return opens it (AITD-565).
+        if MacPaletteSearch.identifierMatch(query, tasks: tasks.filter { !$0.completed }) != nil {
+            return taskRows + commands + lists
+        }
+        return commands + lists + taskRows
     }
 
     var body: some View {
