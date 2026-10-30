@@ -29,6 +29,25 @@ final class MacPaletteSearchTests: XCTestCase {
         XCTAssertLessThanOrEqual(MacPaletteSearch.matchingTasks("alpha", tasks: many, limit: 6).count, 6)
     }
 
+    // AITD-565: ⌘K finds a task by its id, in any case, ahead of title matches.
+    func testTaskIdentifierMatchesInAnyCaseAndRanksFirst() {
+        var byId = task("1", "Fix the sync banner")
+        byId.identifier = "AWTD-1405"
+        let titled = task("2", "awtd-1405 follow-up")
+        let other = task("3", "Buy milk")
+        for query in ["awtd-1405", "AWTD-1405", " Awtd-1405 "] {
+            let hits = MacPaletteSearch.matchingTasks(query, tasks: [titled, other, byId])
+            XCTAssertEqual(hits.first?.id, "1", "the task with that id comes first for \(query)")
+            XCTAssertEqual(hits.filter { $0.id == "1" }.count, 1, "and only once")
+        }
+    }
+
+    func testTaskIdentifierMatchIsExactNotPrefix() {
+        var t = task("1", "Something")
+        t.identifier = "AWTD-14050"
+        XCTAssertFalse(MacPaletteSearch.matchingTasks("awtd-1405", tasks: [t]).contains { $0.id == "1" })
+    }
+
     func testEmptyListQueryReturnsNothing() {
         // matchingLists shares matchingTasks' ranking; verify the empty-query guard here too.
         XCTAssertTrue(MacPaletteSearch.matchingLists("", lists: []).isEmpty)
