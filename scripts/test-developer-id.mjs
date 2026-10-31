@@ -1,7 +1,7 @@
 // node --test scripts/test-developer-id.mjs — the certificate choice behind mac-devid-profile.mjs (AITD-447).
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync, X509Certificate } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,37 +33,64 @@ test('other certificate types and expired certificates are never picked', () => 
   assert.equal(pickDeveloperIdCert(undefined, now), null);
 });
 
-const profileCertificate = Buffer.from('AITD-447 replacement certificate');
+const certificateDir = mkdtempSync(join(tmpdir(), 'astrid-devid-certificates-'));
+after(() => rmSync(certificateDir, { recursive: true, force: true }));
+const makeCertificate = (name, days) => {
+  const certificatePath = join(certificateDir, `${name}.pem`);
+  const result = spawnSync('openssl', [
+    'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', String(days),
+    '-subj', `/CN=AITD-447 ${name}`, '-keyout', join(certificateDir, `${name}-key.pem`),
+    '-out', certificatePath,
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return new X509Certificate(readFileSync(certificatePath)).raw;
+};
+const oldCertificate = makeCertificate('old', 30);
+const profileCertificate = makeCertificate('replacement', 365);
+const oldFingerprint = createHash('sha1').update(oldCertificate).digest('hex').toUpperCase();
 const profileFingerprint = createHash('sha1').update(profileCertificate).digest('hex').toUpperCase();
 const teamId = '34K3P7PD2W';
 const identityName = `Developer ID Application: Graceful Tools LLC (${teamId})`;
 const identities = [
-  `  1) ${'A'.repeat(40)} "${identityName}"`,
+  `  1) ${oldFingerprint} "${identityName}"`,
   `  2) ${profileFingerprint} "${identityName}"`,
   '     2 valid identities found',
 ].join('\n');
 
 test('AITD-447: select the profile certificate by fingerprint when names are identical', () => {
   assert.equal(
-    findProfileSigningIdentity(profileCertificate, teamId, identities),
+    findProfileSigningIdentity([profileCertificate], teamId, identities),
     profileFingerprint,
   );
 });
 
+test('AITD-447: select the newest profile certificate regardless of its position', () => {
+  for (const certificates of [[oldCertificate, profileCertificate], [profileCertificate, oldCertificate]]) {
+    assert.equal(findProfileSigningIdentity(certificates, teamId, identities), profileFingerprint);
+  }
+});
+
 test('AITD-447: fail if the profile certificate has no installed private-key identity', () => {
   assert.throws(
-    () => findProfileSigningIdentity(profileCertificate, teamId, identities.replace(profileFingerprint, 'B'.repeat(40))),
+    () => findProfileSigningIdentity([profileCertificate], teamId, identities.replace(profileFingerprint, 'B'.repeat(40))),
+    /No valid installed Developer ID signing identity matches/,
+  );
+});
+
+test('AITD-447: do not fall back to an older identity when the newest private key is missing', () => {
+  assert.throws(
+    () => findProfileSigningIdentity([oldCertificate, profileCertificate], teamId, identities.replace(profileFingerprint, 'B'.repeat(40))),
     /No valid installed Developer ID signing identity matches/,
   );
 });
 
 test('AITD-447: reject an identity for a different team or certificate type', () => {
   assert.throws(
-    () => findProfileSigningIdentity(profileCertificate, 'OTHERTEAM1', identities),
+    () => findProfileSigningIdentity([profileCertificate], 'OTHERTEAM1', identities),
     /No valid installed Developer ID signing identity matches/,
   );
   assert.throws(
-    () => findProfileSigningIdentity(profileCertificate, teamId, identities.replaceAll('Developer ID Application', 'Apple Distribution')),
+    () => findProfileSigningIdentity([profileCertificate], teamId, identities.replaceAll('Developer ID Application', 'Apple Distribution')),
     /No valid installed Developer ID signing identity matches/,
   );
 });
@@ -81,7 +108,9 @@ esac
   writeFileSync(join(dir, 'plutil'), `#!/bin/sh
 cat >/dev/null
 case "$2" in
-  DeveloperCertificates.0) printf '%s\\n' "$MOCK_CERTIFICATE" ;;
+  DeveloperCertificates) printf '2\\n' ;;
+  DeveloperCertificates.0) printf '%s\\n' "$MOCK_OLD_CERTIFICATE" ;;
+  DeveloperCertificates.1) printf '%s\\n' "$MOCK_CERTIFICATE" ;;
   TeamIdentifier.0) printf '%s\\n' "$MOCK_TEAM" ;;
   *) exit 1 ;;
 esac
@@ -90,6 +119,7 @@ esac
   const env = {
     ...process.env,
     PATH: `${dir}:${process.env.PATH}`,
+    MOCK_OLD_CERTIFICATE: oldCertificate.toString('base64'),
     MOCK_CERTIFICATE: profileCertificate.toString('base64'),
     MOCK_TEAM: teamId,
     MOCK_IDENTITIES: identities,
