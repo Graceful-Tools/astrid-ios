@@ -3,7 +3,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, X509Certificate } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -184,14 +184,16 @@ globalThis.fetch = async (url, options = {}) => {
 });
 
 test('AITD-447: Mac packaging exports and signs with the exact profile and identity', t => {
-  const dir = mkdtempSync(join(tmpdir(), 'astrid-package-mac-'));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'astrid-package-mac-')));
+  const keyTempDir = realpathSync(mkdtempSync(join(tmpdir(), 'astrid-package-mac-keys-')));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(keyTempDir, { recursive: true, force: true }));
   const scriptsDir = join(dir, 'scripts');
   const binDir = join(dir, 'bin');
   mkdirSync(scriptsDir);
   mkdirSync(binDir);
   copyFileSync(fileURLToPath(new URL('./package-mac.sh', import.meta.url)), join(scriptsDir, 'package-mac.sh'));
-  const credentials = join(dir, 'asc-credentials.env');
+  const credentials = join(keyTempDir, 'asc-credentials.env');
   writeFileSync(credentials, [
     "APPLE_ASC_PRIVATE_KEY='mock-private-line-1\\nmock-private-line-2'",
     "APPLE_ASC_KEY_ID='mock-key-id'",
@@ -214,12 +216,33 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
     esac`,
     ditto: 'touch "$5"',
     xcrun: `if [ "$1" = "notarytool" ]; then
-      cat build/.asc-key.p8 >> "$MOCK_NOTARY_KEY"
+      previous=
+      for arg in "$@"; do
+        if [ "$previous" = "--key" ]; then
+          printf '%s\\n' "$arg" >> "$MOCK_NOTARY_PATHS"
+          perl -e 'printf "%o\\n", (stat($ARGV[0]))[2] & 0777' "$arg" >> "$MOCK_NOTARY_MODES"
+          perl -e 'printf "%o\\n", (stat($ARGV[0]))[2] & 0777' "$(dirname "$arg")" >> "$MOCK_NOTARY_DIR_MODES"
+          cat "$arg" >> "$MOCK_NOTARY_KEY"
+        fi
+        previous="$arg"
+      done
       printf '%s\\n' "$@" >> "$MOCK_NOTARY_ARGS"
+      [ "\${MOCK_NOTARY_FAIL:-0}" != 1 ] || exit 1
     fi`,
     hdiutil: 'touch "$9"',
     codesign: 'printf "%s\\n" "$@" >> "$MOCK_CODESIGN_ARGS"',
     spctl: 'exit 0',
+    rm: `if [ "$1" = "-rf" ]; then exit 0; fi
+      [ "$1" = "-f" ] || exit 1
+      shift
+      [ "\${1:-}" = "--" ] && shift
+      for path in "$@"; do
+        case "$path" in
+          "$MOCK_REPO"/build/*|"$MOCK_KEY_TMP"/*)
+            [ ! -e "$path" ] || /bin/unlink "$path" ;;
+          *) exit 1 ;;
+        esac
+      done`,
   };
   for (const [command, body] of Object.entries(commands)) {
     writeFileSync(join(binDir, command), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
@@ -235,6 +258,12 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
     MOCK_CODESIGN_ARGS: join(dir, 'codesign-args'),
     MOCK_NOTARY_ARGS: join(dir, 'notary-args'),
     MOCK_NOTARY_KEY: join(dir, 'notary-key'),
+    MOCK_NOTARY_PATHS: join(dir, 'notary-paths'),
+    MOCK_NOTARY_MODES: join(dir, 'notary-modes'),
+    MOCK_NOTARY_DIR_MODES: join(dir, 'notary-dir-modes'),
+    MOCK_REPO: dir,
+    MOCK_KEY_TMP: keyTempDir,
+    TMPDIR: keyTempDir,
     ASC_ENV_FILE: credentials,
     SKIP_NOTARIZE: '0',
   };
@@ -247,5 +276,75 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   assert.match(readFileSync(env.MOCK_CODESIGN_ARGS, 'utf8'), new RegExp(`--sign\\n${profileFingerprint}\\n--timestamp`));
   assert.match(readFileSync(env.MOCK_NOTARY_ARGS, 'utf8'), /--key-id\nmock-key-id\n--issuer\nmock-issuer-id/);
   assert.equal(readFileSync(env.MOCK_NOTARY_KEY, 'utf8'), 'mock-private-line-1\nmock-private-line-2\n'.repeat(2));
-  assert.equal(existsSync(join(dir, 'build/.asc-key.p8')), false);
+  const keyPaths = readFileSync(env.MOCK_NOTARY_PATHS, 'utf8').trim().split('\n');
+  assert.equal(keyPaths.length, 2);
+  assert.ok(keyPaths.every(path => path.startsWith(`${keyTempDir}/`) && !path.startsWith(`${dir}/`)));
+  assert.deepEqual(readFileSync(env.MOCK_NOTARY_MODES, 'utf8').trim().split('\n'), ['600', '600']);
+  assert.deepEqual(readFileSync(env.MOCK_NOTARY_DIR_MODES, 'utf8').trim().split('\n'), ['700', '700']);
+  assert.ok(keyPaths.every(path => !existsSync(path)));
+
+  const unsafeTempDir = join(dir, 'unsafe-temp');
+  mkdirSync(unsafeTempDir);
+  const unsafe = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, TMPDIR: unsafeTempDir },
+    encoding: 'utf8',
+  });
+  assert.notEqual(unsafe.status, 0);
+  assert.match(`${unsafe.stdout}\n${unsafe.stderr}`, /temporary directory.*inside.*repository/i);
+  assert.deepEqual(readdirSync(unsafeTempDir), []);
+
+  const unsafeTempLink = join(keyTempDir, 'inside-repo');
+  symlinkSync(unsafeTempDir, unsafeTempLink);
+  const linkedTemp = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, TMPDIR: unsafeTempLink },
+    encoding: 'utf8',
+  });
+  assert.notEqual(linkedTemp.status, 0);
+  assert.match(`${linkedTemp.stdout}\n${linkedTemp.stderr}`, /temporary directory.*inside.*repository/i);
+  assert.deepEqual(readdirSync(unsafeTempDir), []);
+
+  const unsafeCredentials = join(dir, '.env.local');
+  copyFileSync(credentials, unsafeCredentials);
+  const inside = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, ASC_ENV_FILE: '' },
+    encoding: 'utf8',
+  });
+  assert.notEqual(inside.status, 0);
+  assert.match(`${inside.stdout}\n${inside.stderr}`, /credentials.*outside.*repository/i);
+
+  const unsafeCredentialsLink = join(keyTempDir, 'inside-repo.env');
+  symlinkSync(unsafeCredentials, unsafeCredentialsLink);
+  const linkedCredentials = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, ASC_ENV_FILE: unsafeCredentialsLink },
+    encoding: 'utf8',
+  });
+  assert.notEqual(linkedCredentials.status, 0);
+  assert.match(`${linkedCredentials.stdout}\n${linkedCredentials.stderr}`, /credentials.*outside.*repository/i);
+
+  const failedPaths = join(dir, 'failed-notary-paths');
+  const failed = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, MOCK_NOTARY_FAIL: '1', MOCK_NOTARY_PATHS: failedPaths },
+    encoding: 'utf8',
+  });
+  assert.notEqual(failed.status, 0);
+  const failedKey = readFileSync(failedPaths, 'utf8').trim();
+  assert.ok(failedKey.startsWith(`${keyTempDir}/`));
+  assert.equal(existsSync(failedKey), false);
+  assert.equal(existsSync(join(failedKey, '..')), false);
+
+  const missingKey = join(keyTempDir, 'missing-key.env');
+  writeFileSync(missingKey, 'APPLE_ASC_KEY_ID=mock-key-id\nAPPLE_ASC_ISSUER_ID=mock-issuer-id\n');
+  const incomplete = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, ASC_ENV_FILE: missingKey },
+    encoding: 'utf8',
+  });
+  assert.notEqual(incomplete.status, 0);
+  assert.match(incomplete.stderr, /APPLE_ASC_PRIVATE_KEY is missing/);
+  assert.ok(readdirSync(keyTempDir).every(path => !path.startsWith('astrid-asc.')));
 });
