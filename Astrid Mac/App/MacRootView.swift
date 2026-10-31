@@ -1057,6 +1057,32 @@ struct MacRootView: View {
         }
     }
 
+    /// The copy-only section, closed by the Public Lists entry (AITD-569). The entry stands in for
+    /// "see all" — both opened the same browser — and still shows, unheaded, when no copy-only
+    /// list came back, so the browser is always one click away.
+    @ViewBuilder private func browsablePublicSection(_ lists: [TaskList]) -> some View {
+        let rows = ForEach(MacSidebarActions.afterPublicLists, id: \.id) { sidebarActionRow($0) }
+        if lists.isEmpty {
+            Section { rows }
+        } else {
+            Section(NSLocalizedString("navigation.public_lists", comment: "")) {
+                ForEach(PublicListSections.sidebarRows(lists)) { listRow($0) }
+                rows
+            }
+        }
+    }
+
+    private func sidebarActionRow(_ action: MacSidebarActions.Action) -> some View {
+        Button {
+            if action == MacSidebarActions.addList { showNewList = true } else { showPublicLists = true }
+        } label: {
+            Label(action.title, systemImage: action.symbol)
+                .foregroundStyle(Theme.accent)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(action.id)
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedListId) {
@@ -1084,19 +1110,10 @@ struct MacRootView: View {
                     Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
                 Section(NSLocalizedString("navigation.lists", comment: "")) {
-                    // Add List / Public Lists live HERE, above the lists, the way iOS
-                    // (ListSidebarView.addListButton) and web do — not as unlabelled toolbar
-                    // glyphs (0fc546a8).
-                    ForEach(MacSidebarActions.all, id: \.id) { action in
-                        Button {
-                            if action.id == "sidebar.newList" { showNewList = true } else { showPublicLists = true }
-                        } label: {
-                            Label(action.title, systemImage: action.symbol)
-                                .foregroundStyle(Theme.accent)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier(action.id)
-                    }
+                    // Add List lives HERE, above the lists, the way iOS
+                    // (ListSidebarView.addListButton) and web do — not as an unlabelled toolbar
+                    // glyph (0fc546a8). Public Lists closes the public sections below (AITD-569).
+                    ForEach(MacSidebarActions.aboveLists, id: \.id) { sidebarActionRow($0) }
                     ForEach(regularLists) { listRow($0) }
                 }
                 // Public lists sit BELOW your own (dfb037c7), matching iOS and web. Two sections,
@@ -1106,9 +1123,7 @@ struct MacRootView: View {
                 publicSection(NSLocalizedString("navigation.public_shared_lists", comment: ""),
                               seeAllKey: "navigation.see_all_collaborative",
                               lists: PublicListSections.collaborative(publicLists))
-                publicSection(NSLocalizedString("navigation.public_lists", comment: ""),
-                              seeAllKey: "navigation.see_all_suggested",
-                              lists: PublicListSections.browsable(publicLists))
+                browsablePublicSection(PublicListSections.browsable(publicLists))
             }
             .macScrollBars(showScrollBars)               // hidden by default (task 01d8cfa1)
             .scrollContentBackground(.hidden)            // pervasive theme background (Ocean cyan) in the sidebar
