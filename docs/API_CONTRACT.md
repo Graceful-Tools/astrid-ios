@@ -194,6 +194,14 @@ would otherwise decode to an empty list. Full parameter documentation is in astr
 - **Chat**: `/api/v1/chat/channels`, `/api/v1/chat/channels/{id}/messages` (GET/POST)
 - **User prefs**: `/api/v1/users/me/{settings, my-tasks-preferences, smart-tasks, ai-preferences, available-agents}`
 - **Uploads**: `/api/v1/secure-upload/request-upload` (<4MB), `/api/v1/secure-upload/get-upload-url` + direct blob (≥4MB)
+  - `get-upload-url` answers with either or both of two shapes (AITD-558). **Presigned** —
+    `presigned: { uploadUrl, headers }`, the whole PUT composed server-side with `@vercel/blob`'s
+    `presignUrl`; the client sends it as given with no `Authorization`. **Legacy** —
+    `uploadToken` + `uploadUrl`, PUT with `Authorization: Bearer <uploadToken>`; derived from
+    `BLOB_READ_WRITE_TOKEN`, so it is removed only once builds that read nothing else have drained.
+    When both are present the client takes `presigned`; with neither, the upload fails before Blob.
+    `secure-files/{id}/upload-url` already returns `{ uploadUrl, headers }`, so it can switch to a
+    presigned request with no client change.
 - **GitHub (coding agent)**: `/api/v1/github/status`, `/api/v1/github/repositories`
 - **OAuth**: `/api/v1/oauth/token` (client credentials)
 - **Passkeys**: `/api/auth/webauthn/*` — the one unversioned path, on purpose (no v1 route)

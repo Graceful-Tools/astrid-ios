@@ -13,13 +13,24 @@ import { pickDeveloperIdCert } from './lib/developer-id.mjs';
 
 const NAME = 'Astrid Mac Developer ID';
 const BUNDLE = 'Graceful-Tools-Inc.Astrid-App';
-const dir = `${os.homedir()}/Library/MobileDevice/Provisioning Profiles`;
+const legacyDir = `${os.homedir()}/Library/MobileDevice/Provisioning Profiles`;
+const xcodeDir = `${os.homedir()}/Library/Developer/Xcode/UserData/Provisioning Profiles`;
+const printPath = process.argv.includes('--print-path');
+const report = message => (printPath ? console.error(message) : console.log(message));
 
 const install = p => {
-  fs.mkdirSync(dir, { recursive: true });
-  const path = `${dir}/${p.id}.provisionprofile`;
-  fs.writeFileSync(path, Buffer.from(p.attributes.profileContent, 'base64'));
-  console.log(`✓ Profile "${p.attributes.name}" (${p.attributes.profileState}) → ${path}`);
+  const uuid = p.attributes.uuid;
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(uuid ?? '')) {
+    throw new Error('App Store Connect did not return a valid UUID for the provisioning profile');
+  }
+  const content = Buffer.from(p.attributes.profileContent, 'base64');
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.mkdirSync(xcodeDir, { recursive: true });
+  fs.writeFileSync(`${legacyDir}/${p.id}.provisionprofile`, content);
+  const path = `${xcodeDir}/${uuid}.provisionprofile`;
+  fs.writeFileSync(path, content);
+  report(`✓ Profile "${p.attributes.name}" (${p.attributes.profileState}) → ${path}`);
+  if (printPath) console.log(path);
 };
 
 const recreate = process.argv.includes('--recreate');
@@ -37,7 +48,7 @@ if (existing && cert) {
     } else {
       const removed = await api(`/v1/profiles/${existing.id}`, { method: 'DELETE' });
       if (removed.status !== 204) { console.error('Profile delete failed', removed.status); process.exit(1); }
-      console.log(`✓ Deleted the old "${NAME}" profile`);
+      report(`✓ Deleted the old "${NAME}" profile`);
       existing = null;
     }
   }

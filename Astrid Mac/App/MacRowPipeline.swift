@@ -65,6 +65,27 @@ enum MacRowPipeline {
                      subtaskDisplay: display, currentUserId: userId)
     }
 
+    /// The tasks a selection draws from, before its filters — what a row action finds the
+    /// selected ids in, and what tells "nothing here" from "all filtered out".
+    static func tasksForSelection(selection id: String?, myTasksId: String, searchId: String,
+                                  lists: [TaskList], rendered: @autoclosure () -> [Task],
+                                  searchResults: @autoclosure () -> [Task], allTasks: [Task], tasksInList: (String) -> [Task],
+                                  publicListTasks: [String: [Task]]) -> [Task] {
+        guard let id else { return [] }
+        // My Tasks' scope is its filter: its rows are everything it has.
+        if id == myTasksId { return rendered() }
+        // Search's rows are its results (AITD-563). `__search__` is no list, so without this a
+        // row's Delete, Move and Priority found no target in Search and silently did nothing.
+        if id == searchId { return searchResults() }
+        // Saved-filter / virtual lists (isVirtual) filter across ALL tasks (efd05e56), like iOS.
+        if lists.first(where: { $0.id == id })?.isVirtual == true { return allTasks }
+        // A public list you do not belong to has no tasks in the local store, which holds only
+        // yours — so its rows come from the on-demand fetch instead of showing empty (dfb037c7).
+        let mine = tasksInList(id)
+        if mine.isEmpty, let fetched = publicListTasks[id] { return fetched }
+        return mine
+    }
+
     /// The sidebar's numbers (AITD-460): a list's own from membership, a saved filter's and My
     /// Tasks' from astrid-core — two calls, `listCounts` and one `rowsForList` — by the rules their
     /// rows are drawn with. `myTasks` is nil when the core could not answer.

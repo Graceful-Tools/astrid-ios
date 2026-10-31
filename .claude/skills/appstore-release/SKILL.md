@@ -19,6 +19,8 @@ allows. Otherwise push the dev branches and wait.
 ## The commands
 
 Two of them. Pick by platform. Run them from the repo root.
+First set `ASC_ENV_FILE` to your private App Store Connect credentials file outside this public
+repository, for example `export ASC_ENV_FILE=/path/to/private/credentials.env`.
 
 | What you were asked for | Command |
 |---|---|
@@ -155,10 +157,10 @@ one-line change in the astrid-web repo.
 
 ## Background for whoever maintains this
 
-- Credentials are read from `.env.local` by name — `APPLE_ASC_KEY_ID`, `APPLE_ASC_ISSUER_ID`,
-  `APPLE_ASC_PRIVATE_KEY`, `APPLE_APP_STORE_APP_ID`. Never inline, echo, or commit a key or token.
-  The signing key is written mode-600 under `build/` and deleted on every exit path. If it is
-  missing: `cp ../astrid-web/.env.local .env.local`.
+- Credentials are read from the external `ASC_ENV_FILE` by name — `APPLE_ASC_KEY_ID`,
+  `APPLE_ASC_ISSUER_ID`, `APPLE_ASC_PRIVATE_KEY`, `APPLE_APP_STORE_APP_ID`. Never inline, echo, or
+  save a key or token anywhere in the repository. The signing key is written mode-600 in a private
+  temporary directory outside the repository and removed on exit; `TMPDIR` must also be outside.
 - Signing is automatic via `-allowProvisioningUpdates` plus the API key, which stands in for the
   Xcode account the CLI does not have. If signing ever fails with "No Accounts", those flags were
   dropped from the xcodebuild command.

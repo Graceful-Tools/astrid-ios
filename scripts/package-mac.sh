@@ -11,7 +11,7 @@
 #     demands a matching profile before it will archive.
 #   • The Developer ID re-signing happens at EXPORT, against a MAC_APP_DIRECT profile. The CLI has
 #     no Xcode account ("No Accounts"), so the profile is created via the ASC API by
-#     scripts/mac-devid-profile.mjs and installed into ~/Library/MobileDevice/Provisioning Profiles.
+#     scripts/mac-devid-profile.mjs and installed in Xcode's provisioning-profile directory.
 #   • The export uses "Astrid Mac Direct.entitlements", which drops
 #     com.apple.developer.applesignin — Apple does not issue that entitlement in Developer ID
 #     profiles, and the export fails outright with it present. MacSignInOptions hides the Apple
@@ -22,15 +22,16 @@
 #     Apple only lets the ACCOUNT HOLDER create one — do it in Xcode
 #     (Settings › Accounts › Manage Certificates › + › Developer ID Application)
 #     or at developer.apple.com with scripts/../~/Documents/astrid-developerid/devid.csr.
-#   • ASC API credentials in .env.local (APPLE_ASC_KEY_ID / ISSUER_ID / PRIVATE_KEY) —
-#     already present for Xcode Cloud; notarytool reuses them, so no app-specific password.
+#   • ASC_ENV_FILE naming a private credentials file outside this repository
+#     (APPLE_ASC_KEY_ID / ISSUER_ID / PRIVATE_KEY); notarytool reuses the key.
 #
 # Usage: npm run package:mac        (or ./scripts/package-mac.sh)
 #        SKIP_NOTARIZE=1 ./scripts/package-mac.sh   # local smoke test, unsigned-ish
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-ROOT="$PWD"
+ROOT="$(pwd -P)"
+source "$ROOT/scripts/lib/asc-key.sh"
 BUILD_DIR="$ROOT/build"
 ARCHIVE="$BUILD_DIR/AstridMac.xcarchive"
 EXPORT_DIR="$BUILD_DIR/export"
@@ -41,27 +42,27 @@ green() { printf "\033[0;32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[0;31m%s\033[0m\n" "$1"; }
 step()  { printf "\n\033[0;36m=== %s ===\033[0m\n" "$1"; }
 
-# The App Store Connect signing key is a credential: keep it out of shared /tmp, create it
-# mode-600 inside the build dir, and remove it on ANY exit path (success, failure, or Ctrl-C).
+# Credentials and temporary signing keys must stay outside the public repository.
 KEY_FILE=""
-cleanup_key() { [ -n "$KEY_FILE" ] && rm -f "$KEY_FILE" 2>/dev/null; return 0; }
-trap cleanup_key EXIT INT TERM
-
-write_asc_key() {
-  mkdir -p "$BUILD_DIR"
-  KEY_FILE="$BUILD_DIR/.asc-key.p8"
-  (umask 077; : > "$KEY_FILE")
-  grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
-    | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
-  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' .env.local | cut -d= -f2- | tr -d '"')
-  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' .env.local | cut -d= -f2- | tr -d '"')
+KEY_DIR=""
+finish() {
+  local status=$?
+  trap - EXIT INT TERM
+  if ! asc_cleanup_key; then
+    [ "$status" -ne 0 ] || status=1
+  fi
+  exit "$status"
 }
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+asc_initialize
 
 # --- Preflight: signing identity -------------------------------------------------
 step "Preflight"
 # `|| true`: no match is an expected state (cert not created yet), not a pipeline failure.
-IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)"/\1/' || true)
-if [ -z "$IDENTITY" ]; then
+IDENTITY_NAME=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)"/\1/' || true)
+if [ -z "$IDENTITY_NAME" ]; then
   red "No 'Developer ID Application' certificate found in the keychain."
   echo "Create one (Account Holder only):"
   echo "  Xcode › Settings › Accounts › Manage Certificates › + › Developer ID Application"
@@ -69,8 +70,7 @@ if [ -z "$IDENTITY" ]; then
   echo "    https://developer.apple.com/account/resources/certificates/add"
   exit 1
 fi
-green "✓ Signing identity: $IDENTITY"
-TEAM_ID=$(echo "$IDENTITY" | sed -E 's/.*\(([A-Z0-9]+)\)$/\1/')
+green "✓ Developer ID signing identity found"
 
 # Read the version from the Mac scheme's own build settings. A grep of project.pbxproj
 # picks up whichever target appears first in the file (the iOS app), which silently
@@ -83,12 +83,16 @@ PRODUCT=$(setting FULL_PRODUCT_NAME)   # "Astrid.app" — not "$SCHEME.app"
 [ -n "$VERSION" ] && [ -n "$PRODUCT" ] || { red "Could not read the Mac target's build settings"; exit 1; }
 green "✓ Version $VERSION ($BUILD_NUM)"
 
-rm -rf "$ARCHIVE" "$EXPORT_DIR"
-mkdir -p "$DIST_DIR"
-
 # --- Archive ---------------------------------------------------------------------
 step "Provisioning profile"
-node scripts/mac-devid-profile.mjs || { red "Could not obtain a Developer ID profile"; exit 1; }
+PROFILE_PATH=$(node scripts/mac-devid-profile.mjs --print-path) || { red "Could not obtain a Developer ID profile"; exit 1; }
+SIGNING_IDENTITY=$(node scripts/mac-devid-identity.mjs "$PROFILE_PATH") || { red "Could not match the Developer ID profile to an installed identity"; exit 1; }
+read -r IDENTITY TEAM_ID <<< "$SIGNING_IDENTITY"
+PROFILE_UUID=$(basename "$PROFILE_PATH" .provisionprofile)
+green "✓ Signing identity: $IDENTITY (team $TEAM_ID)"
+
+rm -rf "$ARCHIVE" "$EXPORT_DIR"
+mkdir -p "$DIST_DIR"
 
 step "Archiving"
 xcodebuild archive \
@@ -112,10 +116,10 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
     <key>method</key><string>developer-id</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <key>signingStyle</key><string>manual</string>
-    <key>signingCertificate</key><string>Developer ID Application</string>
+    <key>signingCertificate</key><string>$IDENTITY</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>Graceful-Tools-Inc.Astrid-App</key><string>Astrid Mac Developer ID</string>
+        <key>Graceful-Tools-Inc.Astrid-App</key><string>$PROFILE_UUID</string>
     </dict>
     <key>destination</key><string>export</string>
 </dict>
@@ -136,7 +140,7 @@ if [ "${SKIP_NOTARIZE:-0}" = "1" ]; then
   echo "SKIP_NOTARIZE=1 — skipping notarization (Gatekeeper will warn on other Macs)"
 else
   step "Notarizing"
-  write_asc_key
+  asc_write_key
   ZIP="$BUILD_DIR/notarize.zip"
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
@@ -161,7 +165,7 @@ rm -rf "$STAGE"
 
 if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
   # The DMG itself is notarized too, so Gatekeeper is happy before the app is copied out.
-  write_asc_key
+  asc_write_key
   codesign --force --sign "$IDENTITY" --timestamp "$DMG"
   xcrun notarytool submit "$DMG" --key "$KEY_FILE" --key-id "$KEY_ID" --issuer "$ISSUER" --wait --timeout 30m
   xcrun stapler staple "$DMG"

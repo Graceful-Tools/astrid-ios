@@ -90,11 +90,19 @@ final class DueDateQuickPicksTests: XCTestCase {
     /// "Morning" means 9:00 exactly, on the task's own day.
     func testChoosingATimeZeroesTheMinutesAndKeepsTheDay() throws {
         let calendar = Calendar.current
-        let day = calendar.date(byAdding: .day, value: 5, to: calendar.date(bySettingHour: 3, minute: 37, second: 44, of: Date())!)!
-        let morning = try XCTUnwrap(try picks(day, isAllDay: false).times[0].date)
-        XCTAssertEqual(calendar.component(.hour, from: morning), 9)
-        XCTAssertEqual(calendar.component(.minute, from: morning), 0)
-        XCTAssertTrue(calendar.isDate(morning, inSameDayAs: day))
+        let now = Date()
+        let early = calendar.date(bySettingHour: 3, minute: 37, second: 44, of: now)!
+        // Every day of the coming fortnight, so a daylight-saving change inside it is crossed too:
+        // the core used to resolve every day with today's offset, and "Morning" past a change
+        // landed at 08:00 (AITD-561). The DST case itself is pinned in astrid-core
+        // (`aitd_561_morning_across_a_dst_change_is_nine_local`), which does not depend on today.
+        for days in 0...14 {
+            let day = calendar.date(byAdding: .day, value: days, to: early)!
+            let morning = try XCTUnwrap(try picks(day, isAllDay: false).times[0].date)
+            XCTAssertEqual(calendar.component(.hour, from: morning), 9, "+\(days) days")
+            XCTAssertEqual(calendar.component(.minute, from: morning), 0, "+\(days) days")
+            XCTAssertTrue(calendar.isDate(morning, inSameDayAs: day), "+\(days) days")
+        }
     }
 
     /// D48: an all-day task's time goes on ITS date — the local reading of its UTC midnight is the

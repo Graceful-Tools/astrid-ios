@@ -450,8 +450,8 @@ struct TaskDetailViewNew: View {
                     }
                 }
                 TaskDetailIdentifierRow(task: task) // 7. (cont.) TASK ID, beside the lists (AITD-437)
-                // 7a. PROJECT STATE, in LIST mode, and only for a task that actually has a
-                // board column (AITD-332 — the iOS half of the Mac's AITD-327).
+                // 7a. PROJECT STATE, for a task that actually has a board column (AITD-332 —
+                // the iOS half of the Mac's AITD-327), in both display modes since AITD-555.
                 //
                 // After Lists and before the description on purpose: state belongs with WHERE
                 // the task lives. The Who/Date/Priority/Lists order above is a cross-platform

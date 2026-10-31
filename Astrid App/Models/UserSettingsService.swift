@@ -18,11 +18,9 @@ nonisolated struct UserSettings: Codable {
     /// mode — resolve it through `TaskDisplayMode(stored:)` rather than comparing the string
     /// (task 8ef7d89d).
     var taskDisplayMode: String?
-    /// "Show list images" (AITD-468). Null follows the hide_list_images experiment; true/false is
-    /// the user's choice and wins over it. Resolve through `ListImagesVisibility`. Absent from
-    /// `init`'s defaults on purpose: a value the user never picked must never be sent, or it
-    /// would take them out of the experiment.
-    var showListImages: Bool?
+    // No `showListImages`: list images are permanent (AITD-560). The server still serves the
+    // field, deprecated, until no client reads or writes it — leaving it out of this struct is
+    // what keeps it from being decoded or echoed back on PATCH.
 
     init(
         smartTaskCreationEnabled: Bool? = true,
@@ -54,7 +52,6 @@ nonisolated struct UserSettings: Codable {
         if let value = updates.defaultDueTime { merged.defaultDueTime = value }
         if let value = updates.subtaskDisplay { merged.subtaskDisplay = value }
         if let value = updates.taskDisplayMode { merged.taskDisplayMode = value }
-        if let value = updates.showListImages { merged.showListImages = value }
         return merged
     }
 }

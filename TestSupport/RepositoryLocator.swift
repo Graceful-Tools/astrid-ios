@@ -53,16 +53,31 @@ enum RepositoryLocator {
 
     /// The paired astrid-web checkout.
     ///
-    /// When this repo is a git worktree (`astrid-ios-<topic>`) the matching web worktree
-    /// is `astrid-web-<topic>` — prefer it, so a run from a feature worktree checks the
-    /// web branch it is paired with rather than whatever happens to be on main. Falls
-    /// back to plain `astrid-web`, and skips when neither is present: the web repo is not
-    /// required to be cloned.
+    /// Honor an explicit path first, then a checkout inside the repo (used by CI). When
+    /// neither is present, prefer the matching `astrid-web-<topic>` sibling worktree and
+    /// fall back to plain `astrid-web`. The web repo is not required to be cloned.
     ///
     /// Kept in step with `scripts/lib/find-web-repo.sh`, which does the same for the
     /// shell scripts. `BrandProfileTests` asserts the two agree.
-    static func siblingWebRepository(from filePath: String = #filePath) throws -> URL {
+    static func siblingWebRepository(
+        from filePath: String = #filePath,
+        configuredWebDirectory: String? = ProcessInfo.processInfo.environment["ASTRID_WEB_DIR"]
+    ) throws -> URL {
         let root = try repositoryRoot(from: filePath)
+        if let configured = configuredWebDirectory, !configured.isEmpty {
+            let url = URL(fileURLWithPath: configured, isDirectory: true, relativeTo: root)
+                .standardizedFileURL
+            guard FileManager.default.fileExists(
+                atPath: url.appendingPathComponent("package.json").path) else {
+                throw NSError(domain: "RepositoryLocator", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "Invalid ASTRID_WEB_DIR: \(configured)"])
+            }
+            return url
+        }
+        let nested = root.appendingPathComponent("astrid-web")
+        if FileManager.default.fileExists(atPath: nested.appendingPathComponent("package.json").path) {
+            return nested
+        }
         let parent = root.deletingLastPathComponent()
         let suffix = root.lastPathComponent.hasPrefix("astrid-ios")
             ? String(root.lastPathComponent.dropFirst("astrid-ios".count))

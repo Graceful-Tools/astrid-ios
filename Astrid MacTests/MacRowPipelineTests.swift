@@ -132,5 +132,29 @@ final class MacRowPipelineTests: XCTestCase {
         // Unknown current id (stale selection) re-enters like no selection.
         XCTAssertEqual(MacRowPipeline.nextSelection(orderedIds: ids, current: "zz", direction: 1), "a")
     }
+
+    // MARK: what a row action acts on (AITD-563)
+
+    private func selectionTasks(_ selection: String?, rendered: [Task] = [], searchResults: [Task] = [],
+                                all: [Task] = []) -> [String] {
+        MacRowPipeline.tasksForSelection(selection: selection, myTasksId: "__my__", searchId: "__search__",
+                                         lists: [], rendered: rendered, searchResults: searchResults,
+                                         allTasks: all, tasksInList: { _ in [] }, publicListTasks: [:]).map(\.id)
+    }
+
+    /// AITD-563: "delete task from search list didn't work. it did work when opening task details
+    /// then deleting." The row menu's Delete looks the target up in the selection's tasks, and
+    /// Search had no case there — `__search__` is no list, so it found nothing and deleted nothing.
+    func test_AITD563_searchRowActionsFindTheSearchResults() {
+        let hit = task("hit"), other = task("other")
+        XCTAssertEqual(selectionTasks("__search__", searchResults: [hit], all: [hit, other]), ["hit"])
+    }
+
+    func test_AITD563_theOtherSelectionsAreUnchanged() {
+        XCTAssertEqual(selectionTasks(nil, all: [task("a")]), [])
+        XCTAssertEqual(selectionTasks("__my__", rendered: [task("mine")]), ["mine"])
+        XCTAssertEqual(selectionTasks("list-1", searchResults: [task("hit")]), [],
+                       "a list's rows are its own, never the search's")
+    }
 }
 #endif

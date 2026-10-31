@@ -27,10 +27,11 @@ const STRINGS_DIR = 'Astrid App/Resources/Localizations'
 
 // ─── Reading the tree ───────────────────────────────────────────────────────────────────────────
 
-export function makeContext(root) {
+export function makeContext(root, { webDir } = {}) {
   const cache = new Map()
   const ctx = {
     root,
+    webDir,
     abs: (rel) => path.join(root, rel),
     exists: (rel) => fs.existsSync(path.join(root, rel)),
     isDir: (rel) => {
@@ -627,8 +628,12 @@ export const rules = [
     id: 'keyboard-shortcuts-match-web',
     why: 'The Mac\'s bare-key shortcuts are web\'s KEYBOARD_SHORTCUTS (6ac2968e): same keys, same handler. Read from astrid-web itself so drift fails instead of being transcribed by hand.',
     run(ctx) {
-      const webFile = path.resolve(ctx.root, '..', 'astrid-web', 'hooks', 'useKeyboardShortcuts.ts')
-      if (!fs.existsSync(webFile)) return { violations: [], notes: ['astrid-web is not checked out next to this repo — keyboard parity not checked'] }
+      const webRoot = ctx.webDir ? path.resolve(ctx.webDir) : path.resolve(ctx.root, '..', 'astrid-web')
+      const webFile = path.join(webRoot, 'hooks', 'useKeyboardShortcuts.ts')
+      if (!fs.existsSync(webFile)) {
+        if (ctx.webDir) return [{ file: webFile, line: 0, message: 'ASTRID_WEB_DIR does not contain the keyboard contract' }]
+        return { violations: [], notes: ['astrid-web is not checked out next to this repo — keyboard parity not checked'] }
+      }
       const web = fs.readFileSync(webFile, 'utf8')
       const table = web.slice(web.indexOf('KEYBOARD_SHORTCUTS'), web.indexOf('] as const'))
       const webKeys = new Map()
@@ -870,8 +875,8 @@ export function macHelperLiteralViolations(sources) {
 
 // ─── Running ────────────────────────────────────────────────────────────────────────────────────
 
-export function runRules(root, only = []) {
-  const ctx = makeContext(root)
+export function runRules(root, only = [], options = {}) {
+  const ctx = makeContext(root, options)
   return rules.filter((r) => only.length === 0 || only.includes(r.id)).map((rule) => {
     let result
     try { result = rule.run(ctx) } catch (error) { result = [{ file: rule.id, line: 0, message: `crashed: ${error.message}` }] }
@@ -890,7 +895,7 @@ function main() {
     else if (args[i] === '--only') only.push(args[++i])
     else if (args[i] === '--list') { for (const r of rules) console.log(`${r.id}\n    ${r.why}`); return 0 }
   }
-  const results = runRules(root, only)
+  const results = runRules(root, only, { webDir: process.env.ASTRID_WEB_DIR })
   let failed = 0
   for (const { id, why, violations, notes } of results) {
     if (violations.length === 0) {

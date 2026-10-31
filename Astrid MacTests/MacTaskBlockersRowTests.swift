@@ -35,7 +35,8 @@ final class MacTaskBlockersRowTests: XCTestCase {
         XCTAssertLessThan(blockers, description)
 
         let compact = rows(.project, inProject: true)
-        XCTAssertEqual(compact, [.title, .when, .lists, .blockers, .description])
+        // Board state is in the compact detail as well since AITD-555.
+        XCTAssertEqual(compact, [.title, .when, .lists, .projectState, .blockers, .description])
     }
 
     func testItIsEditableLikeEveryOtherRow() {

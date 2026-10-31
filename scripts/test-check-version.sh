@@ -18,7 +18,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 CHECK="$PWD/scripts/check-version.sh"
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-version-test.XXXXXXXX") || exit 1
+if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
 mkdir -p "$TMP/bin"
 ENV_FILE="$TMP/env.local"
 printf 'APPLE_ASC_KEY_ID=k\nAPPLE_ASC_ISSUER_ID=i\nAPPLE_ASC_PRIVATE_KEY="p"\nAPPLE_APP_STORE_APP_ID=1\n' > "$ENV_FILE"

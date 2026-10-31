@@ -13,10 +13,17 @@ on:
           - standard
           - quick
 
+concurrency:
+  group: predeploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   predeploy:
     name: 'Run Predeploy Checks'
     runs-on: [self-hosted, astrid-ios]
+    env:
+      ASTRID_WEB_DIR: ${{ github.workspace }}/astrid-web
+      APP_VERSION_TABLE_FILE: ${{ github.workspace }}/astrid-web/lib/app-version.ts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +63,12 @@ jobs:
           echo "${XCODE_PATH}/usr/bin" >> "${GITHUB_PATH}"
           echo "DEVELOPER_DIR=${XCODE_PATH}" >> "${GITHUB_ENV}"
 
+      - name: Prepare reusable simulator
+        run: npm run simulator:prepare
+
+      - name: Pin prepared simulator
+        run: echo "ASTRID_IOS_DESTINATION=${DESTINATION}" >> "${GITHUB_ENV}"
+
       - name: Run predeploy (standard — unit tests, no UI tests)
         if: ${{ inputs.mode == 'standard' }}
         run: npm run predeploy
@@ -78,11 +91,19 @@ jobs:
           # run-tests.sh mints an account of this run's own (gha-<run>-<attempt>), masks its
           # cookie, and deletes the account when it exits (AITD-527). The shared account it
           # replaces was wiped by every other runner's mint.
-          ASTRID_WEB_DIR="${GITHUB_WORKSPACE}/astrid-web" npm run test:ui
+          npm run test:ui
 
       - name: Run Mac tests (full)
         if: ${{ inputs.mode == 'full' }}
         run: npm run test:mac
+        timeout-minutes: 30
+
+      - name: Run Mac UI tests (full)
+        if: ${{ inputs.mode == 'full' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: npm run test:mac:ui
         timeout-minutes: 30
 
       - name: Summary

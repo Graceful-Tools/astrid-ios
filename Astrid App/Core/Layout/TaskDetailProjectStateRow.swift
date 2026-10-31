@@ -18,9 +18,12 @@ import Foundation
 enum TaskDetailProjectStateRow {
 
     /// - Parameters:
-    ///   - displayMode: the user's Appearance setting. List mode only — in project mode board
-    ///     state already lives in the leading control's quick changer (task 729a190e), and a row
-    ///     would say it twice in the layout that is compact on purpose.
+    ///   - displayMode: the user's Appearance setting. Both modes since AITD-555 ("board status
+    ///     is not in task details should be"). Project mode used to leave state to the leading
+    ///     control's quick changer (task 729a190e), but that popover has to be opened and the
+    ///     control depicts who and priority, never the column — so in the mode built for boards
+    ///     the detail never said where the task was. Kept as a parameter so a call site cannot
+    ///     re-add a mode condition of its own without this rule seeing it.
     ///   - isInProject: whether the task has a board column at all — ask `isTaskInProject`, never
     ///     a condition written at the call site.
     ///   - isReadOnly: the public-list viewer. The row is a MOVER, not a label: its chips write.
@@ -29,6 +32,6 @@ enum TaskDetailProjectStateRow {
     static func isVisible(displayMode: TaskDisplayMode,
                           isInProject: Bool,
                           isReadOnly: Bool) -> Bool {
-        displayMode.showsSeparateAssigneeAndPriorityRows && isInProject && !isReadOnly
+        isInProject && !isReadOnly
     }
 }

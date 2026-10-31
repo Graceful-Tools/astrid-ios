@@ -24,11 +24,15 @@
 set -u
 cd "$(dirname "$0")/.."
 
-LOOP="$PWD/scripts/fixall-loop.sh"
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/bin"
-mkdir -p "$TMP/shared-tooling"
-export ASTRID_WEB_DIR="$TMP/shared-tooling"
+SOURCE_LOOP="$PWD/scripts/fixall-loop.sh"
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-fixall-test.XXXXXXXX") || exit 1
+if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
+mkdir -p "$TMP/bin" "$TMP/workspace/ios/scripts" "$TMP/workspace/astrid-web"
+LOOP="$TMP/workspace/ios/scripts/fixall-loop.sh"
+cp "$SOURCE_LOOP" "$LOOP"
+cp "${SOURCE_LOOP%/*}/run-fixall-loop.mjs" "${LOOP%/*}/"
+chmod +x "$LOOP"
+export ASTRID_WEB_DIR="$TMP/workspace/astrid-web"
 export CALLS="$TMP/calls.log"
 
 # The fake tsx: answers for every script the loop shells out to, and records the argv of each.
@@ -228,8 +232,7 @@ chmod +x "$SANDBOX/repo/scripts/fixall-loop.sh"
   git init -q -b main .
   git config user.email t@example.com
   git config user.name  Test
-  # The copied loop is COMMITTED, not left untracked: clean_sandbox runs `git clean -fd`,
-  # which would otherwise delete the very script under test.
+  # The copied loop is COMMITTED so fixture cleanup can refuse unexpected changes.
   git add -A
   git commit -q -m init
   # A bare origin, so the loop's end-of-run push has somewhere real to go.
@@ -269,7 +272,20 @@ run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
 }
 
 dirty_sandbox() { echo "uncommitted" > "$SANDBOX/repo/work-in-progress.txt"; }
-clean_sandbox() { ( cd "$SANDBOX/repo" && git clean -qfd && git checkout -q -- . ); }
+clean_sandbox() {
+  rm -f -- "$SANDBOX/repo/work-in-progress.txt"
+  if [ -n "$(sgit status --porcelain)" ]; then
+    bad "fixture has unexpected changes; refusing to discard them" "$(sgit status --short)"
+    exit 1
+  fi
+}
+
+# Fixture cleanup must never discard files other than the one the test dirtied (AITD-447).
+echo "keep" > "$SANDBOX/repo/should-not-be-discarded.txt"
+if (clean_sandbox >/dev/null 2>&1); then bad "fixture cleanup must refuse unexpected files"; else ok; fi
+if [ -f "$SANDBOX/repo/should-not-be-discarded.txt" ]; then ok
+else bad "fixture cleanup must preserve unexpected files"; fi
+rm -f -- "$SANDBOX/repo/should-not-be-discarded.txt"
 
 # `called` matches within ONE logged line, which the run summaries are. A stall alert is
 # markdown with headings and a fenced block, so its words land on different lines of the

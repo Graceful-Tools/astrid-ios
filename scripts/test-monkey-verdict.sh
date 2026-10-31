@@ -6,7 +6,8 @@
 # and exit code, reachable with `monkey-test.sh --classify <log> <rc>`, so it is pinned here.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-monkey-test.XXXXXXXX") || exit 1
+if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
 FAILS=0
 
 check() {  # name, expected verdict word, rc, log body

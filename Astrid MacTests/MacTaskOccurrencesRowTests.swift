@@ -25,7 +25,8 @@ final class MacTaskOccurrencesRowTests: XCTestCase {
     }
 
     func testSitsAfterWaitingOnAndBeforeTheDescription() {
+        // Board state sits after Lists in project mode too since AITD-555.
         XCTAssertEqual(rows(.project, links: true),
-                       [.title, .when, .lists, .blockers, .occurrences, .description])
+                       [.title, .when, .lists, .projectState, .blockers, .occurrences, .description])
     }
 }

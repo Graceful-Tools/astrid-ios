@@ -185,6 +185,33 @@ final class BrandProfileTests: XCTestCase {
                       "the Astrid profile must stay empty — it proves the defaults are the defaults")
     }
 
+    func testAITD447WebLocatorPrefersThePinnedNestedCheckout() throws {
+        let files = FileManager.default
+        let fixture = files.temporaryDirectory.appendingPathComponent("AITD-447-\(UUID().uuidString)")
+        try files.createDirectory(at: fixture, withIntermediateDirectories: true)
+        addTeardownBlock { try files.removeItem(at: fixture) }
+
+        let ios = fixture.appendingPathComponent("astrid-ios-feature")
+        let nested = ios.appendingPathComponent("astrid-web")
+        let sibling = fixture.appendingPathComponent("astrid-web-feature")
+        try files.createDirectory(at: ios.appendingPathComponent("Astrid App.xcodeproj"),
+                                  withIntermediateDirectories: true)
+        for web in [nested, sibling] {
+            try files.createDirectory(at: web, withIntermediateDirectories: true)
+            try "{}".write(to: web.appendingPathComponent("package.json"), atomically: true, encoding: .utf8)
+        }
+
+        let source = ios.appendingPathComponent("TestSupport/Source.swift")
+        XCTAssertEqual(try RepositoryLocator.siblingWebRepository(
+            from: source.path, configuredWebDirectory: nil).standardizedFileURL,
+                       nested.standardizedFileURL)
+        XCTAssertEqual(try RepositoryLocator.siblingWebRepository(
+            from: source.path, configuredWebDirectory: sibling.path).standardizedFileURL,
+                       sibling.standardizedFileURL)
+        XCTAssertThrowsError(try RepositoryLocator.siblingWebRepository(
+            from: source.path, configuredWebDirectory: fixture.appendingPathComponent("missing").path))
+    }
+
     // MARK: - Helpers
 
     private func brandSourceURL() throws -> URL {

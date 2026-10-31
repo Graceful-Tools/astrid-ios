@@ -122,8 +122,8 @@ runs reuse it.
 # Build + unit-test the Mac target
 npm run test:mac
 
-# Build a signed, notarized DMG (needs a Developer ID certificate)
-npm run package:mac
+# Build a signed, notarized DMG (see docs/MAC_DISTRIBUTION.md for credentials)
+ASC_ENV_FILE=/path/to/external/credentials.env npm run package:mac
 
 # Run the exact Xcode Cloud binary locally, without TestFlight
 node scripts/mac-ci-build.mjs --open
@@ -194,10 +194,12 @@ build-and-upload path are in [CLAUDE.md](./CLAUDE.md) §Deployment.
 Publishing a direct-download Mac release:
 
 ```bash
-npm run package:mac
+ASC_ENV_FILE=/path/to/external/credentials.env npm run package:mac
 gh release create mac-v$VERSION build/dist/Astrid-Mac-$VERSION.dmg --title "Astrid for Mac $VERSION"
 ```
 
+The credentials file must be outside this public repository; see
+[docs/MAC_DISTRIBUTION.md](./docs/MAC_DISTRIBUTION.md) for signing requirements.
 The tag and filename both come from the Mac target's `MARKETING_VERSION`, so bump it before
 cutting a second release or it collides with the previous tag.
 
