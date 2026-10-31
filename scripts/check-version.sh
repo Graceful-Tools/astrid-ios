@@ -28,8 +28,8 @@
 set -u
 cd "$(dirname "$0")/.."
 
-# The test harness points this at a temp file; real runs read .env.local like every sibling.
-ENV_FILE="${CHECK_VERSION_ENV_FILE:-.env.local}"
+# Explicit test override wins; normal runs can use an external ASC_ENV_FILE.
+ENV_FILE="${CHECK_VERSION_ENV_FILE:-${ASC_ENV_FILE:-.env.local}}"
 PBXPROJ='Astrid App.xcodeproj/project.pbxproj'
 
 usage() {
@@ -59,7 +59,7 @@ esac
 skip() { echo "⊘ App Store version check skipped — $1"; exit 0; }
 
 # --- Can this run at all? ---------------------------------------------------------
-[ -f "$ENV_FILE" ] || skip "no $ENV_FILE here, so no App Store Connect key (cp ../astrid-web/.env.local .env.local to enable it)"
+[ -f "$ENV_FILE" ] || skip "no $ENV_FILE; set ASC_ENV_FILE to a credentials file outside the repository"
 for n in APPLE_ASC_KEY_ID APPLE_ASC_ISSUER_ID APPLE_ASC_PRIVATE_KEY APPLE_APP_STORE_APP_ID; do
   grep -qE "^$n=." "$ENV_FILE" || skip "$n is not set in $ENV_FILE"
 done

@@ -147,6 +147,7 @@ When Xcode Cloud can't run — most often its monthly compute allotment is spent
 created then immediately `CANCELED` — build and upload from this machine instead:
 
 ```bash
+export ASC_ENV_FILE=/path/to/private/credentials.env  # outside this repository
 npm run release:ios          # build + sign only, nothing sent to Apple
 npm run release:ios:upload   # gate, archive, upload, wait for the build to read VALID
 npm run release:mac
@@ -154,8 +155,9 @@ npm run release:mac:upload
 ```
 
 Each run ends with a single `RESULT: OK` / `RESULT: FAILED` line saying what happened. Signing and
-the build number are automatic (the App Store Connect key in `.env.local` stands in for the Xcode
-account). **Ask before an `:upload`** — it cannot be undone. Full procedure:
+the build number are automatic (the external App Store Connect key stands in for the Xcode
+account). The credentials file and temporary key must stay outside the repository. **Ask before
+an `:upload`** — it cannot be undone. Full procedure:
 `.claude/skills/appstore-release/SKILL.md`.
 
 ---

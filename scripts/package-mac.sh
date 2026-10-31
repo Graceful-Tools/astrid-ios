@@ -31,6 +31,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$(pwd -P)"
+source "$ROOT/scripts/lib/asc-key.sh"
 BUILD_DIR="$ROOT/build"
 ARCHIVE="$BUILD_DIR/AstridMac.xcarchive"
 EXPORT_DIR="$BUILD_DIR/export"
@@ -44,51 +45,18 @@ step()  { printf "\n\033[0;36m=== %s ===\033[0m\n" "$1"; }
 # Credentials and temporary signing keys must stay outside the public repository.
 KEY_FILE=""
 KEY_DIR=""
-cleanup_key() {
-  local status=0
-  if [ -n "$KEY_FILE" ]; then
-    rm -f -- "$KEY_FILE" || { red "Could not remove temporary notarization key: $KEY_FILE" >&2; status=1; }
+finish() {
+  local status=$?
+  trap - EXIT INT TERM
+  if ! asc_cleanup_key; then
+    [ "$status" -ne 0 ] || status=1
   fi
-  if [ -n "$KEY_DIR" ]; then
-    rmdir "$KEY_DIR" || { red "Could not remove temporary notarization directory: $KEY_DIR" >&2; status=1; }
-  fi
-  return "$status"
+  exit "$status"
 }
-trap cleanup_key EXIT
+trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-env_file="${ASC_ENV_FILE:-$ROOT/.env.local}"
-[ -r "$env_file" ] || { red "Set ASC_ENV_FILE to a readable credentials file outside the repository." >&2; exit 1; }
-ASC_ENV_FILE=$(perl -MCwd=realpath -e 'print realpath($ARGV[0]) // die "Cannot resolve credentials path\n"' "$env_file")
-case "$ASC_ENV_FILE" in
-  "$ROOT"/*) red "App Store Connect credentials must be stored outside the repository; set ASC_ENV_FILE accordingly." >&2; exit 1 ;;
-esac
-export ASC_ENV_FILE
-TEMP_ROOT=$(cd "${TMPDIR:-/tmp}" && pwd -P) || { red "Cannot resolve the temporary directory." >&2; exit 1; }
-case "$TEMP_ROOT/" in
-  "$ROOT/"*) red "The temporary directory must not be inside the repository." >&2; exit 1 ;;
-esac
-
-write_asc_key() {
-  if [ -z "$KEY_DIR" ]; then
-    KEY_DIR=$(umask 077; mktemp -d "$TEMP_ROOT/astrid-asc.XXXXXXXX")
-    KEY_FILE="$KEY_DIR/AuthKey.p8"
-  fi
-  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' "$ASC_ENV_FILE" | cut -d= -f2- | tr -d "\"'") \
-    || { red "APPLE_ASC_KEY_ID is missing from the credentials file." >&2; return 1; }
-  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' "$ASC_ENV_FILE" | cut -d= -f2- | tr -d "\"'") \
-    || { red "APPLE_ASC_ISSUER_ID is missing from the credentials file." >&2; return 1; }
-  [ -n "$KEY_ID" ] && [ -n "$ISSUER" ] \
-    || { red "App Store Connect key and issuer IDs must not be empty." >&2; return 1; }
-  (umask 077; : > "$KEY_FILE")
-  if ! grep -E '^APPLE_ASC_PRIVATE_KEY=' "$ASC_ENV_FILE" | sed -E "s/^APPLE_ASC_PRIVATE_KEY=//; s/^['\"]//; s/['\"]$//" \
-    | perl -pe 's/\\n/\n/g' > "$KEY_FILE"; then
-    red "APPLE_ASC_PRIVATE_KEY is missing from the credentials file." >&2
-    return 1
-  fi
-  [ -s "$KEY_FILE" ] || { red "APPLE_ASC_PRIVATE_KEY must not be empty." >&2; return 1; }
-}
+asc_initialize
 
 # --- Preflight: signing identity -------------------------------------------------
 step "Preflight"
@@ -172,7 +140,7 @@ if [ "${SKIP_NOTARIZE:-0}" = "1" ]; then
   echo "SKIP_NOTARIZE=1 — skipping notarization (Gatekeeper will warn on other Macs)"
 else
   step "Notarizing"
-  write_asc_key
+  asc_write_key
   ZIP="$BUILD_DIR/notarize.zip"
   rm -f "$ZIP"
   ditto -c -k --keepParent "$APP" "$ZIP"
@@ -197,7 +165,7 @@ rm -rf "$STAGE"
 
 if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
   # The DMG itself is notarized too, so Gatekeeper is happy before the app is copied out.
-  write_asc_key
+  asc_write_key
   codesign --force --sign "$IDENTITY" --timestamp "$DMG"
   xcrun notarytool submit "$DMG" --key "$KEY_FILE" --key-id "$KEY_ID" --issuer "$ISSUER" --wait --timeout 30m
   xcrun stapler staple "$DMG"

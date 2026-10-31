@@ -1,8 +1,8 @@
 // asc-appstore.mjs — App Store Connect queries for the LOCAL App Store release flow.
 //
-// Reads its credentials from .env.local (APPLE_ASC_KEY_ID / APPLE_ASC_ISSUER_ID /
-// APPLE_ASC_PRIVATE_KEY / APPLE_APP_STORE_APP_ID) — the same key Xcode Cloud and
-// scripts/mac-devid-profile.mjs already use. Nothing is ever printed but ids and versions.
+// Reads its credentials from ASC_ENV_FILE or .env.local (APPLE_ASC_KEY_ID /
+// APPLE_ASC_ISSUER_ID / APPLE_ASC_PRIVATE_KEY / APPLE_APP_STORE_APP_ID). Nothing is ever printed
+// but ids and versions.
 //
 // Usage:
 //   node scripts/asc-appstore.mjs next    <ios|mac> [--floor N]   → next free build number
@@ -24,7 +24,7 @@ const api = async path => {
   return body;
 };
 
-const APP = pick('APPLE_APP_STORE_APP_ID') || die('APPLE_APP_STORE_APP_ID missing from .env.local');
+const APP = pick('APPLE_APP_STORE_APP_ID') || die('APPLE_APP_STORE_APP_ID missing from the credentials file');
 const PLATFORM = { ios: 'IOS', mac: 'MAC_OS' };
 
 const arg = (flag, dflt) => {

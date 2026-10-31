@@ -23,13 +23,14 @@
 # Every run ends with one line starting `RESULT:` saying exactly what happened.
 #
 # Signing is automatic: -allowProvisioningUpdates plus the App Store Connect API key, which stands
-# in for the Xcode account the CLI does not have. Credentials are read from .env.local BY NAME
-# (APPLE_ASC_KEY_ID / APPLE_ASC_ISSUER_ID / APPLE_ASC_PRIVATE_KEY / APPLE_APP_STORE_APP_ID); the
-# key is written mode-600 under build/ and deleted on every exit path. Nothing secret is printed.
+# in for the Xcode account the CLI does not have. ASC_ENV_FILE names a private credentials file
+# outside the repository. The temporary key is mode-600 in a private external directory and is
+# removed on exit. Nothing secret is printed.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-ROOT="$PWD"
+ROOT="$(pwd -P)"
+source "$ROOT/scripts/lib/asc-key.sh"
 
 TARGET="${1:-}"; shift || true
 UPLOAD=0; WAIT=1; SKIP_GATE=0; BUILD_NUM=""; ARCH=""
@@ -63,35 +64,42 @@ CURRENT_STEP="starting up"
 
 # Every exit path says what happened, in the same shape, so the outcome never has to be inferred
 # from scrollback. The signing key is removed here too — success, failure or Ctrl-C alike.
-KEY_FILE="$BUILD_DIR/.asc-key.p8"
+KEY_FILE=""
+KEY_DIR=""
+RESULT_MESSAGE=""
 finish() {
   local code=$?
-  rm -f "$KEY_FILE" 2>/dev/null || true
-  if [ "$code" -ne 0 ] && [ -z "${RESULT_PRINTED:-}" ]; then
-    echo ""
-    echo "RESULT: FAILED — $SCHEME, during: $CURRENT_STEP. Full output: $LOG"
+  trap - EXIT INT TERM
+  if ! asc_cleanup_key; then
+    if [ "$code" -eq 0 ]; then
+      code=1
+      RESULT_MESSAGE="Could not remove the temporary App Store Connect key; see the error above."
+    fi
   fi
-  return 0
+  if [ "$code" -eq 0 ]; then
+    [ -z "$RESULT_MESSAGE" ] || printf '\nRESULT: OK — %s\n' "$RESULT_MESSAGE"
+  else
+    [ -n "$RESULT_MESSAGE" ] || RESULT_MESSAGE="$SCHEME, during: $CURRENT_STEP. Full output: $LOG"
+    printf '\nRESULT: FAILED — %s\n' "$RESULT_MESSAGE"
+  fi
+  exit "$code"
 }
-trap finish EXIT INT TERM
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-fail() { echo ""; echo "RESULT: FAILED — $1"; RESULT_PRINTED=1; exit 1; }
-done_ok() { echo ""; echo "RESULT: OK — $1"; RESULT_PRINTED=1; }
+fail() { RESULT_MESSAGE="$1"; exit 1; }
+done_ok() { RESULT_MESSAGE="$1"; }
 
 # --- Credentials ------------------------------------------------------------------
 step "Preflight"
-[ -f .env.local ] || fail "no .env.local in astrid-ios. Fix: cp ../astrid-web/.env.local .env.local"
-env_val() { awk -v k="$1=" 'index($0, k) == 1 { sub(/^[^=]*=/, ""); gsub(/^"|"$/, ""); print; exit }' .env.local; }
+asc_initialize || fail "could not securely load App Store Connect credentials."
+export CHECK_VERSION_ENV_FILE="$ASC_ENV_FILE"
 for n in APPLE_ASC_KEY_ID APPLE_ASC_ISSUER_ID APPLE_ASC_PRIVATE_KEY APPLE_APP_STORE_APP_ID; do
-  grep -qE "^$n=." .env.local || fail "$n is missing from .env.local. Fix: cp ../astrid-web/.env.local .env.local"
+  grep -qE "^$n=." "$ASC_ENV_FILE" || fail "$n is missing from the credentials file."
 done
-KEY_ID=$(env_val APPLE_ASC_KEY_ID)
-ISSUER=$(env_val APPLE_ASC_ISSUER_ID)
+asc_write_key || fail "could not securely prepare the App Store Connect key."
 mkdir -p "$BUILD_DIR"
-(umask 077; : > "$KEY_FILE")
-# Match the APPLE_ASC_PRIVATE_KEY= prefix, not the first PEM block: .env.local holds other keys.
-grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
-  | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
 green "✓ App Store Connect API key loaded"
 
 # --- Versions ---------------------------------------------------------------------
@@ -108,7 +116,7 @@ TEAM_ID=$(setting DEVELOPMENT_TEAM)
 
 if [ -z "$BUILD_NUM" ]; then
   BUILD_NUM=$(node scripts/asc-appstore.mjs next "$TARGET" --floor "${PROJECT_BUILD:-0}") \
-    || fail "could not reach App Store Connect to pick a build number. Check the network and the APPLE_ASC_* values in .env.local"
+    || fail "could not reach App Store Connect to pick a build number. Check the network and the APPLE_ASC_* credentials."
 fi
 green "✓ $SCHEME $VERSION — build $BUILD_NUM"
 if [ "$UPLOAD" = "1" ]; then echo "  Mode: UPLOAD (this build will be sent to Apple)"; else echo "  Mode: build only — nothing will be sent to Apple"; fi

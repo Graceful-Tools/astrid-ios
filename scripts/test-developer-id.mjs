@@ -191,8 +191,10 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   const scriptsDir = join(dir, 'scripts');
   const binDir = join(dir, 'bin');
   mkdirSync(scriptsDir);
+  mkdirSync(join(scriptsDir, 'lib'));
   mkdirSync(binDir);
   copyFileSync(fileURLToPath(new URL('./package-mac.sh', import.meta.url)), join(scriptsDir, 'package-mac.sh'));
+  copyFileSync(fileURLToPath(new URL('./lib/asc-key.sh', import.meta.url)), join(scriptsDir, 'lib/asc-key.sh'));
   const credentials = join(keyTempDir, 'asc-credentials.env');
   writeFileSync(credentials, [
     "APPLE_ASC_PRIVATE_KEY='mock-private-line-1\\nmock-private-line-2'",
@@ -239,6 +241,7 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
       for path in "$@"; do
         case "$path" in
           "$MOCK_REPO"/build/*|"$MOCK_KEY_TMP"/*)
+            [ "\${MOCK_FAIL_CLEANUP:-0}" != 1 ] || exit 1
             [ ! -e "$path" ] || /bin/unlink "$path" ;;
           *) exit 1 ;;
         esac
@@ -347,4 +350,12 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   assert.notEqual(incomplete.status, 0);
   assert.match(incomplete.stderr, /APPLE_ASC_PRIVATE_KEY is missing/);
   assert.ok(readdirSync(keyTempDir).every(path => !path.startsWith('astrid-asc.')));
+
+  const cleanup = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh')], {
+    cwd: dir,
+    env: { ...env, MOCK_FAIL_CLEANUP: '1' },
+    encoding: 'utf8',
+  });
+  assert.notEqual(cleanup.status, 0);
+  assert.match(cleanup.stderr, /could not remove temporary.*key/i);
 });

@@ -46,7 +46,7 @@
 set -u
 cd "$(dirname "$0")/.."
 
-ENV_FILE="${CHECK_VERSION_ENV_FILE:-.env.local}"
+ENV_FILE="${CHECK_VERSION_ENV_FILE:-${ASC_ENV_FILE:-.env.local}}"
 TABLE_FILE="${APP_VERSION_TABLE_FILE:-../astrid-web/lib/app-version.ts}"
 
 [ $# -eq 0 ] || { echo "Usage: ./scripts/check-app-version-table.sh    (iOS only — see the header)" >&2; exit 2; }
@@ -55,7 +55,7 @@ skip() { echo "⊘ App version table check skipped — $1"; exit 0; }
 
 # --- Can this run at all? ---------------------------------------------------------
 [ -f "$TABLE_FILE" ] || skip "no astrid-web checkout at $TABLE_FILE, so there is no table to check"
-[ -f "$ENV_FILE" ] || skip "no $ENV_FILE here, so no App Store Connect key (cp ../astrid-web/.env.local .env.local to enable it)"
+[ -f "$ENV_FILE" ] || skip "no $ENV_FILE; set ASC_ENV_FILE to a credentials file outside the repository"
 for n in APPLE_ASC_KEY_ID APPLE_ASC_ISSUER_ID APPLE_ASC_PRIVATE_KEY APPLE_APP_STORE_APP_ID; do
   grep -qE "^$n=." "$ENV_FILE" || skip "$n is not set in $ENV_FILE"
 done
