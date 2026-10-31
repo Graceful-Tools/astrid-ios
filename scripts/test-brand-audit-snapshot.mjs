@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmdirSync,
   symlinkSync,
   unlinkSync,
@@ -29,7 +30,9 @@ function removeFixtureTree(root) {
 }
 
 function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'aitd-447-brand-audit-'));
+  // Physical path: macOS's tmpdir sits behind /var -> /private/var, and find_web_repo
+  // answers with the resolved directory.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'aitd-447-brand-audit-')));
   const first = join(root, 'first.plist');
   const second = join(root, 'second.plist');
   writeFileSync(first, 'first original\n');
