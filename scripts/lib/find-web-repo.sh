@@ -4,15 +4,26 @@
 # Extracted because both had their own copy (task 97208a72), and the two would have had
 # to be fixed together every time the worktree convention changed.
 #
-# Mirrors RepositoryLocator.siblingWebRepository() on the Swift side. When this repo is a
-# git worktree (astrid-ios-<topic>) the matching web worktree is astrid-web-<topic>;
-# prefer it, so a partner build from a feature worktree uses the brand on that branch.
+# Mirrors RepositoryLocator.siblingWebRepository() on the Swift side: an explicit checkout,
+# a checkout nested inside this one (CI), the paired worktree, then the plain sibling.
 #
 # Usage:  WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || echo "not found"
 
 find_web_repo() {
     local project_dir="$1"
     local parent base suffix
+    if [[ -n "${ASTRID_WEB_DIR:-}" ]]; then
+        if [[ ! -f "$ASTRID_WEB_DIR/package.json" ]]; then
+            echo "Invalid ASTRID_WEB_DIR: $ASTRID_WEB_DIR" >&2
+            return 1
+        fi
+        (cd "$ASTRID_WEB_DIR" && pwd -P)
+        return
+    fi
+    if [[ -f "$project_dir/astrid-web/package.json" ]]; then
+        echo "$project_dir/astrid-web"
+        return 0
+    fi
     parent="$(dirname "$project_dir")"
     base="$(basename "$project_dir")"
     suffix=""

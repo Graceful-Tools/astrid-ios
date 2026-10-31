@@ -11,7 +11,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 SUMMARY="$PWD/scripts/xcresult-summary.sh"
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-xcresult-test.XXXXXXXX") || exit 1
+if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
 mkdir -p "$TMP/bin" "$TMP/a.xcresult" "$TMP/b.xcresult"
 
 # The fake xcrun: `xcresulttool get test-results summary --path <bundle>` answers per bundle.

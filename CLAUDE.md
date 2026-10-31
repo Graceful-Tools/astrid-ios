@@ -69,6 +69,15 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run build` | Build app (quiet) |
 | `npm run build:verbose` | Build app (verbose — for debugging build failures) |
 
+For an isolated worktree, set `ASTRID_WEB_DIR` to the paired web checkout for the partner-brand,
+keyboard-parity and released-version checks. The audit restores its plist and entitlement changes
+when the files still match its output;
+if it detects another edit, it fails and keeps the original snapshot for recovery. Run it in an
+isolated worktree: edits racing the file checks and writes cannot be protected.
+Set `ASTRID_PRESERVE_TEST_RESULTS=1` to skip automatic result-bundle pruning and
+`ASTRID_UNIT_TEST_LOG_DIR` to use a private unit-test log directory. For isolated script fixtures,
+`ASTRID_KEEP_TEST_FIXTURES=1` retains them under `TMPDIR` for explicit cleanup.
+
 ### Test locations
 
 | Type | Path |

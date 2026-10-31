@@ -22,7 +22,8 @@ set -u
 cd "$(dirname "$0")/.."
 
 CHECK="$PWD/scripts/check-app-version-table.sh"
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-version-table-test.XXXXXXXX") || exit 1
+if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
 mkdir -p "$TMP/bin"
 ENV_FILE="$TMP/env.local"
 printf 'APPLE_ASC_KEY_ID=k\nAPPLE_ASC_ISSUER_ID=i\nAPPLE_ASC_PRIVATE_KEY="p"\nAPPLE_APP_STORE_APP_ID=1\n' > "$ENV_FILE"
@@ -87,6 +88,18 @@ expect_out "…and says it matches"        "matches"
 write_table 'latestVersion: "1.9.2", updateUrl: APP_STORE_URL'; export LIVE_IOS=1.9.2
 run 0 "a double-quoted version parses"
 expect_out "…and is read correctly"      "matches"
+
+# --- An explicitly selected web checkout is used unless the table itself is overridden ----
+mkdir -p "$TMP/web/lib"
+write_table "latestVersion: '1.9.3'"
+cp "$TABLE" "$TMP/web/lib/app-version.ts"
+write_table "latestVersion: '1.9.2'"; export LIVE_IOS=1.9.2
+OUT=$(env -u APP_VERSION_TABLE_FILE PATH="$TMP/bin:$PATH" CHECK_VERSION_ENV_FILE="$ENV_FILE" ASTRID_WEB_DIR="$TMP/web" "$CHECK" 2>&1); got=$?
+if [ "$got" = 1 ]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "✗ AITD-447: selected web table should be checked — exit $got"; echo "$OUT"; fi
+expect_out "selected web table is ahead" "ahead"
+OUT=$(PATH="$TMP/bin:$PATH" CHECK_VERSION_ENV_FILE="$ENV_FILE" ASTRID_WEB_DIR="$TMP/web" APP_VERSION_TABLE_FILE="$TABLE" "$CHECK" 2>&1); got=$?
+if [ "$got" = 0 ]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "✗ AITD-447: explicit table should take precedence — exit $got"; echo "$OUT"; fi
+expect_out "explicit table matches" "matches"
 
 # --- Versions compare numerically, not as text ------------------------------------------
 # "1.9.9" > "1.9.10" as strings, so a text compare would call this AHEAD and fail.

@@ -5,6 +5,7 @@
 // which must not.
 
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -232,6 +233,36 @@ test('keyboard parity skips visibly when astrid-web is not checked out', () => {
   if (fs.existsSync(path.resolve(root, '..', 'astrid-web'))) return   // a tmp dir with a sibling astrid-web: nothing to assert
   assert.deepEqual(result.violations, [])
   assert.equal(result.notes.length, 1)
+})
+
+test('AITD-447: keyboard parity reads the explicitly configured web checkout', () => {
+  const root = fixture({
+    'ios/Astrid Mac/Keyboard/KeyboardShortcuts.swift': '',
+    'nested-web/hooks/useKeyboardShortcuts.ts':
+      'export const KEYBOARD_SHORTCUTS = [{ key: "x", description: "", action: "onCompleteTask" }] as const\n',
+  })
+  const result = spawnSync(process.execPath, [
+    path.join(repo, 'scripts/check-source-contracts.mjs'),
+    '--root', path.join(root, 'ios'), '--only', 'keyboard-shortcuts-match-web',
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, ASTRID_WEB_DIR: path.join(root, 'nested-web') },
+  })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.match(result.stdout, /web key "x"/)
+})
+
+test('AITD-447: a missing explicitly configured keyboard contract fails visibly', () => {
+  const root = fixture({ 'ios/Astrid Mac/Keyboard/KeyboardShortcuts.swift': '' })
+  const result = spawnSync(process.execPath, [
+    path.join(repo, 'scripts/check-source-contracts.mjs'),
+    '--root', path.join(root, 'ios'), '--only', 'keyboard-shortcuts-match-web',
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, ASTRID_WEB_DIR: path.join(root, 'missing-web') },
+  })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.match(result.stdout, /ASTRID_WEB_DIR/)
 })
 
 test('source-file-size reports growth and a stale ceiling', () => {

@@ -47,7 +47,13 @@ set -u
 cd "$(dirname "$0")/.."
 
 ENV_FILE="${CHECK_VERSION_ENV_FILE:-${ASC_ENV_FILE:-.env.local}}"
-TABLE_FILE="${APP_VERSION_TABLE_FILE:-../astrid-web/lib/app-version.ts}"
+if [[ -n "${APP_VERSION_TABLE_FILE:-}" ]]; then
+  TABLE_FILE="$APP_VERSION_TABLE_FILE"
+elif [[ -n "${ASTRID_WEB_DIR:-}" ]]; then
+  TABLE_FILE="$ASTRID_WEB_DIR/lib/app-version.ts"
+else
+  TABLE_FILE="../astrid-web/lib/app-version.ts"
+fi
 
 [ $# -eq 0 ] || { echo "Usage: ./scripts/check-app-version-table.sh    (iOS only — see the header)" >&2; exit 2; }
 

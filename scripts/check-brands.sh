@@ -10,9 +10,9 @@
 # For each brands/*.brand.json in the paired astrid-web checkout (except astrid, which
 # deliberately configures nothing):
 #
-#   1. apply the profile to every Info.plist
-#   2. run BrandAuditTests — the assertions that only make sense on a partner build
-#   3. revert
+#   1. prepare branded copies of the plists and entitlements
+#   2. apply them and run BrandAuditTests — assertions that only make sense on a partner build
+#   3. restore only files that still match the audit's changes
 #
 # What this catches that nothing else can: BrandAuditTests asserts that Info.plist
 # configuration actually REACHES Brand, and that no Astrid value survives a rebrand. On
@@ -31,6 +31,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck source=lib/find-web-repo.sh
 source "$SCRIPT_DIR/lib/find-web-repo.sh"
+source "$SCRIPT_DIR/lib/brand-audit-snapshot.sh"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -40,41 +41,22 @@ NC='\033[0m'
 
 cd "$PROJECT_DIR"
 
-# The entitlements are restored with the plists: apply-brand.sh writes a partner's domain
-# into their associated domains, and a branded entitlement left behind would ship.
+# apply-brand.sh writes a partner's domain into the entitlements as well as the plists.
 PLISTS=("Info.plist" "Info-Debug.plist" "Astrid Mac/Info.plist"
         "Astrid App/Astrid App.entitlements" "Astrid Mac/Astrid Mac.entitlements"
         "Astrid Mac/Astrid Mac Direct.entitlements")
 
-# ALWAYS restore, however this exits — an interrupted run must never leave a partner's
-# brand written into the working tree, where the next build would silently pick it up.
-restore_plists() {
-    for plist in "${PLISTS[@]}"; do
-        [[ -f "$plist" ]] && git checkout -- "$plist" 2>/dev/null || true
-    done
-}
-
-# Refuse to start with uncommitted plist edits: the restore below is `git checkout --`,
-# which would throw them away.
-#
-# This guard runs BEFORE the trap is installed, and must stay that way. When the trap was
-# armed first, the guard's own `exit 1` fired it — so the check that exists to protect
-# uncommitted plist edits was itself deleting them, and the run that added
-# NSCameraUsageDescription lost the key with only a passing message to show for it.
+# Keep the existing clean-input requirement; snapshots also protect edits made during an audit.
 for plist in "${PLISTS[@]}"; do
     if [[ -f "$plist" ]] && ! git diff --quiet -- "$plist" 2>/dev/null; then
         echo -e "${RED}✗ $plist has uncommitted changes.${NC}"
-        echo "  This script reverts plists with 'git checkout --', which would discard them."
         echo "  Commit them first, then re-run."
         exit 1
     fi
 done
 
-# ALWAYS restore from here on, however this exits — an interrupted run must never leave a
-# partner's brand written into the working tree, where the next build would pick it up.
-trap restore_plists EXIT INT TERM
-
 WEB_REPO="$(find_web_repo "$PROJECT_DIR")" || {
+    [[ -n "${ASTRID_WEB_DIR:-}" ]] && exit 1
     echo -e "${YELLOW}No astrid-web checkout beside $(basename "$PROJECT_DIR") — skipping.${NC}"
     echo "Brand profiles live in astrid-web/brands/."
     exit 0
@@ -102,19 +84,42 @@ fi
 echo -e "${BLUE}=== Brand audit: ${PROFILES[*]} ===${NC}"
 echo ""
 
+finish_brand_audit() {
+    local result=$?
+    trap - EXIT INT TERM
+    if [[ -n "${BRAND_AUDIT_DIR:-}" ]]; then
+        brand_audit_restore || result=1
+        brand_audit_dispose || result=1
+    fi
+    exit "$result"
+}
+trap finish_brand_audit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+brand_audit_begin "${PLISTS[@]}"
+
 FAILED=0
 for profile in "${PROFILES[@]}"; do
     echo -e "${BLUE}── $profile ──${NC}"
 
-    "$SCRIPT_DIR/apply-brand.sh" "$profile" >/dev/null
+    brand_audit_prepare
+    BRAND_PLISTS="$(IFS=:; echo "${BRAND_AUDIT_EXPECTED[*]:0:3}")" \
+    BRAND_ENTITLEMENTS="$(IFS=:; echo "${BRAND_AUDIT_EXPECTED[*]:3:3}")" \
+        "$SCRIPT_DIR/apply-brand.sh" "$WEB_REPO/brands/$profile.brand.json" >/dev/null
+    brand_audit_install
 
+    IOS_LOG="$(mktemp "${TMPDIR:-/tmp}/brand-audit-ios.XXXXXXXX")"
+    MAC_LOG="$(mktemp "${TMPDIR:-/tmp}/brand-audit-mac.XXXXXXXX")" || {
+        rm -f -- "$IOS_LOG"
+        exit 1
+    }
     set +e
     xcodebuild test \
         -scheme "Astrid App" \
         -destination "$ASTRID_IOS_DESTINATION" \
         -only-testing:"Astrid AppTests/BrandAuditTests" \
         -collect-test-diagnostics never \
-        -quiet > "/tmp/brand-audit-$profile-ios.log" 2>&1
+        -quiet > "$IOS_LOG" 2>&1
     IOS_RESULT=$?
 
     # Mac is audited SEPARATELY, not assumed. apply-brand.sh writes "Astrid Mac/
@@ -124,17 +129,18 @@ for profile in "${PROFILES[@]}"; do
         -scheme "Astrid Mac" \
         -destination "platform=macOS" \
         -only-testing:"Astrid MacTests/MacBrandAuditTests" \
-        -quiet > "/tmp/brand-audit-$profile-mac.log" 2>&1
+        -quiet > "$MAC_LOG" 2>&1
     MAC_RESULT=$?
     set -e
 
-    restore_plists
+    brand_audit_restore
 
     for platform in ios mac; do
-        [[ "$platform" == "ios" ]] && RESULT=$IOS_RESULT || RESULT=$MAC_RESULT
-        log="/tmp/brand-audit-$profile-$platform.log"
+        if [[ "$platform" == "ios" ]]; then RESULT=$IOS_RESULT; log="$IOS_LOG"
+        else RESULT=$MAC_RESULT; log="$MAC_LOG"; fi
         if [[ $RESULT -eq 0 ]]; then
             echo -e "${GREEN}  ✓ $profile audits clean ($platform)${NC}"
+            rm -f -- "$log"
         else
             echo -e "${RED}  ✗ $profile failed the brand audit ($platform)${NC}"
             # -quiet suppresses per-assertion output, so match the failure lines

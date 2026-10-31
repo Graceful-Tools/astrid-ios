@@ -142,7 +142,16 @@ jobs:
         working-directory: astrid-web
         run: npm ci
 
+      - name: Prepare reusable simulator
+        run: npm run simulator:prepare
+
+      - name: Pin prepared simulator
+        run: echo "ASTRID_IOS_DESTINATION=${DESTINATION}" >> "${GITHUB_ENV}"
+
       - name: Run standard predeploy checks
+        env:
+          ASTRID_WEB_DIR: ${{ github.workspace }}/astrid-web
+          APP_VERSION_TABLE_FILE: ${{ github.workspace }}/astrid-web/lib/app-version.ts
         run: npm run predeploy
 
       - name: Run UI tests

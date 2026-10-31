@@ -90,7 +90,9 @@ RESULTS_DIR="$PROJECT_DIR/test-results"
 RESULTS_SUFFIX="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$(date +%s)"
 mkdir -p "$RESULTS_DIR"
 # A bundle per predeploy adds up; a week of them is plenty to look back through.
-find "$RESULTS_DIR" -maxdepth 1 -name '*.xcresult' -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+if [[ "${ASTRID_PRESERVE_TEST_RESULTS:-0}" != 1 ]]; then
+    find "$RESULTS_DIR" -maxdepth 1 -name '*.xcresult' -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+fi
 UNIT_RESULT="$RESULTS_DIR/unit-$RESULTS_SUFFIX.xcresult"
 
 # Run unit tests
@@ -98,6 +100,13 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
     echo -e "${BLUE}Running unit tests...${NC}"
     echo "  Destination: $DESTINATION"
     echo ""
+
+    UNIT_LOG_DIR="${ASTRID_UNIT_TEST_LOG_DIR:-/tmp}"
+    if [[ ! -d "$UNIT_LOG_DIR" || ! -w "$UNIT_LOG_DIR" ]]; then
+        echo -e "${RED}✗ Unit-test log directory is not writable: $UNIT_LOG_DIR${NC}" >&2
+        exit 1
+    fi
+    UNIT_LOG="$UNIT_LOG_DIR/unit_tests.log"
 
     set +e
     if [[ "$QUIET_MODE" == "true" ]]; then
@@ -108,7 +117,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -resultBundlePath "$UNIT_RESULT" \
             -enableCodeCoverage YES \
             "${DIAGNOSTICS_FLAGS[@]}" \
-            -quiet 2>&1 | tee /tmp/unit_tests.log
+            -quiet 2>&1 | tee "$UNIT_LOG"
 
         UNIT_EXIT=${PIPESTATUS[0]}
     else
@@ -118,7 +127,7 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
             -only-testing:"Astrid AppTests" \
             -resultBundlePath "$UNIT_RESULT" \
             -enableCodeCoverage YES \
-            "${DIAGNOSTICS_FLAGS[@]}" 2>&1 | tee /tmp/unit_tests.log
+            "${DIAGNOSTICS_FLAGS[@]}" 2>&1 | tee "$UNIT_LOG"
 
         UNIT_EXIT=${PIPESTATUS[0]}
     fi
@@ -135,20 +144,20 @@ if [[ "$RUN_UNIT_TESTS" == "true" ]]; then
         echo ""
         echo -e "${RED}✗ Unit tests failed${NC}"
         # Show failures
-        grep -E "(failed|error:)" /tmp/unit_tests.log | head -20 || true
+        grep -E "(failed|error:)" "$UNIT_LOG" | head -20 || true
         exit 1
     fi
     echo ""
 fi
 
-# Hand the UI suite a session — for an account of this run's own (AITD-527). The mint, the
-# plist and the cleanup are shared with the Mac suite: scripts/lib/uitest-session.sh.
-SESSION_PLIST="$PROJECT_DIR/Astrid AppUITests/UITestSession.plist"
-source "$SCRIPT_DIR/lib/uitest-session.sh"
-trap cleanup_uitest_session EXIT
-
 # Run UI tests
 if [[ "$RUN_UI_TESTS" == "true" ]]; then
+    # Hand the UI suite a session — for an account of this run's own (AITD-527). The mint,
+    # plist and cleanup are shared with the Mac suite: scripts/lib/uitest-session.sh.
+    SESSION_PLIST="$PROJECT_DIR/Astrid AppUITests/UITestSession.plist"
+    source "$SCRIPT_DIR/lib/uitest-session.sh"
+    trap cleanup_uitest_session EXIT
+
     echo -e "${BLUE}Running UI tests...${NC}"
     echo "  Destination: $DESTINATION"
     echo "  (This may take a few minutes)"
