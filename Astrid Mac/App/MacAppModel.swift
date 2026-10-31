@@ -153,6 +153,20 @@ final class MacAppModel: ObservableObject {
         }
     }
 
+    private var viewRefreshGate = MacViewRefreshGate()
+
+    /// Viewing a list or returning to the app (AITD-570). A background pass, so it never waits
+    /// behind one in flight. The gate decides whether one is due.
+    @MainActor func refreshOnView(now: Date = Date()) {
+        let sync = SyncManager.shared
+        guard viewRefreshGate.admit(isOnline: NetworkMonitor.shared.isConnected,
+                                    isSyncing: sync.isSyncing,
+                                    lastSync: sync.lastSyncDate, now: now) else { return }
+        _Concurrency.Task {
+            try? await sync.performFullSync(includeUserTasks: true, isUserInitiated: false)
+        }
+    }
+
     /// Menu-bar ⌘ commands (e0412a64). MacRootView owns the selection/content state, so these
     /// travel as requests rather than being mutated from the menu.
     @MainActor func requestSearch() { emit(.focusSearch) }

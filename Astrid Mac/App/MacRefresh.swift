@@ -22,4 +22,28 @@ enum MacRefresh {
     /// The spinner replaces the icon only while a sync is actually in flight.
     static func showsProgress(isSyncing: Bool) -> Bool { isSyncing }
 }
+
+/// The refresh nobody asks for: viewing a list, or coming back to the app (AITD-570).
+///
+/// Opening a list used to call `fetchTasksForListFromServer` and drop the answer. That was a
+/// paginated fetch of the whole list on every sidebar click, and it never reached the store, so
+/// nothing on screen changed. Viewing now asks for one sync pass, which is a delta
+/// (`updatedSince`) and merges into the store. This gate keeps it cheap. Clicking through the
+/// sidebar is one pass per `minInterval`, and a pass that just ran for another reason (⌘R,
+/// sign-in) counts. The live stream and the core's own timer keep things current between passes.
+struct MacViewRefreshGate {
+    static let minInterval: TimeInterval = 30
+
+    private var lastAdmitted: Date?
+
+    /// True when this view should start a pass, and if so, records it. A refused view (offline,
+    /// mid-sync) records nothing, so coming back online refreshes at once.
+    mutating func admit(isOnline: Bool, isSyncing: Bool, lastSync: Date?, now: Date) -> Bool {
+        guard MacRefresh.isEnabled(isOnline: isOnline, isSyncing: isSyncing) else { return false }
+        let freshest = [lastAdmitted, lastSync].compactMap { $0 }.max()
+        if let freshest, now.timeIntervalSince(freshest) < Self.minInterval { return false }
+        lastAdmitted = now
+        return true
+    }
+}
 #endif

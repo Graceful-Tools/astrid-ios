@@ -1325,10 +1325,13 @@ struct MacRootView: View {
             selectedTaskIds.removeAll()                        // close the detail panel when switching lists
             if let id { _Concurrency.Task { await loadPublicListTasksIfNeeded(id) } }
             appModel.selectedListId = id                       // mirror selection for menu/shortcut commands
-            // The global SyncManager already loaded all lists' tasks; just refresh the opened
-            // real list for immediacy (My Tasks/virtual needs no per-list fetch).
-            guard let id, id != Self.myTasksId else { return }
-            _Concurrency.Task { _ = try? await taskService.fetchTasksForListFromServer(id) }
+            // Refresh what is being viewed: one throttled delta pass (AITD-570). This used to be a
+            // full-list fetch per click whose answer was thrown away.
+            if id != nil { appModel.refreshOnView() }
+        }
+        // Coming back to the window is viewing it again (AITD-570).
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            appModel.refreshOnView()
         }
         .modifier(MacDetailSelectionSync(selection: selectedTaskIds, appModel: appModel))
         // Apply selection requested by the command palette, then clear the request (Task 5003c622).
