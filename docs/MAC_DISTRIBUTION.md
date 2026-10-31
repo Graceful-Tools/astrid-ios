@@ -30,3 +30,9 @@ These cannot be done from the repo; they require your Apple/Sparkle accounts:
 
 Once (1)–(3) are in place the `UpdaterController` Sparkle branch and the "Check for Updates…"
 menu item become live automatically — no further code changes.
+
+`npm run package:mac` installs the `Astrid Mac Developer ID` profile in Xcode's current and
+legacy profile directories, then selects it by UUID and signs with its exact certificate. Its
+matching private key must be in the keychain; an older Developer ID certificate with the same
+display name can remain installed during renewal. App Store Connect credentials are read from
+`.env.local`, or from the file named by `ASC_ENV_FILE`.

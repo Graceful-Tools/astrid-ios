@@ -11,7 +11,7 @@
 #     demands a matching profile before it will archive.
 #   • The Developer ID re-signing happens at EXPORT, against a MAC_APP_DIRECT profile. The CLI has
 #     no Xcode account ("No Accounts"), so the profile is created via the ASC API by
-#     scripts/mac-devid-profile.mjs and installed into ~/Library/MobileDevice/Provisioning Profiles.
+#     scripts/mac-devid-profile.mjs and installed in Xcode's provisioning-profile directory.
 #   • The export uses "Astrid Mac Direct.entitlements", which drops
 #     com.apple.developer.applesignin — Apple does not issue that entitlement in Developer ID
 #     profiles, and the export fails outright with it present. MacSignInOptions hides the Apple
@@ -22,7 +22,7 @@
 #     Apple only lets the ACCOUNT HOLDER create one — do it in Xcode
 #     (Settings › Accounts › Manage Certificates › + › Developer ID Application)
 #     or at developer.apple.com with scripts/../~/Documents/astrid-developerid/devid.csr.
-#   • ASC API credentials in .env.local (APPLE_ASC_KEY_ID / ISSUER_ID / PRIVATE_KEY) —
+#   • ASC API credentials in .env.local or ASC_ENV_FILE (APPLE_ASC_KEY_ID / ISSUER_ID / PRIVATE_KEY) —
 #     already present for Xcode Cloud; notarytool reuses them, so no app-specific password.
 #
 # Usage: npm run package:mac        (or ./scripts/package-mac.sh)
@@ -48,20 +48,22 @@ cleanup_key() { [ -n "$KEY_FILE" ] && rm -f "$KEY_FILE" 2>/dev/null; return 0; }
 trap cleanup_key EXIT INT TERM
 
 write_asc_key() {
+  local env_file="${ASC_ENV_FILE:-.env.local}"
+  [ -r "$env_file" ] || { red "Cannot read App Store Connect credentials file: $env_file" >&2; return 1; }
   mkdir -p "$BUILD_DIR"
   KEY_FILE="$BUILD_DIR/.asc-key.p8"
   (umask 077; : > "$KEY_FILE")
-  grep -E '^APPLE_ASC_PRIVATE_KEY=' .env.local | sed -E 's/^APPLE_ASC_PRIVATE_KEY=//; s/^"//; s/"$//' \
+  grep -E '^APPLE_ASC_PRIVATE_KEY=' "$env_file" | sed -E "s/^APPLE_ASC_PRIVATE_KEY=//; s/^['\"]//; s/['\"]$//" \
     | perl -pe 's/\\n/\n/g' > "$KEY_FILE"
-  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' .env.local | cut -d= -f2- | tr -d '"')
-  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' .env.local | cut -d= -f2- | tr -d '"')
+  KEY_ID=$(grep -E '^APPLE_ASC_KEY_ID=' "$env_file" | cut -d= -f2- | tr -d "\"'")
+  ISSUER=$(grep -E '^APPLE_ASC_ISSUER_ID=' "$env_file" | cut -d= -f2- | tr -d "\"'")
 }
 
 # --- Preflight: signing identity -------------------------------------------------
 step "Preflight"
 # `|| true`: no match is an expected state (cert not created yet), not a pipeline failure.
-IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)"/\1/' || true)
-if [ -z "$IDENTITY" ]; then
+IDENTITY_NAME=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)"/\1/' || true)
+if [ -z "$IDENTITY_NAME" ]; then
   red "No 'Developer ID Application' certificate found in the keychain."
   echo "Create one (Account Holder only):"
   echo "  Xcode › Settings › Accounts › Manage Certificates › + › Developer ID Application"
@@ -69,8 +71,7 @@ if [ -z "$IDENTITY" ]; then
   echo "    https://developer.apple.com/account/resources/certificates/add"
   exit 1
 fi
-green "✓ Signing identity: $IDENTITY"
-TEAM_ID=$(echo "$IDENTITY" | sed -E 's/.*\(([A-Z0-9]+)\)$/\1/')
+green "✓ Developer ID signing identity found"
 
 # Read the version from the Mac scheme's own build settings. A grep of project.pbxproj
 # picks up whichever target appears first in the file (the iOS app), which silently
@@ -83,12 +84,16 @@ PRODUCT=$(setting FULL_PRODUCT_NAME)   # "Astrid.app" — not "$SCHEME.app"
 [ -n "$VERSION" ] && [ -n "$PRODUCT" ] || { red "Could not read the Mac target's build settings"; exit 1; }
 green "✓ Version $VERSION ($BUILD_NUM)"
 
-rm -rf "$ARCHIVE" "$EXPORT_DIR"
-mkdir -p "$DIST_DIR"
-
 # --- Archive ---------------------------------------------------------------------
 step "Provisioning profile"
-node scripts/mac-devid-profile.mjs || { red "Could not obtain a Developer ID profile"; exit 1; }
+PROFILE_PATH=$(node scripts/mac-devid-profile.mjs --print-path) || { red "Could not obtain a Developer ID profile"; exit 1; }
+SIGNING_IDENTITY=$(node scripts/mac-devid-identity.mjs "$PROFILE_PATH") || { red "Could not match the Developer ID profile to an installed identity"; exit 1; }
+read -r IDENTITY TEAM_ID <<< "$SIGNING_IDENTITY"
+PROFILE_UUID=$(basename "$PROFILE_PATH" .provisionprofile)
+green "✓ Signing identity: $IDENTITY (team $TEAM_ID)"
+
+rm -rf "$ARCHIVE" "$EXPORT_DIR"
+mkdir -p "$DIST_DIR"
 
 step "Archiving"
 xcodebuild archive \
@@ -112,10 +117,10 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
     <key>method</key><string>developer-id</string>
     <key>teamID</key><string>$TEAM_ID</string>
     <key>signingStyle</key><string>manual</string>
-    <key>signingCertificate</key><string>Developer ID Application</string>
+    <key>signingCertificate</key><string>$IDENTITY</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>Graceful-Tools-Inc.Astrid-App</key><string>Astrid Mac Developer ID</string>
+        <key>Graceful-Tools-Inc.Astrid-App</key><string>$PROFILE_UUID</string>
     </dict>
     <key>destination</key><string>export</string>
 </dict>
