@@ -383,6 +383,11 @@ if [ -n "$WIP" ] && sgit show "$WIP:leftover.txt" >/dev/null 2>&1 \
    && sgit log -1 --format=%s "$WIP" | grep -q "UNFINISHED, UNVERIFIED"; then ok
 else bad "…the leftover work is pushed as a WIP commit on a wip/ branch" "$(sgit branch -a)"; fi
 posted "…and the board is told where it went" "saved as an unverified WIP commit"
+# AITD-572: the release comment finds a task's work by the task id in branch names, and a
+# wip/fixall-ios-* branch has none — so it named an old merged branch instead. The loop
+# knows exactly where it saved the work, so it says so.
+called "AITD-572: the release names the WIP branch the loop just saved" \
+       "release-stuck-doing.ts" "--claims-file" "--saved-branch ${WIP#origin/}"
 clean_sandbox
 
 # A run the watchdog kills mid-task, on its task branch: the work lands on THAT branch.
@@ -404,6 +409,21 @@ if [ "$(sgit rev-parse --abbrev-ref HEAD)" = "main" ] && [ -z "$(sgit status --p
 else bad "a killed run's work is saved on its task branch, pushed, and HEAD is back on main" "$OUT
 $(sgit branch -a)"; fi
 posted "…and the board hears where its work went" "saved on \`fix/aitd-9-half-done\`"
+called "AITD-572: a killed run's release names the task branch holding its work" \
+       "release-stuck-doing.ts" "--saved-branch fix/aitd-9-half-done"
+
+# AITD-572: recovery runs in a LATER process, so the saved branch is journaled. Here the
+# work is saved but the release fails; the next tick's retry must still name the branch.
+rm -f "$STALL_STATE"
+STUB_RELEASE_EXIT=1 run_sandbox "$TMP/bin/claude-leaves-mess"
+JOURNALED_WIP=$(sgit branch -r --list 'origin/wip/fixall-ios-*' --sort=-committerdate | tr -d ' ' | head -1)
+if [ "$STATUS" != 0 ] && [ -d "$TMP/sandbox-run-state/active" ]; then ok
+else bad "AITD-572 fixture: a failed release leaves the run pending" "$OUT"; fi
+run_sandbox
+called "AITD-572: the retried release still names the saved branch" \
+       "release-stuck-doing.ts" "--claims-file" "--saved-branch ${JOURNALED_WIP#origin/}"
+if [ ! -d "$TMP/sandbox-run-state/active" ]; then ok
+else bad "AITD-572: the recovered run clears its journal, saved branch included" "$(ls "$TMP/sandbox-run-state/active")"; fi
 
 # A run that committed its work but ended on its task branch: push it, go back to main.
 cat > "$TMP/bin/claude-leaves-branch" <<'STUB'
@@ -430,6 +450,7 @@ chmod +x "$TMP/bin/claude-env"
 run_sandbox "$TMP/bin/claude-env"
 if grep -q "claude MAX_TASKS=1" "$CALLS"; then ok
 else bad "the session is told to take one task (ASTRID_FIXALL_MAX_TASKS=1)" "$(cat "$CALLS")"; fi
+not_called "--saved-branch" "AITD-572: a run that saved nothing names no branch"
 clean_sandbox
 
 # --- A run that SAYS it failed is a failed run, whatever it exits (AITD-440) ---------

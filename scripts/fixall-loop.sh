@@ -210,7 +210,14 @@ $(echo "$pr_out" | grep 'PR: FAILED')"
     touch "$ACTIVE_RUN/prs-done" || return 1
   fi
   if [ ! -f "$ACTIVE_RUN/claims-released" ]; then
-    ( cd "$WEB" && "$TSX" scripts/release-stuck-doing.ts --agent claude --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" )
+    # Name the branch the work was saved on (AITD-572). The release otherwise finds a task's
+    # work by the task id in branch names, which a wip/fixall-ios-* branch does not carry, so
+    # it pointed the next run at an old merged branch while the real WIP went unmentioned.
+    local -a saved_args
+    saved_args=()
+    [ ! -s "$ACTIVE_RUN/saved-branch" ] || saved_args=(--saved-branch "$(cat "$ACTIVE_RUN/saved-branch")")
+    ( cd "$WEB" && "$TSX" scripts/release-stuck-doing.ts --agent claude --claims-file "$ACTIVE_RUN/claims" --repo "$REPO" \
+        "${saved_args[@]}" )
     result=$?
     [ "$result" -eq 0 ] || return "$result"
     touch "$ACTIVE_RUN/claims-released" || return 1
@@ -230,7 +237,8 @@ $(echo "$pr_out" | grep 'PR: FAILED')"
   fi
   rm -f "$ACTIVE_RUN/claims" "$ACTIVE_RUN/keys" "$ACTIVE_RUN/outcome" "$ACTIVE_RUN/run.out" \
     "$ACTIVE_RUN/child.pid" "$ACTIVE_RUN/child.started" "$ACTIVE_RUN/guard-clean" "$ACTIVE_RUN/prs-done" \
-    "$ACTIVE_RUN/claims-released" "$ACTIVE_RUN/wake-recorded" "$ACTIVE_RUN/watchdog-fired" || return 1
+    "$ACTIVE_RUN/claims-released" "$ACTIVE_RUN/wake-recorded" "$ACTIVE_RUN/watchdog-fired" \
+    "$ACTIVE_RUN/saved-branch" || return 1
   rmdir "$ACTIVE_RUN"
 }
 
@@ -256,6 +264,9 @@ The build and tests have not been run on this. Continue from here; do not ship i
   if [ "$end_branch" != "main" ]; then
     git push -q -u origin "$end_branch" || return 1
     echo "  run left $end_branch — pushed it to origin for review"
+    # Journaled, not a variable: when this runs during recovery the release may still fail
+    # and be retried by a later process, which must name the same branch (AITD-572).
+    printf '%s\n' "$end_branch" > "$ACTIVE_RUN/saved-branch" || return 1
     git checkout -q main || return 1
     echo "  returned to main from $end_branch"
   fi
