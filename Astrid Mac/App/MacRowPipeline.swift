@@ -60,8 +60,8 @@ enum MacRowPipeline {
         var shape = TaskList(id: id, name: "")
         shape.filterCompletion = "all"
         shape.sortBy = override ?? "auto"
-        let mine = tasksInList(id)
-        return .init(listId: id, list: shape, tasks: mine.isEmpty ? publicListTasks[id] : nil,
+        return .init(listId: id, list: shape, tasks: publicRows(id, tasksInList: tasksInList,
+                                                                publicListTasks: publicListTasks),
                      subtaskDisplay: display, currentUserId: userId)
     }
 
@@ -79,11 +79,25 @@ enum MacRowPipeline {
         if id == searchId { return searchResults() }
         // Saved-filter / virtual lists (isVirtual) filter across ALL tasks (efd05e56), like iOS.
         if lists.first(where: { $0.id == id })?.isVirtual == true { return allTasks }
-        // A public list you do not belong to has no tasks in the local store, which holds only
-        // yours — so its rows come from the on-demand fetch instead of showing empty (dfb037c7).
+        // A public list you do not belong to: the local store holds only yours of its tasks, so
+        // its rows are those plus the on-demand fetch (dfb037c7, AITD-573).
+        if lists.contains(where: { $0.id == id }) { return tasksInList(id) }
+        return publicRows(id, tasksInList: tasksInList, publicListTasks: publicListTasks) ?? tasksInList(id)
+    }
+
+    /// A public list you only view: your cached tasks in it, then everyone else's from
+    /// `GET /api/v1/tasks?listId=` — `nil`, the cache alone, until that fetch lands.
+    ///
+    /// Not `fetched` only when the cache is empty, as it was: the sync read is to stop carrying
+    /// strangers' public lists (web AWTD-1451), and then one task of yours in such a list — one
+    /// assigned to you — hid all of its others (AITD-573). Your cached copy wins, as on iOS
+    /// (`TaskListRows.mergeFeatured`): it carries edits the server has not heard yet.
+    static func publicRows(_ id: String, tasksInList: (String) -> [Task],
+                           publicListTasks: [String: [Task]]) -> [Task]? {
+        guard let fetched = publicListTasks[id] else { return nil }
         let mine = tasksInList(id)
-        if mine.isEmpty, let fetched = publicListTasks[id] { return fetched }
-        return mine
+        let seen = Set(mine.map(\.id))
+        return mine + fetched.filter { !seen.contains($0.id) }
     }
 
     /// The sidebar's numbers (AITD-460): a list's own from membership, a saved filter's and My

@@ -156,5 +156,40 @@ final class MacRowPipelineTests: XCTestCase {
         XCTAssertEqual(selectionTasks("list-1", searchResults: [task("hit")]), [],
                        "a list's rows are its own, never the search's")
     }
+    // MARK: a public list you do not belong to (AITD-573)
+
+    /// AITD-573: once the server stops fanning every PUBLIC list into the sync read (web
+    /// AWTD-1451 step 2), the cache holds only YOUR tasks in a stranger's public list — the one
+    /// assigned to you, the one you made. The rows used to take the fetch only when the cache had
+    /// none (`mine.isEmpty`), so one cached task hid the rest of the list. They are the merge.
+    @MainActor
+    func test_AITD573_aPublicListYouDoNotBelongToMergesTheFetchWithYourCachedTasks() throws {
+        var yours = task("yours"); yours.listIds = ["pub"]; yours.assigneeId = "me"
+        var theirs = task("theirs"); theirs.listIds = ["pub"]
+        var stale = yours; stale.title = "server copy"
+        let fetched = ["pub": [stale, theirs]]
+
+        let query = try XCTUnwrap(MacRowPipeline.rowsQuery(
+            selection: "pub", myTasksId: "mine", searchId: "search", lists: [], myTasks: MyTasksPreferences(),
+            override: "", userId: "me", tasksInList: { _ in [yours] }, publicListTasks: fetched))
+        XCTAssertEqual(query.tasks?.map(\.id), ["yours", "theirs"],
+                       "AITD-573: your cached task plus everyone else's from ?listId=")
+        XCTAssertEqual(query.tasks?.first?.title, "yours", "the cache's copy of your own task wins")
+
+        let acted = MacRowPipeline.tasksForSelection(
+            selection: "pub", myTasksId: "mine", searchId: "search", lists: [], rendered: [], searchResults: [],
+            allTasks: [yours], tasksInList: { _ in [yours] }, publicListTasks: fetched)
+        XCTAssertEqual(acted.map(\.id), ["yours", "theirs"], "AITD-573: a row action finds the fetched rows too")
+    }
+
+    /// Before the fetch lands — or offline — the list draws from the cache, as it always did.
+    @MainActor
+    func test_AITD573_withNoFetchThePublicListDrawsFromTheCache() throws {
+        var yours = task("yours"); yours.listIds = ["pub"]
+        let query = try XCTUnwrap(MacRowPipeline.rowsQuery(
+            selection: "pub", myTasksId: "mine", searchId: "search", lists: [], myTasks: MyTasksPreferences(),
+            override: "", userId: "me", tasksInList: { _ in [yours] }, publicListTasks: [:]))
+        XCTAssertNil(query.tasks, "nil asks the core for the cache's rows")
+    }
 }
 #endif

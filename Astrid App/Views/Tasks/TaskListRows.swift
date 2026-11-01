@@ -15,6 +15,14 @@ struct TaskListRowsKey: Equatable {
 }
 
 enum TaskListRows {
+    /// Does opening this list read it from the server (`GET /api/v1/tasks?listId=`) rather than
+    /// the sync cache? Yes for a list that is not one of yours: the cache holds only your tasks in
+    /// it once the sync read stops carrying every PUBLIC list (web AWTD-1451, AITD-573). No when
+    /// you have no lists loaded yet: that is a first launch, not proof the list is someone else's.
+    static func browsesFromServer(listId: String, yourLists: [TaskList]) -> Bool {
+        !yourLists.isEmpty && !yourLists.contains { $0.id == listId }
+    }
+
     /// A featured public list: your own tasks in it (the source of truth — optimistic tasks,
     /// edits) plus other people's public tasks from the list fetch, yours winning on a clash.
     static func mergeFeatured(tasks: [Task], featuredListTasks: [Task], listId: String,
