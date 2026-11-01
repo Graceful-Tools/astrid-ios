@@ -100,13 +100,39 @@ class ReviewPromptManager: ObservableObject {
         showFeedbackPrompt = true
     }
 
-    /// Opens the Bugs and Feedback list so user can report an issue
+    /// Where Report an Issue goes on the connected deployment.
+    enum FeedbackDestination: Equatable {
+        case list(id: String)
+        case web(URL)
+    }
+
+    /// The deployment's own feedback list when it names one, otherwise its web root
+    /// (AITD-571). Never a compiled-in id: that sent white-label users to Astrid's board.
+    nonisolated static func feedbackDestination(
+        brand: ServerCapabilities.BrandInfo,
+        baseURL: String
+    ) -> FeedbackDestination? {
+        if let id = brand.feedbackListId {
+            return .list(id: id)
+        }
+        return URL(string: baseURL).map(FeedbackDestination.web)
+    }
+
+    /// Opens the deployment's Bugs and Feedback list so user can report an issue
     func openFeedbackForm() {
-        AppLog.debug("🎯 [ReviewPrompt] Opening Bugs and Feedback list")
-        ListPresenter.shared.showPublicList(
-            listId: Constants.Lists.bugsAndRequestsListId,
-            name: "Bugs & Feedback"
-        )
+        switch Self.feedbackDestination(
+            brand: ServerCapabilityService.shared.capabilities.brand,
+            baseURL: Constants.API.baseURL
+        ) {
+        case .list(let id):
+            AppLog.debug("🎯 [ReviewPrompt] Opening Bugs and Feedback list")
+            ListPresenter.shared.showPublicList(listId: id, name: "Bugs & Feedback")
+        case .web(let url):
+            AppLog.debug("🎯 [ReviewPrompt] No feedback list on this deployment, opening the web")
+            UIApplication.shared.open(url)
+        case nil:
+            break
+        }
     }
 
     /// Opens the app's support/contact page via email

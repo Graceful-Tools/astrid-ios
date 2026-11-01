@@ -148,11 +148,6 @@ import Foundation
     // Colours have exactly two homes now: Theme.swift for surfaces, Brand.swift for the
     // brand accent. scripts/check-brand.sh keeps it that way.
 
-    enum Lists {
-        // Special list IDs
-        static let bugsAndRequestsListId = "6afe098f-e163-46f7-ac4b-4f879a9314eb"
-    }
-
     enum Localization {
         // Supported language codes (ISO 639-1)
         static let supportedLanguages = ["en", "es", "fr", "de", "it", "ja", "ko", "nl", "pt", "ru", "zh-Hans", "zh-Hant"]

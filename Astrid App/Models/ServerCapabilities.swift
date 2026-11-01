@@ -166,6 +166,11 @@ struct ServerCapabilities: Codable, Equatable {
         var wordmark: String?
         var slogan: String?
         var agentName: String?
+        /// The public list Report an Issue opens, or nil when this deployment names none —
+        /// then the app opens the deployment's web instead (AITD-571). A list id is a row in
+        /// the deployment's own database, so only the server can name it: the compiled-in
+        /// constant it replaces sent white-label users to Astrid's own feedback board.
+        var feedbackListId: String?
 
         init() {}
 
@@ -175,6 +180,17 @@ struct ServerCapabilities: Codable, Equatable {
             wordmark = Self.sanitize(try c.decodeIfPresent(String.self, forKey: .wordmark))
             slogan = Self.sanitize(try c.decodeIfPresent(String.self, forKey: .slogan))
             agentName = Self.sanitize(try c.decodeIfPresent(String.self, forKey: .agentName))
+            feedbackListId = Self.sanitizeListId(try c.decodeIfPresent(String.self, forKey: .feedbackListId))
+        }
+
+        /// Blank is how a brand profile turns the feature off, not an id. The id is put into
+        /// a URL path, so only id characters pass — the same alphabet as uuids and cuids.
+        static func sanitizeListId(_ raw: String?) -> String? {
+            guard let trimmed = sanitize(raw) else { return nil }
+            let allowed = CharacterSet(charactersIn:
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+            guard trimmed.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+            return trimmed
         }
 
         /// Trim, then reject anything that cannot be a brand value.

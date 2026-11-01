@@ -144,8 +144,9 @@ struct TaskListView: View {
             return true
         }
 
-        // Special case: Bugs & Feedback list allows anyone to add tasks
-        if selectedListId == Constants.Lists.bugsAndRequestsListId {
+        // Special case: the deployment's Bugs & Feedback list allows anyone to add tasks
+        if let feedbackListId = ServerCapabilityService.shared.capabilities.brand.feedbackListId,
+           selectedListId == feedbackListId {
             return true
         }
 
