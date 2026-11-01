@@ -69,9 +69,12 @@ struct ReferenceNavigationModifier: ViewModifier {
                 set: { if !$0 { navigateToListId = nil } }
             )) {
                 if let listId = navigateToListId {
+                    // A link to someone else's public list opens it as the featured browser does,
+                    // fetched by id — the sync cache does not hold its tasks (AITD-573).
                     TaskListView(
                         selectedListId: .constant(listId),
-                        isViewingFromFeatured: .constant(false)
+                        isViewingFromFeatured: .constant(TaskListRows.browsesFromServer(
+                            listId: listId, yourLists: ListService.shared.lists))
                     )
                 }
             }

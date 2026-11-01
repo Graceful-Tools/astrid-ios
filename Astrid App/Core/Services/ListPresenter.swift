@@ -19,10 +19,12 @@ class ListPresenter: ObservableObject {
         AppLog.debug("🎯 [ListPresenter] Initializing...")
     }
 
-    /// Navigate to a user's own list by ID
-    func showList(listId: String) {
+    /// Navigate to a list by ID — a deep link's. One that is not yours opens as a public list,
+    /// fetched by id: the sync cache does not hold its tasks (AITD-573).
+    func showList(listId: String, yourLists: [TaskList]? = nil) {
         AppLog.debug("🔄 [ListPresenter] Navigating to list: \(listId)")
-        self.isShowingFeaturedList = false
+        self.isShowingFeaturedList = TaskListRows.browsesFromServer(
+            listId: listId, yourLists: yourLists ?? ListService.shared.lists)
         self.featuredListToShow = nil
         self.listIdToShow = listId
     }
