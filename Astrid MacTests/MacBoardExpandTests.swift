@@ -18,5 +18,19 @@ final class MacBoardExpandTests: XCTestCase {
     func testTappingAnotherCardSwitches() {
         XCTAssertEqual(MacBoardExpand.toggle(current: "a", tapped: "b"), "b")
     }
+
+    // MARK: AITD-575 — the rails under the control and the caret close the card
+
+    func testAITD575_aRailClosesTheOpenCard() {
+        XCTAssertNil(MacBoardExpand.railTap(current: "a", tapped: "a"))
+    }
+
+    func testAITD575_aRailDoesWhatTheCaretDoes() {
+        for (current, tapped) in [(nil, "a"), ("a", "a"), ("a", "b")] as [(String?, String)] {
+            XCTAssertEqual(MacBoardExpand.railTap(current: current, tapped: tapped),
+                           MacBoardExpand.toggle(current: current, tapped: tapped))
+        }
+    }
+
 }
 #endif

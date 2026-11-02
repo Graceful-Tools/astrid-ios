@@ -146,15 +146,19 @@ struct MacBoardView: View {
                 // so those are what it should let you set — the argument `MacLeadingControlButton`
                 // was written for. Adopting it rather than copying it is the point: a second
                 // implementation is exactly how the board and the panel came to disagree.
-                MacLeadingControlButton(
-                    task: t,
-                    priority: priorityBinding(t),
-                    members: members,
-                    surface: .boardCard,
-                    onPriority: { setPriority(t, $0) },
-                    onAssignee: { setAssignee(t, $0) },
-                    onToggleComplete: { toggleComplete(t) }
-                )
+                VStack(spacing: 0) {
+                    MacLeadingControlButton(
+                        task: t,
+                        priority: priorityBinding(t),
+                        members: members,
+                        surface: .boardCard,
+                        onPriority: { setPriority(t, $0) },
+                        onAssignee: { setAssignee(t, $0) },
+                        onToggleComplete: { toggleComplete(t) }
+                    )
+                    Spacer(minLength: 0)
+                }
+                .modifier(rail(t))
                 VStack(alignment: .leading, spacing: 2) {
                     // Open: the title is a field — the card's editor has no title row because
                     // this is where the title lives (AITD-471).
@@ -207,13 +211,20 @@ struct MacBoardView: View {
                         MacBoardCardActionsMenu(task: t, lists: listService.lists,
                                                 currentListId: listId, actions: cardActions(t))
                     case .collapse:
-                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                            .macFont(.caption2).foregroundStyle(Theme.textMuted)
-                            .contentShape(Rectangle())
-                            .onTapGesture { toggleExpanded(t) }
+                        VStack(spacing: 0) {
+                            Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                                .macFont(.caption2).foregroundStyle(Theme.textMuted)
+                                .contentShape(Rectangle())
+                                .onTapGesture { toggleExpanded(t) }
+                            Spacer(minLength: 0)
+                        }
+                        .modifier(rail(t))
                     }
                 }
             }
+            // Each column as tall as the tallest, so the rails under the control and the caret
+            // run the full height of the header instead of collapsing to nothing (AITD-575).
+            .fixedSize(horizontal: false, vertical: true)
 
             if expanded {
                 Divider()
@@ -289,6 +300,17 @@ struct MacBoardView: View {
             delete: { deleteTask(t) },
             fullScreen: { openFullScreen(t) }
         )
+    }
+
+    /// The strip under the leading control or the caret: the caret's toggle, with a wider target
+    /// (AITD-575). Never a completion. The control's own click wins over the column's, so only
+    /// the empty space beneath it is the rail.
+    private func rail(_ t: Task) -> MacBoardRail {
+        MacBoardRail {
+            withAnimation(MacMotion.spring) {
+                expandedCardId = MacBoardExpand.railTap(current: expandedCardId, tapped: t.id)
+            }
+        }
     }
 
     private func toggleExpanded(_ t: Task) {

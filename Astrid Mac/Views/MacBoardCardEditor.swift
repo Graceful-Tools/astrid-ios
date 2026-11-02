@@ -33,6 +33,29 @@ enum MacBoardExpand {
     /// Clicking the title opens the card and never closes it: on an open card that click is
     /// placing the caret in the title field. Only the caret toggles (AITD-471).
     static func titleTap(current: String?, tapped: String) -> String? { tapped }
+
+    /// The empty strips under the leading control and under the caret (AITD-575). They do what
+    /// the caret does, so an open card closes from either edge rather than only from a target the
+    /// size of a chevron. They never touch the task: the control above the left strip completes
+    /// it, and a strip that did too would be the trapdoor 9be8cb1b took off the card.
+    static func railTap(current: String?, tapped: String) -> String? {
+        toggle(current: current, tapped: tapped)
+    }
+}
+
+/// A header column, stretched to the header's height, whose empty space toggles the card (AITD-575).
+///
+/// No accessibility identifier: on a container it would replace the leading control's own, which
+/// the UI tests find it by.
+struct MacBoardRail: ViewModifier {
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxHeight: .infinity, alignment: .top)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+    }
 }
 
 struct MacBoardCardEditor: View {
