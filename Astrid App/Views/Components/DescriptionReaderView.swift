@@ -38,6 +38,24 @@ struct DescriptionExpandButton: View {
     }
 }
 
+/// A task you can only read: its description, and the way into the reader.
+struct ReadOnlyDescriptionRow: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Binding var text: String
+
+    var body: some View {
+        TwoColumnRow(label: "Description") {
+            HStack(alignment: .top, spacing: 0) {
+                Text(text)
+                    .font(Theme.Typography.body())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                DescriptionExpandButton(text: $text, isReadOnly: true)
+            }
+        }
+    }
+}
+
 struct DescriptionReaderView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss

@@ -478,15 +478,7 @@ struct TaskDetailViewNew: View {
                 if isReadOnly {
                     // View-only: Only show description if it exists
                     if !editedDescription.isEmpty {
-                        TwoColumnRow(label: "Description") {
-                            HStack(alignment: .top, spacing: 0) {
-                                Text(editedDescription)
-                                    .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                DescriptionExpandButton(text: $editedDescription, isReadOnly: true) // AITD-577
-                            }
-                        }
+                        ReadOnlyDescriptionRow(text: $editedDescription)
                     }
                 } else {
                     InlineTextAreaEditor(
