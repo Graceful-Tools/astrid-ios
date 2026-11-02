@@ -109,7 +109,7 @@ dependencies = [
 [[package]]
 name = "astrid-core"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=cd47d052553fd49c3fcdd75174c6a1379aac3275#cd47d052553fd49c3fcdd75174c6a1379aac3275"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=3677cfb631d6fe415db5a77403e2c79f4e0b8c2b#3677cfb631d6fe415db5a77403e2c79f4e0b8c2b"
 dependencies = [
  "astrid-rules",
  "async-trait",
@@ -124,6 +124,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "strum",
  "thiserror",
  "tokio",
  "tracing",
@@ -134,7 +135,7 @@ dependencies = [
 [[package]]
 name = "astrid-rules"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=cd47d052553fd49c3fcdd75174c6a1379aac3275#cd47d052553fd49c3fcdd75174c6a1379aac3275"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=3677cfb631d6fe415db5a77403e2c79f4e0b8c2b#3677cfb631d6fe415db5a77403e2c79f4e0b8c2b"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -477,7 +478,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1291,7 +1292,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1428,7 +1429,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1692,6 +1693,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "strum"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
+dependencies = [
+ "strum_macros",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.27.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1749,7 +1771,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
