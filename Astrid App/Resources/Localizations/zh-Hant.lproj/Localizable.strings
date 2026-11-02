@@ -963,6 +963,8 @@
 "sync.sync_now" = "立即同步";
 "sync.unlink" = "取消關聯";
 "task_detail.completed_via" = "透過 %@ 完成";
+"task_detail.description.full_screen" = "全螢幕開啟";
+"task_detail.description.preview" = "預覽";
 "sync.mode_bidirectional" = "保持全部雙向同步";
 "sync.mode_footer_bidirectional" = "您的 Google Tasks 清單會出現在 %1$@ 中，%1$@ 清單也會出現在 Google Tasks 中。雙方的新清單會自動加入，同名清單會配對而不會重複。";
 
