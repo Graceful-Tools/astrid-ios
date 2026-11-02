@@ -177,13 +177,37 @@ final class MacE2EJourneyUITests: XCTestCase {
             attachScreenshot(app, "never appeared")
             throw UITestFailure("A task added on the server never reached the open list in 90s")
         }
-        // Measured 2026-11-02: 53 s. The server leaves the actor out of task_created, so the
-        // core's 60-second pass carried it, not the stream. Strict: once AWTD-1497 deploys this
-        // passes, the expectation fails the test, and this wrapper comes out.
-        XCTExpectFailure("AWTD-1497: task_created skips the actor's own other devices") {
-            XCTAssertLessThanOrEqual(seconds, 20,
-                                     "the task appeared after \(seconds)s: the live stream did not carry it, the timer did")
+        // Measured 2026-11-02: 53 s, the core's sixty-second pass and not the stream, because the
+        // server left the actor out of task_created. AWTD-1497 put them back in.
+        XCTAssertLessThanOrEqual(seconds, 20,
+                                 "the task appeared after \(seconds)s: the live stream did not carry it, the timer did")
+    }
+
+    /// An edit made on another of the account's devices reaches the open list live (AITD-574).
+    /// The server sends the actor's own edits to their other devices only when the write names
+    /// the client that made it; the Apple apps name theirs since astrid-core 3677cfb, so this
+    /// rename names one too.
+    @MainActor
+    func test08_ATaskEditedElsewhereChangesInTheOpenList() throws {
+        let title = "T-\(fixtures.runId)-edited-\(tag)"
+        let task = try UITestAPI.createTask(titled: title, inList: fixtures.lists.main.id)
+        let app = try launchSignedIn()
+        try openList(app, named: fixtures.lists.main.name)
+        try waitForText(app, title, "the task before the edit")
+        Thread.sleep(forTimeInterval: 3)
+
+        let renamed = title + "-renamed"
+        let started = Date()
+        try UITestAPI.renameTaskFromAnotherDevice(id: task.id, to: renamed)
+        let appeared = app.staticTexts[renamed].firstMatch.waitForExistence(timeout: 90)
+        let seconds = Int(Date().timeIntervalSince(started))
+        print("AITD-574: the edit made elsewhere \(appeared ? "appeared after \(seconds)s" : "never appeared")")
+        guard appeared else {
+            attachScreenshot(app, "edit never appeared")
+            throw UITestFailure("A rename made on another device never reached the open list in 90s")
         }
+        XCTAssertLessThanOrEqual(seconds, 20,
+                                 "the edit appeared after \(seconds)s: the live stream did not carry it, the timer did")
     }
 
     // MARK: - Helpers

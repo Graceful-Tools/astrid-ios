@@ -158,12 +158,25 @@ enum UITestAPI {
 
     // MARK: - Transport
 
+    /// Rename a task the way another of the account's apps would: the write names a client of
+    /// its own (`x-astrid-client-id`), which is what lets the server send the edit to the
+    /// account's other open devices live rather than leaving them to the sync timer (AITD-574,
+    /// astrid-web AWTD-1497). An unnamed write still reaches them only on that timer.
+    static func renameTaskFromAnotherDevice(id: String, to title: String) throws {
+        let device = "uitest_" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        guard try send("PUT", "/api/v1/tasks/\(id)", body: ["title": title],
+                       headers: ["x-astrid-client-id": device]) != nil else {
+            throw UITestFailure("PUT /api/v1/tasks/\(id) found no task")
+        }
+    }
+
     private static func get(_ path: String) throws -> [String: Any]? {
         try send("GET", path)
     }
 
     private static func send(_ method: String, _ path: String,
-                             body: [String: Any]? = nil) throws -> [String: Any]? {
+                             body: [String: Any]? = nil,
+                             headers: [String: String] = [:]) throws -> [String: Any]? {
         guard let cookie = UITestSessionResource.sessionCookie else {
             throw UITestFailure("UITestAPI needs a session — run `npm run test:ui`, which mints one")
         }
@@ -174,6 +187,7 @@ enum UITestAPI {
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpMethod = method
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
