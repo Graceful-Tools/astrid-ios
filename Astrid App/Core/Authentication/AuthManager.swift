@@ -72,7 +72,26 @@ class AuthManager: ObservableObject {
         return !userId.hasPrefix(localUserIdPrefix)
     }
 
+    /// Whether launch may restore the cached user offline-first (AITD-576).
+    ///
+    /// Not when the run was handed a session: that cookie names the account, and the cached user
+    /// is whoever the previous run signed in as. The Mac UI-test app keeps its own container
+    /// between runs while each run mints a new account, so restoring the old user made every sync
+    /// pass fail the isolation check and the shell stayed empty. Such a run asks the server who
+    /// it is, the way a first launch does.
+    nonisolated static func trustsCachedIdentity(injectedCookie: String?) -> Bool {
+        injectedCookie == nil
+    }
+
     private func checkLocalAuthentication() -> Bool {
+        guard Self.trustsCachedIdentity(injectedCookie: UITestSession.injectedCookie) else {
+            for key in [Constants.UserDefaults.userId, Constants.UserDefaults.userEmail,
+                        Constants.UserDefaults.userName, Constants.UserDefaults.userImage] {
+                defaults.removeObject(forKey: key)
+            }
+            return false
+        }
+
         // Check UserDefaults for cached user ID
         guard let userId = defaults.string(forKey: Constants.UserDefaults.userId),
               !userId.isEmpty else {
