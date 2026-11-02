@@ -52,3 +52,47 @@ enum MonkeyConfig {
 }
 
 private final class MonkeyConfigToken {}
+
+/// What the app's state after an action means: still in front, handed the screen to another app,
+/// or gone.
+///
+/// "Not in the foreground" used to be read as "crashed", and the 2026-W45 weekly run failed on
+/// both platforms with the app alive (AITD-580, AITD-581): an iOS button opened apple.com in
+/// Safari, and on the Mac TestFlight came to the front. Following a link is something the app is
+/// meant to do. A crash is the process ending, which is `.notRunning`.
+enum MonkeySurvival: Equatable {
+    case foreground
+    case handedOff
+    case died
+
+    static func classify(_ state: XCUIApplication.State) -> MonkeySurvival {
+        switch state {
+        case .runningForeground: return .foreground
+        case .runningBackground: return .handedOff
+        #if os(iOS)
+        case .runningBackgroundSuspended: return .handedOff
+        #endif
+        // `.unknown` stays a death: a monkey that cannot tell is not entitled to a pass.
+        default: return .died
+        }
+    }
+
+    /// Checks the app after an action and brings it back if another app took the screen.
+    /// Returns nil while the run can go on, or why it cannot. The hand-off is journalled, so a
+    /// replay shows which action left the app.
+    @MainActor
+    static func check(_ app: XCUIApplication, journal: inout [String]) -> String? {
+        switch classify(app.state) {
+        case .foreground:
+            return nil
+        case .handedOff:
+            journal.append("     ↳ another app came to the front; bringing the app back")
+            app.activate()
+            return app.wait(for: .runningForeground, timeout: 10)
+                ? nil
+                : "it handed the screen to another app and could not be brought back"
+        case .died:
+            return "it crashed or was killed"
+        }
+    }
+}
