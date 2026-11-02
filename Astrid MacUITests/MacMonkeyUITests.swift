@@ -64,11 +64,11 @@ final class MacMonkeyUITests: XCTestCase {
                     """)
             }
 
-            if app.state != .runningForeground {
+            if let death = MonkeySurvival.check(app, journal: &journal) {
                 attach(journal: journal, app: app, named: "app left the foreground at step \(step)")
                 XCTFail("""
                     The Mac app left the foreground at action \(step) (\(action.description)) — \
-                    it crashed or was killed. Replay: MONKEY_SEED=\(seed).
+                    \(death). Replay: MONKEY_SEED=\(seed).
                     """)
                 return
             }

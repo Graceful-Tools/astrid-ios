@@ -6,7 +6,8 @@
 //  from. It asserts three things and deliberately nothing else, because anything more specific
 //  would be asserting the app's current shape rather than its survival:
 //
-//    1. the app never leaves the foreground (a crash or a hang taking it down is a failure)
+//    1. the app never dies (a crash or a hang taking it down is a failure; another app coming to
+//       the front — a link opening Safari — is a hand-off, and the app is brought back)
 //    2. no single action takes longer than `hangThreshold` (a beachball is a bug even if the
 //       app recovers)
 //    3. the app is still driveable at the end — the accessibility tree is still there
@@ -65,11 +66,11 @@ final class MonkeyUITests: XCTestCase {
                     """)
             }
 
-            if app.state != .runningForeground {
+            if let death = MonkeySurvival.check(app, journal: &journal) {
                 attach(journal: journal, app: app, named: "app left the foreground at step \(step)")
                 XCTFail("""
                     The app left the foreground at action \(step) (\(action.description)) — \
-                    it crashed or was killed. Replay: MONKEY_SEED=\(seed).
+                    \(death). Replay: MONKEY_SEED=\(seed).
                     """)
                 return
             }
