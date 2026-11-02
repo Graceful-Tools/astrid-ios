@@ -144,9 +144,26 @@ enum UITestAPI {
         throw UITestFailure("Server never showed a list named \"\(name)\" within \(Int(timeout))s")
     }
 
+    /// Create a task as this run's account, the way another device would: straight to the server,
+    /// never through the app under test (AITD-574).
+    @discardableResult
+    static func createTask(titled title: String, inList listId: String) throws -> Task {
+        let body: [String: Any] = ["title": title, "listIds": [listId]]
+        guard let json = try send("POST", "/api/v1/tasks", body: body),
+              let task = Task((json["task"] as? [String: Any]) ?? json) else {
+            throw UITestFailure("POST /api/v1/tasks answered no task")
+        }
+        return task
+    }
+
     // MARK: - Transport
 
     private static func get(_ path: String) throws -> [String: Any]? {
+        try send("GET", path)
+    }
+
+    private static func send(_ method: String, _ path: String,
+                             body: [String: Any]? = nil) throws -> [String: Any]? {
         guard let cookie = UITestSessionResource.sessionCookie else {
             throw UITestFailure("UITestAPI needs a session — run `npm run test:ui`, which mints one")
         }
@@ -156,6 +173,11 @@ enum UITestAPI {
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpMethod = method
+        if let body {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
 
         let done = DispatchSemaphore(value: 0)
         var result: (Data?, URLResponse?, Error?)
@@ -164,13 +186,13 @@ enum UITestAPI {
             done.signal()
         }.resume()
         guard done.wait(timeout: .now() + 20) == .success else {
-            throw UITestFailure("GET \(path) timed out")
+            throw UITestFailure("\(method) \(path) timed out")
         }
-        if let error = result.2 { throw UITestFailure("GET \(path) failed: \(error.localizedDescription)") }
+        if let error = result.2 { throw UITestFailure("\(method) \(path) failed: \(error.localizedDescription)") }
         let status = (result.1 as? HTTPURLResponse)?.statusCode ?? 0
         if status == 404 { return nil }
         guard (200..<300).contains(status), let data = result.0 else {
-            throw UITestFailure("GET \(path) answered \(status)")
+            throw UITestFailure("\(method) \(path) answered \(status)")
         }
         return try JSONSerialization.jsonObject(with: data) as? [String: Any]
     }

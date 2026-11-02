@@ -61,6 +61,7 @@ if [[ "${1:-}" == "--ui" ]]; then
     # Built, then given its own bundle id before anything launches it (AITD-529): under the
     # shipping id the app opens the installed Astrid's container and reads the owner's saved
     # settings. See lib/mac-uitest-identity.sh. One test at a time — the suite shares one screen.
+    # MAC_UI_ONLY narrows the run to one class or test (`Astrid MacUITests/<Class>/<test>`).
     UI_ARGS=(
         -scheme "Astrid Mac"
         -destination "platform=macOS,arch=arm64"
@@ -71,7 +72,7 @@ if [[ "${1:-}" == "--ui" ]]; then
     "$SCRIPT_DIR/lib/mac-uitest-identity.sh" /tmp/astrid-mac-ui-dd/Build/Products/Debug/Astrid.app
     set +e
     xcodebuild test-without-building "${UI_ARGS[@]}" \
-        -only-testing:"Astrid MacUITests" \
+        -only-testing:"${MAC_UI_ONLY:-Astrid MacUITests}" \
         -skip-testing:"Astrid MacUITests/MacMonkeyUITests" \
         -parallel-testing-enabled NO \
         -collect-test-diagnostics never \

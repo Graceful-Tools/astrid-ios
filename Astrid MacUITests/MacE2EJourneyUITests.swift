@@ -154,6 +154,33 @@ final class MacE2EJourneyUITests: XCTestCase {
                       "the server has the comment (had \(before), now \(comments.count))")
     }
 
+    // MARK: - 7. A change made elsewhere
+
+    /// A task added on another device appears in the list on screen with no click, no ⌘R and no
+    /// trip through the sidebar (AITD-574). The live stream carries it in seconds; the core's
+    /// sixty-second pass is only the floor for when the stream is down, so the wait is shorter.
+    @MainActor
+    func test07_ATaskAddedElsewhereAppearsInTheOpenList() throws {
+        let app = try launchSignedIn()
+        try openList(app, named: fixtures.lists.main.name)
+        // The list is on screen and settled: its existing fixture rows have drawn.
+        try waitForText(app, fixtures.lists.main.name, "the open list")
+        Thread.sleep(forTimeInterval: 3)
+
+        let title = "T-\(fixtures.runId)-elsewhere-\(tag)"
+        let started = Date()
+        try UITestAPI.createTask(titled: title, inList: fixtures.lists.main.id)
+        let appeared = app.staticTexts[title].firstMatch.waitForExistence(timeout: 90)
+        let seconds = Int(Date().timeIntervalSince(started))
+        print("AITD-574: the task added elsewhere \(appeared ? "appeared after \(seconds)s" : "never appeared")")
+        guard appeared else {
+            attachScreenshot(app, "never appeared")
+            throw UITestFailure("A task added on the server never reached the open list in 90s")
+        }
+        XCTAssertLessThanOrEqual(seconds, 20,
+                                 "the task appeared after \(seconds)s: the live stream did not carry it, the timer did")
+    }
+
     // MARK: - Helpers
 
     /// Launch with this run's session and wait for the shell. Signed out WITH a session is the
