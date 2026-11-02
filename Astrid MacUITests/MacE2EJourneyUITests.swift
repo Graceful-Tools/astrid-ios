@@ -177,8 +177,13 @@ final class MacE2EJourneyUITests: XCTestCase {
             attachScreenshot(app, "never appeared")
             throw UITestFailure("A task added on the server never reached the open list in 90s")
         }
-        XCTAssertLessThanOrEqual(seconds, 20,
-                                 "the task appeared after \(seconds)s: the live stream did not carry it, the timer did")
+        // Measured 2026-11-02: 53 s. The server leaves the actor out of task_created, so the
+        // core's 60-second pass carried it, not the stream. Strict: once AWTD-1497 deploys this
+        // passes, the expectation fails the test, and this wrapper comes out.
+        XCTExpectFailure("AWTD-1497: task_created skips the actor's own other devices") {
+            XCTAssertLessThanOrEqual(seconds, 20,
+                                     "the task appeared after \(seconds)s: the live stream did not carry it, the timer did")
+        }
     }
 
     // MARK: - Helpers
