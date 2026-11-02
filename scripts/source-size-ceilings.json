@@ -5,8 +5,8 @@
   "slack": 150,
   "ceilings": {
     "Astrid App/Views/Tasks/TaskDetailViewNew.swift": {
-      "lines": 1836,
-      "why": "Was 2090, then 1914. AITD-363 extracted the leading control into TaskDetailLeadingControl.swift rather than raising this; AITD-425 moved the custom header to TaskDetailHeaderBar.swift. Down to 1836, not up to 1928."
+      "lines": 1832,
+      "why": "Was 2090, then 1914. AITD-363 extracted the leading control into TaskDetailLeadingControl.swift rather than raising this; AITD-425 moved the custom header to TaskDetailHeaderBar.swift. Down to 1836, not up to 1928. AITD-577 moved the read-only description row to DescriptionReaderView.swift: 1832."
     },
     "Astrid App/Views/Tasks/CommentSectionViewEnhanced.swift": {
       "lines": 1822,
