@@ -40,6 +40,9 @@ struct InlineTextAreaEditor: View {
     /// Stamped on the display text and on the editor that replaces it, and on nothing else —
     /// on the container it would land on the label too (AITD-528).
     var accessibilityIdentifier: String? = nil
+    /// Shows the expand button that opens the text full screen (AITD-577) — the task
+    /// description wants it; a list's one-line blurb does not.
+    var offersFullScreen: Bool = false
 
     @State private var isEditing = false
     @FocusState private var isFocused: Bool
@@ -56,9 +59,15 @@ struct InlineTextAreaEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing8) {
-            Text(label)
-                .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            HStack(spacing: 0) {
+                Text(label)
+                    .font(Theme.Typography.caption1())
+                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                Spacer(minLength: 0)
+                if offersFullScreen {
+                    DescriptionExpandButton(text: $text, onSave: onSave)
+                }
+            }
 
             if isEditing {
                 // Standard TextEditor — no overlay, no cursor alignment issues

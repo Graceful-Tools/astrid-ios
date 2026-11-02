@@ -124,6 +124,7 @@
 				Views/Components/CameraCapturePicker.swift,
 				Views/Components/CompactTaskRow.swift,
 				Views/Components/CustomRepeatingPatternEditor.swift,
+				Views/Components/DescriptionReaderView.swift,
 				Views/Components/EmptyStateView.swift,
 				Views/Components/FloatingHeader.swift,
 				Views/Components/HamburgerMenuIcon.swift,

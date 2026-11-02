@@ -961,6 +961,8 @@
 "sync.sync_now" = "立即同步";
 "sync.unlink" = "取消关联";
 "task_detail.completed_via" = "通过 %@ 完成";
+"task_detail.description.full_screen" = "全屏打开";
+"task_detail.description.preview" = "预览";
 "sync.mode_bidirectional" = "保持全部双向同步";
 "sync.mode_footer_bidirectional" = "您的 Google Tasks 列表会出现在 %1$@ 中，%1$@ 列表也会出现在 Google Tasks 中。双方的新列表会自动加入，同名列表会配对而不会重复。";
 

@@ -479,10 +479,13 @@ struct TaskDetailViewNew: View {
                     // View-only: Only show description if it exists
                     if !editedDescription.isEmpty {
                         TwoColumnRow(label: "Description") {
-                            Text(editedDescription)
-                                .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            HStack(alignment: .top, spacing: 0) {
+                                Text(editedDescription)
+                                    .font(Theme.Typography.body())
+                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                DescriptionExpandButton(text: $editedDescription, isReadOnly: true) // AITD-577
+                            }
                         }
                     }
                 } else {
@@ -490,7 +493,8 @@ struct TaskDetailViewNew: View {
                         label: "Description",
                         text: $editedDescription,
                         placeholder: NSLocalizedString("task_edit.add_description", comment: "Add a description..."),
-                        onSave: saveDescription, accessibilityIdentifier: "taskDetail.description"
+                        onSave: saveDescription, accessibilityIdentifier: "taskDetail.description",
+                        offersFullScreen: true
                     )
                     .padding(.horizontal, Theme.spacing16)
                 }

@@ -961,6 +961,8 @@
 "sync.sync_now" = "今すぐ同期";
 "sync.unlink" = "リンク解除";
 "task_detail.completed_via" = "%@ で完了";
+"task_detail.description.full_screen" = "全画面で開く";
+"task_detail.description.preview" = "プレビュー";
 "sync.mode_bidirectional" = "すべてを双方向で同期";
 "sync.mode_footer_bidirectional" = "Google Tasks のリストが %1$@ に、%1$@ のリストが Google Tasks に表示されます。どちら側の新しいリストも自動的に追加され、同名のリストは重複せずペアになります。";
 

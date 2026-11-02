@@ -969,6 +969,8 @@
 "sync.sync_now" = "Sync now";
 "sync.unlink" = "Unlink";
 "task_detail.completed_via" = "Completed via %@";
+"task_detail.description.full_screen" = "Open full screen";
+"task_detail.description.preview" = "Preview";
 "sync.mode_bidirectional" = "Keep everything in sync (two-way)";
 "sync.mode_footer_bidirectional" = "Your Google Tasks lists appear in %1$@, and your %1$@ lists appear in Google Tasks. New lists on either side join automatically, and lists with matching names pair up instead of duplicating.";
 

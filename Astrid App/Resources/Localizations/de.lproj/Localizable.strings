@@ -961,6 +961,8 @@
 "sync.sync_now" = "Jetzt synchronisieren";
 "sync.unlink" = "Trennen";
 "task_detail.completed_via" = "Erledigt über %@";
+"task_detail.description.full_screen" = "Im Vollbild öffnen";
+"task_detail.description.preview" = "Vorschau";
 "sync.mode_bidirectional" = "Alles synchron halten (beide Richtungen)";
 "sync.mode_footer_bidirectional" = "Deine Google Tasks-Listen erscheinen in %1$@ und deine %1$@-Listen in Google Tasks. Neue Listen auf beiden Seiten kommen automatisch dazu; gleichnamige Listen werden gekoppelt statt dupliziert.";
 
