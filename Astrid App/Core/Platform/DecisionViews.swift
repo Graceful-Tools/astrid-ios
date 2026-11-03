@@ -124,10 +124,8 @@ struct TradeOffGridView: View {
                 + inline(cell)
         return title.font(style.small.bold())
             .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 6).padding(.vertical, 4)
-            .frame(minWidth: column == 0 ? optionWidth.lowerBound : cellWidth.lowerBound,
-                   maxWidth: column == 0 ? optionWidth.upperBound : cellWidth.upperBound)
+            .wrapped(within: column == 0 ? optionWidth : cellWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity,
                    alignment: column == 0 ? .leading : .center)
     }
@@ -135,9 +133,8 @@ struct TradeOffGridView: View {
     /// Numbered like the cards, whatever marker the row was written with.
     private func option(_ row: TradeOffRow, number: Int) -> some View {
         (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
-            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 6).padding(.vertical, 6)
-            .frame(minWidth: optionWidth.lowerBound, maxWidth: optionWidth.upperBound, alignment: .leading)
+            .wrapped(within: optionWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
@@ -146,9 +143,8 @@ struct TradeOffGridView: View {
                                           referenceFont: nil))
             .font(style.small)
             .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 6).padding(.vertical, 6)
-            .frame(minWidth: cellWidth.lowerBound, maxWidth: cellWidth.upperBound)
+            .wrapped(within: cellWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(RoundedRectangle(cornerRadius: 4)
                 .fill(cell.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))
@@ -174,6 +170,46 @@ struct TradeOffGridView: View {
         }
         .font(style.small)
         .foregroundColor(style.muted)
+    }
+}
+
+/// Lays its content out at a definite width inside `range` — its own width when that is
+/// narrower, never wider than it is offered — and reports the height that width needs.
+///
+/// `frame(minWidth:maxWidth:)` cannot do this inside a sideways ScrollView: the scroll view
+/// measures with no width, the frame passes none on, and the text answers with its one-line
+/// height. The row kept that height while the text drew wrapped at `range.upperBound`, so
+/// everything after the first line was clipped (AITD-588).
+private struct WrapWithin: Layout {
+    let range: ClosedRange<CGFloat>
+
+    private func width(for proposal: ProposedViewSize, _ child: LayoutSubview) -> CGFloat {
+        let natural = child.sizeThatFits(.unspecified).width
+        return min(natural, proposal.width ?? range.upperBound, range.upperBound)
+            .clamped(to: range)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        let width = width(for: proposal, child)
+        return CGSize(width: width, height: child.sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let child = subviews.first else { return }
+        child.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: nil))
+    }
+}
+
+private extension View {
+    func wrapped(within range: ClosedRange<CGFloat>) -> some View {
+        WrapWithin(range: range) { self }
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
