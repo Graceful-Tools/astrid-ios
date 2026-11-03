@@ -1599,8 +1599,6 @@
 "listInsights.duration.days" = "%@일";
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
-"decision.confirm_title" = "이 옵션으로 답할까요?";
-"decision.confirm_send" = "“%@” 보내기";
 "decision.recommended" = "추천";
 "tradeoff.very_poor" = "매우 나쁨";
 "tradeoff.poor" = "나쁨";

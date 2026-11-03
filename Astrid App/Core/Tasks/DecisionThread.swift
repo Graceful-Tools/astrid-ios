@@ -51,6 +51,13 @@ struct DecisionResponse {
             ?? .answeredInWords
     }
 
+    /// A tap sends at once, on iPhone as on the Mac (AITD-584): the reply shows in the thread and
+    /// can be edited there, so a confirmation sheet only slowed the answer down.
+    func tap(_ option: DecisionOption, in decision: Decision) {
+        guard state(for: decision) == .open else { return }
+        choose(option)
+    }
+
     static func state(_ response: DecisionResponse?, for decision: Decision) -> State {
         response?.state(for: decision) ?? .readOnly
     }

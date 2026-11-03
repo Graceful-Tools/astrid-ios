@@ -1613,8 +1613,6 @@
 "listInsights.duration.days" = "%@ j";
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
-"decision.confirm_title" = "Répondre avec cette option ?";
-"decision.confirm_send" = "Envoyer « %@ »";
 "decision.recommended" = "Recommandée";
 "tradeoff.very_poor" = "Très mauvais";
 "tradeoff.poor" = "Mauvais";

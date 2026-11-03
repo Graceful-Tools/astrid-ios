@@ -1599,8 +1599,6 @@
 "listInsights.duration.days" = "%@ 天";
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
-"decision.confirm_title" = "用這個選項回答？";
-"decision.confirm_send" = "傳送「%@」";
 "decision.recommended" = "推薦";
 "tradeoff.very_poor" = "很差";
 "tradeoff.poor" = "差";
